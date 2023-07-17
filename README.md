@@ -1,2 +1,2 @@
 # household-epidemics
-Houselhold surveys
+Epidemics mathematical modeling of houselhold surveys.
