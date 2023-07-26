@@ -1,18 +1,16 @@
 #ifndef DEF_HOUSEHOLD__H
 #define DEF_HOUSEHOLD__H
+
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <cmath>
 #include <random>
+#include <iostream>
 
-// Constant parameters
-// extern double maxPCRDetectability;
-extern double mGamma;
-extern double vGamma;
-extern double shift;
-extern double shapeInf;
-extern double scaleInf;
+#include "parameter.hpp"
 
-#define INFINITY 1000.0
+#define VACC_ONSET 90.
 
 //----------------------------------------------------------------------
 // Individual : Class declaration
@@ -21,28 +19,40 @@ extern double scaleInf;
 class Individual {
 	public:
 		// Attributes
-		int indid;
-		bool is_case = 0;
-		int age;
-		int sex;
-		double onset_time = 0.;
-		double augm_onset_time = 0.; 
-		int start_follow_up;
-		int study_period;
-		int vacc_status;
-		int isolation;
-		int vacc_delay;
-		int recovered;
-		double infec_time = INFINITY;
+		int i_indid = 0;
+		int i_is_case = 0;
+		int i_age = 0;
+		int i_sex = 0;
+		bool i_isolation = false;
+		bool i_recovered = false;
+		int i_vacc_status = 0;
+		double i_start_follow_up = 0.0;
+		double i_study_period = 0.0;
+		double i_vacc_delay = 0.0;
+		double i_onset_time = INFINITY;
+		double i_augm_onset_time = INFINITY; 
+		double i_augm_infec_time = INFINITY;
 
 		// Constructors
-		Individual(int indid, double onset_time, bool is_case, int age, int sex, int start_follow_up, int study_period, int vacc_status, int isolation, int vacc_delay, int recovered);
+		Individual(
+			int indid,
+			int is_case,
+			int age,
+			int sex,
+			bool isolation,
+			bool recovered,
+			int vacc_status,
+			double start_follow_up,
+			double study_period,
+			double vacc_delay,
+			double onset_time
+			);
 		Individual() = default;
-		// FIXME : deconstructor?
+		~Individual() {};
 
 		// Methods
-		double infec_profile(double tinf, int study_period);
-		double infec_cumulative(double tinf, int study_period);
+		double infec_profile(double tinf, double study_period);
+		double infec_cumulative(double tinf, double study_period);
 };
 
 //----------------------------------------------------------------------
@@ -52,23 +62,21 @@ class Individual {
 class Household {
 	// Attributes
 	size_t h_size = 0;
-	int h_notis_case = 0;
-	int h_start_follow_up = -1;
 	bool h_contact_pattern = false;
 	double h_infec_time = INFINITY;
 
 	std::vector<int> h_confCase;
 	std::vector<Individual> h_residents;
 	std::vector<double> h_inst_community_infec;
-	std::vector<double> h_cum_community_infec;
-	std::vector<std::vector<double>> h_cum_Lambda;
+	std::vector<double> h_cumul_community_infec;
+	std::vector<std::vector<double>> h_cumul_Lambda;
 	std::vector<std::vector<double>> h_inst_Lambda;
 
 	public:
 		// Constructors
 		Household(bool contact_pattern, std::vector<double> instval, std::vector<double>cumval);
-		Household() = default ;
-		// FIXME : deconstructor?
+		Household() = default;
+		~Household() {};
 		
 		// Getter
 		size_t get_size() const;
@@ -76,25 +84,27 @@ class Household {
 		size_t num_symptomatic() const;
 		std::string get_resident_index() const;
 		std::vector<int> get_infec_list() const;
-		double get_augm_onset_time(int index) const;
+		double get_augm_onset_time(size_t idx) const;
 
 		// Setter
 		void add_individual(Individual this_indiv);
-		void set_infec_time(int index, double infec_time);
-		void set_onset_time(int index, double onset_time);
-		void init_inf_time(int index, std::mt19937_64& rnd_generator, bool display = false);
-		void init_onset_time(int index, std::mt19937_64& rnd_generator, bool display = false);
+		void init_infec_time(size_t idx, std::mt19937_64& rand_gen, bool display = false);
+		void init_onset_time(size_t idx, std::mt19937_64& rand_gen, bool display = false);
 
 		// Computations
-		void compute_infec_profiles(bool display = false);
-		void update_infec_profiles(int ind, bool display = false);
-		double new_infec_time(int index, std::mt19937_64& rnd_generator);
-		double new_onset_time(int index, std::mt19937_64& rnd_generator);
-		double log_dIncub(int index, bool display = false);
-		double log_dIncub_g(int index, bool display = false);
-		double compute_log_lik(std::vector<double> parameters, std::vector<int> selectedParam, double maxPCRDetectability, bool display = false);
-		double log_pInf(size_t curr, std::vector<double> parameter, std::vector<int> selectedParam, bool display = false);
-		double log_S(size_t curr, double t0, std::vector<double> parameter, std::vector<int> selectedParam, bool display = false);
+		void set_augm_infec_time(size_t idx, double infec_time, bool display = false);
+		void set_augm_onset_time(size_t idx, double onset_time, bool display = false);
+		void init_infec_profiles(bool display = false);
+		void update_infec_profiles(size_t ind, bool display = false);
+		double new_infec_time(size_t idx, std::mt19937_64& rand_gen);
+		double new_onset_time(size_t idx, std::mt19937_64& rand_gen);
+
+		double child_infectivity (size_t curr, size_t infectee);
+		double model_susceptibility (size_t curr);
+		double log_incub_proba(size_t idx, bool display = false);
+		double compute_loglike(bool display = false);
+		double log_infec_proba(size_t curr, bool display = false);
+		double log_surv_proba(size_t curr, double t0, bool display = false);
 };
 
-#endif
+#endif // DEF_HOUSEHOLD__H

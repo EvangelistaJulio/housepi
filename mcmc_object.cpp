@@ -1,10 +1,4 @@
-#include <vector>
-#include <cmath>
-#include <algorithm>
-#include <iostream>
 #include "mcmc_object.hpp"
-#include "household.hpp"
-#include "utils.h"
 
 using namespace std;
 
@@ -18,221 +12,85 @@ using namespace std;
 
 // default 
 McmcObject::McmcObject() {
-    m_rnd_generator.seed(123);
-    m_globalLogLik = 0.0;
+    m_rand_gen.seed(12345);
+    m_global_LogLike = 0.0;
     m_iterations = 0;
     m_iter_time_infec = 0;
-    m_accepted_move_data = 0;
-	m_proposed_move_data = 0;
-    m_rate_for_random_walk.resize(0);
-    m_num_accepted_move.resize(0);
-    m_num_proposed_move.resize(0);
-    m_accept.resize(0);
-    m_parameter.resize(0);
-    m_selected_param.resize(0);
-    m_hhLogLik.resize(0);
-    std::vector<Household> m_data;
-    m_data.resize(0);
-    m_nHH = 0;
-    m_lnormPrior.resize(0);
-    m_sdLNormPrior.resize(0);
-    m_max_PCR_detectability = 10.0;
-    m_adaptive_steps = 0.0;
+    m_hh_LogLike = {};
+    m_data = {};
+    m_adaptive_steps = 0;
+
+    reset_moves();
 }
 
 // user 
 McmcObject::McmcObject(
     unsigned seed,
-    int num_iterations,
-    int num_adaptive_steps,
+    size_t num_iterations,
+    size_t num_adaptive_steps,
     std::vector<Household> data,
-    std::vector<double> parameter,
-    std::vector<int> selected_parameter,
-    std::vector<double> rate_for_random_walk, 
-    std::vector<int> lnormPrior,
-    std::vector<double> sdLNormPrior,
-    int n_iter_time_infec,
-    double max_PCR_detectability
+    size_t n_iter_time_infec
     ) {
 
-    // Default values
-    m_globalLogLik = 0.0;
-    m_num_accepted_move.resize(0);
-    m_num_proposed_move.resize(0);
-    m_accept.resize(parameter.size());
-    m_accepted_move_data = 0;
-	m_proposed_move_data = 0;
-
     // Copy input vectors
-    m_rnd_generator.seed(seed);
-    m_hhLogLik.resize(data.size());
+    m_rand_gen.seed(seed);
+    m_hh_LogLike.resize(data.size());
     m_iterations = num_iterations;
     m_adaptive_steps = num_adaptive_steps;
     m_iter_time_infec = n_iter_time_infec;
-    m_rate_for_random_walk = rate_for_random_walk;
-    m_lnormPrior = lnormPrior;
-    m_sdLNormPrior = sdLNormPrior;
-    m_max_PCR_detectability = max_PCR_detectability;
-    m_parameter = parameter;
-    m_selected_param = selected_parameter;
     m_data = data;
-    m_nHH = data.size();
+
+    reset_moves();
 }
 
 // ----------------------------
 //  Methods : Setter
 // ----------------------------
 
-// Initialize parameter values
+// Initialize param values
 void McmcObject::init_param_values () {
-    
-    for (size_t parID = 0; parID < m_parameter.size(); parID++) {
-        // FIXME : what is this if?
-        if (m_selected_param[parID]) {
-            
-            switch (parID) {
-            case 0: // alpha - Uniform(0,1)
-                m_parameter[parID] = runif(m_rnd_generator); 
-                //m_parameter[parID] = rexp(m_rnd_generator, 500); 
-                break;
 
-            case 1: // beta - Uniform(0,5)
-                m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0); 
-                break;
-
-            case 2: // delta - Uniform(-3,3)
-                m_parameter[parID] = runif(m_rnd_generator, -3.0, 3.0); 
-                break;
-
-            case 3:
-                if ( m_lnormPrior[parID] ) { // rUV - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rUV - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 4:
-                if ( m_lnormPrior[parID] ) { // rVC - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rVC - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 5:
-                if ( m_lnormPrior[parID] ) { // r1VA - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // r1VA - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 0.1);
-                } 
-                break;
-
-            case 6:
-                if ( m_lnormPrior[parID] ) { // r2VA - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // r2VA - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 0.1);
-                } 
-                break;
-
-            case 7:
-                if ( m_lnormPrior[parID] ) { // rUA - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rUA - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 8:
-                if ( m_lnormPrior[parID] ) { // rBA - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rBA - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 9:
-                if ( m_lnormPrior[parID] ) { // rQ - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rQ - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 10:
-                if ( m_lnormPrior[parID] ) { // rCC - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rCC - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 11:
-                if ( m_lnormPrior[parID] ) { // rMC - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rPC - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-            
-            case 12:
-                if ( m_lnormPrior[parID] ) { // rFC - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rPC - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-
-            case 13:
-                if ( m_lnormPrior[parID] ) { // rFC - LogNormal(0,sd)
-                    m_parameter[parID] = rlnorm(m_rnd_generator, 0.0, m_sdLNormPrior[parID]);   
-                } else {                // rPC - Uniform(0,5)
-                    m_parameter[parID] = runif(m_rnd_generator, 0.0, 5.0);
-                } 
-                break;
-            
-            }
+    for (std::string parID : m_param_to_infer_names) {
+        if (_param_infer(parID) == true){
+            _param(parID).set_value(_param(parID).generate_from_prior(m_rand_gen)); 
         }
     }
 }
 
 // Modification of attributes
 void McmcObject::reset_moves () {
-    m_num_proposed_move.clear();
-    m_num_proposed_move.resize(m_parameter.size());
-    m_num_accepted_move.clear();
-    m_num_accepted_move.resize(m_parameter.size());
-    m_accepted_move_data = 0;
-	m_proposed_move_data = 0;
+
+    m_num_propos_data = 0;
+    m_num_accept_data = 0;
+    for (std::string parID : m_param_to_infer_names) {
+        _param(parID).reset_accept_propos();
+    }
 }
+
 
 // Initialize infection time
 void McmcObject::init_augm_data (bool display) {
     
-    for (size_t house = 0; house < m_nHH; house++) {
-        for (size_t ind = 0; ind < m_data[house].get_size(); ind++) {
-            m_data[house].init_onset_time(ind, m_rnd_generator, display);
-            m_data[house].init_inf_time(ind, m_rnd_generator, display);
+    // loop over houses
+    for (size_t h = 0; h < num_households(); h++) {
+        // loop over residents within the house
+        for (size_t i = 0; i < m_data[h].get_size(); i++) {
+            m_data[h].init_onset_time(i, m_rand_gen, display);
+            m_data[h].init_infec_time(i, m_rand_gen, display);
         }
         // Compute person-to-person transmission rate within household
-        m_data[house].compute_infec_profiles(display);
+        m_data[h].init_infec_profiles(display);
+        // FIXME : update also?
     }
 }
 
 // Initialize infection time
-void McmcObject::init_log_lik (bool display) {
+void McmcObject::init_LogLike (bool display) {
     int nCases = 0;
     
-    // --- Display -- //
-    if (display == true) {
-        cout << m_parameter[1] << endl;
-    }
-    // --- End-of-Display -- //
-
-    for (size_t house=0; house < m_nHH; house++) {
-        m_hhLogLik[house] = m_data[house].compute_log_lik(m_parameter, m_selected_param, m_max_PCR_detectability, display);
-        m_globalLogLik += m_hhLogLik[house];
+    for (size_t house = 0; house < num_households(); house++) {
+        m_hh_LogLike[house] = m_data[house].compute_loglike(display);
+        m_global_LogLike += m_hh_LogLike[house];
         nCases += m_data[house].num_symptomatic();
     }
 }
@@ -241,246 +99,210 @@ void McmcObject::init_log_lik (bool display) {
 //  Methods : Computations
 // ----------------------------
 
-// Update parameter value in the mcmc chain
-void McmcObject::update_parameter (int parID, double step, bool display) {
+// Update param value in the mcmc chain
+void McmcObject::update_param (std::string parID, size_t step, bool display) {
+    bool accept_move = false;
 
     // Random walk
-	double oldValue = m_parameter[parID];
-	double newValue = 0.0;
-    double randomWalk = 0.0;
-    double logRatioProposal = 0.0;
-    double logRatioPrior = 0.0;
+	double old_value = _param_value(parID);
+	double new_value, Q;
+    double log_ratio_proposal, log_ratio_prior, new_global_LogLike;
+    std::vector<double> new_LogLike_HH(num_households(), 0.0);
 
-    if (parID != 2) {
-        randomWalk = m_rate_for_random_walk[parID] * rnorm(m_rnd_generator, 0.0, 1.0);
-        newValue = oldValue * exp(randomWalk);
-        logRatioProposal = randomWalk;
-    } else {
-        newValue = oldValue + rnorm(m_rnd_generator, 0.0, m_rate_for_random_walk[parID]);
-    }
+    // propose new value
+    new_value = _param(parID).metropolis(m_rand_gen);
 
-    // Log ratio of priors 
-    // FIXME : if log(0) then skip the move without any further computation
-    // FIXME : those are clippers (logspaced), it should be a parameter
-    switch (parID) {
-    	case 0: // alpha - Uniform(0,1)
-    		if (newValue > 1) logRatioPrior = log(0); // FIXME : log of 0
-            //logRatioPrior = logdexp(newValue, 500) - logdexp(oldValue, 500); 
-    		break;
+    // proceed only if the new value is within range, i. e. no infinities
+    if (_param(parID).within_range(new_value) == true) {
+        log_ratio_proposal = _param(parID).metropolis_log_ratio_proposal();
+        log_ratio_prior = _param(parID).metropolis_log_ratio_prior(new_value);
 
-        case 1: // beta - Uniform(0,10)
-        	if (newValue > 5) logRatioPrior = log(0); // FIXME : log of 0
-            //logRatioPrior = logdexp(newValue, 0.001) - logdexp(oldValue, 0.001); 
-        	break;
+        // Compute new log likelihood
+        _param(parID).set_value(new_value);
+        new_global_LogLike = 0.0;
+        for (size_t house = 0; house < num_households(); house++) {
+            new_LogLike_HH[house] = m_data[house].compute_loglike(display);        
+            new_global_LogLike += new_LogLike_HH[house];
+        }
 
-        case 2: // delta - Uniform(-3,3)
-            if (newValue > 3 || newValue < -3) logRatioPrior = log(0); // FIXME : log of 0
-            break;
+        // Metropolis
+        Q = new_global_LogLike - m_global_LogLike + log_ratio_proposal + log_ratio_prior;
 
-        case 3:
-        	if (m_lnormPrior[parID]) {  // rUC - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rUC - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); // FIXME : log of 0
-            }
-        	break;
+        if (unif_rand(m_rand_gen) < std::exp(Q)) {
+            accept_move = true;
+            _param(parID).set_num_accept_pp(); 
+            // Update log likelihood
+            m_global_LogLike = new_global_LogLike;
+            m_hh_LogLike = new_LogLike_HH;
 
-        case 4:
-        	if (m_lnormPrior[parID]) {  // rVC - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rVC - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); // FIXME : log of 0
-            }
-        	break;
+        } else {
+            _param(parID).set_value(old_value);
+        }
+    } 
+    _param(parID).set_num_propos_pp();
 
-        case 5:
-        	if (m_lnormPrior[parID]) {  // r1VA - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // r1VA - Uniform(0,5)
-                if (newValue > 0.1 || newValue < 0) logRatioPrior = log(0); // FIXME : log of 0
-            }
-        	break;
-        
-        case 6:
-        	if (m_lnormPrior[parID]) {  // r2VA - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // r2VA - Uniform(0,5)
-                if (newValue > 0.1 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-        
-        case 7:
-        	if (m_lnormPrior[parID]) {  // rUA - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rUA - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-        
-        case 8:
-        	if (m_lnormPrior[parID]) {  // rBA - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rBA - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-        
-        case 9:
-        	if (m_lnormPrior[parID]) {  // rQ - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rQ - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-
-        case 10:
-        	if (m_lnormPrior[parID]) {  // rCC - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rCC - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-        
-        case 11:
-        	if (m_lnormPrior[parID]) {  // rMC - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rPC - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-
-        case 12:
-        	if (m_lnormPrior[parID]) {  // rFC - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rPC - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-
-         case 13:
-        	if (m_lnormPrior[parID]) {  // rFC - LogNormal(0,sd)
-                logRatioPrior = logdlnorm(newValue, 0.0,  m_sdLNormPrior[parID]) - logdlnorm(oldValue, 0.0, m_sdLNormPrior[parID]);
-            } else {               // rPC - Uniform(0,5)
-                if (newValue > 5 || newValue < 0) logRatioPrior = log(0); 
-            }
-        	break;
-    }
-
-	// Compute new log likelihood
-    m_parameter[parID] = newValue;
-    std::vector<double> newLogLikHH(m_nHH, 0.0);
-    double newLogLikGlobal = 0.0;
-    for (size_t house = 0; house < m_nHH; house++) {
-        newLogLikHH[house] = m_data[house].compute_log_lik(m_parameter, m_selected_param, m_max_PCR_detectability, display);        
-        newLogLikGlobal += newLogLikHH[house];
-    }
-
-	// Update log likelihood
-	double Q = newLogLikGlobal - m_globalLogLik + logRatioProposal + logRatioPrior;
-
-	if (log(runif(m_rnd_generator)) < Q) { // FIXME : you just need to draw from an exponential (param=1)
-		m_globalLogLik = newLogLikGlobal;
-		m_hhLogLik = newLogLikHH;
-        m_num_accepted_move[parID]++;
-        m_accept[parID] = (1 + (step - 1) * m_accept[parID]) / step;
-	} else {
-		m_parameter[parID] = oldValue;
-        m_accept[parID] = (0 + (step - 1) * m_accept[parID]) / step;
-	}
-
-    // Adaptative mcmc
-    if (step <= m_adaptive_steps && m_adaptive_steps > 0) {
+    //  --- Adaptative MCMC ---  //
+    _param(parID).set_accept((accept_move + (step - 1) * _param(parID).get_accept()) / step);
+    if (m_adaptive_steps > 0 && step <= m_adaptive_steps) {
         double delta = 1.0 - step / m_adaptive_steps;
-        double diff = m_accept[parID] - m_opt_acceptance;
-        m_rate_for_random_walk[parID] *= 1.0 + delta * diff;
-    }
+        double diff = _param(parID).get_accept() - MCMC_OPTIMAL_ACCEPTANCE;
+        _param(parID).set_rate_metropolis(1.0 + delta * diff);
+    } 
+    // --- --- //
 
-    m_num_proposed_move[parID]++;
 }
+
 
 // Update augmented infection times
 void McmcObject::update_augm_infec_times (bool display) {
-    int inf;
+    double old_value, new_value, Q;
+    double old_proposal, new_proposal;
+    double old_LogLike_of_HH, new_LogLike_of_HH;
 
-    // Loop over houses // FIXME : why ++house?
-    for (size_t h = 0; h < m_data.size(); ++h) {
-        std::vector<int> infected = m_data[h].get_infec_list(); 
-        // FIXME : rationalize this call
-
+    // Loop over households
+    for (size_t h = 0; h < m_data.size(); h++) {
         // Loop over infected residents within house
-        for (size_t i = 0; i < infected.size(); i++) {
-            inf = infected[i];
+        for (size_t i = 0; i < m_data[h].get_size(); i++) {
 
             // Independent sampler from the incubation period
-            double oldValue = m_data[h].get_augm_onset_time(inf);
-            double newValue = m_data[h].new_infec_time(inf, m_rnd_generator);
+            old_value = m_data[h].get_augm_onset_time(i);
+            new_value = m_data[h].new_infec_time(i, m_rand_gen);
 
             // Log ratio of the proposal (independent proposal) 
-            double oldProposal = m_data[h].log_dIncub_g(inf, display);
-            double newProposal = m_data[h].log_dIncub_g(inf, display);
-            double logRatioProposal = oldProposal-newProposal;
+            // FIXME : what is this???
+            old_proposal = m_data[h].log_incub_proba(i, display);
+            new_proposal = m_data[h].log_incub_proba(i, display);
 
             // Update infection time and person-to-person transmission rates
-            m_data[h].set_infec_time(inf, newValue);
-            m_data[h].update_infec_profiles(inf, display);   
+            m_data[h].set_augm_infec_time(i, new_value);
             
             // Log likelihood
-            double newLogLikOfHH = m_data[h].compute_log_lik(m_parameter, m_selected_param, m_max_PCR_detectability, display);
-            double currentLogLik = m_hhLogLik[h];
-            double differenceLogLik = newLogLikOfHH - currentLogLik;
+            old_LogLike_of_HH = m_hh_LogLike[h];
+            new_LogLike_of_HH = m_data[h].compute_loglike(display);
 
-            if( log(runif(m_rnd_generator)) < differenceLogLik+logRatioProposal ) { // FIXME : draw from exponential instead (param=1, cutoff?)
-                m_globalLogLik += differenceLogLik;
-                m_hhLogLik[h] = newLogLikOfHH;
-                m_accepted_move_data++;
+            Q = new_LogLike_of_HH - old_LogLike_of_HH + old_proposal - new_proposal;
+
+            if (unif_rand(m_rand_gen) < std::exp(Q)) { 
+                m_global_LogLike += new_LogLike_of_HH - old_LogLike_of_HH;
+                m_hh_LogLike[h] = new_LogLike_of_HH;
+                m_num_accept_data++;
 
             } else {                
-                m_data[h].set_infec_time(inf, oldValue);
-                m_data[h].update_infec_profiles(inf);
+                m_data[h].set_augm_infec_time(i, old_value);
             }
 
-            m_proposed_move_data++;
+            m_num_propos_data++;
         }
     }
 }
-
 
 // Update augmented symptom onsets
 // FIXME : these two loops for update augmented should be integrated...
 void McmcObject::update_augm_symptom_onset (bool display) {
+    double old_value, new_value, Q;
+    //double old_proposal, new_proposal;
+    double old_LogLike_of_HH, new_LogLike_of_HH;
 
-    // Loop over houses
-    for (size_t h = 0; h<m_data.size(); ++h) {
-        std::vector<int> infected = m_data[h].get_infec_list();
+    // Loop over households
+    for (size_t h = 0; h < m_data.size(); h++) {
+        // Loop over infected residents of the househould
+        for (size_t i = 0; i < m_data[h].get_size(); i++) {
 
-        // Loop over infected individuals
-        for (size_t i = 0; i < infected.size(); i++) {
-            int inf = infected[i];
+            // Independent sampler from uniform distribution [0, 1]
+            old_value = m_data[h].get_augm_onset_time(i); 
+            new_value = m_data[h].new_onset_time(i, m_rand_gen);
 
-            // Independent sampler from uniform distribution [0,1]
-            double oldValue = m_data[h].get_augm_onset_time(inf); 
-            double newValue = m_data[h].new_onset_time(inf, m_rnd_generator);
+            // Log ratio of the proposal (independent proposal) 
+            // FIXME :why here there's no proposal?
 
             // Update infection time and person-to-person transmission rates
-            m_data[h].set_onset_time(inf, newValue);
-            m_data[h].update_infec_profiles(inf, display);   
+            m_data[h].set_augm_onset_time(i, new_value);
             
             // Log likelihood
-            double newLogLikOfHH = m_data[h].compute_log_lik(m_parameter, m_selected_param, m_max_PCR_detectability, display);
-            double currentLogLik = m_hhLogLik[h];
-            double differenceLogLik = newLogLikOfHH - currentLogLik;
+            new_LogLike_of_HH = m_data[h].compute_loglike(display);
+            old_LogLike_of_HH = m_hh_LogLike[h];
 
-            if(log(runif(m_rnd_generator)) < differenceLogLik) { // FIXME : draw from exponential instead (param=1, cutoff?)
-                m_globalLogLik += differenceLogLik;
-                m_hhLogLik[h] = newLogLikOfHH;
-                m_accepted_move_data++;
+            Q = new_LogLike_of_HH - old_LogLike_of_HH;
+
+            if (unif_rand(m_rand_gen) < std::exp(Q)) { 
+                m_global_LogLike += new_LogLike_of_HH - old_LogLike_of_HH;
+                m_hh_LogLike[h] = new_LogLike_of_HH;
+                m_num_accept_data++;
 
             } else {                
-                m_data[h].set_onset_time(inf, oldValue);
-                m_data[h].update_infec_profiles(inf);
+                m_data[h].set_augm_onset_time(i, old_value);
             }
 
-            m_proposed_move_data++;
+            m_num_propos_data++;
         }
     }
+}
+
+
+//----------------------------------------------------------------------
+// Run mcmc
+//----------------------------------------------------------------------
+
+void McmcObject::run(
+    std::string output_file,
+    size_t num_sweeps,
+    bool display
+    ) {
+
+	ofstream output(output_file.c_str());
+
+	size_t num_iter = int(num_iterations() / num_sweeps);
+	size_t n_iter_time_infec = get_num_iter_time_infec();
+
+	// Column names of the output file
+	std::string colNames = "iteration LogLik ";
+	for (std::string parID : m_param_to_infer_names){
+        colNames += parID + " " + parID + "_p " + parID + "_a ";
+    }
+	colNames += "data_p data_a";
+	output << colNames << endl;
+
+	// MCMC chain
+	cout << "=============MCMC===============" << endl;
+
+    // Initial state
+    init_param_values();
+	init_augm_data();
+	init_LogLike(); 
+	cout << "Initial log likelihood: " << global_LogLike() << endl;
+
+    output << "0 " << global_LogLike() << " "; // Log likelihood
+	for (std::string parID : m_param_to_infer_names) {
+        output << _param_value(parID) << " 0 0 ";
+    }
+    output << "0 0" << endl;
+
+    // Chain
+	for (size_t i = 0; i < num_iter; i++)	{
+        cout << "iteration " << i << endl;
+	    reset_moves();
+
+		for (size_t j = 0; j < num_sweeps; j++) {
+	        for (std::string parID : m_param_to_infer_names) {
+				update_param(parID, i * num_sweeps + j + 1, display);
+			}
+            //cout << "num_iter " << iter << endl;
+
+			// Augmented data
+			for (size_t k = 0; k < n_iter_time_infec; k++) {
+                update_augm_infec_times(display); // Update loglik at the household level
+                update_augm_symptom_onset(display);
+			}
+            //cout << iteration * num_sweeps + iter << " " << global_LogLike() << endl;
+		}
+
+		// Write log likelihood, parameter values, number of proposed/accepted move per parameter in the output file
+		output << (i + 1) * num_sweeps << " " << global_LogLike() << " "; // Log likelihood
+        for (std::string parID : m_param_to_infer_names) {
+            output << _param_value(parID) << " " << _param(parID).get_num_propos() << " " << _param(parID).get_num_accept() << " ";
+        }
+        output << m_num_propos_data << " " << m_num_accept_data << endl;
+	}
+
+	output.close();
 }
