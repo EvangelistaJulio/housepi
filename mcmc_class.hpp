@@ -12,44 +12,44 @@
 
 #include "household.hpp"
 
-#define MCMC_OPTIMAL_ACCEPTANCE 0.25
-#define N_ITER_TIME_INFEC 1
+#define NUM_AUGM_ITER 1
 
 //----------------------------------------------------------------------
-// McmcObject : Class declaration
+// MCMC_Class : Class declaration
 //----------------------------------------------------------------------
 
-class McmcObject {
+class MCMC_Class {
 	// Attributes
-	std::vector<std::string> m_param_names;
 	std::vector<std::string> m_param_to_infer_names;
 	std::mt19937_64 m_rand_gen;
-	size_t m_iterations = 0;
-	size_t m_iter_time_infec = 0;
-	size_t m_adaptive_steps = 0;
+	int m_num_iter = 0;
+	int m_num_augm_iter = 0;
+	int m_num_adapt_iter = 0;
 	double m_global_LogLike = 0.0;
 	std::vector<Household> m_data = {};
 	std::vector<double> m_hh_LogLike = {};
+	bool m_display = false;
 
 	public:
 		int m_num_accept_data = 0;
 		int m_num_propos_data = 0;
 
 		// Constructors
-		McmcObject ();
-		McmcObject (
+		MCMC_Class ();
+		MCMC_Class (
 			unsigned seed,
-			size_t num_iterations,
-			size_t num_adaptive_steps,
+			int num_num_iter,
+			int num_adapt_iter,
 			std::vector<Household> data,
-			size_t n_iter_time_infec = N_ITER_TIME_INFEC
+			int num_augm_iter = NUM_AUGM_ITER,
+			bool display = false
 			);
-		~McmcObject () {};
+		~MCMC_Class () {};
 
 		// Getter
 		size_t num_households () const { return m_data.size(); };
-		size_t num_iterations () const { return m_iterations; };
-		size_t get_num_iter_time_infec () const {return m_iter_time_infec; };
+		int get_num_iter () const { return m_num_iter; };
+		int get_num_augm_iter () const {return m_num_augm_iter; };
 		double global_LogLike () const { return m_global_LogLike; };
 		double hh_LogLike (int index) const { return m_hh_LogLike[index]; };
 		std::vector<double> hh_LogLike () const { return m_hh_LogLike; };
@@ -57,18 +57,17 @@ class McmcObject {
 		// Setter
 		void init_param_values ();
 		void reset_moves ();
-		void init_augm_data (bool display = false);
-		void init_LogLike (bool display = false);
+		void init_augm_data ();
+		void init_LogLike ();
 
 		// Computations
-		void update_param (std::string parID, size_t step, bool display = false);
-		void update_augm_infec_times (bool display = false);
-		void update_augm_symptom_onset (bool display = false);
+		bool update_param (std::string parID);
+		void update_augm_infec_times ();
+		void update_augm_symptom_onset ();
 
 		void run (
-			std::string output_file,
-			size_t num_sweeps,
-			bool display = false
+			std::string output_filename,
+			int num_sweeps
 			);
 };
 

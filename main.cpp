@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-#include "mcmc_object.hpp"
+#include "mcmc_class.hpp"
 
 #define DEFAULT_SEED 20210415
 
@@ -17,97 +17,92 @@ using namespace std;
 // Define the global variable here
 std::unordered_map<std::string, Parameter> Parameter_Dictionary = {};
 
-//----------------------------------------------------------------------
-// Load data
-// datafile with columns :  indid (int) currhhid (int) hhsize (int) onsetTime (double) study_period (double) is_case (0, 1, 2, 3) vacc_status (0 to 3)  age (int) isolation (0 or 1) sex (0 or 1) vacc_delay (int) recovered (0 or 1)
-/* 
-    is_case
+/*
+    Read Data file
+    ---------
+    The data file should be a space-separated table with household ids
+    sorted in ascending order and numbered from 0 to n-1 households
+
+    datafile with columns : 
+    -----------------------
+    1: indid (int), 2: curr_hh_id (int), 3: hh_size (int), 4: onset_time (double), 5: study_period (double), 6: is_case (0 to 3), 
+    7: vacc_status (0 to 3), 8:  age (int), 9: isolation (0 or 1), 10: sex (0 or 1), 11: vacc_delay (int), 12: recovered (0 or 1)
+
+    is_case :
+    ---------
     0: not a case
     1: symptomatic case
     2: asymptomatic case
     3: symptomatic case with unknown symptom onset
 */
-//----------------------------------------------------------------------
-std::vector<Household> build_data(std::string data_file, std::string community_infec_file, bool contact_pattern) {
-    Individual this_indiv; // FIXME : why this is not std::Individual ?
-    std::vector<double> instinfcom;
-    std::vector<double> cuminfcom;
+std::vector<Household> build_data (std::string data_file, std::string community_file, bool contact_pattern) {
+    double date, inst_val, cumul_val;
+    Individual this_indiv;
+    std::vector<double> inst_infec_comm = {};
+    std::vector<double> cumul_infec_comm = {};
+    std::vector<Household> output = {};
 
-    instinfcom.resize(0);
-    cuminfcom.resize(0);
-
-    std::ifstream infileinf(community_infec_file.c_str());
-    if (infileinf) {
-        cout << "=============INFILE==============" << endl;
+    std::ifstream input_file_infec(community_file.c_str());
+    if (input_file_infec) {
+        cout << "=============COMMUNITY==============" << endl;
         cout << "Read data file: " << data_file << endl;
 
-        int date(0);
-        double instval = 0.0;
-        double cumval = 0.0;
+        date = 0.0;
+        inst_val = 0.0;
+        cumul_val = 0.0;
 
-        // while(std::getline(infile, line))
-        for (std::string line; std::getline(infileinf, line);) {
-            // Create a stringstream of the current line
+        // Create a stringstream of the current line
+        for (std::string line; std::getline(input_file_infec, line);) {
             std::istringstream in(line);
             
             // Store information in variables 
-            in >> date >> instval >> cumval;
+            in >> date >> inst_val >> cumul_val;
 
-            //cout << currhhid << endl;
-
-            instinfcom.push_back(instval);
-            cuminfcom.push_back(cumval);
+            inst_infec_comm.push_back(inst_val);
+            cumul_infec_comm.push_back(cumul_val);
         }
     }
 
-    // Variable with all the data
-    std::vector<Household> output;
-    output.resize(0);
-
-    // Read file
-    /*
-    The data file should be a space-separated table with household ids
-    sorted in ascending order and numbered from 0 to n-1 households
-    */
     std::ifstream infile(data_file.c_str());
     if (infile) {
         cout << "=============DATA===============" << endl;
         cout << "Read data file: " << data_file << endl;
 
-        int indid(0), lasthhid(-1), currhhid(0), hhsize(0), is_case(0), start_follow_up(0), study_period(0), age(0),sex(0),vacc_status(0),isolation(0),vacc_delay(0),recovered(0);
-        double onsetTime = 0.0;
-        int num_cases = 0, num_households = 0, num_subjects = 0, num_days =0;
-        // datafile with columns : 1: indid (int), 2: currhhid (int), 3: hhsize (int), 4: onsetTime (double), 5: study_period (double), 6: is_case (0 or 1), 7: vacc_status (0 to 3), 8:  age (int), 9: isolation (0 or 1), 10: sex (0 or 1), 11: vacc_delay (int), 12: recovered (0 or 1)
-        //int nSymptomatic(0);
+        int indid = 0, last_hh_id = -1, curr_hh_id = 0, age, sex;
+        int hh_size = 0, is_case = 0, vacc_status;
+        bool isolation = false, recovered = false;
+        double onset_time = 0.0, start_follow_up = 0.0, study_period = 0.0, vacc_delay = 0.0;
+        double max_study_period = 0.0;
+        int num_cases = 0, num_households = 0, num_subjects = 0;
 
         // initialize current household
-        Household currHH(contact_pattern, instinfcom, cuminfcom);
+        Household curr_hh (contact_pattern, inst_infec_comm, cumul_infec_comm);
+
+        // Create a stringstream of the current line
         for (std::string line; std::getline(infile, line);) {
-            // Create a stringstream of the current line
             std::istringstream in(line);
             
             // Store information in variables 
-            in >> indid >> currhhid >> hhsize >> onsetTime >> study_period >> is_case >> vacc_status >>  age >> isolation >>sex>>vacc_delay>>recovered;
-            cout << recovered << endl;
+            in >> indid >> curr_hh_id >> hh_size >> onset_time >> study_period >> is_case >> vacc_status >> age >> isolation >> sex >> vacc_delay >> recovered;
 
             // Append previous household to the list of households
-            if (currhhid != lasthhid) {
+            if (curr_hh_id != last_hh_id) {
                 if (num_households > 0) {
                     num_households++;
-                    output.push_back(currHH);
+                    output.push_back(curr_hh);
                     // FIXME : check me out, am I providing an empty object of the class?
-                    currHH = Household(contact_pattern, instinfcom, cuminfcom); 
-                    lasthhid = currhhid;
+                    curr_hh = Household(contact_pattern, inst_infec_comm, cumul_infec_comm); 
+                    last_hh_id = curr_hh_id;
                 } else {
                     num_households++;
-                    lasthhid = currhhid;
+                    last_hh_id = curr_hh_id;
                 }
             }
 
             // Update household object and information parameters
             this_indiv = Individual(
                 indid,
-                onsetTime,
+                onset_time,
                 is_case,
                 age,
                 sex, 
@@ -118,28 +113,28 @@ std::vector<Household> build_data(std::string data_file, std::string community_i
                 vacc_delay,
                 recovered
                 );
-            currHH.add_individual(this_indiv);
+            curr_hh.add_individual(this_indiv);
             num_subjects++;
             if (is_case != 0){
                 num_cases++;
             }
-            num_days = max(num_days, study_period);
+            max_study_period = max(max_study_period, study_period);
         }
 
         // Add last household
-        output.push_back(currHH);
+        output.push_back(curr_hh);
 
         // General information
         cout << "Number of households: " << num_households << endl;
         cout << "Number of individuals: " << num_subjects << endl;
         cout << "Number of cases: " << num_cases << endl;
-        cout << "Number of days: " << num_days << "\n\n";
+        cout << "Number of days: " << max_study_period << "\n" << endl;
 
         return(output);
 
-    }else{
-        cout << "ERROR: Cannot open the file." << endl;
-        return(output);
+    } else {
+        cout << "ERROR: Cannot open the input file." << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -150,9 +145,9 @@ std::vector<Household> build_data(std::string data_file, std::string community_i
 
 int main (int argc, char **argv) {
            
-    size_t num_sweeps = 20; 
-    size_t num_adaptive_steps = 0;
-    size_t num_iter_infec_time = 1;
+    int num_sweeps = 20; 
+    int num_adapt_iter = 0;
+    int num_augm_iter = 1;
     unsigned seed = DEFAULT_SEED; // FIXME : this should be a user optional variable  
 
     //========== USER parameters ==========
@@ -170,7 +165,7 @@ int main (int argc, char **argv) {
         infer_contact = true;
     }
     // --- End-of-Temporary ---
-    size_t num_iter = std::stoi(argv[2]);  // Number of iterations in the MCMC
+    int num_iter = std::stoi(argv[2]);  // Number of iterations in the MCMC
     std::string name_output = argv[3];  // Name of the output file
     std::string name_data = argv[4];  // Name of the date file
     std::string path_data = argv[5];  // Path data file
@@ -187,89 +182,85 @@ int main (int argc, char **argv) {
     //==========Output files==========
     // FIXME : check for space and path validity
 
-    //Paths
+    // Path to files
     std::string condition;
     std::string data_file, output_file, communityfile;
 
-    //Data file
-    // File structure :         0: indid, 1: hhid, 2: hhsize, 3: dds, 4: case, 5: study_period, 6: adult
-    data_file = path_data + name_data + ".txt";         //Input file 
-    output_file = path_to_save + "mcmc_" + name_output + ".txt"; //Output file
-    communityfile = path_data + "community_infection_israel.txt";// communityfile
+    // NOTE : to be standardized
+    data_file = path_data + name_data + ".txt";                     // Input file 
+    communityfile = path_data + "community_infection_israel.txt";   // community file
+    output_file = path_to_save + "mcmc_" + name_output + ".txt";    // Output file
 
-    cout << "Input file: " << data_file << endl;
-    cout << "Output file: " << output_file << "\n\n";
+    if (display == true){
+        cout << "Input file: " << data_file << endl;
+        cout << "Output file: " << output_file << "\n" << endl;
+    }
 
     //========== Model parameters ==========
 
-    // FIXME load parameters from file 
-    Parameter this_param;
-    this_param.init("alpha", 0.001, true, "unif", {0.0, 1.0}, "exp", 0.7, {0.0, 1.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("beta", 0.6, true, "unif", {0.0, 5.0}, "exp", 0.1,  {0.0, 5.0}); 
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("delta", 1.0, true, "unif", {-3.0, 3.0}, "norm", 0.2, {-3.0, 3.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rU", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.3, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("r1V", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("r1V90", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 0.1});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("r2V", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 0.1});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("r3V", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.9, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rC", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.1, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rQ", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.2, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rCC", 1.0, false, "lognorm", {0.0, 1.0}, "exp", 0.5, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rMC", 1.0, infer_contact, "lognorm", {0.0, 1.0}, "exp", 0.5, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rFC", 1.0, infer_contact, "lognorm", {0.0, 1.0}, "exp", 0.5, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("rR", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 5.0});
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
+    // --- Temporary --- FIXME : load parameters from file  // need of iteration scopes
+    {Parameter this_param ("alpha", 0.001, true, "unif", {0.0, 1.0}, "exp", 0.7, {0.0, 1.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);    }
+    {Parameter this_param ("beta", 0.6, true, "unif", {0.0, 5.0}, "exp", 0.1,  {0.0, 5.0}); 
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("delta", 1.0, true, "unif", {-3.0, 3.0}, "norm", 0.2, {-3.0, 3.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rU", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.3, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("r1V", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("r1V90", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 0.1});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("r2V", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 0.1});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("r3V", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.9, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rC", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.1, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rQ", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 0.2, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rCC", 1.0, false, "lognorm", {0.0, 1.0}, "exp", 0.5, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rMC", 1.0, infer_contact, "lognorm", {0.0, 1.0}, "exp", 0.5, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rFC", 1.0, infer_contact, "lognorm", {0.0, 1.0}, "exp", 0.5, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("rR", 1.0, true, "lognorm", {0.0, 1.0}, "exp", 1.0, {0.0, 5.0});
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
 
-    this_param.init("tost_tau", 5.783, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("tost_mu", -4.0, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("tost_sigma", 1.85, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("tost_alpha", 5.85, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
+    {Parameter this_param("tost_tau", 5.783, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("tost_mu", -4.0, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("tost_sigma", 1.85, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("tost_alpha", 5.85, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
 
-    this_param.init("incub_shape", 3.44898, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("incub_scale", 1.13077, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
-    this_param.init("typical_size", 5.0, false);
-    Parameter_Dictionary.emplace(this_param.p_name, this_param);
+    {Parameter this_param("incub_shape", 3.44898, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("incub_scale", 1.13077, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    {Parameter this_param("typical_size", 5.0, false);
+    Parameter_Dictionary.emplace(this_param.p_name, this_param);}
+    // --- End-of-Temporary ---
 
     //==========Build data==========
     // Load data
-    std::vector<Household> hhData = build_data(data_file, communityfile, infer_contact);
+    std::vector<Household> hh_data = build_data(data_file, communityfile, infer_contact);
 
     // Initialize MCMC object
-    McmcObject mcmc(
+    MCMC_Class mcmc_object (
         seed, 
         num_iter, 
-        num_adaptive_steps,
-        hhData,
-        num_iter_infec_time
-        );
-
-    //==========MCMC==========
-    mcmc.run(
-        output_file,
-        num_sweeps,
+        num_adapt_iter,
+        hh_data,
+        num_augm_iter,
         display
         );
 
-    return 0;
+    //==========MCMC==========
+    mcmc_object.run(output_file, num_sweeps);
 
-    std::exit(0);
+    return EXIT_SUCCESS;
 }

@@ -282,6 +282,7 @@ void Household::update_infec_profiles(size_t idx, bool display) {
 	// idx is an infectee
 	if (h_residents[idx].i_is_case == 0) {
 		t1 = h_residents[idx].i_study_period;
+
 	} else {
 		t1 = h_residents[idx].i_augm_infec_time;    
 	}
@@ -294,6 +295,7 @@ void Household::update_infec_profiles(size_t idx, bool display) {
 			if (h_residents[infector].i_augm_infec_time < t1 && h_residents[idx].i_is_case >= 0) { // FIXME : is_case >= 0 always
 				h_cumul_Lambda[infector][idx] = h_residents[infector].infec_cumulative(t1, h_residents[idx].i_study_period);
 			}
+
 			// Instantaneous transmission rate for secondary cases
 			if (h_residents[infector].i_augm_infec_time < h_residents[idx].i_augm_infec_time && h_residents[idx].i_is_case > 0) {
 				h_inst_Lambda[infector][idx] = h_residents[infector].infec_profile(h_residents[idx].i_augm_infec_time, h_residents[idx].i_study_period);
@@ -325,6 +327,7 @@ double Household::new_onset_time (size_t idx, std::mt19937_64& rand_gen) {
 	if (h_residents[idx].i_is_case > 0) {           
 		// is_case household member 
 		new_onset_time = h_residents[idx].i_onset_time + unif_rand(rand_gen);
+		
 	} else {    
 		// Household residents without infection or with unknown final outcome
 		new_onset_time = INFINITY;
@@ -572,8 +575,7 @@ double Household::log_surv_proba (size_t curr, double t0, bool display) {
 		beta /= pow( h_size / _param_value("typical_size"), _param_value("delta") );
 	} 
 
-	beta = beta+alpha;
-
+	beta = beta + alpha;
 	beta *= model_susceptibility(curr);
 
 	// --- Display --- //

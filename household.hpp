@@ -65,46 +65,46 @@ class Household {
 	bool h_contact_pattern = false;
 	double h_infec_time = INFINITY;
 
-	std::vector<int> h_confCase;
+	std::vector<int> h_confCase = {};
 	std::vector<Individual> h_residents;
-	std::vector<double> h_inst_community_infec;
-	std::vector<double> h_cumul_community_infec;
-	std::vector<std::vector<double>> h_cumul_Lambda;
-	std::vector<std::vector<double>> h_inst_Lambda;
+	std::vector<double> h_inst_community_infec = {};
+	std::vector<double> h_cumul_community_infec = {};
+	std::vector<std::vector<double>> h_cumul_Lambda = {};
+	std::vector<std::vector<double>> h_inst_Lambda = {};
 
 	public:
 		// Constructors
-		Household(bool contact_pattern, std::vector<double> instval, std::vector<double>cumval);
+		Household(bool contact_pattern, std::vector<double> instval, std::vector<double> cumval);
 		Household() = default;
 		~Household() {};
 		
 		// Getter
-		size_t get_size() const;
-		size_t num_infec_cases() const;
-		size_t num_symptomatic() const;
-		std::string get_resident_index() const;
-		std::vector<int> get_infec_list() const;
-		double get_augm_onset_time(size_t idx) const;
+		size_t get_size () const;
+		size_t num_infec_cases () const;
+		size_t num_symptomatic () const;
+		std::string get_resident_index () const;
+		std::vector<int> get_infec_list () const;
+		double get_augm_onset_time (size_t idx) const;
 
 		// Setter
-		void add_individual(Individual this_indiv);
-		void init_infec_time(size_t idx, std::mt19937_64& rand_gen, bool display = false);
-		void init_onset_time(size_t idx, std::mt19937_64& rand_gen, bool display = false);
+		void add_individual (Individual this_indiv);
+		void init_infec_time (size_t idx, std::mt19937_64& rand_gen, bool display = false);
+		void init_onset_time (size_t idx, std::mt19937_64& rand_gen, bool display = false);
 
 		// Computations
-		void set_augm_infec_time(size_t idx, double infec_time, bool display = false);
-		void set_augm_onset_time(size_t idx, double onset_time, bool display = false);
-		void init_infec_profiles(bool display = false);
-		void update_infec_profiles(size_t ind, bool display = false);
-		double new_infec_time(size_t idx, std::mt19937_64& rand_gen);
-		double new_onset_time(size_t idx, std::mt19937_64& rand_gen);
+		void set_augm_infec_time (size_t idx, double infec_time, bool display = false);
+		void set_augm_onset_time (size_t idx, double onset_time, bool display = false);
+		void init_infec_profiles (bool display = false);
+		void update_infec_profiles (size_t ind, bool display = false);
+		double new_infec_time (size_t idx, std::mt19937_64& rand_gen);
+		double new_onset_time (size_t idx, std::mt19937_64& rand_gen);
 
 		double child_infectivity (size_t curr, size_t infectee);
 		double model_susceptibility (size_t curr);
-		double log_incub_proba(size_t idx, bool display = false);
-		double compute_loglike(bool display = false);
-		double log_infec_proba(size_t curr, bool display = false);
-		double log_surv_proba(size_t curr, double t0, bool display = false);
+		double log_incub_proba (size_t idx, bool display = false);
+		double compute_loglike (bool display = false);
+		double log_infec_proba (size_t curr, bool display = false);
+		double log_surv_proba (size_t curr, double t0, bool display = false);
 };
 
 #endif // DEF_HOUSEHOLD__H
