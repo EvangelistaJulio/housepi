@@ -18,7 +18,6 @@ Individual::Individual (
 	bool isolation,
 	bool recovered,
 	int vacc_status,
-	double start_follow_up,
 	double study_period,
 	double vacc_delay,
 	double onset_time
@@ -31,7 +30,6 @@ Individual::Individual (
 	i_isolation = isolation;
 	i_recovered = recovered;
 	i_vacc_status = vacc_status;
-	i_start_follow_up = start_follow_up;
  	i_study_period = study_period;
 	i_vacc_delay = vacc_delay;
 	i_onset_time = onset_time;
@@ -89,12 +87,12 @@ double Individual::infec_cumulative (double t_infec, double study_period) {
 //  Constructors
 // ----------------------------
 
-// FIXME : check if default constructor is working
-
-Household::Household (bool contact_pattern, std::vector<double> instval, std::vector<double> cumval) {
-	h_inst_community_infec = instval;
-	h_cumul_community_infec = cumval;
+Household::Household (
+	bool contact_pattern,
+	bool verbose
+	) {
 	h_contact_pattern = contact_pattern; 
+	h_verbose = verbose;
 }
 
 // ----------------------------
@@ -102,16 +100,14 @@ Household::Household (bool contact_pattern, std::vector<double> instval, std::ve
 // ----------------------------
 
 size_t Household::get_size () const { return h_residents.size(); }
-size_t Household::num_infec_cases () const { return h_confCase.size(); }
-std::vector<int> Household::get_infec_list () const { return h_confCase; }
 
 // number of symptomatic
-size_t Household::num_symptomatic () const{
+size_t Household::num_symptomatic () const {
 	size_t num_symptomatic = 0;
 
 	for (size_t i = 0; i < h_residents.size(); i++) {
 		if (h_residents[i].i_onset_time < INFINITY) {
-			num_symptomatic += 1;
+			num_symptomatic++;
 		}
 	}
 
@@ -142,20 +138,13 @@ double Household::get_augm_onset_time(size_t idx) const{
 void Household::add_individual (Individual this_indiv) {
 	
 	h_residents.push_back(this_indiv);
-	h_size += 1; 
+	h_size++; 
 	h_infec_time = std::min(h_infec_time, this_indiv.i_augm_infec_time);
-	//h_start_follow_up = this_indiv.start_follow_up; // FIXME : what is this?
-
-	// Add confirmed cases
-	if (this_indiv.i_is_case == 0) { 
-		// FIXME : is this still the case?
-		h_confCase.push_back(h_size - 1);
-	} 
 }
 
 
 // Initialize augmented onset time
-void Household::init_onset_time (size_t idx, std::mt19937_64& rand_gen, bool display) {
+void Household::init_onset_time (size_t idx, std::mt19937_64& rand_gen) {
 
 	if (h_residents[idx].i_is_case > 0) { 
 		h_residents[idx].i_augm_onset_time = h_residents[idx].i_onset_time + unif_rand(rand_gen);
@@ -165,7 +154,7 @@ void Household::init_onset_time (size_t idx, std::mt19937_64& rand_gen, bool dis
 	}
 
 	// --- Display --- //	
-	if (display == true) {
+	if (h_verbose == true) {
 		cout << "Observed onset time: " << h_residents[idx].i_onset_time << endl;
 		cout << "Augmented onset time" << h_residents[idx].i_augm_onset_time << endl;
   	} 
@@ -173,7 +162,7 @@ void Household::init_onset_time (size_t idx, std::mt19937_64& rand_gen, bool dis
 }
 
 // Initialize augmented infection time
-void Household::init_infec_time(size_t idx, std::mt19937_64& rand_gen, bool display) {
+void Household::init_infec_time(size_t idx, std::mt19937_64& rand_gen) {
 	double incubPeriod = 0.0;
 	std::vector<double> args = {_param_value("shape_incub"), _param_value("scale_incub")};
 
@@ -188,7 +177,7 @@ void Household::init_infec_time(size_t idx, std::mt19937_64& rand_gen, bool disp
 	}
 
 	// --- Display --- //	
-	if (display == true) {
+	if (h_verbose == true) {
 		cout << "Inf time " << h_residents[idx].i_indid << ": " << h_residents[idx].i_augm_infec_time << endl;
 	}
 	// --- End-of-Display --- //
@@ -199,20 +188,20 @@ void Household::init_infec_time(size_t idx, std::mt19937_64& rand_gen, bool disp
 // ----------------------------
 
 // Change symptom onset // FIXME : augmented
-void Household::set_augm_onset_time (size_t idx, double onset_time, bool display) {
+void Household::set_augm_onset_time (size_t idx, double onset_time) {
 	h_residents[idx].i_augm_onset_time = onset_time;
-	update_infec_profiles(idx, display);
+	update_infec_profiles(idx);
 }
 
 // Change infection time
-void Household::set_augm_infec_time (size_t idx, double infec_time, bool display) {
+void Household::set_augm_infec_time (size_t idx, double infec_time) {
 	h_residents[idx].i_augm_infec_time = infec_time;
 	h_infec_time = std::min(h_infec_time, infec_time);
-	update_infec_profiles(idx, display);
+	update_infec_profiles(idx);
 }
 
 // Compute the risk of infection
-void Household::init_infec_profiles(bool display) {
+void Household::init_infec_profiles() {
 
 	// initialize 2-dim vectors h_cumul_Lambda and h_inst_Lambda
 	h_cumul_Lambda.resize(h_size);
@@ -225,11 +214,11 @@ void Household::init_infec_profiles(bool display) {
 	// Compute cumulative and instantaneous person-to-person transmission rates
 	for (size_t infector = 0; infector < h_size; infector++) {
 		// FIXME : is this working ?
-		update_infec_profiles(infector, false); // 
+		update_infec_profiles(infector);
 	}
 
 	// --- Display --- //	
-	if (display == true) {
+	if (h_verbose == true) {
 		// Cumulative transmission rate
 		for (size_t i = 0; i < h_size;i++) {
 			for (size_t j = 0; j < h_size; j++) {
@@ -256,7 +245,7 @@ void Household::init_infec_profiles(bool display) {
 }
 
 // Update h_cumul_Lambda and h_inst_Lambda matrices during data augmentation
-void Household::update_infec_profiles(size_t idx, bool display) {
+void Household::update_infec_profiles(size_t idx) {
 	double t1;
 
 	// idx is the infector
@@ -266,13 +255,15 @@ void Household::update_infec_profiles(size_t idx, bool display) {
 		if (h_residents[idx].i_is_case > 0){
 			// Cumulative transmission rate for all household contacts
 			t1 = h_residents[infectee].i_augm_infec_time;
-			if (h_residents[idx].i_augm_infec_time < t1 && h_residents[infectee].i_is_case >= 0) { // FIXME : is_case >= 0 always
+			if (h_residents[idx].i_augm_infec_time < t1 && h_residents[infectee].i_is_case >= 0) { 
+				// FIXME : is_case >= 0 always
 				h_cumul_Lambda[idx][infectee] = h_residents[idx].infec_cumulative(t1, h_residents[infectee].i_study_period);
 			}
 
 			// Instantaneous transmission rate for secondary cases
 			if (h_residents[idx].i_augm_infec_time < h_residents[infectee].i_augm_infec_time && h_residents[infectee].i_is_case > 0) {
 				h_inst_Lambda[idx][infectee] = h_residents[idx].infec_profile(t1, h_residents[infectee].i_study_period);
+
 			} else {
 				t1 = h_residents[infectee].i_study_period;
 			}
@@ -304,7 +295,7 @@ void Household::update_infec_profiles(size_t idx, bool display) {
 	}
 
 	// --- Display --- //	
-	if (display == true) {
+	if (h_verbose == true) {
 		for (size_t i = 0; i < h_size; i++) {
 			for (size_t j = 0; j < h_size; j++) {
 				cout << h_cumul_Lambda[i][j] << " "; 
@@ -344,7 +335,8 @@ double Household::new_infec_time (size_t idx, std::mt19937_64& rand_gen) {
 	if (h_residents[idx].i_is_case == 1) {           
 		// Symptomatic case 
 		incubPeriod = gamma_rand(rand_gen, args);
-		new_infec_time += h_residents[idx].i_augm_onset_time - incubPeriod;
+		new_infec_time = h_residents[idx].i_augm_onset_time - incubPeriod;
+
 	} else {    
 		// Household residents without infection or with unknown final outcome
 		new_infec_time = INFINITY;
@@ -355,8 +347,8 @@ double Household::new_infec_time (size_t idx, std::mt19937_64& rand_gen) {
 // FIXME : change h_infec_time in the Household accordingly!
 
 
-double Household::compute_loglike (bool display) {
-	// FIXME : comment
+double Household::compute_loglike () {
+	// Compute the log-likelihood
 	size_t firstCase(0);
 	double LL = 0.0; // Log Likelihood
 	double t0 = h_infec_time;
@@ -372,28 +364,26 @@ double Household::compute_loglike (bool display) {
 	for (size_t i = 0; i < h_size; i++) { 
 
 		// --- Display --- //
-		if (display == true) {
+		if (h_verbose == true) {
 			cout << i << " " << firstCase << " " << h_residents[i].i_augm_onset_time;
 			cout << " " << h_residents[i].i_augm_infec_time << " " << h_residents[i].i_is_case << endl; 
 		}
 		// --- End-of-Display --- //
 		
-		if (i == firstCase) {     													// Incubation period of 1st is_case                                      		
-			LL += log_incub_proba(i, display); 
-		} else if (h_residents[i].i_is_case > 0) {             					// Contribution of the secondary cases
-			LL += log_incub_proba(i, display);
-	  		LL += log_surv_proba(i, t0, display);
-			LL += log_infec_proba(i, display);
-		} else {																// Non is_case individuals tha contribute to the likelihood
-	  		if (h_residents[i].i_is_case == 0) {
-				// FIXME : isn't this always true at this point of the logical case
-				LL += log_surv_proba(i, t0, display); 
-			} 
+		if (i == firstCase) {     							// Incubation period of 1st is_case                                      		
+			LL += log_incub_proba(i); 
+		} else if (h_residents[i].i_is_case > 0) {         	// Contribution of the secondary cases
+			LL += log_incub_proba(i);
+	  		LL += log_surv_proba(i, t0);
+			LL += log_infec_proba(i);
+		} else {											// Non is_case individuals tha contribute to the likelihood
+	  		// h_residents[i].i_is_case == 0
+			LL += log_surv_proba(i, t0); 
 		}
 	}
 
 	// --- Display --- //
-	if (display == true) {
+	if (h_verbose == true) {
 		cout << "LL: " << LL << "\n" << endl;
 	}
 	// --- End-of-Display --- //
@@ -403,8 +393,8 @@ double Household::compute_loglike (bool display) {
 
 
 
-double Household::log_incub_proba (size_t idx, bool display) {
-	// FIXME : comment
+double Household::log_incub_proba (size_t idx) {
+	// logarithm of the pdf of the incubation period
 	double out = 0.0, incubPeriod = 0.0;
 	std::vector<double> args = {_param_value("shape_incub"), _param_value("scale_incub")};
 
@@ -415,7 +405,7 @@ double Household::log_incub_proba (size_t idx, bool display) {
 	} 
 
 	// --- Display --- //
-	if (display == true) {
+	if (h_verbose == true) {
 		cout << "log_dIncub: " << out << endl;
 	}
 	// --- End-of-Display --- //	
@@ -446,7 +436,6 @@ double Household::child_infectivity (size_t curr, size_t infectee){
 
 
 double Household::model_susceptibility (size_t curr){
-	// FIXME : if you don't want to infer a parameter it just should't be in the model... maybe it's not clean
 	double out = 1.0; 
 
 	// FIXME : how to loop this?
@@ -484,12 +473,12 @@ double Household::model_susceptibility (size_t curr){
 	return out;
 }
 
-double Household::log_infec_proba (size_t curr, bool display) {
-	// FIXME : 
+double Household::log_infec_proba (size_t curr) {
+	// logarithm of the infection probability
 	// Probability of infection
 	int t_infec = (int) h_residents[curr].i_augm_infec_time; 
 	// Instaneous risk of infection from community
-	double alpha = _param_value("alpha") * h_inst_community_infec[t_infec]; 
+	double alpha = _param_value("alpha") * Inst_Community_Infec[t_infec]; 
 	// Instantaneous risk of infection from other household members
 	double beta_i = 0.0, beta = 0.0; 
 
@@ -498,7 +487,7 @@ double Household::log_infec_proba (size_t curr, bool display) {
 			beta_i = h_inst_Lambda[i][curr];
 
 			// --- Display --- //
-			if (display == true) {
+			if (h_verbose == true) {
 				cout << "pInf: " << curr << " " << i << " " << beta_i << endl;
 			}
 			// --- End-of-Display --- //
@@ -523,7 +512,7 @@ double Household::log_infec_proba (size_t curr, bool display) {
 	beta *= model_susceptibility(curr);
 
 	// --- Display --- //
-	if (display == true) {
+	if (h_verbose == true) {
 		cout << "log_infec_proba: " << log((alpha + beta)) << endl;
 	}
 	// --- End-of-Display --- //
@@ -531,7 +520,7 @@ double Household::log_infec_proba (size_t curr, bool display) {
 	return log((beta));
 }
 
-double Household::log_surv_proba (size_t curr, double t0, bool display) {
+double Household::log_surv_proba (size_t curr, double t0) {
 	// Survival from t0 to t1	
   	double t1, alpha = 0.0, beta = 0.0, beta_i = 0.0;
   	int tb = (int) t0;
@@ -544,7 +533,7 @@ double Household::log_surv_proba (size_t curr, double t0, bool display) {
 	}
   
 	// Cumulative risk of infection from community
-	alpha = _param_value("alpha") * (h_cumul_community_infec[(int) t1] - h_cumul_community_infec[tb]);
+	alpha = _param_value("alpha") * (Cumul_Community_Infec[(int) t1] - Cumul_Community_Infec[(int) tb]);
 
   	// Cumulative risk of infection from other household members
 	for (size_t i = 0; i < h_size; ++i) {
@@ -552,7 +541,7 @@ double Household::log_surv_proba (size_t curr, double t0, bool display) {
 			beta_i = h_cumul_Lambda[i][curr];
 
 			// --- Display --- //
-			if (display == true){
+			if (h_verbose == true){
 				cout << "pInf: " << curr << " " << i << " " << beta_i << endl;
 			}
 			// --- End-of-Display --- //
@@ -564,8 +553,7 @@ double Household::log_surv_proba (size_t curr, double t0, bool display) {
 		}
 	}
 
-	// FIXME : this is a copy of Household::log_infec_proba !
-	// FIXME : to be generalized
+	// FIXME : to be generalized with Household::log_infec_proba
 
 	// Instantaneous per capita transmission rate 
 	beta *= _param_value("beta");
@@ -579,7 +567,7 @@ double Household::log_surv_proba (size_t curr, double t0, bool display) {
 	beta *= model_susceptibility(curr);
 
 	// --- Display --- //
-  	if (display == true){
+  	if (h_verbose == true){
 		cout << beta << " " << alpha << endl;
 		cout << "log_surv_proba: " << -(alpha + beta) << endl;
 	}

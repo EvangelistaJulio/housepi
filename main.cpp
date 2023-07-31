@@ -10,22 +10,48 @@
 
 #include "mcmc_class.hpp"
 
-#define DEFAULT_SEED 20210415
-
 using namespace std;
 
-// Define the global variable here
+// Define the global variables here
 std::unordered_map<std::string, Parameter> Parameter_Dictionary = {};
+std::vector<double> Cumul_Community_Infec = {};
+std::vector<double> Inst_Community_Infec = {};
+
+
+void build_community (std::string data_file, bool verbose) {
+    double date, inst_val, cumul_val;
+
+    std::ifstream infile(data_file.c_str());
+    if (infile) {
+        cout << "=============COMMUNITY==============" << endl;
+        cout << "Read data file: " << data_file << endl;
+
+        // Create a stringstream of the current line
+        for (std::string line; std::getline(infile, line);) {
+            std::istringstream iss(line);
+            
+            // Store information in variables 
+            iss >> date >> inst_val >> cumul_val;
+
+            Inst_Community_Infec.push_back(inst_val);
+            Cumul_Community_Infec.push_back(cumul_val);
+        }
+
+    } else {
+        cout << "ERROR: Impossible to read: " << data_file << endl;
+        exit(EXIT_FAILURE);
+    }
+}
 
 /*
-    Read Data file
+    Read Households file
     ---------
-    The data file should be a space-separated table with household ids
+    The Households file should be a space-separated table with household ids
     sorted in ascending order and numbered from 0 to n-1 households
 
     datafile with columns : 
     -----------------------
-    1: indid (int), 2: curr_hh_id (int), 3: hh_size (int), 4: onset_time (double), 5: study_period (double), 6: is_case (0 to 3), 
+    1: indid (int), 2: curr_HH_id (int), 3: HH_size (int), 4: onset_time (double), 5: study_period (double), 6: is_case (0 to 3), 
     7: vacc_status (0 to 3), 8:  age (int), 9: isolation (0 or 1), 10: sex (0 or 1), 11: vacc_delay (int), 12: recovered (0 or 1)
 
     is_case :
@@ -35,85 +61,49 @@ std::unordered_map<std::string, Parameter> Parameter_Dictionary = {};
     2: asymptomatic case
     3: symptomatic case with unknown symptom onset
 */
-std::vector<Household> build_data (std::string data_file, std::string community_file, bool contact_pattern) {
-    double date, inst_val, cumul_val;
-    Individual this_indiv;
-    std::vector<double> inst_infec_comm = {};
-    std::vector<double> cumul_infec_comm = {};
+std::vector<Household> build_households (std::string data_file, bool contact_pattern, bool verbose) {
+    int curr_HH_id, indid, age, sex;
+    int HH_size, is_case, vacc_status;
+    double onset_time, study_period, vacc_delay;
+    bool isolation = false, recovered = false;
+    int num_cases = 0, num_subjects = 0;
+    double max_study_period = 0.0;
+    std::unordered_map<int, Household> safe_load = {};
     std::vector<Household> output = {};
-
-    std::ifstream input_file_infec(community_file.c_str());
-    if (input_file_infec) {
-        cout << "=============COMMUNITY==============" << endl;
-        cout << "Read data file: " << data_file << endl;
-
-        date = 0.0;
-        inst_val = 0.0;
-        cumul_val = 0.0;
-
-        // Create a stringstream of the current line
-        for (std::string line; std::getline(input_file_infec, line);) {
-            std::istringstream in(line);
-            
-            // Store information in variables 
-            in >> date >> inst_val >> cumul_val;
-
-            inst_infec_comm.push_back(inst_val);
-            cumul_infec_comm.push_back(cumul_val);
-        }
-    }
 
     std::ifstream infile(data_file.c_str());
     if (infile) {
         cout << "=============DATA===============" << endl;
         cout << "Read data file: " << data_file << endl;
 
-        int indid = 0, last_hh_id = -1, curr_hh_id = 0, age, sex;
-        int hh_size = 0, is_case = 0, vacc_status;
-        bool isolation = false, recovered = false;
-        double onset_time = 0.0, start_follow_up = 0.0, study_period = 0.0, vacc_delay = 0.0;
-        double max_study_period = 0.0;
-        int num_cases = 0, num_households = 0, num_subjects = 0;
-
-        // initialize current household
-        Household curr_hh (contact_pattern, inst_infec_comm, cumul_infec_comm);
-
         // Create a stringstream of the current line
         for (std::string line; std::getline(infile, line);) {
-            std::istringstream in(line);
+            std::istringstream iss(line);
             
             // Store information in variables 
-            in >> indid >> curr_hh_id >> hh_size >> onset_time >> study_period >> is_case >> vacc_status >> age >> isolation >> sex >> vacc_delay >> recovered;
+            iss >> indid >> curr_HH_id >> HH_size >> onset_time >> study_period >> is_case >> vacc_status >> age >> isolation >> sex >> vacc_delay >> recovered;
 
-            // Append previous household to the list of households
-            if (curr_hh_id != last_hh_id) {
-                if (num_households > 0) {
-                    num_households++;
-                    output.push_back(curr_hh);
-                    // FIXME : check me out, am I providing an empty object of the class?
-                    curr_hh = Household(contact_pattern, inst_infec_comm, cumul_infec_comm); 
-                    last_hh_id = curr_hh_id;
-                } else {
-                    num_households++;
-                    last_hh_id = curr_hh_id;
-                }
-            }
+            // if curr_HH_id doesn't exist, append new household
+            if (safe_load.find(curr_HH_id) == safe_load.end()) {
+                Household curr_HH (contact_pattern, verbose);
+                safe_load.emplace(curr_HH_id, curr_HH);
+            } 
 
             // Update household object and information parameters
-            this_indiv = Individual(
+            Individual this_indiv (
                 indid,
                 onset_time,
                 is_case,
                 age,
                 sex, 
-                start_follow_up,
                 study_period,
                 vacc_status,
                 isolation,
                 vacc_delay,
                 recovered
                 );
-            curr_hh.add_individual(this_indiv);
+
+            safe_load[curr_HH_id].add_individual(this_indiv);
             num_subjects++;
             if (is_case != 0){
                 num_cases++;
@@ -121,27 +111,80 @@ std::vector<Household> build_data (std::string data_file, std::string community_
             max_study_period = max(max_study_period, study_period);
         }
 
-        // Add last household
-        output.push_back(curr_hh);
+    } else {
+        cout << "ERROR: Impossible to read: " << data_file << endl;
+        exit(EXIT_FAILURE);
+    }
 
-        // General information
-        cout << "Number of households: " << num_households << endl;
+    // extract only households and forget about their id
+    for (const auto& entry : safe_load) {
+        output.push_back(entry.second);
+    }
+
+    // General information
+    if (verbose == true){
+        cout << "Number of households: " << output.size() << endl;
         cout << "Number of individuals: " << num_subjects << endl;
         cout << "Number of cases: " << num_cases << endl;
         cout << "Number of days: " << max_study_period << "\n" << endl;
-
-        return(output);
-
-    } else {
-        cout << "ERROR: Cannot open the input file." << endl;
-        exit(EXIT_FAILURE);
     }
+
+    return(output);
 }
 
+/*
+    Read Model Parameters file
+    ---------
 
-// ///////////////////////////////////////////// //
-// /////////////// MAIN FUNCTION /////////////// //
-// ///////////////////////////////////////////// //
+void build_parameters (std::string data_file) {   
+    std::string name, infer, prior, args, strategy, range;
+    double value, rate;
+
+    std::ifstream infile(data_file.c_str());
+    if (infile) {
+        cout << "=============PARAMETERS==============" << endl;
+        cout << "Read data file: " << data_file << endl;
+
+        // Create a stringstream of the current line
+        for (std::string line; std::getline(infile, line);) {
+            std::istringstream iss(line);
+
+            // Read mandatory variables
+            if (!(iss >> name >> value >> infer)) {
+                cout << "Unable to extract required columns." << endl;
+                exit(EXIT_FAILURE);
+            }
+
+            // Convert "infer" to boolean
+            if (infer == "TRUE" || infer == "true" || infer == "True"){
+                if (!(iss >> args >> strategy >> rate >> range)) {
+                    cout << "Unable to extract required columns." << endl;
+                    exit(EXIT_FAILURE);
+                }
+
+
+                Parameter this_param (name, value, true);
+                // add entry to shared paramter dictionary
+                Parameter_Dictionary.emplace(name, this_param);
+
+            } else if (infer == "FALSE" || infer == "false" || infer == "False"){
+                Parameter this_param (name, value, false);
+                // add entry to shared paramter dictionary
+                Parameter_Dictionary.emplace(name, this_param);
+
+            } else {
+                cout << "Unrecognized format value for infer." << endl;
+                exit(EXIT_FAILURE);
+            }
+        }   
+    }
+}
+*/
+
+// /////////////////////////////////////////////////////////////////////////// //
+// ////////////////////////////// MAIN FUNCTION ////////////////////////////// //
+// /////////////////////////////////////////////////////////////////////////// //
+
 
 int main (int argc, char **argv) {
            
@@ -151,50 +194,34 @@ int main (int argc, char **argv) {
     unsigned seed = DEFAULT_SEED; // FIXME : this should be a user optional variable  
 
     //========== USER parameters ==========
-    if (argc < 8){
+    if (argc < 7){
         // print usage here and return, since that's what you need.
         cout << "Wrong usage" << endl;
         std::exit(EXIT_FAILURE);
     }
     
-    // Arguments num_sweepssed to main
-    std::string tmp = argv[1];  // If we estimate contact pattern parameters
     // --- Temporary --- FIXME: bool from user 
+    std::string tmp = argv[1];  // If we estimate contact pattern parameters
     bool infer_contact = false;
-    if ((tmp == "yes") || (tmp == "true")) {
+    if ((tmp == "yes") || (tmp == "true") || (tmp == "True") || (tmp == "TRUE")) {
         infer_contact = true;
     }
     // --- End-of-Temporary ---
-    int num_iter = std::stoi(argv[2]);  // Number of iterations in the MCMC
-    std::string name_output = argv[3];  // Name of the output file
-    std::string name_data = argv[4];  // Name of the date file
-    std::string path_data = argv[5];  // Path data file
-    std::string path_to_save = argv[6];  // Path otput file
 
-    tmp = argv[7];
+    std::string households_file = argv[2];      // Path/to/file (households)
+    std::string community_file = argv[3];       // Path/to/file (community)
+    std::string output_file = argv[4];          // Name of the output file
+    int num_iter = std::stoi(argv[5]);          // N. of iterations in the MCMC
+
     // --- Temporary --- FIXME: bool from user 
-    bool display = false; 
-    if ((tmp == "yes") || (tmp == "true")) {
-        display = true;
+    tmp = argv[6];
+    bool verbose = false; 
+    if ((tmp == "yes") || (tmp == "true") || (tmp == "True") || (tmp == "TRUE")) {
+        verbose = true;
     }
     // --- End-of-Temporary ---
 
-    //==========Output files==========
     // FIXME : check for space and path validity
-
-    // Path to files
-    std::string condition;
-    std::string data_file, output_file, communityfile;
-
-    // NOTE : to be standardized
-    data_file = path_data + name_data + ".txt";                     // Input file 
-    communityfile = path_data + "community_infection_israel.txt";   // community file
-    output_file = path_to_save + "mcmc_" + name_output + ".txt";    // Output file
-
-    if (display == true){
-        cout << "Input file: " << data_file << endl;
-        cout << "Output file: " << output_file << "\n" << endl;
-    }
 
     //========== Model parameters ==========
 
@@ -247,19 +274,21 @@ int main (int argc, char **argv) {
 
     //==========Build data==========
     // Load data
-    std::vector<Household> hh_data = build_data(data_file, communityfile, infer_contact);
+    build_community(community_file, verbose);
+    std::vector<Household> HH_data = build_households(households_file, infer_contact, verbose);
+
+    //==========MCMC==========
 
     // Initialize MCMC object
     MCMC_Class mcmc_object (
         seed, 
         num_iter, 
         num_adapt_iter,
-        hh_data,
+        HH_data,
         num_augm_iter,
-        display
+        verbose
         );
 
-    //==========MCMC==========
     mcmc_object.run(output_file, num_sweeps);
 
     return EXIT_SUCCESS;

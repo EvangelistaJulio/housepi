@@ -75,6 +75,42 @@ double t_onset_sympt_to_transm_cdf (double tost, double t_incub, std::vector<dou
 // Probability density functions (and their logarithms)
 //----------------------------------------------------------------------
 
+double unif_pdf (double x, std::vector<double> args) {
+    // normal probability density function 
+    double lower_value = args[0];
+    double upper_value = args[1];
+    double pdf = 0.0;
+
+    // The pdf is defined for lower_value <  upper_value
+    if (lower_value >= upper_value) {
+        pdf = 0.0; 
+        // NOTE: raise a warning for wrong parameters ?
+
+    } else {
+        pdf = std::pow(upper_value - lower_value, -1) ;
+    }
+
+    return pdf;
+}
+
+double log_unif_pdf (double x, std::vector<double> args) {
+    // normal probability density function 
+    double lower_value = args[0];
+    double upper_value = args[1];
+    double logpdf = 0.0;
+
+    // The pdf is defined for lower_value <  upper_value
+    if (lower_value >= upper_value) {
+        logpdf = - INFINITY; 
+        // NOTE: raise a warning for wrong parameters ?
+
+    } else {
+        logpdf = - std::log(upper_value - lower_value) ;
+    }
+
+    return logpdf;
+}
+
 double normal_pdf (double x, std::vector<double> args) {
     // normal probability density function 
     double mean = args[0];
@@ -190,20 +226,20 @@ double log_gamma_pdf (double x, std::vector<double> args) {
 //  Random generators
 //----------------------------------------------------------------------
 
-double normal_rand (std::mt19937_64& rand_gen, std::vector<double> args) {
-    // normal distribution random generator
-    double mean = args[0];
-    double sd = args[1];
-    std::normal_distribution<double> dist(mean, sd); 
-
-    return dist(rand_gen);
-}
-
 double unif_rand (std::mt19937_64& rand_gen, std::vector<double> args) {
     // uniform distribution random generator
     double lower_value = args[0];
     double upper_value = args[1];
     std::uniform_real_distribution<double> dist(lower_value, upper_value); 
+
+    return dist(rand_gen);
+}
+
+double normal_rand (std::mt19937_64& rand_gen, std::vector<double> args) {
+    // normal distribution random generator
+    double mean = args[0];
+    double sd = args[1];
+    std::normal_distribution<double> dist(mean, sd); 
 
     return dist(rand_gen);
 }

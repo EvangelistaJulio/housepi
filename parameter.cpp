@@ -101,7 +101,11 @@ Parameter::Parameter (
     if (infer == true) {
 
         // --- prior function --- //
-        if (prior == "normal") {
+        if (prior == "unif") {
+            p_prior_rand = unif_rand;
+            p_prior_log_pdf = log_unif_pdf;
+
+        } else if (prior == "normal") {
             p_prior_rand = normal_rand;
             p_prior_log_pdf = log_normal_pdf;
 
@@ -112,10 +116,6 @@ Parameter::Parameter (
         } else if (prior == "gamma") {
             p_prior_rand = gamma_rand;
             p_prior_log_pdf = log_gamma_pdf;
-
-        } else if (prior == "unif") {
-            p_prior_rand = unif_rand;
-            p_prior_log_pdf = nullptr; // FIXME : look for a smarter way
 
         } else {
             cout << "Unknown prior " << prior << endl;

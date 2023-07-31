@@ -12,16 +12,18 @@ double t_onset_sympt_to_transm_pdf (double tost, double t_incub, std::vector<dou
 double t_onset_sympt_to_transm_cdf (double tost, double t_incub, std::vector<double> args);
 
 // Probability distribution functions
-double normal_pdf(double x, std::vector<double> args);
-double log_normal_pdf(double x, std::vector<double> args);
-double lognorm_pdf(double x, std::vector<double> args);
-double log_lognorm_pdf(double x, std::vector<double> args);
-double gamma_pdf(double x, std::vector<double> args);
-double log_gamma_pdf(double x, std::vector<double> args);
+double unif_pdf(double x, std::vector<double> args = {0., 1.});
+double log_unif_pdf(double x, std::vector<double> args = {0., 1.});
+double normal_pdf(double x, std::vector<double> args = {0., 1.});
+double log_normal_pdf(double x, std::vector<double> args = {0., 1.});
+double lognorm_pdf(double x, std::vector<double> args = {0., 1.});
+double log_lognorm_pdf(double x, std::vector<double> args = {0., 1.});
+double gamma_pdf(double x, std::vector<double> args = {0., 1.});
+double log_gamma_pdf(double x, std::vector<double> args = {0., 1.});
 
 // Random generators
-double normal_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
 double unif_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
+double normal_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
 double lognorm_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
 double gamma_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
 double exp_rand(std::mt19937_64& rand_gen, std::vector<double> args = {1.});

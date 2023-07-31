@@ -13,6 +13,7 @@
 #include "household.hpp"
 
 #define NUM_AUGM_ITER 1
+#define DEFAULT_SEED 20210415
 
 //----------------------------------------------------------------------
 // MCMC_Class : Class declaration
@@ -28,7 +29,7 @@ class MCMC_Class {
 	double m_global_LogLike = 0.0;
 	std::vector<Household> m_data = {};
 	std::vector<double> m_hh_LogLike = {};
-	bool m_display = false;
+	bool m_verbose = false;
 
 	public:
 		int m_num_accept_data = 0;
@@ -42,7 +43,7 @@ class MCMC_Class {
 			int num_adapt_iter,
 			std::vector<Household> data,
 			int num_augm_iter = NUM_AUGM_ITER,
-			bool display = false
+			bool verbose = false
 			);
 		~MCMC_Class () {};
 

@@ -12,14 +12,14 @@ using namespace std;
 
 // default 
 MCMC_Class::MCMC_Class() {
-    m_rand_gen.seed(12345);
+    m_rand_gen.seed(DEFAULT_SEED);
     m_global_LogLike = 0.0;
     m_num_iter = 0;
     m_num_augm_iter = 0;
     m_hh_LogLike = {};
     m_data = {};
     m_num_adapt_iter = 0;
-    m_display = false;
+    m_verbose = false;
 
     reset_moves();
 }
@@ -31,7 +31,7 @@ MCMC_Class::MCMC_Class(
     int num_adapt_iter,
     std::vector<Household> data,
     int num_augm_iter,
-    bool display
+    bool verbose
     ) {
 
     // Copy input vectors
@@ -41,7 +41,7 @@ MCMC_Class::MCMC_Class(
     m_num_adapt_iter = num_adapt_iter;
     m_num_augm_iter = num_augm_iter;
     m_data = data;
-    m_display = display;
+    m_verbose = verbose;
 
     reset_moves();
 }
@@ -78,11 +78,11 @@ void MCMC_Class::init_augm_data () {
     for (size_t h = 0; h < num_households(); h++) {
         // loop over residents within the house
         for (size_t i = 0; i < m_data[h].get_size(); i++) {
-            m_data[h].init_onset_time(i, m_rand_gen, m_display);
-            m_data[h].init_infec_time(i, m_rand_gen, m_display);
+            m_data[h].init_onset_time(i, m_rand_gen);
+            m_data[h].init_infec_time(i, m_rand_gen);
         }
         // Compute person-to-person transmission rate within household
-        m_data[h].init_infec_profiles(m_display);
+        m_data[h].init_infec_profiles();
         // FIXME : update also?
     }
 }
@@ -92,7 +92,7 @@ void MCMC_Class::init_LogLike () {
     int nCases = 0;
     
     for (size_t house = 0; house < num_households(); house++) {
-        m_hh_LogLike[house] = m_data[house].compute_loglike(m_display);
+        m_hh_LogLike[house] = m_data[house].compute_loglike();
         m_global_LogLike += m_hh_LogLike[house];
         nCases += m_data[house].num_symptomatic();
     }
@@ -124,7 +124,7 @@ bool MCMC_Class::update_param (std::string parID) {
         _param(parID).set_value(new_value);
         new_global_LogLike = 0.0;
         for (size_t house = 0; house < num_households(); house++) {
-            new_LogLike_HH[house] = m_data[house].compute_loglike(m_display);        
+            new_LogLike_HH[house] = m_data[house].compute_loglike();        
             new_global_LogLike += new_LogLike_HH[house];
         }
 
@@ -165,15 +165,15 @@ void MCMC_Class::update_augm_infec_times () {
 
             // Log ratio of the proposal (independent proposal) 
             // FIXME : what is this???
-            old_proposal = m_data[h].log_incub_proba(i, m_display);
-            new_proposal = m_data[h].log_incub_proba(i, m_display);
+            old_proposal = m_data[h].log_incub_proba(i);
+            new_proposal = m_data[h].log_incub_proba(i);
 
             // Update infection time and person-to-person transmission rates
             m_data[h].set_augm_infec_time(i, new_value);
             
             // Log likelihood
             old_LogLike_of_HH = m_hh_LogLike[h];
-            new_LogLike_of_HH = m_data[h].compute_loglike(m_display);
+            new_LogLike_of_HH = m_data[h].compute_loglike();
 
             Q = new_LogLike_of_HH - old_LogLike_of_HH + old_proposal - new_proposal;
 
@@ -214,7 +214,7 @@ void MCMC_Class::update_augm_symptom_onset () {
             m_data[h].set_augm_onset_time(i, new_value);
             
             // Log likelihood
-            new_LogLike_of_HH = m_data[h].compute_loglike(m_display);
+            new_LogLike_of_HH = m_data[h].compute_loglike();
             old_LogLike_of_HH = m_hh_LogLike[h];
 
             Q = new_LogLike_of_HH - old_LogLike_of_HH;
