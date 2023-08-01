@@ -19,7 +19,6 @@ MCMC_Class::MCMC_Class() {
     m_hh_LogLike = {};
     m_data = {};
     m_num_adapt_iter = 0;
-    m_verbose = false;
 
     reset_moves();
 }
@@ -30,8 +29,7 @@ MCMC_Class::MCMC_Class(
     int num_iter,
     int num_adapt_iter,
     std::vector<Household> data,
-    int num_augm_iter,
-    bool verbose
+    int num_augm_iter
     ) {
 
     // Copy input vectors
@@ -41,7 +39,6 @@ MCMC_Class::MCMC_Class(
     m_num_adapt_iter = num_adapt_iter;
     m_num_augm_iter = num_augm_iter;
     m_data = data;
-    m_verbose = verbose;
 
     reset_moves();
 }
@@ -83,18 +80,14 @@ void MCMC_Class::init_augm_data () {
         }
         // Compute person-to-person transmission rate within household
         m_data[h].init_infec_profiles();
-        // FIXME : update also?
     }
 }
 
 // Initialize infection time
 void MCMC_Class::init_LogLike () {
-    int nCases = 0;
-    
     for (size_t house = 0; house < num_households(); house++) {
         m_hh_LogLike[house] = m_data[house].compute_loglike();
         m_global_LogLike += m_hh_LogLike[house];
-        nCases += m_data[house].num_symptomatic();
     }
 }
 
@@ -156,12 +149,13 @@ void MCMC_Class::update_augm_infec_times () {
 
     // Loop over households
     for (size_t h = 0; h < m_data.size(); h++) {
+
         // Loop over infected residents within house
         for (size_t i = 0; i < m_data[h].get_size(); i++) {
 
             // Independent sampler from the incubation period
             old_value = m_data[h].get_augm_onset_time(i);
-            new_value = m_data[h].new_infec_time(i, m_rand_gen);
+            new_value = m_data[h].propose_infec_time(i, m_rand_gen);
 
             // Log ratio of the proposal (independent proposal) 
             // FIXME : what is this???
@@ -200,12 +194,13 @@ void MCMC_Class::update_augm_symptom_onset () {
 
     // Loop over households
     for (size_t h = 0; h < m_data.size(); h++) {
+
         // Loop over infected residents of the househould
         for (size_t i = 0; i < m_data[h].get_size(); i++) {
 
             // Independent sampler from uniform distribution [0, 1]
             old_value = m_data[h].get_augm_onset_time(i); 
-            new_value = m_data[h].new_onset_time(i, m_rand_gen);
+            new_value = m_data[h].propose_onset_time(i, m_rand_gen);
 
             // Log ratio of the proposal (independent proposal) 
             // FIXME :why here there's no proposal?
@@ -253,26 +248,26 @@ void MCMC_Class::run (std::string output_file, int num_sweeps) {
         colNames += parID + " " + parID + "_p " + parID + "_a ";
     }
 	colNames += "data_p data_a";
-	output << colNames << endl;
+	output << colNames << std::endl;
 
 	// MCMC chain
-	cout << "=============MCMC===============" << endl;
+	std::cout << "=============MCMC===============" << std::endl;
 
     // Initial state
     init_param_values();
 	init_augm_data();
 	init_LogLike(); 
-	cout << "Initial log likelihood: " << global_LogLike() << endl;
+	std::cout << "Initial log likelihood: " << global_LogLike() << std::endl;
 
     output << "0 " << global_LogLike() << " "; // Log likelihood
 	for (std::string parID : m_param_to_infer_names) {
         output << _param_value(parID) << " 0 0 ";
     }
-    output << "0 0" << endl;
+    output << "0 0" << std::endl;
 
     // Chain
 	for (int i = 0; i < num_iter; i++)	{
-        cout << "iteration " << i << endl;
+        std::cout << "iteration " << i << std::endl;
 	    reset_moves();
 
 		for (int j = 0; j < num_sweeps; j++) {
@@ -296,7 +291,7 @@ void MCMC_Class::run (std::string output_file, int num_sweeps) {
         for (std::string parID : m_param_to_infer_names) {
             output << _param_value(parID) << " " << _param(parID).get_num_propos() << " " << _param(parID).get_num_accept() << " ";
         }
-        output << m_num_propos_data << " " << m_num_accept_data << endl;
+        output << m_num_propos_data << " " << m_num_accept_data << std::endl;
 	}
 
 	output.close();

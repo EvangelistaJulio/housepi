@@ -53,8 +53,8 @@ class Individual {
 		~Individual() {};
 
 		// Methods
-		double infec_profile(double tinf, double study_period);
-		double infec_cumulative(double tinf, double study_period);
+		double infec_inst(double tinf, double study_period);
+		double infec_cumul(double tinf, double study_period);
 };
 
 //----------------------------------------------------------------------
@@ -64,7 +64,6 @@ class Individual {
 class Household {
 	// Attributes
 	size_t h_size = 0;
-	bool h_contact_pattern = false;
 	double h_infec_time = INFINITY;
 
 	std::vector<Individual> h_residents;
@@ -72,17 +71,13 @@ class Household {
 	std::vector<std::vector<double>> h_inst_Lambda = {};
 
 	public:
-		bool h_verbose = false;
-
 		// Constructors
-		Household(bool contact_pattern,	bool verbose);
-		Household() = default;
+		Household() {};
 		~Household() {};
 		
 		// Getter
 		size_t get_size () const;
 		size_t num_symptomatic () const;
-		std::string get_resident_index () const;
 		double get_augm_onset_time (size_t idx) const;
 
 		// Setter
@@ -95,11 +90,15 @@ class Household {
 		void set_augm_onset_time (size_t idx, double onset_time);
 		void init_infec_profiles ();
 		void update_infec_profiles (size_t ind);
-		double new_infec_time (size_t idx, std::mt19937_64& rand_gen);
-		double new_onset_time (size_t idx, std::mt19937_64& rand_gen);
+		double propose_infec_time (size_t idx, std::mt19937_64& rand_gen);
+		double propose_onset_time (size_t idx, std::mt19937_64& rand_gen);
 
-		double child_infectivity (size_t curr, size_t infectee);
-		double model_susceptibility (size_t curr);
+		// Model // NOTE: this should be external from the class Household
+		double model_contact_modulation (size_t idx, size_t infectee);
+		double model_susceptibility (size_t idx);
+		double model_community_risk_inst (double t1);
+		double model_community_risk_cumul (double t0, double t1);
+		double model_transmissability ();
 		double log_incub_proba (size_t idx);
 		double compute_loglike ();
 		double log_infec_proba (size_t curr);

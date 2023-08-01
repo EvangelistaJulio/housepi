@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <random>
+#include <iostream>
 
 // time from onset of symptoms to transmission
 double tost_norm_const(double t_incub, std::vector<double> args);
@@ -27,5 +28,10 @@ double normal_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.
 double lognorm_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
 double gamma_rand(std::mt19937_64& rand_gen, std::vector<double> args = {0., 1.});
 double exp_rand(std::mt19937_64& rand_gen, std::vector<double> args = {1.});
+
+// Display
+extern bool Verbose;
+void display_1D_vector(std::vector<double> my_vector);
+void display_2D_vector(std::vector<std::vector<double>> my_vec);
 
 #endif // DEF_USER_MODEL__H

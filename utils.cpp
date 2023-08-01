@@ -269,3 +269,29 @@ double exp_rand (std::mt19937_64& rand_gen, std::vector<double> args) {
 
     return dist(rand_gen);
 }
+
+//----------------------------------------------------------------------
+//  Display
+//----------------------------------------------------------------------
+
+void display_1D_vector(std::vector<double> my_vector){
+    size_t num = my_vector.size();
+
+    for (size_t i = 0; i < num; i++) {
+            std::cout << my_vector[i] << " "; 
+    }
+    std::cout << std::endl;
+}
+
+void display_2D_vector(std::vector<std::vector<double>> my_vector){
+    size_t num_rows = my_vector.size();
+    size_t num_cols = my_vector[0].size();
+
+    for (size_t i = 0; i < num_rows; i++) {
+        for (size_t j = 0; j < num_cols; j++) {
+            std::cout << my_vector[i][j] << " "; 
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}

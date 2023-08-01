@@ -18,7 +18,7 @@ Metropolis_Strategy::Metropolis_Strategy (double new_rate, std::vector<double> n
 
     // check range values
     if (range.size() != 2 || range[0] >= range[1]) {
-        cout << "Provided an inconsistent range for parameter." << endl;
+        std::cout << "Provided an inconsistent range for parameter." << std::endl;
         exit (EXIT_FAILURE);
 
     } else {
@@ -118,7 +118,7 @@ Parameter::Parameter (
             p_prior_log_pdf = log_gamma_pdf;
 
         } else {
-            cout << "Unknown prior " << prior << endl;
+            std::cout << "Unknown prior " << prior << std::endl;
             exit (EXIT_FAILURE);    
         }
 
@@ -133,7 +133,7 @@ Parameter::Parameter (
             _metropolis = new Strategy_normal(metropolis_rate, range);
 
         } else {
-            cout << "Unknown metropolis strategy " << metropolis_strategy << endl;
+            std::cout << "Unknown metropolis strategy " << metropolis_strategy << std::endl;
             exit (EXIT_FAILURE);  
         }
     }
