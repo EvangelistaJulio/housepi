@@ -2,6 +2,9 @@
 
 using namespace std;
 
+
+// UPDATE: too baroque...
+
 /////////////////////////////////////////////////////
 //  Metropolis_Strategy : Class
 /////////////////////////////////////////////////////
@@ -65,12 +68,12 @@ void Metropolis_Strategy::adapt_rate(bool move_accepted, int step, int num_adapt
     if (num_adapt_iter > 0 && step <= num_adapt_iter)
     {
         delta = 1.0 - step / num_adapt_iter;
-        diff = accept - MCMC_OPTIMAL_ACCEPTANCE;
+        diff = accept - DEFAULT_ACCEPT_RATE;
         set_rate(1.0 + delta * diff);
     }
 }
 
-// --- Strategy_exp ---
+// --- Strategy_exp --- //
 double Strategy_exp::propose_move(std::mt19937_64 &rand_gen, double old_value)
 {
     double new_value = 0.0;
@@ -84,7 +87,7 @@ double Strategy_exp::log_ratio_proposal()
     return rate;
 }
 
-// --- Strategy_normal ---
+// --- Strategy_normal --- //
 double Strategy_normal::propose_move(std::mt19937_64 &rand_gen, double old_value)
 {
     double new_value = 0.0;
@@ -216,6 +219,8 @@ double Parameter::log_ratio_prior(double new_value)
 ///////////////////////////////////////////////////////////
 //////// Par_Dict : Class
 ///////////////////////////////////////////////////////////
+
+//  NOTE: aliases
 
 // Getter
 double Par_Dict::value(std::string parID) const

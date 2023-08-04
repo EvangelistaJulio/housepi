@@ -3,152 +3,6 @@
 using namespace std;
 
 /////////////////////////////////////////////////////
-//  Individual : Class
-/////////////////////////////////////////////////////
-
-// ----------------------------
-//  Constructors
-// ----------------------------
-
-Individual::Individual(
-	int indid,
-	int status,
-	int age,
-	int sex,
-	bool isolation,
-	bool recovered,
-	int vacc_status,
-	double study_period,
-	double vacc_delay,
-	double onset_time)
-{
-	// Data variables
-	i_indid = indid;
-	i_status = status;
-	i_age = age;
-	i_sex = sex;
-	i_isolation = isolation;
-	i_recovered = recovered;
-	i_vacc_status = vacc_status;
-	i_study_period = study_period;
-	i_vacc_delay = vacc_delay;
-	i_onset_time = onset_time;
-
-	// Initialize augmented variables
-	i_augm_infec_time = onset_time;
-	i_augm_onset_time = onset_time;
-}
-
-// ----------------------------
-//  Methods : Computations
-// ----------------------------
-
-// FIXME : these are probabilities, but we want rates.
-
-double Individual::infec_inst(double t_infec, double study_period)
-{
-	double output = 0.0, tost, t_incub;
-	std::vector<double> args = {
-		glob_params.value("tost_tau"), glob_params.value("tost_mu"),
-		glob_params.value("tost_sigma"), glob_params.value("tost_alpha")};
-
-	if (i_status == SYMPTOMATIC)
-	{
-		if (i_augm_infec_time < study_period && i_augm_infec_time < t_infec)
-		{
-			tost = t_infec - i_augm_onset_time;
-			t_incub = i_augm_onset_time - i_augm_infec_time;
-			output = t_onset_sympt_to_transm_pdf(tost, t_incub, args);
-		}
-	}
-
-	return output;
-}
-
-double Individual::infec_cumul(double t_infec, double study_period)
-{
-	double output = 0.0, tost, t_incub;
-	std::vector<double> args = {
-		glob_params.value("tost_tau"), glob_params.value("tost_mu"),
-		glob_params.value("tost_sigma"), glob_params.value("tost_alpha")};
-
-	if (i_status == SYMPTOMATIC)
-	{
-		if (i_augm_infec_time < study_period && i_augm_infec_time < t_infec)
-		{
-			tost = t_infec - i_augm_onset_time;
-			t_incub = i_augm_onset_time - i_augm_infec_time;
-			output = t_onset_sympt_to_transm_cdf(tost, t_incub, args);
-		}
-	}
-
-	return output;
-}
-
-// ////////////// AUGMENTED ////////////// //
-// UPDATE : generalize augmented
-
-// Initialize augmented variables
-void Individual::init_augm_data(std::mt19937_64 &rand_gen)
-{
-	std::vector<double> args = {glob_params.value("incub_shape"), glob_params.value("incub_scale")};
-
-	if (i_status == NOT_A_CASE)
-	{
-		i_augm_infec_time = INFINITY;
-		i_augm_onset_time = INFINITY;
-	}
-	else if (i_status == SYMPTOMATIC)
-	{
-		// FIXME : this initialization looks too arbitrary
-		i_augm_infec_time = i_onset_time - gamma_rand(rand_gen, args);
-		i_augm_onset_time = i_onset_time + unif_rand(rand_gen);
-	}
-	else
-	{
-		std::cerr << "ERROR: status not in the model." << endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
-}
-
-// Propose new value for symptom onset time
-double Individual::propose_augm_onset_time(std::mt19937_64 &rand_gen)
-{
-	double new_onset_time = 0.0;
-
-	if (i_status == NOT_A_CASE)
-	{
-		new_onset_time = INFINITY;
-	}
-	else
-	{
-		new_onset_time = i_onset_time + unif_rand(rand_gen);
-	}
-
-	return new_onset_time;
-}
-// Propose new value for infection time
-double Individual::propose_augm_infec_time(std::mt19937_64 &rand_gen)
-{
-	double new_infec_time = 0.0, incub_period = 0.0;
-	std::vector<double> args = {glob_params.value("incub_shape"), glob_params.value("incub_scale")};
-
-	if (i_status == SYMPTOMATIC)
-	{
-		incub_period = gamma_rand(rand_gen, args);
-		new_infec_time = get_augm_onset_time() - incub_period;
-	}
-	else
-	{ // Resident without infection or with unknown outcome
-		new_infec_time = INFINITY;
-	}
-
-	return new_infec_time;
-}
-
-/////////////////////////////////////////////////////
 //  Household : Class
 /////////////////////////////////////////////////////
 
@@ -163,7 +17,6 @@ void Household::add_individual(Individual this_indiv)
 // Initialize augmented variables
 void Household::model_init_augm_data(std::mt19937_64 &rand_gen)
 {
-
 	// loop over residents within the house
 	for (size_t i = 0; i < h_size; i++)
 	{
@@ -213,6 +66,19 @@ void Household::set_augm_infec_time(size_t idx, double new_infec_time)
 //  Methods : Computations
 // ----------------------------
 
+// logarithm of the pdf of the incubation period
+double Household::log_incub_period_pdf(size_t idx)
+{
+	double x = get_augm_onset_time(idx) - get_augm_infec_time(idx);
+	// FLAG
+	if ( x < 0 ) {
+		std::cout << "ERROR: onset-infec=" << x << endl;
+		std::exit(EXIT_FAILURE);
+	}
+	// END-of-FLAG
+	return h_residents[idx].log_incub_period_pdf(x);
+}
+
 // Propose new value for symptom onset time
 double Household::propose_augm_onset_time(size_t idx, std::mt19937_64 &rand_gen)
 {
@@ -228,7 +94,6 @@ double Household::propose_augm_infec_time(size_t idx, std::mt19937_64 &rand_gen)
 // Compute the risk of infection
 void Household::init_infec_profiles()
 {
-
 	// initialize 2-dim vectors h_cumul_rate and h_inst_rate
 	h_cumul_rate.resize(h_size);
 	h_inst_rate.resize(h_size);
@@ -297,34 +162,16 @@ void Household::update_infec_profiles(size_t idx)
 	}
 }
 
-double Household::log_incub_proba(size_t idx)
-{
-	// logarithm of the pdf of the incubation period
-	double out = 0.0, incub_period = 0.0;
-	std::vector<double> args = {glob_params.value("incub_shape"), glob_params.value("incub_scale")};
-
-	if (h_residents[idx].i_status == SYMPTOMATIC)
-	{
-		incub_period = get_augm_onset_time(idx) - get_augm_infec_time(idx);
-		out = log_gamma_pdf(incub_period, args);
-	}
-	return out;
-}
-
 // Instaneous risk of infection from community
 double Household::model_community_risk_inst(double t1)
 {
-	double risk_inst = glob_params.value("alpha") * Inst_Community_Infec[(int)t1];
-
-	return risk_inst;
+	return glob_params.value("alpha") * Inst_Community_Infec[(int)t1];
 }
 
 // Cumulative risk of infection from community
 double Household::model_community_risk_cumul(double t0, double t1)
 {
-	double risk_cumul = glob_params.value("alpha") * (Cumul_Community_Infec[(int)t1] - Cumul_Community_Infec[(int)t0]);
-
-	return risk_cumul;
+	return glob_params.value("alpha") * (Cumul_Community_Infec[(int)t1] - Cumul_Community_Infec[(int)t0]);
 }
 
 // Relative infectivity of symptomatic child cases versus symptomatic adult cases
@@ -426,7 +273,6 @@ double Household::model_transmissability()
 /* logarithm of the infection probability */
 double Household::log_infec_proba(size_t idx)
 {
-	// Instantaneous risk of infection from other household members
 	double beta_i = 0.0, beta = 0.0, output = 0.0;
 	double t1 = get_augm_infec_time(idx);
 
@@ -451,15 +297,14 @@ double Household::log_infec_proba(size_t idx)
 /* Survival probability from time t0 of resident idx */
 double Household::log_surv_proba(size_t idx, double t0)
 {
-	// Survival from t0 to t1
 	double t1, output = 0.0, beta = 0.0, beta_i = 0.0;
 
 	if (h_residents[idx].i_status > 0)
-	{ // infected case
+	{ 	// infected case
 		t1 = get_augm_infec_time(idx);
 	}
 	else
-	{ // not a case
+	{ 	// not a case
 		t1 = h_residents[idx].i_study_period;
 	}
 
@@ -484,27 +329,26 @@ double Household::log_surv_proba(size_t idx, double t0)
 /* Compute the log-likelihood within household */
 double Household::compute_loglike()
 {
-	double LL = 0.0; // Log Likelihood
+	double loglike = 0.0;
 
 	// All residents
 	for (size_t i = 0; i < h_size; i++)
 	{
-
 		if (h_residents[i].i_status == NOT_A_CASE)
-		{ // Contribution of not infected cases
-			LL += log_surv_proba(i, h_infec_time);
+		{ 	// Contribution of not infected cases
+			loglike += log_surv_proba(i, h_infec_time);
 		}
 		else if (i == h_first_case)
-		{ // Contribution of first case
-			LL += log_incub_proba(i);
+		{ 	// Contribution of first case
+			loglike += log_incub_period_pdf(i);
 		}
 		else
-		{ // Contribution of secondary cases
-			LL += log_incub_proba(i);
-			LL += log_surv_proba(i, h_infec_time);
-			LL += log_infec_proba(i);
+		{ 	// Contribution of secondary cases
+			loglike += log_incub_period_pdf(i);
+			loglike += log_surv_proba(i, h_infec_time);
+			loglike += log_infec_proba(i);
 		}
 	}
 
-	return LL;
+	return loglike;
 }

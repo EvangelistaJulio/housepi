@@ -1,4 +1,4 @@
-#include "mcmc_class.hpp"
+#include "mcmc.hpp"
 
 using namespace std;
 
@@ -172,20 +172,14 @@ void MCMC_Class::update_augm_infec_times()
         // Loop over infected residents within house
         for (size_t i = 0; i < m_data[h].h_size; i++)
         {
-            // Independent sampler from the incubation period
-            old_value = m_data[h].get_augm_onset_time(i);
-            new_value = m_data[h].propose_augm_infec_time(i, m_rand_gen);
-
-            // Log ratio of the proposal (independent proposal)
-            // FIXME : what is this???
-            old_proposal = m_data[h].log_incub_proba(i);
-            new_proposal = m_data[h].log_incub_proba(i);
-
-            // Update infection time and person-to-person transmission rates
-            m_data[h].set_augm_infec_time(i, new_value);
-
-            // Log likelihood
+            old_value = m_data[h].get_augm_infec_time(i);
+            old_proposal = m_data[h].log_incub_period_pdf(i);
             old_loglike_of_HH = m_hh_loglike[h];
+
+            // Update infection time with proposed value
+            new_value = m_data[h].propose_augm_infec_time(i, m_rand_gen);
+            m_data[h].set_augm_infec_time(i, new_value);
+            new_proposal = m_data[h].log_incub_period_pdf(i);
             new_loglike_of_HH = m_data[h].compute_loglike();
 
             Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
@@ -211,32 +205,26 @@ void MCMC_Class::update_augm_infec_times()
 void MCMC_Class::update_augm_symptom_onset()
 {
     double old_value, new_value, Q;
-    // double old_proposal, new_proposal;
+    double old_proposal, new_proposal;
     double old_loglike_of_HH, new_loglike_of_HH;
 
     // Loop over households
     for (size_t h = 0; h < m_data.size(); h++)
     {
-
         // Loop over infected residents of the househould
         for (size_t i = 0; i < m_data[h].h_size; i++)
         {
-
-            // Independent sampler from uniform distribution [0, 1]
             old_value = m_data[h].get_augm_onset_time(i);
-            new_value = m_data[h].propose_augm_onset_time(i, m_rand_gen);
-
-            // Log ratio of the proposal (independent proposal)
-            // UPDATE :why here there's no proposal?
-
-            // Update infection time and person-to-person transmission rates
-            m_data[h].set_augm_onset_time(i, new_value);
-
-            // Log likelihood
-            new_loglike_of_HH = m_data[h].compute_loglike();
+            old_proposal = 0.0; // unif
             old_loglike_of_HH = m_hh_loglike[h];
 
-            Q = new_loglike_of_HH - old_loglike_of_HH;
+            // Update onset time with proposed value
+            new_value = m_data[h].propose_augm_onset_time(i, m_rand_gen);
+            m_data[h].set_augm_onset_time(i, new_value);
+            new_proposal = 0.0; // unif
+            new_loglike_of_HH = m_data[h].compute_loglike();
+
+            Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
 
             if (unif_rand(m_rand_gen) < std::exp(Q))
             {
@@ -255,10 +243,10 @@ void MCMC_Class::update_augm_symptom_onset()
 }
 
 //----------------------------------------------------------------------
-// Run mcmc
+// MCMC : infer
 //----------------------------------------------------------------------
 
-void MCMC_Class::run(std::string output_file, int num_sweeps, std::string tab)
+void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
 {
 
     ofstream output(output_file.c_str());

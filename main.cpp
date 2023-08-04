@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-#include "mcmc_class.hpp"
+#include "mcmc.hpp"
 
 using namespace std;
 
@@ -412,7 +412,7 @@ int main(int argc, char **argv)
         num_augm_iter);
 
     // run MCMC optimization
-    mcmc_object.run(output_path_to_file, num_sweeps);
+    mcmc_object.infer(output_path_to_file, num_sweeps);
 
     return EXIT_SUCCESS;
 }

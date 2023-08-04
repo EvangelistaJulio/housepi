@@ -12,8 +12,6 @@
 
 #include "utils.hpp"
 
-#define MCMC_OPTIMAL_ACCEPTANCE 0.25
-
 typedef double (*prior_pdf_ptr)(double x, std::vector<double> args);
 typedef double (*prior_rand_ptr)(std::mt19937_64 &rand_gen, std::vector<double> args);
 
@@ -175,6 +173,7 @@ public:
 	void print();
 };
 
+// global parameters declaration
 extern Par_Dict glob_params;
 
 #endif // PARAMETER__H

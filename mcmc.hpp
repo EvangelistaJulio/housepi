@@ -12,12 +12,6 @@
 
 #include "household.hpp"
 
-#define DEFAULT_SEED 20210415
-#define DEFAULT_NUM_ITER 2
-#define DEFAULT_NUM_MCMC_SWEEEPS 20
-#define DEFAULT_NUM_AUGM_ITER 5
-#define DEFAULT_NUM_ADAPT 2
-
 //----------------------------------------------------------------------
 // MCMC_Class : Class declaration
 //----------------------------------------------------------------------
@@ -64,7 +58,7 @@ public:
 	void update_augm_infec_times();
 	void update_augm_symptom_onset();
 
-	void run(
+	void infer(
 		std::string output_filename,
 		int num_sweeps,
 		std::string tab = "\t");
