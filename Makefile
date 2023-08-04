@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=gnu++14
+CXXFLAGS := -Wall -Wextra -std=gnu++14 -Ofast
 
 # List of source files
 SOURCES := main.cpp mcmc_class.cpp household.cpp parameter.cpp utils.cpp

@@ -80,6 +80,7 @@ double unif_pdf (double x, std::vector<double> args) {
     double lower_value = args[0];
     double upper_value = args[1];
     double pdf = 0.0;
+    (void) x; // simple fix for Warning
 
     // The pdf is defined for lower_value <  upper_value
     if (lower_value >= upper_value) {
@@ -98,6 +99,7 @@ double log_unif_pdf (double x, std::vector<double> args) {
     double lower_value = args[0];
     double upper_value = args[1];
     double logpdf = 0.0;
+    (void) x; // simple fix for Warning
 
     // The pdf is defined for lower_value <  upper_value
     if (lower_value >= upper_value) {

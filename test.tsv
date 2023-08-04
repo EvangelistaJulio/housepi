@@ -1,0 +1,4 @@
+iteration	loglike	num_p	num_a	alpha	alpha_p	alpha_a
+0	-12399.8	0	0	0.180232	0	0
+1	nan	923800	652270	0.00147161	20	20
+2	nan	923800	652657	0.000387312	20	20
