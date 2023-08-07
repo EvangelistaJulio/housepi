@@ -1,3 +1,5 @@
+// household.cpp //
+
 #include "household.hpp"
 
 using namespace std;
@@ -11,7 +13,7 @@ void Household::add_individual(Individual this_indiv)
 {
 	h_residents.push_back(this_indiv);
 	h_size++;
-	update_h_infec_time();
+	update_household_first_case();
 }
 
 // Initialize augmented variables
@@ -22,19 +24,19 @@ void Household::model_init_augm_data(std::mt19937_64 &rand_gen)
 	{
 		h_residents[i].init_augm_data(rand_gen);
 	}
-	update_h_infec_time();
-	init_infec_profiles();
+	update_household_first_case();
+	init_infectivity_profiles();
 }
 
 // Change symptom onset
 void Household::set_augm_onset_time(size_t idx, double new_onset_time)
 {
 	h_residents[idx].set_augm_onset_time(new_onset_time);
-	update_infec_profiles(idx);
+	update_infectivity_profiles(idx);
 }
 
 // Change infection time
-void Household::update_h_infec_time()
+void Household::update_household_first_case()
 {
 	double new_t0 = INFINITY;
 	size_t new_case0 = h_size; // NOTE: init to impossible value
@@ -55,11 +57,11 @@ void Household::update_h_infec_time()
 }
 
 // Change individual infection time
-void Household::set_augm_infec_time(size_t idx, double new_infec_time)
+void Household::set_augm_incub_period(size_t idx, double new_incub_period)
 {
-	h_residents[idx].set_augm_infec_time(new_infec_time);
-	update_h_infec_time();
-	update_infec_profiles(idx);
+	h_residents[idx].set_augm_incub_period(new_incub_period);
+	update_household_first_case();
+	update_infectivity_profiles(idx);
 }
 
 // ----------------------------
@@ -69,13 +71,7 @@ void Household::set_augm_infec_time(size_t idx, double new_infec_time)
 // logarithm of the pdf of the incubation period
 double Household::log_incub_period_pdf(size_t idx)
 {
-	double x = get_augm_onset_time(idx) - get_augm_infec_time(idx);
-	// FLAG
-	if ( x < 0 ) {
-		std::cout << "ERROR: onset-infec=" << x << endl;
-		std::exit(EXIT_FAILURE);
-	}
-	// END-of-FLAG
+	double x = get_augm_incub_period(idx);
 	return h_residents[idx].log_incub_period_pdf(x);
 }
 
@@ -86,13 +82,13 @@ double Household::propose_augm_onset_time(size_t idx, std::mt19937_64 &rand_gen)
 }
 
 // Propose new value for infection time
-double Household::propose_augm_infec_time(size_t idx, std::mt19937_64 &rand_gen)
+double Household::propose_augm_incub_period(size_t idx, std::mt19937_64 &rand_gen)
 {
-	return h_residents[idx].propose_augm_infec_time(rand_gen);
+	return h_residents[idx].propose_augm_incub_period(rand_gen);
 }
 
 // Compute the risk of infection
-void Household::init_infec_profiles()
+void Household::init_infectivity_profiles()
 {
 	// initialize 2-dim vectors h_cumul_rate and h_inst_rate
 	h_cumul_rate.resize(h_size);
@@ -107,12 +103,12 @@ void Household::init_infec_profiles()
 	for (size_t infector = 0; infector < h_size; infector++)
 	{
 		// FIXME : is this working ?
-		update_infec_profiles(infector);
+		update_infectivity_profiles(infector);
 	}
 }
 
 // Update h_cumul_rate and h_inst_rate matrices during data augmentation
-void Household::update_infec_profiles(size_t idx)
+void Household::update_infectivity_profiles(size_t idx)
 {
 	double t1;
 	// NOTE : h_cumul_rate[idx][i] : from `idx` to `i`
@@ -128,7 +124,7 @@ void Household::update_infec_profiles(size_t idx)
 			h_cumul_rate[idx][i] = h_residents[idx].infec_cumul(t1, h_residents[i].i_study_period);
 
 			// Instantaneous transmission rate for secondary cases
-			if (h_residents[i].i_status > 0)
+			if (!(h_residents[i].i_status == NOT_A_CASE))
 			{ // resident i got infectedd
 				h_inst_rate[idx][i] = h_residents[idx].infec_inst(t1, h_residents[i].i_study_period);
 			}
@@ -162,16 +158,18 @@ void Household::update_infec_profiles(size_t idx)
 	}
 }
 
+// UPDATE : this could be interpolated instead
+
 // Instaneous risk of infection from community
 double Household::model_community_risk_inst(double t1)
 {
-	return glob_params.value("alpha") * Inst_Community_Infec[(int)t1];
+	return glob_params.value("alpha") * Inst_Community_Infec[(int) t1];
 }
 
 // Cumulative risk of infection from community
 double Household::model_community_risk_cumul(double t0, double t1)
 {
-	return glob_params.value("alpha") * (Cumul_Community_Infec[(int)t1] - Cumul_Community_Infec[(int)t0]);
+	return glob_params.value("alpha") * (Cumul_Community_Infec[(int) t1] - Cumul_Community_Infec[(int) t0]);
 }
 
 // Relative infectivity of symptomatic child cases versus symptomatic adult cases
@@ -299,13 +297,13 @@ double Household::log_surv_proba(size_t idx, double t0)
 {
 	double t1, output = 0.0, beta = 0.0, beta_i = 0.0;
 
-	if (h_residents[idx].i_status > 0)
-	{ 	// infected case
-		t1 = get_augm_infec_time(idx);
-	}
-	else
-	{ 	// not a case
+	if (h_residents[idx].i_status == NOT_A_CASE)
+	{ // not a case
 		t1 = h_residents[idx].i_study_period;
+	}
+	else if (h_residents[idx].i_status == SYMPTOMATIC)
+	{ // infected case
+		t1 = get_augm_infec_time(idx);
 	}
 
 	// Cumulative risk of infection from other household members
@@ -334,16 +332,17 @@ double Household::compute_loglike()
 	// All residents
 	for (size_t i = 0; i < h_size; i++)
 	{
+		// UPDATE : this could also be functional programming
 		if (h_residents[i].i_status == NOT_A_CASE)
-		{ 	// Contribution of not infected cases
+		{ // Contribution of not infected cases
 			loglike += log_surv_proba(i, h_infec_time);
 		}
 		else if (i == h_first_case)
-		{ 	// Contribution of first case
+		{ // Contribution of first case
 			loglike += log_incub_period_pdf(i);
 		}
 		else
-		{ 	// Contribution of secondary cases
+		{ // Contribution of secondary cases
 			loglike += log_incub_period_pdf(i);
 			loglike += log_surv_proba(i, h_infec_time);
 			loglike += log_infec_proba(i);

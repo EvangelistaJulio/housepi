@@ -1,3 +1,5 @@
+// mcmc.hpp //
+
 #ifndef MCMC_OBJECT__H
 #define MCMC_OBJECT__H
 
@@ -55,8 +57,7 @@ public:
 
 	// Computations
 	bool update_param(std::string parID);
-	void update_augm_infec_times();
-	void update_augm_symptom_onset();
+	void update_augm_variables();
 
 	void infer(
 		std::string output_filename,

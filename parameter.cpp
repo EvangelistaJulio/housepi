@@ -1,3 +1,5 @@
+// parameter.cpp //
+
 #include "parameter.hpp"
 
 using namespace std;
@@ -220,7 +222,7 @@ double Parameter::log_ratio_prior(double new_value)
 //////// Par_Dict : Class
 ///////////////////////////////////////////////////////////
 
-//  NOTE: aliases
+//  NOTE: aliases... but ugly...
 
 // Getter
 double Par_Dict::value(std::string parID) const

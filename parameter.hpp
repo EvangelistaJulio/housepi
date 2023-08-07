@@ -26,8 +26,8 @@ class Metropolis_Strategy
 
 public:
 	// Attributes
-	std::vector<double> range = {};
 	double rate = 0.0;
+	std::vector<double> range = {};
 	int num_accept = 0;
 	int num_propos = 0;
 	double accept = 0.0;
@@ -41,11 +41,14 @@ public:
 	void adapt_rate(bool move_accepted, int step, int num_adapt_iter);
 
 	// Computations
+	bool within_range(double new_value);
+
+	// Virtual methods
 	virtual double propose_move(std::mt19937_64 &rand_gen, double old_value) { return old_value + unif_rand(rand_gen); };
 	virtual double log_ratio_proposal() { return 0.; };
-	bool within_range(double new_value);
 };
 
+// exponential metropolis strategy
 class Strategy_exp : public Metropolis_Strategy
 {
 	std::string name = "exp";
@@ -59,6 +62,7 @@ public:
 	double log_ratio_proposal() override;
 };
 
+// normal metropolis stratregy
 class Strategy_normal : public Metropolis_Strategy
 {
 	std::string name = "normal";

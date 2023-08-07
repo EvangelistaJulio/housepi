@@ -1,3 +1,5 @@
+// mcmc.cpp //
+
 #include "mcmc.hpp"
 
 using namespace std;
@@ -134,11 +136,7 @@ bool MCMC_Class::update_param(std::string parID)
             new_global_loglike += new_loglike_HH[house];
         }
 
-        // FLAG
-        std::cout << "(old LL) " << m_global_loglike << " | (new LL) " << new_global_loglike << endl;
-        // END-of-FLAG
-
-        // Metropolis
+        // Metropolis-Hastings
         Q = new_global_loglike - m_global_loglike + log_ratio_proposal + log_ratio_prior;
 
         if (unif_rand(m_rand_gen) < std::exp(Q))
@@ -159,8 +157,9 @@ bool MCMC_Class::update_param(std::string parID)
     return move_accepted;
 }
 
-// Update augmented infection times
-void MCMC_Class::update_augm_infec_times()
+// FIXME no consistency check
+// Update augmented variables
+void MCMC_Class::update_augm_variables()
 {
     double old_value, new_value, Q;
     double old_proposal, new_proposal;
@@ -169,88 +168,78 @@ void MCMC_Class::update_augm_infec_times()
     // Loop over households
     for (size_t h = 0; h < m_data.size(); h++)
     {
-        // Loop over infected residents within house
+        // Loop over residents of the househould
         for (size_t i = 0; i < m_data[h].h_size; i++)
         {
-            old_value = m_data[h].get_augm_infec_time(i);
-            old_proposal = m_data[h].log_incub_period_pdf(i);
-            old_loglike_of_HH = m_hh_loglike[h];
-
-            // Update infection time with proposed value
-            new_value = m_data[h].propose_augm_infec_time(i, m_rand_gen);
-            m_data[h].set_augm_infec_time(i, new_value);
-            new_proposal = m_data[h].log_incub_period_pdf(i);
-            new_loglike_of_HH = m_data[h].compute_loglike();
-
-            Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
-
-            if (unif_rand(m_rand_gen) < std::exp(Q))
+            // Select only the infectious ones
+            if (m_data[h].get_status(i) == SYMPTOMATIC)
             {
-                m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
-                m_hh_loglike[h] = new_loglike_of_HH;
-                m_num_accept_data++;
-            }
-            else
-            {
-                m_data[h].set_augm_infec_time(i, old_value);
-            }
+                // UPDATE : these two chunks to update augmented should be integrated...
+                // --- onset time --- //
+                old_value = m_data[h].get_augm_onset_time(i);
+                old_proposal = 0.0; // unif
+                old_loglike_of_HH = m_hh_loglike[h];
 
-            m_num_propos_data++;
+                // Update onset time with proposed value
+                new_value = m_data[h].propose_augm_onset_time(i, m_rand_gen);
+                m_data[h].set_augm_onset_time(i, new_value);
+                new_proposal = 0.0; // unif
+                new_loglike_of_HH = m_data[h].compute_loglike();
+
+                Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
+
+                if (unif_rand(m_rand_gen) < std::exp(Q))
+                {
+                    m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
+                    m_hh_loglike[h] = new_loglike_of_HH;
+                    m_num_accept_data++;
+                    m_data[h].update_infectivity_profiles(i);
+                }
+                else
+                {
+                    m_data[h].set_augm_onset_time(i, old_value);
+                }
+
+                m_num_propos_data++;
+
+                // --- incub period --- //
+                old_value = m_data[h].get_augm_infec_time(i);
+                old_proposal = m_data[h].log_incub_period_pdf(i);
+                old_loglike_of_HH = m_hh_loglike[h];
+
+                // Update incubation period time with proposed value
+                new_value = m_data[h].propose_augm_incub_period(i, m_rand_gen);
+                m_data[h].set_augm_incub_period(i, new_value);
+                new_proposal = m_data[h].log_incub_period_pdf(i);
+                new_loglike_of_HH = m_data[h].compute_loglike();
+
+                Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
+
+                if (unif_rand(m_rand_gen) < std::exp(Q))
+                {
+                    m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
+                    m_hh_loglike[h] = new_loglike_of_HH;
+                    m_num_accept_data++;
+                    m_data[h].update_infectivity_profiles(i);
+                }
+                else
+                {
+                    m_data[h].set_augm_incub_period(i, old_value);
+                }
+
+                m_num_propos_data++;
+            }
         }
     }
 }
 
-// Update augmented symptom onsets
-// UPDATE : these two loops for update augmented should be integrated...
-void MCMC_Class::update_augm_symptom_onset()
-{
-    double old_value, new_value, Q;
-    double old_proposal, new_proposal;
-    double old_loglike_of_HH, new_loglike_of_HH;
-
-    // Loop over households
-    for (size_t h = 0; h < m_data.size(); h++)
-    {
-        // Loop over infected residents of the househould
-        for (size_t i = 0; i < m_data[h].h_size; i++)
-        {
-            old_value = m_data[h].get_augm_onset_time(i);
-            old_proposal = 0.0; // unif
-            old_loglike_of_HH = m_hh_loglike[h];
-
-            // Update onset time with proposed value
-            new_value = m_data[h].propose_augm_onset_time(i, m_rand_gen);
-            m_data[h].set_augm_onset_time(i, new_value);
-            new_proposal = 0.0; // unif
-            new_loglike_of_HH = m_data[h].compute_loglike();
-
-            Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
-
-            if (unif_rand(m_rand_gen) < std::exp(Q))
-            {
-                m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
-                m_hh_loglike[h] = new_loglike_of_HH;
-                m_num_accept_data++;
-            }
-            else
-            {
-                m_data[h].set_augm_onset_time(i, old_value);
-            }
-
-            m_num_propos_data++;
-        }
-    }
-}
-
-//----------------------------------------------------------------------
-// MCMC : infer
-//----------------------------------------------------------------------
+//////////////////////////////////////////////////
+// /////////////// MCMC : infer /////////////// //
+//////////////////////////////////////////////////
 
 void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
 {
-
     ofstream output(output_file.c_str());
-
     int step;
     bool move_accepted;
     int num_augm_iter = get_num_augm_iter();
@@ -278,6 +267,8 @@ void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
     }
     output << std::endl;
 
+
+
     std::cout << "\n=========MCMC:execution=========" << std::endl;
     for (int i = 0; i < get_num_iter(); i++)
     {
@@ -298,8 +289,7 @@ void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
             // Augmented data
             for (int k = 0; k < num_augm_iter; k++)
             {
-                update_augm_infec_times(); // Update loglik at the household level
-                update_augm_symptom_onset();
+                update_augm_variables(); // Update loglik at the household level
             }
         }
 
@@ -317,3 +307,11 @@ void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
     std::cout << "\n===========MCMC:end=============\n"
               << std::endl;
 }
+
+//////////////////////////////////////////////////
+// ////////////// MCMC : generate ///////////// //
+//////////////////////////////////////////////////
+
+/*
+void MCMC_Class::generate(std::string output_file, double temperature, int num_sweeps, std::string tab)
+*/

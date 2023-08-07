@@ -1,4 +1,4 @@
-// setp.hpp //
+// setup.hpp //
 
 #define DEFAULT_SEED 20210415
 

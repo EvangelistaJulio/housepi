@@ -1,3 +1,5 @@
+// individual.hpp //
+
 #ifndef DEF_INDIVIDUAL__H
 #define DEF_INDIVIDUAL__H
 
@@ -45,8 +47,8 @@ public:
 
 class Individual
 {
+	double i_augm_incub_period = 0.0;
 	double i_augm_onset_time = INFINITY;
-	double i_augm_infec_time = INFINITY;
 
 public:
 	// Attributes
@@ -76,22 +78,21 @@ public:
 	Individual() = default;
 	~Individual(){};
 
-	// Getter
-	double get_augm_infec_time() const { return i_augm_infec_time; }
+	// Getter	
+	double get_augm_incub_period() const { return i_augm_incub_period; }
+	double get_augm_infec_time() const { return i_augm_onset_time - i_augm_incub_period; }
 	double get_augm_onset_time() const { return i_augm_onset_time; }
 
 	// Setter
 	void init_augm_data(std::mt19937_64 &rand_gen);
-	void set_augm_infec_time(double new_infec_time) { i_augm_infec_time = new_infec_time; }
+	void set_augm_incub_period(double new_incub_period) { i_augm_incub_period = new_incub_period; }
 	void set_augm_onset_time(double new_onset_time) { i_augm_onset_time = new_onset_time; }
 
 	// Incubation period
-	double incub_period_pdf(double x);
 	double log_incub_period_pdf(double x);
-	double incub_period_rand(std::mt19937_64 &rand_gen);
 
 	// Propose augmented
-	double propose_augm_infec_time(std::mt19937_64 &rand_gen);
+	double propose_augm_incub_period(std::mt19937_64 &rand_gen);
 	double propose_augm_onset_time(std::mt19937_64 &rand_gen);
 
 	// Infectivity Profiles

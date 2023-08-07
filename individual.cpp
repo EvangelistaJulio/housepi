@@ -1,27 +1,8 @@
+// individual.cpp //
+
 #include "individual.hpp"
 
 using namespace std;
-
-/*
-/////////////////////////////////////////////////////
-//  Augmented_Variable : Class
-/////////////////////////////////////////////////////
-
-double Augmented_Variable::propose(std::mt19937_64 &rand_gen)
-{
-	return old_value() + rand(rand_gen);
-}
-
-
-void Augmented_Variable::init(std::mt19937_64 &rand_gen)
-{
-
-}
-*/
-
-/////////////////////////////////////////////////////
-//  Individual : Class
-/////////////////////////////////////////////////////
 
 // ----------------------------
 //  Constructors
@@ -61,18 +42,17 @@ Individual::Individual(
 
 double Individual::infec_inst(double t_infec, double study_period)
 {
-	double output = 0.0, tost, t_incub;
+	double output = 0.0, tost;
 	std::vector<double> args = {
 		glob_params.value("tost_tau"), glob_params.value("tost_mu"),
 		glob_params.value("tost_sigma"), glob_params.value("tost_alpha")};
 
 	if (i_status == SYMPTOMATIC)
 	{
-		if (i_augm_infec_time < study_period && i_augm_infec_time < t_infec)
+		if (get_augm_infec_time() < study_period && get_augm_infec_time() < t_infec)
 		{
 			tost = t_infec - i_augm_onset_time;
-			t_incub = i_augm_onset_time - i_augm_infec_time;
-			output = t_onset_sympt_to_transm_pdf(tost, t_incub, args);
+			output = t_onset_sympt_to_transm_pdf(tost, i_augm_incub_period, args);
 		}
 	}
 
@@ -81,18 +61,17 @@ double Individual::infec_inst(double t_infec, double study_period)
 
 double Individual::infec_cumul(double t_infec, double study_period)
 {
-	double output = 0.0, tost, t_incub;
+	double output = 0.0, tost;
 	std::vector<double> args = {
 		glob_params.value("tost_tau"), glob_params.value("tost_mu"),
 		glob_params.value("tost_sigma"), glob_params.value("tost_alpha")};
 
 	if (i_status == SYMPTOMATIC)
 	{
-		if (i_augm_infec_time < study_period && i_augm_infec_time < t_infec)
+		if (get_augm_infec_time() < study_period && get_augm_infec_time() < t_infec)
 		{
 			tost = t_infec - i_augm_onset_time;
-			t_incub = i_augm_onset_time - i_augm_infec_time;
-			output = t_onset_sympt_to_transm_cdf(tost, t_incub, args);
+			output = t_onset_sympt_to_transm_cdf(tost, i_augm_incub_period, args);
 		}
 	}
 
@@ -103,43 +82,11 @@ double Individual::infec_cumul(double t_infec, double study_period)
 //  Methods : Incubation Period
 // ----------------------------
 
-// UPDATE: these could be compacted from utils
-
-// Incubation period random generator
-double Individual::incub_period_rand(std::mt19937_64 &rand_gen)
-{
-	std::vector<double> args = {
-		glob_params.value("incub_shape"),
-		glob_params.value("incub_scale")};
-
-	return gamma_rand(rand_gen, args);
-}
-
-// pdf of the ncubation period
-double Individual::incub_period_pdf(double x)
-{
-	std::vector<double> args = {
-		glob_params.value("incub_shape"),
-		glob_params.value("incub_scale")};
-
-	if (i_status == NOT_A_CASE)
-	{
-		return 0.0;
-	}
-	else if (i_status == SYMPTOMATIC)
-	{
-		return gamma_pdf(x, args);
-	}
-	else
-	{
-		std::cerr << "ERROR: status not in the model." << endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
-}
-
 // Logorithm of the pdf of the incubation period
+// UPDATE: Functional programming + consistency checks :
+// to be safer one could just load pointer to function
+// now I just call the function upon condition
+/*
 double Individual::log_incub_period_pdf(double x)
 {
 	std::vector<double> args = {
@@ -162,62 +109,59 @@ double Individual::log_incub_period_pdf(double x)
 		std::exit(EXIT_FAILURE);
 	}
 }
+*/
+
+double Individual::log_incub_period_pdf(double x)
+{
+	std::vector<double> args = {
+		glob_params.value("incub_shape"),
+		glob_params.value("incub_scale")};
+
+	return log_gamma_pdf(x, args);
+}
 
 // ----------------------------
 //  Methods : Augmented Variables
 // ----------------------------
 
-// ////////////// AUGMENTED ////////////// //
-// FIXME : generalize augmented
-// Functional programming + consistency checks
-
+// UPDATE : generalize augmented
 
 // Initialize augmented variables
 void Individual::init_augm_data(std::mt19937_64 &rand_gen)
 {
-	i_augm_infec_time = i_onset_time;
-	i_augm_onset_time = i_onset_time;
+	if (i_status == NOT_A_CASE)
+	{
+		i_augm_incub_period = 0.;
+		i_augm_onset_time = i_onset_time;
+	}
+	else if (i_status == SYMPTOMATIC)
+	{
+		i_augm_incub_period = 0.;
+		i_augm_onset_time = i_onset_time;
+		i_augm_incub_period = propose_augm_incub_period(rand_gen);
+		i_augm_onset_time = propose_augm_onset_time(rand_gen);
+	}
+	else
+	{
+		std::cerr << "ERROR: status not in the model." << endl;
+		std::cerr << "Exit...\n"
+				  << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+}
 
-	i_augm_infec_time = propose_augm_infec_time(rand_gen);
-	i_augm_onset_time = propose_augm_onset_time(rand_gen);
+// Propose new value for incubation period
+double Individual::propose_augm_incub_period(std::mt19937_64 &rand_gen)
+{
+	std::vector<double> args = {
+		glob_params.value("incub_shape"),
+		glob_params.value("incub_scale")};
+
+	return gamma_rand(rand_gen, args);
 }
 
 // Propose new value for symptom onset time
 double Individual::propose_augm_onset_time(std::mt19937_64 &rand_gen)
 {
-	if (i_status == NOT_A_CASE)
-	{
-		return INFINITY;
-	}
-	else if (i_status == SYMPTOMATIC)
-	{
-		return get_augm_onset_time() + unif_rand(rand_gen);
-	}
-	else
-	{
-		std::cerr << "ERROR: status not in the model." << endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
-}
-
-// Propose new value for infection time
-double Individual::propose_augm_infec_time(std::mt19937_64 &rand_gen)
-{
-	if (i_status == NOT_A_CASE)
-	{
-		return INFINITY;
-	}
-	else if (i_status == SYMPTOMATIC)
-	{
-		return get_augm_onset_time() - incub_period_rand(rand_gen);
-	}
-	else
-	{
-		std::cerr << "ERROR: status not in the model." << endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+	return get_augm_onset_time() + unif_rand(rand_gen);
 }

@@ -41,5 +41,7 @@ typical_size	5	0
 
 =========MCMC:execution=========
 -> running iteration : 1/2
-(old LL) -12399.8 | (new LL) -12026.1
-ERROR: onset-infec=nan
+-> running iteration : 2/2
+
+===========MCMC:end=============
+

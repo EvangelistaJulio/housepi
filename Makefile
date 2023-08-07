@@ -2,7 +2,7 @@ CXX := g++
 CXXFLAGS := -Wall -Wextra -std=gnu++14 -Ofast
 
 # List of source files
-SOURCES := main.cpp mcmc_class.cpp household.cpp individual.cpp parameter.cpp utils.cpp
+SOURCES := main.cpp mcmc.cpp household.cpp individual.cpp parameter.cpp utils.cpp
 
 # Object files to build (automatically generated from SOURCES)
 OBJECTS := $(SOURCES:.cpp=.o)

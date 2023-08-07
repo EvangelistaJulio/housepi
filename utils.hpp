@@ -9,8 +9,10 @@
 
 #include "setup.hpp"
 
+// NOTE: in C++ these objects can be improved moking rcpp pdf classes 
+
 // time from onset of symptoms to transmission
-double tost_norm_const(double t_incub, std::vector<double> args);
+double tost_normaliz_const(double t_incub, std::vector<double> args);
 double t_onset_sympt_to_transm_pdf (double tost, double t_incub, std::vector<double> args);
 double t_onset_sympt_to_transm_cdf (double tost, double t_incub, std::vector<double> args);
 
