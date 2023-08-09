@@ -147,10 +147,7 @@ std::vector<Household> build_households(std::string data_path_to_file)
 
             safe_load[this_HH_id].add_individual(this_indiv);
             num_subjects++;
-            if (status != NOT_A_CASE)
-            {
-                num_cases++;
-            }
+            num_cases += (status == HEALTHY) ? 0 : 1;
             max_study_period = max(max_study_period, study_period);
         }
     }
@@ -171,10 +168,10 @@ std::vector<Household> build_households(std::string data_path_to_file)
     // General information
     if (Verbose == true)
     {
-        std::cout << "N. of households: " << output.size() << std::endl;
-        std::cout << "N. of individuals: " << num_subjects << std::endl;
-        std::cout << "N. of cases: " << num_cases << std::endl;
-        std::cout << "N. of days: " << max_study_period << std::endl;
+        std::cout << "N. of households :" << TAB << output.size() << std::endl;
+        std::cout << "N. of individuals :" << TAB << num_subjects << std::endl;
+        std::cout << "N. of cases :" << TAB << num_cases << std::endl;
+        std::cout << "N. of days :" << TAB << max_study_period << std::endl;
     }
 
     return (output);
@@ -197,11 +194,14 @@ void build_parameters(std::string data_path_to_file)
         for (std::string line; std::getline(input_file, line);)
         {
             std::string name, value_str, infer, prior, args_str, strategy, rate_str, range_str;
-            std::string tmp;
             double value, rate;
-            std::vector<double> args = {}, range = {};
+            std::vector<double> range = {};
+            std::string tmp;
+            std::vector<std::string> args_stock = {};
+            kwargs args;
             std::istringstream iss(line);
 
+            // --- NAME ---
             if (!getline(iss, name, '\t'))
             {
                 std::cerr << "\nERROR: Unable to extract `name` column." << std::endl;
@@ -211,6 +211,8 @@ void build_parameters(std::string data_path_to_file)
                           << std::endl;
                 exit(EXIT_FAILURE);
             }
+
+            // --- VALUE ---
             if (!getline(iss, value_str, '\t'))
             {
                 std::cerr << "\nERROR: Unable to extract `value` column." << std::endl;
@@ -222,6 +224,7 @@ void build_parameters(std::string data_path_to_file)
             }
             value = stod(value_str);
 
+            // --- INFER ---
             if (!getline(iss, infer, '\t'))
             {
                 std::cerr << "\nERROR: Unable to extract `infer` column." << std::endl;
@@ -234,7 +237,7 @@ void build_parameters(std::string data_path_to_file)
 
             if (stobool(infer) == true)
             {
-
+                // --- PRIOR ---
                 if (!getline(iss, prior, '\t'))
                 {
                     std::cerr << "\nERROR: Unable to extract `prior` column." << std::endl;
@@ -245,6 +248,7 @@ void build_parameters(std::string data_path_to_file)
                     exit(EXIT_FAILURE);
                 }
 
+                // --- ARGS ---
                 if (!getline(iss, args_str, '\t'))
                 {
                     std::cerr << "\nERROR: Unable to extract `args` column." << std::endl;
@@ -254,26 +258,41 @@ void build_parameters(std::string data_path_to_file)
                               << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                // load args
                 std::istringstream args_ss(args_str);
                 while (std::getline(args_ss, tmp, ','))
                 {
-                    try
+                    args_stock.push_back(tmp);
+                }
+                if (args_stock.size() == 0 || args_stock.size() % 2 == 1)
+                {
+                    std::cerr << "\nERROR: Unrecognized dictionary of `args`." << std::endl;
+                    std::cerr << "Check line: " << line << "\n"
+                              << std::endl;
+                    std::cerr << "Exit...\n"
+                              << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                else
+                {
+                    for (size_t i = 0; i < args_stock.size(); i += 2)
                     {
-                        double arg_value = std::stod(tmp);
-                        args.push_back(arg_value);
-                    }
-                    catch (const std::exception &)
-                    {
-                        std::cerr << "\nERROR: Invalid argument in `args`." << std::endl;
-                        std::cerr << "Check line: " << line << "\n"
-                                  << std::endl;
-                        std::cerr << "Exit...\n"
-                                  << std::endl;
-                        exit(EXIT_FAILURE);
+                        try
+                        {
+                            args.emplace(args_stock[i], std::stod(args_stock[i + 1]));
+                        }
+                        catch (const std::exception &)
+                        {
+                            std::cerr << "\nERROR: Invalid argument in `args`." << std::endl;
+                            std::cerr << "Check line: " << line << "\n"
+                                      << std::endl;
+                            std::cerr << "Exit...\n"
+                                      << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
                     }
                 }
 
+                // --- STRATEGY ---
                 if (!getline(iss, strategy, '\t'))
                 {
                     std::cerr << "\nERROR: Unable to extract `strategy` column." << std::endl;
@@ -284,6 +303,7 @@ void build_parameters(std::string data_path_to_file)
                     exit(EXIT_FAILURE);
                 }
 
+                // --- RATE ---
                 if (!getline(iss, rate_str, '\t'))
                 {
                     std::cerr << "\nERROR: Unable to extract `strategy` column." << std::endl;
@@ -306,6 +326,7 @@ void build_parameters(std::string data_path_to_file)
                 }
                 // load range
                 std::istringstream range_ss(range_str);
+                std::string tmp;
                 while (std::getline(range_ss, tmp, ','))
                 {
                     try
@@ -362,8 +383,8 @@ int main(int argc, char **argv)
     // UPDATE : these should be user optional variables
     unsigned seed = DEFAULT_SEED;
     int num_iter = DEFAULT_NUM_ITER;
-    int num_sweeps = DEFAULT_NUM_MCMC_SWEEEPS;
-    int num_augm_iter = DEFAULT_NUM_AUGM_ITER;
+    int num_param_sweeps = DEFAULT_NUM_PARAM_SWEEEPS;
+    int num_augm_sweeps = DEFAULT_NUM_AUGM_SWEEPS;
     int num_adapt_iter = DEFAULT_NUM_ADAPT;
 
     //========== USER parameters ==========
@@ -406,15 +427,16 @@ int main(int argc, char **argv)
     build_parameters(parameters_path_to_file);
 
     // Initialize MCMC object
-    MCMC_Class mcmc_object(
-        seed,
-        num_iter,
-        num_adapt_iter,
-        HH_data,
-        num_augm_iter);
+    MCMC_Class mcmc_object(seed,
+                           HH_data);
 
-    // run MCMC optimization
-    mcmc_object.infer(output_path_to_file, num_sweeps);
+    // run MCMC inference
+    mcmc_object.infer(
+        output_path_to_file,
+        num_iter,
+        num_param_sweeps,
+        num_augm_sweeps,
+        num_adapt_iter);
 
     return EXIT_SUCCESS;
 }

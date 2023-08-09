@@ -5,7 +5,7 @@
 
 #include <string>
 #include <vector>
-#include <unordered_map>
+#include <map>
 #include <cmath>
 #include <random>
 #include <iostream>
@@ -16,39 +16,17 @@
 extern std::vector<double> Cumul_Community_Infec;
 extern std::vector<double> Inst_Community_Infec;
 
-/*
-// TO BE UPDATED
-//----------------------------------------------------------------------
-// Augmented_Variable : Class declaration
-//----------------------------------------------------------------------
+/////////////////////////////////////////////////////////
+///////// Individual : Class declaration ///////////////
+////////////////////////////////////////////////////////
 
-class Augmented_Variable
-{
-	// Attributes
-	double a_value = 0.0;
-	double a_impossible = INFINITY;
-
-public:
-	// Getter
-	double get() const { return a_value; }
-
-	// Setter
-	void init(std::mt19937_64 &rand_gen);
-	void set(double new_value) { a_value = new_value; }
-
-	// Computations
-	double propose(std::mt19937_64 &rand_gen);
-};
-*/
-
-//----------------------------------------------------------------------
-// Individual : Class declaration
-//----------------------------------------------------------------------
+// FIXME: consistency : study_period should be un upper bound for augm times
 
 class Individual
 {
 	double i_augm_incub_period = 0.0;
 	double i_augm_onset_time = INFINITY;
+	std::map<std::string, Metropolis> i_augm = {};
 
 public:
 	// Attributes
@@ -59,8 +37,8 @@ public:
 	bool i_isolation = false;
 	bool i_recovered = false;
 	int i_vacc_status = 0;
-	double i_study_period = 0.0;
-	double i_vacc_delay = 0.0;
+	double i_study_period = INFINITY;
+	double i_vacc_delay = INFINITY;
 	double i_onset_time = INFINITY;
 
 	// Constructors
@@ -96,8 +74,8 @@ public:
 	double propose_augm_onset_time(std::mt19937_64 &rand_gen);
 
 	// Infectivity Profiles
-	double infec_inst(double tinf, double study_period);
-	double infec_cumul(double tinf, double study_period);
+	double infec_inst(double t_transm);
+	double infec_cumul(double t_transm);
 };
 
 #endif //DEF_INDIVIDUAL__H

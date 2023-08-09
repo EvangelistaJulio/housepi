@@ -10,88 +10,31 @@
 #include <random>
 #include <iostream>
 
-#include "utils.hpp"
+#include "metropolis.hpp"
 
-typedef double (*prior_pdf_ptr)(double x, std::vector<double> args);
-typedef double (*prior_rand_ptr)(std::mt19937_64 &rand_gen, std::vector<double> args);
-
-//----------------------------------------------------------------------
-// Metropolis Strategy auxiliary classes
-//----------------------------------------------------------------------
-
-// base class to deal with metropolis strategies
-class Metropolis_Strategy
-{
-	std::string name = "_none_";
-
-public:
-	// Attributes
-	double rate = 0.0;
-	std::vector<double> range = {};
-	int num_accept = 0;
-	int num_propos = 0;
-	double accept = 0.0;
-
-	// Constructor
-	Metropolis_Strategy(double rate, std::vector<double> new_range);
-
-	// Setter
-	void reset_moves();
-	void set_rate(double new_rate) { rate = new_rate; };
-	void adapt_rate(bool move_accepted, int step, int num_adapt_iter);
-
-	// Computations
-	bool within_range(double new_value);
-
-	// Virtual methods
-	virtual double propose_move(std::mt19937_64 &rand_gen, double old_value) { return old_value + unif_rand(rand_gen); };
-	virtual double log_ratio_proposal() { return 0.; };
-};
-
-// exponential metropolis strategy
-class Strategy_exp : public Metropolis_Strategy
-{
-	std::string name = "exp";
-
-public:
-	// Constructor
-	Strategy_exp(double rate, std::vector<double> new_range) : Metropolis_Strategy(rate, new_range){};
-
-	// Computations
-	double propose_move(std::mt19937_64 &rand_gen, double new_value) override;
-	double log_ratio_proposal() override;
-};
-
-// normal metropolis stratregy
-class Strategy_normal : public Metropolis_Strategy
-{
-	std::string name = "normal";
-
-public:
-	// Constructor
-	Strategy_normal(double rate, std::vector<double> new_range) : Metropolis_Strategy(rate, new_range){};
-
-	// Computations
-	double propose_move(std::mt19937_64 &rand_gen, double new_value) override;
-	double log_ratio_proposal() override;
-};
+typedef double (*pdf_ptr)(double x, kwargs args);
+typedef double (*rand_ptr)(std::mt19937_64 &rand_gen, kwargs args);
 
 ////////////////////////////////////////////////////////////
 //////// Parameter : Class declaration /////////////////////
 ////////////////////////////////////////////////////////////
 
+// FIXME : this should be inherited from metropolis :
+// most of the methods comes from it; it should have value as attribute
+// in order to be expanded to augmented variables also
+
 class Parameter
 {
 	// Attributes
-	double p_value = 0.;					 // value of the parameter
-	std::string p_prior = "_const_";		 // choice of the prior to the parameter
-	std::vector<double> p_prior_args = {};	 // arguments to the prior function
-	prior_pdf_ptr p_prior_log_pdf = nullptr; // pointer to the log prior pdf
-	prior_rand_ptr p_prior_rand = nullptr;	 // the actual generator to execute
+	double p_value = 0.;					 	// value of the parameter
+	std::string p_prior = "_const_";			 // choice of the prior to the parameter
+	kwargs p_prior_args = {};	 				// arguments to the prior function
+	pdf_ptr p_prior_log_pdf = nullptr; 	// pointer to the log prior pdf
+	rand_ptr p_prior_rand = nullptr;	 	// the actual generator to execute
 
 public:
-	std::string p_name = "_no_name_"; // parameter name
-	bool p_infer = false;			  // wheter to infer the parameter or not
+	std::string p_name = "_none_"; 			// parameter name
+	bool p_infer = false;			 		 // wheter to infer the parameter or not
 
 	// Constructors
 	Parameter(
@@ -99,7 +42,7 @@ public:
 		double value,
 		bool infer,
 		std::string prior = "_const_",
-		std::vector<double> args = {},
+		kwargs args = {},
 		std::string metropolis_strategy = "exp",
 		double metropolis_rate = 0.,
 		std::vector<double> range = {});
@@ -107,10 +50,10 @@ public:
 	~Parameter(){};
 
 	// Getter
-	double get_value() const;
+	double get_value() const { return p_value; };
 
 	// Setter
-	void set_value(double value);
+	void set_value(double new_value) { p_value = new_value; };
 
 	// Computations
 	double generate_from_prior(std::mt19937_64 &rand_gen);
@@ -118,25 +61,25 @@ public:
 
 	// --- Aliases for Metropolis Strategy ---
 	// -> Getter
-	int get_num_accept() const { return _metropolis->num_accept; }
-	int get_num_propos() const { return _metropolis->num_propos; }
-	double get_accept() const { return _metropolis->accept; }
+	int get_num_accept() const { return _tmp_->num_accept; }
+	int get_num_propos() const { return _tmp_->num_propos; }
+	double get_accept() const { return _tmp_->accept; }
 
 	// -> Setter
-	void set_rate_metropolis(double rate);
-	void reset_moves() { _metropolis->reset_moves(); }
-	void set_num_accept_pp() { _metropolis->num_accept++; }
-	void set_num_propos_pp() { _metropolis->num_propos++; }
-	void set_accept(double accept) { _metropolis->accept = accept; }
-	void adapt_rate(bool move_accepted, int step, int num_adapt_iter) { _metropolis->adapt_rate(move_accepted, step, num_adapt_iter); }
+	void set_rate_tmp_(double new_rate) { _tmp_->set_args({{"rate", new_rate}}); };
+	void reset_moves() { _tmp_->reset_moves(); }
+	void set_num_accept_pp() { _tmp_->num_accept++; }
+	void set_num_propos_pp() { _tmp_->num_propos++; }
+	void set_accept(double accept) { _tmp_->accept = accept; }
+	void adapt_rate(bool move_accepted, int step, int num_adapt_iter) { _tmp_->adapt_rate(move_accepted, step, num_adapt_iter); }
 
 	// -> Computations
-	double propose_move(std::mt19937_64 &rand_gen) { return _metropolis->propose_move(rand_gen, p_value); }
-	bool within_range(double new_value) { return _metropolis->within_range(new_value); }
-	double log_ratio_proposal() { return _metropolis->log_ratio_proposal(); }
+	double propose(std::mt19937_64 &rand_gen) { return _tmp_->propose(rand_gen, p_value); }
+	bool within_range(double new_value) { return _tmp_->within_range(new_value); }
+	double log_ratio_proposal() { return _tmp_->log_ratio_proposal(); }
 
 private:
-	Metropolis_Strategy *_metropolis; // Pointer for polymorphism
+	Strategy_Param *_tmp_; // Pointer for polymorphism
 };
 
 ///////////////////////////////////////////////////////////
@@ -169,7 +112,7 @@ public:
 
 	// Computations
 	bool within_range(std::string parID, double new_value);
-	double propose_move(std::string parID, std::mt19937_64 &m_rand_gen);
+	double propose(std::string parID, std::mt19937_64 &m_rand_gen);
 	double log_ratio_proposal(std::string parID);
 	double log_ratio_prior(std::string parID, double new_value);
 

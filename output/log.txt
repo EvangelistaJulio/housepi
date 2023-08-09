@@ -1,37 +1,38 @@
 
 =============DATA===============
 Data file: data/database_waning_clean.txt
-N. of households: 1201
-N. of individuals: 4619
-N. of cases: 2624
-N. of days: 272
+N. of households :	1
+N. of individuals :	5
+N. of cases :	1
+N. of days :	262
 
 =============COMMUNITY==============
 Data file: data/community_infection_israel.txt
 
 =============PARAMETERS==============
 Model file: data/model-parameters.tsv
-alpha	0.001	1
-beta	0.6	0
-delta	1	0
-incub_scale	1.131	0
-incub_shape	3.449	0
-r1V	1	0
-r1V90	1	0
-r2V	1	0
-r3V	1	0
-rC	1	0
-rCC	1	0
-rFC	1	0
-rMC	1	0
-rQ	1	0
-rR	1	0
-rU	1	0
-tost_alpha	5.85	0
-tost_mu	-4	0
-tost_sigma	1.85	0
-tost_tau	5.783	0
-typical_size	5	0
+_NAME_	_VALUE_	_INFER_
+alpha	0.001	true
+beta	0.6	false
+delta	1	false
+incub_scale	1.131	false
+incub_shape	3.449	false
+r1V	1	false
+r1V90	1	false
+r2V	1	false
+r3V	1	false
+rC	1	false
+rCC	1	false
+rFC	1	false
+rMC	1	false
+rQ	1	false
+rR	1	false
+rU	1	false
+tost_alpha	5.85	false
+tost_mu	-4	false
+tost_sigma	1.85	false
+tost_tau	5.783	false
+typical_size	5	false
 
 =============MCMC===============
 
@@ -40,8 +41,10 @@ typical_size	5	0
 -> init loglikelihood;
 
 =========MCMC:execution=========
--> running iteration : 1/2
--> running iteration : 2/2
+-> running iteration : 1/4
+-> running iteration : 2/4
+-> running iteration : 3/4
+-> running iteration : 4/4
 
 ===========MCMC:end=============
 

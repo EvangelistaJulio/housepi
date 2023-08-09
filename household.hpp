@@ -12,10 +12,6 @@
 
 #include "individual.hpp"
 
-// Shared Parameter Dictionary
-extern std::vector<double> Cumul_Community_Infec;
-extern std::vector<double> Inst_Community_Infec;
-
 //----------------------------------------------------------------------
 // Household : Class declaration
 //----------------------------------------------------------------------
@@ -31,6 +27,7 @@ public:
 	size_t h_size = 0;
 	size_t h_first_case = -1;
 	double h_infec_time = INFINITY;
+	std::vector<size_t> h_symptomatic_list = {};
 
 	// Constructors
 	Household(){};
@@ -44,7 +41,8 @@ public:
 
 	// Setter
 	void add_individual(Individual this_indiv);
-	void model_init_augm_data(std::mt19937_64 &rand_gen);
+	void init_augm_data(std::mt19937_64 &rand_gen);
+	void update_household_status();
 
 	// Computations (augmented)
 	double propose_augm_incub_period(size_t idx, std::mt19937_64 &rand_gen);
@@ -52,9 +50,14 @@ public:
 	void set_augm_incub_period(size_t idx, double infec_time);
 	void set_augm_onset_time(size_t idx, double onset_time);
 
+	// Computations (default)
 	void init_infectivity_profiles();
 	void update_infectivity_profiles(size_t ind);
-	void update_household_first_case();
+
+	double log_incub_period_pdf(size_t idx);
+	double log_infec_proba(size_t idx);
+	double log_surv_proba(size_t idx, double t0);
+	double compute_loglike();
 
 	// Model // NOTE: this should be external from the class Household
 	double model_contact_modulation(size_t idx, size_t infectee);
@@ -63,10 +66,6 @@ public:
 	double model_community_risk_cumul(double t0, double t1);
 	double model_transmissability();
 
-	double log_incub_period_pdf(size_t idx);
-	double log_infec_proba(size_t idx);
-	double log_surv_proba(size_t idx, double t0);
-	double compute_loglike();
 };
 
 #endif // DEF_HOUSEHOLD__H

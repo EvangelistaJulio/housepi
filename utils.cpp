@@ -8,21 +8,21 @@ using namespace std;
 // Cumulative probability density functions
 //----------------------------------------------------------------------
 
-double tost_normaliz_const(double t_incub, std::vector<double> args)
+double tost_normaliz_const(double t_incub, kwargs args)
 {
     // Normalization for t_onset_sympt_to_transm_pdf
     double norm_const;
-    double tau = args[0];
-    double mu_f = args[1];
-    double sigma_f = args[2];
-    double alpha_f = args[3];
+    double a = args["alpha"];
+    double m = args["mu"];
+    double s = args["sigma"];
+    double T = args["tau"];
 
-    norm_const = 1. + (t_incub / tau - 1.) * std::pow(1 + std::exp(mu_f / sigma_f), -alpha_f) - t_incub / tau * (std::pow(1. + std::exp((mu_f + tau) / sigma_f), -alpha_f));
-    norm_const *= sigma_f / alpha_f;
+    norm_const = 1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - t_incub / T * (std::pow(1. + std::exp((m + T) / s), -a));
+    norm_const *= s / a;
     return norm_const;
 }
 
-double t_onset_sympt_to_transm_pdf(double tost, double t_incub, std::vector<double> args)
+double t_onset_sympt_to_transm_pdf(double tost, double t_incub, kwargs args)
 {
     /* The Time from Onset of Symptoms to Transmission (TOST) is modeled as a skew-logistic distribution (type I).
     This distribution is also a function of the incubation time `t_incub`.
@@ -32,103 +32,101 @@ double t_onset_sympt_to_transm_pdf(double tost, double t_incub, std::vector<doub
     ----
     Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
     Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
-    double out = 0.0, norm;
-    double tau = args[0];
-    double mu_f = args[1];
-    double sigma_f = args[2];
-    double alpha_f = args[3];
-
-    norm = tost_normaliz_const(t_incub, args);
+    double out = 0.0;
+    double a = args["alpha"];
+    double m = args["mu"];
+    double s = args["sigma"];
+    double T = args["tau"];
+    double norm_const = tost_normaliz_const(t_incub, args);
 
     if (tost < 0)
     {
-        tost = tost * tau / t_incub;
+        tost = tost * T / t_incub;
     }
-    out = std::exp((mu_f - tost) / sigma_f) * std::pow(1. + std::exp((mu_f - tost) / sigma_f), -1. - alpha_f);
+    out = std::exp((m - tost) / s) * std::pow(1. + std::exp((m - tost) / s), -1. - a);
 
-    return out / norm;
+    return out / norm_const;
 }
 
-double t_onset_sympt_to_transm_cdf(double tost, double t_incub, std::vector<double> args)
+double t_onset_sympt_to_transm_cdf(double tost, double t_incub, kwargs args)
 {
     // Cumulative distribution function for `t_onset_sympt_to_transm_pdf`.
-    double out = 0.0, norm;
-    double tau = args[0];
-    double mu_f = args[1];
-    double sigma_f = args[2];
-    double alpha_f = args[3];
-
-    norm = tost_normaliz_const(t_incub, args);
+    double out = 0.0;
+    double a = args["alpha"];
+    double m = args["mu"];
+    double s = args["sigma"];
+    double T = args["tau"];
+    double norm_const = tost_normaliz_const(t_incub, args);
 
     if (tost < 0)
     {
         // Integrate from -t_incub to tost
-        out = t_incub / tau * (std::pow(1. + std::exp((mu_f - tost * tau / t_incub) / sigma_f), -alpha_f) - std::pow(1. + std::exp((mu_f + tau) / sigma_f), -alpha_f));
+        out = t_incub / T * (std::pow(1. + std::exp((m - tost * T / t_incub) / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
     }
     else
     {
         // Integrate from -t_incub to 0
-        out = t_incub / tau * (std::pow(1. + std::exp(mu_f / sigma_f), -alpha_f) - std::pow(1. + std::exp((mu_f + tau) / sigma_f), -alpha_f));
+        out = t_incub / T * (std::pow(1. + std::exp(m / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
         // Integrate from 0 to tost
-        out += std::pow(1. + std::exp((mu_f - tost) / sigma_f), -alpha_f) - std::pow(1. + std::exp(mu_f / sigma_f), -alpha_f);
+        out += std::pow(1. + std::exp((m - tost) / s), -a) - std::pow(1. + std::exp(m / s), -a);
     }
 
-    return out / norm;
+    return out / norm_const;
 }
 
 //----------------------------------------------------------------------
 // Probability density functions (and their logarithms)
 //----------------------------------------------------------------------
 
-double unif_pdf(double x, std::vector<double> args)
+double unif_pdf(double x, kwargs args)
 {
     // normal probability density function
-    double lower_value = args[0];
-    double upper_value = args[1];
+    double low = args["low"];
+    double up = args["up"];
     double pdf = 0.0;
     (void)x; // simple fix for Warning
 
-    // The pdf is defined for lower_value <  upper_value
-    if (lower_value >= upper_value)
+    // The pdf is defined for low <  up
+    if (low >= up)
     {
         pdf = 0.0;
         // NOTE: raise a warning for wrong parameters ?
     }
     else
     {
-        pdf = std::pow(upper_value - lower_value, -1);
+        pdf = std::pow(up - low, -1);
     }
 
     return pdf;
 }
 
-double log_unif_pdf(double x, std::vector<double> args)
+double log_unif_pdf(double x, kwargs args)
 {
     // normal probability density function
-    double lower_value = args[0];
-    double upper_value = args[1];
+    double low = args["low"];
+    double up = args["up"];
     double logpdf = 0.0;
     (void)x; // simple fix for Warning
 
-    // The pdf is defined for lower_value <  upper_value
-    if (lower_value >= upper_value)
+    // The pdf is defined for low <  up
+    if (low >= up)
     {
         logpdf = -INFINITY;
         // NOTE: raise a warning for wrong parameters ?
     }
     else
     {
-        logpdf = -std::log(upper_value - lower_value);
+        logpdf = -std::log(up - low);
     }
 
     return logpdf;
 }
 
-double normal_pdf(double x, std::vector<double> args)
+double normal_pdf(double x, kwargs args)
 {
     // normal probability density function
-    double mean = args[0];
-    double sd = args[1];
+    double mean = args["mean"];
+    double sd = args["sd"];
     double pdf = 0.0;
 
     // The pdf is defined for sd > 0.
@@ -145,11 +143,11 @@ double normal_pdf(double x, std::vector<double> args)
     return pdf;
 }
 
-double log_normal_pdf(double x, std::vector<double> args)
+double log_normal_pdf(double x, kwargs args)
 {
     // logarithm of the normal probability density function
-    double mean = args[0];
-    double sd = args[1];
+    double mean = args["mean"];
+    double sd = args["sd"];
     double logpdf = 0.0;
 
     // The logarithm of the pdf is undefined for sd <= 0.
@@ -166,11 +164,11 @@ double log_normal_pdf(double x, std::vector<double> args)
     return logpdf;
 }
 
-double lognorm_pdf(double x, std::vector<double> args)
+double lognorm_pdf(double x, kwargs args)
 {
     // lognormal probability density function
-    double mean = args[0];
-    double sd = args[1];
+    double mean = args["mean"];
+    double sd = args["sd"];
     double pdf = 0.0;
 
     // The pdf is defined for x >= 0 and sd > 0.
@@ -187,11 +185,11 @@ double lognorm_pdf(double x, std::vector<double> args)
     return pdf;
 }
 
-double log_lognorm_pdf(double x, std::vector<double> args)
+double log_lognorm_pdf(double x, kwargs args)
 {
     // logarithm of the lognormal probability density function
-    double mean = args[0];
-    double sd = args[1];
+    double mean = args["mean"];
+    double sd = args["sd"];
     double logpdf = 0.0;
 
     // The logarithm of the pdf is undefined for x < 0 and sd <= 0.
@@ -208,11 +206,11 @@ double log_lognorm_pdf(double x, std::vector<double> args)
     return logpdf;
 }
 
-double gamma_pdf(double x, std::vector<double> args)
+double gamma_pdf(double x, kwargs args)
 {
     // gamma probability density function
-    double shape = args[0];
-    double scale = args[1];
+    double shape = args["shape"];
+    double scale = args["scale"];
     double pdf, gamma_value;
 
     // The pdf is defined for x >= 0 and shape, scale > 0.
@@ -230,11 +228,11 @@ double gamma_pdf(double x, std::vector<double> args)
     return pdf;
 }
 
-double log_gamma_pdf(double x, std::vector<double> args)
+double log_gamma_pdf(double x, kwargs args)
 {
     // (logarithm of the) gamma probability density function
-    double shape = args[0];
-    double scale = args[1];
+    double shape = args.at("shape");
+    double scale = args.at("scale");
     double logpdf, loggamma_value;
 
     // The logarithm of the pdf is undefined for x < 0 and shape, scale <= 0.
@@ -256,82 +254,51 @@ double log_gamma_pdf(double x, std::vector<double> args)
 //  Random generators
 //----------------------------------------------------------------------
 
-double unif_rand(std::mt19937_64 &rand_gen, std::vector<double> args)
+double unif_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // uniform distribution random generator
-    double lower_value = args[0];
-    double upper_value = args[1];
-    std::uniform_real_distribution<double> dist(lower_value, upper_value);
+    double low = args["low"];
+    double up = args["up"];
+    std::uniform_real_distribution<double> distrib(low, up);
 
-    return dist(rand_gen);
+    return distrib(rand_gen);
 }
 
-double normal_rand(std::mt19937_64 &rand_gen, std::vector<double> args)
+double normal_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // normal distribution random generator
-    double mean = args[0];
-    double sd = args[1];
-    std::normal_distribution<double> dist(mean, sd);
+    double mean = args["mean"];
+    double sd = args["sd"];
+    std::normal_distribution<double> distrib(mean, sd);
 
-    return dist(rand_gen);
+    return distrib(rand_gen);
 }
 
-double lognorm_rand(std::mt19937_64 &rand_gen, std::vector<double> args)
+double lognorm_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // lognormal distribution random generator
-    double mean = args[0];
-    double sd = args[1];
-    std::lognormal_distribution<double> dist(mean, sd);
+    double mean = args["mean"];
+    double sd = args["sd"];
+    std::lognormal_distribution<double> distrib(mean, sd);
 
-    return dist(rand_gen);
+    return distrib(rand_gen);
 }
 
-double gamma_rand(std::mt19937_64 &rand_gen, std::vector<double> args)
+double gamma_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // gamma distribution random generator
-    double shape = args[0];
-    double scale = args[1];
-    std::gamma_distribution<double> dist(shape, scale);
+    double shape = args["shape"];
+    double scale = args["scale"];
+    std::gamma_distribution<double> distrib(shape, scale);
 
-    return dist(rand_gen);
+    return distrib(rand_gen);
 }
 
-double exp_rand(std::mt19937_64 &rand_gen, std::vector<double> args)
+double exp_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // exponential distribution random generator
-    double rate = args[0];
-    std::exponential_distribution<double> dist(rate);
+    double rate = args["rate"];
+    std::exponential_distribution<double> distrib(rate);
 
-    return dist(rand_gen);
-}
-
-//----------------------------------------------------------------------
-//  Display
-//----------------------------------------------------------------------
-
-void display_1D_vector(std::vector<double> my_vector)
-{
-    size_t num = my_vector.size();
-
-    for (size_t i = 0; i < num; i++)
-    {
-        std::cout << my_vector[i] << " ";
-    }
-    std::cout << std::endl;
-}
-
-void display_2D_vector(std::vector<std::vector<double>> my_vector)
-{
-    size_t num_rows = my_vector.size();
-    size_t num_cols = my_vector[0].size();
-
-    for (size_t i = 0; i < num_rows; i++)
-    {
-        for (size_t j = 0; j < num_cols; j++)
-        {
-            std::cout << my_vector[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
+    return distrib(rand_gen);
 }

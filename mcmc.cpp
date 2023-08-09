@@ -17,34 +17,21 @@ MCMC_Class::MCMC_Class()
 {
     m_rand_gen.seed(DEFAULT_SEED);
     m_global_loglike = 0.0;
-    m_num_iter = 0;
-    m_num_augm_iter = 0;
-    m_hh_loglike = {};
     m_data = {};
-    m_num_adapt_iter = 0;
 
-    init_param_to_infer();
+    // init_param_to_infer(); // NOTE: parameters are initialized to given value
     reset_moves();
 }
 
 // user
 MCMC_Class::MCMC_Class(
     unsigned seed,
-    int num_iter,
-    int num_adapt_iter,
-    std::vector<Household> data,
-    int num_augm_iter)
+    std::vector<Household> data)
 {
-
-    // Copy input vectors
     m_rand_gen.seed(seed);
-    m_hh_loglike.resize(data.size());
-    m_num_iter = num_iter;
-    m_num_adapt_iter = num_adapt_iter;
-    m_num_augm_iter = num_augm_iter;
     m_data = data;
 
-    init_param_to_infer();
+    // init_param_to_infer(); // NOTE: parameters are initialized to given value
     reset_moves();
 }
 
@@ -52,9 +39,7 @@ MCMC_Class::MCMC_Class(
 //  Methods : Setter
 // ----------------------------
 
-// Initialize param values
-
-// FIXME : initial value should be the given one, no?
+// Initialize param values generating them from the prior
 void MCMC_Class::init_param_to_infer()
 {
     for (std::string parID : glob_params.to_be_inferred)
@@ -74,7 +59,7 @@ void MCMC_Class::reset_moves()
     }
 }
 
-// Initialize infection time
+/* Initialize augmented variables */
 void MCMC_Class::init_augm_data()
 {
     if (Verbose == true)
@@ -85,22 +70,23 @@ void MCMC_Class::init_augm_data()
     // loop over houses
     for (size_t h = 0; h < num_households(); h++)
     {
-        m_data[h].model_init_augm_data(m_rand_gen);
+        m_data[h].init_augm_data(m_rand_gen);
     }
 }
 
-// Initialize infection time
-void MCMC_Class::init_loglike()
+/* Initialize global loglikelihood */
+void MCMC_Class::init_global_loglike()
 {
     if (Verbose == true)
     {
         std::cout << "-> init loglikelihood;" << std::endl;
     }
 
-    for (size_t house = 0; house < num_households(); house++)
+    m_global_loglike = 0.0;
+    // loop over houses
+    for (size_t h = 0; h < num_households(); h++)
     {
-        m_hh_loglike[house] = m_data[house].compute_loglike();
-        m_global_loglike += m_hh_loglike[house];
+        m_global_loglike += m_data[h].compute_loglike();
     }
 }
 
@@ -108,6 +94,7 @@ void MCMC_Class::init_loglike()
 //  Methods : Computations
 // ----------------------------
 
+// FIXME : infectivity profiles change if tost params change!!!
 // Update param value in the mcmc chain
 bool MCMC_Class::update_param(std::string parID)
 {
@@ -115,11 +102,10 @@ bool MCMC_Class::update_param(std::string parID)
     double old_value = glob_params.value(parID); // store old value
     double new_value, Q;
     double log_ratio_proposal, log_ratio_prior, new_global_loglike;
-    std::vector<double> new_loglike_HH(num_households(), 0.0);
     bool move_accepted = false;
 
     // propose new value
-    new_value = glob_params.propose_move(parID, m_rand_gen);
+    new_value = glob_params.propose(parID, m_rand_gen);
 
     // proceed only if the new value is within range, i. e. no infinities
     if (glob_params.within_range(parID, new_value) == true)
@@ -130,10 +116,9 @@ bool MCMC_Class::update_param(std::string parID)
         // Compute new log likelihood
         glob_params.set_value(parID, new_value);
         new_global_loglike = 0.0;
-        for (size_t house = 0; house < num_households(); house++)
+        for (size_t h = 0; h < num_households(); h++)
         {
-            new_loglike_HH[house] = m_data[house].compute_loglike();
-            new_global_loglike += new_loglike_HH[house];
+            new_global_loglike += m_data[h].compute_loglike();
         }
 
         // Metropolis-Hastings
@@ -145,7 +130,6 @@ bool MCMC_Class::update_param(std::string parID)
             glob_params.set_num_accept_pp(parID);
             // Update log likelihood
             m_global_loglike = new_global_loglike;
-            m_hh_loglike = new_loglike_HH;
         }
         else
         { // move refused
@@ -162,73 +146,63 @@ bool MCMC_Class::update_param(std::string parID)
 void MCMC_Class::update_augm_variables()
 {
     double old_value, new_value, Q;
-    double old_proposal, new_proposal;
-    double old_loglike_of_HH, new_loglike_of_HH;
+    double delta_proposal = 0.0;
+    double delta_loglike_of_HH = 0.0;
 
     // Loop over households
     for (size_t h = 0; h < m_data.size(); h++)
     {
-        // Loop over residents of the househould
-        for (size_t i = 0; i < m_data[h].h_size; i++)
+        // Loop over infectious residents of the househould
+        for (size_t res : m_data[h].h_symptomatic_list)
         {
-            // Select only the infectious ones
-            if (m_data[h].get_status(i) == SYMPTOMATIC)
+            // UPDATE : these two chunks to update augmented should be integrated...
+            // --- onset time --- //
+            old_value = m_data[h].get_augm_onset_time(res); // store old value
+            delta_proposal = 0.0;                           // unif
+            delta_loglike_of_HH = -m_data[h].compute_loglike();
+
+            // Update onset time with proposed value
+            new_value = m_data[h].propose_augm_onset_time(res, m_rand_gen);
+            m_data[h].set_augm_onset_time(res, new_value);
+            delta_proposal += 0.0; // unif
+            delta_loglike_of_HH += m_data[h].compute_loglike();
+
+            Q = delta_loglike_of_HH - delta_proposal;
+
+            if (unif_rand(m_rand_gen) < std::exp(Q))
             {
-                // UPDATE : these two chunks to update augmented should be integrated...
-                // --- onset time --- //
-                old_value = m_data[h].get_augm_onset_time(i);
-                old_proposal = 0.0; // unif
-                old_loglike_of_HH = m_hh_loglike[h];
-
-                // Update onset time with proposed value
-                new_value = m_data[h].propose_augm_onset_time(i, m_rand_gen);
-                m_data[h].set_augm_onset_time(i, new_value);
-                new_proposal = 0.0; // unif
-                new_loglike_of_HH = m_data[h].compute_loglike();
-
-                Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
-
-                if (unif_rand(m_rand_gen) < std::exp(Q))
-                {
-                    m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
-                    m_hh_loglike[h] = new_loglike_of_HH;
-                    m_num_accept_data++;
-                    m_data[h].update_infectivity_profiles(i);
-                }
-                else
-                {
-                    m_data[h].set_augm_onset_time(i, old_value);
-                }
-
-                m_num_propos_data++;
-
-                // --- incub period --- //
-                old_value = m_data[h].get_augm_infec_time(i);
-                old_proposal = m_data[h].log_incub_period_pdf(i);
-                old_loglike_of_HH = m_hh_loglike[h];
-
-                // Update incubation period time with proposed value
-                new_value = m_data[h].propose_augm_incub_period(i, m_rand_gen);
-                m_data[h].set_augm_incub_period(i, new_value);
-                new_proposal = m_data[h].log_incub_period_pdf(i);
-                new_loglike_of_HH = m_data[h].compute_loglike();
-
-                Q = new_loglike_of_HH - old_loglike_of_HH + old_proposal - new_proposal;
-
-                if (unif_rand(m_rand_gen) < std::exp(Q))
-                {
-                    m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
-                    m_hh_loglike[h] = new_loglike_of_HH;
-                    m_num_accept_data++;
-                    m_data[h].update_infectivity_profiles(i);
-                }
-                else
-                {
-                    m_data[h].set_augm_incub_period(i, old_value);
-                }
-
-                m_num_propos_data++;
+                m_global_loglike += delta_loglike_of_HH;
+                m_num_accept_data++;
             }
+            else
+            {
+                m_data[h].set_augm_onset_time(res, old_value);
+            }
+            m_num_propos_data++;
+
+            // --- incub period --- //
+            old_value = m_data[h].get_augm_incub_period(res); // store old value
+            delta_proposal = -m_data[h].log_incub_period_pdf(res);
+            delta_loglike_of_HH = -m_data[h].compute_loglike();
+
+            // Update incubation period time with proposed value
+            new_value = m_data[h].propose_augm_incub_period(res, m_rand_gen);
+            m_data[h].set_augm_incub_period(res, new_value);
+            delta_proposal += m_data[h].log_incub_period_pdf(res);
+            delta_loglike_of_HH += m_data[h].compute_loglike();
+
+            Q = delta_loglike_of_HH - delta_proposal;
+
+            if (unif_rand(m_rand_gen) < std::exp(Q))
+            {
+                m_global_loglike += delta_loglike_of_HH;
+                m_num_accept_data++;
+            }
+            else
+            {
+                m_data[h].set_augm_incub_period(res, old_value);
+            }
+            m_num_propos_data++;
         }
     }
 }
@@ -237,12 +211,17 @@ void MCMC_Class::update_augm_variables()
 // /////////////// MCMC : infer /////////////// //
 //////////////////////////////////////////////////
 
-void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
+void MCMC_Class::infer(
+    std::string output_file,
+    int num_iter,
+    int num_sweeps,
+    int num_augm_sweeps,
+    int num_adapt_iter,
+    std::string tab)
 {
     ofstream output(output_file.c_str());
     int step;
     bool move_accepted;
-    int num_augm_iter = get_num_augm_iter();
 
     // Column names of the output file
     std::string colNames = "iteration" + tab + "loglike";
@@ -257,7 +236,7 @@ void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
     std::cout << "\n======MCMC:initialization=======" << std::endl;
 
     init_augm_data();
-    init_loglike();
+    init_global_loglike();    
 
     output << 0 << tab << get_global_loglike(); // Log likelihood
     output << tab << 0 << tab << 0;             // n. of proposed/accepted move
@@ -267,12 +246,10 @@ void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
     }
     output << std::endl;
 
-
-
     std::cout << "\n=========MCMC:execution=========" << std::endl;
-    for (int i = 0; i < get_num_iter(); i++)
+    for (int i = 0; i < num_iter; i++)
     {
-        std::cout << "-> running iteration : " << (i + 1) << "/" << get_num_iter() << endl;
+        std::cout << "-> running iteration : " << (i + 1) << "/" << num_iter << endl;
         reset_moves();
 
         for (int j = 0; j < num_sweeps; j++)
@@ -283,11 +260,11 @@ void MCMC_Class::infer(std::string output_file, int num_sweeps, std::string tab)
                 move_accepted = update_param(parID);
 
                 // Adaptative MCMC
-                glob_params.adapt_rate(parID, move_accepted, step, m_num_adapt_iter);
+                glob_params.adapt_rate(parID, move_accepted, step, num_adapt_iter);
             }
 
             // Augmented data
-            for (int k = 0; k < num_augm_iter; k++)
+            for (int k = 0; k < num_augm_sweeps; k++)
             {
                 update_augm_variables(); // Update loglik at the household level
             }
