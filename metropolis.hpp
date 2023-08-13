@@ -5,7 +5,6 @@
 
 #include <string>
 #include <vector>
-#include <map>
 #include <cmath>
 #include <random>
 #include <iostream>
@@ -19,72 +18,69 @@
 // base class to deal with metropolis strategies
 class Metropolis
 {
-	std::string name = "_none_";
+	// strategies 
+	double (Metropolis::*_propose_func_)(std::mt19937_64& rand_gen, double old_value);
+	double (Metropolis::*_log_ratio_propose_func_)(double old_value, double new_value);
+	void (Metropolis::*_adapt_func_)(int step, int num_adapt_steps);
+
+	// valididation
+	double _range_low_ = -INFINITY;
+	double _range_up_ = INFINITY;
+	bool (Metropolis::*_valid_func_)(double new_value);
 
 public:
 	// Attributes
-	std::map<std::string, double> args = {};
-	std::vector<double> range = {};
+	kwargs args = {};
 	int num_accept = 0;
 	int num_propos = 0;
-	double accept = 0.0;
+	double accept_rate = 0.0;
 
 	// Constructor
-	Metropolis(std::map<std::string, double> init_args, std::vector<double> init_range);
+	Metropolis(
+		std::string = "_none_",
+		kwargs init_args = {},
+		kwargs init_range = {});
+	Metropolis() = default;
+	~Metropolis(){};
 
 	// Setter
 	void reset_moves();
-	void set_range(std::vector<double> new_range);
-	void set_args(std::map<std::string, double> new_args);
+	void set_range(kwargs new_range);
+	void set_args(kwargs new_args);
+	void update_accept_rate(bool move_accepted, int step);
 
 	// Computations
-	bool within_range(double new_value);
+	bool valid(double new_value) { return (this->*_valid_func_)(new_value); };
 
-	// Virtual methods
-	virtual double propose(std::mt19937_64 &rand_gen, double old_value) { return old_value + unif_rand(rand_gen); };
-	virtual double log_ratio_proposal() { return 0.; };
-};
+	// Methods
+	double propose(std::mt19937_64& rand_gen, double old_value) { return (this->*_propose_func_)(rand_gen, old_value); };
+	double log_ratio_proposal(double old_value, double new_value) { return (this->*_log_ratio_propose_func_)(old_value, new_value); };
+	void adapt(int step, int num_adapt_steps) { (this->*_adapt_func_)(step, num_adapt_steps); };
 
-//----------------------------------------------------------------------
-// Metropolis : Parameter Strategy auxiliary classes
-//----------------------------------------------------------------------
+private:
+	// --- Strategy : functional methods --- //
 
-class Strategy_Param : public Metropolis
-{
-	std::string name = "_none_";
+	// normal
+	double _normal_propose_(std::mt19937_64& rand_gen, double old_value);
+	double _normal_log_ratio_proposal_(double old_value, double new_value);
+	void _normal_adapt_(int step, int num_adapt_iter);
 
-public:
-	// Constructor
-	Strategy_Param(double init_rate, std::vector<double> init_range) : Metropolis({{"rate", init_rate}}, init_range){};
+	// exp
+	double _exp_propose_(std::mt19937_64& rand_gen, double old_value);
+	double _exp_log_ratio_proposal_(double old_value, double new_value);
+	void _exp_adapt_(int step, int num_adapt_iter);
 
-	void adapt_rate(bool move_accepted, int step, int num_adapt_iter);
-};
+	// gamma
+	double _gamma_propose_(std::mt19937_64& rand_gen, double old_value);
+	double _gamma_log_ratio_proposal_(double old_value, double new_value);
+	void _gamma_adapt_(int step, int num_adapt_iter);
 
-class Strategy_Param_exp : public Strategy_Param
-{
-	std::string name = "exp";
+	// --- Validation : functional methods --- //
+	bool _valid_dummy_(double new_value);
+	bool _valid_range_low_(double new_value);
+	bool _valid_range_up_(double new_value);
+	bool _valid_range_both_(double new_value);
 
-public:
-	// Constructor
-	Strategy_Param_exp(double init_rate, std::vector<double> init_range) : Strategy_Param(init_rate, init_range){};
-
-	// Computations
-	double propose(std::mt19937_64 &rand_gen, double new_value) override;
-	double log_ratio_proposal() override;
-};
-
-// normal metropolis stratregy
-class Strategy_Param_normal : public Strategy_Param
-{
-	std::string name = "normal";
-
-public:
-	// Constructor
-	Strategy_Param_normal(double init_rate, std::vector<double> init_range) : Strategy_Param(init_rate, init_range){};
-
-	// Computations
-	double propose(std::mt19937_64 &rand_gen, double new_value) override;
-	double log_ratio_proposal() override;
 };
 
 #endif // METROPOLIS__H

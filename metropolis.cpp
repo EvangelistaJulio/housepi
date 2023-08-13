@@ -4,58 +4,100 @@
 
 using namespace std;
 
-// UPDATE: too baroque maybe...
-
 /////////////////////////////////////////////////////
-//  Metropolis : Class
+//  Metropolis : class definition
 /////////////////////////////////////////////////////
 
-Metropolis::Metropolis(std::map<std::string, double> init_args, std::vector<double> init_range)
+Metropolis::Metropolis(std::string strategy, kwargs init_args, kwargs init_range)
 {
+    // --- metropolis strategy --- //
+    if (strategy == "_none_")
+    {
+        _propose_func_ = nullptr;
+        _log_ratio_propose_func_ = nullptr;
+        _adapt_func_ = nullptr;
+    }
+    else if (strategy == "normal")
+    {
+        _propose_func_ = &Metropolis::_normal_propose_;
+        _log_ratio_propose_func_ = &Metropolis::_normal_log_ratio_proposal_;
+        _adapt_func_ = &Metropolis::_normal_adapt_;
+    }
+    else if (strategy == "exp")
+    {
+        _propose_func_ = &Metropolis::_exp_propose_;
+        _log_ratio_propose_func_ = &Metropolis::_exp_log_ratio_proposal_;
+        _adapt_func_ = &Metropolis::_exp_adapt_;
+    }
+    else if (strategy == "gamma")
+    {
+        _propose_func_ = &Metropolis::_gamma_propose_;
+        _log_ratio_propose_func_ = &Metropolis::_gamma_log_ratio_proposal_;
+        _adapt_func_ = &Metropolis::_gamma_adapt_;
+    }
+    else
+    {
+        std::cout << "ERROR: Unknown metropolis strategy " << strategy << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     set_args(init_args);
     set_range(init_range);
     reset_moves();
+    // FIXME : a consistency valid command could be useful at the beginning
 }
 
-void Metropolis::set_args(std::map<std::string, double> new_args)
+void Metropolis::set_args(kwargs new_args)
 {
-    // UPDATE : a consistency check command could be useful
-    /*
-    // check metropolis_rate values
-    if (new_rate <= 0. || new_rate >= 1.)
-    {
-        std::cout << "ERROR: Provided a rate not in [0,1] : " << new_rate << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    else
-    {
-        rate = new_rate;
-    }
-    */
     args = new_args;
+    // FIXME : a consistency valid command could be useful at the beginning
+    // FIXME : how to point to global variables?
 }
 
-void Metropolis::set_range(std::vector<double> new_range)
+void Metropolis::set_range(kwargs new_range)
 {
-    if (new_range.size() != 2)
+    // FIXME (FUTURE) : functional programming to go beyond map and allow for single valid in within_range
+    int condition = 0;
+
+    if (new_range.find("low") != new_range.end())
     {
-        std::cout << "ERROR: Provided a range of size: " << new_range.size() << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        exit(EXIT_FAILURE);
+        _range_low_ = new_range.at("low");
+        condition += 1;
     }
-    else if (new_range[0] >= new_range[1])
+
+    if (new_range.find("up") != new_range.end())
     {
-        std::cout << "ERROR: Provided an inconsistent range: {" << new_range[0] << ", " << new_range[1] << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        exit(EXIT_FAILURE);
+        _range_up_ = new_range.at("up");
+        condition += 2;
+    }
+
+    if (condition == 0)
+    {
+        _valid_func_ = &Metropolis::_valid_dummy_;
+    }
+    else if (condition == 1)
+    {
+        _valid_func_ = &Metropolis::_valid_range_low_;
+    }
+    else if (condition == 2)
+    {
+        _valid_func_ = &Metropolis::_valid_range_up_;
     }
     else
     {
-        range = new_range;
+        if (_range_low_ >= _range_up_)
+        {
+            std::cerr << "ERROR: Provided an inconsistent range: {" << new_range.at("low") << ", " << new_range.at("up") << std::endl;
+            std::cerr << "Exit...\n"
+                      << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            _valid_func_ = &Metropolis::_valid_range_both_;
+        }
     }
 }
 
@@ -63,50 +105,107 @@ void Metropolis::reset_moves()
 {
     num_propos = 0;
     num_accept = 0;
-    accept = 0.0;
+    accept_rate = 0.0;
 }
 
-bool Metropolis::within_range(double new_value)
+void Metropolis::update_accept_rate(bool move_accepted, int step)
 {
-    return (new_value > range[0]) && (new_value < range[1]);
+    // update accept rate
+    accept_rate = ((move_accepted + accept_rate * (step - 1)) / step);
 }
 
 //----------------------------------------------------------------------
-// Metropolis : Parameter Strategy auxiliary classes
+// Strategy : functional methods
 //----------------------------------------------------------------------
 
-void Strategy_Param::adapt_rate(bool move_accepted, int step, int num_adapt_iter)
+// --- normal --- //
+
+double Metropolis::_normal_propose_(std::mt19937_64& rand_gen, double old_value)
+{
+    return old_value + normal_rand(rand_gen, args);
+}
+
+double Metropolis::_normal_log_ratio_proposal_(double old_value, double new_value)
+{
+    return log_normal_pdf(new_value, args) - log_normal_pdf(old_value, args);
+}
+
+void Metropolis::_normal_adapt_(int step, int num_adapt_iter)
 {
     double delta, diff;
 
-    accept = ((move_accepted + (step - 1) * accept) / step);
-
-    if (num_adapt_iter > 0 && step <= num_adapt_iter)
-    {
-        delta = 1.0 - step / num_adapt_iter;
-        diff = accept - DEFAULT_ACCEPT_RATE;
-        set_args({{"rate", 1.0 + delta * diff}});
-    }
+    delta = 1.0 - step / num_adapt_iter;
+    diff = DEFAULT_ACCEPT_RATE - accept_rate;
+    set_args(
+        {{"mean", args.at("mean")},
+         {"sd", (1.0 + delta * diff) * args.at("sd")}});
 }
 
-// --- Strategy_Param_exp --- //
+// --- exp --- //
 
-double Strategy_Param_exp::propose(std::mt19937_64 &rand_gen, double old_value)
+double Metropolis::_exp_propose_(std::mt19937_64& rand_gen, double old_value)
 {
-    return old_value * std::exp(args["rate"] * normal_rand(rand_gen));
+    return old_value * exp_rand(rand_gen, args);
 }
 
-double Strategy_Param_exp::log_ratio_proposal() { return args["rate"]; }
-
-// --- Strategy_Param_normal --- //
-
-double Strategy_Param_normal::propose(std::mt19937_64 &rand_gen, double old_value)
+double Metropolis::_exp_log_ratio_proposal_(double old_value, double new_value)
 {
-    return old_value + normal_rand(rand_gen, {{"mean", 0.0}, {"sd", args["rate"]}});
+    return log_exp_pdf(new_value, args) - log_exp_pdf(old_value, args);
 }
 
-double Strategy_Param_normal::log_ratio_proposal() { return 0.; }
+void Metropolis::_exp_adapt_(int step, int num_adapt_iter)
+{
+    double delta, diff;
+
+    delta = 1.0 - step / num_adapt_iter;
+    diff = DEFAULT_ACCEPT_RATE - accept_rate;
+    set_args(
+        {{"rate", (1.0 + delta * diff) * args.at("rate")}});
+}
+
+// --- gamma --- //
+
+double Metropolis::_gamma_propose_(std::mt19937_64& rand_gen, double old_value)
+{
+    return old_value + gamma_rand(rand_gen, args);
+}
+
+double Metropolis::_gamma_log_ratio_proposal_(double old_value, double new_value)
+{
+    return log_gamma_pdf(new_value, args) - log_gamma_pdf(old_value, args);
+}
+
+void Metropolis::_gamma_adapt_(int step, int num_adapt_iter)
+{
+    double delta, diff;
+
+    delta = 1.0 - step / num_adapt_iter;
+    diff = DEFAULT_ACCEPT_RATE - accept_rate;
+    set_args(
+        {{"shape", args.at("shape")},
+         {"scale", (1.0 + delta * diff) * args.at("scale")}});
+}
 
 //----------------------------------------------------------------------
-// Metropolis : Augmented_Variable Strategy auxiliary classes
+// Validation : functional methods
 //----------------------------------------------------------------------
+
+bool Metropolis::_valid_dummy_(double new_value)
+{
+    return (true);
+}
+
+bool Metropolis::_valid_range_low_(double new_value)
+{
+    return (new_value > _range_low_);
+}
+
+bool Metropolis::_valid_range_up_(double new_value)
+{
+    return (new_value < _range_up_);
+}
+
+bool Metropolis::_valid_range_both_(double new_value)
+{
+    return _valid_range_low_(new_value) || _valid_range_up_(new_value);
+}

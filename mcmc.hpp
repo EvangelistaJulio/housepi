@@ -43,7 +43,7 @@ public:
 	// Setter
 	void init_param_to_infer();
 	void reset_moves();
-	void init_augm_data();
+	void init_augm_data(std::mt19937_64& rand_gen);
 	void init_global_loglike();
 
 	// Computations
@@ -55,7 +55,7 @@ public:
 		int num_iter = DEFAULT_NUM_ITER,
 		int num_param_sweeps = DEFAULT_NUM_PARAM_SWEEEPS,
 		int num_augm_sweeps = DEFAULT_NUM_AUGM_SWEEPS,
-		int num_adapt_iter = DEFAULT_NUM_ADAPT,
+		int num_adapt_steps = DEFAULT_NUM_ADAPT_STEPS,
 		std::string tab = TAB);
 };
 

@@ -10,11 +10,98 @@
 #include <random>
 #include <iostream>
 
-#include "individual.hpp"
+#include "parameter.hpp"
 
-//----------------------------------------------------------------------
-// Household : Class declaration
-//----------------------------------------------------------------------
+// List of augmented variables
+extern std::vector<std::string> List_Augm_Var;
+
+/////////////////////////////////////////////////////////
+/////// Augmented_Variable : Class declaration /////////
+////////////////////////////////////////////////////////
+
+class Augmented_Variable : public Parameter
+{
+private:
+	double a_init_value;
+
+public:
+// FIXME need for both prior and strategy!
+// FIXME arguments are tipically not fixed
+	// Constructor
+	Augmented_Variable(double value,
+					   bool infer = false,
+					   std::string metropolis_strategy = "_none_",
+					   kwargs metropolis_args = {},
+					   kwargs range = {}) : Parameter(value,
+													  infer,
+													  metropolis_strategy,
+													  metropolis_args,
+													  range) { a_init_value = value; }
+	double get_init_value() const { return a_init_value; }
+};
+
+/////////////////////////////////////////////////////////
+///////// Individual : Class declaration ///////////////
+////////////////////////////////////////////////////////
+
+class Individual
+{
+private:
+	std::unordered_map<std::string, Augmented_Variable> i_augm = {};
+
+public:
+	// Attributes
+	int i_indid = 0;
+	int i_status = 0;
+	int i_age = 0;
+	int i_sex = 0;
+	bool i_isolation = false;
+	bool i_recovered = false;
+	int i_vacc_status = 0;
+	double i_study_period = INFINITY;
+	double i_vacc_delay = INFINITY;
+	double i_onset_time = INFINITY;
+
+	std::vector<std::string> i_augm_list = {};
+
+	// Constructors
+	Individual(
+		int indid,
+		int status,
+		int age,
+		int sex,
+		bool isolation,
+		bool recovered,
+		int vacc_status,
+		double study_period,
+		double vacc_delay,
+		double onset_time);
+	Individual() = default;
+	~Individual(){};
+
+	// --- Methods (default) ---
+	// Getter
+	double get_augm(std::string augmID) const { return i_augm.at(augmID).get_value(); }
+
+	// Setter
+	void set_augm(std::string augmID, double new_value) { i_augm.at(augmID).set_value(new_value); }
+
+	// Computations
+	bool valid_augm(std::string augmID, double new_value) { return i_augm.at(augmID).valid(new_value); }
+	double propose_augm(std::string augmID, std::mt19937_64& rand_gen);
+
+	// --- Methods (model) ---
+	double get_infec_time() const;
+	void init_augm_data(std::mt19937_64& rand_gen);
+
+	// Infectivity Profiles
+	double infectivity_inst(double t_transm);
+	double infectivity_cumul(double t_transm);
+};
+
+/////////////////////////////////////////////////////////
+///////// Household : Class declaration ///////////////
+////////////////////////////////////////////////////////
 
 class Household
 {
@@ -27,45 +114,46 @@ public:
 	size_t h_size = 0;
 	size_t h_first_case = -1;
 	double h_infec_time = INFINITY;
+	std::vector<size_t> h_healthy_list = {};
 	std::vector<size_t> h_symptomatic_list = {};
 
 	// Constructors
 	Household(){};
 	~Household(){};
 
+	// --- Methods (default) ---
 	// Getter
 	int get_status(size_t idx) const { return h_residents[idx].i_status; }
-	double get_augm_incub_period(size_t idx) const { return h_residents[idx].get_augm_incub_period(); }
-	double get_augm_infec_time(size_t idx) const { return h_residents[idx].get_augm_infec_time(); }
-	double get_augm_onset_time(size_t idx) const { return h_residents[idx].get_augm_onset_time(); }
+	std::vector<std::string> get_augm_list(size_t idx) const { return h_residents[idx].i_augm_list; }
+	double get_infec_time(size_t idx) const { return h_residents[idx].get_infec_time(); }
 
 	// Setter
 	void add_individual(Individual this_indiv);
-	void init_augm_data(std::mt19937_64 &rand_gen);
+	void init_augm_data(std::mt19937_64& rand_gen);
 	void update_household_status();
 
-	// Computations (augmented)
-	double propose_augm_incub_period(size_t idx, std::mt19937_64 &rand_gen);
-	double propose_augm_onset_time(size_t idx, std::mt19937_64 &rand_gen);
-	void set_augm_incub_period(size_t idx, double infec_time);
-	void set_augm_onset_time(size_t idx, double onset_time);
+	// Aliases (augmented variables)
+	double get_augm(std::string augmID, size_t idx) const { return h_residents[idx].get_augm(augmID); }
+	double propose_augm(std::string augmID, size_t idx, std::mt19937_64& rand_gen);
+	void set_augm(std::string augmID, size_t idx, double infec_time);
+	bool valid_augm(std::string augmID, size_t idx, double new_value);
 
 	// Computations (default)
 	void init_infectivity_profiles();
 	void update_infectivity_profiles(size_t ind);
 
-	double log_incub_period_pdf(size_t idx);
+	// --- Methods (model) ---
+	double log_incub_proba(size_t idx); // FIXME : why not a augm_var prior?
 	double log_infec_proba(size_t idx);
-	double log_surv_proba(size_t idx, double t0);
+	double log_surv_proba(size_t idx);
 	double compute_loglike();
 
-	// Model // NOTE: this should be external from the class Household
 	double model_contact_modulation(size_t idx, size_t infectee);
 	double model_susceptibility(size_t idx);
 	double model_community_risk_inst(double t1);
 	double model_community_risk_cumul(double t0, double t1);
 	double model_transmissability();
-
+	double model_risk_beta(const std::vector<std::vector<double>>& rate_vector, size_t idx);
 };
 
 #endif // DEF_HOUSEHOLD__H

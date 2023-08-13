@@ -6,127 +6,111 @@ using namespace std;
 
 // UPDATE: too baroque maybe...
 
-/////////////////////////////////////////////////////
-//  Parameter : Class
-/////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+//////// Parameter : class definition /////////////////////
+///////////////////////////////////////////////////////////
 
 // ----------------------------
 //  Constructors
 // ----------------------------
 
 Parameter::Parameter(
-    std::string name,
     double value,
     bool infer,
-    std::string prior,
-    kwargs args,
     std::string metropolis_strategy,
-    double metropolis_rate,
-    std::vector<double> range)
+    kwargs metropolis_args,
+    kwargs range,
+    std::string prior_name,
+    kwargs prior_args)
 {
-    p_name = name;
     p_value = value;
-
-    // --- inference mode setup --- //
     p_infer = infer;
 
+    // --- inference mode setup --- //
     if (infer == true)
     {
+        metropolis = new Metropolis(metropolis_strategy, metropolis_args, range);
+
         // --- prior function --- //
-        if (prior == "unif")
+        if (prior_name == "_none_")
+        {
+            p_prior_rand = nullptr;
+            p_prior_log_pdf = nullptr;
+            prior_args = {};
+        }
+        else if (prior_name == "unif")
         {
             p_prior_rand = unif_rand;
             p_prior_log_pdf = log_unif_pdf;
         }
-        else if (prior == "normal")
+        else if (prior_name == "normal")
         {
             p_prior_rand = normal_rand;
             p_prior_log_pdf = log_normal_pdf;
         }
-        else if (prior == "lognorm")
+        else if (prior_name == "lognorm")
         {
             p_prior_rand = lognorm_rand;
             p_prior_log_pdf = log_lognorm_pdf;
         }
-        else if (prior == "gamma")
+        else if (prior_name == "gamma")
         {
             p_prior_rand = gamma_rand;
             p_prior_log_pdf = log_gamma_pdf;
         }
         else
         {
-            std::cout << "Unknown prior " << prior << std::endl;
+            std::cout << "Unknown prior " << prior_name << std::endl;
             exit(EXIT_FAILURE);
         }
-
-        p_prior = prior;
-        p_prior_args = args;
-
-        // --- metropolis strategy --- //
-        // FIXME : this should be internal to Strategy_Param
-        if (metropolis_strategy == "exp")
-        {
-            _tmp_ = new Strategy_Param_exp(metropolis_rate, range);
-        }
-        else if (metropolis_strategy == "normal")
-        {
-            _tmp_ = new Strategy_Param_normal(metropolis_rate, range);
-        }
-        else
-        {
-            std::cout << "ERROR: Unknown metropolis strategy " << metropolis_strategy << std::endl;
-            std::cerr << "Exit...\n"
-                      << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        reset_moves();
+        p_prior_args = prior_args;
     }
 }
 
-// ----------------------------
-//  Methods : Computation
-// ----------------------------
+// ----------------------------- //
+// --- Methods : Computation --- //
+// ----------------------------- //
 
-double Parameter::generate_from_prior(std::mt19937_64 &rand_gen)
+/* generate_from_prior */
+double Parameter::generate_from_prior(std::mt19937_64& rand_gen)
 {
     return p_prior_rand(rand_gen, p_prior_args);
 }
 
-double Parameter::log_ratio_prior(double new_value)
+/* log_ratio_prior */
+double Parameter::log_ratio_prior(double old_value, double new_value)
 {
-    return p_prior_log_pdf(new_value, p_prior_args) - p_prior_log_pdf(p_value, p_prior_args);
+    return p_prior_log_pdf(new_value, p_prior_args) - p_prior_log_pdf(old_value, p_prior_args);
 }
 
 ///////////////////////////////////////////////////////////
-//////// Par_Dict : Class
+// Parameter_Dictionary : Class 
 ///////////////////////////////////////////////////////////
 
-//  NOTE: aliases... but ugly...
+// --- Getter --- //
 
-// Getter
-double Par_Dict::value(std::string parID) const
+/* get_value */
+double Parameter_Dictionary::get_value(std::string parID) const
 {
     return parameters.at(parID).get_value();
 }
 
-bool Par_Dict::infer(std::string parID) const
+/* get_infer */
+bool Parameter_Dictionary::get_infer(std::string parID) const
 {
     return parameters.at(parID).p_infer;
 }
 
-int Par_Dict::num_propos(std::string parID) const
+/* get_accept_rate */
+double Parameter_Dictionary::get_accept_rate(std::string parID) const
 {
-    return parameters.at(parID).get_num_propos();
+    return parameters.at(parID).get_accept_rate();
 }
 
-int Par_Dict::num_accept(std::string parID) const
-{
-    return parameters.at(parID).get_num_accept();
-}
+// --- Setter --- //
 
-// Setter
-void Par_Dict::add_param(std::string parID, Parameter new_param)
+/* add_param */
+void Parameter_Dictionary::add_param(std::string parID, Parameter new_param)
 {
     parameters.emplace(parID, new_param);
     if (new_param.p_infer == true)
@@ -135,66 +119,85 @@ void Par_Dict::add_param(std::string parID, Parameter new_param)
     }
 }
 
-void Par_Dict::set_value(std::string parID, double new_value)
+/* set_value */
+void Parameter_Dictionary::set_value(std::string parID, double new_value)
 {
     parameters.find(parID)->second.set_value(new_value);
 }
 
-void Par_Dict::init_value(std::string parID, std::mt19937_64 &m_rand_gen)
+/* init_value */
+void Parameter_Dictionary::init_value(std::string parID, std::mt19937_64 &m_rand_gen)
 {
     double new_value = parameters.find(parID)->second.generate_from_prior(m_rand_gen);
     set_value(parID, new_value);
 }
 
-void Par_Dict::reset_moves(std::string parID)
+/* reset_moves */
+void Parameter_Dictionary::reset_moves(std::string parID)
 {
     parameters.find(parID)->second.reset_moves();
 }
 
-void Par_Dict::set_num_propos_pp(std::string parID)
+/* set_num_propos_pp */
+void Parameter_Dictionary::set_num_propos_pp(std::string parID)
 {
     parameters.find(parID)->second.set_num_propos_pp();
 }
 
-void Par_Dict::set_num_accept_pp(std::string parID)
+/* set_num_accept_pp */
+void Parameter_Dictionary::set_num_accept_pp(std::string parID)
 {
     parameters.find(parID)->second.set_num_accept_pp();
 }
 
-void Par_Dict::adapt_rate(std::string parID, bool move_accepted, int step, int m_num_adapt_iter)
+/* update_accept_rate */
+void Parameter_Dictionary::update_accept_rate(std::string parID, bool move_accepted, int step)
 {
-    parameters.find(parID)->second.adapt_rate(move_accepted, step, m_num_adapt_iter);
+    parameters.find(parID)->second.update_accept_rate(move_accepted, step);
 }
 
-// Computations
-bool Par_Dict::within_range(std::string parID, double new_value)
+/* adapt */
+void Parameter_Dictionary::adapt(std::string parID, int step, int m_num_adapt_iter)
 {
-    return parameters.find(parID)->second.within_range(new_value);
+    parameters.find(parID)->second.adapt(step, m_num_adapt_iter);
 }
 
-double Par_Dict::propose(std::string parID, std::mt19937_64 &m_rand_gen)
+// --- Computations --- //
+
+/* within_range */
+bool Parameter_Dictionary::valid_param(std::string parID, double new_value)
 {
-    return parameters.find(parID)->second.propose(m_rand_gen);
+    return parameters.find(parID)->second.valid(new_value);
 }
 
-double Par_Dict::log_ratio_proposal(std::string parID)
+/* propose */
+double Parameter_Dictionary::propose(std::string parID, std::mt19937_64 &m_rand_gen, double old_value)
 {
-    return parameters.find(parID)->second.log_ratio_proposal();
+    return parameters.find(parID)->second.propose(m_rand_gen, old_value);
 }
 
-double Par_Dict::log_ratio_prior(std::string parID, double new_value)
+/* log_ratio_proposal */
+double Parameter_Dictionary::log_ratio_proposal(std::string parID, double old_value, double new_value)
 {
-    return parameters.find(parID)->second.log_ratio_prior(new_value);
+    return parameters.find(parID)->second.log_ratio_proposal(old_value, new_value);
 }
 
-// Other
-void Par_Dict::print()
+/* log_ratio_prior */
+double Parameter_Dictionary::log_ratio_prior(std::string parID, double old_value, double new_value)
+{
+    return parameters.find(parID)->second.log_ratio_prior(old_value, new_value);
+}
+
+// --- Dispaly --- //
+
+/* print */
+void Parameter_Dictionary::print()
 {
     std::cout << "_NAME_" << TAB << "_VALUE_" << TAB << "_INFER_" << endl;
     for (const auto &entry : parameters)
     {
         Parameter param = entry.second;
-        std::cout << param.p_name << TAB << param.get_value();
-        std::cout << TAB << (param.p_infer > 0 ? "true" : "false")  << endl;
+        std::cout << entry.first << TAB << param.get_value();
+        std::cout << TAB << (param.p_infer > 0 ? "true" : "false") << endl;
     }
 }

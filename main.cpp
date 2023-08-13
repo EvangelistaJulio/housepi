@@ -17,13 +17,52 @@ using namespace std;
 // --- Define the global variables here ---
 
 bool Verbose = true;
-Par_Dict glob_params = {};
+Parameter_Dictionary glob_params = {};
 std::vector<double> Cumul_Community_Infec = {};
 std::vector<double> Inst_Community_Infec = {};
 
 // ////////////////////////////////////////////////////////////////////////// //
-// ////////////////////////////// FILE LOADING ////////////////////////////// //
+// ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
+
+kwargs parse_dict_string(std::string args_str, char delimiter = ',')
+{
+    std::istringstream args_ss(args_str);
+    std::string tmp;
+    std::vector<std::string> args_stock;
+    kwargs output;
+
+    while (std::getline(args_ss, tmp, delimiter))
+    {
+        args_stock.push_back(tmp);
+    }
+    if (args_stock.size() == 0 || args_stock.size() % 2 == 1)
+    {
+        std::cerr << "\nERROR: Unrecognized dictionary." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        for (size_t i = 0; i < args_stock.size(); i += 2)
+        {
+            try
+            {
+                output.emplace(args_stock[i], std::stod(args_stock[i + 1]));
+            }
+            catch (const std::exception &)
+            {
+                std::cerr << "\nERROR: Invalid entry of a dictionary." << std::endl;
+                std::cerr << "Exit...\n"
+                          << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    return output;
+}
 
 bool stobool(std::string text)
 {
@@ -48,10 +87,11 @@ bool stobool(std::string text)
     return output;
 }
 
-/*
-    Read Community file
-    ---------
-*/
+// ////////////////////////////////////////////////////////////////////////// //
+// ////////////////////////////// FILE LOADING ////////////////////////////// //
+// ////////////////////////////////////////////////////////////////////////// //
+
+/* Read Community file */
 void build_community(std::string data_path_to_file)
 {
     double date, inst_val, cumul_val;
@@ -132,6 +172,14 @@ std::vector<Household> build_households(std::string data_path_to_file)
                 safe_load.emplace(this_HH_id, Household());
             }
 
+            if ((status != HEALTHY) && (status != SYMPTOMATIC))
+            {
+                std::cerr << "ERROR: status not in the model: " << status << endl;
+                std::cerr << "Exit...\n"
+                          << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+
             // Update household object and information parameters
             Individual this_indiv(
                 indid,
@@ -177,11 +225,8 @@ std::vector<Household> build_households(std::string data_path_to_file)
     return (output);
 }
 
-/*
-    Read Model Parameters file
-    ---------
-*/
-void build_parameters(std::string data_path_to_file)
+/* Read Model Parameters file */
+void build_parameters(std::string data_path_to_file, char delimiter = '\t')
 {
     std::ifstream input_file(data_path_to_file.c_str());
 
@@ -193,16 +238,13 @@ void build_parameters(std::string data_path_to_file)
         // Create a stringstream of the current line
         for (std::string line; std::getline(input_file, line);)
         {
-            std::string name, value_str, infer, prior, args_str, strategy, rate_str, range_str;
-            double value, rate;
-            std::vector<double> range = {};
-            std::string tmp;
-            std::vector<std::string> args_stock = {};
-            kwargs args;
+            std::string name, value_str, infer, strategy, rate_str, range_str, prior_name, prior_args_str;
+            double value;
+            kwargs prior_args = {}, rate = {}, range = {};
             std::istringstream iss(line);
 
             // --- NAME ---
-            if (!getline(iss, name, '\t'))
+            if (!getline(iss, name, delimiter))
             {
                 std::cerr << "\nERROR: Unable to extract `name` column." << std::endl;
                 std::cerr << "Check line: " << line << "\n"
@@ -213,7 +255,7 @@ void build_parameters(std::string data_path_to_file)
             }
 
             // --- VALUE ---
-            if (!getline(iss, value_str, '\t'))
+            if (!getline(iss, value_str, delimiter))
             {
                 std::cerr << "\nERROR: Unable to extract `value` column." << std::endl;
                 std::cerr << "Check line: " << line << "\n"
@@ -225,7 +267,7 @@ void build_parameters(std::string data_path_to_file)
             value = stod(value_str);
 
             // --- INFER ---
-            if (!getline(iss, infer, '\t'))
+            if (!getline(iss, infer, delimiter))
             {
                 std::cerr << "\nERROR: Unable to extract `infer` column." << std::endl;
                 std::cerr << "Check line: " << line << "\n"
@@ -238,7 +280,7 @@ void build_parameters(std::string data_path_to_file)
             if (stobool(infer) == true)
             {
                 // --- PRIOR ---
-                if (!getline(iss, prior, '\t'))
+                if (!getline(iss, prior_name, delimiter))
                 {
                     std::cerr << "\nERROR: Unable to extract `prior` column." << std::endl;
                     std::cerr << "Check line: " << line << "\n"
@@ -249,7 +291,7 @@ void build_parameters(std::string data_path_to_file)
                 }
 
                 // --- ARGS ---
-                if (!getline(iss, args_str, '\t'))
+                if (!getline(iss, prior_args_str, delimiter))
                 {
                     std::cerr << "\nERROR: Unable to extract `args` column." << std::endl;
                     std::cerr << "Check line: " << line << "\n"
@@ -258,42 +300,10 @@ void build_parameters(std::string data_path_to_file)
                               << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                std::istringstream args_ss(args_str);
-                while (std::getline(args_ss, tmp, ','))
-                {
-                    args_stock.push_back(tmp);
-                }
-                if (args_stock.size() == 0 || args_stock.size() % 2 == 1)
-                {
-                    std::cerr << "\nERROR: Unrecognized dictionary of `args`." << std::endl;
-                    std::cerr << "Check line: " << line << "\n"
-                              << std::endl;
-                    std::cerr << "Exit...\n"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-                else
-                {
-                    for (size_t i = 0; i < args_stock.size(); i += 2)
-                    {
-                        try
-                        {
-                            args.emplace(args_stock[i], std::stod(args_stock[i + 1]));
-                        }
-                        catch (const std::exception &)
-                        {
-                            std::cerr << "\nERROR: Invalid argument in `args`." << std::endl;
-                            std::cerr << "Check line: " << line << "\n"
-                                      << std::endl;
-                            std::cerr << "Exit...\n"
-                                      << std::endl;
-                            exit(EXIT_FAILURE);
-                        }
-                    }
-                }
+                prior_args = parse_dict_string(prior_args_str);
 
                 // --- STRATEGY ---
-                if (!getline(iss, strategy, '\t'))
+                if (!getline(iss, strategy, delimiter))
                 {
                     std::cerr << "\nERROR: Unable to extract `strategy` column." << std::endl;
                     std::cerr << "Check line: " << line << "\n"
@@ -304,7 +314,7 @@ void build_parameters(std::string data_path_to_file)
                 }
 
                 // --- RATE ---
-                if (!getline(iss, rate_str, '\t'))
+                if (!getline(iss, rate_str, delimiter))
                 {
                     std::cerr << "\nERROR: Unable to extract `strategy` column." << std::endl;
                     std::cerr << "Check line: " << line << "\n"
@@ -313,9 +323,9 @@ void build_parameters(std::string data_path_to_file)
                               << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                rate = stod(rate_str);
+                rate = parse_dict_string(rate_str);
 
-                if (!getline(iss, range_str, '\t'))
+                if (!getline(iss, range_str, delimiter))
                 {
                     std::cerr << "\nERROR: Unable to extract `range` column." << std::endl;
                     std::cerr << "Check line: " << line << "\n"
@@ -324,34 +334,15 @@ void build_parameters(std::string data_path_to_file)
                               << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                // load range
-                std::istringstream range_ss(range_str);
-                std::string tmp;
-                while (std::getline(range_ss, tmp, ','))
-                {
-                    try
-                    {
-                        double range_value = std::stod(tmp);
-                        range.push_back(range_value);
-                    }
-                    catch (const std::exception &)
-                    {
-                        std::cerr << "\nERROR: Invalid argument in `range`." << std::endl;
-                        std::cerr << "Check line: " << line << "\n"
-                                  << std::endl;
-                        std::cerr << "Exit...\n"
-                                  << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
-                }
+                range = parse_dict_string(range_str);
 
                 // add entry to shared paramter dictionary
-                Parameter this_param(name, value, true, prior, args, strategy, rate, range);
+                Parameter this_param(value, true, strategy, rate, range, prior_name, prior_args);
                 glob_params.add_param(name, this_param);
             }
             else
             {
-                Parameter this_param(name, value, false);
+                Parameter this_param(value, false);
                 // add entry to shared paramter dictionary}
                 glob_params.add_param(name, this_param);
             }
@@ -385,7 +376,7 @@ int main(int argc, char **argv)
     int num_iter = DEFAULT_NUM_ITER;
     int num_param_sweeps = DEFAULT_NUM_PARAM_SWEEEPS;
     int num_augm_sweeps = DEFAULT_NUM_AUGM_SWEEPS;
-    int num_adapt_iter = DEFAULT_NUM_ADAPT;
+    int num_adapt_steps = DEFAULT_NUM_ADAPT_STEPS;
 
     //========== USER parameters ==========
     if (argc < 5)
@@ -427,8 +418,7 @@ int main(int argc, char **argv)
     build_parameters(parameters_path_to_file);
 
     // Initialize MCMC object
-    MCMC_Class mcmc_object(seed,
-                           HH_data);
+    MCMC_Class mcmc_object(seed, HH_data);
 
     // run MCMC inference
     mcmc_object.infer(
@@ -436,7 +426,7 @@ int main(int argc, char **argv)
         num_iter,
         num_param_sweeps,
         num_augm_sweeps,
-        num_adapt_iter);
+        num_adapt_steps);
 
     return EXIT_SUCCESS;
 }
