@@ -17,9 +17,14 @@ double tost_normaliz_const(double t_incub, kwargs args)
     double s = args.at("sigma");
     double T = args.at("tau");
 
+#ifdef THOMAS_TOST
+    norm_const = (s * (1.0 - std::pow(1.0 + std::exp((m + T) / s), -a))) / a;
+    return norm_const;
+#else
     norm_const = 1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - t_incub / T * (std::pow(1. + std::exp((m + T) / s), -a));
     norm_const *= s / a;
     return norm_const;
+#endif
 }
 
 double t_onset_sympt_to_transm_pdf(double tost, double t_incub, kwargs args)
@@ -294,7 +299,7 @@ double log_exp_pdf(double x, kwargs args)
 //  Random generators
 //----------------------------------------------------------------------
 
-double unif_rand(std::mt19937_64& rand_gen, kwargs args)
+double unif_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // uniform distribution random generator
     double low = args.at("low");
@@ -304,7 +309,7 @@ double unif_rand(std::mt19937_64& rand_gen, kwargs args)
     return distrib(rand_gen);
 }
 
-double normal_rand(std::mt19937_64& rand_gen, kwargs args)
+double normal_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // normal distribution random generator
     double mean = args.at("mean");
@@ -314,7 +319,7 @@ double normal_rand(std::mt19937_64& rand_gen, kwargs args)
     return distrib(rand_gen);
 }
 
-double lognorm_rand(std::mt19937_64& rand_gen, kwargs args)
+double lognorm_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // lognormal distribution random generator
     double mean = args.at("mean");
@@ -324,7 +329,7 @@ double lognorm_rand(std::mt19937_64& rand_gen, kwargs args)
     return distrib(rand_gen);
 }
 
-double gamma_rand(std::mt19937_64& rand_gen, kwargs args)
+double gamma_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // gamma distribution random generator
     double shape = args.at("shape");
@@ -334,13 +339,62 @@ double gamma_rand(std::mt19937_64& rand_gen, kwargs args)
     return distrib(rand_gen);
 }
 
-double exp_rand(std::mt19937_64& rand_gen, kwargs args)
+double exp_rand(std::mt19937_64 &rand_gen, kwargs args)
 {
     // exponential distribution random generator
     double rate = args.at("rate");
     std::exponential_distribution<double> distrib(rate);
 
     return distrib(rand_gen);
+}
+
+//----------------------------------------------------------------------
+// Switchboard for distribution choice
+//----------------------------------------------------------------------
+
+void distribution_switchboard(std::string name, pdf_ptr *point_to_pdf, pdf_ptr *point_to_log_pdf, rand_ptr *point_to_rand)
+{
+    if (name == "_none_")
+    {
+        point_to_rand = nullptr;
+        point_to_pdf = nullptr;
+        point_to_log_pdf = nullptr;
+    }
+    else if (name == "unif")
+    {
+        *point_to_pdf = &unif_pdf;
+        *point_to_log_pdf = &log_unif_pdf;
+        *point_to_rand = &unif_rand;
+    }
+    else if (name == "normal")
+    {
+        *point_to_pdf = &normal_pdf;
+        *point_to_log_pdf = &log_normal_pdf;
+        *point_to_rand = &normal_rand;
+    }
+    else if (name == "lognorm")
+    {
+        *point_to_pdf = &lognorm_pdf;
+        *point_to_log_pdf = &log_lognorm_pdf;
+        *point_to_rand = &lognorm_rand;
+    }
+    else if (name == "gamma")
+    {
+        *point_to_pdf = &gamma_pdf;
+        *point_to_log_pdf = &log_gamma_pdf;
+        *point_to_rand = &gamma_rand;
+    }
+    else if (name == "exp")
+    {
+        *point_to_log_pdf = &log_exp_pdf;
+        *point_to_log_pdf = &log_exp_pdf;
+        *point_to_rand = &exp_rand;
+    }
+    else
+    {
+        std::cout << "Unknown distribution " << name << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 //----------------------------------------------------------------------

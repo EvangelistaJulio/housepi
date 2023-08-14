@@ -16,100 +16,80 @@
 //////// Parameter : class declaration /////////////////////
 ////////////////////////////////////////////////////////////
 
-class Parameter
+class Parameter : public Metropolis
 {
 private:
-	pdf_ptr p_prior_log_pdf = nullptr; // pointer to the log prior pdf
-	rand_ptr p_prior_rand = nullptr;   // the actual generator to execute
+	// Attributes
+	kwargs p_prior_args = {}; // arguments to the prior function
 
 public:
-	// Attributes
-	double p_value;			  // value of the parameter
-	kwargs p_prior_args = {}; // arguments to the prior function
-	bool p_infer = false;	// wheter to infer the parameter or not
-	Metropolis *metropolis; // Pointer for polymorphism
+	// FIXME : prior_args !!!
 
 	// Constructors
-	Parameter(
-		double value,
-		bool infer,
-		std::string metropolis_strategy = "_none_",
-		kwargs metropolis_args = {},
-		kwargs range = {},
-		std::string prior_name = "_none_",
-		kwargs prior_args = {});
-	Parameter() = default;
-	~Parameter(){};
-
-	// Getter
-	double get_value() const { return p_value; };
-	void set_value(double new_value) { p_value = new_value; };
-
-	// Computations
-	double generate_from_prior(std::mt19937_64& rand_gen);
-	double log_ratio_prior(double old_value, double new_value);
-
-	// --- Aliases from Metropolis Strategy ---
-	// -> Getter
-	int get_num_accept() const { return metropolis->num_accept; }
-	int get_num_propos() const { return metropolis->num_propos; }
-	double get_accept_rate() const { return metropolis->accept_rate; }
-
-	// -> Setter
-	void set_args(kwargs new_args) { metropolis->set_args(new_args); };
-	void reset_moves() { metropolis->reset_moves(); }
-	void set_num_accept_pp() { metropolis->num_accept++; }
-	void set_num_propos_pp() { metropolis->num_propos++; }
-	void update_accept_rate(bool move_accepted, int step) { metropolis->update_accept_rate(move_accepted, step); }
-	void adapt(int step, int num_adapt_iter) { metropolis->adapt(step, num_adapt_iter); }
-
-	// -> Computations
-	bool valid(double new_value) { return metropolis->valid(new_value); }
-	double log_ratio_proposal(double old_value, double new_value) { return metropolis->log_ratio_proposal(old_value, new_value); }
-	double propose(std::mt19937_64& rand_gen, double old_value) { return metropolis->propose(rand_gen, old_value); }
+	using Metropolis::Metropolis;
 };
 
 ///////////////////////////////////////////////////////////
 /////// Parameter_Dictionary : class declaration //////////
 ///////////////////////////////////////////////////////////
 
-// This is a wrapper class containing aliases for the global parameters.
+// This is a wrapper class containing aliases for the global params.
 class Parameter_Dictionary
 {
 private:
 	// Attributes
-	std::map<std::string, Parameter> parameters = {};
+	std::map<std::string, Parameter> params = {};
 
 public:
 	// Attributes
 	std::vector<std::string> to_be_inferred = {};
 
 	// Getter
-	double get_value(std::string parID) const;
-	bool get_infer(std::string parID) const;
-	double get_accept_rate(std::string parID) const;
+	double get_value(std::string k) const { return params.at(k).get_value(); };
+	bool get_infer(std::string k) const { return params.at(k).get_infer(); };
+	double get_accept_rate(std::string k) const { return params.at(k).get_accept_rate(); };
 
 	// Setter
-	void add_param(std::string parID, Parameter new_param);
-	void set_value(std::string parID, double new_value);
-	void init_value(std::string parID, std::mt19937_64 &m_rand_gen);
-	void reset_moves(std::string parID);
-	void set_num_propos_pp(std::string parID);
-	void set_num_accept_pp(std::string parID);
-	void update_accept_rate(std::string parID, bool move_accepted, int step);
-	void adapt(std::string parID, int step, int m_num_adapt_iter);
+	void set_value(std::string k, double new_value) { params.at(k).set_value(new_value); };
+	void init_value(std::string k, std::mt19937_64 &rand_gen) { params.at(k).init_value(rand_gen); };
+	void reset_moves(std::string k) { params.at(k).reset_moves(); };
+	void set_num_propos_pp(std::string k) { params.at(k).set_num_propos_pp(); };
+	void set_num_accept_pp(std::string k) { params.at(k).set_num_accept_pp(); };
+	void update_accept_rate(std::string k, bool move_accepted, int step) { params.at(k).update_accept_rate(move_accepted, step); };
+	void adapt(std::string k, int step, int m_num_adapt_iter) { params.at(k).adapt(step, m_num_adapt_iter); };
+
+	void add_param(std::string k, Parameter new_param);
 
 	// Computations
-	bool valid_param(std::string parID, double new_value);
-	double propose(std::string parID, std::mt19937_64 &m_rand_gen, double old_value);
-	double log_ratio_proposal(std::string parID, double old_value, double new_value);
-	double log_ratio_prior(std::string parID, double old_value, double new_value);
+	bool valid_param(std::string k, double new_value) { return params.at(k).valid(new_value); };
+	double propose(std::string k, std::mt19937_64 &rand_gen, double old_value) { return params.at(k).propose(rand_gen, old_value); };
+	double log_ratio_proposal(std::string k, double old_value, double new_value) { return params.at(k).propose_log_ratio(old_value, new_value); };
+	double log_ratio_prior(std::string k, double old_value, double new_value) { return params.at(k).prior_log_ratio(old_value, new_value); };
 
 	// Display
 	void print();
 };
 
-// global parameters declaration
+
+// global params declaration // FIXME : find a better position maybe
 extern Parameter_Dictionary glob_params;
+
+/////////////////////////////////////////////////////////
+/////// Augmented : Class declaration /////////
+////////////////////////////////////////////////////////
+
+class Augmented : public Metropolis
+{
+private:
+	// Attributes
+	std::map<std::string, std::string> a_prior_args = {}; // arguments to the prior function
+
+public:
+	// Constructors
+	using Metropolis::Metropolis;
+
+	// Computations
+	kwargs get_prior_args() override;
+};
 
 #endif // PARAMETER__H

@@ -16,38 +16,13 @@
 extern std::vector<std::string> List_Augm_Var;
 
 /////////////////////////////////////////////////////////
-/////// Augmented_Variable : Class declaration /////////
-////////////////////////////////////////////////////////
-
-class Augmented_Variable : public Parameter
-{
-private:
-	double a_init_value;
-
-public:
-// FIXME need for both prior and strategy!
-// FIXME arguments are tipically not fixed
-	// Constructor
-	Augmented_Variable(double value,
-					   bool infer = false,
-					   std::string metropolis_strategy = "_none_",
-					   kwargs metropolis_args = {},
-					   kwargs range = {}) : Parameter(value,
-													  infer,
-													  metropolis_strategy,
-													  metropolis_args,
-													  range) { a_init_value = value; }
-	double get_init_value() const { return a_init_value; }
-};
-
-/////////////////////////////////////////////////////////
 ///////// Individual : Class declaration ///////////////
 ////////////////////////////////////////////////////////
 
 class Individual
 {
 private:
-	std::unordered_map<std::string, Augmented_Variable> i_augm = {};
+	std::unordered_map<std::string, Augmented> i_augm = {};
 
 public:
 	// Attributes
@@ -88,11 +63,13 @@ public:
 
 	// Computations
 	bool valid_augm(std::string augmID, double new_value) { return i_augm.at(augmID).valid(new_value); }
-	double propose_augm(std::string augmID, std::mt19937_64& rand_gen);
+	double propose_augm(std::string augmID, std::mt19937_64 &rand_gen);
+	double log_ratio_prior_augm(std::string augmID, double new_value);
+	double log_ratio_proposal_augm(std::string augmID, double new_value);
 
 	// --- Methods (model) ---
 	double get_infec_time() const;
-	void init_augm_data(std::mt19937_64& rand_gen);
+	void init_augm_data(std::mt19937_64 &rand_gen);
 
 	// Infectivity Profiles
 	double infectivity_inst(double t_transm);
@@ -129,14 +106,16 @@ public:
 
 	// Setter
 	void add_individual(Individual this_indiv);
-	void init_augm_data(std::mt19937_64& rand_gen);
+	void init_augm_data(std::mt19937_64 &rand_gen);
 	void update_household_status();
 
 	// Aliases (augmented variables)
 	double get_augm(std::string augmID, size_t idx) const { return h_residents[idx].get_augm(augmID); }
-	double propose_augm(std::string augmID, size_t idx, std::mt19937_64& rand_gen);
+	double propose_augm(std::string augmID, size_t idx, std::mt19937_64 &rand_gen);
 	void set_augm(std::string augmID, size_t idx, double infec_time);
 	bool valid_augm(std::string augmID, size_t idx, double new_value);
+	double log_ratio_prior_augm(std::string augmID, size_t idx, double new_value) { return h_residents[idx].log_ratio_prior_augm(augmID, new_value); }
+	double log_ratio_proposal_augm(std::string augmID, size_t idx, double new_value) { return h_residents[idx].log_ratio_proposal_augm(augmID, new_value); }
 
 	// Computations (default)
 	void init_infectivity_profiles();
@@ -153,7 +132,7 @@ public:
 	double model_community_risk_inst(double t1);
 	double model_community_risk_cumul(double t0, double t1);
 	double model_transmissability();
-	double model_risk_beta(const std::vector<std::vector<double>>& rate_vector, size_t idx);
+	double model_risk_beta(const std::vector<std::vector<double>> &rate_vector, size_t idx);
 };
 
 #endif // DEF_HOUSEHOLD__H

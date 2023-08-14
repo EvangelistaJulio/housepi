@@ -19,7 +19,6 @@ MCMC_Class::MCMC_Class()
     m_global_loglike = 0.0;
     m_data = {};
 
-    init_param_to_infer(); // NOTE: shouldn't parameters be initialized to given value?
     reset_moves();
 }
 
@@ -31,7 +30,6 @@ MCMC_Class::MCMC_Class(
     m_rand_gen.seed(seed);
     m_data = data;
 
-    init_param_to_infer(); // NOTE: shouldn't parameters be initialized to given value?
     reset_moves();
 }
 
@@ -60,7 +58,7 @@ void MCMC_Class::reset_moves()
 }
 
 /* Initialize augmented variables */
-void MCMC_Class::init_augm_data(std::mt19937_64& rand_gen)
+void MCMC_Class::init_augm_data(std::mt19937_64 &rand_gen)
 {
     if (Verbose == true)
     {
@@ -123,7 +121,17 @@ bool MCMC_Class::update_param(std::string parID)
         }
 
         // Metropolis-Hastings
-        Q = new_global_loglike - m_global_loglike + log_ratio_prior - log_ratio_proposal;
+        Q = new_global_loglike - m_global_loglike + log_ratio_prior + log_ratio_proposal;
+
+        // FLAG
+
+        if (parID == "alpha")
+        {
+            std::cerr << "alpha old : " << old_value << "| new : " << new_value << endl;
+            std::cerr << "DLL : " << new_global_loglike - m_global_loglike << " | log_ratio_prior : " << log_ratio_prior << " | log_ratio_proposal : " << log_ratio_proposal << endl;
+            std::cerr << endl;
+        }
+        // END-of-FLAG*/
 
         if (unif_rand(m_rand_gen) < std::exp(Q))
         { // move accepted
@@ -146,7 +154,8 @@ bool MCMC_Class::update_param(std::string parID)
 void MCMC_Class::update_augm_variables()
 {
     double old_value, new_value, Q;
-    double log_ratio_proposal = 0.0, old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
+    double log_ratio_proposal = 0.0, log_ratio_prior = 0.0;
+    double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
 
     // Loop over households
     for (size_t h = 0; h < m_data.size(); h++)
@@ -161,17 +170,22 @@ void MCMC_Class::update_augm_variables()
 
                 new_value = m_data[h].propose_augm(augmID, res, m_rand_gen);
 
-                // proceed only if the new value is consistent 
-                // FIXME (FUTURE) : is this necessary? this is basically always true 
+                // proceed only if the new value is consistent
+                // FIXME (FUTURE) : is this necessary? this is basically always true
                 if (m_data[h].valid_augm(augmID, res, new_value) == true)
                 {
                     // Update onset time with proposed value
                     m_data[h].set_augm(augmID, res, new_value);
                     new_loglike_of_HH = m_data[h].compute_loglike();
+                    log_ratio_prior = m_data[h].log_ratio_prior_augm(augmID, res, new_value);
+                    log_ratio_proposal = m_data[h].log_ratio_proposal_augm(augmID, res, new_value);
+                    Q = new_loglike_of_HH - old_loglike_of_HH + log_ratio_proposal;
 
-                    log_ratio_proposal = m_data[h].compute_loglike();
-
-                    Q = new_loglike_of_HH - old_loglike_of_HH - log_ratio_proposal;
+                    // FLAG
+                    std::cerr << augmID << " (" << res << ") | old : " << old_value << " | new : " << new_value << endl;
+                    std::cerr << "DLL : " << new_loglike_of_HH - old_loglike_of_HH << " | log_ratio_proposal : " << log_ratio_proposal << endl;
+                    std::cerr << endl;
+                    // END-of-FLAG
 
                     if (unif_rand(m_rand_gen) < std::exp(Q))
                     { // move accepted
@@ -204,22 +218,34 @@ void MCMC_Class::infer(
     ofstream output(output_file.c_str());
     int step;
     bool move_accepted;
+    bool is_adaptive_mcmc = num_adapt_steps > 0;
+    bool is_data_augmentation = num_augm_sweeps > 0;
 
     // Column names of the output file
-    std::string colNames = "iter" + tab + "loglike" + tab + "augm__a";
+    std::string colNames = "iter" + tab + "loglike";
+    if (is_data_augmentation == true)
+    {
+        colNames += tab + "augm__a%";
+    }
+
     for (std::string parID : glob_params.to_be_inferred)
     {
-        colNames += tab + parID + tab + parID + "__a";
+        colNames += tab + parID + tab + parID + "__a%";
     }
     output << colNames << std::endl;
 
     std::cout << "\n=============MCMC===============" << std::endl;
     std::cout << "\n======MCMC:initialization=======" << std::endl;
 
+    init_param_to_infer(); // NOTE: shouldn't parameters be initialized to given value?
     init_augm_data(m_rand_gen);
     init_global_loglike();
 
-    output << 0.0 << tab << get_global_loglike() << tab << 0.0; // n. of proposed/accepted move
+    output << 0.0 << tab << get_global_loglike();
+    if (is_data_augmentation == true)
+    {
+        output << tab << 0.0; // n. of proposed/accepted move
+    }
     for (std::string parID : glob_params.to_be_inferred)
     {
         output << tab << glob_params.get_value(parID) << tab << 0.0;
@@ -232,16 +258,15 @@ void MCMC_Class::infer(
         std::cout << "-> running iteration : " << (i + 1) << "/" << num_iter << endl;
         reset_moves();
 
+        // Data augmentation
+        for (int k = 0; k < num_augm_sweeps; k++)
+        { // Update loglik at the household level
+            update_augm_variables();
+        }
+
         for (int j = 0; j < num_param_sweeps; j++)
         {
-            // step = 1 + j * num_param_sweeps ;
-            step = 1 + j * num_param_sweeps + i * num_iter;
-
-            // Data augmentation
-            for (int k = 0; k < num_augm_sweeps; k++)
-            {
-                update_augm_variables(); // Update loglik at the household level
-            }
+            step = 1 + j + i * num_param_sweeps;
 
             // Parameter inference
             for (std::string parID : glob_params.to_be_inferred)
@@ -249,7 +274,7 @@ void MCMC_Class::infer(
                 move_accepted = update_param(parID);
                 glob_params.update_accept_rate(parID, move_accepted, step);
                 // Adaptative MCMC
-                if (num_adapt_steps > 0 && step <= num_adapt_steps)
+                if (is_adaptive_mcmc == true && step <= num_adapt_steps)
                 {
                     glob_params.adapt(parID, step, num_adapt_steps);
                 }
@@ -258,7 +283,10 @@ void MCMC_Class::infer(
 
         // Print output file
         output << (i + 1) << tab << get_global_loglike();
-        output << tab << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
+        if (is_data_augmentation == true)
+        {
+            output << tab << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
+        }
         for (std::string parID : glob_params.to_be_inferred)
         {
             output << tab << glob_params.get_value(parID) << tab << 100.0 * glob_params.get_accept_rate(parID);

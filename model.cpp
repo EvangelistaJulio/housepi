@@ -20,44 +20,51 @@ extern std::vector<double> Inst_Community_Infec;
 std::vector<std::string> List_Augm_Var = {"onset_time", "incub_period"};
 
 /* Initialize augmented variables */
-void Individual::init_augm_data(std::mt19937_64& rand_gen)
+void Individual::init_augm_data(std::mt19937_64 &rand_gen)
 {
 	bool is_sick = (i_status != HEALTHY);
 	double value;
 
-	// FIXME : args change with mcmc : I need pointers, not values!
+	// FIXME : args change with mcmc : I need to provide priors
 
 	/* onset_time */
 	{
 		std::string augmID = "onset_time";
 		double init_value = (is_sick == true) ? i_onset_time : i_study_period;
-		std::string strategy = "normal";
-		kwargs args = {
+		std::string metropolis_strategy = (is_sick == true) ? "normal" : "_none_";
+		kwargs metropolis_args = {
 			{"mean", 0.0},
 			{"sd", glob_params.get_value("onset_err")}};
 		kwargs range = {{"low", -MAX_INCUB_PERIOD}, {"up", i_study_period}};
 
-		Augmented_Variable this_augm(init_value, is_sick, strategy, args, range);
+		Augmented this_augm(init_value, metropolis_strategy, metropolis_args, range);
 		i_augm.emplace(augmID, this_augm);
 		i_augm_list.push_back(augmID);
+
+		// FLAG
+		if (is_sick == true)
+		{
+			std::cerr << ">>>>>> propose : " << this_augm.propose(rand_gen, this_augm.get_value_0()) << endl;
+		}
+		// END-of-FLAG
 	}
 
 	/* incub_period */
 	{
 		std::string augmID = "incub_period";
 		double init_value = 0.;
-		std::string strategy = "gamma";
+		std::string metropolis_strategy = (is_sick == true) ? "gamma" : "_none_";
 		kwargs args = {
 			{"shape", glob_params.get_value("incub_shape")},
 			{"scale", glob_params.get_value("incub_scale")}};
-		kwargs range = {{"low", 0.0}, {"up", MAX_INCUB_PERIOD}};
+		kwargs range = {{"up", MAX_INCUB_PERIOD}};
 
-		Augmented_Variable this_augm(init_value, is_sick, strategy, args, range);
+		Augmented this_augm(init_value, metropolis_strategy, args, range);
 		i_augm.emplace(augmID, this_augm);
 		i_augm_list.push_back(augmID);
 	}
 
-	// initialize for unhealthy
+	// initialize for unhealthy (default)
 	if (is_sick == true)
 	{
 		for (std::string augmID : i_augm_list)
@@ -134,7 +141,7 @@ double Household::log_incub_proba(size_t idx)
 
 // FIXME : these two below can be compacted to avoid errors
 
-double Household::model_risk_beta(const std::vector<std::vector<double>>& rate_vector, size_t idx)
+double Household::model_risk_beta(const std::vector<std::vector<double>> &rate_vector, size_t idx)
 {
 	double beta_i = 0.0, beta = 0.0;
 
@@ -154,6 +161,20 @@ double Household::model_risk_beta(const std::vector<std::vector<double>>& rate_v
 	return beta;
 }
 
+/* Survival probability from time t0 of resident idx */
+double Household::log_surv_proba(size_t idx)
+{
+	double beta = 0.0, output = 0.0;
+	double t0 = h_infec_time;
+	double t_transm = get_infec_time(idx);
+
+	beta = model_risk_beta(h_cumul_rate, idx);
+	output = model_susceptibility(idx) * (model_community_risk_cumul(t0, t_transm) + beta);
+	output *= (-1.);
+
+	return output;
+}
+
 /* logarithm of the infection probability */
 double Household::log_infec_proba(size_t idx)
 {
@@ -165,20 +186,6 @@ double Household::log_infec_proba(size_t idx)
 	output = std::log(1. - std::exp(-output));
 
 	output = output + log_surv_proba(idx);
-
-	return output;
-}
-
-/* Survival probability from time t0 of resident idx */
-double Household::log_surv_proba(size_t idx)
-{
-	double beta = 0.0, output = 0.0;
-	double t0 = h_infec_time;
-	double t_transm = get_infec_time(idx);
-
-	beta = model_risk_beta(h_cumul_rate, idx);
-	output = model_susceptibility(idx) * (model_community_risk_cumul(t0, t_transm) + beta);
-	output *= (-1.);
 
 	return output;
 }
@@ -232,7 +239,7 @@ double Household::model_community_risk_cumul(double t0, double t1)
 	double output = 0.0;
 	output = lin_idx_interp(t1, Cumul_Community_Infec) - lin_idx_interp(t0, Cumul_Community_Infec);
 	output *= glob_params.get_value("alpha");
-	
+
 	return output;
 }
 

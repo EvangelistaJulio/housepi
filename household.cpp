@@ -37,12 +37,29 @@ Individual::Individual(
 	i_onset_time = onset_time;
 }
 
-double Individual::propose_augm(std::string augmID, std::mt19937_64& rand_gen)
+double Individual::propose_augm(std::string augmID, std::mt19937_64 &rand_gen)
 {
 	// NOTE : I choose to propose augmented values around the initial value
-	double old_value = i_augm.at(augmID).get_init_value();
+	double old_value = i_augm.at(augmID).get_value_0();
+	// FIXME: this should be a user variable, probably in metropolis
 
 	return i_augm.at(augmID).propose(rand_gen, old_value);
+}
+
+double Individual::log_ratio_prior_augm(std::string augmID, double new_value)
+{
+	// NOTE : I choose to propose augmented values around the initial value
+	double old_value = i_augm.at(augmID).get_value_0();
+	
+	return i_augm.at(augmID).prior_log_ratio(old_value, new_value);
+}
+
+double Individual::log_ratio_proposal_augm(std::string augmID, double new_value)
+{
+	// NOTE : I choose to propose augmented values around the initial value
+	double old_value = i_augm.at(augmID).get_value_0();
+	
+	return i_augm.at(augmID).propose_log_ratio(old_value, new_value);
 }
 
 /////////////////////////////////////////////////////
@@ -60,7 +77,7 @@ void Household::add_individual(Individual this_indiv)
 // UPDATE: how to formalize the model dependency on augmented variable?
 
 // Initialize augmented variables and infectivity profiles
-void Household::init_augm_data(std::mt19937_64& rand_gen)
+void Household::init_augm_data(std::mt19937_64 &rand_gen)
 {
 	// loop over residents within the house
 	for (size_t i = 0; i < h_size; i++)
@@ -86,7 +103,7 @@ void Household::update_household_status()
 			// Update the list of healthy residents within the household
 			h_healthy_list.push_back(i);
 		}
-		else 
+		else
 		{
 			// Update the list of symptomatic residents within the household
 			h_symptomatic_list.push_back(i);
@@ -118,7 +135,7 @@ void Household::set_augm(std::string augmID, size_t idx, double new_incub_period
 }
 
 // Propose new value for symptom onset time
-double Household::propose_augm(std::string augmID, size_t idx, std::mt19937_64& rand_gen)
+double Household::propose_augm(std::string augmID, size_t idx, std::mt19937_64 &rand_gen)
 {
 	return h_residents[idx].propose_augm(augmID, rand_gen);
 }
@@ -128,7 +145,6 @@ bool Household::valid_augm(std::string augmID, size_t idx, double new_value)
 {
 	return h_residents[idx].valid_augm(augmID, new_value);
 }
-
 
 // ----------------------------
 //  Methods : Computations

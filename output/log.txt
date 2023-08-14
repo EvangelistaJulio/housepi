@@ -1,10 +1,10 @@
 
 =============DATA===============
 Data file: data/database_waning_clean.txt
-N. of households :	1201
-N. of individuals :	4619
-N. of cases :	2624
-N. of days :	272
+N. of households :	1
+N. of individuals :	5
+N. of cases :	1
+N. of days :	262
 
 =============COMMUNITY==============
 Data file: data/community_infection_israel.txt
@@ -12,23 +12,23 @@ Data file: data/community_infection_israel.txt
 =============PARAMETERS==============
 Model file: data/model-parameters.tsv
 _NAME_	_VALUE_	_INFER_
-alpha	0.001	true
-beta	0.6	true
-delta	1	true
+alpha	0.5	true
+beta	0.278	false
+delta	0.589	false
 incub_scale	1.131	false
 incub_shape	3.449	false
 onset_err	2	false
-r1V	1	true
-r1V90	1	true
-r2V	1	true
-r3V	1	true
-rC	1	true
+r1V	0.666	false
+r1V90	2.367	false
+r2V	0.103	false
+r3V	1.52	false
+rC	1.765	false
 rCC	1	false
-rFC	1	true
-rMC	1	true
-rQ	1	true
-rR	1	true
-rU	1	true
+rFC	0.014	false
+rMC	0.464	false
+rQ	0.279	false
+rR	8.861	false
+rU	0.1	false
 tost_alpha	5.85	false
 tost_mu	-4	false
 tost_sigma	1.85	false
@@ -45,3 +45,13 @@ typical_size	5	false
 -> running iteration : 1/10
 -> running iteration : 2/10
 -> running iteration : 3/10
+-> running iteration : 4/10
+-> running iteration : 5/10
+-> running iteration : 6/10
+-> running iteration : 7/10
+-> running iteration : 8/10
+-> running iteration : 9/10
+-> running iteration : 10/10
+
+===========MCMC:end=============
+

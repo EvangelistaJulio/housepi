@@ -13,7 +13,7 @@
 
 typedef std::unordered_map<std::string, double> kwargs;
 typedef double (*pdf_ptr)(double x, kwargs args);
-typedef double (*rand_ptr)(std::mt19937_64& rand_gen, kwargs args);
+typedef double (*rand_ptr)(std::mt19937_64 &rand_gen, kwargs args);
 
 // NOTE: in C++ these objects can be improved moking rcpp pdf classes
 
@@ -35,11 +35,14 @@ double exp_pdf(double x, kwargs args = {{"rate", 1.}});
 double log_exp_pdf(double x, kwargs args = {{"rate", 1.}});
 
 // Random generators
-double unif_rand(std::mt19937_64& rand_gen, kwargs args = {{"low", 0.}, {"up", 1.}});
-double normal_rand(std::mt19937_64& rand_gen, kwargs args = {{"mean", 0.}, {"sd", 1.}});
-double lognorm_rand(std::mt19937_64& rand_gen, kwargs args = {{"mean", 0.}, {"sd", 1.}});
-double gamma_rand(std::mt19937_64& rand_gen, kwargs args = {{"shape", 0.}, {"scale", 1.}});
-double exp_rand(std::mt19937_64& rand_gen, kwargs args = {{"rate", 1.}});
+double unif_rand(std::mt19937_64 &rand_gen, kwargs args = {{"low", 0.}, {"up", 1.}});
+double normal_rand(std::mt19937_64 &rand_gen, kwargs args = {{"mean", 0.}, {"sd", 1.}});
+double lognorm_rand(std::mt19937_64 &rand_gen, kwargs args = {{"mean", 0.}, {"sd", 1.}});
+double gamma_rand(std::mt19937_64 &rand_gen, kwargs args = {{"shape", 0.}, {"scale", 1.}});
+double exp_rand(std::mt19937_64 &rand_gen, kwargs args = {{"rate", 1.}});
+
+// Switchboard for distribution choice
+void distribution_switchboard(std::string name, pdf_ptr* point_to_pdf, pdf_ptr* point_to_log_pdf, rand_ptr* point_to_rand);
 
 // Linear interpolation for an indexed array
 double lin_idx_interp(double x_value, const std::vector<double> &y);

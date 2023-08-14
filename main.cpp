@@ -337,12 +337,12 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
                 range = parse_dict_string(range_str);
 
                 // add entry to shared paramter dictionary
-                Parameter this_param(value, true, strategy, rate, range, prior_name, prior_args);
+                Parameter this_param(value, strategy, rate, range, prior_name, prior_args);
                 glob_params.add_param(name, this_param);
             }
             else
             {
-                Parameter this_param(value, false);
+                Parameter this_param(value);
                 // add entry to shared paramter dictionary}
                 glob_params.add_param(name, this_param);
             }
