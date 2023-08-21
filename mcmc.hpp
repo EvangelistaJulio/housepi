@@ -5,12 +5,12 @@
 
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <cmath>
 #include <random>
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 
 #include "household.hpp"
 
@@ -20,20 +20,26 @@
 
 class MCMC_Class
 {
-	// Attributes
-	std::mt19937_64 m_rand_gen;
+private:
+	std::mt19937_64 m_rng;
 	double m_global_loglike = 0.0;
 	std::vector<Household> m_data = {};
+	std::uniform_real_distribution<double> unif;
 
 public:
 	int m_num_accept_data = 0;
 	int m_num_propos_data = 0;
+	Onset_to_Transm infectivity_profile;
 
 	// Constructors
-	MCMC_Class();
 	MCMC_Class(
 		unsigned seed,
-		std::vector<Household> data);
+		std::vector<Household> data,
+		kwargs_ext infec_prof_args) : infectivity_profile(infec_prof_args)
+	{
+		m_rng.seed(seed);
+		m_data = data;
+	}
 	~MCMC_Class(){};
 
 	// Getter
@@ -41,9 +47,8 @@ public:
 	double get_global_loglike() const { return m_global_loglike; };
 
 	// Setter
-	void init_param_to_infer();
 	void reset_moves();
-	void init_augm_data(std::mt19937_64& rand_gen);
+	void init_augm_data(std::mt19937_64 &rng);
 	void init_global_loglike();
 
 	// Computations

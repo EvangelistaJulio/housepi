@@ -20,9 +20,9 @@ Individual::Individual(
 	bool isolation,
 	bool recovered,
 	int vacc_status,
-	double study_period,
-	double vacc_delay,
-	double onset_time)
+	timetype study_period,
+	timetype vacc_delay,
+	timetype onset_time)
 {
 	// Data variables
 	i_indid = indid;
@@ -41,7 +41,7 @@ double Individual::propose_augm(std::string augmID, std::mt19937_64 &rand_gen)
 {
 	// NOTE : I choose to propose augmented values around the initial value
 	double old_value = i_augm.at(augmID).get_value_0();
-	// FIXME: this should be a user variable, probably in metropolis
+	// FIXME: this should be a user variable, probably in metropolis in order to propose from 0 or not
 
 	return i_augm.at(augmID).propose(rand_gen, old_value);
 }
@@ -50,16 +50,15 @@ double Individual::log_ratio_prior_augm(std::string augmID, double new_value)
 {
 	// NOTE : I choose to propose augmented values around the initial value
 	double old_value = i_augm.at(augmID).get_value_0();
-	
+
 	return i_augm.at(augmID).prior_log_ratio(old_value, new_value);
 }
 
-double Individual::log_ratio_proposal_augm(std::string augmID, double new_value)
+double Individual::log_ratio_proposal_augm(std::string augmID)
 {
 	// NOTE : I choose to propose augmented values around the initial value
-	double old_value = i_augm.at(augmID).get_value_0();
-	
-	return i_augm.at(augmID).propose_log_ratio(old_value, new_value);
+
+	return i_augm.at(augmID).propose_log_ratio();
 }
 
 /////////////////////////////////////////////////////
@@ -73,9 +72,6 @@ void Household::add_individual(Individual this_indiv)
 	h_size++;
 }
 
-// logarithm of the pdf of the incubation period
-// UPDATE: how to formalize the model dependency on augmented variable?
-
 // Initialize augmented variables and infectivity profiles
 void Household::init_augm_data(std::mt19937_64 &rand_gen)
 {
@@ -84,17 +80,13 @@ void Household::init_augm_data(std::mt19937_64 &rand_gen)
 	{
 		h_residents[i].init_augm_data(rand_gen);
 	}
-	update_household_status();
-	init_infectivity_profiles();
+	init_household_status();
 }
 
-// Update list of symptomatic residents and first case
-// NOTE: repeating these operation at fixed status is expensive
-void Household::update_household_status()
+// Update list of healthy and symptomatic residents
+void Household::init_household_status()
 {
-	double new_t0 = INFINITY;
-	size_t new_case0 = h_size; // NOTE: init to impossible value
-
+	h_healthy_list.resize(0);
 	h_symptomatic_list.resize(0);
 	for (size_t i = 0; i < h_size; i++)
 	{
@@ -107,15 +99,26 @@ void Household::update_household_status()
 		{
 			// Update the list of symptomatic residents within the household
 			h_symptomatic_list.push_back(i);
+		}
+	}
+}
 
-			// Find smaller infection time
-			new_t0 = std::min(h_residents[i].get_infec_time(), new_t0);
+// Update household first case
+void Household::update_household_first_case()
+{
+	timetype t_infec, new_t0 = INFINITY;
+	size_t new_case0 = h_size; // NOTE: init to impossible values
 
-			// Identify first case
-			if (h_residents[i].get_infec_time() == new_t0)
-			{
-				new_case0 = i;
-			}
+	for (size_t i : h_symptomatic_list)
+	{
+		// Find smaller infection time
+		t_infec = h_residents[i].get_infec_time();
+		new_t0 = std::min(t_infec, new_t0);
+
+		// Identify first case
+		if (t_infec == new_t0)
+		{
+			new_case0 = i;
 		}
 	}
 
@@ -127,11 +130,12 @@ void Household::update_household_status()
 //  Methods : Aliases
 // ----------------------------
 
-// Change individual infection time
-void Household::set_augm(std::string augmID, size_t idx, double new_incub_period)
+// Change not healthy individual augmented variables
+void Household::set_augm(std::string augmID, size_t idx, double new_value)
 {
-	h_residents[idx].set_augm(augmID, new_incub_period);
-	update_infectivity_profiles(idx);
+	h_residents[idx].set_augm(augmID, new_value);
+	update_household_first_case();		// Update information of first cases
+	update_infectivity_profiles(idx);	// Update infectivity profiles realted to idx
 }
 
 // Propose new value for symptom onset time
@@ -151,88 +155,53 @@ bool Household::valid_augm(std::string augmID, size_t idx, double new_value)
 // ----------------------------
 
 /* Initialize infectivity profiles */
-void Household::init_infectivity_profiles()
+void Household::init_infectivity_profiles(Onset_to_Transm *infectivity_profile)
 {
-	// initialize 2-dim vectors h_cumul_rate and h_inst_rate
-	h_cumul_rate.resize(h_size);
-	h_inst_rate.resize(h_size);
+	ptr_to_infec_profile = infectivity_profile;
+
+	// initialize 2-dim vectors h_cumul_profile and h_inst_profile
+	h_cumul_profile.resize(h_size);
+	h_inst_profile.resize(h_size);
 
 	// loop over all residents
 	for (size_t i = 0; i < h_size; i++)
 	{
-		h_cumul_rate[i].resize(h_size);
-		h_inst_rate[i].resize(h_size);
-	}
-
-	// Compute cumulative and instantaneous person-to-person transmission rates
-	for (size_t i : h_symptomatic_list)
-	{
-		update_infectivity_profiles(i);
+		h_residents[i].ptr_to_infec_profile = infectivity_profile;
+		h_cumul_profile[i].resize(h_size);
+		h_inst_profile[i].resize(h_size);
 	}
 }
 
-/* Update infectivity profiles */
+/* Update infectivity profiles given a NOT healthy resident idx */
 void Household::update_infectivity_profiles(size_t idx)
 {
-	double t_transm, study_period;
-
-	// Update information of symptomatic and first cases
-	update_household_status();
+	timetype t_infec_idx = get_infec_time(idx), t_infec_res;
 
 	// Update cumulative and instantaneous person-to-person transmission rates
-	// NOTE : h_cumul_rate[idx][res] : from `idx` to `res`
+	// NOTE : h_cumul_profile[idx][res] : from `idx` to `res`
 
-	// --------------------------------------------------------
-	// resident `idx` is considered as a potential infector
-	// --------------------------------------------------------
-	if (get_status(idx) != HEALTHY)
-	{
-		// loop over all possible infecteee, i. e. resident `res`
-		for (size_t res = 0; res < h_size; res++)
-		{
-			study_period = h_residents[res].i_study_period;
-
-			// time of transmission to resident `r`
-			t_transm = get_infec_time(res);
-
-			if (get_infec_time(idx) < t_transm)
-			{ // NOTE : this ensures idx != res
-
-				// Cumulative transmission rate for all household contacts
-				h_cumul_rate[idx][res] = h_residents[idx].infectivity_cumul(t_transm);
-
-				// Instantaneous transmission rate for secondary cases
-				if (get_status(res) != HEALTHY)
-				{ // resident `res` got infected
-					h_inst_rate[idx][res] = h_residents[idx].infectivity_inst(t_transm);
-				}
-			}
-		}
-	}
-
-	// --------------------------------------------------------
-	// resident `idx` is considered as a potential infectee
-	// --------------------------------------------------------
-
-	study_period = h_residents[idx].i_study_period;
-
-	// time of transmission to `idx`
-	t_transm = get_infec_time(idx);
-
-	// loop over all possible infectors, i. e. resident `j`
+	// loop over all non healthy residents
 	for (size_t res : h_symptomatic_list)
 	{
-		if (get_infec_time(res) < t_transm)
-		{ // NOTE : this ensures idx != res
-
-			// Cumulative transmission rate for all household contacts
-			h_cumul_rate[res][idx] = h_residents[res].infectivity_cumul(t_transm);
-
-			// Instantaneous transmission rate for secondary cases
-			if (get_status(idx) != HEALTHY)
-			{ // resident `idx` got infected
-				h_inst_rate[res][idx] = h_residents[res].infectivity_inst(t_transm);
-			}
+		t_infec_res = get_infec_time(res);
+		if (t_infec_idx < t_infec_res)
+		{ // `idx` : infector, `res` : infectee
+			h_cumul_profile[idx][res] = h_residents[idx].infectivity_cumul(t_infec_res);
+			h_inst_profile[idx][res] = h_residents[idx].infectivity_inst(t_infec_res);
 		}
+		else if (t_infec_res < t_infec_idx)
+		{  // `res` : infector, `idx` : infectee
+			h_cumul_profile[res][idx] = h_residents[res].infectivity_cumul(t_infec_idx);
+			h_inst_profile[res][idx] = h_residents[res].infectivity_inst(t_infec_idx);
+		}
+		// NOTE : else is the case idx == res
+	}
+
+	// loop over all healthy residents
+	// UPDATE : if study_period is equal for all residents, than this is constant for all
+	for (size_t res : h_healthy_list)
+	{
+		t_infec_res = get_infec_time(res); // == study_period
+		h_cumul_profile[idx][res] = h_residents[idx].infectivity_cumul(t_infec_res);
 	}
 }

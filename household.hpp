@@ -14,6 +14,7 @@
 
 // List of augmented variables
 extern std::vector<std::string> List_Augm_Var;
+extern Onset_to_Transm Infectivity_Profile;
 
 /////////////////////////////////////////////////////////
 ///////// Individual : Class declaration ///////////////
@@ -33,9 +34,10 @@ public:
 	bool i_isolation = false;
 	bool i_recovered = false;
 	int i_vacc_status = 0;
-	double i_study_period = INFINITY;
-	double i_vacc_delay = INFINITY;
-	double i_onset_time = INFINITY;
+	timetype i_study_period = INFINITY;
+	timetype i_vacc_delay = INFINITY;
+	timetype i_onset_time = INFINITY;
+	Onset_to_Transm *ptr_to_infec_profile;
 
 	std::vector<std::string> i_augm_list = {};
 
@@ -48,9 +50,9 @@ public:
 		bool isolation,
 		bool recovered,
 		int vacc_status,
-		double study_period,
-		double vacc_delay,
-		double onset_time);
+		timetype study_period,
+		timetype vacc_delay,
+		timetype onset_time);
 	Individual() = default;
 	~Individual(){};
 
@@ -63,17 +65,17 @@ public:
 
 	// Computations
 	bool valid_augm(std::string augmID, double new_value) { return i_augm.at(augmID).valid(new_value); }
-	double propose_augm(std::string augmID, std::mt19937_64 &rand_gen);
+	double propose_augm(std::string augmID, std::mt19937_64 &rng);
 	double log_ratio_prior_augm(std::string augmID, double new_value);
-	double log_ratio_proposal_augm(std::string augmID, double new_value);
+	double log_ratio_proposal_augm(std::string augmID);
 
 	// --- Methods (model) ---
-	double get_infec_time() const;
-	void init_augm_data(std::mt19937_64 &rand_gen);
+	timetype get_infec_time() const;
+	void init_augm_data(std::mt19937_64 &rng);
 
 	// Infectivity Profiles
-	double infectivity_inst(double t_transm);
-	double infectivity_cumul(double t_transm);
+	double infectivity_inst(timetype t_transm);
+	double infectivity_cumul(timetype t_transm);
 };
 
 /////////////////////////////////////////////////////////
@@ -82,17 +84,20 @@ public:
 
 class Household
 {
+private:
 	std::vector<Individual> h_residents;
-	std::vector<std::vector<double>> h_cumul_rate = {}; // h_cumul_rate[i][j] : from i to j
-	std::vector<std::vector<double>> h_inst_rate = {};
+	std::vector<std::vector<double>> h_cumul_profile = {}; // h_cumul_profile[i][j] : from i to j
+	std::vector<std::vector<double>> h_inst_profile = {};
 
 public:
 	// Attributes
 	size_t h_size = 0;
 	size_t h_first_case = -1;
-	double h_infec_time = INFINITY;
+	timetype h_infec_time = INFINITY;
 	std::vector<size_t> h_healthy_list = {};
 	std::vector<size_t> h_symptomatic_list = {};
+	Onset_to_Transm *ptr_to_infec_profile;
+	double h_loglike = 0.0;
 
 	// Constructors
 	Household(){};
@@ -102,35 +107,36 @@ public:
 	// Getter
 	int get_status(size_t idx) const { return h_residents[idx].i_status; }
 	std::vector<std::string> get_augm_list(size_t idx) const { return h_residents[idx].i_augm_list; }
-	double get_infec_time(size_t idx) const { return h_residents[idx].get_infec_time(); }
+	timetype get_infec_time(size_t idx) const { return h_residents[idx].get_infec_time(); }
 
 	// Setter
 	void add_individual(Individual this_indiv);
-	void init_augm_data(std::mt19937_64 &rand_gen);
-	void update_household_status();
+	void init_augm_data(std::mt19937_64 &rng);
+	void init_household_status();
+	void update_household_first_case();
 
 	// Aliases (augmented variables)
 	double get_augm(std::string augmID, size_t idx) const { return h_residents[idx].get_augm(augmID); }
-	double propose_augm(std::string augmID, size_t idx, std::mt19937_64 &rand_gen);
+	double propose_augm(std::string augmID, size_t idx, std::mt19937_64 &rng);
 	void set_augm(std::string augmID, size_t idx, double infec_time);
 	bool valid_augm(std::string augmID, size_t idx, double new_value);
 	double log_ratio_prior_augm(std::string augmID, size_t idx, double new_value) { return h_residents[idx].log_ratio_prior_augm(augmID, new_value); }
-	double log_ratio_proposal_augm(std::string augmID, size_t idx, double new_value) { return h_residents[idx].log_ratio_proposal_augm(augmID, new_value); }
+	double log_ratio_proposal_augm(std::string augmID, size_t idx) { return h_residents[idx].log_ratio_proposal_augm(augmID); }
 
 	// Computations (default)
-	void init_infectivity_profiles();
+	void init_infectivity_profiles(Onset_to_Transm *infectivity_profile);
 	void update_infectivity_profiles(size_t ind);
 
 	// --- Methods (model) ---
-	double log_incub_proba(size_t idx); // FIXME : why not a augm_var prior?
+	double log_incub_proba(size_t idx); // FIXME : why not a augm_var model dist?
 	double log_infec_proba(size_t idx);
 	double log_surv_proba(size_t idx);
 	double compute_loglike();
 
 	double model_contact_modulation(size_t idx, size_t infectee);
 	double model_susceptibility(size_t idx);
-	double model_community_risk_inst(double t1);
-	double model_community_risk_cumul(double t0, double t1);
+	double model_community_risk_inst(timetype t1);
+	double model_community_risk_cumul(timetype t0, timetype t1);
 	double model_transmissability();
 	double model_risk_beta(const std::vector<std::vector<double>> &rate_vector, size_t idx);
 };

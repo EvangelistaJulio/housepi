@@ -20,14 +20,15 @@ extern std::vector<double> Inst_Community_Infec;
 std::vector<std::string> List_Augm_Var = {"onset_time", "incub_period"};
 
 /* Initialize augmented variables */
-void Individual::init_augm_data(std::mt19937_64 &rand_gen)
+void Individual::init_augm_data(std::mt19937_64 &rng)
 {
 	bool is_sick = (i_status != HEALTHY);
 	double value;
 
-	// FIXME : args change with mcmc : I need to provide priors
-
-	/* onset_time */
+	// FIXME : I need to provide model as for the priors
+	// NOTE : these should be connected to global parameters to avoid change at each iteration
+	/*
+	// --- onset_time --- //
 	{
 		std::string augmID = "onset_time";
 		double init_value = (is_sick == true) ? i_onset_time : i_study_period;
@@ -40,39 +41,32 @@ void Individual::init_augm_data(std::mt19937_64 &rand_gen)
 		Augmented this_augm(init_value, metropolis_strategy, metropolis_args, range);
 		i_augm.emplace(augmID, this_augm);
 		i_augm_list.push_back(augmID);
-
-		// FLAG
-		if (is_sick == true)
-		{
-			std::cerr << ">>>>>> propose : " << this_augm.propose(rand_gen, this_augm.get_value_0()) << endl;
-		}
-		// END-of-FLAG
 	}
 
-	/* incub_period */
+	// --- incub_period --- //
 	{
 		std::string augmID = "incub_period";
 		double init_value = 0.;
-		std::string metropolis_strategy = (is_sick == true) ? "gamma" : "_none_";
+		std::string metropolis_strategy = (is_sick == true) ? "normal" : "_none_"; // FIXME : waiting for prior proposal
 		kwargs args = {
-			{"shape", glob_params.get_value("incub_shape")},
-			{"scale", glob_params.get_value("incub_scale")}};
+			{"mean", glob_params.get_value("incub_shape")},
+			{"sd", glob_params.get_value("incub_scale")}};
 		kwargs range = {{"up", MAX_INCUB_PERIOD}};
 
 		Augmented this_augm(init_value, metropolis_strategy, args, range);
 		i_augm.emplace(augmID, this_augm);
 		i_augm_list.push_back(augmID);
 	}
-
+	*/
 	// initialize for unhealthy (default)
 	if (is_sick == true)
 	{
 		for (std::string augmID : i_augm_list)
 		{
-			value = propose_augm(augmID, rand_gen);
+			value = propose_augm(augmID, rng);
 			while (valid_augm(augmID, value) == false)
 			{
-				value = propose_augm(augmID, rand_gen);
+				value = propose_augm(augmID, rng);
 			}
 			set_augm(augmID, value);
 		}
@@ -80,7 +74,7 @@ void Individual::init_augm_data(std::mt19937_64 &rand_gen)
 }
 
 /* Time of infection */
-double Individual::get_infec_time() const
+timetype Individual::get_infec_time() const
 {
 	return get_augm("onset_time") - get_augm("incub_period");
 }
@@ -89,36 +83,16 @@ double Individual::get_infec_time() const
 //  Methods : Infectivity Profiles
 // ----------------------------
 
-// FIXME : these are probabilities, but we want rates!!!
-
-double Individual::infectivity_inst(double t_transm)
+double Individual::infectivity_inst(timetype t_transm)
 {
-	double output = 0.0, tost;
-	kwargs args = {
-		{"alpha", glob_params.get_value("tost_alpha")},
-		{"mu", glob_params.get_value("tost_mu")},
-		{"sigma", glob_params.get_value("tost_sigma")},
-		{"tau", glob_params.get_value("tost_tau")}};
-
-	tost = t_transm - get_augm("onset_time");
-	output = t_onset_sympt_to_transm_pdf(tost, get_augm("incub_period"), args);
-
-	return output;
+	timetype tost = t_transm - get_augm("onset_time");
+	return ptr_to_infec_profile->pdf(tost, get_augm("incub_period"));
 }
 
-double Individual::infectivity_cumul(double t_transm)
+double Individual::infectivity_cumul(timetype t_transm)
 {
-	double output = 0.0, tost;
-	kwargs args = {
-		{"alpha", glob_params.get_value("tost_alpha")},
-		{"mu", glob_params.get_value("tost_mu")},
-		{"sigma", glob_params.get_value("tost_sigma")},
-		{"tau", glob_params.get_value("tost_tau")}};
-
-	tost = t_transm - get_augm("onset_time");
-	output = t_onset_sympt_to_transm_cdf(tost, get_augm("incub_period"), args);
-
-	return output;
+	timetype tost = t_transm - get_augm("onset_time");
+	return ptr_to_infec_profile->cdf(tost, get_augm("incub_period"));
 }
 
 /////////////////////////////////////////////////////
@@ -128,18 +102,14 @@ double Individual::infectivity_cumul(double t_transm)
 /* logarithm of the incubation probability */
 double Household::log_incub_proba(size_t idx)
 {
-	double x = get_augm("incub_period", idx);
+	// FIXME : this should come from resident augm prior pdf
+	timetype x = get_augm("incub_period", idx);
 	kwargs args = {
 		{"shape", glob_params.get_value("incub_shape")},
 		{"scale", glob_params.get_value("incub_scale")}};
 
-	return log_gamma_pdf(x, args);
-	// FIXME : this should come from resident augm prior pdf
-
-	// return h_residents[idx].log_incub_period_pdf(x);
+	return Gamma_Distr(args).log_pdf(x);
 }
-
-// FIXME : these two below can be compacted to avoid errors
 
 double Household::model_risk_beta(const std::vector<std::vector<double>> &rate_vector, size_t idx)
 {
@@ -165,10 +135,10 @@ double Household::model_risk_beta(const std::vector<std::vector<double>> &rate_v
 double Household::log_surv_proba(size_t idx)
 {
 	double beta = 0.0, output = 0.0;
-	double t0 = h_infec_time;
-	double t_transm = get_infec_time(idx);
+	timetype t0 = h_infec_time;
+	timetype t_transm = get_infec_time(idx);
 
-	beta = model_risk_beta(h_cumul_rate, idx);
+	beta = model_risk_beta(h_cumul_profile, idx);
 	output = model_susceptibility(idx) * (model_community_risk_cumul(t0, t_transm) + beta);
 	output *= (-1.);
 
@@ -179,9 +149,9 @@ double Household::log_surv_proba(size_t idx)
 double Household::log_infec_proba(size_t idx)
 {
 	double beta = 0.0, output = 0.0;
-	double t_transm = get_infec_time(idx);
+	timetype t_transm = get_infec_time(idx);
 
-	beta = model_risk_beta(h_inst_rate, idx);
+	beta = model_risk_beta(h_inst_profile, idx);
 	output = model_susceptibility(idx) * (model_community_risk_inst(t_transm) + beta);
 	output = std::log(1. - std::exp(-output));
 
@@ -196,11 +166,11 @@ double Household::compute_loglike()
 	double loglike_house = 0.0;
 
 	// Loop over all healthy residents // NOTE: no augmented variables
+
 	for (size_t res : h_healthy_list)
 	{
 		loglike_house += log_surv_proba(res);
 	}
-
 	// Loop over all symptomatic residents
 	for (size_t res : h_symptomatic_list)
 	{
@@ -224,7 +194,7 @@ double Household::compute_loglike()
 // UPDATE : this could be interpolated instead
 
 // Instaneous risk of infection from community
-double Household::model_community_risk_inst(double t1)
+double Household::model_community_risk_inst(timetype t1)
 {
 	double output = 0.0;
 	output = lin_idx_interp(t1, Inst_Community_Infec);
@@ -234,7 +204,7 @@ double Household::model_community_risk_inst(double t1)
 }
 
 // Cumulative risk of infection from community
-double Household::model_community_risk_cumul(double t0, double t1)
+double Household::model_community_risk_cumul(timetype t0, timetype t1)
 {
 	double output = 0.0;
 	output = lin_idx_interp(t1, Cumul_Community_Infec) - lin_idx_interp(t0, Cumul_Community_Infec);

@@ -17,6 +17,7 @@ using namespace std;
 // --- Define the global variables here ---
 
 bool Verbose = true;
+std::vector<double> glob_params_values = {};
 Parameter_Dictionary glob_params = {};
 std::vector<double> Cumul_Community_Infec = {};
 std::vector<double> Inst_Community_Infec = {};
@@ -145,12 +146,12 @@ std::vector<Household> build_households(std::string data_path_to_file)
 {
     int this_HH_id, indid, age, sex;
     int HH_size, status, vacc_status;
-    double onset_time, study_period, vacc_delay;
+    timetype onset_time, study_period, vacc_delay;
     bool isolation = false, recovered = false;
     int num_cases = 0, num_subjects = 0;
-    double max_study_period = 0.0;
-    std::unordered_map<int, Household> safe_load = {};
-    std::vector<Household> output = {};
+    timetype max_study_period = 0.0;
+    std::unordered_map<int, Household> safe_load_HH = {};
+    std::vector<Household> data_HH = {};
 
     std::ifstream input_file(data_path_to_file.c_str());
     if (input_file)
@@ -167,9 +168,9 @@ std::vector<Household> build_households(std::string data_path_to_file)
             iss >> indid >> this_HH_id >> HH_size >> onset_time >> study_period >> status >> vacc_status >> age >> isolation >> sex >> vacc_delay >> recovered;
 
             // if this_HH_id doesn't exist, append new household
-            if (safe_load.find(this_HH_id) == safe_load.end())
+            if (safe_load_HH.find(this_HH_id) == safe_load_HH.end())
             {
-                safe_load.emplace(this_HH_id, Household());
+                safe_load_HH.emplace(this_HH_id, Household());
             }
 
             if ((status != HEALTHY) && (status != SYMPTOMATIC))
@@ -193,7 +194,7 @@ std::vector<Household> build_households(std::string data_path_to_file)
                 vacc_delay,
                 onset_time);
 
-            safe_load[this_HH_id].add_individual(this_indiv);
+            safe_load_HH[this_HH_id].add_individual(this_indiv);
             num_subjects++;
             num_cases += (status == HEALTHY) ? 0 : 1;
             max_study_period = max(max_study_period, study_period);
@@ -208,21 +209,21 @@ std::vector<Household> build_households(std::string data_path_to_file)
     }
 
     // extract only households and forget about their id
-    for (const auto &entry : safe_load)
+    for (const auto &entry : safe_load_HH)
     {
-        output.push_back(entry.second);
+        data_HH.push_back(entry.second);
     }
 
     // General information
     if (Verbose == true)
     {
-        std::cout << "N. of households :" << TAB << output.size() << std::endl;
+        std::cout << "N. of households :" << TAB << data_HH.size() << std::endl;
         std::cout << "N. of individuals :" << TAB << num_subjects << std::endl;
         std::cout << "N. of cases :" << TAB << num_cases << std::endl;
         std::cout << "N. of days :" << TAB << max_study_period << std::endl;
     }
 
-    return (output);
+    return (data_HH);
 }
 
 /* Read Model Parameters file */
@@ -230,10 +231,22 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
 {
     std::ifstream input_file(data_path_to_file.c_str());
 
+
     if (input_file)
     {
         std::cout << "\n=============PARAMETERS==============" << std::endl;
         std::cout << "Model file: " << data_path_to_file << std::endl;
+
+        // count number of parameters
+        size_t line_count = 0;
+        for (std::string line; std::getline(input_file, line);)
+        {
+            line_count++;
+        }
+        input_file.clear();                     // Clear any errors
+        input_file.seekg(0, std::ios::beg);     // Seek to the beginning
+        glob_params_values.resize(line_count);  // Allocate for the right amount of parameters
+        line_count = 0;   
 
         // Create a stringstream of the current line
         for (std::string line; std::getline(input_file, line);)
@@ -265,6 +278,7 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
                 exit(EXIT_FAILURE);
             }
             value = stod(value_str);
+            glob_params_values[line_count] = value;
 
             // --- INFER ---
             if (!getline(iss, infer, delimiter))
@@ -336,16 +350,18 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
                 }
                 range = parse_dict_string(range_str);
 
-                // add entry to shared paramter dictionary
-                Parameter this_param(value, strategy, rate, range, prior_name, prior_args);
+                // add entry to shared parameter dictionary
+                Parameter this_param(&glob_params_values[line_count], strategy, rate, range, prior_name, prior_args);
                 glob_params.add_param(name, this_param);
             }
             else
             {
-                Parameter this_param(value);
-                // add entry to shared paramter dictionary}
+                Parameter this_param(&glob_params_values[line_count]);
+                // add entry to shared parameter dictionary}
                 glob_params.add_param(name, this_param);
             }
+
+            line_count++;
         }
     }
     else
@@ -410,15 +426,30 @@ int main(int argc, char **argv)
         Verbose = stobool(argv[6]);
     }
 
-    // UPDATE : check for space and path validity
+    // UPDATE : check for path validity
 
     // Load data and Paramters
-    std::vector<Household> HH_data = build_households(households_path_to_file);
-    build_community(community_path_to_file);
     build_parameters(parameters_path_to_file);
+    build_community(community_path_to_file);
+    std::vector<Household> HH_data = build_households(households_path_to_file);
+
+    // FLAG
+    std::cerr << "After build" << endl;    
+    // FLAG
+
+    // initialize global infectivity profile // UPDATE
+    kwargs_ext infec_prof_args = {
+        {"alpha", glob_params.get_address("tost_alpha")},
+        {"mu", glob_params.get_address("tost_mu")},
+        {"sigma", glob_params.get_address("tost_sigma")},
+        {"tau", glob_params.get_address("tost_tau")}};
+
+    // FLAG
+    std::cerr << "After kwargs_ext" << endl;    
+    // FLAG
 
     // Initialize MCMC object
-    MCMC_Class mcmc_object(seed, HH_data);
+    MCMC_Class mcmc_object(seed, HH_data, infec_prof_args);
 
     // run MCMC inference
     mcmc_object.infer(

@@ -3,7 +3,7 @@
 #define DEFAULT_SEED 20210415
 #define TAB "\t"
 
-#define THOMAS_TOST
+#define CONTINUOS_TIME 
 
 // model + dataset
 #define HEALTHY 0

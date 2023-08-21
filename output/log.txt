@@ -1,14 +1,4 @@
 
-=============DATA===============
-Data file: data/database_waning_clean.txt
-N. of households :	1
-N. of individuals :	5
-N. of cases :	1
-N. of days :	262
-
-=============COMMUNITY==============
-Data file: data/community_infection_israel.txt
-
 =============PARAMETERS==============
 Model file: data/model-parameters.tsv
 _NAME_	_VALUE_	_INFER_
@@ -35,23 +25,16 @@ tost_sigma	1.85	false
 tost_tau	5.783	false
 typical_size	5	false
 
+=============COMMUNITY==============
+Data file: data/community_infection_israel.txt
+
+=============DATA===============
+Data file: data/database_waning_clean.txt
+N. of households :	1
+N. of individuals :	5
+N. of cases :	1
+N. of days :	262
+
 =============MCMC===============
 
 ======MCMC:initialization=======
--> init augmented data;
--> init loglikelihood;
-
-=========MCMC:execution=========
--> running iteration : 1/10
--> running iteration : 2/10
--> running iteration : 3/10
--> running iteration : 4/10
--> running iteration : 5/10
--> running iteration : 6/10
--> running iteration : 7/10
--> running iteration : 8/10
--> running iteration : 9/10
--> running iteration : 10/10
-
-===========MCMC:end=============
-

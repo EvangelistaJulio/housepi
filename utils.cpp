@@ -5,399 +5,6 @@
 using namespace std;
 
 //----------------------------------------------------------------------
-// Cumulative probability density functions
-//----------------------------------------------------------------------
-
-double tost_normaliz_const(double t_incub, kwargs args)
-{
-    // Normalization for t_onset_sympt_to_transm_pdf
-    double norm_const;
-    double a = args.at("alpha");
-    double m = args.at("mu");
-    double s = args.at("sigma");
-    double T = args.at("tau");
-
-#ifdef THOMAS_TOST
-    norm_const = (s * (1.0 - std::pow(1.0 + std::exp((m + T) / s), -a))) / a;
-    return norm_const;
-#else
-    norm_const = 1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - t_incub / T * (std::pow(1. + std::exp((m + T) / s), -a));
-    norm_const *= s / a;
-    return norm_const;
-#endif
-}
-
-double t_onset_sympt_to_transm_pdf(double tost, double t_incub, kwargs args)
-{
-    /* The Time from Onset of Symptoms to Transmission (TOST) is modeled as a skew-logistic distribution (type I).
-    This distribution is also a function of the incubation time `t_incub`.
-    Note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
-    ----
-    Ref:
-    ----
-    Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
-    Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
-    double out = 0.0;
-    double a = args.at("alpha");
-    double m = args.at("mu");
-    double s = args.at("sigma");
-    double T = args.at("tau");
-    double norm_const = tost_normaliz_const(t_incub, args);
-
-    if (tost < 0)
-    {
-        tost = tost * T / t_incub;
-    }
-    out = std::exp((m - tost) / s) * std::pow(1. + std::exp((m - tost) / s), -1. - a);
-
-    return out / norm_const;
-}
-
-double t_onset_sympt_to_transm_cdf(double tost, double t_incub, kwargs args)
-{
-    // Cumulative distribution function for `t_onset_sympt_to_transm_pdf`.
-    double out = 0.0;
-    double a = args.at("alpha");
-    double m = args.at("mu");
-    double s = args.at("sigma");
-    double T = args.at("tau");
-    double norm_const = tost_normaliz_const(t_incub, args);
-
-    if (tost < 0)
-    {
-        // Integrate from -t_incub to tost
-        out = t_incub / T * (std::pow(1. + std::exp((m - tost * T / t_incub) / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
-    }
-    else
-    {
-        // Integrate from -t_incub to 0
-        out = t_incub / T * (std::pow(1. + std::exp(m / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
-        // Integrate from 0 to tost
-        out += std::pow(1. + std::exp((m - tost) / s), -a) - std::pow(1. + std::exp(m / s), -a);
-    }
-
-    return out / norm_const;
-}
-
-//----------------------------------------------------------------------
-// Probability density functions (and their logarithms)
-//----------------------------------------------------------------------
-
-double unif_pdf(double x, kwargs args)
-{
-    // normal probability density function
-    double low = args.at("low");
-    double up = args.at("up");
-    double pdf = 0.0;
-    (void)x; // simple fix for Warning
-
-    // The pdf is defined for low <  up
-    if (low >= up)
-    {
-        pdf = 0.0;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        pdf = std::pow(up - low, -1);
-    }
-
-    return pdf;
-}
-
-double log_unif_pdf(double x, kwargs args)
-{
-    // normal probability density function
-    double low = args.at("low");
-    double up = args.at("up");
-    double logpdf = 0.0;
-    (void)x; // simple fix for Warning
-
-    // The pdf is defined for low <  up
-    if (low >= up)
-    {
-        logpdf = -INFINITY;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        logpdf = -std::log(up - low);
-    }
-
-    return logpdf;
-}
-
-double normal_pdf(double x, kwargs args)
-{
-    // normal probability density function
-    double mean = args.at("mean");
-    double sd = args.at("sd");
-    double pdf = 0.0;
-
-    // The pdf is defined for sd > 0.
-    if (sd <= 0.0)
-    {
-        pdf = 0.0;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        pdf = std::exp(-0.5 * std::pow((x - mean) / sd, 2)) * std::pow(sd, -1) * 0.398942280;
-    }
-
-    return pdf;
-}
-
-double log_normal_pdf(double x, kwargs args)
-{
-    // logarithm of the normal probability density function
-    double mean = args.at("mean");
-    double sd = args.at("sd");
-    double logpdf = 0.0;
-
-    // The logarithm of the pdf is undefined for sd <= 0.
-    if (sd <= 0.0)
-    {
-        logpdf = -INFINITY;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        logpdf = -0.5 * std::pow((x - mean) / sd, 2) - std::log(sd) - 0.918938533;
-    }
-
-    return logpdf;
-}
-
-double lognorm_pdf(double x, kwargs args)
-{
-    // lognormal probability density function
-    double mean = args.at("mean");
-    double sd = args.at("sd");
-    double pdf = 0.0;
-
-    // The pdf is defined for x >= 0 and sd > 0.
-    if (x < 0.0 || sd <= 0.0)
-    {
-        pdf = 0.0;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        pdf = std::exp(-0.5 * std::pow((std::log(x) - mean) / sd, 2)) * std::pow(x * sd, -1) * 0.398942280;
-    }
-
-    return pdf;
-}
-
-double log_lognorm_pdf(double x, kwargs args)
-{
-    // logarithm of the lognormal probability density function
-    double mean = args.at("mean");
-    double sd = args.at("sd");
-    double logpdf = 0.0;
-
-    // The logarithm of the pdf is undefined for x < 0 and sd <= 0.
-    if (x < 0.0 || sd <= 0.0)
-    {
-        logpdf = -INFINITY;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        logpdf = -0.5 * std::pow((std::log(x) - mean) / sd, 2) - std::log(x) - std::log(sd) - 0.918938533;
-    }
-
-    return logpdf;
-}
-
-double gamma_pdf(double x, kwargs args)
-{
-    // gamma probability density function
-    double shape = args.at("shape");
-    double scale = args.at("scale");
-    double pdf, gamma_value;
-
-    // The pdf is defined for x >= 0 and shape, scale > 0.
-    if (x < 0.0 || shape <= 0.0 || scale <= 0.0)
-    {
-        pdf = 0.0;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        gamma_value = std::tgamma(shape);
-        pdf = std::exp(-x / scale) * std::pow(x, shape - 1.) / (gamma_value * std::pow(scale, shape));
-    }
-
-    return pdf;
-}
-
-double log_gamma_pdf(double x, kwargs args)
-{
-    // (logarithm of the) gamma probability density function
-    double shape = args.at("shape");
-    double scale = args.at("scale");
-    double logpdf, loggamma_value;
-
-    // The logarithm of the pdf is undefined for x < 0 and shape, scale <= 0.
-    if (x < 0.0 || shape <= 0.0 || scale <= 0.0)
-    {
-        logpdf = -INFINITY;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        loggamma_value = std::lgamma(shape);
-        logpdf = loggamma_value - shape * std::log(scale) + (shape - 1) * std::log(x) - x / scale;
-    }
-
-    return logpdf;
-}
-
-double exp_pdf(double x, kwargs args)
-{
-    // exponential probability density function
-    double rate = args.at("rate");
-    double pdf;
-
-    // The pdf is defined for x >= 0 and rate, scale > 0.
-    if (x < 0.0 || rate <= 0.0)
-    {
-        pdf = 0.0;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        pdf = rate * std::exp(-rate * x);
-    }
-
-    return pdf;
-}
-
-double log_exp_pdf(double x, kwargs args)
-{
-    // (logarithm of the) exponential probability density function
-    double rate = args.at("rate");
-    double logpdf;
-
-    // The pdf is defined for x >= 0 and rate, scale > 0.
-    if (x < 0.0 || rate <= 0.0)
-    {
-        logpdf = -INFINITY;
-        // NOTE: raise a warning for wrong parameters ?
-    }
-    else
-    {
-        logpdf = std::log(rate) - rate * x;
-    }
-
-    return logpdf;
-}
-
-//----------------------------------------------------------------------
-//  Random generators
-//----------------------------------------------------------------------
-
-double unif_rand(std::mt19937_64 &rand_gen, kwargs args)
-{
-    // uniform distribution random generator
-    double low = args.at("low");
-    double up = args.at("up");
-    std::uniform_real_distribution<double> distrib(low, up);
-
-    return distrib(rand_gen);
-}
-
-double normal_rand(std::mt19937_64 &rand_gen, kwargs args)
-{
-    // normal distribution random generator
-    double mean = args.at("mean");
-    double sd = args.at("sd");
-    std::normal_distribution<double> distrib(mean, sd);
-
-    return distrib(rand_gen);
-}
-
-double lognorm_rand(std::mt19937_64 &rand_gen, kwargs args)
-{
-    // lognormal distribution random generator
-    double mean = args.at("mean");
-    double sd = args.at("sd");
-    std::lognormal_distribution<double> distrib(mean, sd);
-
-    return distrib(rand_gen);
-}
-
-double gamma_rand(std::mt19937_64 &rand_gen, kwargs args)
-{
-    // gamma distribution random generator
-    double shape = args.at("shape");
-    double scale = args.at("scale");
-    std::gamma_distribution<double> distrib(shape, scale);
-
-    return distrib(rand_gen);
-}
-
-double exp_rand(std::mt19937_64 &rand_gen, kwargs args)
-{
-    // exponential distribution random generator
-    double rate = args.at("rate");
-    std::exponential_distribution<double> distrib(rate);
-
-    return distrib(rand_gen);
-}
-
-//----------------------------------------------------------------------
-// Switchboard for distribution choice
-//----------------------------------------------------------------------
-
-void distribution_switchboard(std::string name, pdf_ptr *point_to_pdf, pdf_ptr *point_to_log_pdf, rand_ptr *point_to_rand)
-{
-    if (name == "_none_")
-    {
-        point_to_rand = nullptr;
-        point_to_pdf = nullptr;
-        point_to_log_pdf = nullptr;
-    }
-    else if (name == "unif")
-    {
-        *point_to_pdf = &unif_pdf;
-        *point_to_log_pdf = &log_unif_pdf;
-        *point_to_rand = &unif_rand;
-    }
-    else if (name == "normal")
-    {
-        *point_to_pdf = &normal_pdf;
-        *point_to_log_pdf = &log_normal_pdf;
-        *point_to_rand = &normal_rand;
-    }
-    else if (name == "lognorm")
-    {
-        *point_to_pdf = &lognorm_pdf;
-        *point_to_log_pdf = &log_lognorm_pdf;
-        *point_to_rand = &lognorm_rand;
-    }
-    else if (name == "gamma")
-    {
-        *point_to_pdf = &gamma_pdf;
-        *point_to_log_pdf = &log_gamma_pdf;
-        *point_to_rand = &gamma_rand;
-    }
-    else if (name == "exp")
-    {
-        *point_to_log_pdf = &log_exp_pdf;
-        *point_to_log_pdf = &log_exp_pdf;
-        *point_to_rand = &exp_rand;
-    }
-    else
-    {
-        std::cout << "Unknown distribution " << name << std::endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
-//----------------------------------------------------------------------
 // Linear interpolation for an indexed array
 //----------------------------------------------------------------------
 
@@ -420,4 +27,363 @@ double lin_idx_interp(double x_value, const std::vector<double> &y)
     }
 
     return output;
+}
+
+/////////////////////////////////////////////////////
+//  Distribution : Class
+/////////////////////////////////////////////////////
+
+Distribution::Distribution(kwargs new_args)
+{
+    for (auto const &x : new_args)
+    {
+        args.emplace(x.first, x.second);
+    }
+    _get_arg_func_ = &Distribution::_get_arg_int_;
+}
+
+Distribution::Distribution(kwargs_ext new_args_ext)
+{
+    for (auto const &x : new_args_ext)
+    {
+        args_ext.emplace(x.first, x.second);
+    }
+    _get_arg_func_ = &Distribution::_get_arg_ext_;
+}
+
+///////////////////////////////////////////
+// ////////// DISTRIBUTION ///////////// //
+///////////////////////////////////////////
+
+/* uniform probability density function */
+double Uniform_Distr::pdf(double x)
+{
+    double low = get_arg("low");
+    double up = get_arg("up");
+    (void)x;
+
+    // The pdf is defined for low <  up
+    // UPDATE : raise a warning for wrong parameters ?
+    if (low >= up)
+    {
+        return 0.0;
+    }
+    else
+    {
+        return std::pow(up - low, -1);
+    }
+}
+
+/* uniform probability density function */
+double Uniform_Distr::log_pdf(double x)
+{
+    double low = get_arg("low");
+    double up = get_arg("up");
+    (void)x;
+
+    // The pdf is defined for low <  up
+    if (low >= up)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return -std::log(up - low);
+    }
+}
+
+/* uniform probability density function */
+double Uniform_Distr::log_ratio(double x, double y)
+{
+    double low = get_arg("low");
+    double up = get_arg("up");
+    (void)x;
+    (void)y;
+
+    // The pdf is defined for low <  up
+    if (low >= up)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return 0.0;
+    }
+}
+
+////////////////////////////////////////////
+// ////////////// NORMAL //////////////// //
+////////////////////////////////////////////
+
+/* normal probability density function */
+double Normal_Distr::pdf(double x)
+{
+    double mean = get_arg("mean");
+    double sd = get_arg("sd");
+
+    // The pdf is defined for sd > 0.
+    if (sd <= 0.0)
+    {
+        return 0.0;
+    }
+    else
+    {
+        return std::exp(-0.5 * std::pow((x - mean) / sd, 2)) * std::pow(sd, -1) * 0.398942280;
+    }
+}
+
+/* logarithm of the normal probability density function */
+double Normal_Distr::log_pdf(double x)
+{
+    double mean = get_arg("mean");
+    double sd = get_arg("sd");
+
+    // The logarithm of the pdf is undefined for sd <= 0.
+    if (sd <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return -0.5 * std::pow((x - mean) / sd, 2) - std::log(sd) - 0.918938533;
+    }
+}
+
+/* log-ratio of the normal probability density function */
+double Normal_Distr::log_ratio(double x, double y)
+{
+    double mean = get_arg("mean");
+    double sd = get_arg("sd");
+
+    // The logarithm of the pdf is undefined for sd <= 0.
+    if (sd <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return 0.5 * (std::pow((y - mean) / sd, 2) - std::pow((x - mean) / sd, 2));
+    }
+}
+////////////////////////////////////////////
+// ///////////// LOGNORMAL ////////////// //
+////////////////////////////////////////////
+
+/* lognormal probability density function */
+double Lognorm_Distr::pdf(double x)
+{
+    double mean = get_arg("mean");
+    double sd = get_arg("sd");
+
+    // The pdf is defined for x >= 0 and sd > 0.
+    if (x < 0.0 || sd <= 0.0)
+    {
+        return 0.0;
+    }
+    else
+    {
+        return std::exp(-0.5 * std::pow((std::log(x) - mean) / sd, 2)) * std::pow(x * sd, -1) * 0.398942280;
+    }
+}
+
+/* logarithm of the lognormal probability density function */
+double Lognorm_Distr::log_pdf(double x)
+{
+    double mean = get_arg("mean");
+    double sd = get_arg("sd");
+
+    // The logarithm of the pdf is undefined for x < 0 and sd <= 0.
+    if (x < 0.0 || sd <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return -0.5 * std::pow((std::log(x) - mean) / sd, 2) - std::log(x) - std::log(sd) - 0.918938533;
+    }
+}
+
+/* log-ratio of the lognormal probability density function */
+double Lognorm_Distr::log_ratio(double x, double y)
+{
+    double mean = get_arg("mean");
+    double sd = get_arg("sd");
+
+    // The logarithm of the pdf is undefined for x < 0 and sd <= 0.
+    if (x < 0.0 || sd <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return 0.5 * (std::pow((std::log(y) - mean) / sd, 2) - std::pow((std::log(x) - mean) / sd, 2)) + std::log(y) - std::log(x);
+    }
+}
+
+////////////////////////////////////////////
+// /////////////// GAMMA //////////////// //
+////////////////////////////////////////////
+
+/* gamma probability density function */
+double Gamma_Distr::pdf(double x)
+{
+    double shape = get_arg("shape");
+    double scale = get_arg("scale");
+
+    // The pdf is defined for x >= 0 and shape, scale > 0.
+    if (x < 0.0 || shape <= 0.0 || scale <= 0.0)
+    {
+        return 0.0;
+    }
+    else
+    {
+        return std::exp(-x / scale) * std::pow(x, shape - 1.) / (std::tgamma(shape) * std::pow(scale, shape));
+    }
+}
+
+/* logarithm of the gamma probability density function */
+double Gamma_Distr::log_pdf(double x)
+{
+    double shape = get_arg("shape");
+    double scale = get_arg("scale");
+
+    // The logarithm of the pdf is undefined for x < 0 and shape, scale <= 0.
+    if (x < 0.0 || shape <= 0.0 || scale <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return (shape - 1) * std::log(x) - std::lgamma(shape) - shape * std::log(scale) - x / scale;
+    }
+}
+
+/* log-ratio of the gamma probability density function */
+double Gamma_Distr::log_ratio(double x, double y)
+{
+    double shape = get_arg("shape");
+    double scale = get_arg("scale");
+
+    // The logarithm of the pdf is undefined for x < 0 and shape, scale <= 0.
+    if (x < 0.0 || shape <= 0.0 || scale <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return (shape - 1) * (std::log(x / y)) + (y - x) / scale;
+    }
+}
+
+////////////////////////////////////////////
+// //////////// EXPONENTIAL ///////////// //
+////////////////////////////////////////////
+
+/* exponential probability density function */
+double Exponential_Distr::pdf(double x)
+{
+    double rate = get_arg("rate");
+
+    // The pdf is defined for x >= 0 and rate, scale > 0.
+    if (x < 0.0 || rate <= 0.0)
+    {
+        return 0.0;
+    }
+    else
+    {
+        return rate * std::exp(-rate * x);
+    }
+}
+
+/* logarithm of the exponential probability density function */
+double Exponential_Distr::log_pdf(double x)
+{
+    double rate = get_arg("rate");
+
+    // The pdf is defined for x >= 0 and rate, scale > 0.
+    if (x < 0.0 || rate <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return std::log(rate) - rate * x;
+    }
+}
+
+/* log-ratio of the exponential probability density function */
+double Exponential_Distr::log_ratio(double x, double y)
+{
+    double rate = get_arg("rate");
+
+    // The pdf is defined for x >= 0 and rate, scale > 0.
+    if (x < 0.0 || rate <= 0.0)
+    {
+        return -INFINITY;
+    }
+    else
+    {
+        return rate * (y - x);
+    }
+}
+
+//////////////////////////////////////////////////////////
+// //////// Time Onset to Time of Transmission //////// //
+//////////////////////////////////////////////////////////
+
+/* The Time from Onset of Symptoms to Transmission (TOST) is modeled as a skew-logistic distribution (type I).
+This distribution is also a function of the incubation time `t_incub`.
+Note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
+----
+Ref:
+----
+Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
+Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
+
+/* Probability distribution function */
+double Onset_to_Transm::pdf(timetype tost, timetype t_incub)
+{
+
+    double out = 0.0;
+    double a = get_arg("alpha");
+    double m = get_arg("mu");
+    double s = get_arg("sigma");
+    double T = get_arg("tau");
+
+    double norm_const = (s / a) * (1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - t_incub / T * (std::pow(1. + std::exp((m + T) / s), -a)));
+
+    if (tost < 0)
+    {
+        tost = tost * T / t_incub;
+    }
+    out = std::exp((m - tost) / s) * std::pow(1. + std::exp((m - tost) / s), -1. - a);
+
+    return out / norm_const;
+}
+
+/* Cumulative distribution function */
+double Onset_to_Transm::cdf(timetype tost, timetype t_incub)
+{
+    double out = 0.0;
+    double a = get_arg("alpha");
+    double m = get_arg("mu");
+    double s = get_arg("sigma");
+    double T = get_arg("tau");
+
+    double norm_const = (s / a) * (1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - t_incub / T * (std::pow(1. + std::exp((m + T) / s), -a)));
+
+    if (tost < 0)
+    {
+        // Integrate from -t_incub to tost
+        out = t_incub / T * (std::pow(1. + std::exp((m - tost * T / t_incub) / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
+    }
+    else
+    {
+        // Integrate from -t_incub to 0
+        out = t_incub / T * (std::pow(1. + std::exp(m / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
+        // Integrate from 0 to tost
+        out += std::pow(1. + std::exp((m - tost) / s), -a) - std::pow(1. + std::exp(m / s), -a);
+    }
+
+    return out / norm_const;
 }

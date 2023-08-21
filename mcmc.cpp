@@ -9,42 +9,8 @@ using namespace std;
 /////////////////////////////////////////////////////
 
 // ----------------------------
-//  Constructors
-// ----------------------------
-
-// default
-MCMC_Class::MCMC_Class()
-{
-    m_rand_gen.seed(DEFAULT_SEED);
-    m_global_loglike = 0.0;
-    m_data = {};
-
-    reset_moves();
-}
-
-// user
-MCMC_Class::MCMC_Class(
-    unsigned seed,
-    std::vector<Household> data)
-{
-    m_rand_gen.seed(seed);
-    m_data = data;
-
-    reset_moves();
-}
-
-// ----------------------------
 //  Methods : Setter
 // ----------------------------
-
-// Initialize param values generating them from the prior
-void MCMC_Class::init_param_to_infer()
-{
-    for (std::string parID : glob_params.to_be_inferred)
-    {
-        glob_params.init_value(parID, m_rand_gen);
-    }
-}
 
 // Modification of attributes
 void MCMC_Class::reset_moves()
@@ -58,33 +24,25 @@ void MCMC_Class::reset_moves()
 }
 
 /* Initialize augmented variables */
-void MCMC_Class::init_augm_data(std::mt19937_64 &rand_gen)
+void MCMC_Class::init_augm_data(std::mt19937_64 &rng)
 {
-    if (Verbose == true)
-    {
-        std::cout << "-> init augmented data;" << std::endl;
-    }
-
     // loop over houses
     for (size_t h = 0; h < num_households(); h++)
     {
-        m_data[h].init_augm_data(rand_gen);
+        m_data[h].init_infectivity_profiles(&infectivity_profile);
+        m_data[h].init_augm_data(rng);
     }
 }
 
-/* Initialize global loglikelihood */
+/* Initialize global loglikelihood */ 
 void MCMC_Class::init_global_loglike()
 {
-    if (Verbose == true)
-    {
-        std::cout << "-> init loglikelihood;" << std::endl;
-    }
-
     m_global_loglike = 0.0;
     // loop over houses
     for (size_t h = 0; h < num_households(); h++)
     {
-        m_global_loglike += m_data[h].compute_loglike();
+        m_data[h].h_loglike = m_data[h].compute_loglike();
+        m_global_loglike += m_data[h].h_loglike ;
     }
 }
 
@@ -102,12 +60,12 @@ bool MCMC_Class::update_param(std::string parID)
     bool move_accepted = false;
 
     // propose new value
-    new_value = glob_params.propose(parID, m_rand_gen, old_value);
+    new_value = glob_params.propose(parID, m_rng, old_value);
 
     // proceed only if the new value is consistent
     if (glob_params.valid_param(parID, new_value) == true)
     {
-        log_ratio_proposal = glob_params.log_ratio_proposal(parID, old_value, new_value);
+        log_ratio_proposal = glob_params.log_ratio_proposal(parID);
         log_ratio_prior = glob_params.log_ratio_prior(parID, old_value, new_value);
 
         // Compute new log likelihood
@@ -124,16 +82,17 @@ bool MCMC_Class::update_param(std::string parID)
         Q = new_global_loglike - m_global_loglike + log_ratio_prior + log_ratio_proposal;
 
         // FLAG
-
+        /*
         if (parID == "alpha")
         {
             std::cerr << "alpha old : " << old_value << "| new : " << new_value << endl;
             std::cerr << "DLL : " << new_global_loglike - m_global_loglike << " | log_ratio_prior : " << log_ratio_prior << " | log_ratio_proposal : " << log_ratio_proposal << endl;
             std::cerr << endl;
         }
+        */
         // END-of-FLAG*/
 
-        if (unif_rand(m_rand_gen) < std::exp(Q))
+        if (unif(m_rng) < std::exp(Q))
         { // move accepted
             move_accepted = true;
             glob_params.set_num_accept_pp(parID);
@@ -166,9 +125,9 @@ void MCMC_Class::update_augm_variables()
             for (std::string augmID : m_data[h].get_augm_list(res))
             {
                 old_value = m_data[h].get_augm(augmID, res); // store old value
-                old_loglike_of_HH = m_data[h].compute_loglike();
+                old_loglike_of_HH = m_data[h].h_loglike;
 
-                new_value = m_data[h].propose_augm(augmID, res, m_rand_gen);
+                new_value = m_data[h].propose_augm(augmID, res, m_rng);
 
                 // proceed only if the new value is consistent
                 // FIXME (FUTURE) : is this necessary? this is basically always true
@@ -178,18 +137,21 @@ void MCMC_Class::update_augm_variables()
                     m_data[h].set_augm(augmID, res, new_value);
                     new_loglike_of_HH = m_data[h].compute_loglike();
                     log_ratio_prior = m_data[h].log_ratio_prior_augm(augmID, res, new_value);
-                    log_ratio_proposal = m_data[h].log_ratio_proposal_augm(augmID, res, new_value);
+                    log_ratio_proposal = m_data[h].log_ratio_proposal_augm(augmID, res);
                     Q = new_loglike_of_HH - old_loglike_of_HH + log_ratio_proposal;
 
                     // FLAG
+                    /*
                     std::cerr << augmID << " (" << res << ") | old : " << old_value << " | new : " << new_value << endl;
                     std::cerr << "DLL : " << new_loglike_of_HH - old_loglike_of_HH << " | log_ratio_proposal : " << log_ratio_proposal << endl;
                     std::cerr << endl;
+                    */
                     // END-of-FLAG
 
-                    if (unif_rand(m_rand_gen) < std::exp(Q))
+                    if (unif(m_rng) < std::exp(Q))
                     { // move accepted
                         m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
+                        m_data[h].h_loglike = new_loglike_of_HH;
                         m_num_accept_data++;
                     }
                     else
@@ -219,7 +181,7 @@ void MCMC_Class::infer(
     int step;
     bool move_accepted;
     bool is_adaptive_mcmc = num_adapt_steps > 0;
-    bool is_data_augmentation = num_augm_sweeps > 0;
+    bool is_data_augmentation = num_augm_sweeps > 0; // UPDATE: temporary
 
     // Column names of the output file
     std::string colNames = "iter" + tab + "loglike";
@@ -237,9 +199,11 @@ void MCMC_Class::infer(
     std::cout << "\n=============MCMC===============" << std::endl;
     std::cout << "\n======MCMC:initialization=======" << std::endl;
 
-    init_param_to_infer(); // NOTE: shouldn't parameters be initialized to given value?
-    init_augm_data(m_rand_gen);
-    init_global_loglike();
+    // FLAG
+    std::exit(EXIT_FAILURE);
+    // FLAG
+    
+    init_augm_data(m_rng);
 
     output << 0.0 << tab << get_global_loglike();
     if (is_data_augmentation == true)
@@ -257,6 +221,7 @@ void MCMC_Class::infer(
     {
         std::cout << "-> running iteration : " << (i + 1) << "/" << num_iter << endl;
         reset_moves();
+        init_global_loglike(); // NOTE : 
 
         // Data augmentation
         for (int k = 0; k < num_augm_sweeps; k++)
@@ -264,11 +229,11 @@ void MCMC_Class::infer(
             update_augm_variables();
         }
 
+        // Parameter inference
         for (int j = 0; j < num_param_sweeps; j++)
         {
             step = 1 + j + i * num_param_sweeps;
 
-            // Parameter inference
             for (std::string parID : glob_params.to_be_inferred)
             {
                 move_accepted = update_param(parID);
