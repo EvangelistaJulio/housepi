@@ -162,7 +162,7 @@ double Normal_Distr::log_ratio(double x, double y)
     }
     else
     {
-        return 0.5 * (std::pow((y - mean) / sd, 2) - std::pow((x - mean) / sd, 2));
+        return 0.5 * (std::pow((x - mean) / sd, 2) - std::pow((y - mean) / sd, 2));
     }
 }
 ////////////////////////////////////////////
@@ -216,7 +216,7 @@ double Lognorm_Distr::log_ratio(double x, double y)
     }
     else
     {
-        return 0.5 * (std::pow((std::log(y) - mean) / sd, 2) - std::pow((std::log(x) - mean) / sd, 2)) + std::log(y) - std::log(x);
+        return 0.5 * (std::pow((std::log(x) - mean) / sd, 2) - std::pow((std::log(y) - mean) / sd, 2)) + std::log(x) - std::log(y);
     }
 }
 
@@ -271,7 +271,7 @@ double Gamma_Distr::log_ratio(double x, double y)
     }
     else
     {
-        return (shape - 1) * (std::log(x / y)) + (y - x) / scale;
+        return (shape - 1) * (std::log(y / x)) + (x - y) / scale;
     }
 }
 
@@ -323,7 +323,7 @@ double Exponential_Distr::log_ratio(double x, double y)
     }
     else
     {
-        return rate * (y - x);
+        return rate * (x - y);
     }
 }
 

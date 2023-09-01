@@ -34,7 +34,7 @@ void MCMC_Class::init_augm_data(std::mt19937_64 &rng)
     }
 }
 
-/* Initialize global loglikelihood */ 
+/* Initialize global loglikelihood */
 void MCMC_Class::init_global_loglike()
 {
     m_global_loglike = 0.0;
@@ -42,7 +42,7 @@ void MCMC_Class::init_global_loglike()
     for (size_t h = 0; h < num_households(); h++)
     {
         m_data[h].h_loglike = m_data[h].compute_loglike();
-        m_global_loglike += m_data[h].h_loglike ;
+        m_global_loglike += m_data[h].h_loglike;
     }
 }
 
@@ -70,7 +70,6 @@ bool MCMC_Class::update_param(std::string parID)
 
         // Compute new log likelihood
         glob_params.set_value(parID, new_value);
-        // FIXME (FUTURE) : infectivity profiles change if tost params change!!!
 
         new_global_loglike = 0.0;
         for (size_t h = 0; h < num_households(); h++)
@@ -81,16 +80,16 @@ bool MCMC_Class::update_param(std::string parID)
         // Metropolis-Hastings
         Q = new_global_loglike - m_global_loglike + log_ratio_prior + log_ratio_proposal;
 
-        // FLAG
         /*
+        // FLAG
         if (parID == "alpha")
         {
             std::cerr << "alpha old : " << old_value << "| new : " << new_value << endl;
             std::cerr << "DLL : " << new_global_loglike - m_global_loglike << " | log_ratio_prior : " << log_ratio_prior << " | log_ratio_proposal : " << log_ratio_proposal << endl;
             std::cerr << endl;
         }
+        // END-of-FLAG
         */
-        // END-of-FLAG*/
 
         if (unif(m_rng) < std::exp(Q))
         { // move accepted
@@ -127,27 +126,29 @@ void MCMC_Class::update_augm_variables()
                 old_value = m_data[h].get_augm(augmID, res); // store old value
                 old_loglike_of_HH = m_data[h].h_loglike;
 
-                new_value = m_data[h].propose_augm(augmID, res, m_rng);
-
+                new_value = m_data[h].augm_propose(augmID, res, m_rng);
+                /*
+                // FLAG
+                std::cerr << augmID << " (" << res << ") | old : " << old_value << " | new : " << new_value << std::endl;
+                // END-of-FLAG
+                */
                 // proceed only if the new value is consistent
-                // FIXME (FUTURE) : is this necessary? this is basically always true
-                if (m_data[h].valid_augm(augmID, res, new_value) == true)
+                // FIXME (FUTURE) : is this improvable? this is basically always true
+                if (m_data[h].augm_valid(augmID, res, new_value) == true)
                 {
                     // Update onset time with proposed value
                     m_data[h].set_augm(augmID, res, new_value);
                     new_loglike_of_HH = m_data[h].compute_loglike();
-                    log_ratio_prior = m_data[h].log_ratio_prior_augm(augmID, res, new_value);
-                    log_ratio_proposal = m_data[h].log_ratio_proposal_augm(augmID, res);
+                    // FIXME : what if there's no model !?
+                    log_ratio_prior = m_data[h].augm_model_log_ratio(augmID, res, new_value);
+                    log_ratio_proposal = m_data[h].augm_propose_log_ratio(augmID, res);
                     Q = new_loglike_of_HH - old_loglike_of_HH + log_ratio_proposal;
-
-                    // FLAG
                     /*
-                    std::cerr << augmID << " (" << res << ") | old : " << old_value << " | new : " << new_value << endl;
+                    // FLAG
                     std::cerr << "DLL : " << new_loglike_of_HH - old_loglike_of_HH << " | log_ratio_proposal : " << log_ratio_proposal << endl;
                     std::cerr << endl;
-                    */
                     // END-of-FLAG
-
+                    */
                     if (unif(m_rng) < std::exp(Q))
                     { // move accepted
                         m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
@@ -199,10 +200,6 @@ void MCMC_Class::infer(
     std::cout << "\n=============MCMC===============" << std::endl;
     std::cout << "\n======MCMC:initialization=======" << std::endl;
 
-    // FLAG
-    std::exit(EXIT_FAILURE);
-    // FLAG
-    
     init_augm_data(m_rng);
 
     output << 0.0 << tab << get_global_loglike();
@@ -221,7 +218,7 @@ void MCMC_Class::infer(
     {
         std::cout << "-> running iteration : " << (i + 1) << "/" << num_iter << endl;
         reset_moves();
-        init_global_loglike(); // NOTE : 
+        init_global_loglike(); // NOTE :
 
         // Data augmentation
         for (int k = 0; k < num_augm_sweeps; k++)

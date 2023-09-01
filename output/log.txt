@@ -3,26 +3,28 @@
 Model file: data/model-parameters.tsv
 _NAME_	_VALUE_	_INFER_
 alpha	0.5	true
-beta	0.278	false
-delta	0.589	false
-incub_scale	1.131	false
-incub_shape	3.449	false
-onset_err	2	false
-r1V	0.666	false
-r1V90	2.367	false
-r2V	0.103	false
-r3V	1.52	false
-rC	1.765	false
+beta	0.278	true
+delta	0.589	true
+rU	0.1	true
+r1V	0.666	true
+r1V90	2.367	true
+r2V	0.103	true
+r3V	1.52	true
+rC	1.765	true
+rQ	0.279	true
+rMC	0.464	true
+rFC	0.014	true
+rR	8.861	true
 rCC	1	false
-rFC	0.014	false
-rMC	0.464	false
-rQ	0.279	false
-rR	8.861	false
-rU	0.1	false
-tost_alpha	5.85	false
+tost_tau	5.783	false
 tost_mu	-4	false
 tost_sigma	1.85	false
-tost_tau	5.783	false
+tost_alpha	5.85	false
+incub_shape	3.449	false
+incub_scale	1.131	false
+onset_err	2	false
+onset_low	-14	false
+onset_up	300	false
 typical_size	5	false
 
 =============COMMUNITY==============
@@ -30,11 +32,36 @@ Data file: data/community_infection_israel.txt
 
 =============DATA===============
 Data file: data/database_waning_clean.txt
-N. of households :	1
-N. of individuals :	5
-N. of cases :	1
-N. of days :	262
+N. of households :	1201
+N. of individuals :	4619
+N. of cases :	2624
+N. of days :	272
 
 =============MCMC===============
 
 ======MCMC:initialization=======
+
+=========MCMC:execution=========
+-> running iteration : 1/20
+-> running iteration : 2/20
+-> running iteration : 3/20
+-> running iteration : 4/20
+-> running iteration : 5/20
+-> running iteration : 6/20
+-> running iteration : 7/20
+-> running iteration : 8/20
+-> running iteration : 9/20
+-> running iteration : 10/20
+-> running iteration : 11/20
+-> running iteration : 12/20
+-> running iteration : 13/20
+-> running iteration : 14/20
+-> running iteration : 15/20
+-> running iteration : 16/20
+-> running iteration : 17/20
+-> running iteration : 18/20
+-> running iteration : 19/20
+-> running iteration : 20/20
+
+===========MCMC:end=============
+

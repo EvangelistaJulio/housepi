@@ -12,19 +12,19 @@ using namespace std;
 // FIXME : missing
 
 /* adapt : increase spread argument accept_rate is small and viceversa */
-double Metropolis_Hastings::_adapter_(int step, int num_adapt_iter)
+double Base_Proposer::_adapter_(int step, int num_adapt_iter)
 {
     return 1. + (1. - step / num_adapt_iter) * (DEFAULT_ACCEPT_RATE - get_accept_rate());
 }
 
 /* update accept rate */
-void Metropolis_Hastings::update_accept_rate(bool is_accepted, int step)
+void Base_Proposer::update_accept_rate(bool is_accepted, int step)
 {
     accept_rate = ((is_accepted + accept_rate * (step - 1)) / step);
 }
 
 /* reset moves */
-void Metropolis_Hastings::reset_moves()
+void Base_Proposer::reset_moves()
 {
     num_propos = 0;
     num_accept = 0;
@@ -32,7 +32,7 @@ void Metropolis_Hastings::reset_moves()
 }
 
 /* set range */
-void Metropolis_Hastings::set_range(kwargs new_range)
+void Base_Proposer::set_range(kwargs new_range)
 {
     int condition = 0;
 
@@ -50,15 +50,15 @@ void Metropolis_Hastings::set_range(kwargs new_range)
 
     if (condition == 0)
     {
-        _valid_func_ = &Metropolis_Hastings::_valid_dummy_;
+        _valid_func_ = &Base_Proposer::_valid_dummy_;
     }
     else if (condition == 1)
     {
-        _valid_func_ = &Metropolis_Hastings::_valid_range_low_;
+        _valid_func_ = &Base_Proposer::_valid_range_low_;
     }
     else if (condition == 2)
     {
-        _valid_func_ = &Metropolis_Hastings::_valid_range_up_;
+        _valid_func_ = &Base_Proposer::_valid_range_up_;
     }
     else
     {
@@ -71,41 +71,42 @@ void Metropolis_Hastings::set_range(kwargs new_range)
         }
         else
         {
-            _valid_func_ = &Metropolis_Hastings::_valid_range_both_;
+            _valid_func_ = &Base_Proposer::_valid_range_both_;
         }
     }
 }
 
-/////////////////////////////////////////////////////
-//  Parameter : class definition
-/////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+/////////////// Parameter : constructor ///////////////////
+///////////////////////////////////////////////////////////
 
 Parameter::Parameter(
-    double * new_value_ptr,
+    double *new_value_ptr,
+    std::string prior_name,
+    kwargs prior_args,
     std::string strat_name,
     kwargs strat_args,
-    kwargs value_range,
-    std::string prior_name,
-    kwargs prior_args) : _distribution_(), _proposer_()
+    kwargs value_range) : _base_(nullptr, nullptr)
 {
-    value_ptr = new_value_ptr;
-    value_0 = get_value();
+    p_value_ptr = new_value_ptr;
 
     // --- metropolis strategy --- //
+    Base_Proposer *proposer;
 
-    if (strat_name == "_none_")
+    if (strat_name == UNDEF)
     {
-        infer = false;
+        p_infer = false;
+        proposer = nullptr;
     }
     else if (strat_name == "normal")
     {
-        infer = true;
-        _proposer_ = Normal_Proposal(strat_args);
+        p_infer = true;
+        proposer = new Normal_Proposer(strat_args, value_range);
     }
     else if (strat_name == "lognorm")
     {
-        infer = true;
-        _proposer_ = Lognorm_Proposal(strat_args);
+        p_infer = true;
+        proposer = new Lognorm_Proposer(strat_args, value_range);
     }
     else
     {
@@ -114,30 +115,35 @@ Parameter::Parameter(
                   << std::endl;
         exit(EXIT_FAILURE);
     }
-    _proposer_.set_range(value_range);
 
     // --- prior function --- //
-    if (infer == true && prior_name != "_none_")
+    Distribution_1D *distribution;
+
+    if (p_infer == true)
     {
-        if (prior_name == "unif")
+        if (prior_name == UNDEF)
         {
-            _distribution_ = Uniform_Distr(prior_args);
+            distribution = nullptr;
+        }
+        else if (prior_name == "unif")
+        {
+            distribution = new Uniform_Distr(prior_args);
         }
         else if (prior_name == "normal")
         {
-            _distribution_ = Normal_Distr(prior_args);
+            distribution = new Normal_Distr(prior_args);
         }
         else if (prior_name == "lognorm")
         {
-            _distribution_ = Lognorm_Distr(prior_args);
+            distribution = new Lognorm_Distr(prior_args);
         }
         else if (prior_name == "gamma")
         {
-            _distribution_ = Gamma_Distr(prior_args);
+            distribution = new Gamma_Distr(prior_args);
         }
         else if (prior_name == "exp")
         {
-            _distribution_ = Exponential_Distr(prior_args);
+            distribution = new Exponential_Distr(prior_args);
         }
         else
         {
@@ -146,11 +152,92 @@ Parameter::Parameter(
                       << std::endl;
             exit(EXIT_FAILURE);
         }
+
+        _base_ = Base_Parameter(distribution, proposer);
+    }
+}
+
+///////////////////////////////////////////////////////////
+/////////////// Augmented : constructor ///////////////////
+///////////////////////////////////////////////////////////
+
+// FIXME : can I compact this through templates of a common wrapper of Base_Parameter
+
+Augmented::Augmented(
+    double new_value,
+    std::string model_name,
+    kwargs_ext model_args_ext,
+    std::string strat_name,
+    kwargs strat_args,
+    kwargs value_range) : _base_(nullptr, nullptr)
+{
+    a_value = new_value;
+    a_value_0 = new_value;
+
+    // --- metropolis strategy --- //
+    Base_Proposer *proposer;
+
+    if (strat_name == UNDEF)
+    {
+        a_infer = false;
+        proposer = nullptr;
+    }
+    else if (strat_name == "normal")
+    {
+        a_infer = true;
+        proposer = new Normal_Proposer(strat_args, value_range);
+    }
+    else if (strat_name == "lognorm")
+    {
+        a_infer = true;
+        proposer = new Lognorm_Proposer(strat_args, value_range);
     }
     else
     {
-        prior_name = "_none_";
-        prior_args = {};
+        std::cerr << "ERROR: Unknown metropolis strategy " << strat_name << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // --- prior function --- //
+    Distribution_1D *distribution;
+
+    if (a_infer == true)
+    {
+        if (model_name == UNDEF)
+        {
+            distribution = nullptr;
+        }
+        else if (model_name == "unif")
+        {
+            distribution = new Uniform_Distr(model_args_ext);
+        }
+        else if (model_name == "normal")
+        {
+            distribution = new Normal_Distr(model_args_ext);
+        }
+        else if (model_name == "lognorm")
+        {
+            distribution = new Lognorm_Distr(model_args_ext);
+        }
+        else if (model_name == "gamma")
+        {
+            distribution = new Gamma_Distr(model_args_ext);
+        }
+        else if (model_name == "exp")
+        {
+            distribution = new Exponential_Distr(model_args_ext);
+        }
+        else
+        {
+            std::cerr << "\nERROR: Unknown distribution " << model_name << std::endl;
+            std::cerr << "Exit...\n"
+                      << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        _base_ = Base_Parameter(distribution, proposer);
     }
 }
 
@@ -159,8 +246,18 @@ Parameter::Parameter(
 ///////////////////////////////////////////////////////////
 
 /* add_param */
-void Parameter_Dictionary::add_param(const std::string k, Parameter new_param)
+void Parameter_Dictionary::add_param(
+    const std::string k,
+    double new_value,
+    std::string prior_name,
+    kwargs prior_args,
+    std::string strat_name,
+    kwargs strat_args,
+    kwargs value_range)
 {
+    param_values[_counter_] = new_value;
+    Parameter new_param(&param_values[_counter_], prior_name, prior_args, strat_name, strat_args, value_range);
+
     if (params.find(k) == params.end())
     {
         params.emplace(k, new_param);
@@ -176,16 +273,25 @@ void Parameter_Dictionary::add_param(const std::string k, Parameter new_param)
     {
         to_be_inferred.push_back(k);
     }
+    else
+    {
+        not_to_be_inferred.push_back(k);
+    }
+    _counter_++;
 }
 
 /* print */
 void Parameter_Dictionary::print()
 {
     std::cout << "_NAME_" << TAB << "_VALUE_" << TAB << "_INFER_" << endl;
-    for (const auto &entry : params)
+    for (std::string k : to_be_inferred)
     {
-        Parameter param = entry.second;
-        std::cout << entry.first << TAB << param.get_value();
-        std::cout << TAB << (param.get_infer() > 0 ? "true" : "false") << endl;
+        std::cout << k << TAB << get_value(k);
+        std::cout << TAB << "true" << endl;
+    }
+    for (std::string k : not_to_be_inferred)
+    {
+        std::cout << k << TAB << get_value(k);
+        std::cout << TAB << "false" << endl;
     }
 }

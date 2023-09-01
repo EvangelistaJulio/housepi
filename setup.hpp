@@ -2,6 +2,7 @@
 
 #define DEFAULT_SEED 20210415
 #define TAB "\t"
+#define UNDEF "_none_"
 
 #define CONTINUOS_TIME 
 
@@ -14,7 +15,7 @@
 #define MAX_INCUB_PERIOD 14.
 
 // MCMC
-#define DEFAULT_NUM_ITER 10
+#define DEFAULT_NUM_ITER 20
 #define DEFAULT_NUM_PARAM_SWEEEPS 5
 #define DEFAULT_NUM_AUGM_SWEEPS 5
 #define DEFAULT_NUM_ADAPT_STEPS 50

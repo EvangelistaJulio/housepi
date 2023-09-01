@@ -37,28 +37,55 @@ Individual::Individual(
 	i_onset_time = onset_time;
 }
 
-double Individual::propose_augm(std::string augmID, std::mt19937_64 &rand_gen)
+void Individual::add_augm(std::string augmID,
+						  double new_value,
+						  std::string model_name,
+						  kwargs_ext model_args_ext,
+						  std::string strategy_name,
+						  kwargs strategy_args,
+						  kwargs value_range)
+{
+	Augmented this_augm(new_value, model_name, model_args_ext, strategy_name, strategy_args, value_range);
+	i_augm.emplace(augmID, this_augm);
+	i_augm_list.push_back(augmID);
+
+	if (model_name != UNDEF)
+	{
+		i_augm_with_model_list.push_back(augmID);
+	}
+}
+
+double Individual::augm_propose(std::string augmID, std::mt19937_64 &rng)
 {
 	// NOTE : I choose to propose augmented values around the initial value
 	double old_value = i_augm.at(augmID).get_value_0();
 	// FIXME: this should be a user variable, probably in metropolis in order to propose from 0 or not
 
-	return i_augm.at(augmID).propose(rand_gen, old_value);
+	return i_augm.at(augmID)._base_.propose(rng, old_value);
 }
 
-double Individual::log_ratio_prior_augm(std::string augmID, double new_value)
+double Individual::augm_model_log_pdf(std::string augmID)
 {
-	// NOTE : I choose to propose augmented values around the initial value
+	double new_value = i_augm.at(augmID).get_value();
+
+	return i_augm.at(augmID).model_log_pdf(new_value);
+}
+
+double Individual::augm_model_log_ratio(std::string augmID, double new_value)
+{
+	// FIXME : I choose to propose augmented values around the initial value
 	double old_value = i_augm.at(augmID).get_value_0();
 
-	return i_augm.at(augmID).prior_log_ratio(old_value, new_value);
+	// FIXME : what if there's no model? i.e. uniform always 0?
+
+	return i_augm.at(augmID).model_log_ratio(old_value, new_value);
 }
 
-double Individual::log_ratio_proposal_augm(std::string augmID)
+double Individual::augm_propose_log_ratio(std::string augmID)
 {
-	// NOTE : I choose to propose augmented values around the initial value
+	// FIXME : I choose to propose augmented values around the initial value
 
-	return i_augm.at(augmID).propose_log_ratio();
+	return i_augm.at(augmID)._base_.propose_log_ratio();
 }
 
 /////////////////////////////////////////////////////
@@ -73,12 +100,12 @@ void Household::add_individual(Individual this_indiv)
 }
 
 // Initialize augmented variables and infectivity profiles
-void Household::init_augm_data(std::mt19937_64 &rand_gen)
+void Household::init_augm_data(std::mt19937_64 &rng)
 {
 	// loop over residents within the house
 	for (size_t i = 0; i < h_size; i++)
 	{
-		h_residents[i].init_augm_data(rand_gen);
+		h_residents[i].init_augm_data(rng);
 	}
 	init_household_status();
 }
@@ -134,20 +161,8 @@ void Household::update_household_first_case()
 void Household::set_augm(std::string augmID, size_t idx, double new_value)
 {
 	h_residents[idx].set_augm(augmID, new_value);
-	update_household_first_case();		// Update information of first cases
-	update_infectivity_profiles(idx);	// Update infectivity profiles realted to idx
-}
-
-// Propose new value for symptom onset time
-double Household::propose_augm(std::string augmID, size_t idx, std::mt19937_64 &rand_gen)
-{
-	return h_residents[idx].propose_augm(augmID, rand_gen);
-}
-
-// Check if the augmented variable is within range
-bool Household::valid_augm(std::string augmID, size_t idx, double new_value)
-{
-	return h_residents[idx].valid_augm(augmID, new_value);
+	update_household_first_case();	  // Update information of first cases
+	update_infectivity_profiles(idx); // Update infectivity profiles realted to idx
 }
 
 // ----------------------------
@@ -190,7 +205,7 @@ void Household::update_infectivity_profiles(size_t idx)
 			h_inst_profile[idx][res] = h_residents[idx].infectivity_inst(t_infec_res);
 		}
 		else if (t_infec_res < t_infec_idx)
-		{  // `res` : infector, `idx` : infectee
+		{ // `res` : infector, `idx` : infectee
 			h_cumul_profile[res][idx] = h_residents[res].infectivity_cumul(t_infec_idx);
 			h_inst_profile[res][idx] = h_residents[res].infectivity_inst(t_infec_idx);
 		}

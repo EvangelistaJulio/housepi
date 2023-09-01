@@ -17,7 +17,6 @@ using namespace std;
 // --- Define the global variables here ---
 
 bool Verbose = true;
-std::vector<double> glob_params_values = {};
 Parameter_Dictionary glob_params = {};
 std::vector<double> Cumul_Community_Infec = {};
 std::vector<double> Inst_Community_Infec = {};
@@ -231,7 +230,6 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
 {
     std::ifstream input_file(data_path_to_file.c_str());
 
-
     if (input_file)
     {
         std::cout << "\n=============PARAMETERS==============" << std::endl;
@@ -245,7 +243,7 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
         }
         input_file.clear();                     // Clear any errors
         input_file.seekg(0, std::ios::beg);     // Seek to the beginning
-        glob_params_values.resize(line_count);  // Allocate for the right amount of parameters
+        glob_params.resize(line_count);  // Allocate for the right amount of parameters
         line_count = 0;   
 
         // Create a stringstream of the current line
@@ -278,7 +276,6 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
                 exit(EXIT_FAILURE);
             }
             value = stod(value_str);
-            glob_params_values[line_count] = value;
 
             // --- INFER ---
             if (!getline(iss, infer, delimiter))
@@ -351,14 +348,12 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
                 range = parse_dict_string(range_str);
 
                 // add entry to shared parameter dictionary
-                Parameter this_param(&glob_params_values[line_count], strategy, rate, range, prior_name, prior_args);
-                glob_params.add_param(name, this_param);
+                glob_params.add_param(name, value, prior_name, prior_args, strategy, rate, range);
             }
             else
             {
-                Parameter this_param(&glob_params_values[line_count]);
-                // add entry to shared parameter dictionary}
-                glob_params.add_param(name, this_param);
+                // add entry to shared parameter dictionary
+                glob_params.add_param(name, value);
             }
 
             line_count++;
@@ -433,20 +428,12 @@ int main(int argc, char **argv)
     build_community(community_path_to_file);
     std::vector<Household> HH_data = build_households(households_path_to_file);
 
-    // FLAG
-    std::cerr << "After build" << endl;    
-    // FLAG
-
     // initialize global infectivity profile // UPDATE
     kwargs_ext infec_prof_args = {
         {"alpha", glob_params.get_address("tost_alpha")},
         {"mu", glob_params.get_address("tost_mu")},
         {"sigma", glob_params.get_address("tost_sigma")},
         {"tau", glob_params.get_address("tost_tau")}};
-
-    // FLAG
-    std::cerr << "After kwargs_ext" << endl;    
-    // FLAG
 
     // Initialize MCMC object
     MCMC_Class mcmc_object(seed, HH_data, infec_prof_args);

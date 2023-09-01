@@ -40,6 +40,7 @@ public:
 	Onset_to_Transm *ptr_to_infec_profile;
 
 	std::vector<std::string> i_augm_list = {};
+	std::vector<std::string> i_augm_with_model_list = {};
 
 	// Constructors
 	Individual(
@@ -57,6 +58,15 @@ public:
 	~Individual(){};
 
 	// --- Methods (default) ---
+
+	void add_augm(std::string augmID,
+				  double new_value,
+				  std::string model_name = UNDEF,
+				  kwargs_ext model_args_ext = {},
+				  std::string strat_name = UNDEF,
+				  kwargs strat_args = {},
+				  kwargs value_range = {});
+
 	// Getter
 	double get_augm(std::string augmID) const { return i_augm.at(augmID).get_value(); }
 
@@ -64,10 +74,12 @@ public:
 	void set_augm(std::string augmID, double new_value) { i_augm.at(augmID).set_value(new_value); }
 
 	// Computations
-	bool valid_augm(std::string augmID, double new_value) { return i_augm.at(augmID).valid(new_value); }
-	double propose_augm(std::string augmID, std::mt19937_64 &rng);
-	double log_ratio_prior_augm(std::string augmID, double new_value);
-	double log_ratio_proposal_augm(std::string augmID);
+	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return i_augm.at(augmID).model_rand(rng); }
+	double augm_model_log_pdf(std::string augmID);
+	double augm_model_log_ratio(std::string augmID, double new_value); // FIXME: old value always == value_0
+	double augm_propose(std::string augmID, std::mt19937_64 &rng);
+	double augm_propose_log_ratio(std::string augmID);
+	bool augm_valid(std::string augmID, double new_value) { return i_augm.at(augmID)._base_.valid(new_value); }
 
 	// --- Methods (model) ---
 	timetype get_infec_time() const;
@@ -117,18 +129,19 @@ public:
 
 	// Aliases (augmented variables)
 	double get_augm(std::string augmID, size_t idx) const { return h_residents[idx].get_augm(augmID); }
-	double propose_augm(std::string augmID, size_t idx, std::mt19937_64 &rng);
 	void set_augm(std::string augmID, size_t idx, double infec_time);
-	bool valid_augm(std::string augmID, size_t idx, double new_value);
-	double log_ratio_prior_augm(std::string augmID, size_t idx, double new_value) { return h_residents[idx].log_ratio_prior_augm(augmID, new_value); }
-	double log_ratio_proposal_augm(std::string augmID, size_t idx) { return h_residents[idx].log_ratio_proposal_augm(augmID); }
+	double augm_propose(std::string augmID, size_t idx, std::mt19937_64 &rng) { return h_residents[idx].augm_propose(augmID, rng); }
+	bool augm_valid(std::string augmID, size_t idx, double new_value) { return h_residents[idx].augm_valid(augmID, new_value); }
+
+	double augm_model_log_pdf(std::string augmID, size_t idx) { return h_residents[idx].augm_model_log_pdf(augmID); }
+	double augm_model_log_ratio(std::string augmID, size_t idx, double new_value) { return h_residents[idx].augm_model_log_ratio(augmID, new_value); }
+	double augm_propose_log_ratio(std::string augmID, size_t idx) { return h_residents[idx].augm_propose_log_ratio(augmID); }
 
 	// Computations (default)
 	void init_infectivity_profiles(Onset_to_Transm *infectivity_profile);
 	void update_infectivity_profiles(size_t ind);
 
 	// --- Methods (model) ---
-	double log_incub_proba(size_t idx); // FIXME : why not a augm_var model dist?
 	double log_infec_proba(size_t idx);
 	double log_surv_proba(size_t idx);
 	double compute_loglike();

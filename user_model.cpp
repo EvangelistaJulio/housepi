@@ -20,55 +20,57 @@ extern std::vector<double> Inst_Community_Infec;
 std::vector<std::string> List_Augm_Var = {"onset_time", "incub_period"};
 
 /* Initialize augmented variables */
+// UPDATE: this needs to become more user friendly
 void Individual::init_augm_data(std::mt19937_64 &rng)
 {
-	bool is_sick = (i_status != HEALTHY);
-	double value;
-
-	// FIXME : I need to provide model as for the priors
-	// NOTE : these should be connected to global parameters to avoid change at each iteration
-	/*
 	// --- onset_time --- //
 	{
 		std::string augmID = "onset_time";
-		double init_value = (is_sick == true) ? i_onset_time : i_study_period;
-		std::string metropolis_strategy = (is_sick == true) ? "normal" : "_none_";
+		double init_value = (i_status == HEALTHY) ? i_study_period : i_onset_time;
+
+		/*
+		std::string model_name = UNDEF;
+		kwargs_ext model_args = {};
+		*/
+		// FIXME : how to deal with these cases!?
+		std::string model_name = "unif";
+		kwargs_ext model_args = {
+			{"low", glob_params.get_address("onset_low")},
+			{"up", glob_params.get_address("onset_up")}};
+
+		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
+
 		kwargs metropolis_args = {
 			{"mean", 0.0},
 			{"sd", glob_params.get_value("onset_err")}};
-		kwargs range = {{"low", -MAX_INCUB_PERIOD}, {"up", i_study_period}};
 
-		Augmented this_augm(init_value, metropolis_strategy, metropolis_args, range);
-		i_augm.emplace(augmID, this_augm);
-		i_augm_list.push_back(augmID);
+		kwargs range = {{"low", glob_params.get_value("onset_low")}, {"up", glob_params.get_value("onset_up")}};
+
+		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, range);
 	}
 
 	// --- incub_period --- //
 	{
 		std::string augmID = "incub_period";
 		double init_value = 0.;
-		std::string metropolis_strategy = (is_sick == true) ? "normal" : "_none_"; // FIXME : waiting for prior proposal
-		kwargs args = {
+
+		std::string model_name = (i_status == HEALTHY) ? UNDEF : "gamma";
+		kwargs_ext model_args = {
+			{"shape", glob_params.get_address("incub_shape")},
+			{"scale", glob_params.get_address("incub_scale")}};
+
+		// FIXME : waiting for prior proposal
+		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
+		kwargs metropolis_args = {
 			{"mean", glob_params.get_value("incub_shape")},
 			{"sd", glob_params.get_value("incub_scale")}};
+
 		kwargs range = {{"up", MAX_INCUB_PERIOD}};
 
-		Augmented this_augm(init_value, metropolis_strategy, args, range);
-		i_augm.emplace(augmID, this_augm);
-		i_augm_list.push_back(augmID);
-	}
-	*/
-	// initialize for unhealthy (default)
-	if (is_sick == true)
-	{
-		for (std::string augmID : i_augm_list)
+		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, range);
+		if (model_name != UNDEF)
 		{
-			value = propose_augm(augmID, rng);
-			while (valid_augm(augmID, value) == false)
-			{
-				value = propose_augm(augmID, rng);
-			}
-			set_augm(augmID, value);
+			set_augm(augmID, augm_model_rand(augmID, rng));
 		}
 	}
 }
@@ -98,18 +100,6 @@ double Individual::infectivity_cumul(timetype t_transm)
 /////////////////////////////////////////////////////
 //  Household : Methods (likelihood)
 /////////////////////////////////////////////////////
-
-/* logarithm of the incubation probability */
-double Household::log_incub_proba(size_t idx)
-{
-	// FIXME : this should come from resident augm prior pdf
-	timetype x = get_augm("incub_period", idx);
-	kwargs args = {
-		{"shape", glob_params.get_value("incub_shape")},
-		{"scale", glob_params.get_value("incub_scale")}};
-
-	return Gamma_Distr(args).log_pdf(x);
-}
 
 double Household::model_risk_beta(const std::vector<std::vector<double>> &rate_vector, size_t idx)
 {
@@ -174,8 +164,11 @@ double Household::compute_loglike()
 	// Loop over all symptomatic residents
 	for (size_t res : h_symptomatic_list)
 	{
-		// FIXME : contribution of augmented variables priors
-		loglike_house += log_incub_proba(res);
+		// Contribution of model associated to augmented variables
+		for (std::string augmID : h_residents[res].i_augm_with_model_list)
+		{
+			loglike_house += augm_model_log_pdf(augmID, res);
+		}
 
 		// Contribution of secondary cases
 		if (res != h_first_case)
