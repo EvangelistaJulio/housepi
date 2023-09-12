@@ -16,39 +16,10 @@ extern std::vector<double> Inst_Community_Infec;
 //  Methods : Augmented Variables
 // ----------------------------
 
-// List of augmented variables
-std::vector<std::string> List_Augm_Var = {"onset_time", "incub_period"};
-
 /* Initialize augmented variables */
 // UPDATE: this needs to become more user friendly
 void Individual::init_augm_data(std::mt19937_64 &rng)
 {
-	// --- onset_time --- //
-	{
-		std::string augmID = "onset_time";
-		double init_value = (i_status == HEALTHY) ? i_study_period : i_onset_time;
-
-		/*
-		std::string model_name = UNDEF;
-		kwargs_ext model_args = {};
-		*/
-		// FIXME : how to deal with these cases!?
-		std::string model_name = "unif";
-		kwargs_ext model_args = {
-			{"low", glob_params.get_address("onset_low")},
-			{"up", glob_params.get_address("onset_up")}};
-
-		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
-
-		kwargs metropolis_args = {
-			{"mean", 0.0},
-			{"sd", glob_params.get_value("onset_err")}};
-
-		kwargs range = {{"low", glob_params.get_value("onset_low")}, {"up", glob_params.get_value("onset_up")}};
-
-		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, range);
-	}
-
 	// --- incub_period --- //
 	{
 		std::string augmID = "incub_period";
@@ -59,19 +30,41 @@ void Individual::init_augm_data(std::mt19937_64 &rng)
 			{"shape", glob_params.get_address("incub_shape")},
 			{"scale", glob_params.get_address("incub_scale")}};
 
-		// FIXME : waiting for prior proposal
+		// FIXME : temporary waiting for prior proposal
 		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
 		kwargs metropolis_args = {
-			{"mean", glob_params.get_value("incub_shape")},
-			{"sd", glob_params.get_value("incub_scale")}};
+			{"mean", 0.0},
+			{"sd", 0.5}};
+		double value_zero = INFINITY; // from old value
+		kwargs range = {{"low", 0.0}, {"up", glob_params.get_value("max_incub_period")}};
 
-		kwargs range = {{"up", MAX_INCUB_PERIOD}};
+		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
 
-		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, range);
-		if (model_name != UNDEF)
+		// FIXME : temporary waiting for prior proposal
+		if (i_status != HEALTHY)
 		{
 			set_augm(augmID, augm_model_rand(augmID, rng));
 		}
+	}
+
+	// --- onset_time --- //
+	{
+		std::string augmID = "onset_time";
+		double init_value = (i_status == HEALTHY) ? i_study_period : i_onset_time;
+
+		std::string model_name = UNDEF;
+		kwargs_ext model_args = {};
+
+		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
+
+		kwargs metropolis_args = {
+			{"mean", 0.0},
+			{"sd", glob_params.get_value("onset_err")}};
+
+		double value_zero = init_value; // from init value
+		kwargs range = {{"low", glob_params.get_value("onset_low")}, {"up", i_study_period}};
+
+		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
 	}
 }
 
@@ -88,13 +81,15 @@ timetype Individual::get_infec_time() const
 double Individual::infectivity_inst(timetype t_transm)
 {
 	timetype tost = t_transm - get_augm("onset_time");
-	return ptr_to_infec_profile->pdf(tost, get_augm("incub_period"));
+	timetype incub_period = get_augm("incub_period");
+	return ptr_to_infec_profile->pdf(tost, incub_period);
 }
 
 double Individual::infectivity_cumul(timetype t_transm)
 {
 	timetype tost = t_transm - get_augm("onset_time");
-	return ptr_to_infec_profile->cdf(tost, get_augm("incub_period"));
+	timetype incub_period = get_augm("incub_period");
+	return ptr_to_infec_profile->cdf(tost, incub_period);
 }
 
 /////////////////////////////////////////////////////
@@ -155,17 +150,18 @@ double Household::compute_loglike()
 {
 	double loglike_house = 0.0;
 
-	// Loop over all healthy residents // NOTE: no augmented variables
-
+	// Loop over all healthy residents
+	// NOTE: no augmented variables
 	for (size_t res : h_healthy_list)
 	{
 		loglike_house += log_surv_proba(res);
 	}
+
 	// Loop over all symptomatic residents
 	for (size_t res : h_symptomatic_list)
 	{
 		// Contribution of model associated to augmented variables
-		for (std::string augmID : h_residents[res].i_augm_with_model_list)
+		for (std::string augmID : h_residents[res].i_augm_with_model)
 		{
 			loglike_house += augm_model_log_pdf(augmID, res);
 		}
@@ -243,24 +239,19 @@ double Household::model_susceptibility(size_t idx)
 		factor *= glob_params.get_value("rU");
 	}
 
-	if (glob_params.get_infer("r1V") == true && h_residents[idx].i_vacc_status == 2 && h_residents[idx].i_vacc_delay < VACC_ONSET)
+	if (glob_params.get_infer("r1V") == true && h_residents[idx].i_vacc_status == 2 && h_residents[idx].i_vacc_delay < glob_params.get_value("vacc_onset"))
 	{
 		factor *= glob_params.get_value("r1V");
 	}
 
-	if (glob_params.get_infer("r1V90") == true && h_residents[idx].i_vacc_status == 2 && h_residents[idx].i_vacc_delay >= VACC_ONSET)
+	if (glob_params.get_infer("r1V90") == true && h_residents[idx].i_vacc_status == 2 && h_residents[idx].i_vacc_delay >= glob_params.get_value("vacc_onset"))
 	{
 		factor *= glob_params.get_value("r1V90");
 	}
 
-	if (glob_params.get_infer("r2V") == true && h_residents[idx].i_vacc_status == 3 && h_residents[idx].i_vacc_delay < VACC_ONSET)
+	if (glob_params.get_infer("r2V") == true && h_residents[idx].i_vacc_status == 3 && h_residents[idx].i_vacc_delay < glob_params.get_value("vacc_onset"))
 	{
 		factor *= glob_params.get_value("r2V");
-	}
-
-	if (glob_params.get_infer("r3V") == true && h_residents[idx].i_vacc_status == 4)
-	{
-		factor *= glob_params.get_value("r3V");
 	}
 
 	// Suceptibility of children
@@ -284,6 +275,7 @@ double Household::model_susceptibility(size_t idx)
 	return factor;
 }
 
+/* Model the transmissability within household */
 double Household::model_transmissability()
 {
 	double factor = 1.0;

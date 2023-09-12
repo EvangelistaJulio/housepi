@@ -14,9 +14,8 @@
 
 using namespace std;
 
-// --- Define the global variables here ---
+// --- Define the global variables ---
 
-bool Verbose = true;
 Parameter_Dictionary glob_params = {};
 std::vector<double> Cumul_Community_Infec = {};
 std::vector<double> Inst_Community_Infec = {};
@@ -25,18 +24,22 @@ std::vector<double> Inst_Community_Infec = {};
 // ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
 
-kwargs parse_dict_string(std::string args_str, char delimiter = ',')
+kwargs parse_dict_string(std::string args_str, char delim)
 {
     std::istringstream args_ss(args_str);
     std::string tmp;
     std::vector<std::string> args_stock;
-    kwargs output;
+    kwargs output = {};
 
-    while (std::getline(args_ss, tmp, delimiter))
+    while (std::getline(args_ss, tmp, delim))
     {
         args_stock.push_back(tmp);
     }
-    if (args_stock.size() == 0 || args_stock.size() % 2 == 1)
+    if (args_stock.size() == 0)
+    {
+        output = {}; // empty dictionary
+    }
+    else if (args_stock.size() % 2 == 1)
     {
         std::cerr << "\nERROR: Unrecognized dictionary." << std::endl;
         std::cerr << "Exit...\n"
@@ -64,6 +67,7 @@ kwargs parse_dict_string(std::string args_str, char delimiter = ',')
     return output;
 }
 
+/* function to load boolean variables */
 bool stobool(std::string text)
 {
     bool output = false;
@@ -87,9 +91,131 @@ bool stobool(std::string text)
     return output;
 }
 
+/* function to load delimiter */
+char load_delim(std::string text)
+{
+    char delim = '_';
+
+    text.pop_back(); // UPDATE: I should use the correct i/o function
+
+    if (text.front() == '"' && text.back() == '"')
+    {
+        // Remove the double quotes and store it as a string
+        delim = text.substr(1, text.length() - 2)[0];
+    }
+    else
+    {
+        std::cerr << "\nERROR: Unable to extract delimiter." << std::endl;
+        std::cerr << "Check: " << text << "\n"
+                  << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return delim;
+}
+
+/* auxiliary function to call for error in build parameters */
+void build_column_error(std::string var_name, std::string &line)
+{
+    std::cerr << "\nERROR: Unable to extract `" << var_name << "` column." << std::endl;
+    std::cerr << "Check line: " << line << "\n"
+              << std::endl;
+    std::cerr << "Exit...\n"
+              << std::endl;
+    exit(EXIT_FAILURE);
+}
+
 // ////////////////////////////////////////////////////////////////////////// //
 // ////////////////////////////// FILE LOADING ////////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
+
+/* Read Setup file */
+Setup_Struct load_setup(std::string data_path_to_file)
+{
+    char delim = ',';
+    Setup_Struct setup_loader;
+    std::ifstream input_file(data_path_to_file.c_str());
+    std::unordered_map<std::string, std::string> safe_load = {};
+
+    if (input_file)
+    {
+        std::cout << "\n=============SETUP==============" << std::endl;
+        std::cout << "Setup file: " << data_path_to_file << std::endl;
+
+        input_file.clear();                 // Clear any errors
+        input_file.seekg(0, std::ios::beg); // Seek to the beginning
+
+        // Create a stringstream of the current line
+        for (std::string line; std::getline(input_file, line);)
+        {
+            std::string name, choice_str;
+            std::istringstream iss(line);
+
+            // --- NAME ---
+            if (!getline(iss, name, delim))
+            {
+                std::cerr << "\nERROR: Unable to extract setup name." << std::endl;
+                std::cerr << "Check line: " << line << "\n"
+                          << std::endl;
+                std::cerr << "Exit...\n"
+                          << std::endl;
+                exit(EXIT_FAILURE);
+            }
+
+            // --- CHOICE ---
+            if (!getline(iss, choice_str, '\n'))
+            {
+                std::cerr << "\nERROR: Unable to extract setup choice." << std::endl;
+                std::cerr << "Check line: " << line << "\n"
+                          << std::endl;
+                std::cerr << "Exit...\n"
+                          << std::endl;
+                exit(EXIT_FAILURE);
+            }
+
+            safe_load.emplace(name, choice_str);
+        }
+
+        setup_loader.seed = std::stoi(safe_load.at("seed"));
+        setup_loader.num_iter = std::stoi(safe_load.at("num_iter"));
+        setup_loader.num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
+        setup_loader.thinning = std::stoi(safe_load.at("thinning"));
+        setup_loader.num_augm_sweeps = std::stoi(safe_load.at("num_augm_sweeps"));
+        setup_loader.verbose = stobool(safe_load.at("verbose"));
+        setup_loader.delim = load_delim(safe_load.at("delim"));
+        setup_loader.dict_delim = load_delim(safe_load.at("dict_delim"));
+        setup_loader.is_data_augm = setup_loader.num_augm_sweeps > 0; // UPDATE: ugly
+    }
+    else
+    {
+        std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // --- Check for values validity --- //
+    if (setup_loader.num_adapt_iter >= setup_loader.num_iter)
+    {
+        std::cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // --- Display --- //
+    if (setup_loader.verbose)
+    {
+        for (const auto &pair : safe_load)
+        {
+            std::cout << pair.first << " : " << pair.second << std::endl;
+        }
+    }
+
+    return setup_loader;
+}
 
 /* Read Community file */
 void build_community(std::string data_path_to_file)
@@ -141,7 +267,7 @@ void build_community(std::string data_path_to_file)
     2: asymptomatic case
     3: symptomatic case with unknown symptom onset
 */
-std::vector<Household> build_households(std::string data_path_to_file)
+std::vector<Household> build_households(std::string data_path_to_file, bool verbose)
 {
     int this_HH_id, indid, age, sex;
     int HH_size, status, vacc_status;
@@ -170,8 +296,10 @@ std::vector<Household> build_households(std::string data_path_to_file)
             if (safe_load_HH.find(this_HH_id) == safe_load_HH.end())
             {
                 safe_load_HH.emplace(this_HH_id, Household());
+                safe_load_HH.at(this_HH_id).set_index(this_HH_id);
             }
 
+            // UPDATE : to be generalized starting from the model
             if ((status != HEALTHY) && (status != SYMPTOMATIC))
             {
                 std::cerr << "ERROR: status not in the model: " << status << endl;
@@ -214,19 +342,19 @@ std::vector<Household> build_households(std::string data_path_to_file)
     }
 
     // General information
-    if (Verbose == true)
+    if (verbose)
     {
-        std::cout << "N. of households :" << TAB << data_HH.size() << std::endl;
-        std::cout << "N. of individuals :" << TAB << num_subjects << std::endl;
-        std::cout << "N. of cases :" << TAB << num_cases << std::endl;
-        std::cout << "N. of days :" << TAB << max_study_period << std::endl;
+        std::cout << "N. of households : " << data_HH.size() << std::endl;
+        std::cout << "N. of individuals : " << num_subjects << std::endl;
+        std::cout << "N. of cases : " << num_cases << std::endl;
+        std::cout << "N. of days : " << max_study_period << std::endl;
     }
 
     return (data_HH);
 }
 
 /* Read Model Parameters file */
-void build_parameters(std::string data_path_to_file, char delimiter = '\t')
+void build_parameters(std::string data_path_to_file, char delim, char dict_delim, bool verbose)
 {
     std::ifstream input_file(data_path_to_file.c_str());
 
@@ -241,10 +369,10 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
         {
             line_count++;
         }
-        input_file.clear();                     // Clear any errors
-        input_file.seekg(0, std::ios::beg);     // Seek to the beginning
-        glob_params.resize(line_count);  // Allocate for the right amount of parameters
-        line_count = 0;   
+        input_file.clear();                 // Clear any errors
+        input_file.seekg(0, std::ios::beg); // Seek to the beginning
+        glob_params.resize(line_count);     // Allocate for the right amount of parameters
+        line_count = 0;
 
         // Create a stringstream of the current line
         for (std::string line; std::getline(input_file, line);)
@@ -254,98 +382,59 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
             kwargs prior_args = {}, rate = {}, range = {};
             std::istringstream iss(line);
 
-            // --- NAME ---
-            if (!getline(iss, name, delimiter))
+            // --- NAME --- //
+            if (!getline(iss, name, delim))
             {
-                std::cerr << "\nERROR: Unable to extract `name` column." << std::endl;
-                std::cerr << "Check line: " << line << "\n"
-                          << std::endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                exit(EXIT_FAILURE);
+                build_column_error("name", line);
             }
 
-            // --- VALUE ---
-            if (!getline(iss, value_str, delimiter))
+            // --- VALUE --- //
+            if (!getline(iss, value_str, delim))
             {
-                std::cerr << "\nERROR: Unable to extract `value` column." << std::endl;
-                std::cerr << "Check line: " << line << "\n"
-                          << std::endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                exit(EXIT_FAILURE);
+                build_column_error("value", line);
             }
             value = stod(value_str);
 
-            // --- INFER ---
-            if (!getline(iss, infer, delimiter))
+            // --- INFER --- //
+            if (!getline(iss, infer, delim))
             {
-                std::cerr << "\nERROR: Unable to extract `infer` column." << std::endl;
-                std::cerr << "Check line: " << line << "\n"
-                          << std::endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                exit(EXIT_FAILURE);
+                build_column_error("infer", line);
             }
 
             if (stobool(infer) == true)
             {
-                // --- PRIOR ---
-                if (!getline(iss, prior_name, delimiter))
+                // --- PRIOR --- //
+                if (!getline(iss, prior_name, delim))
                 {
-                    std::cerr << "\nERROR: Unable to extract `prior` column." << std::endl;
-                    std::cerr << "Check line: " << line << "\n"
-                              << std::endl;
-                    std::cerr << "Exit...\n"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
+                    build_column_error("prior", line);
                 }
 
-                // --- ARGS ---
-                if (!getline(iss, prior_args_str, delimiter))
+                // --- ARGS --- //
+                if (!getline(iss, prior_args_str, delim))
                 {
-                    std::cerr << "\nERROR: Unable to extract `args` column." << std::endl;
-                    std::cerr << "Check line: " << line << "\n"
-                              << std::endl;
-                    std::cerr << "Exit...\n"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
+                    build_column_error("args", line);
                 }
-                prior_args = parse_dict_string(prior_args_str);
+                prior_args = parse_dict_string(prior_args_str, dict_delim);
 
-                // --- STRATEGY ---
-                if (!getline(iss, strategy, delimiter))
+                // --- STRATEGY --- //
+                if (!getline(iss, strategy, delim))
                 {
-                    std::cerr << "\nERROR: Unable to extract `strategy` column." << std::endl;
-                    std::cerr << "Check line: " << line << "\n"
-                              << std::endl;
-                    std::cerr << "Exit...\n"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
+                    build_column_error("strategy", line);
                 }
 
-                // --- RATE ---
-                if (!getline(iss, rate_str, delimiter))
+                // --- STRATEGY_ARGS --- //
+                if (!getline(iss, rate_str, delim))
                 {
-                    std::cerr << "\nERROR: Unable to extract `strategy` column." << std::endl;
-                    std::cerr << "Check line: " << line << "\n"
-                              << std::endl;
-                    std::cerr << "Exit...\n"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
+                    build_column_error("strat_args", line);
                 }
-                rate = parse_dict_string(rate_str);
+                rate = parse_dict_string(rate_str, dict_delim);
 
-                if (!getline(iss, range_str, delimiter))
+                // --- RANGE --- //
+                if (!getline(iss, range_str, delim))
                 {
-                    std::cerr << "\nERROR: Unable to extract `range` column." << std::endl;
-                    std::cerr << "Check line: " << line << "\n"
-                              << std::endl;
-                    std::cerr << "Exit...\n"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
+                    build_column_error("range", line);
                 }
-                range = parse_dict_string(range_str);
+                range = parse_dict_string(range_str, dict_delim);
 
                 // add entry to shared parameter dictionary
                 glob_params.add_param(name, value, prior_name, prior_args, strategy, rate, range);
@@ -355,24 +444,22 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
                 // add entry to shared parameter dictionary
                 glob_params.add_param(name, value);
             }
-
             line_count++;
         }
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
+        std::cerr << "\nERROR: Impossible to read `" << data_path_to_file << "`" << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
         exit(EXIT_FAILURE);
     }
 
     // --- Display --- //
-    if (Verbose == true)
+    if (verbose)
     {
         glob_params.print();
     }
-    // --- End-Of-Display --- //
 }
 
 // /////////////////////////////////////////////////////////////////////////// //
@@ -381,16 +468,10 @@ void build_parameters(std::string data_path_to_file, char delimiter = '\t')
 
 int main(int argc, char **argv)
 {
-
-    // UPDATE : these should be user optional variables
-    unsigned seed = DEFAULT_SEED;
-    int num_iter = DEFAULT_NUM_ITER;
-    int num_param_sweeps = DEFAULT_NUM_PARAM_SWEEEPS;
-    int num_augm_sweeps = DEFAULT_NUM_AUGM_SWEEPS;
-    int num_adapt_steps = DEFAULT_NUM_ADAPT_STEPS;
+    bool verbose = true;
 
     //========== USER parameters ==========
-    if (argc < 5)
+    if (argc < 6)
     {
         // print usage here and return, since that's what you need.
         std::cerr << "Wrong usage" << std::endl;
@@ -398,35 +479,30 @@ int main(int argc, char **argv)
                   << " <community:path/to/file>"
                   << " <parameters:path/to/file>"
                   << " <output:path/to/file>"
-                  << " <n.iterations:int>"
-                  << " <verbose:bool>" << std::endl;
-        std::cerr << "Exit...\n"
+                  << " <augmented:path/to/file>";
+        std::cerr << std::endl
+                  << "Exit...\n"
                   << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
     // mandatory parameters
     std::string households_path_to_file = argv[1]; // Path/to/file (households)
-    std::string community_path_to_file = argv[2];
-    std::string parameters_path_to_file = argv[3];
-    std::string output_path_to_file = argv[4]; // Name of the output file
+    std::string community_path_to_file = argv[2];  //
+    std::string parameters_path_to_file = argv[3]; //
+    std::string output_path_to_file = argv[4];     // Name of the output file
+    std::string augmented_path_to_file = argv[5];  // Name of the output file for augmented data
 
-    // optional parameters
-    if (argc > 5)
-    { // N. of iterations in the MCMC
-        num_iter = std::stoi(argv[5]);
-    }
-    if (argc > 6)
-    { // Verbose
-        Verbose = stobool(argv[6]);
-    }
+    // UPDATE : these should be user optional variables
+    std::string setup_path_to_file = "default_setup.csv";
+    Setup_Struct setup = load_setup(setup_path_to_file);
 
     // UPDATE : check for path validity
 
     // Load data and Paramters
-    build_parameters(parameters_path_to_file);
+    build_parameters(parameters_path_to_file, setup.delim, setup.dict_delim, setup.verbose);
     build_community(community_path_to_file);
-    std::vector<Household> HH_data = build_households(households_path_to_file);
+    std::vector<Household> HH_data = build_households(households_path_to_file, verbose);
 
     // initialize global infectivity profile // UPDATE
     kwargs_ext infec_prof_args = {
@@ -436,15 +512,15 @@ int main(int argc, char **argv)
         {"tau", glob_params.get_address("tost_tau")}};
 
     // Initialize MCMC object
-    MCMC_Class mcmc_object(seed, HH_data, infec_prof_args);
+    MCMC_Class mcmc_object(setup, HH_data, infec_prof_args);
 
     // run MCMC inference
-    mcmc_object.infer(
-        output_path_to_file,
-        num_iter,
-        num_param_sweeps,
-        num_augm_sweeps,
-        num_adapt_steps);
+    mcmc_object.infer(output_path_to_file);
+
+    // print last augmented data configuration // FIXME
+    mcmc_object.open_augm_file(augmented_path_to_file);
+    mcmc_object.print_augm_variables();
+    mcmc_object.close_augm_file();
 
     return EXIT_SUCCESS;
 }

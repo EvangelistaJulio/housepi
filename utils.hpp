@@ -1,5 +1,7 @@
 // user_model.hpp //
 
+#define CONTINUOS_TIME // UPDATE: options to switch to integer time
+
 #ifndef DEF_USER_MODEL__H
 #define DEF_USER_MODEL__H
 
@@ -9,47 +11,66 @@
 #include <unordered_map>
 #include <iostream>
 
-#include "setup.hpp"
-
+// global verbose variable
 #ifdef CONTINUOS_TIME
+// time values type
 typedef double timetype;
 #else
 typedef int timetype;
-// UPDATE : Distribution turn into discrete LUT
+// UPDATE : turn distributions into discrete LUT
 #endif
 
+const std::string UNDEF = "_none_"; // name for undefined choice
+
+/* Linear interpolation for an indexed array */
+double lin_idx_interp(double x_value, const std::vector<double> &y);
+
+/* Return the chosen distribution */
+Distribution_1D *distribution_switchboard(std::string name = UNDEF, kwargs args = {});
+
+///////////////////////////////////////////////////////////////////////
+// ////////////////////// Base_Distrib : class ///////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+// arguments
 typedef std::unordered_map<std::string, double> kwargs;
 typedef std::unordered_map<std::string, double *> kwargs_ext;
 
-// Linear interpolation for an indexed array
-double lin_idx_interp(double x_value, const std::vector<double> &y);
-
-///////////////////////////////////////////////////////////////////////
-// ////////////////////// Distribution : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-// UPDATE: controls on the lists of arguments for given distributions
-
-class Distribution
+class Base_Distrib
 {
 protected:
     kwargs args = {};         // internal arguments (fixed at initialization)
     kwargs_ext args_ext = {}; // external arguments (pointer to variable)
 
 public:
-    // Constructors
-    Distribution(kwargs new_args);
-    Distribution(kwargs_ext new_args_ext);
-    Distribution() = default;
+    // --- Constructors --- //
+    Base_Distrib(kwargs new_args)
+    {
+        for (auto const &x : new_args)
+        {
+            args.emplace(x.first, x.second);
+        }
+        _get_arg_func_ = &Base_Distrib::_get_arg_int_;
+    }
+    Base_Distrib(kwargs_ext new_args_ext)
+    {
+        for (auto const &x : new_args_ext)
+        {
+            args_ext.emplace(x.first, x.second);
+        }
+        _get_arg_func_ = &Base_Distrib::_get_arg_ext_;
+    }
+    ~Base_Distrib(){};
 
-    // Getter (fixed)
+    // Getter (functional)
     double get_arg(std::string argID) { return (this->*_get_arg_func_)(argID); }
 
     // Setter (just for fixed)
+    // UPDATE: controls on the lists of arguments for given distributions
     void set_arg(std::string argID, double new_value) { args.at(argID) = new_value; }
 
 private:
-    double (Distribution::*_get_arg_func_)(std::string argID);
+    double (Base_Distrib::*_get_arg_func_)(std::string argID);
     double _get_arg_int_(std::string argID) { return args.at(argID); }
     double _get_arg_ext_(std::string argID) { return *(args_ext.at(argID)); }
 };
@@ -58,41 +79,33 @@ private:
 // /////////////////// Distribution_1D : class ///////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-class Distribution_1D : public Distribution
+class Distribution_1D : public Base_Distrib
 {
 public:
-    using Distribution::Distribution;
+    using Base_Distrib::Base_Distrib;
 
     // Virtual functions (dummy)
-    virtual double pdf(double x) { return x; }
-    virtual double log_pdf(double x) { return std::log(pdf(x)); }
-    virtual double log_ratio(double x, double y) { return std::log(pdf(x)) - std::log(pdf(y)); }
-    virtual double rand(std::mt19937_64 &rng)
-    {
-        std::uniform_real_distribution<double> distr_gen(-0.5, 0.5);
-        return distr_gen(rng);
-    }
+    virtual double pdf(double x) = 0;
+    virtual double log_pdf(double x) = 0;
+    virtual double log_ratio(double x, double y) = 0;
+    virtual double rand(std::mt19937_64 &rng) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Uniform_Distr : class ///////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-// FIXME : the attribute `distr_gen` must be updated in case of: kwargs_ext
-
 class Uniform_Distr : public Distribution_1D
 {
-private:
-    std::uniform_real_distribution<double> distr_gen;
-
 public:
-    Uniform_Distr(kwargs new_args = {{"low", (double)0.0}, {"up", (double)1.0}}) : Distribution_1D(new_args), distr_gen(get_arg("low"), get_arg("up")) {}
-    Uniform_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext), distr_gen(get_arg("low"), get_arg("up")) {}
+    Uniform_Distr(kwargs new_args = {{"low", (double)0.0}, {"up", (double)1.0}}) : Distribution_1D(new_args) {}
+    Uniform_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    ~Uniform_Distr() {}
 
     double pdf(double x) override;
     double log_pdf(double x) override;
     double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override { return distr_gen(rng); }
+    double rand(std::mt19937_64 &rng) override;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -101,18 +114,16 @@ public:
 
 class Normal_Distr : public Distribution_1D
 {
-private:
-    std::normal_distribution<double> distr_gen;
-
 public:
     // Constructors
-    Normal_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args), distr_gen(get_arg("mean"), get_arg("sd")) {}
-    Normal_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext), distr_gen(get_arg("mean"), get_arg("sd")) {}
+    Normal_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args) {}
+    Normal_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    ~Normal_Distr(){};
 
     double pdf(double x) override;
     double log_pdf(double x) override;
     double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override { return distr_gen(rng); }
+    double rand(std::mt19937_64 &rng) override;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -121,18 +132,16 @@ public:
 
 class Lognorm_Distr : public Distribution_1D
 {
-private:
-    std::lognormal_distribution<double> distr_gen;
-
 public:
     // Constructors
-    Lognorm_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args), distr_gen(get_arg("mean"), get_arg("sd")) {}
-    Lognorm_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext), distr_gen(get_arg("mean"), get_arg("sd")) {}
+    Lognorm_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args) {}
+    Lognorm_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    ~Lognorm_Distr(){};
 
     double pdf(double x) override;
     double log_pdf(double x) override;
     double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override { return distr_gen(rng); }
+    double rand(std::mt19937_64 &rng) override;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -141,18 +150,16 @@ public:
 
 class Gamma_Distr : public Distribution_1D
 {
-private:
-    std::gamma_distribution<double> distr_gen;
-
 public:
     // Constructors
-    Gamma_Distr(kwargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args), distr_gen(get_arg("shape"), get_arg("scale")) {}
-    Gamma_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext), distr_gen(get_arg("shape"), get_arg("scale")) {}
+    Gamma_Distr(kwargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args) {}
+    Gamma_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    ~Gamma_Distr(){};
 
     double pdf(double x) override;
     double log_pdf(double x) override;
     double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override { return distr_gen(rng); }
+    double rand(std::mt19937_64 &rng) override;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -161,33 +168,29 @@ public:
 
 class Exponential_Distr : public Distribution_1D
 {
-private:
-    std::exponential_distribution<double> distr_gen;
-
 public:
-    Exponential_Distr(kwargs new_args = {{"rate", (double)1.0}}) : Distribution_1D(new_args), distr_gen(get_arg("rate")) {}
-    Exponential_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext), distr_gen(get_arg("rate")) {}
+    Exponential_Distr(kwargs new_args = {{"rate", (double)1.0}}) : Distribution_1D(new_args) {}
+    Exponential_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    ~Exponential_Distr(){};
 
     double pdf(double x) override;
     double log_pdf(double x) override;
     double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override { return distr_gen(rng); }
+    double rand(std::mt19937_64 &rng) override;
 };
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////// Onset to Transmission : class ////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-class Onset_to_Transm : public Distribution
+class Onset_to_Transm : public Base_Distrib
 {
-private:
-    kwargs args = {};         // arguments
-    kwargs_ext args_ext = {}; // arguments
-
 public:
     // Constructors
-    Onset_to_Transm(kwargs new_args) : Distribution(new_args) {}
-    Onset_to_Transm(kwargs_ext new_args_ext) : Distribution(new_args_ext) {}
+    Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args) {}
+    Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext) {}
+    ~Onset_to_Transm(){};
+
     double pdf(timetype tost, timetype t_incub);
     double cdf(timetype tost, timetype t_incub);
 };

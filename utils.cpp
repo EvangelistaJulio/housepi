@@ -29,30 +29,43 @@ double lin_idx_interp(double x_value, const std::vector<double> &y)
     return output;
 }
 
-/////////////////////////////////////////////////////
-//  Distribution : Class
-/////////////////////////////////////////////////////
-
-Distribution::Distribution(kwargs new_args)
+Distribution_1D *distribution_switchboard(std::string name, kwargs args)
 {
-    for (auto const &x : new_args)
+    if (name == UNDEF)
     {
-        args.emplace(x.first, x.second);
+        return nullptr;
     }
-    _get_arg_func_ = &Distribution::_get_arg_int_;
-}
-
-Distribution::Distribution(kwargs_ext new_args_ext)
-{
-    for (auto const &x : new_args_ext)
+    else if (name == "uniform")
     {
-        args_ext.emplace(x.first, x.second);
+        return new Uniform_Distr(args);
     }
-    _get_arg_func_ = &Distribution::_get_arg_ext_;
+    else if (name == "normal")
+    {
+        return new Normal_Distr(args);
+    }
+    else if (name == "lognorm")
+    {
+        return new Lognorm_Distr(args);
+    }
+    else if (name == "gamma")
+    {
+        return new Gamma_Distr(args);
+    }
+    else if (name == "exp")
+    {
+        return new Exponential_Distr(args);
+    }
+    else
+    {
+        std::cerr << "\nERROR: Unknown distribution " << name << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 ///////////////////////////////////////////
-// ////////// DISTRIBUTION ///////////// //
+// ////////// Uniform_Distr //////////// //
 ///////////////////////////////////////////
 
 /* uniform probability density function */
@@ -111,8 +124,15 @@ double Uniform_Distr::log_ratio(double x, double y)
     }
 }
 
+/* uniform random generator */
+double Uniform_Distr::rand(std::mt19937_64 &rng)
+{
+    std::uniform_real_distribution<double> distr_gen(get_arg("low"), get_arg("up"));
+    return distr_gen(rng);
+}
+
 ////////////////////////////////////////////
-// ////////////// NORMAL //////////////// //
+// /////////// Normal_Distr ///////////// //
 ////////////////////////////////////////////
 
 /* normal probability density function */
@@ -165,6 +185,14 @@ double Normal_Distr::log_ratio(double x, double y)
         return 0.5 * (std::pow((x - mean) / sd, 2) - std::pow((y - mean) / sd, 2));
     }
 }
+
+/* normal random generator */
+double Normal_Distr::rand(std::mt19937_64 &rng)
+{  
+    std::normal_distribution<double> distr_gen(get_arg("mean"), get_arg("sd"));
+    return distr_gen(rng);
+}
+
 ////////////////////////////////////////////
 // ///////////// LOGNORMAL ////////////// //
 ////////////////////////////////////////////
@@ -218,6 +246,13 @@ double Lognorm_Distr::log_ratio(double x, double y)
     {
         return 0.5 * (std::pow((std::log(x) - mean) / sd, 2) - std::pow((std::log(y) - mean) / sd, 2)) + std::log(x) - std::log(y);
     }
+}
+
+/* lognormal random generator */
+double Lognorm_Distr::rand(std::mt19937_64 &rng)
+{  
+    std::lognormal_distribution<double> distr_gen(get_arg("mean"), get_arg("sd"));
+    return distr_gen(rng);
 }
 
 ////////////////////////////////////////////
@@ -275,6 +310,13 @@ double Gamma_Distr::log_ratio(double x, double y)
     }
 }
 
+/* gamma random generator */
+double Gamma_Distr::rand(std::mt19937_64 &rng)
+{  
+    std::gamma_distribution<double> distr_gen(get_arg("shape"), get_arg("scale"));
+    return distr_gen(rng);
+}
+
 ////////////////////////////////////////////
 // //////////// EXPONENTIAL ///////////// //
 ////////////////////////////////////////////
@@ -325,6 +367,13 @@ double Exponential_Distr::log_ratio(double x, double y)
     {
         return rate * (x - y);
     }
+}
+
+/* exponential random generator */
+double Exponential_Distr::rand(std::mt19937_64 &rng)
+{  
+    std::exponential_distribution<double> distr_gen(get_arg("rate"));
+    return distr_gen(rng);
 }
 
 //////////////////////////////////////////////////////////

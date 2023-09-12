@@ -11,8 +11,28 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
+//#include <omp.h>
 
 #include "household.hpp"
+
+// Auxiliary struct to load all setup information
+struct Setup_Struct
+{
+public:
+	// Attributes
+	unsigned seed = 0;
+	unsigned num_iter = 0;
+	unsigned num_adapt_iter = 0;
+	unsigned num_augm_sweeps = 0;
+	unsigned thinning = 0;
+	char delim = ' ';
+	char dict_delim = '/';
+	bool verbose = false;
+
+	// FIXME : attributes toi be updated
+	bool is_data_augm = false;
+};
 
 //----------------------------------------------------------------------
 // MCMC_Class : Class declaration
@@ -24,7 +44,8 @@ private:
 	std::mt19937_64 m_rng;
 	double m_global_loglike = 0.0;
 	std::vector<Household> m_data = {};
-	std::uniform_real_distribution<double> unif;
+	std::uniform_real_distribution<double> m_unif;
+	Setup_Struct m_setup = {};
 
 public:
 	int m_num_accept_data = 0;
@@ -33,35 +54,48 @@ public:
 
 	// Constructors
 	MCMC_Class(
-		unsigned seed,
+		Setup_Struct setup,
 		std::vector<Household> data,
-		kwargs_ext infec_prof_args) : infectivity_profile(infec_prof_args)
+		kwargs_ext infec_prof_args) : m_unif(0.0, 1.0), infectivity_profile(infec_prof_args)
 	{
-		m_rng.seed(seed);
+		m_setup = setup;
+		m_rng.seed(setup.seed);
 		m_data = data;
 	}
 	~MCMC_Class(){};
 
-	// Getter
+	// --- Getter --- //
 	size_t num_households() const { return m_data.size(); };
 	double get_global_loglike() const { return m_global_loglike; };
 
-	// Setter
+	// --- Setter --- //
 	void reset_moves();
 	void init_augm_data(std::mt19937_64 &rng);
-	void init_global_loglike();
 
-	// Computations
-	bool update_param(std::string parID);
+	// --- Computations --- //
+	void update_global_loglike();
+	void update_parameters();
 	void update_augm_variables();
 
-	void infer(
-		std::string output_filename,
-		int num_iter = DEFAULT_NUM_ITER,
-		int num_param_sweeps = DEFAULT_NUM_PARAM_SWEEEPS,
-		int num_augm_sweeps = DEFAULT_NUM_AUGM_SWEEPS,
-		int num_adapt_steps = DEFAULT_NUM_ADAPT_STEPS,
-		std::string tab = TAB);
+	// --- INFER --- //
+	void infer(std::string output_filename);
+
+	// --- Save parameters --- //
+	void init_param_file(std::string output_filename);
+	void print_parameters(unsigned step);
+	void close_param_file() { param_ofstream.close(); }
+
+	// --- Save augmented variables --- //
+	void open_augm_file(std::string output_filename);
+	void print_augm_variables();
+	void close_augm_file() { augm_ofstream.close(); }
+
+private:
+	// --- infer : attributes --- //
+	std::ofstream param_ofstream;
+	std::ofstream augm_ofstream;
+
+	void progress_bar(size_t iter, size_t n_iter);
 };
 
 #endif // MCMC_OBJECT__H
