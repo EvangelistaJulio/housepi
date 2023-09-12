@@ -29,41 +29,6 @@ double lin_idx_interp(double x_value, const std::vector<double> &y)
     return output;
 }
 
-Distribution_1D *distribution_switchboard(std::string name, kwargs args)
-{
-    if (name == UNDEF)
-    {
-        return nullptr;
-    }
-    else if (name == "uniform")
-    {
-        return new Uniform_Distr(args);
-    }
-    else if (name == "normal")
-    {
-        return new Normal_Distr(args);
-    }
-    else if (name == "lognorm")
-    {
-        return new Lognorm_Distr(args);
-    }
-    else if (name == "gamma")
-    {
-        return new Gamma_Distr(args);
-    }
-    else if (name == "exp")
-    {
-        return new Exponential_Distr(args);
-    }
-    else
-    {
-        std::cerr << "\nERROR: Unknown distribution " << name << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
 ///////////////////////////////////////////
 // ////////// Uniform_Distr //////////// //
 ///////////////////////////////////////////

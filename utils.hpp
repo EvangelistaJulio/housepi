@@ -25,9 +25,6 @@ const std::string UNDEF = "_none_"; // name for undefined choice
 /* Linear interpolation for an indexed array */
 double lin_idx_interp(double x_value, const std::vector<double> &y);
 
-/* Return the chosen distribution */
-Distribution_1D *distribution_switchboard(std::string name = UNDEF, kwargs args = {});
-
 ///////////////////////////////////////////////////////////////////////
 // ////////////////////// Base_Distrib : class ///////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -178,6 +175,47 @@ public:
     double log_ratio(double x, double y) override;
     double rand(std::mt19937_64 &rng) override;
 };
+
+///////////////////////////////////////////////////////////////////////
+// //////////////////// distribution_switchboard /////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+/* Return the chosen distribution */
+template <typename kw_doub_ptr>
+Distribution_1D *distribution_switchboard(std::string name = UNDEF, kw_doub_ptr args = {})
+{
+    if (name == UNDEF)
+    {
+        return nullptr;
+    }
+    else if (name == "uniform")
+    {
+        return new Uniform_Distr(args);
+    }
+    else if (name == "normal")
+    {
+        return new Normal_Distr(args);
+    }
+    else if (name == "lognorm")
+    {
+        return new Lognorm_Distr(args);
+    }
+    else if (name == "gamma")
+    {
+        return new Gamma_Distr(args);
+    }
+    else if (name == "exp")
+    {
+        return new Exponential_Distr(args);
+    }
+    else
+    {
+        std::cerr << "\nERROR: Unknown distribution " << name << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////// Onset to Transmission : class ////////////////// //

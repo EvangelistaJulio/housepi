@@ -176,7 +176,7 @@ public:
 class Lognorm_Proposer : public Base_Proposer
 {
 public:
-	// Constructors
+	// Constructor
 	Lognorm_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double value_0 = INFINITY,
@@ -204,96 +204,71 @@ public:
 	~Prior_Proposer() {}
 };
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-/////////////////////////////////////////////////////////////////
-// ////////////////// Base_Parameter : class ///////////////// //
-/////////////////////////////////////////////////////////////////
-
-class Base_Parameter
-{
-public:
-	// objects for inference
-	Distribution_1D *distr_ptr;
-	Base_Proposer *prop_ptr;
-
-	// Constructors
-	Base_Parameter(Distribution_1D *distr) : distr_ptr(distr), prop_ptr(new Prior_Proposer(distr_ptr)) {}
-	Base_Parameter(Distribution_1D *distr, Base_Proposer *prop) : distr_ptr(distr), prop_ptr(prop) {}
-};
-
-/////////////////////////////////////////////////////////////////
-// ////////////// Wrap_Base_Parameter : class //////////////// //
-/////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+// ///////////////// Base_Parameter  : class /////////////////// //
+///////////////////////////////////////////////////////////////////////
 
 template <typename kw_doub_ptr>
-class Wrap_Base_Parameter
+class Base_Parameter
 {
 protected:
-	Base_Parameter _base_;
+	Distribution_1D *distr_ptr;
+	Base_Proposer *prop_ptr;
 	bool infer = false;
 
 public:
-	Wrap_Base_Parameter(
+	// Constructor
+	Base_Parameter(
 		std::string prior_name = UNDEF,
 		kw_doub_ptr prior_args = {},
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
 		double value_0 = INFINITY,
-		kwargs value_range = {}) : _base_(nullptr, nullptr)
+		kwargs value_range = {}) : distr_ptr(nullptr), prop_ptr(nullptr)
 	{
-		// --- metropolis strategy --- //
-
 		if (strat_name != UNDEF)
 		{
-			Base_Proposer *proposer;
-			Distribution_1D *distribution;
-
 			infer = true;
-			distribution = distribution_switchboard(prior_name, prior_args);
+			distr_ptr = distribution_switchboard(prior_name, prior_args);
 
 			// --- proposer ---//
 			if (strat_name == "prior")
 			{
-				proposer = new Prior_Proposer(distribution);
+				prop_ptr = new Prior_Proposer(distr_ptr);
 			}
 			else
 			{
-				proposer = proposer_switchboard(strat_name, strat_args, value_0, value_range);
+				prop_ptr = proposer_switchboard(strat_name, strat_args, value_0, value_range);
 			}
-			_base_ = Base_Parameter(distribution, proposer);
 		}
 	}
-
-	// --- Methods --- //
+	~Base_Parameter(){}
 
 	// --- Getter --- //
 	bool get_infer() const { return infer; }
-	bool is_zero_start() const { return (_base_.prop_ptr->is_zero_start)(); }
-	double get_value_0() const { return (_base_.prop_ptr->get_value_0)();}
+	bool is_zero_start() const { return (prop_ptr->is_zero_start)(); }
+	double get_value_0() const { return (prop_ptr->get_value_0)(); }
 
 	// --- distr_ptr : methods --- //
-	double distr_rand(std::mt19937_64 &rng) { return _base_.distr_ptr->rand(rng); }
-	double distr_log_pdf(double new_value) { return _base_.distr_ptr->log_pdf(new_value); }
-	double distr_log_ratio(double old_value, double new_value) { return _base_.distr_ptr->log_ratio(old_value, new_value); }
+	double distr_rand(std::mt19937_64 &rng) { return distr_ptr->rand(rng); }
+	double distr_log_pdf(double new_value) { return distr_ptr->log_pdf(new_value); }
+	double distr_log_ratio(double old_value, double new_value) { return distr_ptr->log_ratio(old_value, new_value); }
 
 	// --- prop_ptr : methods --- //
-	double propose_from(std::mt19937_64 &rng, double start_value) { return (_base_.prop_ptr->propose)(rng, start_value); }
-	double propose_log_ratio(double old_value, double new_value) { return (_base_.prop_ptr->log_ratio)(old_value, new_value); }
-	bool invalid(double new_value) { return _base_.prop_ptr->invalid(new_value); }
-	double get_accept_rate() const { return _base_.prop_ptr->get_accept_rate(); }
-	void update_accept_rate(bool is_accepted) { _base_.prop_ptr->update_accept_rate(is_accepted); }
-	void reset_accept_rate() { _base_.prop_ptr->reset_accept_rate(); }
-	void adapt(double ratio) { (_base_.prop_ptr->adapt)(ratio); }
+	double propose_from(std::mt19937_64 &rng, double start_value) { return (prop_ptr->propose)(rng, start_value); }
+	double propose_log_ratio(double old_value, double new_value) { return (prop_ptr->log_ratio)(old_value, new_value); }
+	bool invalid(double new_value) { return prop_ptr->invalid(new_value); }
+	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
+	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
+	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
+	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 };
 
 /////////////////////////////////////////////////////////////////
 // ///////////////////// Parameter : class /////////////////// //
 /////////////////////////////////////////////////////////////////
 
-class Parameter : public Wrap_Base_Parameter<kwargs>
+class Parameter : public Base_Parameter<kwargs>
 {
 private:
 	double *p_value_ptr;
@@ -306,12 +281,12 @@ public:
 		kwargs prior_args = {},
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
-		kwargs value_range = {}) : Wrap_Base_Parameter(prior_name,
-													   prior_args,
-													   strat_name,
-													   strat_args,
-													   INFINITY, // is_zero_start() = false
-													   value_range)
+		kwargs value_range = {}) : Base_Parameter(prior_name,
+												  prior_args,
+												  strat_name,
+												  strat_args,
+												  INFINITY, // is_zero_start() = false
+												  value_range)
 	{
 		p_value_ptr = new_value_ptr;
 		if (get_infer() == true)
@@ -344,7 +319,7 @@ private:
 // ///////////////////// Augmented : class /////////////////// //
 /////////////////////////////////////////////////////////////////
 
-class Augmented : public Wrap_Base_Parameter<kwargs_ext>
+class Augmented : public Base_Parameter<kwargs_ext>
 {
 private:
 	double a_value;
@@ -358,14 +333,13 @@ public:
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
 		double value_0 = INFINITY,
-		kwargs value_range = {}) : Wrap_Base_Parameter(model_name,
-													   model_args_ext,
-													   strat_name,
-													   strat_args,
-													   value_0,
-													   value_range)
+		kwargs value_range = {}) : Base_Parameter(model_name,
+												  model_args_ext,
+												  strat_name,
+												  strat_args,
+												  value_0,
+												  value_range)
 	{
-
 		a_value = new_value;
 		if (get_infer() == true)
 		{
