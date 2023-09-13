@@ -31,7 +31,7 @@ double lin_idx_interp(double x_value, const std::vector<double> &y);
 
 // arguments
 typedef std::unordered_map<std::string, double> kwargs;
-typedef std::unordered_map<std::string, double *> kwargs_ext;
+typedef std::unordered_map<std::string, const double *> kwargs_ext;
 
 class Base_Distrib
 {
@@ -181,8 +181,8 @@ public:
 ///////////////////////////////////////////////////////////////////////
 
 /* Return the chosen distribution */
-template <typename kw_doub_ptr>
-Distribution_1D *distribution_switchboard(std::string name = UNDEF, kw_doub_ptr args = {})
+template <typename kwargs_int_or_ext>
+Distribution_1D *distribution_switchboard(std::string name = UNDEF, kwargs_int_or_ext args = {})
 {
     if (name == UNDEF)
     {

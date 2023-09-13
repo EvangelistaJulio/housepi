@@ -57,28 +57,25 @@ void MCMC_Class::update_global_loglike()
 /* Sweep over model parameters. */
 void MCMC_Class::update_parameters()
 {
-    double old_value, new_value;
+    double old_val, new_val;
     double Q, log_ratio_proposal, log_ratio_prior, new_global_loglike;
     bool move_accepted;
 
     // loop over all parameters to be inferred
     for (std::string parID : glob_params.to_be_inferred)
     {
-        old_value = glob_params.get_value(parID);      // store old value
-        new_value = glob_params.propose(parID, m_rng); // propose new value
+        old_val = glob_params.get_value(parID);      // store old value
+        new_val = glob_params.propose(parID, m_rng); // propose new value
 
         // proceed only if the new value is consistent
-        if (glob_params.invalid_param(parID, new_value))
+        move_accepted = false;
+        if (!glob_params.invalid_param(parID, new_val))
         {
-            move_accepted = false;
-        }
-        else
-        {
-            log_ratio_proposal = glob_params.log_ratio_proposal(parID, old_value, new_value);
-            log_ratio_prior = glob_params.log_ratio_prior(parID, old_value, new_value);
+            log_ratio_proposal = glob_params.log_ratio_proposal(parID, old_val, new_val);
+            log_ratio_prior = glob_params.log_ratio_prior(parID, old_val, new_val);
 
             // Compute the new log likelihood
-            glob_params.set_value(parID, new_value);
+            glob_params.set_value(parID, new_val);
 
             // FIXME : emberassing parallel
             new_global_loglike = 0.0;
@@ -96,8 +93,7 @@ void MCMC_Class::update_parameters()
             }
             else
             {
-                move_accepted = false;
-                glob_params.set_value(parID, old_value);
+                glob_params.set_value(parID, old_val);
             }
         }
         glob_params.update_accept_rate(parID, move_accepted);
@@ -108,7 +104,7 @@ void MCMC_Class::update_parameters()
 void MCMC_Class::update_augm_variables()
 {
     bool move_accepted = false;
-    double old_value, new_value, Q;
+    double old_val, new_val, Q;
     double log_ratio_proposal = 0.0;
     double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
 
@@ -123,22 +119,19 @@ void MCMC_Class::update_augm_variables()
             {
                 for (std::string augmID : m_data[h].get_augm_to_be_inferred(res))
                 {
-                    old_value = m_data[h].get_augm(augmID, res);            // store old value
+                    old_val = m_data[h].get_augm(augmID, res);            // store old value
                     old_loglike_of_HH = m_data[h].h_loglike;                // store old loglike
-                    new_value = m_data[h].augm_propose(augmID, res, m_rng); // propose new value
+                    new_val = m_data[h].augm_propose(augmID, res, m_rng); // propose new value
 
                     // FIXME (FUTURE) : is this improvable? this is basically always true
                     // FIXME : always valid if prior proposer
                     // proceed only if the new value is consistent
-                    if (m_data[h].augm_invalid(augmID, res, new_value))
-                    {
-                        move_accepted = false;
-                    }
-                    else
+                    move_accepted = false;
+                    if (!m_data[h].augm_invalid(augmID, res, new_val))
                     { // Update with proposed value to perform computations
-                        m_data[h].set_augm(augmID, res, new_value);
+                        m_data[h].set_augm(augmID, res, new_val);
                         new_loglike_of_HH = m_data[h].compute_loglike();
-                        log_ratio_proposal = m_data[h].augm_propose_log_ratio(augmID, res, old_value, new_value);
+                        log_ratio_proposal = m_data[h].augm_propose_log_ratio(augmID, res, old_val, new_val);
                         Q = new_loglike_of_HH - old_loglike_of_HH - log_ratio_proposal;
 
                         if (std::log(m_unif(m_rng)) < Q)
@@ -150,8 +143,7 @@ void MCMC_Class::update_augm_variables()
                         }
                         else
                         {
-                            move_accepted = false;
-                            m_data[h].set_augm(augmID, res, old_value);
+                            m_data[h].set_augm(augmID, res, old_val);
                         }
                     }
                     m_num_propos_data++;
@@ -167,7 +159,7 @@ void MCMC_Class::update_augm_variables()
 
 void MCMC_Class::infer(std::string output_file)
 {
-    unsigned this_iter;
+    unsigned step;
     double adapt_ratio;
 
     if (m_setup.verbose)
@@ -196,17 +188,14 @@ void MCMC_Class::infer(std::string output_file)
     {
         // FLAG
         /*
-        if (m_setup.verbose)
-        {
-            progress_bar(i, m_setup.num_iter);
-        }
+        if (m_setup.verbose) { progress_bar(i, m_setup.num_iter); }
         */
 
         // --- MC sweeps over alla parameters to be inferred --- /
         for (unsigned j = 0; j < m_setup.thinning; j++)
         {
             // --- Change all parameters --- //
-            this_iter = 1 + j + i;
+            step = 1 + j + i;
             update_parameters();
             update_global_loglike(); // FIXME: I reassign loglike to each household
 
@@ -217,9 +206,9 @@ void MCMC_Class::infer(std::string output_file)
             }
 
             // --- Adaptative MCMC on parameters --- //
-            if (this_iter < m_setup.num_adapt_iter)
+            if (step < m_setup.num_adapt_iter)
             {
-                adapt_ratio = (double)this_iter / m_setup.num_adapt_iter;
+                adapt_ratio = (double)step / m_setup.num_adapt_iter;
                 for (std::string parID : glob_params.to_be_inferred)
                 {
                     glob_params.adapt(parID, adapt_ratio);
@@ -227,7 +216,7 @@ void MCMC_Class::infer(std::string output_file)
             }
         }
         // PRINT : parameters on parameter output file
-        print_parameters(this_iter);
+        print_parameters(step);
     }
 
     // close parameter output file
@@ -248,7 +237,7 @@ void MCMC_Class::infer(std::string output_file)
 // /////////////// MCMC : print /////////////// //
 //////////////////////////////////////////////////
 
-/* initialize the output param file */
+/* Initialize the output param file */
 void MCMC_Class::init_param_file(std::string output_filename)
 {
     param_ofstream.open(output_filename.c_str());
@@ -274,7 +263,7 @@ void MCMC_Class::init_param_file(std::string output_filename)
     }
 }
 
-/* print the model parameters at the given iteration time */
+/* Print the model parameters at the given iteration time */
 void MCMC_Class::print_parameters(unsigned step)
 {
     param_ofstream << step << m_setup.delim << get_global_loglike();
@@ -289,7 +278,7 @@ void MCMC_Class::print_parameters(unsigned step)
     param_ofstream << std::endl;
 }
 
-/* print the ensemble of augmented variables */
+/* Print the ensemble of augmented variables */
 void MCMC_Class::print_augm_variables()
 {
     for (size_t h = 0; h < num_households(); h++)
@@ -307,7 +296,7 @@ void MCMC_Class::print_augm_variables()
     }
 }
 
-/* open the file for the augmented variables */
+/* Open the file for the augmented variables */
 void MCMC_Class::open_augm_file(std::string output_filename)
 {
     augm_ofstream.open(output_filename.c_str());
@@ -319,7 +308,7 @@ void MCMC_Class::open_augm_file(std::string output_filename)
     }
 }
 
-/* progress bar */
+/* Progress bar */
 void MCMC_Class::progress_bar(size_t iter, size_t n_iter)
 {
     double progress = 100.0 * (1.0 + iter) / n_iter;
@@ -334,5 +323,4 @@ void MCMC_Class::progress_bar(size_t iter, size_t n_iter)
 
 /*
 void MCMC_Class::generate_from(std::string output_file)
-
 */

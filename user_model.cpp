@@ -31,11 +31,17 @@ void Individual::init_augm_data(std::mt19937_64 &rng)
 			{"scale", glob_params.get_address("incub_scale")}};
 
 		// FIXME : temporary waiting for prior proposal
+		/*
 		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
 		kwargs metropolis_args = {
 			{"mean", 0.0},
 			{"sd", 0.5}};
 		double value_zero = INFINITY; // from old value
+		*/
+
+		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "prior";
+		kwargs metropolis_args = {};
+		double value_zero = 0.0; // NOTE : if prior, this shouldn't be relevant
 		kwargs range = {{"low", 0.0}, {"up", glob_params.get_value("max_incub_period")}};
 
 		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);

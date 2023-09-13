@@ -17,7 +17,7 @@
 #include "household.hpp"
 
 // Auxiliary struct to load all setup information
-struct Setup_Struct
+struct Setup_MCMC_Struct
 {
 public:
 	// Attributes
@@ -45,7 +45,7 @@ private:
 	double m_global_loglike = 0.0;
 	std::vector<Household> m_data = {};
 	std::uniform_real_distribution<double> m_unif;
-	Setup_Struct m_setup = {};
+	Setup_MCMC_Struct m_setup = {};
 
 public:
 	int m_num_accept_data = 0;
@@ -54,7 +54,7 @@ public:
 
 	// Constructors
 	MCMC_Class(
-		Setup_Struct setup,
+		Setup_MCMC_Struct setup,
 		std::vector<Household> data,
 		kwargs_ext infec_prof_args) : m_unif(0.0, 1.0), infectivity_profile(infec_prof_args)
 	{

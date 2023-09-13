@@ -45,14 +45,14 @@ public:
 	double get_arg(std::string argID) const { return (distr_ptr->get_arg)(argID); }
 
 	// --- Setter --- //
-	void set_value_0(double new_value) { value_0 = new_value; }
+	void set_value_0(double new_val) { value_0 = new_val; }
 	void set_range(kwargs new_range);
 
 	double rand(std::mt19937_64 &rng) { return (distr_ptr->rand)(rng); }
-	bool invalid(double new_value) { return (this->*_invalid_func_)(new_value); }
+	bool invalid(double new_val) { return (this->*_invalid_func_)(new_val); }
 
-	virtual double propose(std::mt19937_64 &rng, double start_value = 0.0) { return (this->*_propose_method_)(rng, start_value); }
-	virtual double log_ratio(double old_value, double new_value) { return (this->*_log_ratio_method_)(old_value, new_value); }
+	virtual double propose(std::mt19937_64 &rng, double start = 0.0) { return (this->*_propose_method_)(rng, start); }
+	virtual double log_ratio(double old_val, double new_val) { return (this->*_log_ratio_method_)(old_val, new_val); }
 
 	// methods for adaptive
 	double get_accept_rate() const { return accept_rate; };
@@ -64,68 +64,63 @@ private:
 	// --- invalid : functional methods --- //
 	double _range_low_ = -INFINITY;
 	double _range_up_ = INFINITY;
-	bool (Base_Proposer::*_invalid_func_)(double new_value);
+	bool (Base_Proposer::*_invalid_func_)(double new_val);
 
-	bool _invalid_range_low_(double new_value) { return (new_value <= _range_low_); }
-	bool _invalid_range_up_(double new_value) { return (new_value >= _range_up_); }
-	bool _invalid_range_both_(double new_value) { return _invalid_range_low_(new_value) && _invalid_range_up_(new_value); }
-	bool _invalid_dummy_(double new_value)
+	bool _invalid_range_low_(double new_val) { return (new_val <= _range_low_); }
+	bool _invalid_range_up_(double new_val) { return (new_val >= _range_up_); }
+	bool _invalid_range_both_(double new_val) { return _invalid_range_low_(new_val) && _invalid_range_up_(new_val); }
+	bool _invalid_dummy_(double new_val)
 	{
-		(void)new_value;
+		(void)new_val;
 		return false;
 	}
 
 protected:
 	// --- propose : functional methods --- //
-	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &rng, double start_value);
-	double _draw_rand_(std::mt19937_64 &rng, double start_value)
+	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &rng, double start);
+	double _draw_rand_(std::mt19937_64 &rng, double start)
 	{
-		(void)start_value;
+		(void)start;
 		return rand(rng);
 	}
-	double _add_to_zero_(std::mt19937_64 &rng, double start_value)
+	double _add_to_previous_(std::mt19937_64 &rng, double start) { return start + rand(rng); }
+	double _add_to_zero_(std::mt19937_64 &rng, double start)
 	{
-		(void)start_value;
-		return get_value_0() + rand(rng);
+		(void)start;
+		return _add_to_previous_(rng, get_value_0());
 	}
-	double _add_to_previous_(std::mt19937_64 &rng, double start_value)
+
+	double _times_previous_(std::mt19937_64 &rng, double start) { return start * rand(rng); }
+	double _times_zero_(std::mt19937_64 &rng, double start)
 	{
-		return start_value + rand(rng);
-	}
-	double _times_zero_(std::mt19937_64 &rng, double start_value)
-	{
-		(void)start_value;
-		return get_value_0() * rand(rng);
-	}
-	double _times_previous_(std::mt19937_64 &rng, double start_value)
-	{
-		return start_value * rand(rng);
+		(void)start;
+		return _times_previous_(rng, get_value_0());
 	}
 
 	// --- propose : functional methods --- //
-	double (Base_Proposer::*_log_ratio_method_)(double old_value, double new_value);
+	double (Base_Proposer::*_log_ratio_method_)(double old_val, double new_val);
 
-	double _log_ratio_pdf_(double old_value, double new_value)
+	double _log_ratio_pdf_(double old_val, double new_val)
 	{
-		return distr_ptr->log_ratio(old_value, new_value);
+		return distr_ptr->log_ratio(old_val, new_val);
 	}
-	double _log_ratio_add_to_zero_(double old_value, double new_value)
+	double _log_ratio_add_to_zero_(double old_val, double new_val)
 	{
-		return _log_ratio_pdf_(old_value - get_value_0(), new_value - get_value_0());
+		return _log_ratio_pdf_(old_val - get_value_0(), new_val - get_value_0());
 	}
-	double _log_ratio_times_zero_(double old_value, double new_value)
+	double _log_ratio_times_zero_(double old_val, double new_val)
 	{
-		return _log_ratio_pdf_(old_value / get_value_0(), new_value / get_value_0());
+		return _log_ratio_pdf_(old_val / get_value_0(), new_val / get_value_0());
 	}
-	double _log_ratio_symm_(double old_value, double new_value)
+	double _log_ratio_symm_(double old_val, double new_val)
 	{
-		(void)old_value;
-		(void)new_value;
+		(void)old_val;
+		(void)new_val;
 		return 0.0;
 	}
-	double _log_ratio_lognorm_symm_(double old_value, double new_value)
+	double _log_ratio_lognorm_symm_(double old_val, double new_val)
 	{
-		return (std::log(old_value) - std::log(new_value)); // FIXME : check *2
+		return (std::log(old_val) - std::log(new_val)); // FIXME : check *2
 	}
 };
 
@@ -208,7 +203,7 @@ public:
 // ///////////////// Base_Parameter  : class /////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-template <typename kw_doub_ptr>
+template <typename kwargs_int_or_ext>
 class Base_Parameter
 {
 protected:
@@ -217,15 +212,19 @@ protected:
 	bool infer = false;
 
 public:
+	double value;
+
 	// Constructor
 	Base_Parameter(
+		double value,
 		std::string prior_name = UNDEF,
-		kw_doub_ptr prior_args = {},
+		kwargs_int_or_ext prior_args = {},
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
 		double value_0 = INFINITY,
 		kwargs value_range = {}) : distr_ptr(nullptr), prop_ptr(nullptr)
 	{
+		set_value(value);
 		if (strat_name != UNDEF)
 		{
 			infer = true;
@@ -240,28 +239,43 @@ public:
 			{
 				prop_ptr = proposer_switchboard(strat_name, strat_args, value_0, value_range);
 			}
+
+			_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
 		}
 	}
-	~Base_Parameter(){}
+	~Base_Parameter() {}
 
 	// --- Getter --- //
+	double get_value() const { return value; }
+	const double *get_address() const { return &value; }
 	bool get_infer() const { return infer; }
 	bool is_zero_start() const { return (prop_ptr->is_zero_start)(); }
 	double get_value_0() const { return (prop_ptr->get_value_0)(); }
 
+	// --- Setter --- //
+	void set_value(double value) { this->value = value; }
+
 	// --- distr_ptr : methods --- //
 	double distr_rand(std::mt19937_64 &rng) { return distr_ptr->rand(rng); }
-	double distr_log_pdf(double new_value) { return distr_ptr->log_pdf(new_value); }
-	double distr_log_ratio(double old_value, double new_value) { return distr_ptr->log_ratio(old_value, new_value); }
+	double distr_log_pdf(double new_val) { return distr_ptr->log_pdf(new_val); }
+	double distr_log_ratio(double old_val, double new_val) { return distr_ptr->log_ratio(old_val, new_val); }
 
-	// --- prop_ptr : methods --- //
-	double propose_from(std::mt19937_64 &rng, double start_value) { return (prop_ptr->propose)(rng, start_value); }
-	double propose_log_ratio(double old_value, double new_value) { return (prop_ptr->log_ratio)(old_value, new_value); }
-	bool invalid(double new_value) { return prop_ptr->invalid(new_value); }
+	// --- prop_ptr : propose methods --- //
+	double propose(std::mt19937_64 &rng) { return (this->*_propose_method_)(rng); }
+	double propose_log_ratio(double old_val, double new_val) { return (prop_ptr->log_ratio)(old_val, new_val); }
+	bool invalid(double new_val) { return prop_ptr->invalid(new_val); }
+
+	// --- prop_ptr : adaptive methods --- //
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
+
+private:
+	// --- Propose : functional methods --- //
+	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &rng);
+	double _propose_from_previous_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value()); }
+	double _propose_from_zero_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value_0()); }
 };
 
 /////////////////////////////////////////////////////////////////
@@ -270,49 +284,26 @@ public:
 
 class Parameter : public Base_Parameter<kwargs>
 {
-private:
-	double *p_value_ptr;
-
 public:
 	// --- Constructor --- //
 	Parameter(
-		double *new_value_ptr,
+		double new_val,
 		std::string prior_name = UNDEF,
 		kwargs prior_args = {},
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
-		kwargs value_range = {}) : Base_Parameter(prior_name,
+		kwargs value_range = {}) : Base_Parameter(new_val,
+												  prior_name,
 												  prior_args,
 												  strat_name,
 												  strat_args,
 												  INFINITY, // is_zero_start() = false
-												  value_range)
-	{
-		p_value_ptr = new_value_ptr;
-		if (get_infer() == true)
-		{
-			_propose_method_ = is_zero_start() ? &Parameter::_propose_from_zero_ : &Parameter::_propose_from_previous_;
-		}
-	};
-
-	// --- Getter --- //
-	double get_value() const { return *(p_value_ptr); }
-	double *get_address() const { return p_value_ptr; }
-
-	// Setter
-	void set_value(double new_value) { *(p_value_ptr) = new_value; }
+												  value_range){};
 
 	// Aliases
 	double prior_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
-	double prior_log_pdf(double new_value) { return distr_log_pdf(new_value); }
-	double prior_log_ratio(double old_value, double new_value) { return distr_log_ratio(old_value, new_value); }
-	double propose(std::mt19937_64 &rng) { return (this->*_propose_method_)(rng); }
-
-private:
-	// --- Propose : functional methods --- //
-	double (Parameter::*_propose_method_)(std::mt19937_64 &rng);
-	double _propose_from_previous_(std::mt19937_64 &rng) { return propose_from(rng, get_value()); }
-	double _propose_from_zero_(std::mt19937_64 &rng) { return propose_from(rng, get_value_0()); }
+	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
+	double prior_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
 };
 
 /////////////////////////////////////////////////////////////////
@@ -321,49 +312,26 @@ private:
 
 class Augmented : public Base_Parameter<kwargs_ext>
 {
-private:
-	double a_value;
-
 public:
 	// --- Constructor --- //
 	Augmented(
-		double new_value,
+		double value,
 		std::string model_name = UNDEF,
 		kwargs_ext model_args_ext = {},
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
 		double value_0 = INFINITY,
-		kwargs value_range = {}) : Base_Parameter(model_name,
+		kwargs value_range = {}) : Base_Parameter(value,
+												  model_name,
 												  model_args_ext,
 												  strat_name,
 												  strat_args,
 												  value_0,
-												  value_range)
-	{
-		a_value = new_value;
-		if (get_infer() == true)
-		{
-			_propose_method_ = is_zero_start() ? &Augmented::_propose_from_zero_ : &Augmented::_propose_from_previous_;
-		}
-	};
-
-	// --- Getter --- //
-	double get_value() const { return a_value; }
-
-	// Setter
-	void set_value(double new_value) { a_value = new_value; }
-
-	// Aliases
+												  value_range){};
+	// --- Aliases --- //
 	double model_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
-	double model_log_pdf(double new_value) { return distr_log_pdf(new_value); }
-	double model_log_ratio(double old_value, double new_value) { return distr_log_ratio(old_value, new_value); }
-	double propose(std::mt19937_64 &rng) { return (this->*_propose_method_)(rng); }
-
-private:
-	// --- Propose : functional methods --- //
-	double (Augmented::*_propose_method_)(std::mt19937_64 &rng);
-	double _propose_from_previous_(std::mt19937_64 &rng) { return propose_from(rng, get_value()); }
-	double _propose_from_zero_(std::mt19937_64 &rng) { return propose_from(rng, get_value_0()); }
+	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
+	double model_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
 };
 
 ///////////////////////////////////////////////////////////
@@ -374,33 +342,29 @@ private:
 class Parameter_Dictionary
 {
 private:
-	std::vector<double> param_values = {}; // FIXME can I move this inside Parameter?
 	std::unordered_map<std::string, Parameter> params = {};
-	size_t _counter_ = 0;
 
 public:
 	std::vector<std::string> to_be_inferred = {};
 	std::vector<std::string> not_to_be_inferred = {};
 
 	// --- Methods --- //
-
-	void resize(size_t num) { param_values.resize(num); }
 	void add_param(
 		const std::string k,
-		double new_value,
+		double new_val,
 		std::string prior_name = UNDEF,
 		kwargs prior_args = {},
 		std::string strat_name = UNDEF,
 		kwargs strat_args = {},
 		kwargs value_range = {});
 
-	// Getter
-	double *get_address(const std::string k) const { return params.at(k).get_address(); }
+	// --- Getter --- //
+	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 
-	// Setter
-	void set_value(const std::string k, double new_value) { params.at(k).set_value(new_value); }
+	// --- Setter --- //
+	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
 	void random_init_values(std::mt19937_64 &rng);
 
 	// acceptation rates / adaptive methods
@@ -410,10 +374,10 @@ public:
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
 	// Computations
-	bool invalid_param(const std::string k, double new_value) { return params.at(k).invalid(new_value); }
+	bool invalid_param(const std::string k, double new_val) { return params.at(k).invalid(new_val); }
 	double propose(const std::string k, std::mt19937_64 &rng) { return params.at(k).propose(rng); }
-	double log_ratio_proposal(const std::string k, double old_value, double new_value) { return params.at(k).propose_log_ratio(old_value, new_value); }
-	double log_ratio_prior(const std::string k, double old_value, double new_value) { return params.at(k).prior_log_ratio(old_value, new_value); }
+	double log_ratio_proposal(const std::string k, double old_val, double new_val) { return params.at(k).propose_log_ratio(old_val, new_val); }
+	double log_ratio_prior(const std::string k, double old_val, double new_val) { return params.at(k).prior_log_ratio(old_val, new_val); }
 
 	// Display
 	void print(char delim = ' ');

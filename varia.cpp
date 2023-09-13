@@ -106,6 +106,7 @@ void Base_Proposer::set_range(kwargs new_range)
     }
 }
 
+/* Switchboard to select the custom metropolis strategy */
 Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_0, kwargs value_range)
 {
 	if (name == "uniform")
@@ -136,15 +137,14 @@ Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_
 /* add_param */
 void Parameter_Dictionary::add_param(
     const std::string k,
-    double new_value,
+    double new_val,
     std::string prior_name,
     kwargs prior_args,
     std::string strat_name,
     kwargs strat_args,
     kwargs value_range)
 {
-    param_values[_counter_] = new_value;
-    Parameter new_param(&param_values[_counter_], prior_name, prior_args, strat_name, strat_args, value_range);
+    Parameter new_param(new_val, prior_name, prior_args, strat_name, strat_args, value_range);
 
     if (params.find(k) == params.end())
     {
@@ -166,7 +166,6 @@ void Parameter_Dictionary::add_param(
     {
         not_to_be_inferred.push_back(k);
     }
-    _counter_++;
 }
 
 /* print the user model parameters */

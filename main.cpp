@@ -132,10 +132,10 @@ void build_column_error(std::string var_name, std::string &line)
 // ////////////////////////////////////////////////////////////////////////// //
 
 /* Read Setup file */
-Setup_Struct load_setup(std::string data_path_to_file)
+Setup_MCMC_Struct load_setup(std::string data_path_to_file)
 {
     char delim = ',';
-    Setup_Struct setup_loader;
+    Setup_MCMC_Struct setup_loader;
     std::ifstream input_file(data_path_to_file.c_str());
     std::unordered_map<std::string, std::string> safe_load = {};
 
@@ -363,6 +363,8 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
         std::cout << "\n=============PARAMETERS==============" << std::endl;
         std::cout << "Model file: " << data_path_to_file << std::endl;
 
+        // FLAG ; hopefully unnecessary
+        /*
         // count number of parameters
         size_t line_count = 0;
         for (std::string line; std::getline(input_file, line);)
@@ -373,6 +375,7 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
         input_file.seekg(0, std::ios::beg); // Seek to the beginning
         glob_params.resize(line_count);     // Allocate for the right amount of parameters
         line_count = 0;
+        */
 
         // Create a stringstream of the current line
         for (std::string line; std::getline(input_file, line);)
@@ -444,7 +447,7 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
                 // add entry to shared parameter dictionary
                 glob_params.add_param(name, value);
             }
-            line_count++;
+            //line_count++;
         }
     }
     else
@@ -495,7 +498,7 @@ int main(int argc, char **argv)
 
     // UPDATE : these should be user optional variables
     std::string setup_path_to_file = "default_setup.csv";
-    Setup_Struct setup = load_setup(setup_path_to_file);
+    Setup_MCMC_Struct setup = load_setup(setup_path_to_file);
 
     // UPDATE : check for path validity
 
