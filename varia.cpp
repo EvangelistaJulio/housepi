@@ -22,17 +22,23 @@ Base_Proposer::Base_Proposer(
     }
     else
     {
-        if (invalid(value_0) == true)
-        {
-            std::cerr << "ERROR: initial value" << value_0 << " and value range are inconsistent." << std::endl;
-            std::cerr << "Exit...\n"
-                      << std::endl;
-        }
-        else
+        this->zero_start = true;
+        set_value_0(value_0);
+
+        /*
+        // FIXME: maybe initial values could be forbidden values?
+                if (valid(value_0) == true)
         {
             this->zero_start = true;
             set_value_0(value_0);
         }
+        else
+        {
+            std::cerr << "ERROR: initial value " << value_0 << " and value range are inconsistent." << std::endl;
+            std::cerr << "Exit...\n"
+                      << std::endl;
+        }
+        */
     }
 };
 
@@ -80,15 +86,15 @@ void Base_Proposer::set_range(kwargs new_range)
 
     if (condition == 0)
     {
-        _invalid_func_ = &Base_Proposer::_invalid_dummy_;
+        _valid_func_ = &Base_Proposer::_valid_dummy_;
     }
     else if (condition == 1)
     {
-        _invalid_func_ = &Base_Proposer::_invalid_range_low_;
+        _valid_func_ = &Base_Proposer::_valid_range_low_;
     }
     else if (condition == 2)
     {
-        _invalid_func_ = &Base_Proposer::_invalid_range_up_;
+        _valid_func_ = &Base_Proposer::_valid_range_up_;
     }
     else
     {
@@ -101,7 +107,7 @@ void Base_Proposer::set_range(kwargs new_range)
         }
         else
         {
-            _invalid_func_ = &Base_Proposer::_invalid_range_both_;
+            _valid_func_ = &Base_Proposer::_valid_range_both_;
         }
     }
 }
@@ -109,25 +115,25 @@ void Base_Proposer::set_range(kwargs new_range)
 /* Switchboard to select the custom metropolis strategy */
 Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_0, kwargs value_range)
 {
-	if (name == "uniform")
-	{
-		return new Uniform_Proposer(args, value_0, value_range);
-	}
-	else if (name == "normal")
-	{
-		return new Normal_Proposer(args, value_0, value_range);
-	}
-	else if (name == "lognorm")
-	{
-		return new Lognorm_Proposer(args, value_0, value_range);
-	}
-	else
-	{
-		std::cerr << "ERROR: Unknown metropolis strategy " << name << std::endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+    if (name == "uniform")
+    {
+        return new Uniform_Proposer(args, value_0, value_range);
+    }
+    else if (name == "normal")
+    {
+        return new Normal_Proposer(args, value_0, value_range);
+    }
+    else if (name == "lognorm")
+    {
+        return new Lognorm_Proposer(args, value_0, value_range);
+    }
+    else
+    {
+        std::cerr << "ERROR: Unknown metropolis strategy " << name << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 ///////////////////////////////////////////////////////////
@@ -189,4 +195,37 @@ void Parameter_Dictionary::random_init_values(std::mt19937_64 &rng)
     {
         set_value(k, params.at(k).prior_rand(rng));
     }
+}
+
+bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
+{
+    double new_val = params.at(k).propose(rng); // propose new value
+    bool is_valid = false;
+    // proceed only if valid
+    if (params.at(k).valid(new_val))
+    {
+        is_valid = true;
+        buffer_value = get_value(k); // store old value
+        buffer_log_ratio = params.at(k).prior_log_ratio(buffer_value, new_val);
+        buffer_log_ratio -= params.at(k).propose_log_ratio(buffer_value, new_val);
+        set_value(k, new_val);
+    }
+    else
+    {
+        params.at(k).update_accept_rate(false);
+    }
+    return is_valid;
+}
+
+/* move is accepted */
+void Parameter_Dictionary::accept_move(const std::string k)
+{
+    params.at(k).update_accept_rate(true);
+}
+
+/* move is refused: restore old value in the buffer */
+void Parameter_Dictionary::refuse_move(const std::string k)
+{
+    set_value(k, buffer_value);
+    params.at(k).update_accept_rate(false);
 }

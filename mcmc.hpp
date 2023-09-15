@@ -24,14 +24,11 @@ public:
 	unsigned seed = 0;
 	unsigned num_iter = 0;
 	unsigned num_adapt_iter = 0;
-	unsigned num_augm_sweeps = 0;
 	unsigned thinning = 0;
+	bool is_data_augm = false;
+	bool verbose = false;
 	char delim = ' ';
 	char dict_delim = '/';
-	bool verbose = false;
-
-	// FIXME : attributes toi be updated
-	bool is_data_augm = false;
 };
 
 //----------------------------------------------------------------------
@@ -70,15 +67,15 @@ public:
 
 	// --- Setter --- //
 	void reset_moves();
-	void init_augm_data(std::mt19937_64 &rng);
+	void declare_augm_data(std::mt19937_64 &rng);
 
 	// --- Computations --- //
 	void update_global_loglike();
-	void update_parameters();
-	void update_augm_variables();
+	void move_parameters(double inv_temperature = 1.0);
+	void move_augm_variables(double inv_temperature = 1.0);
 
 	// --- INFER --- //
-	void infer(std::string output_filename);
+	void run(std::string output_filename, double inv_temperature = 1.0);
 
 	// --- Save parameters --- //
 	void init_param_file(std::string output_filename);

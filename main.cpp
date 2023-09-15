@@ -182,11 +182,10 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         setup_loader.num_iter = std::stoi(safe_load.at("num_iter"));
         setup_loader.num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
         setup_loader.thinning = std::stoi(safe_load.at("thinning"));
-        setup_loader.num_augm_sweeps = std::stoi(safe_load.at("num_augm_sweeps"));
+        setup_loader.is_data_augm = stobool(safe_load.at("is_data_augm"));
         setup_loader.verbose = stobool(safe_load.at("verbose"));
         setup_loader.delim = load_delim(safe_load.at("delim"));
         setup_loader.dict_delim = load_delim(safe_load.at("dict_delim"));
-        setup_loader.is_data_augm = setup_loader.num_augm_sweeps > 0; // UPDATE: ugly
     }
     else
     {
@@ -518,7 +517,7 @@ int main(int argc, char **argv)
     MCMC_Class mcmc_object(setup, HH_data, infec_prof_args);
 
     // run MCMC inference
-    mcmc_object.infer(output_path_to_file);
+    mcmc_object.run(output_path_to_file);
 
     // print last augmented data configuration // FIXME
     mcmc_object.open_augm_file(augmented_path_to_file);

@@ -12,7 +12,7 @@
 
 #include "utils.hpp"
 
-#define DEFAULT_ACCEPT_RATE 0.25 // default acceptation rate for MCMC
+#define DEFAULT_ACCEPT_RATE 0.24 // default acceptation rate for MCMC
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////////// Base_Proposer : class ////////////////////// //
@@ -49,7 +49,7 @@ public:
 	void set_range(kwargs new_range);
 
 	double rand(std::mt19937_64 &rng) { return (distr_ptr->rand)(rng); }
-	bool invalid(double new_val) { return (this->*_invalid_func_)(new_val); }
+	bool valid(double new_val) { return (this->*_valid_func_)(new_val); }
 
 	virtual double propose(std::mt19937_64 &rng, double start = 0.0) { return (this->*_propose_method_)(rng, start); }
 	virtual double log_ratio(double old_val, double new_val) { return (this->*_log_ratio_method_)(old_val, new_val); }
@@ -61,15 +61,15 @@ public:
 	void adapt(double ratio);
 
 private:
-	// --- invalid : functional methods --- //
+	// --- valid : functional methods --- //
 	double _range_low_ = -INFINITY;
 	double _range_up_ = INFINITY;
-	bool (Base_Proposer::*_invalid_func_)(double new_val);
+	bool (Base_Proposer::*_valid_func_)(double new_val);
 
-	bool _invalid_range_low_(double new_val) { return (new_val <= _range_low_); }
-	bool _invalid_range_up_(double new_val) { return (new_val >= _range_up_); }
-	bool _invalid_range_both_(double new_val) { return _invalid_range_low_(new_val) && _invalid_range_up_(new_val); }
-	bool _invalid_dummy_(double new_val)
+	bool _valid_range_low_(double new_val) { return (new_val > _range_low_); }
+	bool _valid_range_up_(double new_val) { return (new_val < _range_up_); }
+	bool _valid_range_both_(double new_val) { return _valid_range_low_(new_val) && _valid_range_up_(new_val); }
+	bool _valid_dummy_(double new_val)
 	{
 		(void)new_val;
 		return false;
@@ -83,18 +83,13 @@ protected:
 		(void)start;
 		return rand(rng);
 	}
-	double _add_to_previous_(std::mt19937_64 &rng, double start) { return start + rand(rng); }
-	double _add_to_zero_(std::mt19937_64 &rng, double start)
+	double _add_to_previous_(std::mt19937_64 &rng, double start)
 	{
-		(void)start;
-		return _add_to_previous_(rng, get_value_0());
+		return start + rand(rng);
 	}
-
-	double _times_previous_(std::mt19937_64 &rng, double start) { return start * rand(rng); }
-	double _times_zero_(std::mt19937_64 &rng, double start)
+	double _times_previous_(std::mt19937_64 &rng, double start)
 	{
-		(void)start;
-		return _times_previous_(rng, get_value_0());
+		return start * rand(rng);
 	}
 
 	// --- propose : functional methods --- //
@@ -139,7 +134,7 @@ public:
 		double value_0 = INFINITY,
 		kwargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), value_0, value_range, {"low", "up"})
 	{
-		_propose_method_ = is_zero_start() ? &Uniform_Proposer::_add_to_zero_ : &Uniform_Proposer::_add_to_previous_;
+		_propose_method_ = &Uniform_Proposer::_add_to_previous_;
 		_log_ratio_method_ = &Uniform_Proposer::_log_ratio_symm_;
 	}
 	~Uniform_Proposer() {}
@@ -158,7 +153,7 @@ public:
 		double value_0 = INFINITY,
 		kwargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), value_0, value_range, {"sd"})
 	{
-		_propose_method_ = is_zero_start() ? &Normal_Proposer::_add_to_zero_ : &Normal_Proposer::_add_to_previous_;
+		_propose_method_ = &Normal_Proposer::_add_to_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Normal_Proposer::_log_ratio_add_to_zero_ : &Normal_Proposer::_log_ratio_symm_;
 	}
 	~Normal_Proposer() {}
@@ -177,7 +172,7 @@ public:
 		double value_0 = INFINITY,
 		kwargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), value_0, value_range, {"sd"})
 	{
-		_propose_method_ = is_zero_start() ? &Lognorm_Proposer::_times_zero_ : &Lognorm_Proposer::_times_previous_;
+		_propose_method_ = &Lognorm_Proposer::_times_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Lognorm_Proposer::_log_ratio_times_zero_ : &Lognorm_Proposer::_log_ratio_lognorm_symm_;
 	}
 	~Lognorm_Proposer() {}
@@ -263,7 +258,7 @@ public:
 	// --- prop_ptr : propose methods --- //
 	double propose(std::mt19937_64 &rng) { return (this->*_propose_method_)(rng); }
 	double propose_log_ratio(double old_val, double new_val) { return (prop_ptr->log_ratio)(old_val, new_val); }
-	bool invalid(double new_val) { return prop_ptr->invalid(new_val); }
+	bool valid(double new_val) { return prop_ptr->valid(new_val); }
 
 	// --- prop_ptr : adaptive methods --- //
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
@@ -306,6 +301,62 @@ public:
 	double prior_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
 };
 
+///////////////////////////////////////////////////////////
+/////// Parameter_Dictionary : class declaration //////////
+///////////////////////////////////////////////////////////
+
+// This is a wrapper class containing aliases for the global params.
+class Parameter_Dictionary
+{
+private:
+	std::unordered_map<std::string, Parameter> params = {};
+	double buffer_value;
+	double buffer_log_ratio;
+
+public:
+	std::vector<std::string> to_be_inferred = {};
+	std::vector<std::string> not_to_be_inferred = {};
+
+	// --- Methods --- //
+	void add_param(
+		const std::string k,
+		double new_val,
+		std::string prior_name = UNDEF,
+		kwargs prior_args = {},
+		std::string strat_name = UNDEF,
+		kwargs strat_args = {},
+		kwargs value_range = {});
+
+	// --- Getter --- //
+	double get_value(const std::string k) const { return params.at(k).get_value(); }
+	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
+	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
+	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
+
+	// --- Setter --- //
+	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
+	void random_init_values(std::mt19937_64 &rng);
+	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
+
+	// Metropolis-Hastings moves
+	bool propose_valid_move(const std::string k, std::mt19937_64 &rng);
+	double get_log_ratio() { return buffer_log_ratio; }
+	void accept_move(const std::string k);
+	void refuse_move(const std::string k);
+
+	// acceptation rates / adaptive methods
+	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
+
+	// Display
+	void print(char delim = ' ');
+};
+
+/////////////////////////////////////////////////////////
+//////////// global parameters declaration //////////////
+/////////////////////////////////////////////////////////
+
+extern Parameter_Dictionary glob_params;
+
 /////////////////////////////////////////////////////////////////
 // ///////////////////// Augmented : class /////////////////// //
 /////////////////////////////////////////////////////////////////
@@ -333,60 +384,5 @@ public:
 	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double model_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
 };
-
-///////////////////////////////////////////////////////////
-/////// Parameter_Dictionary : class declaration //////////
-///////////////////////////////////////////////////////////
-
-// This is a wrapper class containing aliases for the global params.
-class Parameter_Dictionary
-{
-private:
-	std::unordered_map<std::string, Parameter> params = {};
-
-public:
-	std::vector<std::string> to_be_inferred = {};
-	std::vector<std::string> not_to_be_inferred = {};
-
-	// --- Methods --- //
-	void add_param(
-		const std::string k,
-		double new_val,
-		std::string prior_name = UNDEF,
-		kwargs prior_args = {},
-		std::string strat_name = UNDEF,
-		kwargs strat_args = {},
-		kwargs value_range = {});
-
-	// --- Getter --- //
-	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
-	double get_value(const std::string k) const { return params.at(k).get_value(); }
-	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
-
-	// --- Setter --- //
-	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
-	void random_init_values(std::mt19937_64 &rng);
-
-	// acceptation rates / adaptive methods
-	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
-	void update_accept_rate(const std::string k, bool is_accepted) { params.at(k).update_accept_rate(is_accepted); }
-	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
-	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
-
-	// Computations
-	bool invalid_param(const std::string k, double new_val) { return params.at(k).invalid(new_val); }
-	double propose(const std::string k, std::mt19937_64 &rng) { return params.at(k).propose(rng); }
-	double log_ratio_proposal(const std::string k, double old_val, double new_val) { return params.at(k).propose_log_ratio(old_val, new_val); }
-	double log_ratio_prior(const std::string k, double old_val, double new_val) { return params.at(k).prior_log_ratio(old_val, new_val); }
-
-	// Display
-	void print(char delim = ' ');
-};
-
-/////////////////////////////////////////////////////////
-//////////// global parameters declaration //////////////
-/////////////////////////////////////////////////////////
-
-extern Parameter_Dictionary glob_params;
 
 #endif // VARIA__H
