@@ -5,38 +5,34 @@
 using namespace std;
 using namespace std::chrono;
 
-/////////////////////////////////////////////////////
-//  MCMC_Class : Class
-/////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+// ////////////////////////// MCMC : Setter ///////////////////////// //
+////////////////////////////////////////////////////////////////////////
 
-// ----------------------------
-//  Methods : Setter
-// ----------------------------
-
-// Modification of attributes
-void MCMC_Class::reset_moves()
+/* Set accept rates to zero */
+void MCMC::reset_moves()
 {
     m_num_propos_data = 0;
     m_num_accept_data = 0;
-    for (std::string parID : glob_params.to_be_inferred)
+    for (std::string parID : to_be_inferred)
     {
-        glob_params.reset_accept_rate(parID);
+        reset_accept_rate(parID);
     }
 }
 
 /* Initialize augmented variables */
-void MCMC_Class::declare_augm_data(std::mt19937_64 &rng)
+void MCMC::declare_augm_data(std::mt19937_64 &rng)
 {
     for (size_t h = 0; h < num_households(); h++)
     {
-        m_data[h].assign_infectivity_profiles(&infectivity_profile);
-        m_data[h].declare_augm_data(rng);
+        init_infectivity_profiles(&m_data[h]);
+        assign_augm_data(&m_data[h], rng);
     }
 }
 
 /* Initialize global loglikelihood */
 // UPDATE : this initialization is used because changes are not stored for params update
-void MCMC_Class::update_global_loglike()
+void MCMC::update_global_loglike()
 {
     // #pragma omp parallel num_threads(NUM_THREAD)
     {
@@ -44,53 +40,53 @@ void MCMC_Class::update_global_loglike()
         // #pragma omp for reduction(+ : sum)
         for (size_t h = 0; h < num_households(); h++)
         {
-            m_data[h].h_loglike = m_data[h].compute_loglike();
+            m_data[h].h_loglike = compute_loglike(&m_data[h]);
             m_global_loglike += m_data[h].h_loglike;
         }
     }
 }
 
-// ----------------------------
-//  Methods : Computations
-// ----------------------------
+////////////////////////////////////////////////////////////////////////
+// ////////////////////////// MCMC : moves ////////////////////////// //
+////////////////////////////////////////////////////////////////////////
 
 /* Sweep over model parameters. */
-void MCMC_Class::move_parameters(double inv_temper)
+void MCMC::move_parameters(double inv_temper)
 {
     double Q, new_global_loglike;
 
     // loop over all parameters to be inferred
-    for (std::string parID : glob_params.to_be_inferred)
+    for (std::string parID : to_be_inferred)
     {
         // proceed only if the new value is consistent
-        if (glob_params.propose_valid_move(parID, m_rng))
+        if (propose_valid_move(parID, m_rng))
         {
             // Compute the new log likelihood
             // UPDATE : emberassing parallel
             new_global_loglike = 0.0;
             for (size_t h = 0; h < num_households(); h++)
             {
-                new_global_loglike += m_data[h].compute_loglike();
+                new_global_loglike += compute_loglike(&m_data[h]);
             }
 
-            // Metropolis-Hastings
+            //=====Metropolis-Hastings=====//
             Q = inv_temper * (new_global_loglike - m_global_loglike);
-            Q += glob_params.get_log_ratio();
+            Q += get_log_ratio();
             if (std::log(m_unif(m_rng)) < Q)
             {
-                glob_params.accept_move(parID);
+                accept_move(parID);
                 m_global_loglike = new_global_loglike;
             }
             else
             {
-                glob_params.refuse_move(parID);
+                refuse_move(parID);
             }
         }
     }
 }
 
 /* Sweep over augmented variables. */
-void MCMC_Class::move_augm_variables(double inv_temper)
+void MCMC::move_augm_variables(double inv_temper)
 {
     bool move_accepted = false;
     double old_val, new_val, Q;
@@ -116,10 +112,12 @@ void MCMC_Class::move_augm_variables(double inv_temper)
                     // proceed only if the new value is consistent
                     move_accepted = false;
                     if (m_data[h].augm_valid(augmID, res, new_val))
-                    { // Update with proposed value to perform computations
-                        m_data[h].set_augm(augmID, res, new_val);
+                    {                                                 // Update with proposed value to perform computations
+                        m_data[h].set_augm(augmID, res, new_val);     // UPDATE: should be method Model
+                        update_first_case(&m_data[h]);                // Update information of first cases
+                        update_infectivity_profiles(&m_data[h], res); // Update infectivity profiles related to idx
 
-                        new_loglike_of_HH = m_data[h].compute_loglike();
+                        new_loglike_of_HH = compute_loglike(&m_data[h]);
                         log_ratio_proposal = m_data[h].augm_propose_log_ratio(augmID, res, old_val, new_val);
 
                         Q = inv_temper * (new_loglike_of_HH - old_loglike_of_HH);
@@ -134,7 +132,9 @@ void MCMC_Class::move_augm_variables(double inv_temper)
                         }
                         else
                         {
-                            m_data[h].set_augm(augmID, res, old_val);
+                            m_data[h].set_augm(augmID, res, old_val);     // UPDATE: should be method Model
+                            update_first_case(&m_data[h]);                // Update information of first cases
+                            update_infectivity_profiles(&m_data[h], res); // Update infectivity profiles related to idx
                         }
                     }
                     m_num_propos_data++;
@@ -144,11 +144,11 @@ void MCMC_Class::move_augm_variables(double inv_temper)
     }
 }
 
-//////////////////////////////////////////////////
-// /////////////// MCMC : run /////////////// //
-//////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+// /////////////////////////// MCMC : run /////////////////////////// //
+////////////////////////////////////////////////////////////////////////
 
-void MCMC_Class::run(std::string output_file, double inv_temper)
+void MCMC::run(std::string output_file, double inv_temper)
 {
     unsigned step;
     double adapt_ratio;
@@ -159,17 +159,15 @@ void MCMC_Class::run(std::string output_file, double inv_temper)
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
-    glob_params.random_init_values(m_rng);
+    random_init_values(m_rng);
     declare_augm_data(m_rng);
     update_global_loglike();
     reset_moves();
 
-    // --- Initialize output file --- //
-
-    // PRINT : column names and initial values to parameters output file
+    //=====Initialize output file=====//
     init_param_file(output_file);
 
-    // --- MCMC execution --- //
+    //=====MCMC execution=====//
     if (m_setup.verbose)
     {
         std::cout << "\n=========MCMC:execution=========" << std::endl;
@@ -177,37 +175,34 @@ void MCMC_Class::run(std::string output_file, double inv_temper)
     auto start_exec_time = high_resolution_clock::now(); // Get starting timepoint
     for (unsigned i = 0; i < m_setup.num_iter; i += m_setup.thinning)
     {
-        // FLAG
-        /*
-        if (m_setup.verbose) { progress_bar(i, m_setup.num_iter); }
-        */
-
-        // --- MC sweeps over alla parameters to be inferred --- /
+        //=====MC sweeps over alla parameters to be inferred=====//
         for (unsigned j = 0; j < m_setup.thinning; j++)
         {
-            // --- Change all parameters --- //
+            //=====Change all parameters=====//
             step = 1 + j + i;
             move_parameters(inv_temper);
             update_global_loglike(); // FIXME: I reassign loglike to each household
 
-            // --- Data augmentation --- //
-            move_augm_variables(inv_temper);
+            //=====Data augmentation=====// 
+            if (m_setup.is_data_augm)
+            {
+                move_augm_variables(inv_temper);
+            }
 
-            // --- Adaptative MCMC on parameters --- //
+            //=====Adaptative MCMC on parameters=====//
             if (step < m_setup.num_adapt_iter)
             {
                 adapt_ratio = (double)step / m_setup.num_adapt_iter;
-                for (std::string parID : glob_params.to_be_inferred)
+                for (std::string parID : to_be_inferred)
                 {
-                    glob_params.adapt(parID, adapt_ratio);
+                    adapt(parID, adapt_ratio);
                 }
             }
         }
-        // PRINT : parameters on parameter output file
         print_parameters(step);
     }
-
-    // close parameter output file
+    
+    //=====MCMC ending=====//
     close_param_file();
 
     if (m_setup.verbose)
@@ -217,16 +212,17 @@ void MCMC_Class::run(std::string output_file, double inv_temper)
         auto stop_exec_time = high_resolution_clock::now();
         auto exec_duration = duration_cast<seconds>(stop_exec_time - start_exec_time);
         long int millisec_time = exec_duration.count();
-        std::cout << "Execution time : " << millisec_time << " ms" << endl;
+        std::cout << "Execution time : " << millisec_time << " ms\n"
+                  << std::endl;
     }
 }
 
-//////////////////////////////////////////////////
-// /////////////// MCMC : print /////////////// //
-//////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+// ////////////////////////// MCMC : print ////////////////////////// //
+////////////////////////////////////////////////////////////////////////
 
-/* Initialize the output param file */
-void MCMC_Class::init_param_file(std::string output_filename)
+/* Initialize the output param file with column names and initial values */
+void MCMC::init_param_file(std::string output_filename)
 {
     param_ofstream.open(output_filename.c_str());
     if (param_ofstream.is_open())
@@ -236,7 +232,7 @@ void MCMC_Class::init_param_file(std::string output_filename)
         {
             param_ofstream << m_setup.delim << "augm__a%";
         }
-        for (std::string parID : glob_params.to_be_inferred)
+        for (std::string parID : to_be_inferred)
         {
             param_ofstream << m_setup.delim << parID << m_setup.delim << parID << "__a%";
         }
@@ -252,22 +248,22 @@ void MCMC_Class::init_param_file(std::string output_filename)
 }
 
 /* Print the model parameters at the given iteration time */
-void MCMC_Class::print_parameters(unsigned step)
+void MCMC::print_parameters(unsigned step)
 {
     param_ofstream << step << m_setup.delim << get_global_loglike();
     if (m_setup.is_data_augm)
     {
         param_ofstream << m_setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
     }
-    for (std::string parID : glob_params.to_be_inferred)
+    for (std::string parID : to_be_inferred)
     {
-        param_ofstream << m_setup.delim << glob_params.get_value(parID) << m_setup.delim << 100.0 * glob_params.get_accept_rate(parID);
+        param_ofstream << m_setup.delim << get_value(parID) << m_setup.delim << 100.0 * get_accept_rate(parID);
     }
     param_ofstream << std::endl;
 }
 
 /* Print the ensemble of augmented variables */
-void MCMC_Class::print_augm_variables()
+void MCMC::print_augm_variables()
 {
     for (size_t h = 0; h < num_households(); h++)
     {
@@ -285,7 +281,7 @@ void MCMC_Class::print_augm_variables()
 }
 
 /* Open the file for the augmented variables */
-void MCMC_Class::open_augm_file(std::string output_filename)
+void MCMC::open_augm_file(std::string output_filename)
 {
     augm_ofstream.open(output_filename.c_str());
     if (!augm_ofstream.is_open())
@@ -294,13 +290,4 @@ void MCMC_Class::open_augm_file(std::string output_filename)
         std::cerr << "Exit...\n"
                   << std::endl;
     }
-}
-
-/* Progress bar */
-void MCMC_Class::progress_bar(size_t iter, size_t n_iter)
-{
-    double progress = 100.0 * (1.0 + iter) / n_iter;
-
-    // Write percentage of work done
-    std::cout << "\rRunning... " << std::floor(progress) << "%" << std::flush;
 }

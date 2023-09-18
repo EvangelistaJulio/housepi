@@ -1,14 +1,24 @@
 
 =============SETUP==============
 Setup file: default_setup.csv
-verbose : TRUE
-dict_delim : "/"
 delim : " "
-num_augm_sweeps : 1
-num_iter : 20000
-thinning : 10
+dict_delim : "/"
+is_data_augm : TRUE
 num_adapt_iter : 5000
+num_iter : 20000
 seed : 20210415
+thinning : 10
+verbose : TRUE
+
+=============COMMUNITY==============
+Data file: data/community_infection.txt
+
+=============DATA===============
+Data file: data/database-dummy.txt
+N. of households : 1
+N. of individuals : 5
+N. of cases : 1
+N. of days : 262
 
 =============PARAMETERS==============
 Model file: data/parameters.txt
@@ -39,18 +49,12 @@ max_incub_period false
 vacc_onset false
 typical_size false
 
-=============COMMUNITY==============
-Data file: data/community_infection.txt
-
-=============DATA===============
-Data file: data/database.txt
-N. of households : 1201
-N. of individuals : 4619
-N. of cases : 2624
-N. of days : 272
-
 =============MCMC===============
 
 ======MCMC:initialization=======
 
 =========MCMC:execution=========
+
+===========MCMC:end=============
+Execution time : 0 ms
+
