@@ -14,9 +14,8 @@
 
 using namespace std;
 
-// --- Define the global variables ---
-
-Parameter_Dictionary glob_params = {};
+//=====Define the global variables=====//
+// UPDATE: this depends on the model
 std::vector<double> Cumul_Community_Infec = {};
 std::vector<double> Inst_Community_Infec = {};
 
@@ -96,8 +95,6 @@ char load_delim(std::string text)
 {
     char delim = '_';
 
-    text.pop_back(); // UPDATE: I should use the correct i/o function
-
     if (text.front() == '"' && text.back() == '"')
     {
         // Remove the double quotes and store it as a string
@@ -135,9 +132,9 @@ void build_column_error(std::string var_name, std::string &line)
 Setup_MCMC_Struct load_setup(std::string data_path_to_file)
 {
     char delim = ',';
-    Setup_MCMC_Struct setup_loader;
+    Setup_MCMC_Struct loader;
     std::ifstream input_file(data_path_to_file.c_str());
-    std::unordered_map<std::string, std::string> safe_load = {};
+    std::map<std::string, std::string> safe_load = {};
 
     if (input_file)
     {
@@ -150,10 +147,10 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         // Create a stringstream of the current line
         for (std::string line; std::getline(input_file, line);)
         {
-            std::string name, choice_str;
+            std::string name, choice;
             std::istringstream iss(line);
 
-            // --- NAME ---
+            //=====NAME=====//
             if (!getline(iss, name, delim))
             {
                 std::cerr << "\nERROR: Unable to extract setup name." << std::endl;
@@ -164,8 +161,8 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
                 exit(EXIT_FAILURE);
             }
 
-            // --- CHOICE ---
-            if (!getline(iss, choice_str, '\n'))
+            //=====CHOICE=====//
+            if (!getline(iss, choice, '\r')) // FIXME: this might be just a problem of my editor
             {
                 std::cerr << "\nERROR: Unable to extract setup choice." << std::endl;
                 std::cerr << "Check line: " << line << "\n"
@@ -175,17 +172,24 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
                 exit(EXIT_FAILURE);
             }
 
-            safe_load.emplace(name, choice_str);
+            // Trim leading and trailing spaces from key and value
+            name.erase(0, name.find_first_not_of(" "));
+            name.erase(name.find_last_not_of(" ") + 1);
+            choice.erase(0, choice.find_first_not_of(" "));
+            choice.erase(choice.find_last_not_of(" ") + 1);
+
+            // add the new setup
+            safe_load.emplace(name, choice);
         }
 
-        setup_loader.seed = std::stoi(safe_load.at("seed"));
-        setup_loader.num_iter = std::stoi(safe_load.at("num_iter"));
-        setup_loader.num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
-        setup_loader.thinning = std::stoi(safe_load.at("thinning"));
-        setup_loader.is_data_augm = stobool(safe_load.at("is_data_augm"));
-        setup_loader.verbose = stobool(safe_load.at("verbose"));
-        setup_loader.delim = load_delim(safe_load.at("delim"));
-        setup_loader.dict_delim = load_delim(safe_load.at("dict_delim"));
+        loader.seed = std::stoi(safe_load.at("seed"));
+        loader.num_iter = std::stoi(safe_load.at("num_iter"));
+        loader.num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
+        loader.thinning = std::stoi(safe_load.at("thinning"));
+        loader.is_data_augm = stobool(safe_load.at("is_data_augm"));
+        loader.verbose = stobool(safe_load.at("verbose"));
+        loader.delim = load_delim(safe_load.at("delim"));
+        loader.dict_delim = load_delim(safe_load.at("dict_delim"));
     }
     else
     {
@@ -195,8 +199,8 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         exit(EXIT_FAILURE);
     }
 
-    // --- Check for values validity --- //
-    if (setup_loader.num_adapt_iter >= setup_loader.num_iter)
+    //=====Check for values validity=====//
+    if (loader.num_adapt_iter >= loader.num_iter)
     {
         std::cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << std::endl;
         std::cerr << "Exit...\n"
@@ -204,8 +208,8 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         exit(EXIT_FAILURE);
     }
 
-    // --- Display --- //
-    if (setup_loader.verbose)
+    //=====Display=====//
+    if (loader.verbose)
     {
         for (const auto &pair : safe_load)
         {
@@ -213,7 +217,7 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         }
     }
 
-    return setup_loader;
+    return loader;
 }
 
 /* Read Community file */
@@ -340,7 +344,7 @@ std::vector<Household> build_households(std::string data_path_to_file, bool verb
         data_HH.push_back(entry.second);
     }
 
-    // General information
+    //=====Display=====//
     if (verbose)
     {
         std::cout << "N. of households : " << data_HH.size() << std::endl;
@@ -353,7 +357,7 @@ std::vector<Household> build_households(std::string data_path_to_file, bool verb
 }
 
 /* Read Model Parameters file */
-void build_parameters(std::string data_path_to_file, char delim, char dict_delim, bool verbose)
+void build_parameters(MCMC *mcmc, std::string data_path_to_file, char delim, char dict_delim, bool verbose)
 {
     std::ifstream input_file(data_path_to_file.c_str());
 
@@ -361,20 +365,6 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
     {
         std::cout << "\n=============PARAMETERS==============" << std::endl;
         std::cout << "Model file: " << data_path_to_file << std::endl;
-
-        // FLAG ; hopefully unnecessary
-        /*
-        // count number of parameters
-        size_t line_count = 0;
-        for (std::string line; std::getline(input_file, line);)
-        {
-            line_count++;
-        }
-        input_file.clear();                 // Clear any errors
-        input_file.seekg(0, std::ios::beg); // Seek to the beginning
-        glob_params.resize(line_count);     // Allocate for the right amount of parameters
-        line_count = 0;
-        */
 
         // Create a stringstream of the current line
         for (std::string line; std::getline(input_file, line);)
@@ -384,20 +374,20 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
             kwargs prior_args = {}, rate = {}, range = {};
             std::istringstream iss(line);
 
-            // --- NAME --- //
+            //=====NAME=====//
             if (!getline(iss, name, delim))
             {
                 build_column_error("name", line);
             }
 
-            // --- VALUE --- //
+            //=====VALUE=====//
             if (!getline(iss, value_str, delim))
             {
                 build_column_error("value", line);
             }
             value = stod(value_str);
 
-            // --- INFER --- //
+            //=====INFER=====//
             if (!getline(iss, infer, delim))
             {
                 build_column_error("infer", line);
@@ -405,33 +395,33 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
 
             if (stobool(infer) == true)
             {
-                // --- PRIOR --- //
+                //=====PRIOR=====//
                 if (!getline(iss, prior_name, delim))
                 {
                     build_column_error("prior", line);
                 }
 
-                // --- ARGS --- //
+                //=====ARGS=====//
                 if (!getline(iss, prior_args_str, delim))
                 {
                     build_column_error("args", line);
                 }
                 prior_args = parse_dict_string(prior_args_str, dict_delim);
 
-                // --- STRATEGY --- //
+                //=====STRATEGY=====//
                 if (!getline(iss, strategy, delim))
                 {
                     build_column_error("strategy", line);
                 }
 
-                // --- STRATEGY_ARGS --- //
+                //=====STRATEGY_ARGS=====//
                 if (!getline(iss, rate_str, delim))
                 {
                     build_column_error("strat_args", line);
                 }
                 rate = parse_dict_string(rate_str, dict_delim);
 
-                // --- RANGE --- //
+                //=====RANGE=====//
                 if (!getline(iss, range_str, delim))
                 {
                     build_column_error("range", line);
@@ -439,14 +429,13 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
                 range = parse_dict_string(range_str, dict_delim);
 
                 // add entry to shared parameter dictionary
-                glob_params.add_param(name, value, prior_name, prior_args, strategy, rate, range);
+                mcmc->add_param(name, value, prior_name, prior_args, strategy, rate, range);
             }
             else
             {
                 // add entry to shared parameter dictionary
-                glob_params.add_param(name, value);
+                mcmc->add_param(name, value);
             }
-            //line_count++;
         }
     }
     else
@@ -457,10 +446,10 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
         exit(EXIT_FAILURE);
     }
 
-    // --- Display --- //
+    //=====Display=====//
     if (verbose)
     {
-        glob_params.print();
+        mcmc->print();
     }
 }
 
@@ -470,9 +459,7 @@ void build_parameters(std::string data_path_to_file, char delim, char dict_delim
 
 int main(int argc, char **argv)
 {
-    bool verbose = true;
-
-    //========== USER parameters ==========
+    //========== USER parameters ==========//
     if (argc < 6)
     {
         // print usage here and return, since that's what you need.
@@ -495,34 +482,35 @@ int main(int argc, char **argv)
     std::string output_path_to_file = argv[4];     // Name of the output file
     std::string augmented_path_to_file = argv[5];  // Name of the output file for augmented data
 
-    // UPDATE : these should be user optional variables
-    std::string setup_path_to_file = "default_setup.csv";
-    Setup_MCMC_Struct setup = load_setup(setup_path_to_file);
+    std::string setup_path_to_file = "default_setup.csv"; // UPDATE : these should be user optional variables
 
     // UPDATE : check for path validity
 
-    // Load data and Paramters
-    build_parameters(parameters_path_to_file, setup.delim, setup.dict_delim, setup.verbose);
-    build_community(community_path_to_file);
-    std::vector<Household> HH_data = build_households(households_path_to_file, verbose);
+    //=====Initialization=====//
 
-    // initialize global infectivity profile // UPDATE
-    kwargs_ext infec_prof_args = {
-        {"alpha", glob_params.get_address("tost_alpha")},
-        {"mu", glob_params.get_address("tost_mu")},
-        {"sigma", glob_params.get_address("tost_sigma")},
-        {"tau", glob_params.get_address("tost_tau")}};
+    // Load Setup
+    Setup_MCMC_Struct setup = load_setup(setup_path_to_file);
+
+    // Load Data
+    build_community(community_path_to_file);
+    std::vector<Household> HH_data = build_households(households_path_to_file, setup.verbose);
 
     // Initialize MCMC object
-    MCMC_Class mcmc_object(setup, HH_data, infec_prof_args);
+    MCMC mcmc(setup, HH_data);
 
-    // run MCMC inference
-    mcmc_object.run(output_path_to_file);
+    // Load Parameters
+    build_parameters(&mcmc, parameters_path_to_file, setup.delim, setup.dict_delim, setup.verbose);
 
-    // print last augmented data configuration // FIXME
-    mcmc_object.open_augm_file(augmented_path_to_file);
-    mcmc_object.print_augm_variables();
-    mcmc_object.close_augm_file();
+    // Initialize infectivity profile
+    mcmc.assign_infec_profile();
+
+    //=====Run Monte Carlo Markov Chain=====//
+    mcmc.run(output_path_to_file);
+
+    // print last augmented data configuration // FIXME : temporary
+    mcmc.open_augm_file(augmented_path_to_file);
+    mcmc.print_augm_variables();
+    mcmc.close_augm_file();
 
     return EXIT_SUCCESS;
 }

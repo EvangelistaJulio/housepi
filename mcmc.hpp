@@ -1,7 +1,7 @@
 // mcmc.hpp //
 
-#ifndef MCMC_OBJECT__H
-#define MCMC_OBJECT__H
+#ifndef MCMC__H
+#define MCMC__H
 
 #include <string>
 #include <vector>
@@ -14,7 +14,7 @@
 #include <chrono>
 //#include <omp.h>
 
-#include "household.hpp"
+#include "model.hpp"
 
 // Auxiliary struct to load all setup information
 struct Setup_MCMC_Struct
@@ -31,11 +31,11 @@ public:
 	char dict_delim = '/';
 };
 
-//----------------------------------------------------------------------
-// MCMC_Class : Class declaration
-//----------------------------------------------------------------------
+////////////////////////////////////////////////////////////////////////
+// ////////////////////////// MCMC : Class ////////////////////////// //
+////////////////////////////////////////////////////////////////////////
 
-class MCMC_Class
+class MCMC : public Model
 {
 private:
 	std::mt19937_64 m_rng;
@@ -47,19 +47,17 @@ private:
 public:
 	int m_num_accept_data = 0;
 	int m_num_propos_data = 0;
-	Onset_to_Transm infectivity_profile;
 
 	// Constructors
-	MCMC_Class(
+	MCMC(
 		Setup_MCMC_Struct setup,
-		std::vector<Household> data,
-		kwargs_ext infec_prof_args) : m_unif(0.0, 1.0), infectivity_profile(infec_prof_args)
+		std::vector<Household> data) : m_unif(0.0, 1.0)
 	{
 		m_setup = setup;
 		m_rng.seed(setup.seed);
 		m_data = data;
 	}
-	~MCMC_Class(){};
+	~MCMC(){}
 
 	// --- Getter --- //
 	size_t num_households() const { return m_data.size(); };
@@ -91,8 +89,6 @@ private:
 	// --- infer : attributes --- //
 	std::ofstream param_ofstream;
 	std::ofstream augm_ofstream;
-
-	void progress_bar(size_t iter, size_t n_iter);
 };
 
-#endif // MCMC_OBJECT__H
+#endif // MCMC__H

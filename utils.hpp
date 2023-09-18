@@ -40,7 +40,7 @@ protected:
     kwargs_ext args_ext = {}; // external arguments (pointer to variable)
 
 public:
-    // --- Constructors --- //
+    //=====Constructors=====//
     Base_Distrib(kwargs new_args)
     {
         for (auto const &x : new_args)
@@ -216,21 +216,5 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEF, kwargs_int_o
         exit(EXIT_FAILURE);
     }
 }
-
-///////////////////////////////////////////////////////////////////////
-// //////////////// Onset to Transmission : class ////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-class Onset_to_Transm : public Base_Distrib
-{
-public:
-    // Constructors
-    Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args) {}
-    Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext) {}
-    ~Onset_to_Transm(){};
-
-    double pdf(timetype tost, timetype t_incub);
-    double cdf(timetype tost, timetype t_incub);
-};
 
 #endif // DEF_USER_MODEL__H

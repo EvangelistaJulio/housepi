@@ -39,12 +39,12 @@ public:
 		std::vector<std::string> args_to_adapt = {});
 	~Base_Proposer(){};
 
-	// --- Getter --- //
+	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
 	double get_value_0() const { return value_0; }
 	double get_arg(std::string argID) const { return (distr_ptr->get_arg)(argID); }
 
-	// --- Setter --- //
+	//=====Setter=====//
 	void set_value_0(double new_val) { value_0 = new_val; }
 	void set_range(kwargs new_range);
 
@@ -61,7 +61,7 @@ public:
 	void adapt(double ratio);
 
 private:
-	// --- valid : functional methods --- //
+	//=====valid : functional methods=====//
 	double _range_low_ = -INFINITY;
 	double _range_up_ = INFINITY;
 	bool (Base_Proposer::*_valid_func_)(double new_val);
@@ -76,7 +76,7 @@ private:
 	}
 
 protected:
-	// --- propose : functional methods --- //
+	//=====propose : functional methods=====//
 	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &rng, double start);
 	double _draw_rand_(std::mt19937_64 &rng, double start)
 	{
@@ -92,7 +92,7 @@ protected:
 		return start * rand(rng);
 	}
 
-	// --- propose : functional methods --- //
+	//=====propose : functional methods=====//
 	double (Base_Proposer::*_log_ratio_method_)(double old_val, double new_val);
 
 	double _log_ratio_pdf_(double old_val, double new_val)
@@ -225,7 +225,7 @@ public:
 			infer = true;
 			distr_ptr = distribution_switchboard(prior_name, prior_args);
 
-			// --- proposer ---//
+			//=====proposer ---//
 			if (strat_name == "prior")
 			{
 				prop_ptr = new Prior_Proposer(distr_ptr);
@@ -240,34 +240,34 @@ public:
 	}
 	~Base_Parameter() {}
 
-	// --- Getter --- //
+	//=====Getter=====//
 	double get_value() const { return value; }
 	const double *get_address() const { return &value; }
 	bool get_infer() const { return infer; }
 	bool is_zero_start() const { return (prop_ptr->is_zero_start)(); }
 	double get_value_0() const { return (prop_ptr->get_value_0)(); }
 
-	// --- Setter --- //
+	//=====Setter=====//
 	void set_value(double value) { this->value = value; }
 
-	// --- distr_ptr : methods --- //
+	//=====distr_ptr : methods=====//
 	double distr_rand(std::mt19937_64 &rng) { return distr_ptr->rand(rng); }
 	double distr_log_pdf(double new_val) { return distr_ptr->log_pdf(new_val); }
 	double distr_log_ratio(double old_val, double new_val) { return distr_ptr->log_ratio(old_val, new_val); }
 
-	// --- prop_ptr : propose methods --- //
+	//=====prop_ptr : propose methods=====//
 	double propose(std::mt19937_64 &rng) { return (this->*_propose_method_)(rng); }
 	double propose_log_ratio(double old_val, double new_val) { return (prop_ptr->log_ratio)(old_val, new_val); }
 	bool valid(double new_val) { return prop_ptr->valid(new_val); }
 
-	// --- prop_ptr : adaptive methods --- //
+	//=====prop_ptr : adaptive methods=====//
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
 private:
-	// --- Propose : functional methods --- //
+	//=====Propose : functional methods=====//
 	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &rng);
 	double _propose_from_previous_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value()); }
 	double _propose_from_zero_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value_0()); }
@@ -280,7 +280,7 @@ private:
 class Parameter : public Base_Parameter<kwargs>
 {
 public:
-	// --- Constructor --- //
+	//=====Constructor=====//
 	Parameter(
 		double new_val,
 		std::string prior_name = UNDEF,
@@ -305,7 +305,7 @@ public:
 /////// Parameter_Dictionary : class declaration //////////
 ///////////////////////////////////////////////////////////
 
-// This is a wrapper class containing aliases for the global params.
+// This is a wrapper class containing aliases for the model params.
 class Parameter_Dictionary
 {
 private:
@@ -317,7 +317,7 @@ public:
 	std::vector<std::string> to_be_inferred = {};
 	std::vector<std::string> not_to_be_inferred = {};
 
-	// --- Methods --- //
+	//=====Methods=====//
 	void add_param(
 		const std::string k,
 		double new_val,
@@ -327,13 +327,13 @@ public:
 		kwargs strat_args = {},
 		kwargs value_range = {});
 
-	// --- Getter --- //
+	//=====Getter=====//
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
 
-	// --- Setter --- //
+	//=====Setter=====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
 	void random_init_values(std::mt19937_64 &rng);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
@@ -351,12 +351,6 @@ public:
 	void print(char delim = ' ');
 };
 
-/////////////////////////////////////////////////////////
-//////////// global parameters declaration //////////////
-/////////////////////////////////////////////////////////
-
-extern Parameter_Dictionary glob_params;
-
 /////////////////////////////////////////////////////////////////
 // ///////////////////// Augmented : class /////////////////// //
 /////////////////////////////////////////////////////////////////
@@ -364,7 +358,7 @@ extern Parameter_Dictionary glob_params;
 class Augmented : public Base_Parameter<kwargs_ext>
 {
 public:
-	// --- Constructor --- //
+	//=====Constructor=====//
 	Augmented(
 		double value,
 		std::string model_name = UNDEF,
@@ -379,7 +373,7 @@ public:
 												  strat_args,
 												  value_0,
 												  value_range){};
-	// --- Aliases --- //
+	//=====Aliases=====//
 	double model_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
 	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double model_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
