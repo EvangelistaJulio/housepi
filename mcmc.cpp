@@ -159,7 +159,7 @@ void MCMC::run(std::string output_file, double inv_temper)
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
-    random_init_values(m_rng);
+    init_rand_params(m_rng);
     declare_augm_data(m_rng);
     update_global_loglike();
     reset_moves();

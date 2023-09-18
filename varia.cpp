@@ -189,7 +189,7 @@ void Parameter_Dictionary::print(char delim)
 }
 
 /* randomly initialize values of the parameters to be inferred */
-void Parameter_Dictionary::random_init_values(std::mt19937_64 &rng)
+void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 {
     for (std::string k : to_be_inferred)
     {

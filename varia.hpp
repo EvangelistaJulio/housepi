@@ -335,7 +335,7 @@ public:
 
 	//=====Setter=====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
-	void random_init_values(std::mt19937_64 &rng);
+	void init_rand_params(std::mt19937_64 &rng);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
 
 	// Metropolis-Hastings moves

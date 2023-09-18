@@ -461,47 +461,45 @@ double Model::transmissability(Household *H)
 	return factor;
 }
 
-/* Poisson point process
-void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
+/* Poisson point process */
+void Model::simulate_data(Household *H, timetype delta_t, std::mt19937_64 &rng)
 {
 	std::uniform_real_distribution<double> unif(0.0, 1.0);
 	timetype infec_time;
 	size_t res;
 
-	// initialize all residents to healthy
+	// initialize household
 	H->h_healthy_list.resize(0);
-	H->h_symptomatic_list.resize(0);
+	H->h_symptomatic_list.resize(0);	
+	H->h_infec_time = INFINITY;
+	H->h_first_case = H->h_size;
+
+	// initialize all residents to healthy
 	for (size_t res = 0; res < H->h_size; res++)
 	{
-		set_status(res, HEALTHY);
-		h_residents[res].init_augm("incub_period", rng);
-		set_augm("onset_time", res, INFINITY);
-		h_healthy_list.push_back(res);
+		H->set_status(res, HEALTHY);
+		H->h_residents[res].init_augm("incub_period", rng);
+		H->set_augm("onset_time", res, INFINITY);
 	}
-	// initialize h_infec_time
-	h_infec_time = INFINITY;
-	h_first_case = h_size;
 
-	// FIXME : upper limit
+	// FIXME : upper limit ???
 	for (timetype infec_time = 0; infec_time < 400; infec_time += delta_t)
 	{
-		for (size_t i = 0; i < h_healthy_list.size(); i++)
+		for (size_t i = 0; i < H->h_healthy_list.size(); i++)
 		{
-			res = h_healthy_list[i];
-			set_augm("onset_time", res, infec_time + get_augm("incub_period", res));
+			res = H->h_healthy_list[i];
+			H->set_augm("onset_time", res, infec_time + H->get_augm("incub_period", res));
 
-			// FIXME : the survival period inside here is wrong
-			// it should be just the interval
-			if (unif(rng) < std::exp(log_infec_proba(res)))
+			if (unif(rng) < std::exp(log_infec_proba(H, res)))
 			{
-				set_status(res, SYMPTOMATIC);
-				h_symptomatic_list.push_back(res);
-				h_healthy_list.erase(h_healthy_list.begin() + i);
-				// FIXME : h_first and h_infec to be updated
+				H->h_healthy_list.erase(H->h_healthy_list.begin() + i);
+				H->set_status(res, SYMPTOMATIC);
+				update_first_case(H);
+				update_infectivity_profiles(H, res);
 			}
 			else
 			{
-				set_augm("onset_time", res, INFINITY);
+				H->set_augm("onset_time", res, INFINITY);
 			}
 		}
 	}
@@ -509,4 +507,3 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 	// outside
 	// renormalize to have the same infection period of dataset
 }
-*/

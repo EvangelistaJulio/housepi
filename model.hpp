@@ -66,7 +66,7 @@ public:
 	double susceptibility(Household *H, size_t idx);
 	double transmissability(Household *H);
 
-	// void simulate_data(timetype delta_t, std::mt19937_64 &rng);
+	void simulate_data(Household *H, timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // MODEL__H
