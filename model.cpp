@@ -311,6 +311,10 @@ double Model::compute_loglike(Household *H)
 	for (size_t res = 0; res < H->h_size; res++)
 	{
 		loglike_house += log_surv_proba(H, res);
+
+		// FLAG
+		//std::cerr << "surv (" << res << ") = " << log_surv_proba(H, res) << std::endl;
+		// FLAG
 	}
 
 	// Loop over all symptomatic residents
@@ -320,14 +324,26 @@ double Model::compute_loglike(Household *H)
 		for (std::string augmID : H->get_augm_with_model(res))
 		{
 			loglike_house += H->augm_model_log_pdf(augmID, res);
+
+			// FLAG
+			//std::cerr << "augm (" << res << ") = " << H->augm_model_log_pdf(augmID, res) << std::endl;
+			// FLAG
 		}
 
 		// Contribution of secondary cases
 		if (res != H->h_first_case)
 		{
 			loglike_house += log_infec_proba(H, res);
+
+			// FLAG
+			//std::cerr << "infec (" << res << ") = " << log_infec_proba(H, res) << std::endl;
+			// FLAG
 		}
 	}
+
+	// FLAG
+	//std::exit(EXIT_FAILURE);
+	// FLAG
 
 	return loglike_house;
 }

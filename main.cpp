@@ -314,7 +314,6 @@ std::vector<Household> build_households(std::string data_path_to_file, bool verb
             // Update household object and information parameters
             Individual this_indiv(
                 indid,
-                status,
                 age,
                 sex,
                 isolation,
@@ -323,11 +322,15 @@ std::vector<Household> build_households(std::string data_path_to_file, bool verb
                 study_period,
                 vacc_delay,
                 onset_time);
+            safe_load_HH[this_HH_id].add_individual(this_indiv, status);
 
-            safe_load_HH[this_HH_id].add_individual(this_indiv);
-            num_subjects++;
-            num_cases += (status == HEALTHY) ? 0 : 1;
-            max_study_period = max(max_study_period, study_period);
+            // dataset composition
+            if (verbose)
+            {
+                num_subjects++;
+                num_cases += (status == HEALTHY) ? 0 : 1;
+                max_study_period = max(max_study_period, study_period);
+            }
         }
     }
     else

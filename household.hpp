@@ -45,7 +45,6 @@ public:
 
 	// --- Constructors --- //
 	Individual(
-		int status,
 		int indid,
 		int age,
 		int sex,
@@ -127,7 +126,7 @@ public:
 	// Setter
 	void set_index(int index) { house_index = index; }
 	void set_status(size_t idx, int status);
-	void add_individual(Individual this_indiv);
+	void add_individual(Individual this_indiv, int status);
 
 	// Aliases (augmented variables)
 	double get_augm(std::string augmID, size_t idx) const { return h_residents[idx].get_augm(augmID); }

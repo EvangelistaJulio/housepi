@@ -13,7 +13,6 @@ using namespace std;
 // ----------------------------
 
 Individual::Individual(
-	int status,
 	int indid,
 	int age,
 	int sex,
@@ -24,8 +23,6 @@ Individual::Individual(
 	timetype vacc_delay,
 	timetype onset_time)
 {
-	// Status
-	i_status = status;
 	// Data variables
 	i_indid = indid;
 	i_age = age;
@@ -90,10 +87,10 @@ double Individual::augm_propose_log_ratio(std::string augmID, double old_value, 
 // UPDATE : circular / temporary
 
 // Add individual to household
-void Household::add_individual(Individual this_indiv)
+void Household::add_individual(Individual this_indiv, int status)
 {
 	h_residents.push_back(this_indiv);
-	set_status(h_size, h_residents[h_size].get_status());
+	set_status(h_size, status);
 	h_size++;
 }
 
