@@ -12,11 +12,11 @@
 
 #include "varia.hpp"
 
-// model // UPDATE:
+// model
 #define HEALTHY 0
 #define SYMPTOMATIC 1
 
-// List of augmented variables
+// ???
 extern Onset_to_Transm Infectivity_Profile;
 
 /////////////////////////////////////////////////////////
@@ -29,7 +29,7 @@ private:
 	std::unordered_map<std::string, Augmented> i_augm = {};
 
 public:
-	// Attributes
+	// Attributes (data)
 	int i_indid = 0;
 	int i_status = 0;
 	int i_age = 0;
@@ -40,9 +40,8 @@ public:
 	timetype i_study_period = INFINITY;
 	timetype i_vacc_delay = INFINITY;
 	timetype i_onset_time = INFINITY;
-	Onset_to_Transm *ptr_to_infec_profile;
 
-	// augmented variables behavior list
+	// augmented variables behavior list (model)
 	std::vector<std::string> i_augm_list = {};
 	std::vector<std::string> i_augm_with_model = {};
 	std::vector<std::string> i_augm_to_be_inferred = {};
@@ -65,7 +64,7 @@ public:
 	// --- Methods (default) ---
 
 	void add_augm(std::string augmID,
-				  double new_value,
+				  double new_val,
 				  std::string model_name = UNDEF,
 				  kwargs_ext model_args_ext = {},
 				  std::string strat_name = UNDEF,
@@ -75,30 +74,23 @@ public:
 
 	// Getter
 	double get_augm(std::string augmID) const { return i_augm.at(augmID).get_value(); }
+	bool augm_infer(std::string augmID) { return i_augm.at(augmID).get_infer(); }
 
 	// Setter
-	void set_augm(std::string augmID, double new_value) { i_augm.at(augmID).set_value(new_value); }
-
-	// Computations
-	bool augm_infer(std::string augmID) { return i_augm.at(augmID).get_infer(); }
+	void set_status(int status) { i_status = status; }
+	void declare_augm_data(std::mt19937_64 &rng);
+	void set_augm(std::string augmID, double new_val) { i_augm.at(augmID).set_value(new_val); }
+	void init_augm(std::string augmID, std::mt19937_64 &rng) { set_augm(augmID, augm_model_rand(augmID, rng)); }
 
 	// model distribution
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return i_augm.at(augmID).model_rand(rng); }
 	double augm_model_log_pdf(std::string augmID);
-	double augm_model_log_ratio(std::string augmID, double old_value, double new_value);
+	double augm_model_log_ratio(std::string augmID, double old_value, double new_val);
 
 	// proposer
 	double augm_propose(std::string augmID, std::mt19937_64 &rng);
-	double augm_propose_log_ratio(std::string augmID, double old_value, double new_value);
-	bool augm_invalid(std::string augmID, double new_value) { return i_augm.at(augmID).invalid(new_value); }
-
-	// --- Methods (model) ---
-	timetype get_infec_time() const;
-	void init_augm_data(std::mt19937_64 &rng);
-
-	// Infectivity Profiles
-	double infectivity_inst(timetype t_transm);
-	double infectivity_cumul(timetype t_transm);
+	double augm_propose_log_ratio(std::string augmID, double old_value, double new_val);
+	bool augm_valid(std::string augmID, double new_val) { return i_augm.at(augmID).valid(new_val); }
 };
 
 /////////////////////////////////////////////////////////
@@ -111,6 +103,7 @@ private:
 	std::vector<Individual> h_residents;
 	std::vector<std::vector<double>> h_cumul_profile = {}; // h_cumul_profile[i][j] : from i to j
 	std::vector<std::vector<double>> h_inst_profile = {};
+	Onset_to_Transm *ptr_to_infec_profile;
 
 public:
 	// Attributes
@@ -120,57 +113,70 @@ public:
 	timetype h_infec_time = INFINITY;
 	std::vector<size_t> h_healthy_list = {};
 	std::vector<size_t> h_symptomatic_list = {};
-	Onset_to_Transm *ptr_to_infec_profile;
-	double h_loglike = 0.0;
+	double h_loglike = 0;
 
 	// Constructors
 	Household() {}
 	~Household(){};
 
-	// --- Methods (default) ---
+	// --- Methods (default) --- //
+
 	// Getter
 	int get_index() const { return house_index; }
 	int get_index(size_t idx) const { return h_residents[idx].i_indid; }
 	int get_status(size_t idx) const { return h_residents[idx].i_status; }
 	std::vector<std::string> get_augm_list(size_t idx) const { return h_residents[idx].i_augm_list; }
+	std::vector<std::string> get_augm_with_model(size_t idx) const { return h_residents[idx].i_augm_with_model; }
 	std::vector<std::string> get_augm_to_be_inferred(size_t idx) const { return h_residents[idx].i_augm_to_be_inferred; }
-	timetype get_infec_time(size_t idx) const { return h_residents[idx].get_infec_time(); }
 
 	// Setter
 	void set_index(int index) { house_index = index; }
+	void set_status(size_t idx, int status) { h_residents[idx].set_status(status); }
 	void add_individual(Individual this_indiv);
-	void init_augm_data(std::mt19937_64 &rng);
+	void declare_augm_data(std::mt19937_64 &rng);
 	void init_household_status();
 	void update_household_first_case();
 
 	// Aliases (augmented variables)
 	double get_augm(std::string augmID, size_t idx) const { return h_residents[idx].get_augm(augmID); }
-	void set_augm(std::string augmID, size_t idx, double infec_time);
+	void set_augm(std::string augmID, size_t idx, double new_val);
 
 	// proposer
 	double augm_propose(std::string augmID, size_t idx, std::mt19937_64 &rng) { return h_residents[idx].augm_propose(augmID, rng); }
-	bool augm_invalid(std::string augmID, size_t idx, double new_value) { return h_residents[idx].augm_invalid(augmID, new_value); }
-	double augm_propose_log_ratio(std::string augmID, size_t idx, double old_value, double new_value) { return h_residents[idx].augm_propose_log_ratio(augmID, old_value, new_value); }
+	bool augm_valid(std::string augmID, size_t idx, double new_val) { return h_residents[idx].augm_valid(augmID, new_val); }
+	double augm_propose_log_ratio(std::string augmID, size_t idx, double old_value, double new_val) { return h_residents[idx].augm_propose_log_ratio(augmID, old_value, new_val); }
 
 	// model
 	double augm_model_log_pdf(std::string augmID, size_t idx) { return h_residents[idx].augm_model_log_pdf(augmID); }
-	double augm_model_log_ratio(std::string augmID, size_t idx, double old_value, double new_value) { return h_residents[idx].augm_model_log_ratio(augmID, old_value, new_value); }
+	double augm_model_log_ratio(std::string augmID, size_t idx, double old_value, double new_val) { return h_residents[idx].augm_model_log_ratio(augmID, old_value, new_val); }
+
+	// --- Methods (model) --- // UPDATE : this should be
 
 	// Computations (default)
 	void assign_infectivity_profiles(Onset_to_Transm *infectivity_profile);
-	void update_infectivity_profiles(size_t ind);
+	void update_infectivity_profiles(size_t idx);
 
-	// --- Methods (model) ---
+	timetype get_infec_time(size_t idx) const;
+
+	// infectivity profiles
+	double infectivity_inst(size_t idx, timetype t_transm);
+	double infectivity_cumul(size_t idx, timetype t_transm);
+
+	// log-likelihood
 	double log_infec_proba(size_t idx);
 	double log_surv_proba(size_t idx);
 	double compute_loglike();
 
+	// risk
 	double model_contact_modulation(size_t idx, size_t infectee);
 	double model_susceptibility(size_t idx);
 	double model_community_risk_inst(timetype t1);
 	double model_community_risk_cumul(timetype t0, timetype t1);
 	double model_transmissability();
 	double model_risk_beta(const std::vector<std::vector<double>> &rate_vector, size_t idx);
+
+	// simulation
+	void simulate_data(timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // DEF_HOUSEHOLD__H

@@ -18,7 +18,7 @@ extern std::vector<double> Inst_Community_Infec;
 
 /* Initialize augmented variables */
 // UPDATE: this needs to become more user friendly
-void Individual::init_augm_data(std::mt19937_64 &rng)
+void Individual::declare_augm_data(std::mt19937_64 &rng)
 {
 	// --- incub_period --- //
 	{
@@ -30,20 +30,20 @@ void Individual::init_augm_data(std::mt19937_64 &rng)
 			{"shape", glob_params.get_address("incub_shape")},
 			{"scale", glob_params.get_address("incub_scale")}};
 
-		// FIXME : temporary waiting for prior proposal
 		std::string metropolis_strategy = (i_status == HEALTHY) ? UNDEF : "normal";
 		kwargs metropolis_args = {
 			{"mean", 0.0},
 			{"sd", 0.5}};
+
 		double value_zero = INFINITY; // from old value
 		kwargs range = {{"low", 0.0}, {"up", glob_params.get_value("max_incub_period")}};
 
 		add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
-
-		// FIXME : temporary waiting for prior proposal
+		
+		// FIXME : this should be automatic
 		if (i_status != HEALTHY)
 		{
-			set_augm(augmID, augm_model_rand(augmID, rng));
+			init_augm(augmID, rng);
 		}
 	}
 
@@ -68,27 +68,29 @@ void Individual::init_augm_data(std::mt19937_64 &rng)
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////  Individual : Infectivity Profiles //////////////////////////////// //
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Time of infection */
-timetype Individual::get_infec_time() const
+timetype Household::get_infec_time(size_t idx) const
 {
-	return get_augm("onset_time") - get_augm("incub_period");
+	return get_augm("onset_time", idx) - get_augm("incub_period", idx);
 }
 
-// ----------------------------
-//  Methods : Infectivity Profiles
-// ----------------------------
-
-double Individual::infectivity_inst(timetype t_transm)
+/* instanteneous infectivity profile */
+double Household::infectivity_inst(size_t idx, timetype t_transm)
 {
-	timetype tost = t_transm - get_augm("onset_time");
-	timetype incub_period = get_augm("incub_period");
+	timetype tost = t_transm - get_augm("onset_time", idx);
+	timetype incub_period = get_augm("incub_period", idx);
 	return ptr_to_infec_profile->pdf(tost, incub_period);
 }
 
-double Individual::infectivity_cumul(timetype t_transm)
+/* cumulative infectivity profile */
+double Household::infectivity_cumul(size_t idx, timetype t_transm)
 {
-	timetype tost = t_transm - get_augm("onset_time");
-	timetype incub_period = get_augm("incub_period");
+	timetype tost = t_transm - get_augm("onset_time", idx);
+	timetype incub_period = get_augm("incub_period", idx);
 	return ptr_to_infec_profile->cdf(tost, incub_period);
 }
 
@@ -140,8 +142,6 @@ double Household::log_infec_proba(size_t idx)
 	output = model_susceptibility(idx) * (model_community_risk_inst(t_transm) + beta);
 	output = std::log(1. - std::exp(-output));
 
-	output = output + log_surv_proba(idx);
-
 	return output;
 }
 
@@ -152,7 +152,7 @@ double Household::compute_loglike()
 
 	// Loop over all healthy residents
 	// NOTE: no augmented variables
-	for (size_t res : h_healthy_list)
+	for (size_t res = 0; res < h_size; res++)
 	{
 		loglike_house += log_surv_proba(res);
 	}
@@ -161,7 +161,7 @@ double Household::compute_loglike()
 	for (size_t res : h_symptomatic_list)
 	{
 		// Contribution of model associated to augmented variables
-		for (std::string augmID : h_residents[res].i_augm_with_model)
+		for (std::string augmID : get_augm_with_model(res))
 		{
 			loglike_house += augm_model_log_pdf(augmID, res);
 		}
@@ -176,13 +176,60 @@ double Household::compute_loglike()
 	return loglike_house;
 }
 
+/* Poisson point process */
+void Household::simulate_data(timetype delta_t, std::mt19937_64 &rng)
+{
+	std::uniform_real_distribution<double> unif(0.0, 1.0);
+	timetype infec_time;
+	size_t res;
+
+	// initialize all residents to healthy
+	h_healthy_list.resize(0);
+	h_symptomatic_list.resize(0);
+	for (size_t res = 0; res < h_size; res++)
+	{
+		set_status(res, HEALTHY);
+		h_residents[res].init_augm("incub_period", rng);
+		set_augm("onset_time", res, INFINITY);
+		h_healthy_list.push_back(res);
+	}
+	// initialize h_infec_time
+	h_infec_time = INFINITY;
+	h_first_case = h_size;
+
+	// FIXME : upper limit
+	for (timetype infec_time = 0; infec_time < 400; infec_time += delta_t)
+	{
+		for (size_t i = 0; i < h_healthy_list.size(); i++)
+		{
+			res = h_healthy_list[i];
+			set_augm("onset_time", res, infec_time + get_augm("incub_period", res));
+
+			// FIXME : the survival period inside here is wrong
+			// it should be just the interval
+			if (unif(rng) < std::exp(log_infec_proba(res)))
+			{
+				set_status(res, SYMPTOMATIC);
+				h_symptomatic_list.push_back(res);
+				h_healthy_list.erase(h_healthy_list.begin() + i);
+				// FIXME : h_first and h_infec to be updated
+			}
+			else
+			{
+				set_augm("onset_time", res, INFINITY);
+			}
+		}
+	}
+
+	// outside
+	// renormalize to have the same infection period of dataset
+}
+
 /////////////////////////////////////////////////////
-//  Household : Methods (modulators)
+///////////  Household : Methods (modulators) ///////
 /////////////////////////////////////////////////////
 
-// UPDATE : this could be interpolated instead
-
-// Instaneous risk of infection from community
+/* Instaneous risk of infection from community */
 double Household::model_community_risk_inst(timetype t1)
 {
 	double output = 0.0;
@@ -192,7 +239,7 @@ double Household::model_community_risk_inst(timetype t1)
 	return output;
 }
 
-// Cumulative risk of infection from community
+/* Cumulative risk of infection from community */
 double Household::model_community_risk_cumul(timetype t0, timetype t1)
 {
 	double output = 0.0;

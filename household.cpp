@@ -94,12 +94,12 @@ void Household::add_individual(Individual this_indiv)
 }
 
 // Initialize augmented variables and infectivity profiles
-void Household::init_augm_data(std::mt19937_64 &rng)
+void Household::declare_augm_data(std::mt19937_64 &rng)
 {
 	// init augmented data for all residents (user defined)
 	for (size_t res = 0; res < h_size; res++)
 	{
-		h_residents[res].init_augm_data(rng);
+		h_residents[res].declare_augm_data(rng);
 	}
 
 	init_household_status();
@@ -140,7 +140,7 @@ void Household::update_household_first_case()
 	for (size_t i : h_symptomatic_list)
 	{
 		// Find smaller infection time
-		t_infec = h_residents[i].get_infec_time();
+		t_infec = get_infec_time(i);
 		new_t0 = std::min(t_infec, new_t0);
 
 		// Identify first case
@@ -182,7 +182,6 @@ void Household::assign_infectivity_profiles(Onset_to_Transm *infectivity_profile
 	// loop over all residents
 	for (size_t i = 0; i < h_size; i++)
 	{
-		h_residents[i].ptr_to_infec_profile = infectivity_profile;
 		h_cumul_profile[i].resize(h_size);
 		h_inst_profile[i].resize(h_size);
 	}
@@ -203,13 +202,13 @@ void Household::update_infectivity_profiles(size_t idx)
 		t_infec_res = get_infec_time(res);
 		if (t_infec_idx < t_infec_res)
 		{ // `idx` : infector, `res` : infectee
-			h_cumul_profile[idx][res] = h_residents[idx].infectivity_cumul(t_infec_res);
-			h_inst_profile[idx][res] = h_residents[idx].infectivity_inst(t_infec_res);
+			h_cumul_profile[idx][res] =infectivity_cumul(idx, t_infec_res);
+			h_inst_profile[idx][res] = infectivity_inst(idx, t_infec_res);
 		}
 		else if (t_infec_res < t_infec_idx)
 		{ // `res` : infector, `idx` : infectee
-			h_cumul_profile[res][idx] = h_residents[res].infectivity_cumul(t_infec_idx);
-			h_inst_profile[res][idx] = h_residents[res].infectivity_inst(t_infec_idx);
+			h_cumul_profile[res][idx] = infectivity_cumul(res, t_infec_idx);
+			h_inst_profile[res][idx] = infectivity_inst(res, t_infec_idx);
 		}
 		// NOTE : else is the case idx == res
 	}
@@ -219,6 +218,6 @@ void Household::update_infectivity_profiles(size_t idx)
 	for (size_t res : h_healthy_list)
 	{
 		t_infec_res = get_infec_time(res); // == study_period
-		h_cumul_profile[idx][res] = h_residents[idx].infectivity_cumul(t_infec_res);
+		h_cumul_profile[idx][res] = infectivity_cumul(idx, t_infec_res);
 	}
 }

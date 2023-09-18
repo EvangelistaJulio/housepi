@@ -17,21 +17,18 @@
 #include "household.hpp"
 
 // Auxiliary struct to load all setup information
-struct Setup_Struct
+struct Setup_MCMC_Struct
 {
 public:
 	// Attributes
 	unsigned seed = 0;
 	unsigned num_iter = 0;
 	unsigned num_adapt_iter = 0;
-	unsigned num_augm_sweeps = 0;
 	unsigned thinning = 0;
+	bool is_data_augm = false;
+	bool verbose = false;
 	char delim = ' ';
 	char dict_delim = '/';
-	bool verbose = false;
-
-	// FIXME : attributes toi be updated
-	bool is_data_augm = false;
 };
 
 //----------------------------------------------------------------------
@@ -45,7 +42,7 @@ private:
 	double m_global_loglike = 0.0;
 	std::vector<Household> m_data = {};
 	std::uniform_real_distribution<double> m_unif;
-	Setup_Struct m_setup = {};
+	Setup_MCMC_Struct m_setup = {};
 
 public:
 	int m_num_accept_data = 0;
@@ -54,7 +51,7 @@ public:
 
 	// Constructors
 	MCMC_Class(
-		Setup_Struct setup,
+		Setup_MCMC_Struct setup,
 		std::vector<Household> data,
 		kwargs_ext infec_prof_args) : m_unif(0.0, 1.0), infectivity_profile(infec_prof_args)
 	{
@@ -70,15 +67,15 @@ public:
 
 	// --- Setter --- //
 	void reset_moves();
-	void init_augm_data(std::mt19937_64 &rng);
+	void declare_augm_data(std::mt19937_64 &rng);
 
 	// --- Computations --- //
 	void update_global_loglike();
-	void update_parameters();
-	void update_augm_variables();
+	void move_parameters(double inv_temperature = 1.0);
+	void move_augm_variables(double inv_temperature = 1.0);
 
 	// --- INFER --- //
-	void infer(std::string output_filename);
+	void run(std::string output_filename, double inv_temperature = 1.0);
 
 	// --- Save parameters --- //
 	void init_param_file(std::string output_filename);
