@@ -14,11 +14,11 @@ verbose : TRUE
 Data file: data/community_infection.txt
 
 =============DATA===============
-Data file: data/database.txt
-N. of households : 1201
-N. of individuals : 4619
-N. of cases : 2624
-N. of days : 272
+Data file: data/database-dummy.txt
+N. of households : 1
+N. of individuals : 5
+N. of cases : 1
+N. of days : 262
 
 =============PARAMETERS==============
 Model file: data/parameters.txt
@@ -54,3 +54,7 @@ typical_size false
 ======MCMC:initialization=======
 
 =========MCMC:execution=========
+
+===========MCMC:end=============
+Execution time : 2 ms
+
