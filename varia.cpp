@@ -215,7 +215,7 @@ bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_
     {
         params.at(k).update_accept_rate(false);
     }
-    
+
     return is_valid;
 }
 

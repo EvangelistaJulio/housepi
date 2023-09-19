@@ -547,7 +547,7 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		indiv[i].set_status(HEALTHY);
 		indiv[i].init_augm("incub_period", rng); // UPDATE : merge with rand init
 		indiv[i].set_augm("onset_time", INFINITY);
-	
+
 		// initialize household
 		househ[indiv[i].home].change_status(i, SYMPTOMATIC);
 	}

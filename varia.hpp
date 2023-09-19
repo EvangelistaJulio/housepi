@@ -202,10 +202,10 @@ template <typename kwargs_int_or_ext>
 class Base_Parameter
 {
 protected:
-	double value;
-	bool infer;
-	Distribution_1D *distr_ptr;
-	Base_Proposer *prop_ptr;
+	double value = INFINITY;
+	bool infer = false;
+	Distribution_1D *distr_ptr = nullptr;
+	Base_Proposer *prop_ptr = nullptr;
 
 public:
 	//=====Constructor=====//

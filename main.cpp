@@ -133,19 +133,19 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
 {
     char delim = ',';
     Setup_MCMC_Struct loader;
-    std::ifstream input_file(data_path_to_file.c_str());
+    std::ifstream input(data_path_to_file.c_str());
     std::map<std::string, std::string> safe_load = {};
 
-    if (input_file)
+    if (input.is_open())
     {
         std::cout << "\n=============SETUP==============" << std::endl;
         std::cout << "Setup file: " << data_path_to_file << std::endl;
 
-        input_file.clear();                 // Clear any errors
-        input_file.seekg(0, std::ios::beg); // Seek to the beginning
+        input.clear();                 // Clear any errors
+        input.seekg(0, std::ios::beg); // Seek to the beginning
 
         // Create a stringstream of the current line
-        for (std::string line; std::getline(input_file, line);)
+        for (std::string line; std::getline(input, line);)
         {
             std::string name, choice;
             std::istringstream iss(line);
@@ -225,14 +225,14 @@ void build_community(std::string data_path_to_file)
 {
     double date, inst_val, cumul_val;
 
-    std::ifstream input_file(data_path_to_file.c_str());
-    if (input_file)
+    std::ifstream input(data_path_to_file.c_str());
+    if (input.is_open())
     {
         std::cout << "\n=============COMMUNITY==============" << std::endl;
         std::cout << "Data file: " << data_path_to_file << std::endl;
 
         // Create a stringstream of the current line
-        for (std::string line; std::getline(input_file, line);)
+        for (std::string line; std::getline(input, line);)
         {
             std::istringstream iss(line);
 
@@ -281,10 +281,10 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         //=====Load individuals from the raw with values=====//
         for (std::string line; std::getline(input, line);)
         {
-            size_t n_col = 0;
             std::istringstream iss(line);
 
             // Store information in variables
+            size_t n_col = 0;
             while (std::getline(iss, token, mcmc->m_setup.delim))
             {
                 data.at(headers[n_col]) = std::stod(token);
@@ -462,9 +462,6 @@ int main(int argc, char **argv)
 
     // Load Parameters
     build_parameters(&mcmc, parameters_path_to_file);
-
-    // Initialize infectivity profile
-    mcmc.assign_infec_profile();
 
     //=====Run Monte Carlo Markov Chain=====//
     mcmc.run(output_path_to_file);

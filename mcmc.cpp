@@ -12,9 +12,12 @@ using namespace std::chrono;
 /* Initialize augmented variables */
 void MCMC::init_model()
 {
+    assign_infec_profile(); // FIXME : names overlapping...
     clear_infectivity_profiles();
     assign_classes();
     assign_augm_data(m_rng);
+    update_global_loglike();
+    reset_moves();
 }
 
 /* Initialize global loglikelihood */
@@ -154,10 +157,8 @@ void MCMC::run(std::string output_file, double inv_temper)
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
-    init_rand_params(m_rng);
+    init_rand_params(m_rng); // FIXME : not for all inv_temper
     init_model();
-    update_global_loglike();
-    reset_moves();
 
     //=====Initialize output file=====//
     init_param_file(output_file);
