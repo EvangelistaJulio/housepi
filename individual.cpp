@@ -18,13 +18,15 @@ Base_Individual::Base_Individual(
 	this->data = data;
 }
 
-void Base_Individual::add_augm(std::string augmID, Augmented new_augm, bool init)
+void Base_Individual::add_augm(std::string augmID, Augmented new_augm)
 {
 	augm_var.emplace(augmID, new_augm);
-	if (init)
-	{
-		
-	}
+}
+
+void Base_Individual::add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng)
+{
+	augm_var.emplace(augmID, new_augm);
+	init_augm(augmID, rng);
 }
 
 double Base_Individual::augm_model_log_pdf(std::string augmID)

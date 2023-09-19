@@ -175,9 +175,7 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 		kwargs range = {{"low", 0.0}, {"up", get_value("max_incub_period")}};
 
 		Augmented augm_var(init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
-		indiv[i].add_augm(augmID, augm_var, (status != HEALTHY));
-
-		// FIXME : HERE !!! this is the only change...
+		(status == HEALTHY) ? indiv[i].add_augm(augmID, augm_var) : indiv[i].add_augm(augmID, augm_var, rng);
 	}
 
 	//=====onset_time=====//
@@ -198,7 +196,7 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 		kwargs range = {{"low", get_value("onset_low")}, {"up", indiv[i].get("study_period")}};
 
 		Augmented augm_var(init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
-		indiv[i].add_augm(augmID, augm_var, false);
+		indiv[i].add_augm(augmID, augm_var);
 	}
 }
 

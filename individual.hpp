@@ -49,7 +49,8 @@ public:
 	bool augm_infer(std::string augmID) { return augm_var.at(augmID).get_infer(); }
 
 	//=====Setter=====//
-	void add_augm(std::string augmID, Augmented new_augm, bool init = false);
+	void add_augm(std::string augmID, Augmented new_augm);
+	void add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng);
 
 	void set_status(int status) { this->status = status; }
 	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }

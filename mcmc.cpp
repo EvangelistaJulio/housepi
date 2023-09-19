@@ -86,7 +86,6 @@ void MCMC::move_parameters(double inv_temper)
 /* Sweep over augmented variables. */
 void MCMC::move_augm_variables(double inv_temper)
 {
-    bool move_accepted = false;
     double old_val, new_val, Q;
     double log_ratio_proposal = 0.0;
     double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
@@ -108,7 +107,6 @@ void MCMC::move_augm_variables(double inv_temper)
 
                     // FIXME : always valid if prior proposer
                     // proceed only if the new value is consistent
-                    move_accepted = false;
                     if (indiv[res].augm_valid(augmID, new_val))
                     {                                         // Update with proposed value to perform computations
                         indiv[res].set_augm(augmID, new_val); // UPDATE: should be method Model
@@ -123,7 +121,6 @@ void MCMC::move_augm_variables(double inv_temper)
 
                         if (std::log(m_unif(m_rng)) < Q)
                         {
-                            move_accepted = true;
                             m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
                             househ[h].loglike = new_loglike_of_HH;
                             m_num_accept_data++; // NOTE : problematic for normalization
@@ -148,7 +145,7 @@ void MCMC::move_augm_variables(double inv_temper)
 
 void MCMC::run(std::string output_file, double inv_temper)
 {
-    unsigned step;
+    unsigned step = 0;
     double adapt_ratio;
 
     if (m_setup.verbose)
