@@ -33,11 +33,6 @@ public:
 	using Base_Individual::Base_Individual;
 };
 
-/*
-	void set_status(size_t idx, int status);				// FIXME
-	void add_individual(Individual this_indiv, int status); // FIXME
-*/
-
 ///////////////////////////////////////////////////////////////////////
 // //////////////// Onset to Transmission : class ////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -81,7 +76,7 @@ public:
 
 	void add_individual(Individual this_indiv);
 	void assign_classes();
-	void assign_households();
+	void assign_community_structure();
 	int get_status(size_t i) const { return indiv[i].get_status(); }
 
 	timetype max_study_period();
@@ -110,7 +105,7 @@ public:
 	double susceptibility(size_t idx);
 	double transmissability(size_t i);
 
-	// void simulate_data(Household *H, timetype delta_t, std::mt19937_64 &rng);
+	void simulate_data(timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // MODEL__H

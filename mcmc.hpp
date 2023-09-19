@@ -37,11 +37,13 @@ public:
 
 class MCMC : public Model
 {
+private:
+	double m_global_loglike = 0.0;
+
 public:
 	std::mt19937_64 m_rng;
 	std::uniform_real_distribution<double> m_unif;
 	Setup_MCMC_Struct m_setup = {};
-	double m_global_loglike = 0.0;
 	int m_num_accept_data = 0;
 	int m_num_propos_data = 0;
 

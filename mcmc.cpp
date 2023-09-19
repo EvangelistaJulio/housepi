@@ -38,7 +38,7 @@ void MCMC::reset_moves()
 {
     m_num_propos_data = 0;
     m_num_accept_data = 0;
-    for (std::string parID : to_be_inferred)
+    for (std::string parID : param_to_be_inferred)
     {
         reset_accept_rate(parID);
     }
@@ -54,7 +54,7 @@ void MCMC::move_parameters(double inv_temper)
     double Q, new_global_loglike;
 
     // loop over all parameters to be inferred
-    for (std::string parID : to_be_inferred)
+    for (std::string parID : param_to_be_inferred)
     {
         // proceed only if the new value is consistent
         if (propose_valid_move(parID, m_rng))
@@ -191,7 +191,7 @@ void MCMC::run(std::string output_file, double inv_temper)
             if (step < m_setup.num_adapt_iter)
             {
                 adapt_ratio = (double)step / m_setup.num_adapt_iter;
-                for (std::string parID : to_be_inferred)
+                for (std::string parID : param_to_be_inferred)
                 {
                     adapt(parID, adapt_ratio);
                 }
@@ -230,7 +230,7 @@ void MCMC::init_param_file(std::string output_filename)
         {
             param_ofstream << m_setup.delim << "augm__a%";
         }
-        for (std::string parID : to_be_inferred)
+        for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << m_setup.delim << parID << m_setup.delim << parID << "__a%";
         }
@@ -253,7 +253,7 @@ void MCMC::print_parameters(unsigned step)
     {
         param_ofstream << m_setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
     }
-    for (std::string parID : to_be_inferred)
+    for (std::string parID : param_to_be_inferred)
     {
         param_ofstream << m_setup.delim << get_value(parID) << m_setup.delim << 100.0 * get_accept_rate(parID);
     }

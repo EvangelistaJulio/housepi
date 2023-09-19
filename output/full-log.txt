@@ -15,8 +15,8 @@ Data file: data/community_infection.txt
 
 =============DATA===============
 Data file: data/database.txt
-N. of households : 1201
 N. of individuals : 4619
+N. of households : 1201
 N. of cases : 2624
 N. of days : 272
 
@@ -56,5 +56,5 @@ typical_size false
 =========MCMC:execution=========
 
 ===========MCMC:end=============
-Execution time : 84 ms
+Execution time : 81 ms
 

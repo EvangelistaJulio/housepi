@@ -128,7 +128,7 @@ Base_Proposer *proposer_switchboard(std::string name, kwargs args = {}, double v
 class Uniform_Proposer : public Base_Proposer
 {
 public:
-	// Constructors
+	//=====Constructors=====//
 	Uniform_Proposer(
 		kwargs new_args = {{"low", (double)-0.5}, {"up", (double)0.5}},
 		double value_0 = INFINITY,
@@ -147,7 +147,7 @@ public:
 class Normal_Proposer : public Base_Proposer
 {
 public:
-	// Constructors
+	//=====Constructor=====//
 	Normal_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double value_0 = INFINITY,
@@ -166,7 +166,7 @@ public:
 class Lognorm_Proposer : public Base_Proposer
 {
 public:
-	// Constructor
+	//=====Constructor=====//
 	Lognorm_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double value_0 = INFINITY,
@@ -185,7 +185,7 @@ public:
 class Prior_Proposer : public Base_Proposer
 {
 public:
-	// Constructors
+	//=====Constructor=====//
 	Prior_Proposer(Distribution_1D *distribution) : Base_Proposer(distribution)
 	{
 		_propose_method_ = &Prior_Proposer::_draw_rand_;
@@ -202,14 +202,13 @@ template <typename kwargs_int_or_ext>
 class Base_Parameter
 {
 protected:
+	double value;
+	bool infer;
 	Distribution_1D *distr_ptr;
 	Base_Proposer *prop_ptr;
-	bool infer = false;
 
 public:
-	double value;
-
-	// Constructor
+	//=====Constructor=====//
 	Base_Parameter(
 		double value,
 		std::string prior_name = UNDEF,
@@ -314,8 +313,8 @@ private:
 	double buffer_log_ratio;
 
 public:
-	std::vector<std::string> to_be_inferred = {};
-	std::vector<std::string> not_to_be_inferred = {};
+	std::vector<std::string> param_to_be_inferred = {};
+	std::vector<std::string> param_not_to_be_inferred = {};
 
 	//=====Methods=====//
 	void add_param(
@@ -338,7 +337,7 @@ public:
 	void init_rand_params(std::mt19937_64 &rng);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
 
-	// Metropolis-Hastings moves
+	//=====Metropolis-Hastings moves=====//
 	bool propose_valid_move(const std::string k, std::mt19937_64 &rng);
 	double get_move_log_ratio() { return buffer_log_ratio; }
 	void accept_move(const std::string k);
@@ -347,7 +346,7 @@ public:
 	// acceptation rates / adaptive methods
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
-	// Display
+	//=====Display=====//
 	void print(char delim = ' ');
 };
 

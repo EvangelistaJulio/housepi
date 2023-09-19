@@ -82,7 +82,7 @@ class Household
 public:
 	// Attributes
 	int house_index = -1;
-	size_t num_res = 0;
+	size_t size = 0;
 	size_t first_case = -1;
 	timetype infec_time = INFINITY;
 	std::vector<size_t> healthy_list = {};
