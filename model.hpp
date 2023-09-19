@@ -10,7 +10,33 @@
 #include <random>
 #include <iostream>
 
-#include "household.hpp"
+#include "individual.hpp"
+
+///////////////////////////////////////////////////////////////////////
+// //////////////// Modified Individual : class //////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+class Individual : public Base_Individual
+{
+public:
+	size_t home;
+	bool is_child = false;
+	bool is_mother = false;
+	bool is_father = false;
+	bool is_recov = false;
+	bool is_isol = false;
+	bool is_vacc_0 = false;
+	bool is_vacc_1 = false;
+	bool is_vacc_1_V_onset = false;
+	bool is_vacc_2 = false;
+
+	using Base_Individual::Base_Individual;
+};
+
+/*
+	void set_status(size_t idx, int status);				// FIXME
+	void add_individual(Individual this_indiv, int status); // FIXME
+*/
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////// Onset to Transmission : class ////////////////// //
@@ -19,15 +45,14 @@
 class Onset_to_Transm : public Base_Distrib
 {
 public:
-    // Constructors
-    Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args) {}
-    Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext) {}
-    ~Onset_to_Transm(){};
+	// Constructors
+	Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args) {}
+	Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext) {}
+	~Onset_to_Transm(){};
 
-    double pdf(timetype tost, timetype t_incub);
-    double cdf(timetype tost, timetype t_incub);
+	double pdf(timetype tost, timetype t_incub);
+	double cdf(timetype tost, timetype t_incub);
 };
-
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////////// Model : class ///////////////////////// //
@@ -35,38 +60,57 @@ public:
 
 class Model : public Parameter_Dictionary
 {
-private:
-	Onset_to_Transm * infectivity_profile;
+protected:
+	Onset_to_Transm *infectivity_profile;
+	std::vector<Individual> indiv;
+	std::vector<Household> househ;
+
+	// augmented variables behavior lists
+	std::vector<std::string> augm_list = {};
+	std::vector<std::string> augm_with_model = {};
+	std::vector<std::string> augm_to_be_inferred = {};
+
+	// infectivity profile : profile[i][j] : from i to j
+	std::vector<std::vector<double>> cumul_profile = {}; 
+	std::vector<std::vector<double>> inst_profile = {};
 
 public:
-	Model() {}
-	~Model() {}
+	size_t num_indiv = 0;
+	size_t num_symptomatic = 0;
+	size_t num_househ = 0;
 
-	// Augmetend Data 
-	void assign_augm_data(Household *H, std::mt19937_64 &rng);
-	void _assign_augm_to_ind_(Household *H, size_t idx, std::mt19937_64 &rng); // UPDATE: temporary
-	timetype get_infec_time(Household *H, size_t idx) const;
+	void add_individual(Individual this_indiv);
+	void assign_classes();
+	void assign_households();
+	int get_status(size_t i) const { return indiv[i].get_status(); }
+
+	timetype max_study_period();
+
+	// Augmetend Data
+	void assign_augm_data(std::mt19937_64 &rng);
+	void _assign_augm_to_ind_(size_t idx, std::mt19937_64 &rng); // UPDATE: temporary
+	timetype get_infec_time(size_t i) const;
 
 	// Infectivity Profile
 	void assign_infec_profile();
-	double infectivity_inst(Household *H, size_t idx, timetype t_transm);
-	double infectivity_cumul(Household *H, size_t idx, timetype t_transm);
-	void init_infectivity_profiles(Household *H);
-	void update_infectivity_profiles(Household *H, size_t idx);
-	void update_first_case(Household *H);
+	double infectivity_inst(size_t i, timetype t_transm);
+	double infectivity_cumul(size_t i, timetype t_transm);
+	void clear_infectivity_profiles();
+	void update_infectivity_profiles(size_t i);
+	void update_first_case(size_t h);
 
-	double risk_beta(Household *H, const std::vector<std::vector<double>> &rate_vector, size_t idx);
-	double log_surv_proba(Household *H, size_t idx);
-	double log_infec_proba(Household *H, size_t idx);
-	double compute_loglike(Household *H);
+	double risk_beta(std::vector<std::vector<double>> &rate_vector, size_t idx);
+	double log_surv_proba(size_t idx);
+	double log_infec_proba(size_t idx);
+	double compute_loglike(size_t h);
 
 	double community_risk_inst(timetype t1);
 	double community_risk_cumul(timetype t0, timetype t1);
-	double contact_modulation(Household *H, size_t infectee, size_t idx);
-	double susceptibility(Household *H, size_t idx);
-	double transmissability(Household *H);
+	double contact_modulation(size_t infectee, size_t idx);
+	double susceptibility(size_t idx);
+	double transmissability(size_t i);
 
-	void simulate_data(Household *H, timetype delta_t, std::mt19937_64 &rng);
+	// void simulate_data(Household *H, timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // MODEL__H

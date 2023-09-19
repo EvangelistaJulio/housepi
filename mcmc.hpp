@@ -12,7 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
-//#include <omp.h>
+// #include <omp.h>
 
 #include "model.hpp"
 
@@ -37,35 +37,28 @@ public:
 
 class MCMC : public Model
 {
-private:
+public:
 	std::mt19937_64 m_rng;
-	double m_global_loglike = 0.0;
-	std::vector<Household> m_data = {};
 	std::uniform_real_distribution<double> m_unif;
 	Setup_MCMC_Struct m_setup = {};
-
-public:
+	double m_global_loglike = 0.0;
 	int m_num_accept_data = 0;
 	int m_num_propos_data = 0;
 
 	// Constructors
-	MCMC(
-		Setup_MCMC_Struct setup,
-		std::vector<Household> data) : m_unif(0.0, 1.0)
+	MCMC(Setup_MCMC_Struct setup) : m_unif(0.0, 1.0)
 	{
 		m_setup = setup;
 		m_rng.seed(setup.seed);
-		m_data = data;
 	}
-	~MCMC(){}
+	~MCMC() {}
 
 	// --- Getter --- //
-	size_t num_households() const { return m_data.size(); };
 	double get_global_loglike() const { return m_global_loglike; };
 
 	// --- Setter --- //
 	void reset_moves();
-	void declare_augm_data(std::mt19937_64 &rng);
+	void init_model();
 
 	// --- Computations --- //
 	void update_global_loglike();

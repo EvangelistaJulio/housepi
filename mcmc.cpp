@@ -9,25 +9,12 @@ using namespace std::chrono;
 // ////////////////////////// MCMC : Setter ///////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-/* Set accept rates to zero */
-void MCMC::reset_moves()
-{
-    m_num_propos_data = 0;
-    m_num_accept_data = 0;
-    for (std::string parID : to_be_inferred)
-    {
-        reset_accept_rate(parID);
-    }
-}
-
 /* Initialize augmented variables */
-void MCMC::declare_augm_data(std::mt19937_64 &rng)
+void MCMC::init_model()
 {
-    for (size_t h = 0; h < num_households(); h++)
-    {
-        init_infectivity_profiles(&m_data[h]);
-        assign_augm_data(&m_data[h], rng);
-    }
+    clear_infectivity_profiles();
+    assign_classes();
+    assign_augm_data(m_rng);
 }
 
 /* Initialize global loglikelihood */
@@ -38,11 +25,22 @@ void MCMC::update_global_loglike()
     {
         m_global_loglike = 0.0;
         // #pragma omp for reduction(+ : sum)
-        for (size_t h = 0; h < num_households(); h++)
+        for (size_t h = 0; h < num_househ; h++)
         {
-            m_data[h].h_loglike = compute_loglike(&m_data[h]);
-            m_global_loglike += m_data[h].h_loglike;
+            househ[h].loglike = compute_loglike(h);
+            m_global_loglike += househ[h].loglike;
         }
+    }
+}
+
+/* Set accept rates to zero */
+void MCMC::reset_moves()
+{
+    m_num_propos_data = 0;
+    m_num_accept_data = 0;
+    for (std::string parID : to_be_inferred)
+    {
+        reset_accept_rate(parID);
     }
 }
 
@@ -64,14 +62,14 @@ void MCMC::move_parameters(double inv_temper)
             // Compute the new log likelihood
             // UPDATE : emberassing parallel
             new_global_loglike = 0.0;
-            for (size_t h = 0; h < num_households(); h++)
+            for (size_t h = 0; h < num_househ; h++)
             {
-                new_global_loglike += compute_loglike(&m_data[h]);
+                new_global_loglike += compute_loglike(h);
             }
 
             //=====Metropolis-Hastings=====//
             Q = inv_temper * (new_global_loglike - m_global_loglike);
-            Q += get_log_ratio();
+            Q += get_move_log_ratio();
             if (std::log(m_unif(m_rng)) < Q)
             {
                 accept_move(parID);
@@ -97,28 +95,28 @@ void MCMC::move_augm_variables(double inv_temper)
     {
         // #pragma omp for reduction(+ : sum)
         // Loop over households
-        for (size_t h = 0; h < m_data.size(); h++)
+        for (size_t h = 0; h < num_househ; h++)
         {
             // Loop over infectious residents of the househould
-            for (size_t res : m_data[h].h_symptomatic_list)
+            for (size_t res : househ[h].symptomatic_list)
             {
-                for (std::string augmID : m_data[h].get_augm_to_be_inferred(res))
+                for (std::string augmID : augm_to_be_inferred)
                 {
-                    old_val = m_data[h].get_augm(augmID, res);            // store old value
-                    old_loglike_of_HH = m_data[h].h_loglike;              // store old loglike
-                    new_val = m_data[h].augm_propose(augmID, res, m_rng); // propose new value
+                    old_val = indiv[res].get_augm(augmID);            // store old value
+                    old_loglike_of_HH = househ[h].loglike;            // store old loglike
+                    new_val = indiv[res].augm_propose(augmID, m_rng); // propose new value
 
                     // FIXME : always valid if prior proposer
                     // proceed only if the new value is consistent
                     move_accepted = false;
-                    if (m_data[h].augm_valid(augmID, res, new_val))
-                    {                                                 // Update with proposed value to perform computations
-                        m_data[h].set_augm(augmID, res, new_val);     // UPDATE: should be method Model
-                        update_first_case(&m_data[h]);                // Update information of first cases
-                        update_infectivity_profiles(&m_data[h], res); // Update infectivity profiles related to idx
+                    if (indiv[res].augm_valid(augmID, new_val))
+                    {                                         // Update with proposed value to perform computations
+                        indiv[res].set_augm(augmID, new_val); // UPDATE: should be method Model
+                        update_first_case(h);                 // Update information of first cases
+                        update_infectivity_profiles(res);     // Update infectivity profiles related to idx
 
-                        new_loglike_of_HH = compute_loglike(&m_data[h]);
-                        log_ratio_proposal = m_data[h].augm_propose_log_ratio(augmID, res, old_val, new_val);
+                        new_loglike_of_HH = compute_loglike(h);
+                        log_ratio_proposal = indiv[res].augm_propose_log_ratio(augmID, old_val, new_val);
 
                         Q = inv_temper * (new_loglike_of_HH - old_loglike_of_HH);
                         Q -= log_ratio_proposal;
@@ -127,14 +125,14 @@ void MCMC::move_augm_variables(double inv_temper)
                         {
                             move_accepted = true;
                             m_global_loglike += new_loglike_of_HH - old_loglike_of_HH;
-                            m_data[h].h_loglike = new_loglike_of_HH;
+                            househ[h].loglike = new_loglike_of_HH;
                             m_num_accept_data++; // NOTE : problematic for normalization
                         }
                         else
                         {
-                            m_data[h].set_augm(augmID, res, old_val);     // UPDATE: should be method Model
-                            update_first_case(&m_data[h]);                // Update information of first cases
-                            update_infectivity_profiles(&m_data[h], res); // Update infectivity profiles related to idx
+                            indiv[res].set_augm(augmID, old_val); // UPDATE: should be method Model
+                            update_first_case(h);                 // Update information of first cases
+                            update_infectivity_profiles(res);     // Update infectivity profiles related to idx
                         }
                     }
                     m_num_propos_data++;
@@ -160,7 +158,7 @@ void MCMC::run(std::string output_file, double inv_temper)
     }
 
     init_rand_params(m_rng);
-    declare_augm_data(m_rng);
+    init_model();
     update_global_loglike();
     reset_moves();
 
@@ -183,7 +181,7 @@ void MCMC::run(std::string output_file, double inv_temper)
             move_parameters(inv_temper);
             update_global_loglike(); // FIXME: I reassign loglike to each household
 
-            //=====Data augmentation=====// 
+            //=====Data augmentation=====//
             if (m_setup.is_data_augm)
             {
                 move_augm_variables(inv_temper);
@@ -201,7 +199,7 @@ void MCMC::run(std::string output_file, double inv_temper)
         }
         print_parameters(step);
     }
-    
+
     //=====MCMC ending=====//
     close_param_file();
 
@@ -265,18 +263,14 @@ void MCMC::print_parameters(unsigned step)
 /* Print the ensemble of augmented variables */
 void MCMC::print_augm_variables()
 {
-    for (size_t h = 0; h < num_households(); h++)
+    for (size_t i = 0; i < num_indiv; i++)
     {
-        for (size_t res = 0; res < m_data[h].h_size; res++)
+        augm_ofstream << indiv[i].get_index() << m_setup.delim << get_status(i);
+        for (std::string augmID : augm_list)
         {
-            augm_ofstream << m_data[h].get_index() << m_setup.delim << m_data[h].h_size;
-            augm_ofstream << m_setup.delim << m_data[h].get_index(res) << m_setup.delim << m_data[h].get_status(res);
-            for (std::string augmID : m_data[h].get_augm_list(res))
-            {
-                augm_ofstream << m_setup.delim << m_data[h].get_augm(augmID, res);
-            }
-            augm_ofstream << std::endl;
+            augm_ofstream << m_setup.delim << indiv[i].get_augm(augmID);
         }
+        augm_ofstream << std::endl;
     }
 }
 

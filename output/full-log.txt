@@ -4,8 +4,8 @@ Setup file: default_setup.csv
 delim : " "
 dict_delim : "/"
 is_data_augm : TRUE
-num_adapt_iter : 50
-num_iter : 200
+num_adapt_iter : 500
+num_iter : 2000
 seed : 20210415
 thinning : 10
 verbose : TRUE
@@ -56,5 +56,5 @@ typical_size false
 =========MCMC:execution=========
 
 ===========MCMC:end=============
-Execution time : 19 ms
+Execution time : 84 ms
 

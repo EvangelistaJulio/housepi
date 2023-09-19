@@ -340,7 +340,7 @@ public:
 
 	// Metropolis-Hastings moves
 	bool propose_valid_move(const std::string k, std::mt19937_64 &rng);
-	double get_log_ratio() { return buffer_log_ratio; }
+	double get_move_log_ratio() { return buffer_log_ratio; }
 	void accept_move(const std::string k);
 	void refuse_move(const std::string k);
 
