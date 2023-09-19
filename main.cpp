@@ -16,8 +16,8 @@ using namespace std;
 
 //=====Define the global variables=====//
 // UPDATE: this depends on the model
-std::vector<double> Cumul_Community_Infec = {};
-std::vector<double> Inst_Community_Infec = {};
+std::vector<double> Cumul_Comm_Infec = {};
+std::vector<double> Inst_Comm_Infec = {};
 
 // ////////////////////////////////////////////////////////////////////////// //
 // ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
@@ -239,8 +239,8 @@ void build_community(std::string data_path_to_file)
             // Store information in variables
             iss >> date >> inst_val >> cumul_val;
 
-            Inst_Community_Infec.push_back(inst_val);
-            Cumul_Community_Infec.push_back(cumul_val);
+            Inst_Comm_Infec.push_back(inst_val);
+            Cumul_Comm_Infec.push_back(cumul_val);
         }
     }
     else
@@ -252,125 +252,85 @@ void build_community(std::string data_path_to_file)
     }
 }
 
-/*
-    Read Households file
-    ---------
-    The Households file should be a space-separated table with household ids
-    sorted in ascending order and numbered from 0 to n-1 households
-
-    datafile with columns :
-    -----------------------
-    1: indid (int), 2: this_HH_id (int), 3: HH_size (int), 4: onset_time (double), 5: study_period (double), 6: status (0 to 3),
-    7: vacc_status (0 to 3), 8:  age (int), 9: isolation (0 or 1), 10: sex (0 or 1), 11: vacc_delay (int), 12: recovered (0 or 1)
-
-    status :
-    ---------
-    0: not a case
-    1: symptomatic case with known symptom onset
-    2: asymptomatic case
-    3: symptomatic case with unknown symptom onset
-*/
-std::vector<Household> build_households(std::string data_path_to_file, bool verbose)
+/* Read Data file */
+void build_data(MCMC *mcmc, std::string data_path_to_file)
 {
-    int this_HH_id, indid, age, sex;
-    int HH_size, status, vacc_status;
-    timetype onset_time, study_period, vacc_delay;
-    bool isolation = false, recovered = false;
-    int num_cases = 0, num_subjects = 0;
-    timetype max_study_period = 0.0;
-    std::unordered_map<int, Household> safe_load_HH = {};
-    std::vector<Household> data_HH = {};
+    bool verbose = mcmc->m_setup.verbose;
 
-    std::ifstream input_file(data_path_to_file.c_str());
-    if (input_file)
+    std::ifstream input(data_path_to_file.c_str());
+    if (input.is_open())
     {
         std::cout << "\n=============DATA===============" << std::endl;
         std::cout << "Data file: " << data_path_to_file << std::endl;
 
-        // Create a stringstream of the current line
-        for (std::string line; std::getline(input_file, line);)
+        //=====Read column names for variables in the model=====//
+        std::string line;
+        std::getline(input, line);
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> headers;
+        std::unordered_map<std::string, double> data = {};
+
+        // Tokenize the line using the specified delimiter
+        while (std::getline(iss, token, mcmc->m_setup.delim))
         {
+            headers.push_back(token);
+            data.emplace(token, 0);
+        }
+
+        //=====Load individuals from the raw with values=====//
+        for (std::string line; std::getline(input, line);)
+        {
+            size_t n_col = 0;
             std::istringstream iss(line);
 
             // Store information in variables
-            iss >> indid >> this_HH_id >> HH_size >> onset_time >> study_period >> status >> vacc_status >> age >> isolation >> sex >> vacc_delay >> recovered;
-
-            // if this_HH_id doesn't exist, append new household
-            if (safe_load_HH.find(this_HH_id) == safe_load_HH.end())
+            while (std::getline(iss, token, mcmc->m_setup.delim))
             {
-                safe_load_HH.emplace(this_HH_id, Household());
-                safe_load_HH.at(this_HH_id).set_index(this_HH_id);
+                data.at(headers[n_col]) = std::stod(token);
+                n_col++;
             }
 
-            // UPDATE : to be generalized starting from the model
-            if ((status != HEALTHY) && (status != SYMPTOMATIC))
-            {
-                std::cerr << "ERROR: status not in the model: " << status << endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                std::exit(EXIT_FAILURE);
-            }
-
-            // Update household object and information parameters
-            Individual this_indiv(
-                indid,
-                age,
-                sex,
-                isolation,
-                recovered,
-                vacc_status,
-                study_period,
-                vacc_delay,
-                onset_time);
-            safe_load_HH[this_HH_id].add_individual(this_indiv, status);
-
-            // dataset composition
-            if (verbose)
-            {
-                num_subjects++;
-                num_cases += (status == HEALTHY) ? 0 : 1;
-                max_study_period = max(max_study_period, study_period);
-            }
+            // Create an onbject Individual and add it to the model
+            Individual this_indiv(data.at("status"), data.at("index"), data);
+            mcmc->add_individual(this_indiv);
         }
+        //=====assign structure of the community=====//
+        mcmc->assign_community_structure();
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
+        std::cerr << "\nERROR: Impossible to open: " << data_path_to_file << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
         exit(EXIT_FAILURE);
-    }
-
-    // extract only households and forget about their id
-    for (const auto &entry : safe_load_HH)
-    {
-        data_HH.push_back(entry.second);
     }
 
     //=====Display=====//
     if (verbose)
     {
-        std::cout << "N. of households : " << data_HH.size() << std::endl;
-        std::cout << "N. of individuals : " << num_subjects << std::endl;
-        std::cout << "N. of cases : " << num_cases << std::endl;
-        std::cout << "N. of days : " << max_study_period << std::endl;
+        std::cout << "N. of individuals : " << mcmc->num_indiv << std::endl;
+        std::cout << "N. of households : " << mcmc->num_househ << std::endl;
+        std::cout << "N. of cases : " << mcmc->num_symptomatic << std::endl;
+        std::cout << "N. of days : " << mcmc->max_study_period() << std::endl;
     }
-
-    return (data_HH);
 }
 
 /* Read Model Parameters file */
-void build_parameters(MCMC *mcmc, std::string data_path_to_file, char delim, char dict_delim, bool verbose)
+void build_parameters(MCMC *mcmc, std::string data_path_to_file)
 {
-    std::ifstream input_file(data_path_to_file.c_str());
+    bool verbose = mcmc->m_setup.verbose;
+    char delim = mcmc->m_setup.delim;
+    char dict_delim = mcmc->m_setup.dict_delim;
+    std::ifstream input(data_path_to_file.c_str());
 
-    if (input_file)
+    if (input.is_open())
     {
         std::cout << "\n=============PARAMETERS==============" << std::endl;
         std::cout << "Model file: " << data_path_to_file << std::endl;
 
         // Create a stringstream of the current line
-        for (std::string line; std::getline(input_file, line);)
+        for (std::string line; std::getline(input, line);)
         {
             std::string name, value_str, infer, strategy, rate_str, range_str, prior_name, prior_args_str;
             double value;
@@ -493,16 +453,15 @@ int main(int argc, char **argv)
 
     // Load Setup
     Setup_MCMC_Struct setup = load_setup(setup_path_to_file);
+    // Initialize MCMC object
+    MCMC mcmc(setup);
 
     // Load Data
     build_community(community_path_to_file);
-    std::vector<Household> HH_data = build_households(households_path_to_file, setup.verbose);
-
-    // Initialize MCMC object
-    MCMC mcmc(setup, HH_data);
+    build_data(&mcmc, households_path_to_file);
 
     // Load Parameters
-    build_parameters(&mcmc, parameters_path_to_file, setup.delim, setup.dict_delim, setup.verbose);
+    build_parameters(&mcmc, parameters_path_to_file);
 
     // Initialize infectivity profile
     mcmc.assign_infec_profile();

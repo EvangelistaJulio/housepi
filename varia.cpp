@@ -164,13 +164,13 @@ void Parameter_Dictionary::add_param(
     }
 
     // update the lists of parameters to be inferred or not
-    if (new_param.get_infer() == true)
+    if (new_param.get_infer())
     {
-        to_be_inferred.push_back(k);
+        param_to_be_inferred.push_back(k);
     }
     else
     {
-        not_to_be_inferred.push_back(k);
+        param_not_to_be_inferred.push_back(k);
     }
 }
 
@@ -178,20 +178,20 @@ void Parameter_Dictionary::add_param(
 void Parameter_Dictionary::print(char delim)
 {
     std::cout << "-NAME-" << delim << "-INFER-" << endl;
-    for (std::string k : to_be_inferred)
+    for (std::string k : param_to_be_inferred)
     {
         std::cout << k << delim << "true" << endl;
     }
-    for (std::string k : not_to_be_inferred)
+    for (std::string k : param_not_to_be_inferred)
     {
         std::cout << k << delim << "false" << endl;
     }
 }
 
 /* randomly initialize values of the parameters to be inferred */
-void Parameter_Dictionary::random_init_values(std::mt19937_64 &rng)
+void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 {
-    for (std::string k : to_be_inferred)
+    for (std::string k : param_to_be_inferred)
     {
         set_value(k, params.at(k).prior_rand(rng));
     }
@@ -201,11 +201,12 @@ bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_
 {
     double new_val = params.at(k).propose(rng); // propose new value
     bool is_valid = false;
+
     // proceed only if valid
     if (params.at(k).valid(new_val))
     {
         is_valid = true;
-        buffer_value = get_value(k); // store old value
+        buffer_value = get_value(k); // store old value into buffer
         buffer_log_ratio = params.at(k).prior_log_ratio(buffer_value, new_val);
         buffer_log_ratio -= params.at(k).propose_log_ratio(buffer_value, new_val);
         set_value(k, new_val);
@@ -214,6 +215,7 @@ bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_
     {
         params.at(k).update_accept_rate(false);
     }
+    
     return is_valid;
 }
 
