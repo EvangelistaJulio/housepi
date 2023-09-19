@@ -32,29 +32,23 @@ r1V90 true
 r2V true
 rC true
 rQ true
+rCC true
 rMC true
 rFC true
 rR true
-rCC false
+tost_sigma true
+tost_alpha true
+incub_shape true
+incub_scale true
+onset_err true
+onset_low true
+onset_up true
+max_incub_period true
+vacc_onset true
+typical_size true
 tost_tau false
 tost_mu false
-tost_sigma false
-tost_alpha false
-incub_shape false
-incub_scale false
-onset_err false
-onset_low false
-onset_up false
-max_incub_period false
-vacc_onset false
-typical_size false
 
 =============MCMC===============
 
 ======MCMC:initialization=======
-
-=========MCMC:execution=========
-
-===========MCMC:end=============
-Execution time : 81 ms
-

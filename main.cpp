@@ -469,10 +469,13 @@ int main(int argc, char **argv)
     //=====Run Monte Carlo Markov Chain=====//
     mcmc.run(output_path_to_file);
 
+    /*
     // print last augmented data configuration // FIXME : temporary
+    mcmc.simulate_data(1, mcmc.m_rng);
     mcmc.open_augm_file(augmented_path_to_file);
     mcmc.print_augm_variables();
     mcmc.close_augm_file();
+    */
 
     return EXIT_SUCCESS;
 }

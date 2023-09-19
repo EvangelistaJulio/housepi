@@ -41,33 +41,26 @@ public:
 
 	//=====Methods=====//
 
-	// Getter
+	//=====Getter=====//
 	bool get_status() const { return status; }
 	int get_index() const { return index; }
 	double get(std::string dataID) const { return data.at(dataID); }
 	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
 	bool augm_infer(std::string augmID) { return augm_var.at(augmID).get_infer(); }
 
-	// Setter
-	void add_augm(std::string augmID,
-				  double new_val,
-				  std::string model_name = UNDEF,
-				  kwargs_ext model_args_ext = {},
-				  std::string strat_name = UNDEF,
-				  kwargs strat_args = {},
-				  double value_0 = INFINITY,
-				  kwargs value_range = {});
+	//=====Setter=====//
+	void add_augm(std::string augmID, Augmented new_augm, bool init = false);
 
 	void set_status(int status) { this->status = status; }
 	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
 	void init_augm(std::string augmID, std::mt19937_64 &rng) { set_augm(augmID, augm_model_rand(augmID, rng)); }
 
-	// model distribution
+	//=====model distribution=====//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
 	double augm_model_log_pdf(std::string augmID);
 	double augm_model_log_ratio(std::string augmID, double old_value, double new_val);
 
-	// proposer
+	//=====proposer=====//
 	double augm_propose(std::string augmID, std::mt19937_64 &rng);
 	double augm_propose_log_ratio(std::string augmID, double old_value, double new_val);
 	bool augm_valid(std::string augmID, double new_val) { return augm_var.at(augmID).valid(new_val); }
@@ -98,19 +91,8 @@ public:
 
 	// Setter
 	void set_index(int index) { house_index = index; }
-	void add_individual(size_t i, int status)
-	{
-		if (status == HEALTHY)
-		{
-			// Update the list of healthy residents within the household
-			healthy_list.push_back(i);
-		}
-		else
-		{
-			// Update the list of symptomatic residents within the household
-			symptomatic_list.push_back(i);
-		}
-	}
+	void add_individual(size_t i, int status);
+	void change_status(size_t i, int status);
 };
 
 #endif // INDIVIDUAL__H

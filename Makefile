@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=gnu++17 -O3
+CXXFLAGS := -Wall -Wextra -std=gnu++11 -O3
 
 # List of source files
 SOURCES := main.cpp mcmc.cpp model.cpp individual.cpp varia.cpp utils.cpp

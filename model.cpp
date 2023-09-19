@@ -174,13 +174,10 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 		double value_zero = INFINITY; // from old value
 		kwargs range = {{"low", 0.0}, {"up", get_value("max_incub_period")}};
 
-		indiv[i].add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
+		Augmented augm_var(init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
+		indiv[i].add_augm(augmID, augm_var, (status != HEALTHY));
 
-		// FIXME : this should be automatic
-		if (status != HEALTHY)
-		{
-			indiv[i].init_augm(augmID, rng);
-		}
+		// FIXME : HERE !!! this is the only change...
 	}
 
 	//=====onset_time=====//
@@ -200,7 +197,8 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 		double value_zero = init_value; // from init value
 		kwargs range = {{"low", get_value("onset_low")}, {"up", indiv[i].get("study_period")}};
 
-		indiv[i].add_augm(augmID, init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
+		Augmented augm_var(init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
+		indiv[i].add_augm(augmID, augm_var, false);
 	}
 }
 
@@ -539,7 +537,7 @@ double Model::transmissability(size_t i)
 	return factor;
 }
 
-/* Poisson point process */
+/* Poisson point process
 void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 {
 	std::uniform_real_distribution<double> unif(0.0, 1.0);
@@ -551,13 +549,14 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		indiv[i].set_status(HEALTHY);
 		indiv[i].init_augm("incub_period", rng); // UPDATE : merge with rand init
 		indiv[i].set_augm("onset_time", INFINITY);
+	
+		// initialize household
+		househ[indiv[i].home].change_status(i, SYMPTOMATIC);
 	}
 
-	// initialize households // FIXME : assignment to be generalized
+	// initialize households
 	for (size_t h = 0; h < num_househ; h++)
 	{
-		househ[h].healthy_list.resize(0);
-		househ[h].symptomatic_list.resize(0);
 		househ[h].infec_time = INFINITY;
 		househ[h].first_case = househ[h].size;
 	}
@@ -569,16 +568,14 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		{
 			for (size_t i : househ[h].healthy_list)
 			{
-				// UPDATE : buffer-like construction could be helpful 
+				// UPDATE : buffer-like construction could be helpful
 				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period")); // fix infec_time
 
 				if (unif(rng) < std::exp(log_infec_proba(i)))
-				{					
+				{
 					indiv[i].set_status(SYMPTOMATIC);
-					H->healthy_list.erase(H->healthy_list.begin() + i); // FIXME : function switch_status
-					
-
-					update_first_case(H);
+					househ[h].change_status(i, SYMPTOMATIC);
+					update_first_case(h);
 					update_infectivity_profiles(i);
 				}
 				else
@@ -589,3 +586,4 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		}
 	}
 }
+*/
