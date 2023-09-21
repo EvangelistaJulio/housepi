@@ -1,6 +1,6 @@
 
 =============SETUP==============
-Setup file: default_setup.csv
+Setup file: /pasteur/zeus/projets/p01/MMMICovid/fcamagli/household-epidemics/default_setup.csv
 delim : " "
 dict_delim : "/"
 is_data_augm : TRUE
@@ -11,17 +11,18 @@ thinning : 10
 verbose : TRUE
 
 =============COMMUNITY==============
-Data file: data/community_infection.txt
+Data file: /pasteur/zeus/projets/p01/MMMICovid/fcamagli/household-epidemics/data/community_infection.txt
 
 =============DATA===============
-Data file: data/database.txt
+Data file: /pasteur/zeus/projets/p01/MMMICovid/fcamagli/household-epidemics/data/database.txt
 N. of individuals : 4619
 N. of households : 1201
 N. of cases : 2624
-N. of days : 272
+First day of study : 0
+Last day of study : 272
 
 =============PARAMETERS==============
-Model file: data/parameters.txt
+Model file: /pasteur/zeus/projets/p01/MMMICovid/fcamagli/household-epidemics/data/parameters.txt
 -NAME- -INFER-
 alpha true
 beta true
@@ -52,9 +53,11 @@ typical_size false
 =============MCMC===============
 
 ======MCMC:initialization=======
+Model parameter file: /pasteur/zeus/projets/p01/MMMICovid/fcamagli/household-epidemics/output/test.txt
 
 =========MCMC:execution=========
 
 ===========MCMC:end=============
-Execution time : 91 ms
+Execution time : 118 ms
 
+Augmented variable file: /pasteur/zeus/projets/p01/MMMICovid/fcamagli/household-epidemics/output/augm.txt

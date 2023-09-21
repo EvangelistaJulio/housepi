@@ -153,7 +153,7 @@ double Normal_Distr::log_ratio(double x, double y)
 
 /* normal random generator */
 double Normal_Distr::rand(std::mt19937_64 &rng)
-{  
+{
     std::normal_distribution<double> distr_gen(get_arg("mean"), get_arg("sd"));
     return distr_gen(rng);
 }
@@ -215,7 +215,7 @@ double Lognorm_Distr::log_ratio(double x, double y)
 
 /* lognormal random generator */
 double Lognorm_Distr::rand(std::mt19937_64 &rng)
-{  
+{
     std::lognormal_distribution<double> distr_gen(get_arg("mean"), get_arg("sd"));
     return distr_gen(rng);
 }
@@ -277,7 +277,7 @@ double Gamma_Distr::log_ratio(double x, double y)
 
 /* gamma random generator */
 double Gamma_Distr::rand(std::mt19937_64 &rng)
-{  
+{
     std::gamma_distribution<double> distr_gen(get_arg("shape"), get_arg("scale"));
     return distr_gen(rng);
 }
@@ -336,7 +336,7 @@ double Exponential_Distr::log_ratio(double x, double y)
 
 /* exponential random generator */
 double Exponential_Distr::rand(std::mt19937_64 &rng)
-{  
+{
     std::exponential_distribution<double> distr_gen(get_arg("rate"));
     return distr_gen(rng);
 }

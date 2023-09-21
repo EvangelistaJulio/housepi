@@ -12,6 +12,7 @@
 
 #include "mcmc.hpp"
 
+// UPDATE : understand namespace usage and clean up
 using namespace std;
 
 //=====Define the global variables=====//
@@ -43,7 +44,7 @@ kwargs parse_dict_string(std::string args_str, char delim)
         std::cerr << "\nERROR: Unrecognized dictionary." << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
     else
     {
@@ -58,7 +59,7 @@ kwargs parse_dict_string(std::string args_str, char delim)
                 std::cerr << "\nERROR: Invalid entry of a dictionary." << std::endl;
                 std::cerr << "Exit...\n"
                           << std::endl;
-                exit(EXIT_FAILURE);
+                std::exit(EXIT_FAILURE);
             }
         }
     }
@@ -84,7 +85,7 @@ bool stobool(std::string text)
         std::cerr << "\nERROR: Unrecognized boolean value for: " << text << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     return output;
@@ -107,7 +108,7 @@ char load_delim(std::string text)
                   << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     return delim;
@@ -121,7 +122,7 @@ void build_column_error(std::string var_name, std::string &line)
               << std::endl;
     std::cerr << "Exit...\n"
               << std::endl;
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
 }
 
 // ////////////////////////////////////////////////////////////////////////// //
@@ -158,7 +159,7 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
                           << std::endl;
                 std::cerr << "Exit...\n"
                           << std::endl;
-                exit(EXIT_FAILURE);
+                std::exit(EXIT_FAILURE);
             }
 
             //=====CHOICE=====//
@@ -169,10 +170,11 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
                           << std::endl;
                 std::cerr << "Exit...\n"
                           << std::endl;
-                exit(EXIT_FAILURE);
+                std::exit(EXIT_FAILURE);
             }
 
             // Trim leading and trailing spaces from key and value
+            // FIXME : is this really necessary?
             name.erase(0, name.find_first_not_of(" "));
             name.erase(name.find_last_not_of(" ") + 1);
             choice.erase(0, choice.find_first_not_of(" "));
@@ -196,7 +198,7 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====Check for values validity=====//
@@ -205,7 +207,7 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         std::cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====Display=====//
@@ -248,14 +250,14 @@ void build_community(std::string data_path_to_file)
         std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 }
 
 /* Read Data file */
 void build_data(MCMC *mcmc, std::string data_path_to_file)
 {
-    bool verbose = mcmc->m_setup.verbose;
+    bool verbose = mcmc->setup.verbose;
 
     std::ifstream input(data_path_to_file.c_str());
     if (input.is_open())
@@ -268,13 +270,12 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         std::getline(input, line);
         std::istringstream iss(line);
         std::string token;
-        std::vector<std::string> headers;
         std::unordered_map<std::string, double> data = {};
 
         // Tokenize the line using the specified delimiter
-        while (std::getline(iss, token, mcmc->m_setup.delim))
+        while (std::getline(iss, token, mcmc->setup.delim))
         {
-            headers.push_back(token);
+            mcmc->data_headers.push_back(token);
             data.emplace(token, 0);
         }
 
@@ -285,9 +286,9 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
 
             // Store information in variables
             size_t n_col = 0;
-            while (std::getline(iss, token, mcmc->m_setup.delim))
+            while (std::getline(iss, token, mcmc->setup.delim))
             {
-                data.at(headers[n_col]) = std::stod(token);
+                data.at( mcmc->data_headers[n_col]) = std::stod(token);
                 n_col++;
             }
 
@@ -295,6 +296,7 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
             Individual this_indiv(data.at("status"), data.at("index"), data);
             mcmc->add_individual(this_indiv);
         }
+
         //=====assign structure of the community=====//
         mcmc->assign_community_structure();
     }
@@ -303,7 +305,7 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         std::cerr << "\nERROR: Impossible to open: " << data_path_to_file << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====Display=====//
@@ -312,16 +314,17 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         std::cout << "N. of individuals : " << mcmc->num_indiv << std::endl;
         std::cout << "N. of households : " << mcmc->num_househ << std::endl;
         std::cout << "N. of cases : " << mcmc->num_symptomatic << std::endl;
-        std::cout << "N. of days : " << mcmc->max_study_period() << std::endl;
+        std::cout << "First day of study : " << mcmc->first_study_date() << std::endl;
+        std::cout << "Last day of study : " << mcmc->last_study_date() << std::endl;
     }
 }
 
 /* Read Model Parameters file */
 void build_parameters(MCMC *mcmc, std::string data_path_to_file)
 {
-    bool verbose = mcmc->m_setup.verbose;
-    char delim = mcmc->m_setup.delim;
-    char dict_delim = mcmc->m_setup.dict_delim;
+    bool verbose = mcmc->setup.verbose;
+    char delim = mcmc->setup.delim;
+    char dict_delim = mcmc->setup.dict_delim;
     std::ifstream input(data_path_to_file.c_str());
 
     if (input.is_open())
@@ -406,7 +409,7 @@ void build_parameters(MCMC *mcmc, std::string data_path_to_file)
         std::cerr << "\nERROR: Impossible to read `" << data_path_to_file << "`" << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====Display=====//
@@ -423,11 +426,12 @@ void build_parameters(MCMC *mcmc, std::string data_path_to_file)
 int main(int argc, char **argv)
 {
     //========== USER parameters ==========//
-    if (argc < 6)
+    if (argc < 7)
     {
         // print usage here and return, since that's what you need.
         std::cerr << "Wrong usage" << std::endl;
-        std::cerr << argv[0] << " <households:path/to/file>"
+        std::cerr << argv[0] << " <setup:path/to/file>"
+                  << " <households:path/to/file>"
                   << " <community:path/to/file>"
                   << " <parameters:path/to/file>"
                   << " <output:path/to/file>"
@@ -439,13 +443,12 @@ int main(int argc, char **argv)
     }
 
     // mandatory parameters
-    std::string households_path_to_file = argv[1]; // Path/to/file (households)
-    std::string community_path_to_file = argv[2];  //
-    std::string parameters_path_to_file = argv[3]; //
-    std::string output_path_to_file = argv[4];     // Name of the output file
-    std::string augmented_path_to_file = argv[5];  // Name of the output file for augmented data
-
-    std::string setup_path_to_file = "default_setup.csv"; // UPDATE : these should be user optional variables
+    std::string setup_path_to_file =  argv[1];      //
+    std::string households_path_to_file = argv[2];  // Path/to/file (households)
+    std::string community_path_to_file = argv[3];   //
+    std::string parameters_path_to_file = argv[4];  //
+    std::string output_path_to_file = argv[5];      // Name of the output file
+    std::string augmented_path_to_file = argv[6];   // Name of the output file for augmented data
 
     // UPDATE : check for path validity
 
@@ -463,16 +466,15 @@ int main(int argc, char **argv)
     // Load Parameters
     build_parameters(&mcmc, parameters_path_to_file);
 
-    //=====Run Monte Carlo Markov Chain=====//
+    //=====Parameter Inference=====//
     mcmc.run(output_path_to_file);
 
-    /*
-    // print last augmented data configuration // FIXME : temporary
-    mcmc.simulate_data(1, mcmc.m_rng);
+    //=====Simulation study=====//
+    // FIXME (temporary) : choice of parameters
     mcmc.open_augm_file(augmented_path_to_file);
+    mcmc.simulate_data(1, mcmc.rng);
     mcmc.print_augm_variables();
     mcmc.close_augm_file();
-    */
 
     return EXIT_SUCCESS;
 }

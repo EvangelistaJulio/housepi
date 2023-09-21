@@ -115,7 +115,11 @@ void Base_Proposer::set_range(kwargs new_range)
 /* Switchboard to select the custom metropolis strategy */
 Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_0, kwargs value_range)
 {
-    if (name == "uniform")
+    if (name == UNDEFINED)
+    {
+        return new Undefined_Proposer();
+    }
+    else if (name == "uniform")
     {
         return new Uniform_Proposer(args, value_0, value_range);
     }

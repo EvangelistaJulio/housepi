@@ -5,6 +5,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <unordered_map>
 #include <cmath>
 #include <random>
@@ -93,7 +94,7 @@ public:
 	// Setter
 	void set_index(int index) { house_index = index; }
 	void add_individual(size_t i, int status);
-	void change_status(size_t i, int status);
+	void change_status(size_t i, int new_status);
 };
 
 #endif // INDIVIDUAL__H

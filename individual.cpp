@@ -58,56 +58,25 @@ double Base_Individual::augm_propose_log_ratio(std::string augmID, double old_va
 /* add individual */
 void Household::add_individual(size_t i, int status)
 {
-	if (status == HEALTHY)
-	{
-		// Update the list of healthy residents within the household
-		healthy_list.push_back(i);
-	}
-	else
-	{
-		// Update the list of symptomatic residents within the household
-		symptomatic_list.push_back(i);
-	}
+	(status == HEALTHY) ? healthy_list.push_back(i) : symptomatic_list.push_back(i);
 }
 
-/* change_status (UPDATE: too baroque) */
-void Household::change_status(size_t i, int status)
+/* change_status of individual i to new status (without controls) */
+void Household::change_status(size_t i, int new_status)
 {
-	std::vector<size_t> *first;
-	std::vector<size_t> *second;
+	std::vector<size_t> *new_list = (new_status == HEALTHY) ? &healthy_list : &symptomatic_list;
+	std::vector<size_t> *old_list = (new_status == HEALTHY) ? &symptomatic_list : &healthy_list;
 
-	if (status == HEALTHY)
+	// erase the index from the first and add to the second
+	vector<size_t>::iterator element = std::find(old_list->begin(), old_list->end(), i);
+
+	// FLAG
+	if (element == old_list->end())
 	{
-		first = &healthy_list;
-		second = &symptomatic_list;
+		std::cerr << "change_status of " << i << "  misplaced" << std::endl;
 	}
-	else
-	{
-		first = &symptomatic_list;
-		second = &healthy_list;
-	}
+	// FLAG
 
-	{
-		// Find the index in the first vector
-		auto it = std::find(first->begin(), first->end(), i);
-
-		// if the index is in its old list erase it
-		if (it != first->end())
-		{
-			// Erase the value from the first vector
-			first->erase(it);
-		}
-	}
-
-	{
-		// Find the index in the first vector
-		auto it = std::find(second->begin(), second->end(), i);
-
-		// if the index is not the new list add it it
-		if (it == second->end())
-		{
-			// Add the erased value to the second vector
-			second->push_back(i);
-		}
-	}
+	old_list->erase(element);
+	new_list->push_back(i);
 }

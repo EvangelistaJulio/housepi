@@ -134,8 +134,20 @@ void Model::assign_community_structure()
 	load_househ.clear();
 }
 
-/* Maximum study period in thew sample */
-timetype Model::max_study_period()
+/* First study date in the sample */
+timetype Model::first_study_date()
+{
+	timetype output = 0;
+	for (size_t i = 0; i < num_indiv; i++)
+	{
+		output = std::min(output, indiv[i].get("onset_time"));
+	}
+
+	return output;
+}
+
+/* Last study date in the sample */
+timetype Model::last_study_date()
 {
 	timetype output = 0;
 	for (size_t i = 0; i < num_indiv; i++)
@@ -161,12 +173,12 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 		std::string augmID = "incub_period";
 		double init_value = 0.;
 
-		std::string model_name = (status == HEALTHY) ? UNDEF : "gamma";
+		std::string model_name = "gamma";
 		kwargs_ext model_args = {
 			{"shape", get_address("incub_shape")},
 			{"scale", get_address("incub_scale")}};
 
-		std::string metropolis_strategy = (status == HEALTHY) ? UNDEF : "normal";
+		std::string metropolis_strategy = (status == HEALTHY) ? UNDEFINED : "normal";
 		kwargs metropolis_args = {
 			{"mean", 0.0},
 			{"sd", 0.5}};
@@ -183,10 +195,10 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 		std::string augmID = "onset_time";
 		double init_value = (status == HEALTHY) ? indiv[i].get("study_period") : indiv[i].get("onset_time");
 
-		std::string model_name = UNDEF;
+		std::string model_name = UNDEFINED;
 		kwargs_ext model_args = {};
 
-		std::string metropolis_strategy = (status == HEALTHY) ? UNDEF : "normal";
+		std::string metropolis_strategy = (status == HEALTHY) ? UNDEFINED : "normal";
 
 		kwargs metropolis_args = {
 			{"mean", 0.0},
@@ -334,10 +346,128 @@ void Model::update_first_case(size_t h)
 	househ[h].first_case = new_case0;
 }
 
-/////////////////////////////////////////////////////
-//  Household : Methods (likelihood)
-/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////// Model : Methods (modulators)  /////////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Instaneous risk of infection from community */
+double Model::community_risk_inst(timetype t1)
+{
+	return get_value("alpha") * lin_idx_interp(t1, Inst_Comm_Infec);
+}
+
+/* Cumulative risk of infection from community */
+double Model::community_risk_cumul(timetype t0, timetype t1)
+{
+	return get_value("alpha") * (lin_idx_interp(t1, Cumul_Comm_Infec) - lin_idx_interp(t0, Cumul_Comm_Infec));
+}
+
+/* Assign all the model classes starting from the data file */
+void Model::pre_process_data()
+{
+	for (size_t i = 0; i < num_indiv; i++)
+	{
+		indiv[i].is_child = (indiv[i].get("age") == 0);
+		indiv[i].is_mother = (indiv[i].get("age") == 1 && indiv[i].get("sex") == 1);
+		indiv[i].is_father = (indiv[i].get("age") == 1 && indiv[i].get("sex") == 2);
+		indiv[i].is_recov = (indiv[i].get("recov") && (indiv[i].get("vacc_status") == 1 || indiv[i].get("vacc_status") == 2));
+		indiv[i].is_isol = indiv[i].get("isol");
+		indiv[i].is_vacc_0 = (indiv[i].get("vacc_status") == 1);
+		indiv[i].is_vacc_1 = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
+		indiv[i].is_vacc_1_V_onset = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") >= get_value("vacc_onset"));
+		indiv[i].is_vacc_2 = (indiv[i].get("vacc_status") == 3 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
+	}
+	// clean up the list of headers for output files
+	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
+	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
+}
+
+// Relative infectivity of symptomatic child cases versus symptomatic adult cases
+double Model::contact_modulation(size_t i, size_t k)
+{
+	double f = 1.0;
+
+	// Child (2) - Child (2)
+	if (indiv[i].is_child && indiv[k].is_child)
+	{
+		f *= get_value("rCC");
+
+	} // Child (2) - Mother (0)
+	else if ((indiv[i].is_child && indiv[k].is_mother) || (indiv[k].is_child && indiv[i].is_mother))
+	{
+		f *= get_value("rMC");
+
+	} // Child (2) - Father (1)
+	else if ((indiv[i].is_child && indiv[k].is_father) || (indiv[k].is_child && indiv[i].is_father))
+	{
+		f *= get_value("rFC");
+	}
+
+	return f;
+}
+
+/* Model the susceptibility within household */
+double Model::susceptibility(size_t i)
+{
+	double f = 1.0;
+
+	if (indiv[i].is_vacc_0)
+	{
+		f *= get_value("rU"); // vaccination class 0
+	}
+	else if (indiv[i].is_vacc_1)
+	{
+		f *= get_value("r1V"); // vaccination class 1
+	}
+	else if (indiv[i].is_vacc_1_V_onset)
+	{
+		f *= get_value("r1V90"); // vaccination class 1V90
+	}
+	else if (indiv[i].is_vacc_2)
+	{
+		f *= get_value("r2V"); // vaccination class 1
+	}
+
+	// Suceptibility of children
+	if (indiv[i].is_child)
+	{
+		f *= get_value("rC");
+	}
+
+	// Suceptibility of isolated people
+	if (indiv[i].is_isol)
+	{
+		f *= get_value("rQ");
+	}
+
+	// Suceptibility of recovered people
+	if (indiv[i].is_recov)
+	{
+		f *= get_value("rR");
+	}
+
+	return f;
+}
+
+/* Model the transmissability within household */
+double Model::transmissability(size_t i)
+{
+	double f = 1.0;
+	size_t size = househ[indiv[i].home].size;
+
+	// Instantaneous per capita transmission rate
+	f *= get_value("beta");
+
+	// If transmission hazard depends on household size
+	if (get_infer("delta"))
+	{
+		f /= pow(size / get_value("typical_size"), get_value("delta"));
+	}
+
+	return f;
+}
+
+/* beta risk */
 double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
 {
 	size_t h = indiv[i].home;
@@ -354,6 +484,10 @@ double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
 	beta *= transmissability(i);
 	return beta;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////// Model : Methods (likelihood)  /////////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Survival probability from time t0 of resident idx */
 double Model::log_surv_proba(size_t i)
@@ -413,143 +547,27 @@ double Model::compute_loglike(size_t h)
 	return loglike_house;
 }
 
-/////////////////////////////////////////////////////
-///////////  Household : Methods (modulators) ///////
-/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////// Model : Methods (simulation)  /////////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Instaneous risk of infection from community */
-double Model::community_risk_inst(timetype t1)
-{
-	return get_value("alpha") * lin_idx_interp(t1, Inst_Comm_Infec);
-}
-
-/* Cumulative risk of infection from community */
-double Model::community_risk_cumul(timetype t0, timetype t1)
-{
-	double output = 0.0;
-	output = lin_idx_interp(t1, Cumul_Comm_Infec) - lin_idx_interp(t0, Cumul_Comm_Infec);
-	output *= get_value("alpha");
-
-	return output;
-}
-
-/* Assign all the model classes starting from the data file */
-void Model::assign_classes()
-{
-	for (size_t i = 0; i < num_indiv; i++)
-	{
-		indiv[i].is_child = (indiv[i].get("age") == 0);
-		indiv[i].is_mother = (indiv[i].get("age") == 1 && indiv[i].get("sex") == 1);
-		indiv[i].is_father = (indiv[i].get("age") == 1 && indiv[i].get("sex") == 2);
-		indiv[i].is_recov = (indiv[i].get("recov") && (indiv[i].get("vacc_status") == 1 || indiv[i].get("vacc_status") == 2));
-		indiv[i].is_isol = indiv[i].get("isol");
-		indiv[i].is_vacc_0 = (indiv[i].get("vacc_status") == 1);
-		indiv[i].is_vacc_1 = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
-		indiv[i].is_vacc_1_V_onset = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") >= get_value("vacc_onset"));
-		indiv[i].is_vacc_2 = (indiv[i].get("vacc_status") == 3 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
-	}
-}
-
-// Relative infectivity of symptomatic child cases versus symptomatic adult cases
-double Model::contact_modulation(size_t i, size_t k)
-{
-	double factor = 1.0;
-
-	// Child (2) - Child (2)
-	if (indiv[i].is_child && indiv[k].is_child)
-	{
-		factor *= get_value("rCC");
-
-	} // Child (2) - Mother (0)
-	else if ((indiv[i].is_child && indiv[k].is_mother) || (indiv[k].is_child && indiv[i].is_mother))
-	{
-		factor *= get_value("rMC");
-
-	} // Child (2) - Father (1)
-	else if ((indiv[i].is_child && indiv[k].is_father) || (indiv[k].is_child && indiv[i].is_father))
-	{
-		factor *= get_value("rFC");
-	}
-
-	return factor;
-}
-
-/* Model the susceptibility within household */
-double Model::susceptibility(size_t i)
-{
-	double f = 1.0;
-
-	if (indiv[i].is_vacc_0)
-	{
-		f *= get_value("rU"); // vaccination class 0
-	}
-	else if (indiv[i].is_vacc_1)
-	{
-		f *= get_value("r1V"); // vaccination class 1
-	}
-	else if (indiv[i].is_vacc_1_V_onset)
-	{
-		f *= get_value("r1V90"); // vaccination class 1V90
-	}
-	else if (indiv[i].is_vacc_2)
-	{
-		f *= get_value("r2V"); // vaccination class 1
-	}
-
-	// Suceptibility of children
-	if (indiv[i].is_child)
-	{
-		f *= get_value("rC");
-	}
-
-	// Suceptibility of isolated people
-	if (indiv[i].is_isol)
-	{
-		f *= get_value("rQ");
-	}
-
-	// Suceptibility of recovered people
-	if (indiv[i].is_recov)
-	{
-		f *= get_value("rR");
-	}
-
-	return f;
-}
-
-/* Model the transmissability within household */
-double Model::transmissability(size_t i)
-{
-	double factor = 1.0;
-	size_t size = househ[indiv[i].home].size;
-
-	// Instantaneous per capita transmission rate
-	factor *= get_value("beta");
-
-	// If transmission hazard depends on household size
-	if (get_infer("delta"))
-	{
-		factor /= pow(size / get_value("typical_size"), get_value("delta"));
-	}
-
-	return factor;
-}
-
-/* Poisson point process
+/* Poisson point process to simulate data */
 void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 {
+	size_t h;
 	std::uniform_real_distribution<double> unif(0.0, 1.0);
-	timetype study_period = max_study_period();
 
 	// initialize all individuals to healthy
 	for (size_t i = 0; i < num_indiv; i++)
 	{
-		indiv[i].set_status(HEALTHY);
+		if (indiv[i].get_status() != HEALTHY)
+		{
+			househ[indiv[i].home].change_status(i, HEALTHY);
+			indiv[i].set_status(HEALTHY);
+		}
+
 		indiv[i].init_augm("incub_period", rng); // UPDATE : merge with rand init
 		indiv[i].set_augm("onset_time", INFINITY);
-
-		// initialize household
-		househ[indiv[i].home].change_status(i, SYMPTOMATIC);
 	}
 
 	// initialize households
@@ -558,23 +576,28 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		househ[h].infec_time = INFINITY;
 		househ[h].first_case = househ[h].size;
 	}
+	clear_infectivity_profiles();
 
-	// FIXME: need to find case 0 + renormalize to have the same infection period of dataset
-	for (timetype infec_time = 0; infec_time < study_period; infec_time += delta_t)
+	timetype first_infec_day = INFINITY;
+	for (timetype infec_time = first_study_date(); infec_time <= last_study_date(); infec_time += delta_t)
 	{
-		for (size_t h = 0; h < num_househ; h++)
+		for (size_t i = 0; i < num_indiv; i++)
 		{
-			for (size_t i : househ[h].healthy_list)
+			// UPDATE : state check improvable
+			if (indiv[i].get_status() == HEALTHY)
 			{
 				// UPDATE : buffer-like construction could be helpful
-				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period")); // fix infec_time
+				// NOTE : assign infec_time from onset_time
+				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period")); 
 
 				if (unif(rng) < std::exp(log_infec_proba(i)))
 				{
 					indiv[i].set_status(SYMPTOMATIC);
+					h = indiv[i].home;
 					househ[h].change_status(i, SYMPTOMATIC);
 					update_first_case(h);
 					update_infectivity_profiles(i);
+					first_infec_day = std::min(infec_time, first_infec_day); // FIXME : sub-optimal
 				}
 				else
 				{
@@ -584,4 +607,3 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		}
 	}
 }
-*/

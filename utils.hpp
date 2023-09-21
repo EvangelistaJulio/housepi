@@ -1,6 +1,7 @@
 // user_model.hpp //
 
-#define CONTINUOS_TIME // UPDATE: options to switch to integer time
+#define CONTINUOS_TIME      // UPDATE: options to switch to integer time
+#define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
 
 #ifndef DEF_USER_MODEL__H
 #define DEF_USER_MODEL__H
@@ -20,7 +21,7 @@ typedef int timetype;
 // UPDATE : turn distributions into discrete LUT
 #endif
 
-const std::string UNDEF = "_none_"; // name for undefined choice
+const std::string UNDEFINED = "_none_"; // name for undefined choice
 
 /* Linear interpolation for an indexed array */
 double lin_idx_interp(double x_value, const std::vector<double> &y);
@@ -81,11 +82,53 @@ class Distribution_1D : public Base_Distrib
 public:
     using Base_Distrib::Base_Distrib;
 
-    // Virtual functions (dummy)
+    //=====Virtual functions=====//
     virtual double pdf(double x) = 0;
     virtual double log_pdf(double x) = 0;
     virtual double log_ratio(double x, double y) = 0;
     virtual double rand(std::mt19937_64 &rng) = 0;
+};
+
+///////////////////////////////////////////////////////////////////////
+// //////////////////// Undefined_Distr : class //////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+class Undefined_Distr : public Distribution_1D
+{
+private:
+    double undefined_call_error()
+    {
+        std::cerr << "\nERROR: Attempt to call a method of an undefined distribution." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+        return INFINITY;
+    }
+
+public:
+    Undefined_Distr() : Distribution_1D((kwargs){}) {}
+
+    double pdf(double x) override
+    {
+        UNUSED(x);
+        return undefined_call_error();
+    }
+    double log_pdf(double x) override
+    {
+        UNUSED(x);
+        return undefined_call_error();
+    }
+    double log_ratio(double x, double y) override
+    {
+        UNUSED(x);
+        UNUSED(y);
+        return undefined_call_error();
+    }
+    double rand(std::mt19937_64 &rng) override
+    {
+        UNUSED(rng);
+        return undefined_call_error();
+    }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -182,11 +225,11 @@ public:
 
 /* Return the chosen distribution */
 template <typename kwargs_int_or_ext>
-Distribution_1D *distribution_switchboard(std::string name = UNDEF, kwargs_int_or_ext args = {})
+Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, kwargs_int_or_ext args = {})
 {
-    if (name == UNDEF)
+    if (name == UNDEFINED)
     {
-        return nullptr;
+        return new Undefined_Distr();
     }
     else if (name == "uniform")
     {

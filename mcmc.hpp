@@ -38,25 +38,25 @@ public:
 class MCMC : public Model
 {
 private:
-	double m_global_loglike = 0.0;
+	double global_loglike = 0.0;
 
 public:
-	std::mt19937_64 m_rng;
-	std::uniform_real_distribution<double> m_unif;
-	Setup_MCMC_Struct m_setup = {};
-	int m_num_accept_data = 0;
+	std::mt19937_64 rng;
+	std::uniform_real_distribution<double> unif;
+	Setup_MCMC_Struct setup = {};
+	int m_num_accept_data = 0; // FIXME : to be cleaned out
 	int m_num_propos_data = 0;
 
 	// Constructors
-	MCMC(Setup_MCMC_Struct setup) : m_unif(0.0, 1.0)
+	MCMC(Setup_MCMC_Struct setup) : unif(0.0, 1.0)
 	{
-		m_setup = setup;
-		m_rng.seed(setup.seed);
+		this->setup = setup;
+		rng.seed(setup.seed);
 	}
 	~MCMC() {}
 
 	// --- Getter --- //
-	double get_global_loglike() const { return m_global_loglike; };
+	double get_global_loglike() const { return global_loglike; };
 
 	// --- Setter --- //
 	void reset_moves();

@@ -73,20 +73,25 @@ public:
 	size_t num_indiv = 0;
 	size_t num_symptomatic = 0;
 	size_t num_househ = 0;
+	
+	std::vector<std::string> data_headers = {};
+
+	//=====Methods=====//
 
 	void add_individual(Individual this_indiv);
-	void assign_classes();
+	void pre_process_data();
 	void assign_community_structure();
 	int get_status(size_t i) const { return indiv[i].get_status(); }
 
-	timetype max_study_period();
+	timetype first_study_date();
+	timetype last_study_date();
 
-	// Augmetend Data
+	//=====Augmetend Data=====//
 	void assign_augm_data(std::mt19937_64 &rng);
 	void _assign_augm_to_ind_(size_t idx, std::mt19937_64 &rng); // UPDATE: temporary
 	timetype get_infec_time(size_t i) const;
 
-	// Infectivity Profile
+	//=====Infectivity Profile=====//
 	void assign_infec_profile();
 	double infectivity_inst(size_t i, timetype t_transm);
 	double infectivity_cumul(size_t i, timetype t_transm);
@@ -105,7 +110,7 @@ public:
 	double susceptibility(size_t idx);
 	double transmissability(size_t i);
 
-	//void simulate_data(timetype delta_t, std::mt19937_64 &rng);
+	void simulate_data(timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // MODEL__H
