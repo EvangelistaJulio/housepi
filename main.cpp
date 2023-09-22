@@ -288,7 +288,7 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
             size_t n_col = 0;
             while (std::getline(iss, token, mcmc->setup.delim))
             {
-                data.at( mcmc->data_headers[n_col]) = std::stod(token);
+                data.at(mcmc->data_headers[n_col]) = std::stod(token);
                 n_col++;
             }
 
@@ -322,7 +322,6 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
 /* Read Model Parameters file */
 void build_parameters(MCMC *mcmc, std::string data_path_to_file)
 {
-    bool verbose = mcmc->setup.verbose;
     char delim = mcmc->setup.delim;
     char dict_delim = mcmc->setup.dict_delim;
     std::ifstream input(data_path_to_file.c_str());
@@ -403,6 +402,11 @@ void build_parameters(MCMC *mcmc, std::string data_path_to_file)
                 mcmc->add_param(name, value);
             }
         }
+
+        if (mcmc->setup.verbose)
+        {
+            mcmc->display_parameters();
+        }
     }
     else
     {
@@ -410,12 +414,6 @@ void build_parameters(MCMC *mcmc, std::string data_path_to_file)
         std::cerr << "Exit...\n"
                   << std::endl;
         std::exit(EXIT_FAILURE);
-    }
-
-    //=====Display=====//
-    if (verbose)
-    {
-        mcmc->print();
     }
 }
 
@@ -443,12 +441,12 @@ int main(int argc, char **argv)
     }
 
     // mandatory parameters
-    std::string setup_path_to_file =  argv[1];      //
-    std::string households_path_to_file = argv[2];  // Path/to/file (households)
-    std::string community_path_to_file = argv[3];   //
-    std::string parameters_path_to_file = argv[4];  //
-    std::string output_path_to_file = argv[5];      // Name of the output file
-    std::string augmented_path_to_file = argv[6];   // Name of the output file for augmented data
+    std::string setup_path_to_file = argv[1];      //
+    std::string households_path_to_file = argv[2]; // Path/to/file (households)
+    std::string community_path_to_file = argv[3];  //
+    std::string parameters_path_to_file = argv[4]; //
+    std::string output_path_to_file = argv[5];     // Name of the output file
+    std::string augmented_path_to_file = argv[6];  // Name of the output file for augmented data
 
     // UPDATE : check for path validity
 
@@ -468,7 +466,7 @@ int main(int argc, char **argv)
 
     //=====Parameter Inference=====//
     mcmc.run(output_path_to_file);
-
+    
     //=====Simulation study=====//
     // FIXME (temporary) : choice of parameters
     mcmc.open_augm_file(augmented_path_to_file);

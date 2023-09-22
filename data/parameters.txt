@@ -1,13 +1,13 @@
 alpha 0.500 TRUE uniform low/0.0/up/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/1.0 
 beta 0.500 TRUE uniform low/0.0/up/5.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-delta 0.500 TRUE uniform low/-3.0/up/3.0 lognorm mean/0.0/sd/1.0 low/-3.0/up/3.0 
+delta 0.500 TRUE uniform low/-3.0/up/3.0 normal mean/0.0/sd/1.0 low/-3.0/up/3.0 
 rU 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 r1V 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-r1V90 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/1 
-r2V 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/1 
+r1V90 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+r2V 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 rC 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 rQ 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-rCC 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+rCC 1.000 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 rMC 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 rFC 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 rR 1.000 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 

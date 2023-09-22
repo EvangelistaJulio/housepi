@@ -10,8 +10,12 @@ using namespace std::chrono;
 ////////////////////////////////////////////////////////////////////////
 
 /* Initialize augmented variables */
-void MCMC::init_model()
+void MCMC::initialize_model(bool random_params)
 {
+    if (random_params)
+    {
+        init_rand_params(rng);
+    }
     assign_infec_profile(); // FIXME : names overlapping...
     clear_infectivity_profiles();
     pre_process_data();
@@ -62,8 +66,9 @@ void MCMC::move_parameters(double inv_temper)
         // proceed only if the new value is consistent
         if (propose_valid_move(parID, rng))
         {
+
             // Compute the new log likelihood
-            // UPDATE : emberassing parallel
+            // UPDATE : emberassing parallel // FIXME : buffer
             new_global_loglike = 0.0;
             for (size_t h = 0; h < num_househ; h++)
             {
@@ -146,7 +151,7 @@ void MCMC::move_augm_variables(double inv_temper)
 // /////////////////////////// MCMC : run /////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-void MCMC::run(std::string output_file, double inv_temper)
+void MCMC::run(std::string output_file, double inv_temper, bool random_params)
 {
     unsigned step = 0;
     double adapt_ratio;
@@ -157,8 +162,8 @@ void MCMC::run(std::string output_file, double inv_temper)
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
-    init_rand_params(rng); // FIXME : not for all inv_temper
-    init_model();
+    // FIXME : random_params not for all inv_temper
+    initialize_model(random_params = random_params);
 
     //=====Initialize output file=====//
     init_param_file(output_file);
@@ -223,16 +228,7 @@ void MCMC::init_param_file(std::string output_filename)
     std::cout << "Model parameter file: " << output_filename << std::endl;
     param_ofstream.open(output_filename.c_str());
 
-
-    //=====open parameter file=====//
-    param_ofstream.open(output_filename.c_str());
-    if (!param_ofstream.is_open())
-    {
-        std::cerr << "\nERROR: Unable to open file `" << output_filename << "`" << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-    }
-    else
+    if (param_ofstream.is_open())
     {
         param_ofstream << "iter" << setup.delim << "loglike";
         if (setup.is_data_augm)
@@ -245,51 +241,65 @@ void MCMC::init_param_file(std::string output_filename)
         }
         param_ofstream << std::endl;
         print_parameters(0);
-    }  
-}
-
-/* Print the model parameters at the given iteration time */
-void MCMC::print_parameters(unsigned step)
-{
-    param_ofstream << step << setup.delim << get_global_loglike();
-    if (setup.is_data_augm)
-    {
-        param_ofstream << setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
     }
-    for (std::string parID : param_to_be_inferred)
-    {
-        param_ofstream << setup.delim << get_value(parID) << setup.delim << 100.0 * get_accept_rate(parID);
-    }
-    param_ofstream << std::endl;
-}
-
-/* Open the file for the augmented variables */
-void MCMC::open_augm_file(std::string output_filename)
-{
-    //=====open augmented file=====//
-    augm_ofstream.open(output_filename.c_str());
-    if (!augm_ofstream.is_open())
+    else
     {
         std::cerr << "\nERROR: Unable to open file `" << output_filename << "`" << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
     }
+}
+
+/* Print the model parameters at the given iteration time */
+void MCMC::print_parameters(unsigned step)
+{
+    if (param_ofstream.is_open())
+    {
+        param_ofstream << step << setup.delim << get_global_loglike();
+        if (setup.is_data_augm)
+        {
+            param_ofstream << setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
+        }
+        for (std::string parID : param_to_be_inferred)
+        {
+            param_ofstream << setup.delim << get_value(parID) << setup.delim << 100.0 * get_accept_rate(parID);
+        }
+        param_ofstream << std::endl;
+    }
     else
     {
-        std::cout << "Augmented variable file: " << output_filename << std::endl;
+        std::cerr << "\nERROR: Output file closed unexpectedly." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
     }
+}
 
-    //=====Print column headers=====//
-    augm_ofstream << "index" << setup.delim << "status";
-    for (std::string dataID : data_headers)
+/* Open the file for the augmented variables */
+void MCMC::open_augm_file(std::string output_filename)
+{
+    augm_ofstream.open(output_filename.c_str());
+    if (augm_ofstream.is_open())
     {
-        augm_ofstream << setup.delim << dataID;
+        std::cout << "Augmented variable file: " << output_filename << std::endl;
+
+        //=====Print column headers=====//
+        augm_ofstream << "index" << setup.delim << "status";
+        for (std::string dataID : data_headers)
+        {
+            augm_ofstream << setup.delim << dataID;
+        }
+        for (std::string augmID : augm_list)
+        {
+            augm_ofstream << setup.delim << augmID;
+        }
+        augm_ofstream << std::endl;
     }
-    for (std::string augmID : augm_list)
+    else
     {
-        augm_ofstream << setup.delim << "augm-" << augmID;
+        std::cerr << "\nERROR: Unable to open file `" << output_filename << "`" << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
     }
-    augm_ofstream << std::endl;
 }
 
 /* Print the ensemble of augmented variables */

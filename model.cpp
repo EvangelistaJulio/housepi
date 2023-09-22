@@ -72,7 +72,7 @@ double Onset_to_Transm::cdf(timetype tost, timetype t_incub)
 // /////////////////// User Model ///////////////////// //
 //////////////////////////////////////////////////////////
 
-// Add individual
+/* Add individual */ // FIXME: base model
 void Model::add_individual(Individual new_indiv)
 {
 	int status = new_indiv.get_status();
@@ -95,6 +95,8 @@ void Model::assign_community_structure()
 	size_t househ_idx, size;
 	std::unordered_map<int, Household> load_househ = {};
 
+	//=====safe load households=====//
+	househ.clear();
 	for (size_t i = 0; i < num_indiv; i++)
 	{
 		househ_idx = indiv[i].get("HH_idx");
@@ -106,15 +108,14 @@ void Model::assign_community_structure()
 		}
 		load_househ.at(househ_idx).add_individual(i, indiv[i].get_status());
 	}
-
-	// safe load households
 	for (const auto &pair : load_househ)
 	{
 		househ.push_back(pair.second);
 	}
 	num_househ = househ.size();
+	load_househ.clear();
 
-	// assign house to individuals
+	//=====assign home to individuals=====//
 	for (size_t h = 0; h < num_househ; h++)
 	{
 		size = 0;
@@ -131,7 +132,6 @@ void Model::assign_community_structure()
 		}
 		househ[h].size = size;
 	}
-	load_househ.clear();
 }
 
 /* First study date in the sample */
@@ -377,9 +377,12 @@ void Model::pre_process_data()
 		indiv[i].is_vacc_1_V_onset = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") >= get_value("vacc_onset"));
 		indiv[i].is_vacc_2 = (indiv[i].get("vacc_status") == 3 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
 	}
+
 	// clean up the list of headers for output files
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
+	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "onset_time"));
+	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "study_period"));
 }
 
 // Relative infectivity of symptomatic child cases versus symptomatic adult cases
@@ -523,7 +526,7 @@ double Model::compute_loglike(size_t h)
 	double loglike_house = 0.0;
 
 	// Loop over all healthy residents
-	for (size_t i = 0; i < househ[h].size; i++)
+	for (size_t i : househ[h].healthy_list)
 	{
 		loglike_house += log_surv_proba(i);
 	}
@@ -531,6 +534,8 @@ double Model::compute_loglike(size_t h)
 	// Loop over all symptomatic residents
 	for (size_t i : househ[h].symptomatic_list)
 	{
+		loglike_house += log_surv_proba(i); // FIXME : also first_case, right? because of community
+
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model)
 		{
@@ -588,7 +593,7 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 			{
 				// UPDATE : buffer-like construction could be helpful
 				// NOTE : assign infec_time from onset_time
-				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period")); 
+				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period"));
 
 				if (unif(rng) < std::exp(log_infec_proba(i)))
 				{
@@ -604,6 +609,16 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 					indiv[i].set_augm("onset_time", INFINITY);
 				}
 			}
+		}
+	}
+
+	// format augmented variables of healthy individuals
+	for (size_t i = 0; i < num_indiv; i++)
+	{
+		if (indiv[i].get_status() == HEALTHY)
+		{
+			indiv[i].set_augm("incub_period", 0);
+			indiv[i].set_augm("onset_time", 1000);
 		}
 	}
 }

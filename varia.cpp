@@ -178,17 +178,17 @@ void Parameter_Dictionary::add_param(
     }
 }
 
-/* print the user model parameters */
-void Parameter_Dictionary::print(char delim)
+/* display the user model parameters */
+void Parameter_Dictionary::display_parameters(char delim)
 {
-    std::cout << "-NAME-" << delim << "-INFER-" << endl;
+    std::cout << "-NAME-" << delim << "-INFER-" << delim << "-VALUE-" << endl;
     for (std::string k : param_to_be_inferred)
     {
-        std::cout << k << delim << "true" << endl;
+        std::cout << k << delim << "true" << delim << get_value(k) << endl;
     }
     for (std::string k : param_not_to_be_inferred)
     {
-        std::cout << k << delim << "false" << endl;
+        std::cout << k << delim << "false" << delim << get_value(k) << endl;
     }
 }
 

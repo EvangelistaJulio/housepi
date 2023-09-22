@@ -70,13 +70,6 @@ void Household::change_status(size_t i, int new_status)
 	// erase the index from the first and add to the second
 	vector<size_t>::iterator element = std::find(old_list->begin(), old_list->end(), i);
 
-	// FLAG
-	if (element == old_list->end())
-	{
-		std::cerr << "change_status of " << i << "  misplaced" << std::endl;
-	}
-	// FLAG
-
 	old_list->erase(element);
 	new_list->push_back(i);
 }

@@ -357,7 +357,7 @@ public:
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
 	//=====Display=====//
-	void print(char delim = ' ');
+	void display_parameters(char delim = ' ');
 };
 
 /////////////////////////////////////////////////////////////////

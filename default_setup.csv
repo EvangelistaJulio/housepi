@@ -1,8 +1,8 @@
 seed,20210415
-num_iter,2000
-num_adapt_iter,500
+num_iter,20000
+num_adapt_iter,5000
 thinning,10
 verbose,TRUE
-is_data_augm,TRUE
+is_data_augm,FALSE
 delim," "
 dict_delim,"/"

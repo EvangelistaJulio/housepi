@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -J test
 #SBATCH -p mmmi
-#SBATCH --mem-per-cpu=2000
+#SBATCH --mem-per-cpu=3000
 #SBATCH --cpus-per-task=1
 #SBATCH -e ./log/test_%A.err
 #SBATCH -o ./log/test_%A.log

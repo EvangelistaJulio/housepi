@@ -60,7 +60,7 @@ public:
 
 	// --- Setter --- //
 	void reset_moves();
-	void init_model();
+	void initialize_model(bool random_params=false);
 
 	// --- Computations --- //
 	void update_global_loglike();
@@ -68,7 +68,7 @@ public:
 	void move_augm_variables(double inv_temperature = 1.0);
 
 	// --- INFER --- //
-	void run(std::string output_filename, double inv_temperature = 1.0);
+	void run(std::string output_filename, double inv_temperature = 1.0, bool random_params=false);
 
 	// --- Save parameters --- //
 	void init_param_file(std::string output_filename);
