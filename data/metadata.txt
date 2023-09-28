@@ -1,0 +1,6 @@
+"unvaccinated",0
+"1dose",1
+"2doses",2
+"boosted",3
+"F",1
+"M",2

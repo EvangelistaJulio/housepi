@@ -10,28 +10,7 @@
 #include <random>
 #include <iostream>
 
-#include "individual.hpp"
-
-///////////////////////////////////////////////////////////////////////
-// //////////////// Modified Individual : class //////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-class Individual : public Base_Individual
-{
-public:
-	size_t home;
-	bool is_child = false;
-	bool is_mother = false;
-	bool is_father = false;
-	bool is_recov = false;
-	bool is_isol = false;
-	bool is_vacc_0 = false;
-	bool is_vacc_1 = false;
-	bool is_vacc_1_V_onset = false;
-	bool is_vacc_2 = false;
-
-	using Base_Individual::Base_Individual;
-};
+#include "individual.h"
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////// Onset to Transmission : class ////////////////// //
@@ -50,6 +29,43 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////
+// //////////////// Modified Individual : class //////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+class Individual : public Base_Individual
+{
+public:
+	size_t home = -1;
+	bool is_child = false;
+	bool is_mother = false;
+	bool is_father = false;
+	bool is_recov = false;
+	bool is_isol = false;
+	bool is_vacc_0 = false;
+	bool is_vacc_1 = false;
+	bool is_vacc_1_V_onset = false;
+	bool is_vacc_2 = false;
+
+	using Base_Individual::Base_Individual;
+};
+
+///////////////////////////////////////////////////////////////////////
+// ///////////////// Modified Household : class //////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+class Household : public Base_Household
+{
+private:
+	double loglike = -INFINITY;
+
+public:
+	using Base_Household::Base_Household;
+
+	double get_loglike() const { return loglike; }
+	void set_loglike(double new_loglike) { this->loglike = new_loglike; }
+};
+
+///////////////////////////////////////////////////////////////////////
 // ///////////////////////// Model : class ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
@@ -57,8 +73,8 @@ class Model : public Parameter_Dictionary
 {
 protected:
 	Onset_to_Transm *infectivity_profile;
-	std::vector<Individual> indiv;
-	std::vector<Household> househ;
+	std::vector<Individual> indiv {};
+	std::vector<Household> househ = {};
 
 	// augmented variables behavior lists
 	std::vector<std::string> augm_list = {};
@@ -66,25 +82,24 @@ protected:
 	std::vector<std::string> augm_to_be_inferred = {};
 
 	// infectivity profile : profile[i][j] : from i to j
-	std::vector<std::vector<double>> cumul_profile = {}; 
+	std::vector<std::vector<double>> cumul_profile = {};
 	std::vector<std::vector<double>> inst_profile = {};
 
 public:
 	size_t num_indiv = 0;
 	size_t num_symptomatic = 0;
 	size_t num_househ = 0;
-	
+
 	std::vector<std::string> data_headers = {};
 
 	//=====Methods=====//
-
 	void add_individual(Individual this_indiv);
 	void pre_process_data();
 	void assign_community_structure();
 	int get_status(size_t i) const { return indiv[i].get_status(); }
 
-	timetype first_study_date();
-	timetype last_study_date();
+	timetype study_time_start();
+	timetype study_time_end();
 
 	//=====Augmetend Data=====//
 	void assign_augm_data(std::mt19937_64 &rng);

@@ -1,9 +1,8 @@
 // mcmc.cpp //
 
-#include "mcmc.hpp"
+#include "mcmc.h"
 
 using namespace std;
-using namespace std::chrono;
 
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : Setter ///////////////////////// //
@@ -20,22 +19,24 @@ void MCMC::initialize_model(bool random_params)
     clear_infectivity_profiles();
     pre_process_data();
     assign_augm_data(rng);
-    update_global_loglike();
+    init_global_loglike();
     reset_moves();
 }
 
 /* Initialize global loglikelihood */
 // UPDATE : this initialization is used because changes are not stored for params update
-void MCMC::update_global_loglike()
+void MCMC::init_global_loglike()
 {
+    double tmp;
     // #pragma omp parallel num_threads(NUM_THREAD)
     {
         global_loglike = 0.0;
         // #pragma omp for reduction(+ : sum)
         for (size_t h = 0; h < num_househ; h++)
         {
-            househ[h].loglike = compute_loglike(h);
-            global_loglike += househ[h].loglike;
+            tmp = compute_loglike(h);
+            househ[h].set_loglike(tmp);
+            global_loglike += tmp;
         }
     }
 }
@@ -66,7 +67,6 @@ void MCMC::move_parameters(double inv_temper)
         // proceed only if the new value is consistent
         if (propose_valid_move(parID, rng))
         {
-
             // Compute the new log likelihood
             // UPDATE : emberassing parallel // FIXME : buffer
             new_global_loglike = 0.0;
@@ -110,7 +110,7 @@ void MCMC::move_augm_variables(double inv_temper)
                 for (std::string augmID : augm_to_be_inferred)
                 {
                     old_val = indiv[res].get_augm(augmID);          // store old value
-                    old_loglike_of_HH = househ[h].loglike;          // store old loglike
+                    old_loglike_of_HH = househ[h].get_loglike();    // store old loglike
                     new_val = indiv[res].augm_propose(augmID, rng); // propose new value
 
                     // FIXME : always valid if prior proposer
@@ -130,7 +130,7 @@ void MCMC::move_augm_variables(double inv_temper)
                         if (std::log(unif(rng)) < Q)
                         {
                             global_loglike += new_loglike_of_HH - old_loglike_of_HH;
-                            househ[h].loglike = new_loglike_of_HH;
+                            househ[h].set_loglike(new_loglike_of_HH);
                             m_num_accept_data++; // NOTE : problematic for normalization
                         }
                         else
@@ -173,7 +173,6 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
     {
         std::cout << "\n=========MCMC:execution=========" << std::endl;
     }
-    auto start_exec_time = high_resolution_clock::now(); // Get starting timepoint
     for (unsigned i = 0; i < setup.num_iter; i += setup.thinning)
     {
         //=====MC sweeps over alla parameters to be inferred=====//
@@ -182,13 +181,10 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
             //=====Change all parameters=====//
             step = 1 + j + i;
             move_parameters(inv_temper);
-            update_global_loglike(); // FIXME: I reassign loglike to each household
+            init_global_loglike(); // FIXME: I reassign loglike to each household
 
             //=====Data augmentation=====//
-            if (setup.is_data_augm)
-            {
-                move_augm_variables(inv_temper);
-            }
+            move_augm_variables(inv_temper);
 
             //=====Adaptative MCMC on parameters=====//
             if (step < setup.num_adapt_iter)
@@ -205,17 +201,6 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
 
     //=====MCMC ending=====//
     close_param_file();
-
-    if (setup.verbose)
-    {
-        std::cout << "\n===========MCMC:end=============" << std::endl;
-        // print execution time
-        auto stop_exec_time = high_resolution_clock::now();
-        auto exec_duration = duration_cast<seconds>(stop_exec_time - start_exec_time);
-        long int millisec_time = exec_duration.count();
-        std::cout << "Execution time : " << millisec_time << " ms\n"
-                  << std::endl;
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -231,10 +216,7 @@ void MCMC::init_param_file(std::string output_filename)
     if (param_ofstream.is_open())
     {
         param_ofstream << "iter" << setup.delim << "loglike";
-        if (setup.is_data_augm)
-        {
-            param_ofstream << setup.delim << "augm__a%";
-        }
+        param_ofstream << setup.delim << "augm__a%";
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << setup.delim << parID << setup.delim << parID << "__a%";
@@ -256,10 +238,7 @@ void MCMC::print_parameters(unsigned step)
     if (param_ofstream.is_open())
     {
         param_ofstream << step << setup.delim << get_global_loglike();
-        if (setup.is_data_augm)
-        {
-            param_ofstream << setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
-        }
+        param_ofstream << setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << setup.delim << get_value(parID) << setup.delim << 100.0 * get_accept_rate(parID);

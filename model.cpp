@@ -1,6 +1,6 @@
 // model.cpp //
 
-#include "model.hpp"
+#include "model.h"
 
 using namespace std;
 
@@ -68,9 +68,9 @@ double Onset_to_Transm::cdf(timetype tost, timetype t_incub)
 	return out / norm_const;
 }
 
-//////////////////////////////////////////////////////////
-// /////////////////// User Model ///////////////////// //
-//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////// Model : base model /////////////////////////////////// //
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Add individual */ // FIXME: base model
 void Model::add_individual(Individual new_indiv)
@@ -116,6 +116,7 @@ void Model::assign_community_structure()
 	load_househ.clear();
 
 	//=====assign home to individuals=====//
+	num_symptomatic = 0;
 	for (size_t h = 0; h < num_househ; h++)
 	{
 		size = 0;
@@ -135,7 +136,7 @@ void Model::assign_community_structure()
 }
 
 /* First study date in the sample */
-timetype Model::first_study_date()
+timetype Model::study_time_start()
 {
 	timetype output = 0;
 	for (size_t i = 0; i < num_indiv; i++)
@@ -147,7 +148,7 @@ timetype Model::first_study_date()
 }
 
 /* Last study date in the sample */
-timetype Model::last_study_date()
+timetype Model::study_time_end()
 {
 	timetype output = 0;
 	for (size_t i = 0; i < num_indiv; i++)
@@ -163,7 +164,7 @@ timetype Model::last_study_date()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize augmented variables */
-// UPDATE: this needs to become more user friendly
+// FIXME: this needs to become more user friendly
 void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 {
 	int status = get_status(i);
@@ -183,10 +184,14 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 			{"mean", 0.0},
 			{"sd", 0.5}};
 
-		double value_zero = INFINITY; // from old value
-		kwargs range = {{"low", 0.0}, {"up", get_value("max_incub_period")}};
+		double metropolis_zero = INFINITY; // from old value
+		kwargs range = {
+			{"low", 0.0},
+			{"up", get_value("max_incub_period")}};
 
-		Augmented augm_var(init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
+		Augmented augm_var(
+			init_value, model_name, model_args,
+			metropolis_strategy, metropolis_args, metropolis_zero, range);
 		(status == HEALTHY) ? indiv[i].add_augm(augmID, augm_var) : indiv[i].add_augm(augmID, augm_var, rng);
 	}
 
@@ -204,10 +209,14 @@ void Model::_assign_augm_to_ind_(size_t i, std::mt19937_64 &rng)
 			{"mean", 0.0},
 			{"sd", get_value("onset_err")}};
 
-		double value_zero = init_value; // from init value
-		kwargs range = {{"low", get_value("onset_low")}, {"up", indiv[i].get("study_period")}};
+		double metropolis_zero = (status == HEALTHY) ? INFINITY : init_value;
+		kwargs range = {
+			{"low", get_value("onset_low")},
+			{"up", indiv[i].get("study_period") + 0.5}}; // FIXME onset_time == study_period!!!
 
-		Augmented augm_var(init_value, model_name, model_args, metropolis_strategy, metropolis_args, value_zero, range);
+		Augmented augm_var(
+			init_value, model_name, model_args,
+			metropolis_strategy, metropolis_args, metropolis_zero, range);
 		indiv[i].add_augm(augmID, augm_var);
 	}
 }
@@ -307,7 +316,7 @@ void Model::update_infectivity_profiles(size_t i)
 	// UPDATE : if study_period is equal for all residents, than this is constant for all
 	for (size_t k : househ[h].healthy_list)
 	{
-		t_infec_k = get_infec_time(k); // == study_period //FIXME : check
+		t_infec_k = get_infec_time(k); // == study_period
 		cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
 	}
 }
@@ -367,9 +376,12 @@ void Model::pre_process_data()
 {
 	for (size_t i = 0; i < num_indiv; i++)
 	{
-		indiv[i].is_child = (indiv[i].get("age") == 0);
-		indiv[i].is_mother = (indiv[i].get("age") == 1 && indiv[i].get("sex") == 1);
-		indiv[i].is_father = (indiv[i].get("age") == 1 && indiv[i].get("sex") == 2);
+		//=====Age class=====//
+		indiv[i].is_child = (indiv[i].get("age") < 12);
+		indiv[i].is_mother = (indiv[i].get("age") >= 12) && (indiv[i].get("sex") == 1);
+		indiv[i].is_father = (indiv[i].get("age") >= 12) && (indiv[i].get("sex") == 2);
+
+		//=====Vaccination status=====//
 		indiv[i].is_recov = (indiv[i].get("recov") && (indiv[i].get("vacc_status") == 1 || indiv[i].get("vacc_status") == 2));
 		indiv[i].is_isol = indiv[i].get("isol");
 		indiv[i].is_vacc_0 = (indiv[i].get("vacc_status") == 1);
@@ -462,10 +474,7 @@ double Model::transmissability(size_t i)
 	f *= get_value("beta");
 
 	// If transmission hazard depends on household size
-	if (get_infer("delta"))
-	{
-		f /= pow(size / get_value("typical_size"), get_value("delta"));
-	}
+	f /= pow(size / get_value("typical_size"), get_value("delta"));
 
 	return f;
 }
@@ -534,7 +543,8 @@ double Model::compute_loglike(size_t h)
 	// Loop over all symptomatic residents
 	for (size_t i : househ[h].symptomatic_list)
 	{
-		loglike_house += log_surv_proba(i); // FIXME : also first_case, right? because of community
+		loglike_house += log_surv_proba(i);
+		// FIXME : also first_case, right? because of community (check)
 
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model)
@@ -561,6 +571,9 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 {
 	size_t h;
 	std::uniform_real_distribution<double> unif(0.0, 1.0);
+	timetype data_time_start = study_time_start();
+	timetype data_time_end = study_time_end();
+	timetype first_infec_day = INFINITY;
 
 	// initialize all individuals to healthy
 	for (size_t i = 0; i < num_indiv; i++)
@@ -571,7 +584,7 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 			indiv[i].set_status(HEALTHY);
 		}
 
-		indiv[i].init_augm("incub_period", rng); // UPDATE : merge with rand init
+		indiv[i].init_augm("incub_period", rng);
 		indiv[i].set_augm("onset_time", INFINITY);
 	}
 
@@ -583,22 +596,20 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 	}
 	clear_infectivity_profiles();
 
-	timetype first_infec_day = INFINITY;
-	for (timetype infec_time = first_study_date(); infec_time <= last_study_date(); infec_time += delta_t)
+	for (timetype infec_time = data_time_start; infec_time <= data_time_end; infec_time += delta_t)
 	{
 		for (size_t i = 0; i < num_indiv; i++)
 		{
 			// UPDATE : state check improvable
 			if (indiv[i].get_status() == HEALTHY)
 			{
-				// UPDATE : buffer-like construction could be helpful
 				// NOTE : assign infec_time from onset_time
 				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period"));
 
 				if (unif(rng) < std::exp(log_infec_proba(i)))
 				{
-					indiv[i].set_status(SYMPTOMATIC);
 					h = indiv[i].home;
+					indiv[i].set_status(SYMPTOMATIC);
 					househ[h].change_status(i, SYMPTOMATIC);
 					update_first_case(h);
 					update_infectivity_profiles(i);
@@ -619,6 +630,12 @@ void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
 		{
 			indiv[i].set_augm("incub_period", 0);
 			indiv[i].set_augm("onset_time", 1000);
+		}
+		else
+		{
+			indiv[i].set_augm(
+				"onset_time",
+				std::round(indiv[i].get_augm("onset_time")));
 		}
 	}
 }

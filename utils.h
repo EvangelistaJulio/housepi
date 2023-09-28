@@ -1,10 +1,10 @@
-// user_model.hpp //
-
-#define CONTINUOS_TIME      // UPDATE: options to switch to integer time
-#define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
+// user_model.h //
 
 #ifndef DEF_USER_MODEL__H
 #define DEF_USER_MODEL__H
+
+#define CONTINUOS_TIME      // UPDATE: options to switch to integer time
+#define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
 
 #include <string>
 #include <cmath>

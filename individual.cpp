@@ -1,6 +1,6 @@
 // individual.cpp //
 
-#include "individual.hpp"
+#include "individual.h"
 
 using namespace std;
 
@@ -18,14 +18,25 @@ Base_Individual::Base_Individual(
 	this->data = data;
 }
 
+/* Add an augmented variable to the individual */
 void Base_Individual::add_augm(std::string augmID, Augmented new_augm)
 {
-	augm_var.emplace(augmID, new_augm);
+	if (augm_var.find(augmID) == augm_var.end())
+    {
+		augm_var.emplace(augmID, new_augm);
+    }
+    else
+    {
+        std::cerr << "ERROR: Augmented variable `" << augmID << "` has multiple definitions." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+    }
 }
 
+/* Add an augmented variable to the individual, plus initialize it */
 void Base_Individual::add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng)
 {
-	augm_var.emplace(augmID, new_augm);
+	add_augm(augmID, new_augm);
 	init_augm(augmID, rng);
 }
 
@@ -52,17 +63,19 @@ double Base_Individual::augm_propose_log_ratio(std::string augmID, double old_va
 }
 
 ////////////////////////////////////////////////////////////////////////
-// //////////////// Household : (FIXME: temporary) /////////////////// //
+// //////////////////////// Base_Household ////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
+// FIXME: this architecture fixes the possible status of the individual
+
 /* add individual */
-void Household::add_individual(size_t i, int status)
+void Base_Household::add_individual(size_t i, int status)
 {
 	(status == HEALTHY) ? healthy_list.push_back(i) : symptomatic_list.push_back(i);
 }
 
 /* change_status of individual i to new status (without controls) */
-void Household::change_status(size_t i, int new_status)
+void Base_Household::change_status(size_t i, int new_status)
 {
 	std::vector<size_t> *new_list = (new_status == HEALTHY) ? &healthy_list : &symptomatic_list;
 	std::vector<size_t> *old_list = (new_status == HEALTHY) ? &symptomatic_list : &healthy_list;

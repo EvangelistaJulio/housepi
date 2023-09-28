@@ -10,7 +10,7 @@
 #include <sstream>
 #include <iomanip>
 
-#include "mcmc.hpp"
+#include "mcmc.h"
 
 // UPDATE : understand namespace usage and clean up
 using namespace std;
@@ -23,6 +23,15 @@ std::vector<double> Inst_Comm_Infec = {};
 // ////////////////////////////////////////////////////////////////////////// //
 // ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
+
+/* Cleaner string from forbidden characters*/
+void string_cleaner(std::string *token)
+{
+    for (char r : {'\r', '\n'})
+    {
+        token->erase(std::remove(token->begin(), token->end(), r), token->end());
+    }
+}
 
 kwargs parse_dict_string(std::string args_str, char delim)
 {
@@ -163,7 +172,7 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
             }
 
             //=====CHOICE=====//
-            if (!getline(iss, choice, '\r')) // FIXME: this might be just a problem of my editor
+            if (!getline(iss, choice)) 
             {
                 std::cerr << "\nERROR: Unable to extract setup choice." << std::endl;
                 std::cerr << "Check line: " << line << "\n"
@@ -172,13 +181,8 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
                           << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-
-            // Trim leading and trailing spaces from key and value
-            // FIXME : is this really necessary?
-            name.erase(0, name.find_first_not_of(" "));
-            name.erase(name.find_last_not_of(" ") + 1);
-            choice.erase(0, choice.find_first_not_of(" "));
-            choice.erase(choice.find_last_not_of(" ") + 1);
+            string_cleaner(&name);
+            string_cleaner(&choice);
 
             // add the new setup
             safe_load.emplace(name, choice);
@@ -188,7 +192,6 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
         loader.num_iter = std::stoi(safe_load.at("num_iter"));
         loader.num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
         loader.thinning = std::stoi(safe_load.at("thinning"));
-        loader.is_data_augm = stobool(safe_load.at("is_data_augm"));
         loader.verbose = stobool(safe_load.at("verbose"));
         loader.delim = load_delim(safe_load.at("delim"));
         loader.dict_delim = load_delim(safe_load.at("dict_delim"));
@@ -275,6 +278,7 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         // Tokenize the line using the specified delimiter
         while (std::getline(iss, token, mcmc->setup.delim))
         {
+            string_cleaner(&token);
             mcmc->data_headers.push_back(token);
             data.emplace(token, 0);
         }
@@ -314,8 +318,8 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         std::cout << "N. of individuals : " << mcmc->num_indiv << std::endl;
         std::cout << "N. of households : " << mcmc->num_househ << std::endl;
         std::cout << "N. of cases : " << mcmc->num_symptomatic << std::endl;
-        std::cout << "First day of study : " << mcmc->first_study_date() << std::endl;
-        std::cout << "Last day of study : " << mcmc->last_study_date() << std::endl;
+        std::cout << "First day of study : " << mcmc->study_time_start() << std::endl;
+        std::cout << "Last day of study : " << mcmc->study_time_end() << std::endl;
     }
 }
 
@@ -452,10 +456,8 @@ int main(int argc, char **argv)
 
     //=====Initialization=====//
 
-    // Load Setup
-    Setup_MCMC_Struct setup = load_setup(setup_path_to_file);
     // Initialize MCMC object
-    MCMC mcmc(setup);
+    MCMC mcmc(load_setup(setup_path_to_file));
 
     // Load Data
     build_community(community_path_to_file);
@@ -466,7 +468,7 @@ int main(int argc, char **argv)
 
     //=====Parameter Inference=====//
     mcmc.run(output_path_to_file);
-    
+
     //=====Simulation study=====//
     // FIXME (temporary) : choice of parameters
     mcmc.open_augm_file(augmented_path_to_file);

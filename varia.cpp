@@ -1,6 +1,6 @@
 // varia.cpp //
 
-#include "varia.hpp"
+#include "varia.h"
 
 using namespace std;
 
@@ -10,35 +10,39 @@ using namespace std;
 
 Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
-    double value_0,
+    double strat_zero,
     kwargs value_range,
     std::vector<std::string> args_to_adapt) : distr_ptr(distr)
 {
     this->args_to_adapt = args_to_adapt;
     set_range(value_range);
-    if (value_0 == INFINITY)
+    if (strat_zero == INFINITY)
     {
         this->zero_start = false;
     }
     else
     {
-        this->zero_start = true;
-        set_value_0(value_0);
-
-        /*
-        // FIXME: maybe initial values could be forbidden values?
-                if (valid(value_0) == true)
+        if (valid(strat_zero))
         {
             this->zero_start = true;
-            set_value_0(value_0);
+            set_strat_zero(strat_zero);
         }
         else
         {
-            std::cerr << "ERROR: initial value " << value_0 << " and value range are inconsistent." << std::endl;
+            std::cerr << "ERROR: initial value " << strat_zero << " and value range {";
+            if (value_range.find("low") != value_range.end())
+            {
+                std::cerr << "low:" << value_range.at("low") << ", ";
+            }
+            if (value_range.find("up") != value_range.end())
+            {
+                std::cerr << "up:" << value_range.at("up");
+            }
+            std::cerr << "} are inconsistent." << std::endl;
             std::cerr << "Exit...\n"
                       << std::endl;
+            std::exit(EXIT_FAILURE);
         }
-        */
     }
 };
 
@@ -113,7 +117,7 @@ void Base_Proposer::set_range(kwargs new_range)
 }
 
 /* Switchboard to select the custom metropolis strategy */
-Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_0, kwargs value_range)
+Base_Proposer *proposer_switchboard(std::string name, kwargs args, double strat_zero, kwargs value_range)
 {
     if (name == UNDEFINED)
     {
@@ -121,15 +125,15 @@ Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_
     }
     else if (name == "uniform")
     {
-        return new Uniform_Proposer(args, value_0, value_range);
+        return new Uniform_Proposer(args, strat_zero, value_range);
     }
     else if (name == "normal")
     {
-        return new Normal_Proposer(args, value_0, value_range);
+        return new Normal_Proposer(args, strat_zero, value_range);
     }
     else if (name == "lognorm")
     {
-        return new Lognorm_Proposer(args, value_0, value_range);
+        return new Lognorm_Proposer(args, strat_zero, value_range);
     }
     else
     {

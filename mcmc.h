@@ -1,4 +1,4 @@
-// mcmc.hpp //
+// mcmc.h //
 
 #ifndef MCMC__H
 #define MCMC__H
@@ -14,7 +14,7 @@
 #include <chrono>
 // #include <omp.h>
 
-#include "model.hpp"
+#include "model.h"
 
 // Auxiliary struct to load all setup information
 struct Setup_MCMC_Struct
@@ -25,7 +25,6 @@ public:
 	unsigned num_iter = 0;
 	unsigned num_adapt_iter = 0;
 	unsigned thinning = 0;
-	bool is_data_augm = false;
 	bool verbose = false;
 	char delim = ' ';
 	char dict_delim = '/';
@@ -63,7 +62,7 @@ public:
 	void initialize_model(bool random_params=false);
 
 	// --- Computations --- //
-	void update_global_loglike();
+	void init_global_loglike();
 	void move_parameters(double inv_temperature = 1.0);
 	void move_augm_variables(double inv_temperature = 1.0);
 

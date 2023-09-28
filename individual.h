@@ -1,4 +1,4 @@
-// individual.hpp //
+// individual.h //
 
 #ifndef INDIVIDUAL__H
 #define INDIVIDUAL__H
@@ -11,7 +11,7 @@
 #include <random>
 #include <iostream>
 
-#include "varia.hpp"
+#include "varia.h"
 
 // model
 #define HEALTHY 0
@@ -45,7 +45,19 @@ public:
 	//=====Getter=====//
 	bool get_status() const { return status; }
 	int get_index() const { return index; }
-	double get(std::string dataID) const { return data.at(dataID); }
+	double get(std::string dataID) const
+	{
+		// FLAG
+		if (data.find(dataID) == data.end())
+		{
+			std::cerr << "\nERROR: data column `" << dataID << "` unknown." << std::endl;
+			std::cerr << "Exit...\n"
+					  << std::endl;
+			std::exit(EXIT_FAILURE);
+		}
+		// FLAG
+		return data.at(dataID);
+	}
 	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
 	bool augm_infer(std::string augmID) { return augm_var.at(augmID).get_infer(); }
 
@@ -69,29 +81,28 @@ public:
 };
 
 /////////////////////////////////////////////////////////
-///////// Household : Class declaration ///////////////
+///////// Base_Household : Class declaration ///////////////
 ////////////////////////////////////////////////////////
 
-class Household
+class Base_Household
 {
 public:
-	// Attributes
+	//=====Attributes=====//
 	int house_index = -1;
 	size_t size = 0;
 	size_t first_case = -1;
 	timetype infec_time = INFINITY;
 	std::vector<size_t> healthy_list = {};
 	std::vector<size_t> symptomatic_list = {};
-	double loglike = 0;
 
-	// Constructors
-	Household() {}
-	~Household(){};
+	//=====Constructors=====//
+	Base_Household() {}
+	~Base_Household(){};
 
-	// Getter
+	//======Getter======//
 	int get_index() const { return house_index; }
 
-	// Setter
+	//======Setter======//
 	void set_index(int index) { house_index = index; }
 	void add_individual(size_t i, int status);
 	void change_status(size_t i, int new_status);
