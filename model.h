@@ -37,13 +37,10 @@ class Individual : public Base_Individual
 public:
 	size_t home = -1;
 	bool is_child = false;
-	bool is_mother = false;
-	bool is_father = false;
-	bool is_recov = false;
+	bool is_adult = false;
 	bool is_isol = false;
 	bool is_vacc_0 = false;
 	bool is_vacc_1 = false;
-	bool is_vacc_1_V_onset = false;
 	bool is_vacc_2 = false;
 
 	using Base_Individual::Base_Individual;
@@ -125,7 +122,7 @@ public:
 	double susceptibility(size_t idx);
 	double transmissability(size_t i);
 
-	void simulate_data(timetype delta_t, std::mt19937_64 &rng);
+	void simulate(timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // MODEL__H

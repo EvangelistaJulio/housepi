@@ -333,19 +333,17 @@ void Model::clear_infectivity_profiles()
 	}
 }
 
-/* Update household first case */
+/* Update household first case and first infection time */
 void Model::update_first_case(size_t h)
 {
-	timetype t_infec, new_t0 = INFINITY;
-	size_t new_case0 = househ[h].size; // NOTE: init to impossible values
+	timetype t_infec;
+	timetype new_t0 = INFINITY;
+	size_t new_case0 = num_indiv; // NOTE: init to impossible values
 
 	for (size_t i : househ[h].symptomatic_list)
 	{
-		// Find smaller infection time
 		t_infec = get_infec_time(i);
 		new_t0 = std::min(t_infec, new_t0);
-
-		// Identify first case
 		if (t_infec == new_t0)
 		{
 			new_case0 = i;
@@ -378,15 +376,12 @@ void Model::pre_process_data()
 	{
 		//=====Age class=====//
 		indiv[i].is_child = (indiv[i].get("age") < 12);
-		indiv[i].is_mother = (indiv[i].get("age") >= 12) && (indiv[i].get("sex") == 1);
-		indiv[i].is_father = (indiv[i].get("age") >= 12) && (indiv[i].get("sex") == 2);
+		indiv[i].is_adult = (indiv[i].get("age") >= 12);
 
 		//=====Vaccination status=====//
-		indiv[i].is_recov = (indiv[i].get("recov") && (indiv[i].get("vacc_status") == 1 || indiv[i].get("vacc_status") == 2));
 		indiv[i].is_isol = indiv[i].get("isol");
-		indiv[i].is_vacc_0 = (indiv[i].get("vacc_status") == 1);
+		indiv[i].is_vacc_0 = (indiv[i].get("recov")) || (indiv[i].get("vacc_status") == 1);
 		indiv[i].is_vacc_1 = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
-		indiv[i].is_vacc_1_V_onset = (indiv[i].get("vacc_status") == 2 && indiv[i].get("vacc_delay") >= get_value("vacc_onset"));
 		indiv[i].is_vacc_2 = (indiv[i].get("vacc_status") == 3 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
 	}
 
@@ -394,7 +389,6 @@ void Model::pre_process_data()
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "onset_time"));
-	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "study_period"));
 }
 
 // Relative infectivity of symptomatic child cases versus symptomatic adult cases
@@ -402,20 +396,14 @@ double Model::contact_modulation(size_t i, size_t k)
 {
 	double f = 1.0;
 
-	// Child (2) - Child (2)
+	// Child - Child
 	if (indiv[i].is_child && indiv[k].is_child)
 	{
 		f *= get_value("rCC");
-
-	} // Child (2) - Mother (0)
-	else if ((indiv[i].is_child && indiv[k].is_mother) || (indiv[k].is_child && indiv[i].is_mother))
+	} // Child - Adult
+	else if ((indiv[i].is_child && indiv[k].is_adult) || (indiv[k].is_child && indiv[i].is_adult))
 	{
-		f *= get_value("rMC");
-
-	} // Child (2) - Father (1)
-	else if ((indiv[i].is_child && indiv[k].is_father) || (indiv[k].is_child && indiv[i].is_father))
-	{
-		f *= get_value("rFC");
+		f *= get_value("rCA");
 	}
 
 	return f;
@@ -434,31 +422,15 @@ double Model::susceptibility(size_t i)
 	{
 		f *= get_value("r1V"); // vaccination class 1
 	}
-	else if (indiv[i].is_vacc_1_V_onset)
-	{
-		f *= get_value("r1V90"); // vaccination class 1V90
-	}
 	else if (indiv[i].is_vacc_2)
 	{
 		f *= get_value("r2V"); // vaccination class 1
-	}
-
-	// Suceptibility of children
-	if (indiv[i].is_child)
-	{
-		f *= get_value("rC");
 	}
 
 	// Suceptibility of isolated people
 	if (indiv[i].is_isol)
 	{
 		f *= get_value("rQ");
-	}
-
-	// Suceptibility of recovered people
-	if (indiv[i].is_recov)
-	{
-		f *= get_value("rR");
 	}
 
 	return f;
@@ -543,9 +515,6 @@ double Model::compute_loglike(size_t h)
 	// Loop over all symptomatic residents
 	for (size_t i : househ[h].symptomatic_list)
 	{
-		loglike_house += log_surv_proba(i);
-		// FIXME : also first_case, right? because of community (check)
-
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model)
 		{
@@ -555,87 +524,10 @@ double Model::compute_loglike(size_t h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
+			loglike_house += log_surv_proba(i); // FIXME : why not first_case?
 			loglike_house += log_infec_proba(i);
 		}
 	}
 
 	return loglike_house;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////// Model : Methods (simulation)  /////////////////////////////// //
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Poisson point process to simulate data */
-void Model::simulate_data(timetype delta_t, std::mt19937_64 &rng)
-{
-	size_t h;
-	std::uniform_real_distribution<double> unif(0.0, 1.0);
-	timetype data_time_start = study_time_start();
-	timetype data_time_end = study_time_end();
-	timetype first_infec_day = INFINITY;
-
-	// initialize all individuals to healthy
-	for (size_t i = 0; i < num_indiv; i++)
-	{
-		if (indiv[i].get_status() != HEALTHY)
-		{
-			househ[indiv[i].home].change_status(i, HEALTHY);
-			indiv[i].set_status(HEALTHY);
-		}
-
-		indiv[i].init_augm("incub_period", rng);
-		indiv[i].set_augm("onset_time", INFINITY);
-	}
-
-	// initialize households
-	for (size_t h = 0; h < num_househ; h++)
-	{
-		househ[h].infec_time = INFINITY;
-		househ[h].first_case = househ[h].size;
-	}
-	clear_infectivity_profiles();
-
-	for (timetype infec_time = data_time_start; infec_time <= data_time_end; infec_time += delta_t)
-	{
-		for (size_t i = 0; i < num_indiv; i++)
-		{
-			// UPDATE : state check improvable
-			if (indiv[i].get_status() == HEALTHY)
-			{
-				// NOTE : assign infec_time from onset_time
-				indiv[i].set_augm("onset_time", infec_time + indiv[i].get_augm("incub_period"));
-
-				if (unif(rng) < std::exp(log_infec_proba(i)))
-				{
-					h = indiv[i].home;
-					indiv[i].set_status(SYMPTOMATIC);
-					househ[h].change_status(i, SYMPTOMATIC);
-					update_first_case(h);
-					update_infectivity_profiles(i);
-					first_infec_day = std::min(infec_time, first_infec_day); // FIXME : sub-optimal
-				}
-				else
-				{
-					indiv[i].set_augm("onset_time", INFINITY);
-				}
-			}
-		}
-	}
-
-	// format augmented variables of healthy individuals
-	for (size_t i = 0; i < num_indiv; i++)
-	{
-		if (indiv[i].get_status() == HEALTHY)
-		{
-			indiv[i].set_augm("incub_period", 0);
-			indiv[i].set_augm("onset_time", 1000);
-		}
-		else
-		{
-			indiv[i].set_augm(
-				"onset_time",
-				std::round(indiv[i].get_augm("onset_time")));
-		}
-	}
 }

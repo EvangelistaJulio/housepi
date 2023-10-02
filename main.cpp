@@ -33,6 +33,7 @@ void string_cleaner(std::string *token)
     }
 }
 
+/* Return the dictionary from the string */
 kwargs parse_dict_string(std::string args_str, char delim)
 {
     std::istringstream args_ss(args_str);
@@ -318,8 +319,6 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         std::cout << "N. of individuals : " << mcmc->num_indiv << std::endl;
         std::cout << "N. of households : " << mcmc->num_househ << std::endl;
         std::cout << "N. of cases : " << mcmc->num_symptomatic << std::endl;
-        std::cout << "First day of study : " << mcmc->study_time_start() << std::endl;
-        std::cout << "Last day of study : " << mcmc->study_time_end() << std::endl;
     }
 }
 
@@ -472,7 +471,7 @@ int main(int argc, char **argv)
     //=====Simulation study=====//
     // FIXME (temporary) : choice of parameters
     mcmc.open_augm_file(augmented_path_to_file);
-    mcmc.simulate_data(1, mcmc.rng);
+    mcmc.simulate(0.1, mcmc.rng);
     mcmc.print_augm_variables();
     mcmc.close_augm_file();
 

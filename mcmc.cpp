@@ -163,7 +163,7 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
     }
 
     // FIXME : random_params not for all inv_temper
-    initialize_model(random_params = random_params);
+    initialize_model(random_params);
 
     //=====Initialize output file=====//
     init_param_file(output_file);
