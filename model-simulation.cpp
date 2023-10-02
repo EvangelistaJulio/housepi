@@ -17,12 +17,10 @@ Poisson point process to simulate data.
 
 	Also, what about different in-house study-periods?
 */
-void Model::simulate(timetype dt, std::mt19937_64 &rng)
+void Model::simulate_infection(timetype dt, std::mt19937_64 &rng)
 {
 	timetype time_end;
 	std::uniform_real_distribution<double> unif(0.0, 1.0);
-
-	clear_infectivity_profiles();
 
 	// simulate the infection for each household
 	for (size_t h = 0; h < num_househ; h++)

@@ -104,7 +104,7 @@ public:
 	timetype get_infec_time(size_t i) const;
 
 	//=====Infectivity Profile=====//
-	void assign_infec_profile();
+	void initialize_infectivity_profile();
 	double infectivity_inst(size_t i, timetype t_transm);
 	double infectivity_cumul(size_t i, timetype t_transm);
 	void clear_infectivity_profiles();
@@ -122,7 +122,7 @@ public:
 	double susceptibility(size_t idx);
 	double transmissability(size_t i);
 
-	void simulate(timetype delta_t, std::mt19937_64 &rng);
+	void simulate_infection(timetype delta_t, std::mt19937_64 &rng);
 };
 
 #endif // MODEL__H

@@ -21,11 +21,12 @@ struct Setup_MCMC_Struct
 {
 public:
 	// Attributes
-	unsigned seed = 0;
-	unsigned num_iter = 0;
-	unsigned num_adapt_iter = 0;
-	unsigned thinning = 0;
-	bool verbose = false;
+	unsigned seed = 20210415;
+	unsigned num_iter = 20000;
+	unsigned num_adapt_iter = 5000;
+	unsigned thinning = 20;
+	timetype delta_t = 0.01;
+	bool verbose = true;
 	char delim = ' ';
 	char dict_delim = '/';
 };
@@ -66,8 +67,11 @@ public:
 	void move_parameters(double inv_temperature = 1.0);
 	void move_augm_variables(double inv_temperature = 1.0);
 
-	// --- INFER --- //
+	//=====RUN=====//
 	void run(std::string output_filename, double inv_temperature = 1.0, bool random_params=false);
+
+	//=====SIMULATE=====//
+	void simulate(std::string output_filename);
 
 	// --- Save parameters --- //
 	void init_param_file(std::string output_filename);

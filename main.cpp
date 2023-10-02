@@ -17,31 +17,31 @@ using namespace std;
 
 //=====Define the global variables=====//
 // UPDATE: this depends on the model
-std::vector<double> Cumul_Comm_Infec = {};
-std::vector<double> Inst_Comm_Infec = {};
+vector<double> Cumul_Comm_Infec = {};
+vector<double> Inst_Comm_Infec = {};
 
 // ////////////////////////////////////////////////////////////////////////// //
 // ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
 
 /* Cleaner string from forbidden characters*/
-void string_cleaner(std::string *token)
+void string_cleaner(string *token)
 {
     for (char r : {'\r', '\n'})
     {
-        token->erase(std::remove(token->begin(), token->end(), r), token->end());
+        token->erase(remove(token->begin(), token->end(), r), token->end());
     }
 }
 
 /* Return the dictionary from the string */
-kwargs parse_dict_string(std::string args_str, char delim)
+kwargs parse_dict_string(string args_str, char delim)
 {
-    std::istringstream args_ss(args_str);
-    std::string tmp;
-    std::vector<std::string> args_stock;
+    istringstream args_ss(args_str);
+    string tmp;
+    vector<string> args_stock;
     kwargs output = {};
 
-    while (std::getline(args_ss, tmp, delim))
+    while (getline(args_ss, tmp, delim))
     {
         args_stock.push_back(tmp);
     }
@@ -51,10 +51,10 @@ kwargs parse_dict_string(std::string args_str, char delim)
     }
     else if (args_stock.size() % 2 == 1)
     {
-        std::cerr << "\nERROR: Unrecognized dictionary." << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Unrecognized dictionary." << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
     else
     {
@@ -62,14 +62,14 @@ kwargs parse_dict_string(std::string args_str, char delim)
         {
             try
             {
-                output.emplace(args_stock[i], std::stod(args_stock[i + 1]));
+                output.emplace(args_stock[i], stod(args_stock[i + 1]));
             }
-            catch (const std::exception &)
+            catch (const exception &)
             {
-                std::cerr << "\nERROR: Invalid entry of a dictionary." << std::endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                std::exit(EXIT_FAILURE);
+                cerr << "\nERROR: Invalid entry of a dictionary." << endl;
+                cerr << "Exit...\n"
+                     << endl;
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -78,7 +78,7 @@ kwargs parse_dict_string(std::string args_str, char delim)
 }
 
 /* function to load boolean variables */
-bool stobool(std::string text)
+bool stobool(string text)
 {
     bool output = false;
 
@@ -92,17 +92,17 @@ bool stobool(std::string text)
     }
     else
     {
-        std::cerr << "\nERROR: Unrecognized boolean value for: " << text << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Unrecognized boolean value for: " << text << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
     return output;
 }
 
 /* function to load delimiter */
-char load_delim(std::string text)
+char load_delim(string text)
 {
     char delim = '_';
 
@@ -113,26 +113,26 @@ char load_delim(std::string text)
     }
     else
     {
-        std::cerr << "\nERROR: Unable to extract delimiter." << std::endl;
-        std::cerr << "Check: " << text << "\n"
-                  << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Unable to extract delimiter." << endl;
+        cerr << "Check: " << text << "\n"
+             << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
     return delim;
 }
 
 /* auxiliary function to call for error in build parameters */
-void build_column_error(std::string var_name, std::string &line)
+void build_column_error(string var_name, string &line)
 {
-    std::cerr << "\nERROR: Unable to extract `" << var_name << "` column." << std::endl;
-    std::cerr << "Check line: " << line << "\n"
-              << std::endl;
-    std::cerr << "Exit...\n"
-              << std::endl;
-    std::exit(EXIT_FAILURE);
+    cerr << "\nERROR: Unable to extract `" << var_name << "` column." << endl;
+    cerr << "Check line: " << line << "\n"
+         << endl;
+    cerr << "Exit...\n"
+         << endl;
+    exit(EXIT_FAILURE);
 }
 
 // ////////////////////////////////////////////////////////////////////////// //
@@ -140,47 +140,47 @@ void build_column_error(std::string var_name, std::string &line)
 // ////////////////////////////////////////////////////////////////////////// //
 
 /* Read Setup file */
-Setup_MCMC_Struct load_setup(std::string data_path_to_file)
+Setup_MCMC_Struct load_setup(string data_path_to_file)
 {
     char delim = ',';
     Setup_MCMC_Struct loader;
-    std::ifstream input(data_path_to_file.c_str());
-    std::map<std::string, std::string> safe_load = {};
+    ifstream input(data_path_to_file.c_str());
+    map<string, string> safe_load = {};
 
     if (input.is_open())
     {
-        std::cout << "\n=============SETUP==============" << std::endl;
-        std::cout << "Setup file: " << data_path_to_file << std::endl;
+        cout << "\n=============SETUP==============" << endl;
+        cout << "Setup file: " << data_path_to_file << endl;
 
-        input.clear();                 // Clear any errors
-        input.seekg(0, std::ios::beg); // Seek to the beginning
+        input.clear();            // Clear any errors
+        input.seekg(0, ios::beg); // Seek to the beginning
 
         // Create a stringstream of the current line
-        for (std::string line; std::getline(input, line);)
+        for (string line; getline(input, line);)
         {
-            std::string name, choice;
-            std::istringstream iss(line);
+            string name, choice;
+            istringstream iss(line);
 
             //=====NAME=====//
             if (!getline(iss, name, delim))
             {
-                std::cerr << "\nERROR: Unable to extract setup name." << std::endl;
-                std::cerr << "Check line: " << line << "\n"
-                          << std::endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                std::exit(EXIT_FAILURE);
+                cerr << "\nERROR: Unable to extract setup name." << endl;
+                cerr << "Check line: " << line << "\n"
+                     << endl;
+                cerr << "Exit...\n"
+                     << endl;
+                exit(EXIT_FAILURE);
             }
 
             //=====CHOICE=====//
-            if (!getline(iss, choice)) 
+            if (!getline(iss, choice))
             {
-                std::cerr << "\nERROR: Unable to extract setup choice." << std::endl;
-                std::cerr << "Check line: " << line << "\n"
-                          << std::endl;
-                std::cerr << "Exit...\n"
-                          << std::endl;
-                std::exit(EXIT_FAILURE);
+                cerr << "\nERROR: Unable to extract setup choice." << endl;
+                cerr << "Check line: " << line << "\n"
+                     << endl;
+                cerr << "Exit...\n"
+                     << endl;
+                exit(EXIT_FAILURE);
             }
             string_cleaner(&name);
             string_cleaner(&choice);
@@ -189,29 +189,30 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
             safe_load.emplace(name, choice);
         }
 
-        loader.seed = std::stoi(safe_load.at("seed"));
-        loader.num_iter = std::stoi(safe_load.at("num_iter"));
-        loader.num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
-        loader.thinning = std::stoi(safe_load.at("thinning"));
+        loader.seed = stoi(safe_load.at("seed"));
+        loader.num_iter = stoi(safe_load.at("num_iter"));
+        loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
+        loader.thinning = stoi(safe_load.at("thinning"));
         loader.verbose = stobool(safe_load.at("verbose"));
         loader.delim = load_delim(safe_load.at("delim"));
         loader.dict_delim = load_delim(safe_load.at("dict_delim"));
+        loader.delta_t = stod(safe_load.at("delta_t"));
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Impossible to read: " << data_path_to_file << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
     //=====Check for values validity=====//
     if (loader.num_adapt_iter >= loader.num_iter)
     {
-        std::cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
     //=====Display=====//
@@ -219,7 +220,7 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
     {
         for (const auto &pair : safe_load)
         {
-            std::cout << pair.first << " : " << pair.second << std::endl;
+            cout << pair.first << " : " << pair.second << endl;
         }
     }
 
@@ -227,20 +228,20 @@ Setup_MCMC_Struct load_setup(std::string data_path_to_file)
 }
 
 /* Read Community file */
-void build_community(std::string data_path_to_file)
+void build_community(string data_path_to_file)
 {
     double date, inst_val, cumul_val;
 
-    std::ifstream input(data_path_to_file.c_str());
+    ifstream input(data_path_to_file.c_str());
     if (input.is_open())
     {
-        std::cout << "\n=============COMMUNITY==============" << std::endl;
-        std::cout << "Data file: " << data_path_to_file << std::endl;
+        cout << "\n=============COMMUNITY==============" << endl;
+        cout << "Data file: " << data_path_to_file << endl;
 
         // Create a stringstream of the current line
-        for (std::string line; std::getline(input, line);)
+        for (string line; getline(input, line);)
         {
-            std::istringstream iss(line);
+            istringstream iss(line);
 
             // Store information in variables
             iss >> date >> inst_val >> cumul_val;
@@ -251,33 +252,33 @@ void build_community(std::string data_path_to_file)
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to read: " << data_path_to_file << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Impossible to read: " << data_path_to_file << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
 /* Read Data file */
-void build_data(MCMC *mcmc, std::string data_path_to_file)
+void build_data(MCMC *mcmc, string data_path_to_file)
 {
     bool verbose = mcmc->setup.verbose;
 
-    std::ifstream input(data_path_to_file.c_str());
+    ifstream input(data_path_to_file.c_str());
     if (input.is_open())
     {
-        std::cout << "\n=============DATA===============" << std::endl;
-        std::cout << "Data file: " << data_path_to_file << std::endl;
+        cout << "\n=============DATA===============" << endl;
+        cout << "Data file: " << data_path_to_file << endl;
 
         //=====Read column names for variables in the model=====//
-        std::string line;
-        std::getline(input, line);
-        std::istringstream iss(line);
-        std::string token;
-        std::unordered_map<std::string, double> data = {};
+        string line;
+        getline(input, line);
+        istringstream iss(line);
+        string token;
+        unordered_map<string, double> data = {};
 
         // Tokenize the line using the specified delimiter
-        while (std::getline(iss, token, mcmc->setup.delim))
+        while (getline(iss, token, mcmc->setup.delim))
         {
             string_cleaner(&token);
             mcmc->data_headers.push_back(token);
@@ -285,15 +286,15 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
         }
 
         //=====Load individuals from the raw with values=====//
-        for (std::string line; std::getline(input, line);)
+        for (string line; getline(input, line);)
         {
-            std::istringstream iss(line);
+            istringstream iss(line);
 
             // Store information in variables
             size_t n_col = 0;
-            while (std::getline(iss, token, mcmc->setup.delim))
+            while (getline(iss, token, mcmc->setup.delim))
             {
-                data.at(mcmc->data_headers[n_col]) = std::stod(token);
+                data.at(mcmc->data_headers[n_col]) = stod(token);
                 n_col++;
             }
 
@@ -302,45 +303,48 @@ void build_data(MCMC *mcmc, std::string data_path_to_file)
             mcmc->add_individual(this_indiv);
         }
 
+        //=====assign classes from the model=====//
+        mcmc->pre_process_data();
+
         //=====assign structure of the community=====//
         mcmc->assign_community_structure();
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to open: " << data_path_to_file << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Impossible to open: " << data_path_to_file << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
     //=====Display=====//
     if (verbose)
     {
-        std::cout << "N. of individuals : " << mcmc->num_indiv << std::endl;
-        std::cout << "N. of households : " << mcmc->num_househ << std::endl;
-        std::cout << "N. of cases : " << mcmc->num_symptomatic << std::endl;
+        cout << "N. of individuals : " << mcmc->num_indiv << endl;
+        cout << "N. of households : " << mcmc->num_househ << endl;
+        cout << "N. of cases : " << mcmc->num_symptomatic << endl;
     }
 }
 
 /* Read Model Parameters file */
-void build_parameters(MCMC *mcmc, std::string data_path_to_file)
+void build_parameters(MCMC *mcmc, string data_path_to_file)
 {
     char delim = mcmc->setup.delim;
     char dict_delim = mcmc->setup.dict_delim;
-    std::ifstream input(data_path_to_file.c_str());
+    ifstream input(data_path_to_file.c_str());
 
     if (input.is_open())
     {
-        std::cout << "\n=============PARAMETERS==============" << std::endl;
-        std::cout << "Model file: " << data_path_to_file << std::endl;
+        cout << "\n=============PARAMETERS==============" << endl;
+        cout << "Model file: " << data_path_to_file << endl;
 
         // Create a stringstream of the current line
-        for (std::string line; std::getline(input, line);)
+        for (string line; getline(input, line);)
         {
-            std::string name, value_str, infer, strategy, rate_str, range_str, prior_name, prior_args_str;
+            string name, value_str, infer, strategy, rate_str, range_str, prior_name, prior_args_str;
             double value;
             kwargs prior_args = {}, rate = {}, range = {};
-            std::istringstream iss(line);
+            istringstream iss(line);
 
             //=====NAME=====//
             if (!getline(iss, name, delim))
@@ -413,10 +417,10 @@ void build_parameters(MCMC *mcmc, std::string data_path_to_file)
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to read `" << data_path_to_file << "`" << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "\nERROR: Impossible to read `" << data_path_to_file << "`" << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -424,56 +428,124 @@ void build_parameters(MCMC *mcmc, std::string data_path_to_file)
 // ////////////////////////////// MAIN FUNCTION ////////////////////////////// //
 // /////////////////////////////////////////////////////////////////////////// //
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-    //========== USER parameters ==========//
-    if (argc < 7)
+    bool infer = false;
+    bool simulate = false;
+    Setup_MCMC_Struct setup = {};
+    string parameters_path_to_file;
+    string community_path_to_file;
+    string database_path_to_file;
+    string output_path_to_file;
+
+    // Command line argument iterator
+    int carg_i = 1;
+
+    // ===== Test if some commands were supplied ===== //
+    if (argc < 2)
     {
-        // print usage here and return, since that's what you need.
-        std::cerr << "Wrong usage" << std::endl;
-        std::cerr << argv[0] << " <setup:path/to/file>"
-                  << " <households:path/to/file>"
-                  << " <community:path/to/file>"
-                  << " <parameters:path/to/file>"
-                  << " <output:path/to/file>"
-                  << " <augmented:path/to/file>";
-        std::cerr << std::endl
-                  << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        cerr << "The user did not supply any command.\n";
+        cerr << "Check the list of commands through:\n"
+             << argv[0] << " -h";
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
-    // mandatory parameters
-    std::string setup_path_to_file = argv[1];      //
-    std::string households_path_to_file = argv[2]; // Path/to/file (households)
-    std::string community_path_to_file = argv[3];  //
-    std::string parameters_path_to_file = argv[4]; //
-    std::string output_path_to_file = argv[5];     // Name of the output file
-    std::string augmented_path_to_file = argv[6];  // Name of the output file for augmented data
+    while (carg_i < argc)
+    {
+        // Command line argument asking for help
+        if (string(argv[carg_i]) == string("-h") or string(argv[carg_i]) == string("--help"))
+        {
+            // Show the manual using man and installed manpages
+            cerr << "Manual missing. Contact the developer." << endl;
+            // End the program without error
+            exit(EXIT_SUCCESS);
+        }
 
+        if (string(argv[carg_i]) == string("-infer"))
+        {
+            infer = true;
+        }
+
+        else if (string(argv[carg_i]) == string("-simulate"))
+        {
+            simulate = true;
+        }
+
+        else if (string(argv[carg_i]) == string("-s") or string(argv[carg_i]) == string("--setup"))
+        {
+            ++carg_i;
+            // Show the manual using man and installed manpages
+            setup = load_setup(argv[carg_i]);
+        }
+
+        else if (string(argv[carg_i]) == string("-p") or string(argv[carg_i]) == string("--params"))
+        {
+            ++carg_i;
+            // Show the manual using man and installed manpages
+            parameters_path_to_file = argv[carg_i];
+        }
+
+        else if (string(argv[carg_i]) == string("-c") or string(argv[carg_i]) == string("--community"))
+        {
+            ++carg_i;
+            // Show the manual using man and installed manpages
+            community_path_to_file = argv[carg_i];
+        }
+
+        else if (string(argv[carg_i]) == string("-d") or string(argv[carg_i]) == string("--database"))
+        {
+            ++carg_i;
+            // Show the manual using man and installed manpages
+            database_path_to_file = argv[carg_i];
+        }
+
+        else if (string(argv[carg_i]) == string("-o") or string(argv[carg_i]) == string("--output"))
+        {
+            ++carg_i;
+            // Show the manual using man and installed manpages
+            output_path_to_file = argv[carg_i];
+        }
+
+        else
+        {
+            cerr << "Unrecognized option :" << argv[carg_i] << endl;
+            cerr << "Exit...\n"
+                 << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        // Read the next command line argument
+        ++carg_i;
+    }
+
+    // UPDATE : check for options validity
     // UPDATE : check for path validity
 
-    //=====Initialization=====//
+    // ===== INITIALIZATION ===== //
 
-    // Initialize MCMC object
-    MCMC mcmc(load_setup(setup_path_to_file));
+    // ===== Initialize MCMC object ===== //
+    MCMC mcmc(setup);
 
-    // Load Data
+    // ===== Load Data ===== //
     build_community(community_path_to_file);
-    build_data(&mcmc, households_path_to_file);
+    build_data(&mcmc, database_path_to_file);
 
-    // Load Parameters
+    // ===== Load Parameters ===== //
     build_parameters(&mcmc, parameters_path_to_file);
 
-    //=====Parameter Inference=====//
-    mcmc.run(output_path_to_file);
+    // =====Parameter Inference===== //
+    if (infer)
+    {
+        mcmc.run(output_path_to_file);
+    }
 
     //=====Simulation study=====//
-    // FIXME (temporary) : choice of parameters
-    mcmc.open_augm_file(augmented_path_to_file);
-    mcmc.simulate(0.1, mcmc.rng);
-    mcmc.print_augm_variables();
-    mcmc.close_augm_file();
+    if (simulate)
+    {
+        mcmc.simulate(output_path_to_file);
+    }
 
     return EXIT_SUCCESS;
 }

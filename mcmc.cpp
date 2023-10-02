@@ -8,19 +8,15 @@ using namespace std;
 // ////////////////////////// MCMC : Setter ///////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-/* Initialize augmented variables */
+/* Initialize parameters and augmented variables */
 void MCMC::initialize_model(bool random_params)
 {
     if (random_params)
     {
         init_rand_params(rng);
     }
-    assign_infec_profile(); // FIXME : names overlapping...
-    clear_infectivity_profiles();
-    pre_process_data();
+    initialize_infectivity_profile(); 
     assign_augm_data(rng);
-    init_global_loglike();
-    reset_moves();
 }
 
 /* Initialize global loglikelihood */
@@ -162,8 +158,9 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
-    // FIXME : random_params not for all inv_temper
     initialize_model(random_params);
+    init_global_loglike();
+    reset_moves();
 
     //=====Initialize output file=====//
     init_param_file(output_file);
@@ -201,6 +198,24 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
 
     //=====MCMC ending=====//
     close_param_file();
+}
+
+////////////////////////////////////////////////////////////////////////
+// /////////////////////////// MCMC : run /////////////////////////// //
+////////////////////////////////////////////////////////////////////////
+
+void MCMC::simulate(std::string output_filename)
+{
+    if (setup.verbose)
+    {
+        std::cout << "\n=============Simulation===============" << std::endl;
+    }
+
+    initialize_model(false);
+    open_augm_file(output_filename);
+    simulate_infection(setup.delta_t, rng);
+    print_augm_variables();
+    close_augm_file();
 }
 
 ////////////////////////////////////////////////////////////////////////

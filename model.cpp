@@ -257,7 +257,8 @@ timetype Model::get_infec_time(size_t i) const
 // /////////////////////////////////// Model : Infectivity Profiles /////////////////////////////////// //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Model::assign_infec_profile()
+// FIXME : names overlapping...
+void Model::initialize_infectivity_profile()
 {
 	kwargs_ext infec_prof_args = {
 		{"alpha", get_address("tost_alpha")},
@@ -266,6 +267,7 @@ void Model::assign_infec_profile()
 		{"tau", get_address("tost_tau")}};
 
 	infectivity_profile = new Onset_to_Transm(infec_prof_args);
+	clear_infectivity_profiles();
 }
 
 /* instanteneous infectivity profile */
@@ -385,13 +387,13 @@ void Model::pre_process_data()
 		indiv[i].is_vacc_2 = (indiv[i].get("vacc_status") == 3 && indiv[i].get("vacc_delay") < get_value("vacc_onset"));
 	}
 
-	// clean up the list of headers for output files
+	//=====clean up list of headers for output files=====//
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
 	data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "onset_time"));
 }
 
-// Relative infectivity of symptomatic child cases versus symptomatic adult cases
+/* Relative infectivity of symptomatic child cases versus symptomatic adult cases */
 double Model::contact_modulation(size_t i, size_t k)
 {
 	double f = 1.0;
