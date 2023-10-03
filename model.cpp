@@ -289,12 +289,14 @@ double Model::infectivity_cumul(size_t i, timetype t_transm)
 /* Update infectivity profiles given a resident idx */
 void Model::update_infectivity_profiles(size_t i)
 {
+	size_t w;
 	size_t h = indiv[i].home;
 	timetype t_infec_i = get_infec_time(i);
 	timetype t_infec_k;
 
 	// Update cumulative and instantaneous person-to-person transmission rates
-	// NOTE : cumul_profile[idx][res] : from `idx` to `res`
+	// cumul_profile[idx + res * num_indiv] : from `idx` to `res`
+	// cumul_profile[idx][res] : from `idx` to `res`
 
 	//=====loop over all symptomatic residents=====//
 	for (size_t k : househ[h].symptomatic_list)
@@ -303,13 +305,15 @@ void Model::update_infectivity_profiles(size_t i)
 
 		if (t_infec_i < t_infec_k)
 		{ // `i` : infector, `k` : infectee
-			cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
-			inst_profile[i][k] = infectivity_inst(i, t_infec_k);
+			w = i + num_indiv * k;
+			cumul_profile[w] = infectivity_cumul(i, t_infec_k);
+			inst_profile[w] = infectivity_inst(i, t_infec_k);
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
-			cumul_profile[k][i] = infectivity_cumul(k, t_infec_i);
-			inst_profile[k][i] = infectivity_inst(k, t_infec_i);
+			w = k + num_indiv * i;
+			cumul_profile[w] = infectivity_cumul(k, t_infec_i);
+			inst_profile[w] = infectivity_inst(k, t_infec_i);
 		}
 		// NOTE : else is the case idx == res
 	}
@@ -318,21 +322,17 @@ void Model::update_infectivity_profiles(size_t i)
 	// UPDATE : if study_period is equal for all residents, than this is constant for all
 	for (size_t k : househ[h].healthy_list)
 	{
+		w = i + num_indiv * k;
 		t_infec_k = get_infec_time(k); // == study_period
-		cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
+		cumul_profile[w] = infectivity_cumul(i, t_infec_k);
 	}
 }
 
 /* Clear infectivity profiles */
 void Model::clear_infectivity_profiles()
 {
-	cumul_profile.resize(num_indiv);
-	inst_profile.resize(num_indiv);
-	for (size_t j = 0; j < num_indiv; j++)
-	{
-		cumul_profile[j].resize(num_indiv);
-		inst_profile[j].resize(num_indiv);
-	}
+	cumul_profile.resize(pow(num_indiv, 2));
+	inst_profile.resize(pow(num_indiv, 2));
 }
 
 /* Update household first case and first infection time */
@@ -441,22 +441,21 @@ double Model::susceptibility(size_t i)
 /* Model the transmissability within household */
 double Model::transmissability(size_t i)
 {
-	double f = 1.0;
-	size_t size = househ[indiv[i].home].size;
+	size_t h = indiv[i].home;
 
 	// Instantaneous per capita transmission rate
-	f *= get_value("beta");
+	double f = get_value("beta");
 
 	// If transmission hazard depends on household size
-	f /= pow(size / get_value("typical_size"), get_value("delta"));
+	f *= pow(get_value("typical_size") / househ[h].size, get_value("delta"));
 
 	return f;
 }
 
 /* beta risk */
-double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
+double Model::risk_beta(std::vector<double> &rate_vector, size_t i)
 {
-	size_t h = indiv[i].home;
+	size_t w, h = indiv[i].home;
 	double beta = 0.0;
 
 	// Risk of infection from other household members
@@ -464,7 +463,8 @@ double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
 	{
 		if (k != i)
 		{
-			beta += contact_modulation(k, i) * rate_vector[k][i];
+			w = k + i * num_indiv;
+			beta += contact_modulation(k, i) * rate_vector[w];
 		}
 	}
 	beta *= transmissability(i);

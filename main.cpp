@@ -16,7 +16,10 @@
 using namespace std;
 
 //=====Define the global variables=====//
-// UPDATE: this depends on the model
+
+bool Verbose = false;
+
+// FIXME: this depends on the model
 vector<double> Cumul_Comm_Infec = {};
 vector<double> Inst_Comm_Infec = {};
 
@@ -140,17 +143,20 @@ void build_column_error(string var_name, string &line)
 // ////////////////////////////////////////////////////////////////////////// //
 
 /* Read Setup file */
-Setup_MCMC_Struct load_setup(string data_path_to_file)
+Setup_MCMC_Struct load_setup(string data_pathtofile)
 {
     char delim = ',';
     Setup_MCMC_Struct loader;
-    ifstream input(data_path_to_file.c_str());
+    ifstream input(data_pathtofile.c_str());
     map<string, string> safe_load = {};
 
     if (input.is_open())
     {
-        cout << "\n=============SETUP==============" << endl;
-        cout << "Setup file: " << data_path_to_file << endl;
+        if (Verbose)
+        {
+            cout << "\n=============SETUP==============" << endl;
+            cout << "Setup file: " << data_pathtofile << endl;
+        }
 
         input.clear();            // Clear any errors
         input.seekg(0, ios::beg); // Seek to the beginning
@@ -193,14 +199,13 @@ Setup_MCMC_Struct load_setup(string data_path_to_file)
         loader.num_iter = stoi(safe_load.at("num_iter"));
         loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
         loader.thinning = stoi(safe_load.at("thinning"));
-        loader.verbose = stobool(safe_load.at("verbose"));
         loader.delim = load_delim(safe_load.at("delim"));
         loader.dict_delim = load_delim(safe_load.at("dict_delim"));
         loader.delta_t = stod(safe_load.at("delta_t"));
     }
     else
     {
-        cerr << "\nERROR: Impossible to read: " << data_path_to_file << endl;
+        cerr << "\nERROR: Impossible to read: " << data_pathtofile << endl;
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
@@ -216,7 +221,7 @@ Setup_MCMC_Struct load_setup(string data_path_to_file)
     }
 
     //=====Display=====//
-    if (loader.verbose)
+    if (Verbose)
     {
         for (const auto &pair : safe_load)
         {
@@ -228,15 +233,18 @@ Setup_MCMC_Struct load_setup(string data_path_to_file)
 }
 
 /* Read Community file */
-void build_community(string data_path_to_file)
+void build_community(string data_pathtofile)
 {
     double date, inst_val, cumul_val;
 
-    ifstream input(data_path_to_file.c_str());
+    ifstream input(data_pathtofile.c_str());
     if (input.is_open())
     {
-        cout << "\n=============COMMUNITY==============" << endl;
-        cout << "Data file: " << data_path_to_file << endl;
+        if (Verbose)
+        {
+            cout << "\n=============COMMUNITY==============" << endl;
+            cout << "Data file: " << data_pathtofile << endl;
+        }
 
         // Create a stringstream of the current line
         for (string line; getline(input, line);)
@@ -252,7 +260,7 @@ void build_community(string data_path_to_file)
     }
     else
     {
-        cerr << "\nERROR: Impossible to read: " << data_path_to_file << endl;
+        cerr << "\nERROR: Impossible to read: " << data_pathtofile << endl;
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
@@ -260,15 +268,16 @@ void build_community(string data_path_to_file)
 }
 
 /* Read Data file */
-void build_data(MCMC *mcmc, string data_path_to_file)
+void build_data(MCMC *mcmc, string data_pathtofile)
 {
-    bool verbose = mcmc->setup.verbose;
-
-    ifstream input(data_path_to_file.c_str());
+    ifstream input(data_pathtofile.c_str());
     if (input.is_open())
     {
-        cout << "\n=============DATA===============" << endl;
-        cout << "Data file: " << data_path_to_file << endl;
+        if (Verbose)
+        {
+            cout << "\n=============DATA===============" << endl;
+            cout << "Data file: " << data_pathtofile << endl;
+        }
 
         //=====Read column names for variables in the model=====//
         string line;
@@ -303,40 +312,40 @@ void build_data(MCMC *mcmc, string data_path_to_file)
             mcmc->add_individual(this_indiv);
         }
 
-        //=====assign classes from the model=====//
-        mcmc->pre_process_data();
-
         //=====assign structure of the community=====//
         mcmc->assign_community_structure();
+
+        // ===== Display ===== //
+        if (Verbose)
+        {
+            cout << "N. of individuals : " << mcmc->num_indiv << endl;
+            cout << "N. of households : " << mcmc->num_househ << endl;
+            cout << "N. of cases : " << mcmc->num_symptomatic << endl;
+        }
     }
     else
     {
-        cerr << "\nERROR: Impossible to open: " << data_path_to_file << endl;
+        cerr << "\nERROR: Impossible to open: " << data_pathtofile << endl;
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
     }
-
-    //=====Display=====//
-    if (verbose)
-    {
-        cout << "N. of individuals : " << mcmc->num_indiv << endl;
-        cout << "N. of households : " << mcmc->num_househ << endl;
-        cout << "N. of cases : " << mcmc->num_symptomatic << endl;
-    }
 }
 
 /* Read Model Parameters file */
-void build_parameters(MCMC *mcmc, string data_path_to_file)
+void build_parameters(MCMC *mcmc, string data_pathtofile)
 {
     char delim = mcmc->setup.delim;
     char dict_delim = mcmc->setup.dict_delim;
-    ifstream input(data_path_to_file.c_str());
+    ifstream input(data_pathtofile.c_str());
 
     if (input.is_open())
     {
-        cout << "\n=============PARAMETERS==============" << endl;
-        cout << "Model file: " << data_path_to_file << endl;
+        if (Verbose)
+        {
+            cout << "\n=============PARAMETERS==============" << endl;
+            cout << "Model file: " << data_pathtofile << endl;
+        }
 
         // Create a stringstream of the current line
         for (string line; getline(input, line);)
@@ -410,14 +419,14 @@ void build_parameters(MCMC *mcmc, string data_path_to_file)
             }
         }
 
-        if (mcmc->setup.verbose)
+        if (Verbose)
         {
             mcmc->display_parameters();
         }
     }
     else
     {
-        cerr << "\nERROR: Impossible to read `" << data_path_to_file << "`" << endl;
+        cerr << "\nERROR: Impossible to read `" << data_pathtofile << "`" << endl;
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
@@ -433,79 +442,88 @@ int main(int argc, char *argv[])
     bool infer = false;
     bool simulate = false;
     Setup_MCMC_Struct setup = {};
-    string parameters_path_to_file;
-    string community_path_to_file;
-    string database_path_to_file;
-    string output_path_to_file;
+    string parameters_pathtofile = UNDEFINED;
+    string community_pathtofile = UNDEFINED;
+    string database_pathtofile = UNDEFINED;
+    string output_pathtofile = UNDEFINED;
+    string augmented_pathtofile = UNDEFINED;
 
     // Command line argument iterator
     int carg_i = 1;
 
-    // ===== Test if some commands were supplied ===== //
+    //=====Test if some commands were supplied=====//
     if (argc < 2)
     {
         cerr << "The user did not supply any command.\n";
-        cerr << "Check the list of commands through:\n"
-             << argv[0] << " -h";
+        cerr << "Check the list of commands through:"
+             << argv[0] << " -h\n";
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
     }
 
+    //=====Load commands and options=====//
     while (carg_i < argc)
     {
         // Command line argument asking for help
-        if (string(argv[carg_i]) == string("-h") or string(argv[carg_i]) == string("--help"))
+        if (string(argv[carg_i]) == string("-h") or string(argv[carg_i]) == string("-help"))
         {
-            // Show the manual using man and installed manpages
+            // FIXME: Show the manual using man and installed manpages
             cerr << "Manual missing. Contact the developer." << endl;
-            // End the program without error
             exit(EXIT_SUCCESS);
         }
 
-        if (string(argv[carg_i]) == string("-infer"))
+        else if (string(argv[carg_i]) == string("-infer"))
         {
+            // Command line asking for infer
             infer = true;
         }
 
         else if (string(argv[carg_i]) == string("-simulate"))
         {
+            // Command line asking for simulate
             simulate = true;
-        }
-
-        else if (string(argv[carg_i]) == string("-s") or string(argv[carg_i]) == string("--setup"))
-        {
-            ++carg_i;
-            // Show the manual using man and installed manpages
-            setup = load_setup(argv[carg_i]);
         }
 
         else if (string(argv[carg_i]) == string("-p") or string(argv[carg_i]) == string("--params"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            parameters_path_to_file = argv[carg_i];
+            parameters_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-c") or string(argv[carg_i]) == string("--community"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            community_path_to_file = argv[carg_i];
+            community_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-d") or string(argv[carg_i]) == string("--database"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            database_path_to_file = argv[carg_i];
+            database_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-o") or string(argv[carg_i]) == string("--output"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            output_path_to_file = argv[carg_i];
+            output_pathtofile = argv[carg_i];
+        }
+
+        else if (string(argv[carg_i]) == string("-s") or string(argv[carg_i]) == string("--setup"))
+        {
+            ++carg_i;
+            setup = load_setup(argv[carg_i]);
+        }
+
+        else if (string(argv[carg_i]) == string("-a") or string(argv[carg_i]) == string("--save_augmented"))
+        {
+            ++carg_i;
+            augmented_pathtofile = argv[carg_i];
+        }
+
+        else if (string(argv[carg_i]) == string("-v") or string(argv[carg_i]) == string("--verbose"))
+        {
+            Verbose = true;
         }
 
         else
@@ -521,30 +539,51 @@ int main(int argc, char *argv[])
     }
 
     // UPDATE : check for options validity
-    // UPDATE : check for path validity
 
-    // ===== INITIALIZATION ===== //
-
-    // ===== Initialize MCMC object ===== //
-    MCMC mcmc(setup);
-
-    // ===== Load Data ===== //
-    build_community(community_path_to_file);
-    build_data(&mcmc, database_path_to_file);
-
-    // ===== Load Parameters ===== //
-    build_parameters(&mcmc, parameters_path_to_file);
-
-    // =====Parameter Inference===== //
-    if (infer)
+    if (infer && simulate)
     {
-        mcmc.run(output_path_to_file);
+        cerr << "Incompatible options: choose one between -infer and -simulate." << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 
-    //=====Simulation study=====//
+    // UPDATE : check for path validity
+
+    //=====INITIALIZATION=====//
+
+    //=====Initialize MCMC=====//
+    MCMC mcmc(setup);
+
+    //=====Load Data=====//
+    build_community(community_pathtofile);
+    build_data(&mcmc, database_pathtofile);
+
+    //=====Load Parameters=====//
+    build_parameters(&mcmc, parameters_pathtofile);
+
+    //=====Assign Classes from the Model=====//
+    mcmc.pre_process_data();
+
+    //=====Parameter Inference=====//
+    if (infer)
+    {
+        mcmc.run(output_pathtofile);
+        if (augmented_pathtofile != UNDEFINED)
+        {
+            mcmc.print_augm_variables(augmented_pathtofile);
+        }
+    }
+
+    //=====Simulation Study=====//
     if (simulate)
     {
-        mcmc.simulate(output_path_to_file);
+        mcmc.simulate(output_pathtofile);
+    }
+
+    if (Verbose)
+    {
+        cout << endl;
     }
 
     return EXIT_SUCCESS;

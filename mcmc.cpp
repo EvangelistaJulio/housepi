@@ -4,6 +4,8 @@
 
 using namespace std;
 
+extern bool Verbose;
+
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : Setter ///////////////////////// //
 ////////////////////////////////////////////////////////////////////////
@@ -15,7 +17,7 @@ void MCMC::initialize_model(bool random_params)
     {
         init_rand_params(rng);
     }
-    initialize_infectivity_profile(); 
+    initialize_infectivity_profile();
     assign_augm_data(rng);
 }
 
@@ -147,12 +149,12 @@ void MCMC::move_augm_variables(double inv_temper)
 // /////////////////////////// MCMC : run /////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-void MCMC::run(std::string output_file, double inv_temper, bool random_params)
+void MCMC::run(std::string output_file, bool random_params, double inv_temper)
 {
     unsigned step = 0;
     double adapt_ratio;
 
-    if (setup.verbose)
+    if (Verbose)
     {
         std::cout << "\n=============MCMC===============" << std::endl;
         std::cout << "\n======MCMC:initialization=======" << std::endl;
@@ -166,7 +168,7 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
     init_param_file(output_file);
 
     //=====MCMC execution=====//
-    if (setup.verbose)
+    if (Verbose)
     {
         std::cout << "\n=========MCMC:execution=========" << std::endl;
     }
@@ -206,16 +208,14 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
 
 void MCMC::simulate(std::string output_filename)
 {
-    if (setup.verbose)
+    if (Verbose)
     {
         std::cout << "\n=============Simulation===============" << std::endl;
     }
 
     initialize_model(false);
-    open_augm_file(output_filename);
     simulate_infection(setup.delta_t, rng);
-    print_augm_variables();
-    close_augm_file();
+    print_augm_variables(output_filename);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -225,11 +225,15 @@ void MCMC::simulate(std::string output_filename)
 /* Initialize the output param file with column names and initial values */
 void MCMC::init_param_file(std::string output_filename)
 {
-    std::cout << "Model parameter file: " << output_filename << std::endl;
     param_ofstream.open(output_filename.c_str());
 
     if (param_ofstream.is_open())
     {
+        if (Verbose)
+        {
+            std::cout << "Inferred parameter file: " << output_filename << std::endl;
+        }
+
         param_ofstream << "iter" << setup.delim << "loglike";
         param_ofstream << setup.delim << "augm__a%";
         for (std::string parID : param_to_be_inferred)
@@ -268,13 +272,19 @@ void MCMC::print_parameters(unsigned step)
     }
 }
 
-/* Open the file for the augmented variables */
-void MCMC::open_augm_file(std::string output_filename)
+/* Print the ensemble of augmented variables */
+void MCMC::print_augm_variables(std::string output_filename)
 {
+    std::ofstream augm_ofstream;
+
+    //=====Open output file=====//
     augm_ofstream.open(output_filename.c_str());
     if (augm_ofstream.is_open())
     {
-        std::cout << "Augmented variable file: " << output_filename << std::endl;
+        if (Verbose)
+        {
+            std::cout << "Augmented variable file: " << output_filename << std::endl;
+        }
 
         //=====Print column headers=====//
         augm_ofstream << "index" << setup.delim << "status";
@@ -287,29 +297,29 @@ void MCMC::open_augm_file(std::string output_filename)
             augm_ofstream << setup.delim << augmID;
         }
         augm_ofstream << std::endl;
+
+        //=====Print augmented variables=====//
+        for (size_t i = 0; i < num_indiv; i++)
+        {
+            augm_ofstream << indiv[i].get_index() << setup.delim << indiv[i].get_status();
+            for (std::string dataID : data_headers)
+            {
+                augm_ofstream << setup.delim << indiv[i].get(dataID);
+            }
+            for (std::string augmID : augm_list)
+            {
+                augm_ofstream << setup.delim << indiv[i].get_augm(augmID);
+            }
+            augm_ofstream << std::endl;
+        }
+
+        //=====Close output file=====//
+        augm_ofstream.close();
     }
     else
     {
         std::cerr << "\nERROR: Unable to open file `" << output_filename << "`" << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
-    }
-}
-
-/* Print the ensemble of augmented variables */
-void MCMC::print_augm_variables()
-{
-    for (size_t i = 0; i < num_indiv; i++)
-    {
-        augm_ofstream << indiv[i].get_index() << setup.delim << indiv[i].get_status();
-        for (std::string dataID : data_headers)
-        {
-            augm_ofstream << setup.delim << indiv[i].get(dataID);
-        }
-        for (std::string augmID : augm_list)
-        {
-            augm_ofstream << setup.delim << indiv[i].get_augm(augmID);
-        }
-        augm_ofstream << std::endl;
     }
 }

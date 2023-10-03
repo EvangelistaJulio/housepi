@@ -26,7 +26,6 @@ public:
 	unsigned num_adapt_iter = 5000;
 	unsigned thinning = 20;
 	timetype delta_t = 0.01;
-	bool verbose = true;
 	char delim = ' ';
 	char dict_delim = '/';
 };
@@ -60,7 +59,7 @@ public:
 
 	// --- Setter --- //
 	void reset_moves();
-	void initialize_model(bool random_params=false);
+	void initialize_model(bool random_params = false);
 
 	// --- Computations --- //
 	void init_global_loglike();
@@ -68,7 +67,7 @@ public:
 	void move_augm_variables(double inv_temperature = 1.0);
 
 	//=====RUN=====//
-	void run(std::string output_filename, double inv_temperature = 1.0, bool random_params=false);
+	void run(std::string output_filename, bool random_params = false, double inv_temperature = 1.0);
 
 	//=====SIMULATE=====//
 	void simulate(std::string output_filename);
@@ -79,14 +78,11 @@ public:
 	void close_param_file() { param_ofstream.close(); }
 
 	// --- Save augmented variables --- //
-	void open_augm_file(std::string output_filename);
-	void print_augm_variables();
-	void close_augm_file() { augm_ofstream.close(); }
+	void print_augm_variables(std::string output_filename);
 
 private:
 	// --- infer : attributes --- //
 	std::ofstream param_ofstream;
-	std::ofstream augm_ofstream;
 };
 
 #endif // MCMC__H

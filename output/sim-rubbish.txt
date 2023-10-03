@@ -1,1 +1,0 @@
-index status index status HH_idx HH_size study_period vacc_status age isol sex severity vacc_delay recov onset_time

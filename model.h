@@ -79,8 +79,8 @@ protected:
 	std::vector<std::string> augm_to_be_inferred = {};
 
 	// infectivity profile : profile[i][j] : from i to j
-	std::vector<std::vector<double>> cumul_profile = {};
-	std::vector<std::vector<double>> inst_profile = {};
+	std::vector<double> cumul_profile = {};
+	std::vector<double> inst_profile = {};
 
 public:
 	size_t num_indiv = 0;
@@ -111,7 +111,7 @@ public:
 	void update_infectivity_profiles(size_t i);
 	void update_first_case(size_t h);
 
-	double risk_beta(std::vector<std::vector<double>> &rate_vector, size_t idx);
+	double risk_beta(std::vector<double> &rate_vector, size_t idx);
 	double log_surv_proba(size_t idx);
 	double log_infec_proba(size_t idx);
 	double compute_loglike(size_t h);
