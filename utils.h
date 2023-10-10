@@ -69,6 +69,8 @@ public:
 
 private:
     double (Base_Distrib::*_get_arg_func_)(std::string argID);
+
+    // FIXME : gigantic bottleneck // FIXME !! need for translation into array
     double _get_arg_int_(std::string argID) { return args.at(argID); }
     double _get_arg_ext_(std::string argID) { return *(args_ext.at(argID)); }
 };

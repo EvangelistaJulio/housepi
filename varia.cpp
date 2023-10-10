@@ -205,6 +205,7 @@ void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
     }
 }
 
+/* FIXME */
 bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
 {
     double new_val = params.at(k).propose(rng); // propose new value

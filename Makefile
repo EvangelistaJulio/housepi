@@ -2,13 +2,13 @@ CXX := g++
 CXXFLAGS := -Wall -Wextra -std=gnu++11 -O3
 
 # List of source files
-SOURCES := main.cpp mcmc.cpp model.cpp model-simulation.cpp individual.cpp varia.cpp utils.cpp
+SOURCES := main.cpp mcmc.cpp ${MODEL}.cpp  individual.cpp varia.cpp utils.cpp
 
 # Object files to build (automatically generated from SOURCES)
 OBJECTS := $(SOURCES:.cpp=.o)
 
 # Executable name
-EXECUTABLE := program.exe
+EXECUTABLE := run-${MODEL}.exe
 
 # Make rules
 all: $(EXECUTABLE)

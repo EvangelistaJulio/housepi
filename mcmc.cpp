@@ -15,26 +15,26 @@ void MCMC::initialize_model(bool random_params)
     {
         init_rand_params(rng);
     }
-    initialize_infectivity_profile(); 
+    initialize_infectivity_profile();
     assign_augm_data(rng);
 }
 
-/* Initialize global loglikelihood */
-// UPDATE : this initialization is used because changes are not stored for params update
-void MCMC::init_global_loglike()
+/* Compute global loglikelihood */
+// UPDATE : emberassing parallel
+double MCMC::compute_global_loglike()
 {
-    double tmp;
+    double output = 0.0, tmp;
     // #pragma omp parallel num_threads(NUM_THREAD)
     {
-        global_loglike = 0.0;
         // #pragma omp for reduction(+ : sum)
         for (size_t h = 0; h < num_househ; h++)
         {
             tmp = compute_loglike(h);
             househ[h].set_loglike(tmp);
-            global_loglike += tmp;
+            output += tmp;
         }
     }
+    return output;
 }
 
 /* Set accept rates to zero */
@@ -64,24 +64,24 @@ void MCMC::move_parameters(double inv_temper)
         if (propose_valid_move(parID, rng))
         {
             // Compute the new log likelihood
-            // UPDATE : emberassing parallel // FIXME : buffer
-            new_global_loglike = 0.0;
-            for (size_t h = 0; h < num_househ; h++)
-            {
-                new_global_loglike += compute_loglike(h);
-            }
+            new_global_loglike = compute_global_loglike();
 
             //=====Metropolis-Hastings=====//
-            Q = inv_temper * (new_global_loglike - global_loglike);
+            Q = inv_temper * (new_global_loglike - get_global_loglike());
             Q += get_move_log_ratio();
             if (std::log(unif(rng)) < Q)
             {
                 accept_move(parID);
-                global_loglike = new_global_loglike;
+                set_global_loglike(new_global_loglike);
             }
             else
             {
                 refuse_move(parID);
+                // restore loglike in households
+                for (size_t h = 0; h < num_househ; h++)
+                {
+                    househ[h].refuse();
+                }
             }
         }
     }
@@ -125,9 +125,9 @@ void MCMC::move_augm_variables(double inv_temper)
 
                         if (std::log(unif(rng)) < Q)
                         {
-                            global_loglike += new_loglike_of_HH - old_loglike_of_HH;
                             househ[h].set_loglike(new_loglike_of_HH);
-                            m_num_accept_data++; // NOTE : problematic for normalization
+                            set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
+                            m_num_accept_data++;                // NOTE : problematic for normalization
                         }
                         else
                         {
@@ -144,29 +144,29 @@ void MCMC::move_augm_variables(double inv_temper)
 }
 
 ////////////////////////////////////////////////////////////////////////
-// /////////////////////////// MCMC : run /////////////////////////// //
+// ///////////////////////// MCMC : infer /////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-void MCMC::run(std::string output_file, double inv_temper, bool random_params)
+void MCMC::infer(std::string output_file, bool random_params, double inv_temper)
 {
     unsigned step = 0;
     double adapt_ratio;
 
-    if (setup.verbose)
+    if (Verbose)
     {
         std::cout << "\n=============MCMC===============" << std::endl;
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
     initialize_model(random_params);
-    init_global_loglike();
+    set_global_loglike(compute_global_loglike());
     reset_moves();
 
     //=====Initialize output file=====//
     init_param_file(output_file);
 
     //=====MCMC execution=====//
-    if (setup.verbose)
+    if (Verbose)
     {
         std::cout << "\n=========MCMC:execution=========" << std::endl;
     }
@@ -178,10 +178,10 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
             //=====Change all parameters=====//
             step = 1 + j + i;
             move_parameters(inv_temper);
-            init_global_loglike(); // FIXME: I reassign loglike to each household
 
             //=====Data augmentation=====//
-            move_augm_variables(inv_temper);
+            // FLAG
+            // move_augm_variables(inv_temper);
 
             //=====Adaptative MCMC on parameters=====//
             if (step < setup.num_adapt_iter)
@@ -206,16 +206,14 @@ void MCMC::run(std::string output_file, double inv_temper, bool random_params)
 
 void MCMC::simulate(std::string output_filename)
 {
-    if (setup.verbose)
+    if (Verbose)
     {
         std::cout << "\n=============Simulation===============" << std::endl;
     }
 
     initialize_model(false);
-    open_augm_file(output_filename);
     simulate_infection(setup.delta_t, rng);
-    print_augm_variables();
-    close_augm_file();
+    print_augm_variables(output_filename);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -268,10 +266,12 @@ void MCMC::print_parameters(unsigned step)
     }
 }
 
-/* Open the file for the augmented variables */
-void MCMC::open_augm_file(std::string output_filename)
+/* Print the ensemble of augmented variables */
+void MCMC::print_augm_variables(std::string output_filename)
 {
+    std::ofstream augm_ofstream;
     augm_ofstream.open(output_filename.c_str());
+
     if (augm_ofstream.is_open())
     {
         std::cout << "Augmented variable file: " << output_filename << std::endl;
@@ -287,6 +287,22 @@ void MCMC::open_augm_file(std::string output_filename)
             augm_ofstream << setup.delim << augmID;
         }
         augm_ofstream << std::endl;
+
+        for (size_t i = 0; i < num_indiv; i++)
+        {
+            augm_ofstream << indiv[i].get_index() << setup.delim << indiv[i].get_status();
+            for (std::string dataID : data_headers)
+            {
+                augm_ofstream << setup.delim << indiv[i].get(dataID);
+            }
+            for (std::string augmID : augm_list)
+            {
+                augm_ofstream << setup.delim << indiv[i].get_augm(augmID);
+            }
+            augm_ofstream << std::endl;
+        }
+
+        augm_ofstream.close();
     }
     else
     {
@@ -296,20 +312,67 @@ void MCMC::open_augm_file(std::string output_filename)
     }
 }
 
-/* Print the ensemble of augmented variables */
-void MCMC::print_augm_variables()
+/* Add individual */ // FIXME: base model
+void MCMC::add_individual(Individual new_indiv)
 {
+    int status = new_indiv.get_status();
+
+    if ((status != HEALTHY) && (status != SYMPTOMATIC))
+    {
+        std::cerr << "ERROR: status not in the model: " << status << endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    indiv.push_back(new_indiv);
+    num_indiv++;
+}
+
+/* Assign community structure to individuals */
+void MCMC::assign_community_structure(std::string HH_index_column)
+{
+    size_t h, size;
+    std::unordered_map<int, Household> load_househ = {};
+
+    //=====safe load households=====//
     for (size_t i = 0; i < num_indiv; i++)
     {
-        augm_ofstream << indiv[i].get_index() << setup.delim << indiv[i].get_status();
-        for (std::string dataID : data_headers)
+        h = indiv[i].get(HH_index_column);
+        // if househ_idx doesn't exist, append new household
+        if (load_househ.find(h) == load_househ.end())
         {
-            augm_ofstream << setup.delim << indiv[i].get(dataID);
+            load_househ.emplace(h, Household());
+            load_househ.at(h).set_index(h);
         }
-        for (std::string augmID : augm_list)
+        load_househ.at(h).add_individual(i, indiv[i].get_status());
+    }
+
+    //=====produce list of households=====//
+    househ.clear();
+    for (const auto &pair : load_househ)
+    {
+        househ.push_back(pair.second);
+    }
+    num_househ = househ.size();
+    load_househ.clear();
+
+    //=====assign home to individuals=====//
+    num_symptomatic = 0;
+    for (size_t h = 0; h < num_househ; h++)
+    {
+        size = 0;
+        for (size_t i : househ[h].symptomatic_list)
         {
-            augm_ofstream << setup.delim << indiv[i].get_augm(augmID);
+            indiv[i].home = h;
+            num_symptomatic += 1;
+            size++;
         }
-        augm_ofstream << std::endl;
+        for (size_t i : househ[h].healthy_list)
+        {
+            indiv[i].home = h;
+            size++;
+        }
+        househ[h].size = size;
     }
 }

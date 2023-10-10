@@ -67,7 +67,7 @@ public:
 
 	void set_status(int status) { this->status = status; }
 	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
-	void init_augm(std::string augmID, std::mt19937_64 &rng) { set_augm(augmID, augm_model_rand(augmID, rng)); }
+	void init_augm(std::string augmID, std::mt19937_64 &rng);
 
 	//=====model distribution=====//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
@@ -81,11 +81,15 @@ public:
 };
 
 /////////////////////////////////////////////////////////
-///////// Base_Household : Class declaration ///////////////
+////////// Household : Class declaration ///////////////
 ////////////////////////////////////////////////////////
 
-class Base_Household
+class Household
 {
+private:
+	double loglike = -INFINITY;
+	double buffer = -INFINITY;
+
 public:
 	//=====Attributes=====//
 	int house_index = -1;
@@ -96,8 +100,8 @@ public:
 	std::vector<size_t> symptomatic_list = {};
 
 	//=====Constructors=====//
-	Base_Household() {}
-	~Base_Household(){};
+	Household() {}
+	~Household(){};
 
 	//======Getter======//
 	int get_index() const { return house_index; }
@@ -106,6 +110,15 @@ public:
 	void set_index(int index) { house_index = index; }
 	void add_individual(size_t i, int status);
 	void change_status(size_t i, int new_status);
+
+	//======Loglike======//
+	double get_loglike() const { return loglike; }
+	void set_loglike(double new_loglike)
+	{
+		this->buffer = this->loglike;
+		this->loglike = new_loglike;
+	}
+	void refuse() { this->loglike = this->buffer; }
 };
 
 #endif // INDIVIDUAL__H

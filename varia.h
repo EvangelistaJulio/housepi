@@ -112,6 +112,7 @@ protected:
 		return undefined_call_error();
 	}
 	double _log_ratio_pdf_(double old_val, double new_val) { return distr_ptr->log_ratio(old_val, new_val); }
+	// FIXME : double check these
 	double _log_ratio_add_to_zero_(double old_val, double new_val) { return _log_ratio_pdf_(old_val - get_strat_zero(), new_val - get_strat_zero()); }
 	double _log_ratio_times_zero_(double old_val, double new_val) { return _log_ratio_pdf_(old_val / get_strat_zero(), new_val / get_strat_zero()); }
 	double _log_ratio_symm_(double old_val, double new_val)
@@ -122,7 +123,7 @@ protected:
 	}
 	double _log_ratio_lognorm_symm_(double old_val, double new_val)
 	{
-		return 2 * (std::log(old_val) - std::log(new_val)); // FIXME : check *2
+		return std::log(old_val) - std::log(new_val);
 	}
 };
 

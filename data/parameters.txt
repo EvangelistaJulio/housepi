@@ -1,12 +1,12 @@
-alpha 0.417 TRUE uniform low/0.0/up/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/1.0 
-beta 0.0436 TRUE uniform low/0.0/up/5.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-delta 0.83 TRUE uniform low/-3.0/up/3.0 normal mean/0.0/sd/1.0 low/-3.0/up/3.0 
-rU 0.97 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-r1V 0.177 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-r2V 0.205 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-rQ 0.364 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-rCC 3.28 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
-rCA 0.95 TRUE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+alpha 0.01 FALSE uniform low/0.0/up/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/1.0 
+beta 0.25 TRUE uniform low/0.0/up/5.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+delta 1.00 FALSE uniform low/-3.0/up/3.0 normal mean/0.0/sd/1.0 low/-3.0/up/3.0 
+rU 1.00 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+r1V 1.00 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+r2V 1.00 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+rQ 1.00 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+rCC 1.00 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
+rCA 1.00 FALSE lognorm mean/0.0/sd/1.0 lognorm mean/0.0/sd/1.0 low/0.0/up/5.0 
 tost_tau 5.783 FALSE 
 tost_mu -4.000 FALSE 
 tost_sigma 1.850 FALSE 

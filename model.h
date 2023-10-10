@@ -46,21 +46,6 @@ public:
 	using Base_Individual::Base_Individual;
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////// Modified Household : class //////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-class Household : public Base_Household
-{
-private:
-	double loglike = -INFINITY;
-
-public:
-	using Base_Household::Base_Household;
-
-	double get_loglike() const { return loglike; }
-	void set_loglike(double new_loglike) { this->loglike = new_loglike; }
-};
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////////// Model : class ///////////////////////// //
@@ -90,9 +75,7 @@ public:
 	std::vector<std::string> data_headers = {};
 
 	//=====Methods=====//
-	void add_individual(Individual this_indiv);
 	void pre_process_data();
-	void assign_community_structure();
 	int get_status(size_t i) const { return indiv[i].get_status(); }
 
 	timetype study_time_start();
@@ -112,8 +95,8 @@ public:
 	void update_first_case(size_t h);
 
 	double risk_beta(std::vector<std::vector<double>> &rate_vector, size_t idx);
-	double log_surv_proba(size_t idx);
-	double log_infec_proba(size_t idx);
+	double risk_surv(size_t idx);
+	double risk_infec(size_t idx);
 	double compute_loglike(size_t h);
 
 	double community_risk_inst(timetype t1);
