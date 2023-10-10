@@ -18,7 +18,10 @@ using namespace std;
 bool Verbose = false;
 
 //=====Define the global variables=====//
-// UPDATE: this depends on the model
+
+bool Verbose = false;
+
+// FIXME: this depends on the model
 vector<double> Cumul_Comm_Infec = {};
 vector<double> Inst_Comm_Infec = {};
 
@@ -151,8 +154,11 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
 
     if (input.is_open())
     {
-        cout << "\n=============SETUP==============" << endl;
-        cout << "Setup file: " << data_pathtofile << endl;
+        if (Verbose)
+        {
+            cout << "\n=============SETUP==============" << endl;
+            cout << "Setup file: " << data_pathtofile << endl;
+        }
 
         input.clear();            // Clear any errors
         input.seekg(0, ios::beg); // Seek to the beginning
@@ -236,8 +242,11 @@ void build_community(string data_pathtofile)
     ifstream input(data_pathtofile.c_str());
     if (input.is_open())
     {
-        cout << "\n=============COMMUNITY==============" << endl;
-        cout << "Data file: " << data_pathtofile << endl;
+        if (Verbose)
+        {
+            cout << "\n=============COMMUNITY==============" << endl;
+            cout << "Data file: " << data_pathtofile << endl;
+        }
 
         // Create a stringstream of the current line
         for (string line; getline(input, line);)
@@ -266,8 +275,11 @@ void build_data(MCMC *mcmc, string data_pathtofile)
     ifstream input(data_pathtofile.c_str());
     if (input.is_open())
     {
-        cout << "\n=============DATA===============" << endl;
-        cout << "Data file: " << data_pathtofile << endl;
+        if (Verbose)
+        {
+            cout << "\n=============DATA===============" << endl;
+            cout << "Data file: " << data_pathtofile << endl;
+        }
 
         //=====Read column names for variables in the model=====//
         string line;
@@ -304,6 +316,14 @@ void build_data(MCMC *mcmc, string data_pathtofile)
 
         //=====assign structure of the community=====//
         mcmc->assign_community_structure("HH_idx");
+
+        // ===== Display ===== //
+        if (Verbose)
+        {
+            cout << "N. of individuals : " << mcmc->num_indiv << endl;
+            cout << "N. of households : " << mcmc->num_househ << endl;
+            cout << "N. of cases : " << mcmc->num_symptomatic << endl;
+        }
     }
     else
     {
@@ -311,14 +331,6 @@ void build_data(MCMC *mcmc, string data_pathtofile)
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
-    }
-
-    //=====Display=====//
-    if (Verbose)
-    {
-        cout << "N. of individuals : " << mcmc->num_indiv << endl;
-        cout << "N. of households : " << mcmc->num_househ << endl;
-        cout << "N. of cases : " << mcmc->num_symptomatic << endl;
     }
 }
 
@@ -331,8 +343,11 @@ void build_parameters(MCMC *mcmc, string data_pathtofile)
 
     if (input.is_open())
     {
-        cout << "\n=============PARAMETERS==============" << endl;
-        cout << "Model file: " << data_pathtofile << endl;
+        if (Verbose)
+        {
+            cout << "\n=============PARAMETERS==============" << endl;
+            cout << "Model file: " << data_pathtofile << endl;
+        }
 
         // Create a stringstream of the current line
         for (string line; getline(input, line);)
@@ -437,40 +452,38 @@ int main(int argc, char *argv[])
     string output_pathtofile = UNDEFINED;
     string augmented_pathtofile = UNDEFINED;
 
-    //===== Test if some commands were supplied =====//
+    // ===== Test if some commands were supplied ===== //
     if (argc < 2)
     {
-        cerr << "The user did not supply any command.\n"
-             << "Check the list of commands through:\n"
-             << argv[0] << " -h" << endl;
+        cerr << "The user did not supply any command.\n";
+        cerr << "Check the list of commands through:\n"
+             << argv[0] << " -h";
         cerr << "Exit...\n"
              << endl;
         exit(EXIT_FAILURE);
     }
 
+    //=====Load commands and options=====//
     while (carg_i < argc)
     {
         // Command line argument asking for help
-        if (string(argv[carg_i]) == string("-h") || string(argv[carg_i]) == string("--help"))
+        if (string(argv[carg_i]) == string("-h") or string(argv[carg_i]) == string("--help"))
         {
             // Show the manual using man and installed manpages
-            cerr << "Manual missing. Contact the developer.\n" << endl;
+            cerr << "Manual missing. Contact the developer." << endl;
             // End the program without error
             exit(EXIT_SUCCESS);
         }
 
-        else if (string(argv[carg_i]) == string("-v") || string(argv[carg_i]) == string("--verbose"))
+        if (string(argv[carg_i]) == string("-infer"))
         {
-            Verbose = true;
-        }
-
-        else if (string(argv[carg_i]) == string("-infer"))
-        {
+            // Command line asking for infer
             infer = true;
         }
 
         else if (string(argv[carg_i]) == string("-simulate"))
         {
+            // Command line asking for simulate
             simulate = true;
         }
 
@@ -489,30 +502,29 @@ int main(int argc, char *argv[])
         else if (string(argv[carg_i]) == string("-c") || string(argv[carg_i]) == string("--community"))
         {
             ++carg_i;
-            community_pathtofile = argv[carg_i];
+            // Show the manual using man and installed manpages
+            parameters_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-d") || string(argv[carg_i]) == string("--database"))
         {
             ++carg_i;
-            database_pathtofile = argv[carg_i];
+            // Show the manual using man and installed manpages
+            community_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-o") || string(argv[carg_i]) == string("--output"))
         {
             ++carg_i;
-            output_pathtofile = argv[carg_i];
+            // Show the manual using man and installed manpages
+            database_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("--save_augm"))
         {
             ++carg_i;
-            augmented_pathtofile = argv[carg_i];
-        }
-
-        else if (string(argv[carg_i]) == string("--init_rand"))
-        {
-            rand_init_params = true;
+            // Show the manual using man and installed manpages
+            output_pathtofile = argv[carg_i];
         }
 
         else
@@ -536,11 +548,9 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // UPDATE : check for path validity
-
     //=====INITIALIZATION=====//
 
-    //=====Initialize MCMC object=====//
+    // ===== Initialize MCMC object ===== //
     MCMC mcmc(setup);
 
     //=====Load Data=====//
@@ -563,9 +573,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    //=====Simulation study=====//
+    //=====Simulation Study=====//
     if (simulate)
     {
+        mcmc.simulate(output_pathtofile);
+    }
+
+    if (Verbose)
+    {
+        cout << endl;
         mcmc.simulate(output_pathtofile);
     }
 

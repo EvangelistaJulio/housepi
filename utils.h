@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <iostream>
 
-// global verbose variable
+// global variable
 #ifdef CONTINUOS_TIME
 // time values type
 typedef double timetype;

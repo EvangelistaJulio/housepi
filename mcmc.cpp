@@ -4,6 +4,8 @@
 
 using namespace std;
 
+extern bool Verbose;
+
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : Setter ///////////////////////// //
 ////////////////////////////////////////////////////////////////////////
@@ -15,7 +17,7 @@ void MCMC::initialize_model(bool random_params)
     {
         init_rand_params(rng);
     }
-    initialize_infectivity_profile();
+    initialize_infectivity_profile(); 
     assign_augm_data(rng);
 }
 
@@ -223,11 +225,15 @@ void MCMC::simulate(std::string output_filename)
 /* Initialize the output param file with column names and initial values */
 void MCMC::init_param_file(std::string output_filename)
 {
-    std::cout << "Model parameter file: " << output_filename << std::endl;
     param_ofstream.open(output_filename.c_str());
 
     if (param_ofstream.is_open())
     {
+        if (Verbose)
+        {
+            std::cout << "Inferred parameter file: " << output_filename << std::endl;
+        }
+
         param_ofstream << "iter" << setup.delim << "loglike";
         param_ofstream << setup.delim << "augm__a%";
         for (std::string parID : param_to_be_inferred)
@@ -274,7 +280,10 @@ void MCMC::print_augm_variables(std::string output_filename)
 
     if (augm_ofstream.is_open())
     {
-        std::cout << "Augmented variable file: " << output_filename << std::endl;
+        if (Verbose)
+        {
+            std::cout << "Augmented variable file: " << output_filename << std::endl;
+        }
 
         //=====Print column headers=====//
         augm_ofstream << "index" << setup.delim << "status";
