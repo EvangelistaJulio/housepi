@@ -18,6 +18,18 @@ Base_Individual::Base_Individual(
 	this->data = data;
 }
 
+/* Init augmented variable within a random initial value */
+void Base_Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
+{
+	double init_value = augm_model_rand(augmID, rng);
+
+	while (!augm_valid(augmID, init_value))
+	{
+		init_value = augm_model_rand(augmID, rng);
+	}
+	set_augm(augmID, init_value);
+}
+
 /* Add an augmented variable to the individual */
 void Base_Individual::add_augm(std::string augmID, Augmented new_augm)
 {
@@ -30,18 +42,8 @@ void Base_Individual::add_augm(std::string augmID, Augmented new_augm)
 		std::cerr << "ERROR: Augmented variable `" << augmID << "` has multiple definitions." << std::endl;
 		std::cerr << "Exit...\n"
 				  << std::endl;
+		std::exit(EXIT_FAILURE);
 	}
-}
-
-/* Init augmented variable within a random initial value */
-void Base_Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
-{
-	double init_value = augm_model_rand(augmID, rng);
-	while (!augm_valid(augmID, init_value))
-	{
-		init_value = augm_model_rand(augmID, rng);
-	}
-	set_augm(augmID, init_value);
 }
 
 /* Add an augmented variable to the individual, plus initialize it */

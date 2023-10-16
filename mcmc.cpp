@@ -11,14 +11,15 @@ extern bool Verbose;
 ////////////////////////////////////////////////////////////////////////
 
 /* Initialize parameters and augmented variables */
-void MCMC::initialize_model(bool random_params)
+void MCMC::initialize_model(bool is_rand_params)
 {
-    if (random_params)
+    if (is_rand_params)
     {
         init_rand_params(rng);
     }
-    initialize_infectivity_profile(); 
+
     assign_augm_data(rng);
+    initialize_infectivity_profile();
 }
 
 /* Compute global loglikelihood */
@@ -26,9 +27,7 @@ void MCMC::initialize_model(bool random_params)
 double MCMC::compute_global_loglike()
 {
     double output = 0.0, tmp;
-    // #pragma omp parallel num_threads(NUM_THREAD)
     {
-        // #pragma omp for reduction(+ : sum)
         for (size_t h = 0; h < num_househ; h++)
         {
             tmp = compute_loglike(h);
@@ -96,9 +95,7 @@ void MCMC::move_augm_variables(double inv_temper)
     double log_ratio_proposal = 0.0;
     double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
 
-    // #pragma omp parallel num_threads(NUM_THREAD)
     {
-        // #pragma omp for reduction(+ : sum)
         // Loop over households
         for (size_t h = 0; h < num_househ; h++)
         {
@@ -129,7 +126,7 @@ void MCMC::move_augm_variables(double inv_temper)
                         {
                             househ[h].set_loglike(new_loglike_of_HH);
                             set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
-                            m_num_accept_data++;                // NOTE : problematic for normalization
+                            m_num_accept_data++; // NOTE : problematic for normalization
                         }
                         else
                         {
@@ -146,10 +143,10 @@ void MCMC::move_augm_variables(double inv_temper)
 }
 
 ////////////////////////////////////////////////////////////////////////
-// ///////////////////////// MCMC : infer /////////////////////////// //
+// ////////////////////// MCMC : inference ////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-void MCMC::infer(std::string output_file, bool random_params, double inv_temper)
+void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
     unsigned step = 0;
     double adapt_ratio;
@@ -160,7 +157,7 @@ void MCMC::infer(std::string output_file, bool random_params, double inv_temper)
         std::cout << "\n======MCMC:initialization=======" << std::endl;
     }
 
-    initialize_model(random_params);
+    initialize_model(is_rand_params);
     set_global_loglike(compute_global_loglike());
     reset_moves();
 
@@ -182,7 +179,7 @@ void MCMC::infer(std::string output_file, bool random_params, double inv_temper)
             move_parameters(inv_temper);
 
             //=====Data augmentation=====//
-            // FLAG
+            // FLAG : tests with frozen augmented variables
             // move_augm_variables(inv_temper);
 
             //=====Adaptative MCMC on parameters=====//
@@ -203,14 +200,14 @@ void MCMC::infer(std::string output_file, bool random_params, double inv_temper)
 }
 
 ////////////////////////////////////////////////////////////////////////
-// /////////////////////////// MCMC : run /////////////////////////// //
+// ///////////////////// MCMC : simulation ////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-void MCMC::simulate(std::string output_filename)
+void MCMC::simulation(std::string output_filename)
 {
     if (Verbose)
     {
-        std::cout << "\n=============Simulation===============" << std::endl;
+        std::cout << "\n=============SIMULATION===============" << std::endl;
     }
 
     initialize_model(false);
@@ -302,7 +299,7 @@ void MCMC::print_augm_variables(std::string output_filename)
             augm_ofstream << indiv[i].get_index() << setup.delim << indiv[i].get_status();
             for (std::string dataID : data_headers)
             {
-                augm_ofstream << setup.delim << indiv[i].get(dataID);
+                augm_ofstream << setup.delim << indiv[i].get_data(dataID);
             }
             for (std::string augmID : augm_list)
             {
@@ -347,7 +344,7 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     //=====safe load households=====//
     for (size_t i = 0; i < num_indiv; i++)
     {
-        h = indiv[i].get(HH_index_column);
+        h = indiv[i].get_data(HH_index_column);
         // if househ_idx doesn't exist, append new household
         if (load_househ.find(h) == load_househ.end())
         {

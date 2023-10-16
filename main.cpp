@@ -15,8 +15,6 @@
 // UPDATE : understand namespace usage and clean up
 using namespace std;
 
-bool Verbose = false;
-
 //=====Define the global variables=====//
 
 bool Verbose = false;
@@ -475,7 +473,12 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
-        if (string(argv[carg_i]) == string("-infer"))
+        if (string(argv[carg_i]) == string("-v"))
+        {
+            Verbose = true;
+        }
+
+        else if (string(argv[carg_i]) == string("-infer"))
         {
             // Command line asking for infer
             infer = true;
@@ -501,30 +504,26 @@ int main(int argc, char *argv[])
 
         else if (string(argv[carg_i]) == string("-c") || string(argv[carg_i]) == string("--community"))
         {
-            ++carg_i;
-            // Show the manual using man and installed manpages
-            parameters_pathtofile = argv[carg_i];
+            ++carg_i;            
+            community_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-d") || string(argv[carg_i]) == string("--database"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            community_pathtofile = argv[carg_i];
+            database_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-o") || string(argv[carg_i]) == string("--output"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            database_pathtofile = argv[carg_i];
+            output_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("--save_augm"))
         {
             ++carg_i;
-            // Show the manual using man and installed manpages
-            output_pathtofile = argv[carg_i];
+            augmented_pathtofile = argv[carg_i];
         }
 
         else
@@ -566,7 +565,7 @@ int main(int argc, char *argv[])
     //=====Parameter Inference=====//
     if (infer)
     {
-        mcmc.infer(output_pathtofile, rand_init_params);
+        mcmc.inference(output_pathtofile, rand_init_params);
         if (augmented_pathtofile != UNDEFINED)
         {
             mcmc.print_augm_variables(augmented_pathtofile);
@@ -576,13 +575,7 @@ int main(int argc, char *argv[])
     //=====Simulation Study=====//
     if (simulate)
     {
-        mcmc.simulate(output_pathtofile);
-    }
-
-    if (Verbose)
-    {
-        cout << endl;
-        mcmc.simulate(output_pathtofile);
+        mcmc.simulation(output_pathtofile);
     }
 
     if (Verbose)

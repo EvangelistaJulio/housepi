@@ -66,13 +66,13 @@ private:
 	double _range_up_ = INFINITY;
 	bool (Base_Proposer::*_valid_func_)(double new_val);
 
-	bool _valid_range_low_(double new_val) { return (new_val > _range_low_); }
-	bool _valid_range_up_(double new_val) { return (new_val < _range_up_); }
-	bool _valid_range_both_(double new_val) { return _valid_range_low_(new_val) && _valid_range_up_(new_val); }
-	bool _valid_dummy_(double new_val)
+	bool _valid_range_low_(double x) { return (x > _range_low_); }
+	bool _valid_range_up_(double x) { return (x < _range_up_); }
+	bool _valid_range_both_(double x) { return _valid_range_low_(x) && _valid_range_up_(x); }
+	bool _valid_dummy_(double x)
 	{
-		UNUSED(new_val);
-		return false;
+		UNUSED(x);
+		return true;
 	}
 
 protected:

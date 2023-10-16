@@ -54,7 +54,7 @@ public:
 class Model : public Parameter_Dictionary
 {
 protected:
-	Onset_to_Transm *infectivity_profile;
+	Onset_to_Transm *infec_profile_func;
 	std::vector<Individual> indiv {};
 	std::vector<Household> househ = {};
 

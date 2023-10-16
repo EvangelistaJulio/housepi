@@ -16,6 +16,7 @@ Base_Proposer::Base_Proposer(
 {
     this->args_to_adapt = args_to_adapt;
     set_range(value_range);
+
     if (strat_zero == INFINITY)
     {
         this->zero_start = false;
@@ -100,7 +101,7 @@ void Base_Proposer::set_range(kwargs new_range)
     {
         _valid_func_ = &Base_Proposer::_valid_range_up_;
     }
-    else
+    else // (condition == 3)
     {
         if (_range_low_ >= _range_up_)
         {

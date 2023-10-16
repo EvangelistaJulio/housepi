@@ -12,7 +12,6 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
-// #include <omp.h>
 
 #include "model.h"
 
@@ -40,7 +39,8 @@ class MCMC : public Model
 {
 private:
 	double global_loglike = 0.0;
-
+	std::ofstream param_ofstream;
+	
 public:
 	std::mt19937_64 rng;
 	std::uniform_real_distribution<double> unif;
@@ -56,39 +56,35 @@ public:
 	}
 	~MCMC() {}
 
-	// --- Getter --- //
+	//=====Getter=====//
 	double get_global_loglike() const { return global_loglike; };
 
-	// --- Setter --- //
+	//=====Setter=====//
 	void reset_moves();
-	double set_global_loglike(double new_value) { this->global_loglike = new_value; };
-	void initialize_model(bool random_params=false);
+	void set_global_loglike(double new_value) { this->global_loglike = new_value; };
+	void initialize_model(bool is_rand_params=false);
 	
 	void add_individual(Individual this_indiv);
 	void assign_community_structure(std::string HH_index_column);
 
-	// --- Computations --- //
+	//=====Computations=====//
 	double compute_global_loglike();
 	void move_parameters(double inv_temperature = 1.0);
 	void move_augm_variables(double inv_temperature = 1.0);
 
 	//=====INFER=====//
-	void infer(std::string output_filename, bool random_params = false, double inv_temperature = 1.0);
+	void inference(std::string output_filename, bool is_rand_params = false, double inv_temperature = 1.0);
 
 	//=====SIMULATE=====//
-	void simulate(std::string output_filename);
+	void simulation(std::string output_filename);
 
-	// --- Save parameters --- //
+	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
 	void print_parameters(unsigned step);
 	void close_param_file() { param_ofstream.close(); }
 
-	// --- Save augmented variables --- //
+	//=====Save augmented variables=====//
 	void print_augm_variables(std::string output_filename);
-
-private:
-	// --- infer : attributes --- //
-	std::ofstream param_ofstream;
 };
 
 #endif // MCMC__H

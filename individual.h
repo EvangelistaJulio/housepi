@@ -45,9 +45,9 @@ public:
 	//=====Getter=====//
 	bool get_status() const { return status; }
 	int get_index() const { return index; }
-	double get(std::string dataID) const
+	double get_data(std::string dataID) const
 	{
-		// FLAG
+		// UPDATE : this could be a bottleneck if data are called every iteration
 		if (data.find(dataID) == data.end())
 		{
 			std::cerr << "\nERROR: data column `" << dataID << "` unknown." << std::endl;
@@ -55,7 +55,6 @@ public:
 					  << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
-		// FLAG
 		return data.at(dataID);
 	}
 	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
@@ -69,12 +68,12 @@ public:
 	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
 	void init_augm(std::string augmID, std::mt19937_64 &rng);
 
-	//=====model distribution=====//
+	//=====Model distribution=====//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
 	double augm_model_log_pdf(std::string augmID);
 	double augm_model_log_ratio(std::string augmID, double old_value, double new_val);
 
-	//=====proposer=====//
+	//=====Proposer=====//
 	double augm_propose(std::string augmID, std::mt19937_64 &rng);
 	double augm_propose_log_ratio(std::string augmID, double old_value, double new_val);
 	bool augm_valid(std::string augmID, double new_val) { return augm_var.at(augmID).valid(new_val); }
