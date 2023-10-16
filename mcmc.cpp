@@ -318,11 +318,16 @@ void MCMC::print_augm_variables(std::string output_filename)
     }
 }
 
-/* Add individual */ // FIXME: base model
+/////////////////////////////////////////////////////////////////////////////
+// ////////////////////////// MCMC : load  data ////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////
+
+/* Add individual */ 
 void MCMC::add_individual(Individual new_indiv)
 {
     int status = new_indiv.get_status();
 
+    //=====check for the validity of the status=====//
     if ((status != HEALTHY) && (status != SYMPTOMATIC))
     {
         std::cerr << "ERROR: status not in the model: " << status << endl;
@@ -330,9 +335,11 @@ void MCMC::add_individual(Individual new_indiv)
                   << std::endl;
         std::exit(EXIT_FAILURE);
     }
-
-    indiv.push_back(new_indiv);
-    num_indiv++;
+    else
+    {
+        indiv[num_indiv] = new_indiv;
+        num_indiv++;
+    }
 }
 
 /* Assign community structure to individuals */
@@ -355,13 +362,15 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     }
 
     //=====produce list of households=====//
-    househ.clear();
+    num_househ = load_househ.size(); // get number of unique household index
+    househ = new Household[num_househ]; // initialize the array of household
+    h = 0;
     for (const auto &pair : load_househ)
     {
-        househ.push_back(pair.second);
+        househ[h] = pair.second;
+        h++;
     }
-    num_househ = househ.size();
-    load_househ.clear();
+    load_househ.clear(); // clear the dictionary for the loading
 
     //=====assign home to individuals=====//
     num_symptomatic = 0;
@@ -380,5 +389,185 @@ void MCMC::assign_community_structure(std::string HH_index_column)
             size++;
         }
         househ[h].size = size;
+    }
+}
+
+/* Read Data file */
+void MCMC::build_data(std::string data_pathtofile)
+{
+    ifstream input(data_pathtofile.c_str());
+    std::vector<Individual> aux_individuals = {};
+
+    if (input.is_open())
+    {
+        if (Verbose)
+        {
+            cout << "\n=============DATA===============" << endl;
+            cout << "Data file: " << data_pathtofile << endl;
+        }
+
+        //=====Read column names for variables in the model=====//
+        std::string line;
+        getline(input, line);
+        istringstream iss(line);
+        std::string token;
+        unordered_map<string, double> data = {};
+
+        // Tokenize the line using the specified delimiter
+        while (getline(iss, token, setup.delim))
+        {
+            string_cleaner(&token);
+            data_headers.push_back(token);
+            data.emplace(token, 0);
+        }
+
+        //=====Load individuals from the raw with values=====//
+        for (std::string line; getline(input, line);)
+        {
+            istringstream iss(line);
+
+            // Store information in variables
+            size_t n_col = 0;
+            while (getline(iss, token, setup.delim))
+            {
+                data.at(data_headers[n_col]) = stod(token);
+                n_col++;
+            }
+
+            // Create an onbject Individual and add it to the model
+            Individual this_indiv(data.at("status"), data.at("index"), data);
+            aux_individuals.push_back(this_indiv);
+        }
+
+        //=====assign individuals to mcmc=====//
+        indiv = new Individual[aux_individuals.size()]; // initialize vector of individuals
+        for(Individual this_indiv : aux_individuals)
+        {
+            add_individual(this_indiv);
+        }
+        aux_individuals.clear();
+
+        //=====assign structure of the community=====//
+        assign_community_structure("HH_idx");
+
+        //=====Display=====//
+        if (Verbose)
+        {
+            cout << "N. of individuals : " << num_indiv << endl;
+            cout << "N. of households : " << num_househ << endl;
+            cout << "N. of cases : " << num_symptomatic << endl;
+        }
+    }
+    else
+    {
+        cerr << "\nERROR: Impossible to open: " << data_pathtofile << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// ////////////////////// MCMC : load  parameters //////////////////////// //
+/////////////////////////////////////////////////////////////////////////////
+
+/* Read Model Parameters file */
+void MCMC::build_parameters(std::string data_pathtofile)
+{
+    char delim = setup.delim;
+    char dict_delim = setup.dict_delim;
+    std::ifstream input(data_pathtofile.c_str());
+
+    if (input.is_open())
+    {
+        if (Verbose)
+        {
+            cout << "\n=============PARAMETERS==============" << endl;
+            cout << "Model file: " << data_pathtofile << endl;
+        }
+
+        // Create a stringstream of the current line
+        for (std::string line; getline(input, line);)
+        {
+            std::string name, value_str, infer, strategy, rate_str, range_str, prior_name, prior_args_str;
+            double value;
+            kwargs prior_args = {}, rate = {}, range = {};
+            std::istringstream iss(line);
+
+            //=====NAME=====//
+            if (!getline(iss, name, delim))
+            {
+                build_column_error("name", line);
+            }
+
+            //=====VALUE=====//
+            if (!getline(iss, value_str, delim))
+            {
+                build_column_error("value", line);
+            }
+            value = stod(value_str);
+
+            //=====INFER=====//
+            if (!getline(iss, infer, delim))
+            {
+                build_column_error("infer", line);
+            }
+
+            if (stobool(infer) == true)
+            {
+                //=====PRIOR=====//
+                if (!getline(iss, prior_name, delim))
+                {
+                    build_column_error("prior", line);
+                }
+
+                //=====ARGS=====//
+                if (!getline(iss, prior_args_str, delim))
+                {
+                    build_column_error("args", line);
+                }
+                prior_args = parse_dict_string(prior_args_str, dict_delim);
+
+                //=====STRATEGY=====//
+                if (!getline(iss, strategy, delim))
+                {
+                    build_column_error("strategy", line);
+                }
+
+                //=====STRATEGY_ARGS=====//
+                if (!getline(iss, rate_str, delim))
+                {
+                    build_column_error("strat_args", line);
+                }
+                rate = parse_dict_string(rate_str, dict_delim);
+
+                //=====RANGE=====//
+                if (!getline(iss, range_str, delim))
+                {
+                    build_column_error("range", line);
+                }
+                range = parse_dict_string(range_str, dict_delim);
+
+                // add entry to shared parameter dictionary
+                add_param(name, value, prior_name, prior_args, strategy, rate, range);
+            }
+            else
+            {
+                // add entry to shared parameter dictionary
+                add_param(name, value);
+            }
+        }
+
+        if (Verbose)
+        {
+            display_parameters();
+        }
+    }
+    else
+    {
+        cerr << "\nERROR: Impossible to read `" << data_pathtofile << "`" << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
     }
 }

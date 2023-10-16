@@ -4,5 +4,6 @@ Epidemics mathematical modeling of houselhold surveys.
 ```
 make
 make clean
-./program.exe default_setup.csv data/database.txt data/community_infection.txt data/parameters.txt output/test.txt output/augm.txt
+./program.exe -infer -d database.txt -c community_infection.txt -p parameters.txt -o output.txt --save_augm augm.txt --init_rand -v
+
 ```

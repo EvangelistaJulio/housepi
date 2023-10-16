@@ -63,7 +63,10 @@ public:
 	void reset_moves();
 	void set_global_loglike(double new_value) { this->global_loglike = new_value; };
 	void initialize_model(bool is_rand_params=false);
-	
+
+	//=====Open data=====//
+	void build_data(std::string data_pathtofile);
+	void build_parameters(std::string data_pathtofile);
 	void add_individual(Individual this_indiv);
 	void assign_community_structure(std::string HH_index_column);
 

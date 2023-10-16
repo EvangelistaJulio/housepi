@@ -46,7 +46,6 @@ public:
 	using Base_Individual::Base_Individual;
 };
 
-
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////////// Model : class ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -54,18 +53,18 @@ public:
 class Model : public Parameter_Dictionary
 {
 protected:
+	Individual *indiv;
+	Household *househ;
+
+	// infectivity profile
 	Onset_to_Transm *infec_profile_func;
-	std::vector<Individual> indiv {};
-	std::vector<Household> househ = {};
+	double *inst_profile;
+	double *cumul_profile;
 
 	// augmented variables behavior lists
 	std::vector<std::string> augm_list = {};
 	std::vector<std::string> augm_with_model = {};
 	std::vector<std::string> augm_to_be_inferred = {};
-
-	// infectivity profile : profile[i][j] : from i to j
-	std::vector<std::vector<double>> cumul_profile = {};
-	std::vector<std::vector<double>> inst_profile = {};
 
 public:
 	size_t num_indiv = 0;
@@ -87,14 +86,16 @@ public:
 	timetype get_infec_time(size_t i) const;
 
 	//=====Infectivity Profile=====//
+	size_t from_to(int i, int j) { return i * num_indiv + j; }
 	void initialize_infectivity_profile();
 	double infectivity_inst(size_t i, timetype t_transm);
 	double infectivity_cumul(size_t i, timetype t_transm);
-	void clear_infectivity_profiles();
 	void update_infectivity_profiles(size_t i);
+
 	void update_first_case(size_t h);
 
-	double risk_beta(std::vector<std::vector<double>> &rate_vector, size_t idx);
+	//=====LogLikelihood=====//
+	double risk_beta(double *rate_vector, size_t idx);
 	double risk_surv(size_t idx);
 	double risk_infec(size_t idx);
 	double compute_loglike(size_t h);

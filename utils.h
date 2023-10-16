@@ -6,33 +6,48 @@
 #define CONTINUOS_TIME      // UPDATE: options to switch to integer time
 #define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
 
+#include <algorithm>
 #include <string>
+#include <vector>
+#include <map>
 #include <cmath>
 #include <random>
 #include <unordered_map>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
 
-// global variable
+const std::string UNDEFINED = "_none_"; // name for undefined choice
+
+///////////////////////////////////////////////////////////////////////
+// //////////////////////////// TYPEDEF //////////////////////////// //
+///////////////////////////////////////////////////////////////////////
+
 #ifdef CONTINUOS_TIME
-// time values type
-typedef double timetype;
+typedef double timetype; // time values type
 #else
 typedef int timetype;
 // UPDATE : turn distributions into discrete LUT
 #endif
 
-const std::string UNDEFINED = "_none_"; // name for undefined choice
+typedef std::unordered_map<std::string, double> kwargs;
+typedef std::unordered_map<std::string, const double *> kwargs_ext;
 
-/* Linear interpolation for an indexed array */
+///////////////////////////////////////////////////////////////////////
+// ///////////////////// Auxiliary Functions /////////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+void string_cleaner(std::string *token);
+kwargs parse_dict_string(std::string args_str, char delim);
+bool stobool(std::string text);
+char load_delim(std::string text);
+void build_column_error(std::string var_name, std::string &line);
 double lin_idx_interp(double x_value, const std::vector<double> &y);
 
 ///////////////////////////////////////////////////////////////////////
 // ////////////////////// Base_Distrib : class ///////////////////// //
 ///////////////////////////////////////////////////////////////////////
-
-// arguments
-typedef std::unordered_map<std::string, double> kwargs;
-typedef std::unordered_map<std::string, const double *> kwargs_ext;
 
 class Base_Distrib
 {

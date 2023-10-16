@@ -193,7 +193,9 @@ void Model::initialize_infectivity_profile()
 	infec_profile_func = new Onset_to_Transm(infec_prof_args);
 
 	// produce the empty matrix for the infectivity profiles
-	clear_infectivity_profiles();
+	inst_profile = new double[num_indiv * num_indiv];
+	cumul_profile = new double[num_indiv * num_indiv];
+				
 
 	// compute infectivity profiles for each of the symptomatic an realtive infectees
 	for (size_t i = 0; i < num_indiv; i++)
@@ -224,15 +226,12 @@ double Model::infectivity_cumul(size_t i, timetype t_transm)
 	return infec_profile_func->cdf(tost, incub_period);
 }
 
-/* Update infectivity profiles given a resident idx */
+/* Update infectivity profiles given related to resident index */
 void Model::update_infectivity_profiles(size_t i)
 {
 	size_t h = indiv[i].home;
 	timetype t_infec_i = get_infec_time(i);
 	timetype t_infec_k;
-
-	// Update cumulative and instantaneous person-to-person transmission rates
-	// NOTE : cumul_profile[idx][res] : from `idx` to `res`
 
 	//=====loop over all symptomatic residents=====//
 	for (size_t k : househ[h].symptomatic_list)
@@ -241,13 +240,13 @@ void Model::update_infectivity_profiles(size_t i)
 
 		if (t_infec_i < t_infec_k)
 		{ // `i` : infector, `k` : infectee
-			inst_profile[i][k] = infectivity_inst(i, t_infec_k);
-			cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
+			inst_profile[from_to(i, k)] = infectivity_inst(i, t_infec_k);
+			cumul_profile[from_to(i, k)] = infectivity_cumul(i, t_infec_k);
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
-			inst_profile[k][i] = infectivity_inst(k, t_infec_i);
-			cumul_profile[k][i] = infectivity_cumul(k, t_infec_i);
+			inst_profile[from_to(k, i)] = infectivity_inst(k, t_infec_i);
+			cumul_profile[from_to(k, i)] = infectivity_cumul(k, t_infec_i);
 		}
 		// NOTE : else is the case idx == res
 	}
@@ -258,19 +257,7 @@ void Model::update_infectivity_profiles(size_t i)
 	for (size_t k : househ[h].healthy_list)
 	{
 		t_infec_k = get_infec_time(k); // == study_period
-		cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
-	}
-}
-
-/* Clear infectivity profiles */
-void Model::clear_infectivity_profiles()
-{
-	cumul_profile.resize(num_indiv);
-	inst_profile.resize(num_indiv);
-	for (size_t j = 0; j < num_indiv; j++)
-	{
-		cumul_profile[j].resize(num_indiv);
-		inst_profile[j].resize(num_indiv);
+		cumul_profile[from_to(i, k)] = infectivity_cumul(i, t_infec_k);
 	}
 }
 
@@ -357,7 +344,7 @@ double Model::transmissability(size_t i)
 }
 
 /* beta risk */
-double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
+double Model::risk_beta(double *rate_vector, size_t i)
 {
 	size_t h = indiv[i].home;
 	double beta = 0.0;
@@ -367,7 +354,7 @@ double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
 	{
 		if (k != i)
 		{
-			beta += contact_modulation(k, i) * rate_vector[k][i];
+			beta += contact_modulation(k, i) * rate_vector[from_to(k, i)];
 		}
 	}
 	beta *= transmissability(i);

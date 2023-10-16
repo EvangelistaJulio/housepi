@@ -4,10 +4,122 @@
 
 using namespace std;
 
-//----------------------------------------------------------------------
-// Linear interpolation for an indexed array
-//----------------------------------------------------------------------
+// ////////////////////////////////////////////////////////////////////////// //
+// ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
+// ////////////////////////////////////////////////////////////////////////// //
 
+/* Cleaner string from forbidden characters*/
+void string_cleaner(std::string *token)
+{
+    for (char r : {'\r', '\n'})
+    {
+        token->erase(remove(token->begin(), token->end(), r), token->end());
+    }
+}
+
+/* Return the dictionary from the string */
+kwargs parse_dict_string(std::string args_str, char delim)
+{
+    std::istringstream args_ss(args_str);
+    std::string tmp;
+    std::vector<string> args_stock;
+    kwargs output = {};
+
+    while (getline(args_ss, tmp, delim))
+    {
+        args_stock.push_back(tmp);
+    }
+    if (args_stock.size() == 0)
+    {
+        output = {}; // empty dictionary
+    }
+    else if (args_stock.size() % 2 == 1)
+    {
+        cerr << "\nERROR: Unrecognized dictionary." << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        for (size_t i = 0; i < args_stock.size(); i += 2)
+        {
+            try
+            {
+                output.emplace(args_stock[i], stod(args_stock[i + 1]));
+            }
+            catch (const exception &)
+            {
+                cerr << "\nERROR: Invalid entry of a dictionary." << endl;
+                cerr << "Exit...\n"
+                     << endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    return output;
+}
+
+/* function to load boolean variables */
+bool stobool(std::string text)
+{
+    bool output = false;
+
+    if (text == "TRUE" || text == "true" || text == "True" || text == "1")
+    {
+        output = true;
+    }
+    else if (text == "FALSE" || text == "false" || text == "False" || text == "0")
+    {
+        output = false;
+    }
+    else
+    {
+        cerr << "\nERROR: Unrecognized boolean value for: " << text << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return output;
+}
+
+/* function to load delimiter */
+char load_delim(std::string text)
+{
+    char delim = '_';
+
+    if (text.front() == '"' && text.back() == '"')
+    {
+        // Remove the double quotes and store it as a string
+        delim = text.substr(1, text.length() - 2)[0];
+    }
+    else
+    {
+        cerr << "\nERROR: Unable to extract delimiter." << endl;
+        cerr << "Check: " << text << "\n"
+             << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return delim;
+}
+
+/* auxiliary function to call for error in build parameters */
+void build_column_error(std::string var_name, std::string &line)
+{
+    cerr << "\nERROR: Unable to extract `" << var_name << "` column." << endl;
+    cerr << "Check line: " << line << "\n"
+         << endl;
+    cerr << "Exit...\n"
+         << endl;
+    exit(EXIT_FAILURE);
+}
+
+/* Linear interpolation for an indexed vector */
 double lin_idx_interp(double x_value, const std::vector<double> &y)
 {
     size_t x_0 = (int)std::floor(x_value);
