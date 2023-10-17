@@ -45,13 +45,14 @@ public:
 	std::mt19937_64 rng;
 	std::uniform_real_distribution<double> unif;
 	Setup_MCMC_Struct setup = {};
-	int m_num_accept_data = 0; // FIXME : to be cleaned out
-	int m_num_propos_data = 0;
+	
+	std::unordered_map<std::string, unsigned> m_num_accept_data = {};
+	std::unordered_map<std::string, unsigned> m_num_propos_data = {};
 
 	// Constructors
-	MCMC(Setup_MCMC_Struct setup) : unif(0.0, 1.0)
+	MCMC(Setup_MCMC_Struct new_setup) : unif(0.0, 1.0)
 	{
-		this->setup = setup;
+		setup = new_setup;
 		rng.seed(setup.seed);
 	}
 	~MCMC() {}
@@ -61,7 +62,7 @@ public:
 
 	//=====Setter=====//
 	void reset_moves();
-	void set_global_loglike(double new_value) { this->global_loglike = new_value; };
+	void set_global_loglike(double x) { global_loglike = x; };
 	void initialize_model(bool is_rand_params=false);
 
 	//=====Open data=====//

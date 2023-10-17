@@ -167,16 +167,6 @@ void Model::assign_augm_data(std::mt19937_64 &rng)
 		_assign_augm_to_ind_(i, rng);
 	}
 
-	for (size_t i = 0; i < num_indiv; i++)
-	{
-		update_infectivity_profiles(i);
-	}
-
-	for (size_t h = 0; h < num_househ; h++)
-	{
-		update_first_case(h);
-	}
-
 	// FIXME (temporary) : this should be automatic
 	augm_list.push_back("incub_period");
 	augm_list.push_back("onset_time");
@@ -205,7 +195,22 @@ void Model::initialize_infectivity_profile()
 		{"tost_tau", get_address("tost_tau")}};
 
 	infec_profile_func = new Onset_to_Transm(infec_prof_args);
-	clear_infectivity_profiles();
+
+	// produce the empty matrix for the infectivity profiles
+	inst_profile = new double[num_indiv * num_indiv];
+	cumul_profile = new double[num_indiv * num_indiv];
+
+	// compute infectivity profiles for each of the symptomatic an realtive infectees
+	for (size_t i = 0; i < num_indiv; i++)
+	{
+		update_infectivity_profiles(i);
+	}
+
+	// find the first case for each household
+	for (size_t h = 0; h < num_househ; h++)
+	{
+		update_first_case(h);
+	}
 }
 
 /* instanteneous infectivity profile */
@@ -241,17 +246,13 @@ void Model::update_infectivity_profiles(size_t i)
 
 		if (t_infec_i < t_infec_k)
 		{ // `i` : infector, `k` : infectee
-			inst_profile[i][k] = infectivity_inst(i, t_infec_k);
-			cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
-			inst_profile[k][i] = 0;
-			cumul_profile[k][i] = 0;
+			inst_profile[from_to(i, k)] = infectivity_inst(i, t_infec_k);
+			cumul_profile[from_to(i, k)] = infectivity_cumul(i, t_infec_k);
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
-			inst_profile[k][i] = infectivity_inst(k, t_infec_i);
-			cumul_profile[k][i] = infectivity_cumul(k, t_infec_i);
-			inst_profile[i][k] = 0;
-			cumul_profile[i][k] = 0;
+			inst_profile[from_to(k, i)] = infectivity_inst(k, t_infec_i);
+			cumul_profile[from_to(k, i)] = infectivity_cumul(k, t_infec_i);
 		}
 		// NOTE : else is the case idx == res
 	}
@@ -261,19 +262,7 @@ void Model::update_infectivity_profiles(size_t i)
 	for (size_t k : househ[h].healthy_list)
 	{
 		t_infec_k = get_infec_time(k); // == study_period
-		cumul_profile[i][k] = infectivity_cumul(i, t_infec_k);
-	}
-}
-
-/* Clear infectivity profiles */
-void Model::clear_infectivity_profiles()
-{
-	cumul_profile.resize(num_indiv);
-	inst_profile.resize(num_indiv);
-	for (size_t j = 0; j < num_indiv; j++)
-	{
-		cumul_profile[j].resize(num_indiv);
-		inst_profile[j].resize(num_indiv);
+		cumul_profile[from_to(i, k)] = infectivity_cumul(i, t_infec_k);
 	}
 }
 
@@ -394,7 +383,7 @@ double Model::transmissability(size_t i)
 }
 
 /* beta risk */
-double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
+double Model::risk_beta(double * rate_vector, size_t i)
 {
 	size_t h = indiv[i].home;
 	double beta = 0.0;
@@ -404,7 +393,7 @@ double Model::risk_beta(std::vector<std::vector<double>> &rate_vector, size_t i)
 	{
 		if (k != i)
 		{
-			beta += contact_modulation(k, i) * rate_vector[k][i];
+			beta += contact_modulation(k, i) * rate_vector[from_to(k, i)];
 		}
 	}
 	beta *= transmissability(i);
@@ -507,11 +496,11 @@ void Model::simulate_infection(timetype dt, std::mt19937_64 &rng)
 
 				indiv[i].set_augm("onset_time", t + unif(rng) * dt + indiv[i].get_augm("incub_period"));
 				update_infectivity_profiles(i);
-				proba = 1 - exp(- risk_infec(i) * dt);
+				proba = 1 - exp(-risk_infec(i) * dt);
 
-				//cerr << indiv[i].get_index() << " " << t << " " << proba << endl;
+				// cerr << indiv[i].get_index() << " " << t << " " << proba << endl;
 
-				// FIXME : in this loop there could be foi from close in time 
+				// FIXME : in this loop there could be foi from close in time
 
 				// refuse
 				if (unif(rng) >= proba)

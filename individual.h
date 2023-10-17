@@ -64,7 +64,7 @@ public:
 	void add_augm(std::string augmID, Augmented new_augm);
 	void add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng);
 
-	void set_status(int status) { this->status = status; }
+	void set_status(int d) { status = d; }
 	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
 	void init_augm(std::string augmID, std::mt19937_64 &rng);
 
@@ -114,10 +114,10 @@ public:
 	double get_loglike() const { return loglike; }
 	void set_loglike(double new_loglike)
 	{
-		this->buffer = this->loglike;
-		this->loglike = new_loglike;
+		buffer = loglike;
+		loglike = new_loglike;
 	}
-	void refuse() { this->loglike = this->buffer; }
+	void refuse() { loglike = buffer; }
 };
 
 #endif // INDIVIDUAL__H

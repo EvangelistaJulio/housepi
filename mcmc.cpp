@@ -41,8 +41,12 @@ double MCMC::compute_global_loglike()
 /* Set accept rates to zero */
 void MCMC::reset_moves()
 {
-    m_num_propos_data = 0;
-    m_num_accept_data = 0;
+    for (std::string augmID : augm_to_be_inferred)
+    {
+        m_num_propos_data[augmID] = 0;
+        m_num_accept_data[augmID] = 0;
+    }
+
     for (std::string parID : param_to_be_inferred)
     {
         reset_accept_rate(parID);
@@ -126,7 +130,7 @@ void MCMC::move_augm_variables(double inv_temper)
                         {
                             househ[h].set_loglike(new_loglike_of_HH);
                             set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
-                            m_num_accept_data++; // NOTE : problematic for normalization
+                            m_num_accept_data[augmID]++;
                         }
                         else
                         {
@@ -135,7 +139,7 @@ void MCMC::move_augm_variables(double inv_temper)
                             update_infectivity_profiles(res);     // Update infectivity profiles related to idx
                         }
                     }
-                    m_num_propos_data++;
+                    m_num_propos_data[augmID]++;
                 }
             }
         }
@@ -232,7 +236,10 @@ void MCMC::init_param_file(std::string output_filename)
         }
 
         param_ofstream << "iter" << setup.delim << "loglike";
-        param_ofstream << setup.delim << "augm__a%";
+        for (std::string augmID : augm_to_be_inferred)
+        {
+            param_ofstream << setup.delim << "augm_" << augmID << "__a%";
+        }
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << setup.delim << parID << setup.delim << parID << "__a%";
@@ -254,7 +261,10 @@ void MCMC::print_parameters(unsigned step)
     if (param_ofstream.is_open())
     {
         param_ofstream << step << setup.delim << get_global_loglike();
-        param_ofstream << setup.delim << 100.0 * ((double)m_num_accept_data / m_num_propos_data);
+        for (std::string augmID : augm_to_be_inferred)
+        {
+            param_ofstream << setup.delim << 100.0 * ((double)m_num_accept_data[augmID] / m_num_propos_data[augmID]);
+        }
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << setup.delim << get_value(parID) << setup.delim << 100.0 * get_accept_rate(parID);
@@ -322,7 +332,7 @@ void MCMC::print_augm_variables(std::string output_filename)
 // ////////////////////////// MCMC : load  data ////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////
 
-/* Add individual */ 
+/* Add individual */
 void MCMC::add_individual(Individual new_indiv)
 {
     int status = new_indiv.get_status();
@@ -362,7 +372,7 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     }
 
     //=====produce list of households=====//
-    num_househ = load_househ.size(); // get number of unique household index
+    num_househ = load_househ.size();    // get number of unique household index
     househ = new Household[num_househ]; // initialize the array of household
     h = 0;
     for (const auto &pair : load_househ)
@@ -441,7 +451,7 @@ void MCMC::build_data(std::string data_pathtofile)
 
         //=====assign individuals to mcmc=====//
         indiv = new Individual[aux_individuals.size()]; // initialize vector of individuals
-        for(Individual this_indiv : aux_individuals)
+        for (Individual this_indiv : aux_individuals)
         {
             add_individual(this_indiv);
         }

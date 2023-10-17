@@ -258,7 +258,7 @@ public:
 	double get_strat_zero() const { return (prop_ptr->get_strat_zero)(); }
 
 	//=====Setter=====//
-	void set_value(double value) { this->value = value; }
+	void set_value(double x) { value = x; }
 
 	//=====distr_ptr : methods=====//
 	double distr_rand(std::mt19937_64 &rng) { return distr_ptr->rand(rng); }

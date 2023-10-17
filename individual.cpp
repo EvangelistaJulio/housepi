@@ -9,13 +9,13 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////////
 
 Base_Individual::Base_Individual(
-	int status,
-	int index,
-	std::unordered_map<std::string, double> data)
+	int new_status,
+	int new_index,
+	std::unordered_map<std::string, double> new_data)
 {
-	this->status = status;
-	this->index = index;
-	this->data = data;
+	status = new_status;
+	index = new_index;
+	data = new_data;
 }
 
 /* Init augmented variable within a random initial value */
