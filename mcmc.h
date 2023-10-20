@@ -69,7 +69,7 @@ public:
 	void build_data(std::string data_pathtofile);
 	void build_parameters(std::string data_pathtofile);
 	void add_individual(Individual this_indiv);
-	void assign_community_structure(std::string HH_index_column);
+	int assign_community_structure(std::string HH_index_column);
 
 	//=====Computations=====//
 	double compute_global_loglike();

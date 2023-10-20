@@ -18,27 +18,34 @@ void MCMC::initialize_model(bool is_rand_params)
         init_rand_params(rng);
     }
 
-    assign_augm_data(rng);
-    initialize_infectivity_profile();
+    assign_augm_data(rng);          // associate augmented variables to individuals
+    initialize_infec_profiles();    // initialize infectivity profiles
+    
+	// find the first case for each household
+	for (size_t h = 0; h < num_househ; h++)
+	{
+		househ[h].update_first_case();
+	}
 }
 
 /* Compute global loglikelihood */
 // UPDATE : emberassing parallel
 double MCMC::compute_global_loglike()
 {
-    double output = 0.0, tmp;
+    double output = 0.0;
+    double tmp;
+
+    for (size_t h = 0; h < num_househ; h++)
     {
-        for (size_t h = 0; h < num_househ; h++)
-        {
-            tmp = compute_loglike(h);
-            househ[h].set_loglike(tmp);
-            output += tmp;
-        }
+        tmp = compute_loglike(h);
+        househ[h].set_loglike(tmp);
+        output += tmp;
     }
+
     return output;
 }
 
-/* Set accept rates to zero */
+/* Set accept rates to zero. */
 void MCMC::reset_moves()
 {
     for (std::string augmID : augm_to_be_inferred)
@@ -99,48 +106,46 @@ void MCMC::move_augm_variables(double inv_temper)
     double log_ratio_proposal = 0.0;
     double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
 
+    // Loop over households
+    for (size_t h = 0; h < num_househ; h++)
     {
-        // Loop over households
-        for (size_t h = 0; h < num_househ; h++)
+        // Loop over infectious residents of the househould
+        for (size_t i : househ[h].infectors_list)
         {
-            // Loop over infectious residents of the househould
-            for (size_t res : househ[h].symptomatic_list)
+            for (std::string augmID : augm_to_be_inferred)
             {
-                for (std::string augmID : augm_to_be_inferred)
-                {
-                    old_val = indiv[res].get_augm(augmID);          // store old value
-                    old_loglike_of_HH = househ[h].get_loglike();    // store old loglike
-                    new_val = indiv[res].augm_propose(augmID, rng); // propose new value
+                old_val = indiv[i].get_augm(augmID);          // store old value
+                old_loglike_of_HH = househ[h].get_loglike();  // store old loglike
+                new_val = indiv[i].augm_propose(augmID, rng); // propose new value
 
-                    // FIXME : always valid if prior proposer
-                    // proceed only if the new value is consistent
-                    if (indiv[res].augm_valid(augmID, new_val))
-                    {                                         // Update with proposed value to perform computations
-                        indiv[res].set_augm(augmID, new_val); // UPDATE: should be method Model
-                        update_first_case(h);                 // Update information of first cases
-                        update_infectivity_profiles(res);     // Update infectivity profiles related to idx
+                // FIXME : always valid if prior proposer
+                // proceed only if the new value is consistent
+                if (indiv[i].augm_valid(augmID, new_val))
+                {                                       // Update with proposed value to perform computations
+                    indiv[i].set_augm(augmID, new_val); // UPDATE: should be method Model
+                    househ[h].update_first_case();      // Update information of first cases
+                    update_infec_profile(i);            // Update infectivity profiles related to idx
 
-                        new_loglike_of_HH = compute_loglike(h);
-                        log_ratio_proposal = indiv[res].augm_propose_log_ratio(augmID, old_val, new_val);
+                    new_loglike_of_HH = compute_loglike(h);
+                    log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
 
-                        Q = inv_temper * (new_loglike_of_HH - old_loglike_of_HH);
-                        Q -= log_ratio_proposal;
+                    Q = inv_temper * (new_loglike_of_HH - old_loglike_of_HH);
+                    Q -= log_ratio_proposal;
 
-                        if (std::log(unif(rng)) < Q)
-                        {
-                            househ[h].set_loglike(new_loglike_of_HH);
-                            set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
-                            m_num_accept_data[augmID]++;
-                        }
-                        else
-                        {
-                            indiv[res].set_augm(augmID, old_val); // UPDATE: should be method Model
-                            update_first_case(h);                 // Update information of first cases
-                            update_infectivity_profiles(res);     // Update infectivity profiles related to idx
-                        }
+                    if (std::log(unif(rng)) < Q)
+                    {
+                        househ[h].set_loglike(new_loglike_of_HH);
+                        set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
+                        m_num_accept_data[augmID]++;
                     }
-                    m_num_propos_data[augmID]++;
+                    else
+                    {
+                        indiv[i].set_augm(augmID, old_val); // UPDATE: should be method Model
+                        househ[h].update_first_case();      // Update information of first cases
+                        update_infec_profile(i);            // Update infectivity profiles related to idx
+                    }
                 }
+                m_num_propos_data[augmID]++;
             }
         }
     }
@@ -183,8 +188,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
             move_parameters(inv_temper);
 
             //=====Data augmentation=====//
-            // FLAG : tests with frozen augmented variables
-            // move_augm_variables(inv_temper);
+            move_augm_variables(inv_temper);
 
             //=====Adaptative MCMC on parameters=====//
             if (step < setup.num_adapt_iter)
@@ -201,6 +205,10 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
     //=====MCMC ending=====//
     close_param_file();
+    if (Verbose)
+    {
+        std::cout << "\n============MCMC:end===========" << std::endl;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -352,8 +360,8 @@ void MCMC::add_individual(Individual new_indiv)
     }
 }
 
-/* Assign community structure to individuals */
-void MCMC::assign_community_structure(std::string HH_index_column)
+/* Assign community structure to individuals. I returns a report. */
+int MCMC::assign_community_structure(std::string HH_index_column)
 {
     size_t h, size;
     std::unordered_map<int, Household> load_househ = {};
@@ -378,28 +386,35 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     for (const auto &pair : load_househ)
     {
         househ[h] = pair.second;
+        househ[h].set_indiv_ptr(&indiv); // associate the array of individuals to the Structure
         h++;
     }
     load_househ.clear(); // clear the dictionary for the loading
 
     //=====assign home to individuals=====//
-    num_symptomatic = 0;
+    int num_cases = 0;
     for (size_t h = 0; h < num_househ; h++)
     {
         size = 0;
-        for (size_t i : househ[h].symptomatic_list)
+        for (size_t i : househ[h].infectors_list)
         {
             indiv[i].home = h;
-            num_symptomatic += 1;
+            num_cases += 1;
             size++;
         }
-        for (size_t i : househ[h].healthy_list)
+        for (size_t i : househ[h].susceptibles_list)
         {
             indiv[i].home = h;
             size++;
         }
         househ[h].size = size;
     }
+
+    //=====initialize contact patterns=====//
+	contact_patterns = new const double *[num_indiv * num_indiv];
+	std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
+
+    return num_cases;
 }
 
 /* Read Data file */
@@ -426,7 +441,7 @@ void MCMC::build_data(std::string data_pathtofile)
         // Tokenize the line using the specified delimiter
         while (getline(iss, token, setup.delim))
         {
-            string_cleaner(&token);
+            token = string_cleaner(token);
             data_headers.push_back(token);
             data.emplace(token, 0);
         }
@@ -458,14 +473,14 @@ void MCMC::build_data(std::string data_pathtofile)
         aux_individuals.clear();
 
         //=====assign structure of the community=====//
-        assign_community_structure("HH_idx");
+        int num_cases = assign_community_structure("HH_idx");
 
         //=====Display=====//
         if (Verbose)
         {
             cout << "N. of individuals : " << num_indiv << endl;
             cout << "N. of households : " << num_househ << endl;
-            cout << "N. of cases : " << num_symptomatic << endl;
+            cout << "N. of cases : " << num_cases << endl;
         }
     }
     else

@@ -12,7 +12,6 @@
 #include <map>
 #include <cmath>
 #include <random>
-#include <unordered_map>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -31,14 +30,24 @@ typedef int timetype;
 // UPDATE : turn distributions into discrete LUT
 #endif
 
-typedef std::unordered_map<std::string, double> kwargs;
-typedef std::unordered_map<std::string, const double *> kwargs_ext;
+struct key_value {
+    std::string key;
+    double value;
+};
+
+struct key_address {
+    std::string key;
+    const double * value;
+};
+
+typedef std::vector<key_value> kwargs;
+typedef std::vector<key_address> kwargs_ext;
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Auxiliary Functions /////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-void string_cleaner(std::string *token);
+std::string string_cleaner(std::string token);
 kwargs parse_dict_string(std::string args_str, char delim);
 bool stobool(std::string text);
 char load_delim(std::string text);
@@ -52,42 +61,27 @@ double lin_idx_interp(double x_value, const std::vector<double> &y);
 class Base_Distrib
 {
 protected:
-    kwargs args = {};         // internal arguments (fixed at initialization)
-    kwargs_ext args_ext = {}; // external arguments (pointer to variable)
+    double * args_int;   // internal arguments (fixed at initialization)
+    const double ** args_ext ; // external arguments (pointer to variable)
 
 public:
     //=====Constructors=====//
-    Base_Distrib(kwargs new_args)
-    {
-        for (auto const &x : new_args)
-        {
-            args.emplace(x.first, x.second);
-        }
-        _get_arg_func_ = &Base_Distrib::_get_arg_int_;
-    }
-    Base_Distrib(kwargs_ext new_args_ext)
-    {
-        for (auto const &x : new_args_ext)
-        {
-            args_ext.emplace(x.first, x.second);
-        }
-        _get_arg_func_ = &Base_Distrib::_get_arg_ext_;
-    }
+    Base_Distrib(kwargs new_args_int);      // FIXME : current definition does not work because of lost order
+    Base_Distrib(kwargs_ext new_args_ext);
     ~Base_Distrib(){};
 
-    // Getter (functional)
-    double get_arg(std::string argID) { return (this->*_get_arg_func_)(argID); }
+    //=====Getter (functional)=====//
+    double get_arg(size_t argID) { return (this->*_get_arg_func_)(argID); }
 
-    // Setter (just for fixed)
-    // UPDATE: controls on the lists of arguments for given distributions
-    void set_arg(std::string argID, double new_value) { args.at(argID) = new_value; }
+    //=====Setter (for internal arguments)=====//
+    void set_arg(size_t argID, double new_value) { args_int[argID] = new_value; }
 
 private:
-    double (Base_Distrib::*_get_arg_func_)(std::string argID);
+    double (Base_Distrib::*_get_arg_func_)(size_t argID);
 
     // FIXME : gigantic bottleneck // FIXME !! need for translation into array for internal
-    double _get_arg_int_(std::string argID) { return args.at(argID); }
-    double _get_arg_ext_(std::string argID) { return *(args_ext.at(argID)); }
+    double _get_arg_int_(size_t argID) { return args_int[argID]; }
+    double _get_arg_ext_(size_t argID) { return *(args_ext[argID]); }
 };
 
 ///////////////////////////////////////////////////////////////////////

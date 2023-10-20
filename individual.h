@@ -18,10 +18,10 @@
 #define SYMPTOMATIC 1
 
 /////////////////////////////////////////////////////////
-///////// Base_Individual : Class declaration ///////////////
+///////// Individual : Class declaration ///////////////
 ////////////////////////////////////////////////////////
 
-class Base_Individual
+class Individual
 {
 private:
 	//=====Attributes=====//
@@ -31,16 +31,19 @@ private:
 	std::unordered_map<std::string, double> data = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
 
-public:
-	//=====Constructors=====//
-	Base_Individual(
-		int status,
-		int index,
-		std::unordered_map<std::string, double> data);
-	Base_Individual() = default;
-	~Base_Individual(){};
+	const double *_infecti = nullptr;
+	const double *_suscept = nullptr;
 
-	//=====Methods=====//
+public:
+	size_t home = -1;
+
+	//=====Constructors=====//
+	Individual(int status, int index, std::unordered_map<std::string, double> data);
+	Individual() = default;
+	~Individual(){};
+
+	//=====Methods for the Model=====//
+	timetype get_infec_time() const;
 
 	//=====Getter=====//
 	bool get_status() const { return status; }
@@ -60,6 +63,9 @@ public:
 	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
 	bool augm_infer(std::string augmID) { return augm_var.at(augmID).get_infer(); }
 
+	double get_suscept() const { return *_suscept; }
+	double get_infecti() const { return *_infecti; }
+
 	//=====Setter=====//
 	void add_augm(std::string augmID, Augmented new_augm);
 	void add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng);
@@ -68,8 +74,14 @@ public:
 	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
 	void init_augm(std::string augmID, std::mt19937_64 &rng);
 
+	void set_suscept(const double *x) { _suscept = x; }
+	void set_infecti(const double *x) { _infecti = x; }
+
 	//=====Model distribution=====//
-	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
+	double augm_model_rand(std::string augmID, std::mt19937_64 &rng)
+	{
+		return augm_var.at(augmID).model_rand(rng);
+	}
 	double augm_model_log_pdf(std::string augmID);
 	double augm_model_log_ratio(std::string augmID, double old_value, double new_val);
 
@@ -86,6 +98,7 @@ public:
 class Household
 {
 private:
+	Individual **indiv_ptr = nullptr;
 	double loglike = -INFINITY;
 	double buffer = -INFINITY;
 
@@ -95,8 +108,8 @@ public:
 	size_t size = 0;
 	size_t first_case = -1;
 	timetype infec_time = INFINITY;
-	std::vector<size_t> healthy_list = {};
-	std::vector<size_t> symptomatic_list = {};
+	std::vector<size_t> susceptibles_list = {};
+	std::vector<size_t> infectors_list = {};
 
 	//=====Constructors=====//
 	Household() {}
@@ -107,8 +120,10 @@ public:
 
 	//======Setter======//
 	void set_index(int index) { house_index = index; }
+	void set_indiv_ptr(Individual **new_ptr) { indiv_ptr = new_ptr; }
 	void add_individual(size_t i, int status);
 	void change_status(size_t i, int new_status);
+	void update_first_case();
 
 	//======Loglike======//
 	double get_loglike() const { return loglike; }

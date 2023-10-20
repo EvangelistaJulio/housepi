@@ -39,8 +39,8 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
     {
         if (Verbose)
         {
-            cout << "\n=============SETUP==============" << endl;
-            cout << "Setup file: " << data_pathtofile << endl;
+            std::cout << "\n=============SETUP==============" << endl;
+            std::cout << "Setup file: " << data_pathtofile << endl;
         }
 
         input.clear();            // Clear any errors
@@ -73,11 +73,9 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
                      << endl;
                 exit(EXIT_FAILURE);
             }
-            string_cleaner(&name);
-            string_cleaner(&choice);
 
             // add the new setup
-            safe_load.emplace(name, choice);
+            safe_load.emplace(string_cleaner(name), string_cleaner(choice));
         }
 
         loader.seed = stoi(safe_load.at("seed"));
@@ -110,15 +108,15 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
     {
         for (const auto &pair : safe_load)
         {
-            cout << pair.first << " : " << pair.second << endl;
+            std::cout << pair.first << " : " << pair.second << endl;
         }
     }
 
     return loader;
 }
 
-/* Read Community file */
-void build_community(string data_pathtofile)
+/* Read Extra File */
+void build_extra(string data_pathtofile)
 {
     double date, inst_val, cumul_val;
 
@@ -127,8 +125,8 @@ void build_community(string data_pathtofile)
     {
         if (Verbose)
         {
-            cout << "\n=============COMMUNITY==============" << endl;
-            cout << "Data file: " << data_pathtofile << endl;
+            std::cout << "\n=============COMMUNITY==============" << endl;
+            std::cout << "Data file: " << data_pathtofile << endl;
         }
 
         // Create a stringstream of the current line
@@ -158,13 +156,13 @@ void build_community(string data_pathtofile)
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;    // Command line argument iterator
+    int carg_i = 1; // Command line argument iterator
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;
     Setup_MCMC_Struct setup = {}; // default setup
     string parameters_pathtofile = UNDEFINED;
-    string community_pathtofile = UNDEFINED;
+    string extra_pathtofile = UNDEFINED;
     string database_pathtofile = UNDEFINED;
     string output_pathtofile = UNDEFINED;
     string augmented_pathtofile = UNDEFINED;
@@ -187,14 +185,9 @@ int main(int argc, char *argv[])
         if (string(argv[carg_i]) == string("-h") or string(argv[carg_i]) == string("--help"))
         {
             // Show the manual using man and installed manpages
-            cerr << "Manual missing. Contact the developer." << endl;
+            cerr << "Software Manual missing. Contact the developer." << endl;
             // End the program without error
             exit(EXIT_SUCCESS);
-        }
-
-        if (string(argv[carg_i]) == string("-v"))
-        {
-            Verbose = true;
         }
 
         else if (string(argv[carg_i]) == string("-infer"))
@@ -207,6 +200,16 @@ int main(int argc, char *argv[])
         {
             // Command line asking for simulate
             simulate = true;
+        }
+
+        else if (string(argv[carg_i]) == string("-v") || string(argv[carg_i]) == string("--verbose"))
+        {
+            Verbose = true;
+        }
+
+        else if (string(argv[carg_i]) == string("--init_rand"))
+        {
+            rand_init_params = true;
         }
 
         else if (string(argv[carg_i]) == string("-s") || string(argv[carg_i]) == string("--setup"))
@@ -223,8 +226,8 @@ int main(int argc, char *argv[])
 
         else if (string(argv[carg_i]) == string("-c") || string(argv[carg_i]) == string("--community"))
         {
-            ++carg_i;            
-            community_pathtofile = argv[carg_i];
+            ++carg_i;
+            extra_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-d") || string(argv[carg_i]) == string("--database"))
@@ -268,40 +271,42 @@ int main(int argc, char *argv[])
 
     //=====INITIALIZATION=====//
 
-    // ===== Initialize MCMC object ===== //
+    // Initialize MCMC object 
     MCMC mcmc(setup);
 
-    //=====Load Data=====//
-    build_community(community_pathtofile); // UPDATE: there could be plenty extra files to be store somewhere
+    // Load Data
     mcmc.build_data(database_pathtofile);
 
-    //=====Load Parameters=====//
+    // UPDATE: there could be plenty extra files to be store somewhere
+    if (extra_pathtofile != UNDEFINED)
+    {
+        build_extra(extra_pathtofile);
+    }
+    // Load Parameters
     mcmc.build_parameters(parameters_pathtofile);
-    
-    //=====Assign classes from the model=====//
+
+    // Assign infectivity, susceptibility and contact patterns from the model
     mcmc.pre_process_data();
-    
+
     //=====EXECUTION=====//
 
-    //=====Parameter Inference=====//
-    if (infer)
+    if (infer) // Parameter Inference
     {
         mcmc.inference(output_pathtofile, rand_init_params);
         if (augmented_pathtofile != UNDEFINED)
         {
             mcmc.print_augm_variables(augmented_pathtofile);
         }
-    }
+    }    
 
-    //=====Simulation Study=====//
-    if (simulate)
+    else if (simulate) // Simulation Study
     {
         mcmc.simulation(output_pathtofile);
     }
 
     if (Verbose)
     {
-        cout << endl;
+        std::cout << "\n==============END=============" << std::endl;  
     }
 
     return EXIT_SUCCESS;

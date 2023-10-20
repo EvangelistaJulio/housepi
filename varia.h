@@ -27,7 +27,7 @@ protected:
 	bool zero_start = false;
 	unsigned num_proposed_moves = 0;
 	double accept_rate = 0.0;
-	std::vector<std::string> args_to_adapt = {};
+	std::vector<size_t> args_to_adapt = {};
 	Distribution_1D *distr_ptr;
 
 public:
@@ -36,13 +36,13 @@ public:
 		Distribution_1D *distr,
 		double strat_zero = INFINITY,
 		kwargs value_range = {},
-		std::vector<std::string> args_to_adapt = {});
+		std::vector<size_t> args_to_adapt = {});
 	~Base_Proposer(){};
 
 	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
 	double get_strat_zero() const { return strat_zero; }
-	double get_arg(std::string argID) const { return (distr_ptr->get_arg)(argID); }
+	double get_arg(size_t argID) const { return (distr_ptr->get_arg)(argID); }
 
 	//=====Setter=====//
 	void set_strat_zero(double new_val) { strat_zero = new_val; }
@@ -175,7 +175,7 @@ public:
 	Normal_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {"sd"})
+		kwargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Normal_Proposer::_add_to_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Normal_Proposer::_log_ratio_add_to_zero_ : &Normal_Proposer::_log_ratio_symm_;
@@ -194,7 +194,7 @@ public:
 	Lognorm_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {"sd"})
+		kwargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Lognorm_Proposer::_times_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Lognorm_Proposer::_log_ratio_times_zero_ : &Lognorm_Proposer::_log_ratio_lognorm_symm_;
@@ -322,6 +322,7 @@ private:
 	std::unordered_map<std::string, Parameter> params = {};
 	double buffer_value;
 	double buffer_log_ratio;
+	const double _reference = 1.0;
 
 public:
 	std::vector<std::string> param_to_be_inferred = {};
@@ -340,6 +341,7 @@ public:
 	//=====Getter=====//
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
+	const double *get_reference() const { return &_reference; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
 

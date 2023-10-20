@@ -10,36 +10,27 @@ using namespace std;
 
 Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
-    double strat_zero,
+    double strategy_from_zero,
     kwargs value_range,
-    std::vector<std::string> args_to_adapt) : distr_ptr(distr)
+    std::vector<size_t> list_of_args_to_adapt) : distr_ptr(distr)
 {
-    this->args_to_adapt = args_to_adapt;
+    args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
 
-    if (strat_zero == INFINITY)
+    if (strategy_from_zero == INFINITY)
     {
-        this->zero_start = false;
+        zero_start = false;
     }
     else
     {
-        if (valid(strat_zero))
+        if (valid(strategy_from_zero))
         {
-            this->zero_start = true;
-            set_strat_zero(strat_zero);
+            zero_start = true;
+            set_strat_zero(strategy_from_zero);
         }
         else
         {
-            std::cerr << "ERROR: initial value " << strat_zero << " and value range {";
-            if (value_range.find("low") != value_range.end())
-            {
-                std::cerr << "low:" << value_range.at("low") << ", ";
-            }
-            if (value_range.find("up") != value_range.end())
-            {
-                std::cerr << "up:" << value_range.at("up");
-            }
-            std::cerr << "} are inconsistent." << std::endl;
+            std::cerr << "ERROR: initial value " << strategy_from_zero << " and value range {low:" << _range_low_ << ", up:" << _range_low_ << "} are inconsistent." << std::endl;
             std::cerr << "Exit...\n"
                       << std::endl;
             std::exit(EXIT_FAILURE);
@@ -52,7 +43,7 @@ void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - DEFAULT_ACCEPT_RATE);
 
-    for (std::string argID : args_to_adapt)
+    for (size_t argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -77,35 +68,37 @@ void Base_Proposer::set_range(kwargs new_range)
 {
     int condition = 0;
 
-    if (new_range.find("low") != new_range.end())
+    for (auto const &x : new_range)
     {
-        _range_low_ = new_range.at("low");
-        condition += 1;
-    }
-
-    if (new_range.find("up") != new_range.end())
-    {
-        _range_up_ = new_range.at("up");
-        condition += 2;
+        if (x.key == "low")
+        {
+            _range_low_ = x.value;
+            condition += 2;
+        }
+        else if (x.key == "up")
+        {
+            _range_up_ = x.value;
+            condition += 3;
+        }
     }
 
     if (condition == 0)
     {
         _valid_func_ = &Base_Proposer::_valid_dummy_;
     }
-    else if (condition == 1)
+    else if (condition == 2)
     {
         _valid_func_ = &Base_Proposer::_valid_range_low_;
     }
-    else if (condition == 2)
+    else if (condition == 3)
     {
         _valid_func_ = &Base_Proposer::_valid_range_up_;
     }
-    else // (condition == 3)
+    else if (condition == 5)
     {
         if (_range_low_ >= _range_up_)
         {
-            std::cerr << "ERROR: Provided an inconsistent range: {" << new_range.at("low") << ", " << new_range.at("up") << std::endl;
+            std::cerr << "ERROR: Provided an inconsistent range: {" << _range_low_ << ", " << _range_up_ << std::endl;
             std::cerr << "Exit...\n"
                       << std::endl;
             exit(EXIT_FAILURE);
@@ -114,6 +107,13 @@ void Base_Proposer::set_range(kwargs new_range)
         {
             _valid_func_ = &Base_Proposer::_valid_range_both_;
         }
+    }
+    else
+    {
+        std::cerr << "ERROR: Provided multiple definition for the range." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -186,7 +186,7 @@ void Parameter_Dictionary::add_param(
 /* display the user model parameters */
 void Parameter_Dictionary::display_parameters(char delim)
 {
-    std::cout << "-NAME-" << delim << "-INFER-" << delim << "-VALUE-" << endl;
+    std::cout << "NAME" << delim << "INFER" << delim << "VALUE" << endl;
     for (std::string k : param_to_be_inferred)
     {
         std::cout << k << delim << "true" << delim << get_value(k) << endl;

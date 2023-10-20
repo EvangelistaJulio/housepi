@@ -4,11 +4,13 @@
 
 using namespace std;
 
+#define MAX_NUMBER_ATTEMPTS 10
+
 ////////////////////////////////////////////////////////////////////////
-// //////////////// Base_Individual : Constructor /////////////////// //
+// //////////////// Individual : Constructor /////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-Base_Individual::Base_Individual(
+Individual::Individual(
 	int new_status,
 	int new_index,
 	std::unordered_map<std::string, double> new_data)
@@ -19,19 +21,28 @@ Base_Individual::Base_Individual(
 }
 
 /* Init augmented variable within a random initial value */
-void Base_Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
+void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 {
+	int num_attempts = 0;
 	double init_value = augm_model_rand(augmID, rng);
 
-	while (!augm_valid(augmID, init_value))
+	while ((!augm_valid(augmID, init_value)))
 	{
+		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
+		{
+			std::cerr << "ERROR: Number of attempts exceed in random initialization of " << augmID << std::endl;
+			std::cerr << "Exit...\n"
+					  << std::endl;
+			exit(EXIT_FAILURE);
+		}
 		init_value = augm_model_rand(augmID, rng);
+		num_attempts++;
 	}
 	set_augm(augmID, init_value);
 }
 
-/* Add an augmented variable to the individual */
-void Base_Individual::add_augm(std::string augmID, Augmented new_augm)
+/* Add an augmented variable to the individual. */
+void Individual::add_augm(std::string augmID, Augmented new_augm)
 {
 	if (augm_var.find(augmID) == augm_var.end())
 	{
@@ -46,30 +57,30 @@ void Base_Individual::add_augm(std::string augmID, Augmented new_augm)
 	}
 }
 
-/* Add an augmented variable to the individual, plus initialize it */
-void Base_Individual::add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng)
+/* Add an augmented variable to the individual, plus initialize it. */
+void Individual::add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng)
 {
 	add_augm(augmID, new_augm);
 	init_augm(augmID, rng);
 }
 
-double Base_Individual::augm_model_log_pdf(std::string augmID)
+double Individual::augm_model_log_pdf(std::string augmID)
 {
 	double new_val = augm_var.at(augmID).get_value();
 	return augm_var.at(augmID).model_log_pdf(new_val);
 }
 
-double Base_Individual::augm_model_log_ratio(std::string augmID, double old_val, double new_val)
+double Individual::augm_model_log_ratio(std::string augmID, double old_val, double new_val)
 {
 	return augm_var.at(augmID).model_log_ratio(old_val, new_val);
 }
 
-double Base_Individual::augm_propose(std::string augmID, std::mt19937_64 &rng)
+double Individual::augm_propose(std::string augmID, std::mt19937_64 &rng)
 {
 	return augm_var.at(augmID).propose(rng);
 }
 
-double Base_Individual::augm_propose_log_ratio(std::string augmID, double old_val, double new_val)
+double Individual::augm_propose_log_ratio(std::string augmID, double old_val, double new_val)
 {
 	return augm_var.at(augmID).propose_log_ratio(old_val, new_val);
 }
@@ -78,19 +89,40 @@ double Base_Individual::augm_propose_log_ratio(std::string augmID, double old_va
 // /////////////////////////// Household //////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-// FIXME: this architecture fixes the possible status of the individual
-
-/* add individual */
-void Household::add_individual(size_t i, int status)
+/* Update household first case and first infection time.
+WARNING: this strucutre assumes a single first infector.
+*/
+void Household::update_first_case()
 {
-	(status == HEALTHY) ? healthy_list.push_back(i) : symptomatic_list.push_back(i);
+	timetype t_infec;
+	timetype new_t0 = INFINITY;
+	size_t new_case0 = INFINITY; // NOTE: init to impossible values
+
+	for (size_t i : infectors_list)
+	{
+		t_infec = (*indiv_ptr)[i].get_infec_time();
+		new_t0 = std::min(t_infec, new_t0);
+		if (t_infec == new_t0)
+		{
+			new_case0 = i;
+		}
+	}
+	infec_time = new_t0;
+	first_case = new_case0;
 }
 
-/* change_status of individual i to new status (without controls) */
+/* Add individual to the household */
+void Household::add_individual(size_t i, int status)
+{
+	(status == HEALTHY) ? susceptibles_list.push_back(i) : infectors_list.push_back(i);
+}
+
+/* Change_status of individual i to new status (without controls). 
+WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(size_t i, int new_status)
 {
-	std::vector<size_t> *new_list = (new_status == HEALTHY) ? &healthy_list : &symptomatic_list;
-	std::vector<size_t> *old_list = (new_status == HEALTHY) ? &symptomatic_list : &healthy_list;
+	std::vector<size_t> *new_list = (new_status == HEALTHY) ? &susceptibles_list : &infectors_list;
+	std::vector<size_t> *old_list = (new_status == HEALTHY) ? &infectors_list : &susceptibles_list;
 
 	// erase the index from the first and add to the second
 	vector<size_t>::iterator element = std::find(old_list->begin(), old_list->end(), i);

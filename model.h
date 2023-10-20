@@ -29,24 +29,6 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////
-// //////////////// Modified Individual : class //////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-class Individual : public Base_Individual
-{
-public:
-	size_t home = -1;
-	bool is_child = false;
-	bool is_adult = false;
-	bool is_isol = false;
-	bool is_vacc_0 = false;
-	bool is_vacc_1 = false;
-	bool is_vacc_2 = false;
-
-	using Base_Individual::Base_Individual;
-};
-
-///////////////////////////////////////////////////////////////////////
 // ///////////////////////// Model : class ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
@@ -56,10 +38,12 @@ protected:
 	Individual *indiv;
 	Household *househ;
 
-	// infectivity profile
+	// infectivity profiles
 	Onset_to_Transm *infec_profile_func;
 	double *inst_profile;
 	double *cumul_profile;
+
+	const double **contact_patterns;
 
 	// augmented variables behavior lists
 	std::vector<std::string> augm_list = {};
@@ -68,44 +52,40 @@ protected:
 
 public:
 	size_t num_indiv = 0;
-	size_t num_symptomatic = 0;
 	size_t num_househ = 0;
 
 	std::vector<std::string> data_headers = {};
 
 	//=====Methods=====//
-	void pre_process_data();
 	int get_status(size_t i) const { return indiv[i].get_status(); }
 
-	timetype study_time_start();
-	timetype study_time_end();
-
 	//=====Augmetend Data=====//
+	void _assign_augm_to_individual_(size_t idx, std::mt19937_64 &rng); // UPDATE: temporary
 	void assign_augm_data(std::mt19937_64 &rng);
-	void _assign_augm_to_ind_(size_t idx, std::mt19937_64 &rng); // UPDATE: temporary
-	timetype get_infec_time(size_t i) const;
 
-	//=====Infectivity Profile=====//
+	void pre_process_data();
+
+	//=====Structure Factors=====//
+	double transmissability(size_t h);
+
+	//=====Infectivity Profiles=====//
 	size_t from_to(int i, int j) { return i * num_indiv + j; }
-	void initialize_infectivity_profile();
-	double infectivity_inst(size_t i, timetype t_transm);
-	double infectivity_cumul(size_t i, timetype t_transm);
-	void update_infectivity_profiles(size_t i);
+	void initialize_infec_profiles();
+	double infec_profile_inst(size_t i, timetype t_transm);
+	double infec_profile_cumul(size_t i, timetype t_transm);
+	void update_infec_profile(size_t i);
 
-	void update_first_case(size_t h);
 
 	//=====LogLikelihood=====//
-	double risk_beta(double *rate_vector, size_t idx);
+	double _sum_hazards_(double *profiles, size_t idx);
 	double risk_surv(size_t idx);
 	double risk_infec(size_t idx);
 	double compute_loglike(size_t h);
 
 	double community_risk_inst(timetype t1);
 	double community_risk_cumul(timetype t0, timetype t1);
-	double contact_modulation(size_t infectee, size_t idx);
-	double susceptibility(size_t idx);
-	double transmissability(size_t i);
 
+	//=====Simulation=====//
 	void simulate_infection(timetype delta_t, std::mt19937_64 &rng);
 };
 
