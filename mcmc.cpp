@@ -72,7 +72,7 @@ void MCMC::move_parameters(double inv_temper)
     // loop over all parameters to be inferred
     for (std::string parID : param_to_be_inferred)
     {
-        // proceed only if the new value is consistent
+        // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
         if (propose_valid_move(parID, rng))
         {
             // Compute the new log likelihood

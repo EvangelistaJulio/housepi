@@ -173,14 +173,17 @@ Base_Distrib::Base_Distrib(kwargs_ext new_args_ext)
     _get_arg_func_ = &Base_Distrib::_get_arg_ext_; // assign getter
 }
 
+
+/* return informations about the distribution */
+std::string Base_Distrib::display(char delim, char dict_delim)
+{
+    std::string output = get_name();
+    for (auto const &x : )
+}
+
 ///////////////////////////////////////////
 // ////////// Uniform_Distr //////////// //
 ///////////////////////////////////////////
-
-/*
-argument 0 : "low"
-argument 1 : "up"
-*/
 
 /* uniform probability density function */
 double Uniform_Distr::pdf(double x)

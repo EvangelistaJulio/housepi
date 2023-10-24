@@ -30,17 +30,19 @@ typedef int timetype;
 // UPDATE : turn distributions into discrete LUT
 #endif
 
-struct key_value {
+struct key_value
+{
     std::string key;
     double value;
 };
 
-struct key_address {
+struct key_address
+{
     std::string key;
-    const double * value;
+    const double *value;
 };
 
-typedef std::vector<key_value> kwargs;
+typedef std::vector<key_value> kwargs; // FIXME maybe change to double vectors? the call fixes an unorder, it must be developer defined 
 typedef std::vector<key_address> kwargs_ext;
 
 ///////////////////////////////////////////////////////////////////////
@@ -61,20 +63,25 @@ double lin_idx_interp(double x_value, const std::vector<double> &y);
 class Base_Distrib
 {
 protected:
-    double * args_int;   // internal arguments (fixed at initialization)
-    const double ** args_ext ; // external arguments (pointer to variable)
+    std::string name = UNDEFINED;
+    double *args_int = nullptr;        // internal arguments (fixed at initialization)
+    const double **args_ext = nullptr; // external arguments (pointer to variable)
 
 public:
     //=====Constructors=====//
-    Base_Distrib(kwargs new_args_int);      // FIXME : current definition does not work because of lost order
+    Base_Distrib(kwargs new_args_int);
     Base_Distrib(kwargs_ext new_args_ext);
     ~Base_Distrib(){};
 
     //=====Getter (functional)=====//
+    std::string get_name() const { return name; }
     double get_arg(size_t argID) { return (this->*_get_arg_func_)(argID); }
 
     //=====Setter (for internal arguments)=====//
+    void set_name(std::string new_name) { name = new_name; }
     void set_arg(size_t argID, double new_value) { args_int[argID] = new_value; }
+
+    std::string display(char delim = ' ', char dict_delim = '/');
 
 private:
     double (Base_Distrib::*_get_arg_func_)(size_t argID);
@@ -150,7 +157,7 @@ class Uniform_Distr : public Distribution_1D
 {
 public:
     Uniform_Distr(kwargs new_args = {{"low", (double)0.0}, {"up", (double)1.0}}) : Distribution_1D(new_args) {}
-    Uniform_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    Uniform_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) { set_name("uniform"); }
     ~Uniform_Distr() {}
 
     double pdf(double x) override;
@@ -168,7 +175,7 @@ class Normal_Distr : public Distribution_1D
 public:
     // Constructors
     Normal_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args) {}
-    Normal_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    Normal_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) { set_name("normal"); }
     ~Normal_Distr(){};
 
     double pdf(double x) override;
@@ -186,7 +193,7 @@ class Lognorm_Distr : public Distribution_1D
 public:
     // Constructors
     Lognorm_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args) {}
-    Lognorm_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    Lognorm_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) { set_name("lognorm"); }
     ~Lognorm_Distr(){};
 
     double pdf(double x) override;
@@ -204,7 +211,7 @@ class Gamma_Distr : public Distribution_1D
 public:
     // Constructors
     Gamma_Distr(kwargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args) {}
-    Gamma_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    Gamma_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) { set_name("gamma"); }
     ~Gamma_Distr(){};
 
     double pdf(double x) override;
@@ -221,7 +228,7 @@ class Exponential_Distr : public Distribution_1D
 {
 public:
     Exponential_Distr(kwargs new_args = {{"rate", (double)1.0}}) : Distribution_1D(new_args) {}
-    Exponential_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) {}
+    Exponential_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext) { set_name("exp"); }
     ~Exponential_Distr(){};
 
     double pdf(double x) override;

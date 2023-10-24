@@ -60,6 +60,8 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio);
 
+	std::string display();
+
 private:
 	//=====valid : functional methods=====//
 	double _range_low_ = -INFINITY;
