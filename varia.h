@@ -60,7 +60,7 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	std::string display();
+	std::string display(char delim = ' ', char dict_delim = '/');
 
 private:
 	//=====valid : functional methods=====//
@@ -278,6 +278,18 @@ public:
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
+	//=====Display=====//
+	std::string display(char delim = ' ', char dict_delim = '/')
+	{
+		std::string output = std::to_string(get_value());
+		output += delim + (std::string)((infer) ? "true" : "false");
+		if (infer)
+		{
+			output += delim + distr_ptr->display(delim, dict_delim) + delim + prop_ptr->display(delim, dict_delim);
+		}
+		return output;
+	}
+
 private:
 	//=====Propose : functional methods=====//
 	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &rng);
@@ -341,6 +353,7 @@ public:
 		kwargs value_range = {});
 
 	//=====Getter=====//
+	void check(const std::string k);
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
 	const double *get_reference() const { return &_reference; }
@@ -362,7 +375,7 @@ public:
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
 	//=====Display=====//
-	void display_parameters(char delim = ' ');
+	void display_parameters(char delim = ' ', char dict_delim = '/');
 };
 
 /////////////////////////////////////////////////////////////////

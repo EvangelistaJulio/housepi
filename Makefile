@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=gnu++11 -O3
+CXXFLAGS := -Wall -Wextra -std=gnu++11 -Ofast
 
 # List of source files
 SOURCES := main.cpp mcmc.cpp ${MODEL}.cpp  individual.cpp varia.cpp utils.cpp

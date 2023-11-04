@@ -18,14 +18,23 @@ void MCMC::initialize_model(bool is_rand_params)
         init_rand_params(rng);
     }
 
-    assign_augm_data(rng);          // associate augmented variables to individuals
-    initialize_infec_profiles();    // initialize infectivity profiles
-    
-	// find the first case for each household
-	for (size_t h = 0; h < num_househ; h++)
-	{
-		househ[h].update_first_case();
-	}
+    initialize_infec_profiles(); // initialize infectivity profiles
+
+    // produce the empty matrix for the infectivity profiles
+    inst_profile = new double[num_indiv * num_indiv];
+    cumul_profile = new double[num_indiv * num_indiv];
+
+    // compute infectivity profiles for each of the symptomatic and relative infectees
+    for (size_t i = 0; i < num_indiv; i++)
+    {
+        update_infec_profile(i);
+    }
+
+    // find the first case for each household
+    for (size_t h = 0; h < num_househ; h++)
+    {
+        househ[h].update_first_case();
+    }
 }
 
 /* Compute global loglikelihood */
@@ -65,7 +74,7 @@ void MCMC::reset_moves()
 ////////////////////////////////////////////////////////////////////////
 
 /* Sweep over model parameters. */
-void MCMC::move_parameters(double inv_temper)
+void MCMC::move_parameters()
 {
     double Q, new_global_loglike;
 
@@ -79,7 +88,7 @@ void MCMC::move_parameters(double inv_temper)
             new_global_loglike = compute_global_loglike();
 
             //=====Metropolis-Hastings=====//
-            Q = inv_temper * (new_global_loglike - get_global_loglike());
+            Q = inverse_temperature * (new_global_loglike - get_global_loglike());
             Q += get_move_log_ratio();
             if (std::log(unif(rng)) < Q)
             {
@@ -100,7 +109,7 @@ void MCMC::move_parameters(double inv_temper)
 }
 
 /* Sweep over augmented variables. */
-void MCMC::move_augm_variables(double inv_temper)
+void MCMC::move_augm_variables()
 {
     double old_val, new_val, Q;
     double log_ratio_proposal = 0.0;
@@ -129,7 +138,7 @@ void MCMC::move_augm_variables(double inv_temper)
                     new_loglike_of_HH = compute_loglike(h);
                     log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
 
-                    Q = inv_temper * (new_loglike_of_HH - old_loglike_of_HH);
+                    Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
                     Q -= log_ratio_proposal;
 
                     if (std::log(unif(rng)) < Q)
@@ -159,11 +168,16 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 {
     unsigned step = 0;
     double adapt_ratio;
+    double i_num_adapt_iter = std::pow(setup.num_adapt_iter, -1);
+
+    // Assign ivnverse temperature
+    // UPDATE : code can be optimized to avoid * 1 or * 0
+    inverse_temperature = inv_temper;
 
     if (Verbose)
     {
-        std::cout << "\n=============MCMC===============" << std::endl;
-        std::cout << "\n======MCMC:initialization=======" << std::endl;
+        std::cout << "\n================MCMC==================" << std::endl;
+        std::cout << "\n---------MCMC:initialization----------" << std::endl;
     }
 
     initialize_model(is_rand_params);
@@ -176,29 +190,29 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //=====MCMC execution=====//
     if (Verbose)
     {
-        std::cout << "\n=========MCMC:execution=========" << std::endl;
+        std::cout << "\n-----------MCMC:execution-------------" << std::endl;
     }
+
+    //=====Adaptative MCMC on parameters=====//
+    for(unsigned step = 0; step < setup.num_adapt_iter; step++)
+    {
+        move_parameters();
+        move_augm_variables();
+
+        adapt_ratio = i_num_adapt_iter * step;
+        for (std::string parID : param_to_be_inferred)
+        {
+            adapt(parID, adapt_ratio);
+        }
+    }
+
+    //=====Actual MCMC iterations=====//
     for (unsigned i = 0; i < setup.num_iter; i += setup.thinning)
     {
-        //=====MC sweeps over alla parameters to be inferred=====//
         for (unsigned j = 0; j < setup.thinning; j++)
         {
-            //=====Change all parameters=====//
-            step = 1 + j + i;
-            move_parameters(inv_temper);
-
-            //=====Data augmentation=====//
-            move_augm_variables(inv_temper);
-
-            //=====Adaptative MCMC on parameters=====//
-            if (step < setup.num_adapt_iter)
-            {
-                adapt_ratio = (double)step / setup.num_adapt_iter;
-                for (std::string parID : param_to_be_inferred)
-                {
-                    adapt(parID, adapt_ratio);
-                }
-            }
+            move_parameters();
+            move_augm_variables();
         }
         print_parameters(step);
     }
@@ -207,7 +221,8 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     close_param_file();
     if (Verbose)
     {
-        std::cout << "\n============MCMC:end===========" << std::endl;
+        std::cout << "\n--------------MCMC:end----------------" << std::endl;
+        display_parameters(setup.delim, setup.dict_delim);
     }
 }
 
@@ -226,6 +241,64 @@ void MCMC::simulation(std::string output_filename)
     simulate_infection(setup.delta_t, rng);
     print_augm_variables(output_filename);
 }
+
+////////////////////////////////////////////////////////////////////////
+// /////////////////// MCMC : analyze_results /////////////////////// //
+////////////////////////////////////////////////////////////////////////
+
+/*
+void MCMC::analyze_results(std::string input_filename, std::string output_filename)
+{
+    std::ifstream input(input_filename.c_str());
+
+    if (input.is_open())
+    {
+        if (Verbose)
+        {
+            std::cout << "\n==============ANALYSIS================" << std::endl;
+            std::cout << "Results file: " << input_filename << std::endl;
+        }
+
+        //=====Read column names for variables in the model=====//
+        std::string line;
+        getline(input, line);
+        istringstream iss(line);
+        std::string token;
+        std::unordered_map<string, std::vector<double>> table = {};
+        std::vector<std::string> table_headers = {};
+
+        // Tokenize the line using the specified delimiter
+        while (getline(iss, token, setup.delim))
+        {
+            token = string_cleaner(token);
+            table_headers.push_back(token);
+            table.emplace(token, new std::vector<double>);
+        }
+
+        size_t k = 0 ;
+        for (std::string line; getline(input, line); k++)
+        {
+            istringstream iss(line);
+
+            // Store information in variables
+            size_t n_col = 0;
+            while (getline(iss, token, setup.delim))
+            {
+                table.at(data_headers[n_col]).push_back(stod(token));
+                n_col++;
+            }
+        }
+    }
+    else
+    {
+        cerr << "\nERROR: Impossible to open: " << input_filename << endl;
+        cerr << "Exit...\n"
+             << endl;
+        exit(EXIT_FAILURE);
+    }
+
+}
+*/
 
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : print ////////////////////////// //
@@ -344,8 +417,9 @@ void MCMC::print_augm_variables(std::string output_filename)
 void MCMC::add_individual(Individual new_indiv)
 {
     int status = new_indiv.get_status();
+    std::string parID = UNDEFINED;
 
-    //=====check for the validity of the status=====//
+    //=====check for the validity of the status (FIXME: temporary)=====//
     if ((status != HEALTHY) && (status != SYMPTOMATIC))
     {
         std::cerr << "ERROR: status not in the model: " << status << endl;
@@ -355,13 +429,49 @@ void MCMC::add_individual(Individual new_indiv)
     }
     else
     {
+        //-----Assign Model Rates-----//
+        new_indiv._allocate_rates(rate_list.size());
+        assign_rate_to_individual(&new_indiv);
+        for (size_t r = 0; r < rate_list.size(); r++)
+        {
+            if (new_indiv._which_rate[r] == UNDEFINED)
+            {
+                cerr << "\nERROR: No " << rate_list[r] << " parameter provided for individual " << new_indiv.get_index() << endl;
+                cerr << "Exit...\n"
+                     << endl;
+                std::exit(EXIT_FAILURE);
+            }
+            else if (new_indiv._which_rate[r] == REFERENCE)
+            {
+                new_indiv._set_rate(r, get_reference());
+                report[r].at("[reference]") += 1;
+            }
+            else
+            {
+                parID = new_indiv._which_rate[r];
+                new_indiv._set_rate(r, get_address(parID));
+                if (report[r].find(parID) == report[r].end())
+                {
+                    report[r].emplace(parID, 1);
+                }
+                else
+                {
+                    report[r].at(parID) += 1;
+                }
+            }
+        }
+
+        //-----Assign Augmented Variables-----//
+        assign_augm_to_individual_(&new_indiv, rng);
+
+        //-----Store New Individual-----//
         indiv[num_indiv] = new_indiv;
         num_indiv++;
     }
 }
 
 /* Assign community structure to individuals. I returns a report. */
-int MCMC::assign_community_structure(std::string HH_index_column)
+void MCMC::assign_community_structure(std::string HH_index_column)
 {
     size_t h, size;
     std::unordered_map<int, Household> load_househ = {};
@@ -376,7 +486,7 @@ int MCMC::assign_community_structure(std::string HH_index_column)
             load_househ.emplace(h, Household());
             load_househ.at(h).set_index(h);
         }
-        load_househ.at(h).add_individual(i, indiv[i].get_status());
+        load_househ.at(h).link_individual(i, indiv[i].get_status());
     }
 
     //=====produce list of households=====//
@@ -392,14 +502,12 @@ int MCMC::assign_community_structure(std::string HH_index_column)
     load_househ.clear(); // clear the dictionary for the loading
 
     //=====assign home to individuals=====//
-    int num_cases = 0;
     for (size_t h = 0; h < num_househ; h++)
     {
         size = 0;
         for (size_t i : househ[h].infectors_list)
         {
             indiv[i].home = h;
-            num_cases += 1;
             size++;
         }
         for (size_t i : househ[h].susceptibles_list)
@@ -411,10 +519,8 @@ int MCMC::assign_community_structure(std::string HH_index_column)
     }
 
     //=====initialize contact patterns=====//
-	contact_patterns = new const double *[num_indiv * num_indiv];
-	std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
-
-    return num_cases;
+    contact_patterns = new const double *[num_indiv * num_indiv];
+    std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
 }
 
 /* Read Data file */
@@ -427,8 +533,8 @@ void MCMC::build_data(std::string data_pathtofile)
     {
         if (Verbose)
         {
-            cout << "\n=============DATA===============" << endl;
-            cout << "Data file: " << data_pathtofile << endl;
+            std::cout << "\n================DATA=================" << std::endl;
+            std::cout << "Data file: " << data_pathtofile << std::endl;
         }
 
         //=====Read column names for variables in the model=====//
@@ -464,24 +570,25 @@ void MCMC::build_data(std::string data_pathtofile)
             aux_individuals.push_back(this_indiv);
         }
 
+        //=====List of Model Quantities=====//
+        fill_model_lists();
+
         //=====assign individuals to mcmc=====//
-        indiv = new Individual[aux_individuals.size()]; // initialize vector of individuals
+        // initialize the report
+        report.resize(rate_list.size());
+        for (size_t r = 0; r < rate_list.size(); r++)
+        {
+            report[r].emplace("[reference]", 0);
+        }
+        // initialize array of individuals
+        indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
         {
             add_individual(this_indiv);
         }
-        aux_individuals.clear();
 
         //=====assign structure of the community=====//
-        int num_cases = assign_community_structure("HH_idx");
-
-        //=====Display=====//
-        if (Verbose)
-        {
-            cout << "N. of individuals : " << num_indiv << endl;
-            cout << "N. of households : " << num_househ << endl;
-            cout << "N. of cases : " << num_cases << endl;
-        }
+        assign_community_structure("HH_idx");
     }
     else
     {
@@ -507,8 +614,9 @@ void MCMC::build_parameters(std::string data_pathtofile)
     {
         if (Verbose)
         {
-            cout << "\n=============PARAMETERS==============" << endl;
-            cout << "Model file: " << data_pathtofile << endl;
+            std::cout << "\n=============PARAMETERS===============" << std::endl;
+            std::cout << "Model file: " << data_pathtofile << "\n"
+                      << std::endl;
         }
 
         // Create a stringstream of the current line
@@ -585,7 +693,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
 
         if (Verbose)
         {
-            display_parameters();
+            display_parameters(setup.delim, setup.dict_delim);
         }
     }
     else
@@ -593,6 +701,61 @@ void MCMC::build_parameters(std::string data_pathtofile)
         cerr << "\nERROR: Impossible to read `" << data_pathtofile << "`" << endl;
         cerr << "Exit...\n"
              << endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// ////////////////////// MCMC : pre-process data //////////////////////// //
+/////////////////////////////////////////////////////////////////////////////
+
+void MCMC::pre_process_data()
+{
+    int num_cases = 0;
+    std::vector<std::map<std::string, int>> report_contact = {};
+
+    for (size_t i = 0; i < num_indiv; i++)
+    {
+        //-----contact patters-----//
+        // FIXME : there should be a control also here
+        for (size_t k = 0; k < i; k++)
+        {
+            assign_contact_patterns(i, k);
+            assign_contact_patterns(k, i);
+        }
+
+        //-----descriptive statistics-----//
+        num_cases += (indiv[i].get_status() != HEALTHY);
+    }
+
+    //=====Display=====//
+    if (Verbose)
+    {
+        std::cout << "\n============MODEL SUMMARY=============" << std::endl;
+        std::cout << "N. of individuals : " << num_indiv << std::endl;
+        std::cout << "N. of households : " << num_househ << std::endl;
+        std::cout << "N. of cases : " << num_cases << std::endl;
+        for (size_t r = 0; r < rate_list.size(); r++)
+        {
+            std::cout << rate_list[r] << " : " << std::endl;
+            for (auto const &x : report[r])
+            {
+                std::cout << "    * " << x.first << " : " << x.second << " (" << (100.0 * x.second / num_indiv) << " %)" << std::endl;
+            }
+        }
+    }
+    report.clear();
+
+    //=====clean up list of headers for output files=====//
+    data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
+    data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
+
+    for (std::string augmID : augm_list)
+    {
+        auto it = std::find(data_headers.begin(), data_headers.end(), augmID);
+        if (it != data_headers.end())
+        {
+            data_headers.erase(it);
+        }
     }
 }

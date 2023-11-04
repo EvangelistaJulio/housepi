@@ -70,14 +70,14 @@ void Base_Proposer::set_range(kwargs new_range)
 
     for (auto const &x : new_range)
     {
-        if (x.key == "low")
+        if (x.first == "low")
         {
-            _range_low_ = x.value;
+            _range_low_ = x.second;
             condition += 2;
         }
-        else if (x.key == "up")
+        else if (x.first == "up")
         {
-            _range_up_ = x.value;
+            _range_up_ = x.second;
             condition += 3;
         }
     }
@@ -145,9 +145,43 @@ Base_Proposer *proposer_switchboard(std::string name, kwargs args, double strat_
     }
 }
 
+std::string Base_Proposer::display(char delim, char dict_delim)
+{
+    std::string output = distr_ptr->display(delim, dict_delim);
+    output += delim;
+    if (_range_low_ > -INFINITY)
+    {
+        std::string aux = "low";
+        output += aux + dict_delim + std::to_string(_range_low_);
+        if (_range_up_ < INFINITY)
+        {
+            output += dict_delim;
+        }
+    }
+    if (_range_up_ < INFINITY)
+    {
+        std::string aux = "up";
+        output += aux + dict_delim + std::to_string(_range_up_);
+    }
+
+    return output;
+}
+
 ///////////////////////////////////////////////////////////
 //////// Parameter_Dictionary : methods ///////////////////
 ///////////////////////////////////////////////////////////
+
+/* Check if the given parameter is defined, otherwise exits. */
+void Parameter_Dictionary::check(const std::string k)
+{
+    if (params.find(k) == params.end())
+    {
+        std::cerr << "ERROR: Parameter `" << k << "` is not defined." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+}
 
 /* add_param */
 void Parameter_Dictionary::add_param(
@@ -170,6 +204,7 @@ void Parameter_Dictionary::add_param(
         std::cerr << "ERROR: Parameter `" << k << "` has multiple definitions." << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 
     // update the lists of parameters to be inferred or not
@@ -184,25 +219,30 @@ void Parameter_Dictionary::add_param(
 }
 
 /* display the user model parameters */
-void Parameter_Dictionary::display_parameters(char delim)
+void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
 {
-    std::cout << "NAME" << delim << "INFER" << delim << "VALUE" << endl;
     for (std::string k : param_to_be_inferred)
     {
-        std::cout << k << delim << "true" << delim << get_value(k) << endl;
+        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
     for (std::string k : param_not_to_be_inferred)
     {
-        std::cout << k << delim << "false" << delim << get_value(k) << endl;
+        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
 }
 
 /* randomly initialize values of the parameters to be inferred */
 void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 {
+    double new_val;
     for (std::string k : param_to_be_inferred)
     {
-        set_value(k, params.at(k).prior_rand(rng));
+        new_val = params.at(k).prior_rand(rng);
+        while (params.at(k).valid(new_val) == false)
+        {
+            new_val = params.at(k).prior_rand(rng);
+        }
+        set_value(k, new_val);
     }
 }
 

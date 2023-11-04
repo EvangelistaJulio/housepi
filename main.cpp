@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <time.h>
 
 #include "mcmc.h"
 
@@ -39,8 +40,9 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
     {
         if (Verbose)
         {
-            std::cout << "\n=============SETUP==============" << endl;
-            std::cout << "Setup file: " << data_pathtofile << endl;
+            std::cout << "\n================SETUP=================" << std::endl;
+            std::cout << "Setup file: " << data_pathtofile << "\n"
+                      << std::endl;
         }
 
         input.clear();            // Clear any errors
@@ -78,38 +80,50 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
             safe_load.emplace(string_cleaner(name), string_cleaner(choice));
         }
 
-        loader.seed = stoi(safe_load.at("seed"));
+        std::string seed_str = safe_load.at("seed");
+        if (seed_str == UNDEFINED)
+        {
+            loader.seed = time(NULL);
+        }
+        else
+        {
+            loader.seed = stoi(seed_str);
+        }
+
         loader.num_iter = stoi(safe_load.at("num_iter"));
         loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
         loader.thinning = stoi(safe_load.at("thinning"));
         loader.delim = load_delim(safe_load.at("delim"));
         loader.dict_delim = load_delim(safe_load.at("dict_delim"));
         loader.delta_t = stod(safe_load.at("delta_t"));
+
+        //=====Check for values validity=====//
+        if (loader.num_adapt_iter >= loader.num_iter)
+        {
+            std::cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << endl;
+            std::cerr << "Exit...\n"
+                      << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+
+        //=====Display=====//
+        if (Verbose)
+        {
+            for (const auto &pair : safe_load)
+            {
+                std::cout << pair.first << " : " << pair.second << endl;
+            }
+        }
+
+        // FLAG
+        std::exit(1);
     }
     else
     {
-        cerr << "\nERROR: Impossible to read: " << data_pathtofile << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    //=====Check for values validity=====//
-    if (loader.num_adapt_iter >= loader.num_iter)
-    {
-        cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    //=====Display=====//
-    if (Verbose)
-    {
-        for (const auto &pair : safe_load)
-        {
-            std::cout << pair.first << " : " << pair.second << endl;
-        }
+        std::cerr << "\nERROR: Impossible to read: " << data_pathtofile << endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 
     return loader;
@@ -125,8 +139,8 @@ void build_extra(string data_pathtofile)
     {
         if (Verbose)
         {
-            std::cout << "\n=============COMMUNITY==============" << endl;
-            std::cout << "Data file: " << data_pathtofile << endl;
+            std::cout << "\n==============COMMUNITY===============" << std::endl;
+            std::cout << "Data file: " << data_pathtofile << std::endl;
         }
 
         // Create a stringstream of the current line
@@ -156,11 +170,13 @@ void build_extra(string data_pathtofile)
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1; // Command line argument iterator
+    int carg_i = 1;             // Command line argument iterator
+    double inver_temp = 1.0;    // Inverse temperature // UPDATE : temporary
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;
     Setup_MCMC_Struct setup = {}; // default setup
+    string setup_pathtofile = UNDEFINED;
     string parameters_pathtofile = UNDEFINED;
     string extra_pathtofile = UNDEFINED;
     string database_pathtofile = UNDEFINED;
@@ -215,7 +231,7 @@ int main(int argc, char *argv[])
         else if (string(argv[carg_i]) == string("-s") || string(argv[carg_i]) == string("--setup"))
         {
             ++carg_i;
-            setup = load_setup(argv[carg_i]);
+            setup_pathtofile = argv[carg_i];
         }
 
         else if (string(argv[carg_i]) == string("-p") || string(argv[carg_i]) == string("--params"))
@@ -240,6 +256,12 @@ int main(int argc, char *argv[])
         {
             ++carg_i;
             output_pathtofile = argv[carg_i];
+        }
+
+        else if (string(argv[carg_i]) == string("-i") || string(argv[carg_i]) == string("--inver_temp"))
+        {
+            ++carg_i;
+            inver_temp = stod(argv[carg_i]);
         }
 
         else if (string(argv[carg_i]) == string("--save_augm"))
@@ -271,34 +293,35 @@ int main(int argc, char *argv[])
 
     //=====INITIALIZATION=====//
 
-    // Initialize MCMC object 
+    // Load Setup
+    setup = load_setup(setup_pathtofile);
+
+    // Initialize MCMC object
     MCMC mcmc(setup);
+
+    // Load Parameters
+    mcmc.build_parameters(parameters_pathtofile);
 
     // Load Data
     mcmc.build_data(database_pathtofile);
+    mcmc.pre_process_data();
 
     // UPDATE: there could be plenty extra files to be store somewhere
     if (extra_pathtofile != UNDEFINED)
     {
         build_extra(extra_pathtofile);
     }
-    // Load Parameters
-    mcmc.build_parameters(parameters_pathtofile);
-
-    // Assign infectivity, susceptibility and contact patterns from the model
-    mcmc.pre_process_data();
 
     //=====EXECUTION=====//
 
     if (infer) // Parameter Inference
     {
-        mcmc.inference(output_pathtofile, rand_init_params);
+        mcmc.inference(output_pathtofile, rand_init_params, inver_temp);
         if (augmented_pathtofile != UNDEFINED)
         {
             mcmc.print_augm_variables(augmented_pathtofile);
         }
-    }    
-
+    }
     else if (simulate) // Simulation Study
     {
         mcmc.simulation(output_pathtofile);
@@ -306,7 +329,7 @@ int main(int argc, char *argv[])
 
     if (Verbose)
     {
-        std::cout << "\n==============END=============" << std::endl;  
+        std::cout << "\n=================END==================" << std::endl;
     }
 
     return EXIT_SUCCESS;

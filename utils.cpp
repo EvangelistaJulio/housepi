@@ -23,7 +23,7 @@ kwargs parse_dict_string(std::string args_str, char delim)
 {
     std::istringstream args_ss(args_str);
     std::string tmp;
-    std::vector<string> args_stock;
+    std::vector<std::string> args_stock;
     kwargs output = {};
 
     while (getline(args_ss, tmp, delim))
@@ -47,7 +47,7 @@ kwargs parse_dict_string(std::string args_str, char delim)
         {
             try
             {
-                output.push_back({args_stock[i], stod(args_stock[i + 1])});
+                output.emplace(args_stock[i], stod(args_stock[i + 1]));
             }
             catch (const exception &)
             {
@@ -144,41 +144,43 @@ double lin_idx_interp(double x_value, const std::vector<double> &y)
 // ////////////////////////// Base Distribution ///////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
 
-// FIXME : this is not foolproof : if someone mixes the order of arguments, the result is not correct
+// FIXME : I need to assign the args_name
 
 /* Overload constructor for internal arguments */
-Base_Distrib::Base_Distrib(kwargs new_args_int)
+Base_Distrib::Base_Distrib(kwargs new_args_int, std::vector<std::string> order)
 {
-    size_t i = 0;
+    args_name = order; // developer assigment of the order of arguments
     args_int = new double[new_args_int.size()]; // dynamic allocation
-    for (auto const &x : new_args_int)
+    for (size_t i = 0; i < args_name.size(); i++)
     {
-        args_int[i] = x.value;
-        i++;
+        args_int[i] = new_args_int.at(args_name[i]);
     }
     _get_arg_func_ = &Base_Distrib::_get_arg_int_; // assign getter
 }
 
 /* Overload constructor for external arguments */
-Base_Distrib::Base_Distrib(kwargs_ext new_args_ext)
+Base_Distrib::Base_Distrib(kwargs_ext new_args_ext, std::vector<std::string> order)
 {
-    size_t i = 0;
+    args_name = order; // developer assigment of the order of arguments
     args_ext = new const double *[new_args_ext.size()]; // dynamic allocation
-    for (auto const &x : new_args_ext)
+    for (size_t i = 0; i < args_name.size(); i++)
     {
-        // x.first;
-        args_ext[i] = x.value;
-        i++;
+        args_ext[i] = new_args_ext.at(args_name[i]);
     }
     _get_arg_func_ = &Base_Distrib::_get_arg_ext_; // assign getter
 }
 
-
 /* return informations about the distribution */
 std::string Base_Distrib::display(char delim, char dict_delim)
 {
-    std::string output = get_name();
-    for (auto const &x : )
+    std::string output = get_name() + delim;
+    for (size_t i = 0; i < args_name.size()-1; i ++)
+    {
+        output += args_name[i] + dict_delim + std::to_string(get_arg(i)) + dict_delim;
+    }
+    size_t i = args_name.size()-1;
+    output += args_name[i] + dict_delim + std::to_string(get_arg(i));
+    return output;
 }
 
 ///////////////////////////////////////////

@@ -20,6 +20,12 @@ Individual::Individual(
 	data = new_data;
 }
 
+void Individual::_allocate_rates(size_t num_rates)
+{
+	_rate_ptr = new const double *[num_rates];
+	_which_rate = new std::string[num_rates];
+}
+
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 {
@@ -95,8 +101,8 @@ WARNING: this strucutre assumes a single first infector.
 void Household::update_first_case()
 {
 	timetype t_infec;
-	timetype new_t0 = INFINITY;
-	size_t new_case0 = INFINITY; // NOTE: init to impossible values
+	timetype new_t0 = INFINITY; // NOTE: init to impossible values
+	size_t new_case0 = -1;		// NOTE: init to impossible values
 
 	for (size_t i : infectors_list)
 	{
@@ -111,13 +117,13 @@ void Household::update_first_case()
 	first_case = new_case0;
 }
 
-/* Add individual to the household */
-void Household::add_individual(size_t i, int status)
+/* Link an individual to the household */
+void Household::link_individual(size_t i, int status)
 {
 	(status == HEALTHY) ? susceptibles_list.push_back(i) : infectors_list.push_back(i);
 }
 
-/* Change_status of individual i to new status (without controls). 
+/* Change_status of individual i to new status (without controls).
 WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(size_t i, int new_status)
 {

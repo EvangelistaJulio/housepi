@@ -20,8 +20,8 @@ class Onset_to_Transm : public Base_Distrib
 {
 public:
 	// Constructors
-	Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args) {}
-	Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext) {}
+	Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
 	~Onset_to_Transm(){};
 
 	double pdf(timetype tost, timetype t_incub);
@@ -50,6 +50,8 @@ protected:
 	std::vector<std::string> augm_with_model = {};
 	std::vector<std::string> augm_to_be_inferred = {};
 
+	std::vector<std::string> rate_list = {};
+
 public:
 	size_t num_indiv = 0;
 	size_t num_househ = 0;
@@ -58,23 +60,24 @@ public:
 
 	//=====Methods=====//
 	int get_status(size_t i) const { return indiv[i].get_status(); }
+	double get_contact_from_to(size_t i, size_t k) { return (*contact_patterns[from_to(i, k)]); }
 
 	//=====Augmetend Data=====//
-	void _assign_augm_to_individual_(size_t idx, std::mt19937_64 &rng); // UPDATE: temporary
-	void assign_augm_data(std::mt19937_64 &rng);
+	void assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &rng); // UPDATE: temporary
 
-	void pre_process_data();
+	void assign_rate_to_individual(Individual *this_indiv);
+	void assign_contact_patterns(size_t i, size_t k);
 
 	//=====Structure Factors=====//
 	double transmissability(size_t h);
 
 	//=====Infectivity Profiles=====//
-	size_t from_to(int i, int j) { return i * num_indiv + j; }
+	size_t from_to(size_t i, size_t j) { return i * num_indiv + j; }
 	void initialize_infec_profiles();
 	double infec_profile_inst(size_t i, timetype t_transm);
 	double infec_profile_cumul(size_t i, timetype t_transm);
 	void update_infec_profile(size_t i);
-
+	void fill_model_lists();
 
 	//=====LogLikelihood=====//
 	double _sum_hazards_(double *profiles, size_t idx);
