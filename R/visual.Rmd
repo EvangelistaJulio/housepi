@@ -48,7 +48,6 @@ custom_theme <- theme_minimal() +
     panel.background = element_rect(fill = "white", color = "black"),
     panel.border = element_rect(color = "black", fill = NA)
   )
-
 # Set the custom theme as the default theme for all plots
 theme_set(custom_theme)
 
@@ -59,7 +58,7 @@ for (p in cols) {
   geom_line()
 
   # plot histogram of values
-  plot_list[[paste0(p,"p-hist")]] <- ggplot(df, aes(y = .data[[p]])) +
+  plot_list[[paste0(p, "p-hist")]] <- ggplot(df, aes(y = .data[[p]])) +
   geom_density()
 }
 

@@ -81,14 +81,7 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
         }
 
         std::string seed_str = safe_load.at("seed");
-        if (seed_str == UNDEFINED)
-        {
-            loader.seed = time(NULL);
-        }
-        else
-        {
-            loader.seed = stoi(seed_str);
-        }
+        loader.seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
 
         loader.num_iter = stoi(safe_load.at("num_iter"));
         loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
@@ -114,9 +107,6 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
                 std::cout << pair.first << " : " << pair.second << endl;
             }
         }
-
-        // FLAG
-        std::exit(1);
     }
     else
     {
@@ -139,7 +129,7 @@ void build_extra(string data_pathtofile)
     {
         if (Verbose)
         {
-            std::cout << "\n==============COMMUNITY===============" << std::endl;
+            std::cout << "\n================EXTRA=================" << std::endl;
             std::cout << "Data file: " << data_pathtofile << std::endl;
         }
 
@@ -170,8 +160,8 @@ void build_extra(string data_pathtofile)
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;             // Command line argument iterator
-    double inver_temp = 1.0;    // Inverse temperature // UPDATE : temporary
+    int carg_i = 1;                 // Command line argument iterator
+    double inver_temp = INFINITY;   // Inverse temperature // UPDATE : temporary
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;

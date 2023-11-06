@@ -166,13 +166,7 @@ void MCMC::move_augm_variables()
 
 void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
-    unsigned step = 0;
     double adapt_ratio;
-    double i_num_adapt_iter = std::pow(setup.num_adapt_iter, -1);
-
-    // Assign ivnverse temperature
-    // UPDATE : code can be optimized to avoid * 1 or * 0
-    inverse_temperature = inv_temper;
 
     if (Verbose)
     {
@@ -187,26 +181,49 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //=====Initialize output file=====//
     init_param_file(output_file);
 
-    //=====MCMC execution=====//
-    if (Verbose)
+    //=====Assign ivnverse temperature=====//
+    // UPDATE : code can be optimized to avoid * 1 or * 0
+    if (inv_temper == INFINITY)
     {
-        std::cout << "\n-----------MCMC:execution-------------" << std::endl;
+        inverse_temperature = 1.0;
+    }
+    else if ((inverse_temperature < 0) || (inverse_temperature > 1))
+    {
+        std::cerr << "\nERROR: Inverse temperature " << inverse_temperature << " out of range." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+    }
+    else
+    {
+        inverse_temperature = inv_temper;
+        if (Verbose)
+        {
+            std::cout << "Inverse_temperature : " << inverse_temperature << std::endl;
+        }
     }
 
     //=====Adaptative MCMC on parameters=====//
-    for(unsigned step = 0; step < setup.num_adapt_iter; step++)
+    if (Verbose && (setup.num_adapt_iter > 0))
+    {
+        std::cout << "\n------------MCMC:adaptive-------------" << std::endl;
+    }
+    for (unsigned step = 0; step < setup.num_adapt_iter; step++)
     {
         move_parameters();
         move_augm_variables();
 
-        adapt_ratio = i_num_adapt_iter * step;
+        adapt_ratio = (double)(1.0 + step) / setup.num_adapt_iter;
         for (std::string parID : param_to_be_inferred)
         {
             adapt(parID, adapt_ratio);
         }
     }
 
-    //=====Actual MCMC iterations=====//
+    //=====MCMC execution=====//
+    if (Verbose)
+    {
+        std::cout << "\n-----------MCMC:execution-------------" << std::endl;
+    }
     for (unsigned i = 0; i < setup.num_iter; i += setup.thinning)
     {
         for (unsigned j = 0; j < setup.thinning; j++)
@@ -214,7 +231,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
             move_parameters();
             move_augm_variables();
         }
-        print_parameters(step);
+        print_parameters(i + setup.thinning);
     }
 
     //=====MCMC ending=====//
@@ -243,64 +260,6 @@ void MCMC::simulation(std::string output_filename)
 }
 
 ////////////////////////////////////////////////////////////////////////
-// /////////////////// MCMC : analyze_results /////////////////////// //
-////////////////////////////////////////////////////////////////////////
-
-/*
-void MCMC::analyze_results(std::string input_filename, std::string output_filename)
-{
-    std::ifstream input(input_filename.c_str());
-
-    if (input.is_open())
-    {
-        if (Verbose)
-        {
-            std::cout << "\n==============ANALYSIS================" << std::endl;
-            std::cout << "Results file: " << input_filename << std::endl;
-        }
-
-        //=====Read column names for variables in the model=====//
-        std::string line;
-        getline(input, line);
-        istringstream iss(line);
-        std::string token;
-        std::unordered_map<string, std::vector<double>> table = {};
-        std::vector<std::string> table_headers = {};
-
-        // Tokenize the line using the specified delimiter
-        while (getline(iss, token, setup.delim))
-        {
-            token = string_cleaner(token);
-            table_headers.push_back(token);
-            table.emplace(token, new std::vector<double>);
-        }
-
-        size_t k = 0 ;
-        for (std::string line; getline(input, line); k++)
-        {
-            istringstream iss(line);
-
-            // Store information in variables
-            size_t n_col = 0;
-            while (getline(iss, token, setup.delim))
-            {
-                table.at(data_headers[n_col]).push_back(stod(token));
-                n_col++;
-            }
-        }
-    }
-    else
-    {
-        cerr << "\nERROR: Impossible to open: " << input_filename << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
-    }
-
-}
-*/
-
-////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : print ////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
@@ -326,7 +285,7 @@ void MCMC::init_param_file(std::string output_filename)
             param_ofstream << setup.delim << parID << setup.delim << parID << "__a%";
         }
         param_ofstream << std::endl;
-        print_parameters(0);
+        // print_parameters(0); // NOTE: meaningless if augmented steps are not saved
     }
     else
     {
