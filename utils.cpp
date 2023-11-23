@@ -4,9 +4,28 @@
 
 using namespace std;
 
-// ////////////////////////////////////////////////////////////////////////// //
-// ///////////////////////// AUXILIARY FUNCTIONS //////////////////////////// //
-// ////////////////////////////////////////////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////
+// /////////////////////// Error Functions ///////////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+void exit_with_failure_error(std::string &message)
+{
+    std::cerr << endl;
+    std::cerr << "ERROR: " << message << "\nExit...\n"
+              << endl;
+    exit(EXIT_FAILURE);
+}
+
+/* auxiliary function to call for error in build parameters */
+void build_column_error(std::string var_name, std::string &line)
+{
+    std::string err_text = "Unable to extract `" + var_name + "` column.\nCheck line : " + line;
+    exit_with_failure_error(err_text);
+}
+
+///////////////////////////////////////////////////////////////////////
+// ///////////////////// Auxiliary Functions /////////////////////// //
+///////////////////////////////////////////////////////////////////////
 
 /* Cleaner string from forbidden characters*/
 std::string string_cleaner(std::string token)
@@ -18,15 +37,16 @@ std::string string_cleaner(std::string token)
     return token;
 }
 
-/* Return the dictionary from the string */
-kwargs parse_dict_string(std::string args_str, char delim)
+/* Parse the dictionary from the string */
+std::map<std::string, std::string> parse_dict_string(std::string dict_str, char dict_delim)
 {
-    std::istringstream args_ss(args_str);
+    std::istringstream args_ss(dict_str);
     std::string tmp;
     std::vector<std::string> args_stock;
-    kwargs output = {};
+    std::map<std::string, std::string> output = {};
 
-    while (getline(args_ss, tmp, delim))
+    // rea the entryes of the dictionary
+    while (getline(args_ss, tmp, dict_delim))
     {
         args_stock.push_back(tmp);
     }
@@ -36,10 +56,8 @@ kwargs parse_dict_string(std::string args_str, char delim)
     }
     else if (args_stock.size() % 2 == 1)
     {
-        cerr << "\nERROR: Unrecognized dictionary." << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
+        std::string err_text = "Incomplete dictionary: " + dict_str + ".";
+        exit_with_failure_error(err_text);
     }
     else
     {
@@ -47,16 +65,45 @@ kwargs parse_dict_string(std::string args_str, char delim)
         {
             try
             {
-                output.emplace(args_stock[i], stod(args_stock[i + 1]));
+                output.emplace(args_stock[i], args_stock[i + 1]);
             }
             catch (const exception &)
             {
-                cerr << "\nERROR: Invalid entry of a dictionary." << endl;
-                cerr << "Exit...\n"
-                     << endl;
-                exit(EXIT_FAILURE);
+                std::string err_text = "Invalid entry of dictionary: " + dict_str + ".";
+                exit_with_failure_error(err_text);
             }
         }
+    }
+
+    return output;
+}
+
+/* Parse the scalar arguments dictionary from the string */
+kwargs parse_dict_args(std::string args_str, char dict_delim)
+{
+    std::map<std::string, std::string> input = parse_dict_string(args_str, dict_delim);
+    kwargs output = {};
+    for(auto const &x : input)
+    {
+        output.emplace(x.first, stod(x.second));
+    }
+    return output;
+}
+
+
+/* Parse the option from the string */
+std::vector<std::string> parse_option(std::string opt_str, char option_delim)
+{
+    std::vector<std::string> output = {};
+    size_t x = opt_str.find(option_delim);
+
+    // Check if the ":" character was found
+    if (x < opt_str.length()) {
+        output.push_back(opt_str.substr(0, x));
+        output.push_back(opt_str.substr(x + 1));
+    } else {
+        std::string err_text = "Impossible to parse option: " + opt_str + ".";
+        exit_with_failure_error(err_text);
     }
 
     return output;
@@ -77,67 +124,10 @@ bool stobool(std::string token)
     }
     else
     {
-        cerr << "\nERROR: Unrecognized boolean value for: " << token << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
+        std::string err_text = "Unrecognized boolean value for: " + token + ".";
+        exit_with_failure_error(err_text);
+        return false;
     }
-}
-
-/* function to load delimiter */
-char load_delim(std::string token)
-{
-    char delim;
-
-    if (token.front() == '"' && token.back() == '"')
-    {
-        // Remove the double quotes and store it as a string
-        delim = token.substr(1, token.length() - 2)[0];
-    }
-    else
-    {
-        cerr << "\nERROR: Unable to extract delimiter." << endl;
-        cerr << "Check: " << token << "\n"
-             << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    return delim;
-}
-
-/* auxiliary function to call for error in build parameters */
-void build_column_error(std::string var_name, std::string &line)
-{
-    cerr << "\nERROR: Unable to extract `" << var_name << "` column." << endl;
-    cerr << "Check line: " << line << "\n"
-         << endl;
-    cerr << "Exit...\n"
-         << endl;
-    exit(EXIT_FAILURE);
-}
-
-/* Linear interpolation for an indexed vector */
-double lin_idx_interp(double x_value, const std::vector<double> &y)
-{
-    size_t x_0 = (int)std::floor(x_value);
-    double output = 0.0;
-
-    if (x_0 <= 0)
-    { // Saturate to lower value
-        output = y[0];
-    }
-    else if (x_0 >= y.size() - 1)
-    { // Saturate to upper value
-        output = y.back();
-    }
-    else
-    { // Calculate the interpolated y value
-        output = y[x_0] + (x_value - x_0) * (y[x_0 + 1] - y[x_0]);
-    }
-
-    return output;
 }
 
 // ////////////////////////////////////////////////////////////////////////// //
@@ -149,7 +139,7 @@ double lin_idx_interp(double x_value, const std::vector<double> &y)
 /* Overload constructor for internal arguments */
 Base_Distrib::Base_Distrib(kwargs new_args_int, std::vector<std::string> order)
 {
-    args_name = order; // developer assigment of the order of arguments
+    args_name = order;                          // developer assigment of the order of arguments
     args_int = new double[new_args_int.size()]; // dynamic allocation
     for (size_t i = 0; i < args_name.size(); i++)
     {
@@ -161,7 +151,7 @@ Base_Distrib::Base_Distrib(kwargs new_args_int, std::vector<std::string> order)
 /* Overload constructor for external arguments */
 Base_Distrib::Base_Distrib(kwargs_ext new_args_ext, std::vector<std::string> order)
 {
-    args_name = order; // developer assigment of the order of arguments
+    args_name = order;                                  // developer assigment of the order of arguments
     args_ext = new const double *[new_args_ext.size()]; // dynamic allocation
     for (size_t i = 0; i < args_name.size(); i++)
     {
@@ -174,11 +164,11 @@ Base_Distrib::Base_Distrib(kwargs_ext new_args_ext, std::vector<std::string> ord
 std::string Base_Distrib::display(char delim, char dict_delim)
 {
     std::string output = get_name() + delim;
-    for (size_t i = 0; i < args_name.size()-1; i ++)
+    for (size_t i = 0; i < args_name.size() - 1; i++)
     {
         output += args_name[i] + dict_delim + std::to_string(get_arg(i)) + dict_delim;
     }
-    size_t i = args_name.size()-1;
+    size_t i = args_name.size() - 1;
     output += args_name[i] + dict_delim + std::to_string(get_arg(i));
     return output;
 }
@@ -266,33 +256,33 @@ double Normal_Distr::rand(std::mt19937_64 &rng)
 /* lognormal probability density function */
 double Lognorm_Distr::pdf(double x)
 {
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    return std::exp(-0.5 * std::pow((std::log(x) - mean) / sd, 2)) * std::pow(x * sd, -1) * 0.398942280;
+    double meanlog = get_arg(0);
+    double sdlog = get_arg(1);
+    return std::exp(-0.5 * std::pow((std::log(x) - meanlog) / sdlog, 2)) * std::pow(x * sdlog, -1) * 0.398942280;
 }
 
 /* logarithm of the lognormal probability density function */
 double Lognorm_Distr::log_pdf(double x)
 {
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    return -0.5 * std::pow((std::log(x) - mean) / sd, 2) - std::log(x) - std::log(sd) - 0.918938533;
+    double meanlog = get_arg(0);
+    double sdlog = get_arg(1);
+    return -0.5 * std::pow((std::log(x) - meanlog) / sdlog, 2) - std::log(x) - std::log(sdlog) - 0.918938533;
 }
 
 /* log-ratio of the lognormal probability density function */
 double Lognorm_Distr::log_ratio(double x, double y)
 {
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    return 0.5 * (std::pow((std::log(x) - mean) / sd, 2) - std::pow((std::log(y) - mean) / sd, 2)) + std::log(x) - std::log(y);
+    double meanlog = get_arg(0);
+    double sdlog = get_arg(1);
+    return 0.5 * (std::pow((std::log(x) - meanlog) / sdlog, 2) - std::pow((std::log(y) - meanlog) / sdlog, 2)) + std::log(x) - std::log(y);
 }
 
 /* lognormal random generator */
 double Lognorm_Distr::rand(std::mt19937_64 &rng)
 {
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    std::lognormal_distribution<double> distr_gen(mean, sd);
+    double meanlog = get_arg(0);
+    double sdlog = get_arg(1);
+    std::lognormal_distribution<double> distr_gen(meanlog, sdlog);
     return distr_gen(rng);
 }
 
@@ -331,6 +321,76 @@ double Gamma_Distr::rand(std::mt19937_64 &rng)
     double scale = get_arg(1);
     std::gamma_distribution<double> distr_gen(shape, scale);
     return distr_gen(rng);
+}
+
+////////////////////////////////////////////
+// ////////////// WEIBULL /////////////// //
+////////////////////////////////////////////
+
+/* weibull probability density function */
+double Weibull_Distr::pdf(double x)
+{
+    double shape = get_arg(0);
+    double scale = get_arg(1);
+    return (shape / scale) * std::pow((x / scale), shape - 1) * std::exp(-std::pow(x / scale, shape));
+}
+
+/* logarithm of the weibull probability density function */
+double Weibull_Distr::log_pdf(double x)
+{
+    double shape = get_arg(0);
+    double scale = get_arg(1);
+    return std::log(shape / scale) + (shape - 1) * std::log(x / scale) - std::pow(x / scale, shape);
+}
+
+/* log-ratio of the weibull probability density function */
+double Weibull_Distr::log_ratio(double x, double y)
+{
+    double shape = get_arg(0);
+    double scale = get_arg(1);
+    return (shape - 1) * (std::log(y / x)) + std::pow(x / scale, shape) - std::pow(y / scale, shape);
+}
+
+/* weibull random generator */
+double Weibull_Distr::rand(std::mt19937_64 &rng)
+{
+    double shape = get_arg(0);
+    double scale = get_arg(1);
+    std::weibull_distribution<double> distr_gen(shape, scale);
+    return distr_gen(rng);
+}
+
+////////////////////////////////////////////
+// ////////////// RAYLEIGH ////////////// //
+////////////////////////////////////////////
+
+/* rayleigh probability density function */
+double Rayleigh_Distr::pdf(double x)
+{
+    double scale = get_arg(0);
+    return x * std::pow(scale, -2) * std::exp(-0.5 * std::pow(x / scale, 2));
+}
+
+/* logarithm of the rayleigh probability density function */
+double Rayleigh_Distr::log_pdf(double x)
+{
+    double scale = get_arg(0);
+    return std::log(x) - 2 * std::log(scale) - 0.5 * std::pow(x / scale, 2);
+}
+
+/* log-ratio of the rayleigh probability density function */
+double Rayleigh_Distr::log_ratio(double x, double y)
+{
+    double scale = get_arg(0);
+    return std::log(y / x) + 0.5 * std::pow(scale, -2) * (std::pow(x, 2) - std::pow(y, 2));
+}
+
+/* rayleigh random generator */
+double Rayleigh_Distr::rand(std::mt19937_64 &rng)
+{
+    double scale = get_arg(0);
+    std::uniform_real_distribution<double> unif_gen(0, 1);
+    return scale * std::sqrt(-2 * unif_gen(rng));
 }
 
 ////////////////////////////////////////////

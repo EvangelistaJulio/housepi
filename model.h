@@ -1,10 +1,11 @@
-// model.hpp //
+// model.h //
 
 #ifndef MODEL__H
 #define MODEL__H
 
 #include <string>
 #include <vector>
+#include <set>
 #include <unordered_map>
 #include <cmath>
 #include <random>
@@ -12,84 +13,88 @@
 
 #include "individual.h"
 
-///////////////////////////////////////////////////////////////////////
-// //////////////// Onset to Transmission : class ////////////////// //
+extern bool Verbose;
+
+////////////////////////////////////////////////////////////////////////
+// ////////////////// Extra files for the model //////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-class Onset_to_Transm : public Base_Distrib
+// Shared Parameter Dictionary // UPDATE : generalize for external files
+void build_extra(std::string data_pathtofile);
+
+///////////////////////////////////////////////////////////////////////
+// //////////////// Onset to Infectivity_Profile_Function : class ////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+class Infectivity_Profile_Function : public Base_Distrib
 {
 public:
 	// Constructors
-	Onset_to_Transm(kwargs new_args) : Base_Distrib(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Onset_to_Transm(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	~Onset_to_Transm(){};
+	Infectivity_Profile_Function(kwargs new_args) : Base_Distrib(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	Infectivity_Profile_Function(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	~Infectivity_Profile_Function(){};
 
 	double pdf(timetype tost, timetype t_incub);
 	double cdf(timetype tost, timetype t_incub);
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////////// Model : class ///////////////////////// //
-///////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////// Model : class /////////////////////////////////////////// //
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Model : public Parameter_Dictionary
 {
 protected:
+	//=====Required Attributes=====//
 	Individual *indiv;
-	Household *househ;
+	size_t num_indiv = 0;
 
-	// infectivity profiles
-	Onset_to_Transm *infec_profile_func;
-	double *inst_profile;
-	double *cumul_profile;
+	Infectivity_Profile_Function *infec_profile_func;
+	std::set<std::string> augm_set = {};
+	std::set<std::string> augm_with_model_set = {};
+	std::set<std::string> augm_to_infer_set = {};
+	std::vector<std::string> group_rate_list = {};
+	std::vector<std::string> data_headers = {};
+	
+	//=====Optional Attributes=====//
+	Household *househ;
+	size_t num_househ = 0;
+
+	double *inst_profile_lookuptab;
+	double *cumul_profile_lookuptab;
 
 	const double **contact_patterns;
 
-	// augmented variables behavior lists
-	std::vector<std::string> augm_list = {};
-	std::vector<std::string> augm_with_model = {};
-	std::vector<std::string> augm_to_be_inferred = {};
-
-	std::vector<std::string> rate_list = {};
-
 public:
-	size_t num_indiv = 0;
-	size_t num_househ = 0;
-
-	std::vector<std::string> data_headers = {};
-
-	//=====Methods=====//
+	//=====Required Methods=====//
 	int get_status(size_t i) const { return indiv[i].get_status(); }
+	
+	void assign_infec_profile_function();
+	void assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &rng); // UPDATE: temporary
+	void assign_rate_per_group_to_individual(Individual *this_indiv);
+	void fill_model_lists(); // UPDATE: temporary
+
+	void store_augm_var_dependecies(size_t i);
+
+	double compute_loglike(size_t h);
+
+	void simulate_infection(timetype delta_t, std::mt19937_64 &rng);
+
+	//=====Optional Methods=====//
+
+	size_t from_to(size_t i, size_t j) { return i * num_indiv + j; }
+	void assign_rate_per_contact(size_t i, size_t k);
 	double get_contact_from_to(size_t i, size_t k) { return (*contact_patterns[from_to(i, k)]); }
 
-	//=====Augmetend Data=====//
-	void assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &rng); // UPDATE: temporary
-
-	void assign_rate_to_individual(Individual *this_indiv);
-	void assign_contact_patterns(size_t i, size_t k);
-
-	//=====Structure Factors=====//
-	double transmissability(size_t h);
-
 	//=====Infectivity Profiles=====//
-	size_t from_to(size_t i, size_t j) { return i * num_indiv + j; }
-	void initialize_infec_profiles();
-	double infec_profile_inst(size_t i, timetype t_transm);
-	double infec_profile_cumul(size_t i, timetype t_transm);
-	void update_infec_profile(size_t i);
-	void fill_model_lists();
+	double compute_infec_profile_inst(size_t i, timetype t_transm);
+	double compute_infec_profile_cumul(size_t i, timetype t_transm);
 
 	//=====LogLikelihood=====//
 	double _sum_hazards_(double *profiles, size_t idx);
-	double risk_surv(size_t idx);
-	double risk_infec(size_t idx);
-	double compute_loglike(size_t h);
 
-	double community_risk_inst(timetype t1);
-	double community_risk_cumul(timetype t0, timetype t1);
-
-	//=====Simulation=====//
-	void simulate_infection(timetype delta_t, std::mt19937_64 &rng);
+	double comm_risk_inst(timetype t1);
+	double comm_risk_cumul(timetype t0, timetype t1);
 };
 
 #endif // MODEL__H

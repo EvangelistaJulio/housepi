@@ -27,8 +27,6 @@ public:
 	unsigned num_adapt_iter = 5000;
 	unsigned thinning = 20;
 	timetype delta_t = 0.01;
-	char delim = ',';
-	char dict_delim = '/';
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,20 +35,7 @@ public:
 
 class MCMC : public Model
 {
-private:
-	double global_loglike = 0.0;
-	std::ofstream param_ofstream;
-	std::vector<std::map<std::string, int>> report = {};
-
 public:
-	std::mt19937_64 rng;
-	std::uniform_real_distribution<double> unif;
-	Setup_MCMC_Struct setup = {};
-
-	double inverse_temperature = 1.0;
-	std::unordered_map<std::string, unsigned> m_num_accept_data = {};
-	std::unordered_map<std::string, unsigned> m_num_propos_data = {};
-
 	// Constructors
 	MCMC(Setup_MCMC_Struct new_setup) : unif(0.0, 1.0)
 	{
@@ -62,21 +47,22 @@ public:
 	//=====Getter=====//
 	double get_global_loglike() const { return global_loglike; };
 
+	//=====Open data=====//
+	void build_parameters(std::string data_pathtofile);
+	void build_data(std::string data_pathtofile);
+	void add_individual(Individual new_indiv);
+	void assign_community_structure(std::string HH_index_column);
+
 	//=====Setter=====//
 	void reset_moves();
 	void set_global_loglike(double x) { global_loglike = x; };
 	void initialize_model(bool is_rand_params = false);
 
-	//=====Open data=====//
-	void build_data(std::string data_pathtofile);
-	void build_parameters(std::string data_pathtofile);
-	void add_individual(Individual new_indiv);
-	void pre_process_data();
-	void assign_community_structure(std::string HH_index_column);
-
 	//=====Computations=====//
 	double compute_global_loglike();
+	void move_single_param(std::string parID);
 	void move_parameters();
+	void move_and_adapt_parameters(unsigned step);
 	void move_augm_variables();
 
 	//=====INFER=====//
@@ -85,9 +71,6 @@ public:
 	//=====SIMULATE=====//
 	void simulation(std::string output_filename);
 
-	//=====ANALYZE=====//
-	//void analyze_results(std::string input_filename, std::string output_filename);
-
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
 	void print_parameters(unsigned step);
@@ -95,6 +78,21 @@ public:
 
 	//=====Save augmented variables=====//
 	void print_augm_variables(std::string output_filename);
+
+private:
+	double global_loglike = 0.0;
+	double inverse_temperature = 1.0;
+
+	std::mt19937_64 rng;
+	std::uniform_real_distribution<double> unif;
+	std::uniform_int_distribution<size_t> param_picker;
+
+	std::unordered_map<std::string, unsigned> m_num_accept_data = {};
+	std::unordered_map<std::string, unsigned> m_num_propos_data = {};
+
+	Setup_MCMC_Struct setup = {};
+	std::ofstream param_ofstream;
+	std::vector<std::map<std::string, int>> model_report = {};
 };
 
 #endif // MCMC__H

@@ -60,7 +60,7 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	std::string display(char delim = ' ', char dict_delim = '/');
+	std::string display(char delim = DELIM, char dict_delim = DICT_DELIM);
 
 private:
 	//=====valid : functional methods=====//
@@ -279,7 +279,7 @@ public:
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//=====Display=====//
-	std::string display(char delim = ' ', char dict_delim = '/')
+	std::string display(char delim = DELIM, char dict_delim = DICT_DELIM)
 	{
 		std::string output = std::to_string(get_value());
 		output += delim + (std::string)((infer) ? "true" : "false");
@@ -332,15 +332,10 @@ public:
 // This is a wrapper class containing aliases for the model params.
 class Parameter_Dictionary
 {
-private:
-	std::unordered_map<std::string, Parameter> params = {};
-	double buffer_value;
-	double buffer_log_ratio;
-	const double _reference = 1.0;
-
 public:
 	std::vector<std::string> param_to_be_inferred = {};
-	std::vector<std::string> param_not_to_be_inferred = {};
+	std::vector<std::string> param_static = {};
+	size_t num_param_to_infer = 0;
 
 	//=====Methods=====//
 	void add_param(
@@ -368,14 +363,20 @@ public:
 	//=====Metropolis-Hastings moves=====//
 	bool propose_valid_move(const std::string k, std::mt19937_64 &rng);
 	double get_move_log_ratio() { return buffer_log_ratio; }
-	void accept_move(const std::string k);
-	void refuse_move(const std::string k);
+	void accept_param_move(const std::string k);
+	void refuse_param_move(const std::string k);
 
 	// acceptation rates / adaptive methods
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
 	//=====Display=====//
-	void display_parameters(char delim = ' ', char dict_delim = '/');
+	void display_parameters(char delim = DELIM, char dict_delim = DICT_DELIM);
+
+private:
+	std::unordered_map<std::string, Parameter> params = {};
+	double buffer_value;
+	double buffer_log_ratio;
+	const double _reference = 1.0;
 };
 
 /////////////////////////////////////////////////////////////////
