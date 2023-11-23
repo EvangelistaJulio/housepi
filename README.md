@@ -5,23 +5,23 @@ Epidemics mathematical modeling of houselhold surveys.
 
 In order to compile, move to the program folder and run the following:
 ```
-make MODEL="<model-name>"
+make MODEL="<path/to/model>"
 make clean
 ```
-where `<model-name>` is the name of the cpp file in the program folder.
-The command will proudce an executable file `run-<model-name>.exe`.
+where `<path/to/model>` is the path to the C++ file (with extension *.cpp*).
+The command will produce an executable file `<model>.exe` in the same folder of the model.
 
 ## Run
 
 To launch the inference from the terminal run the executable file followed by the flag `-infer`:
 ```
-run-<model-name>.exe -infer -s <path/to/setup.csv> -d <path/to/database.csv> -p <path/to/parameters.csv> -o <path/to/infer.csv> 
+<model>.exe -infer -s <path/to/setup.csv> -d <path/to/database.csv> -p <path/to/parameters.csv> -o <path/to/infer.csv> 
 ```
 In order to print a summary of the execution use the verbose flag `-v`, for other available options use the flag `--help`.
 
 To launch a simulation from the terminal use the flag `simulate`:
 ```
-run-<model-name>.exe -simulate -d <path/to/database.csv> -p <path/to/parameters.csv. -o <path/to/simulation.csv>
+<model>.exe -simulate -d <path/to/database.csv> -p <path/to/parameters.csv. -o <path/to/simulation.csv>
 ```
 
 ## Analyze
