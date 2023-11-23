@@ -1,0 +1,66 @@
+```{R}
+library(tidyverse)
+library(gridExtra)
+```
+
+```{R}
+file_name <- "/Volumes/MMMICovid/fcamagli/RESULTS/household-epidemics/output/model-halloween/thermo-integr/validate.csv"
+setup_file_name <- "/Volumes/MMMICovid/fcamagli/RESULTS/household-epidemics/parameters/setup.csv"
+params_file_name <- "/Volumes/MMMICovid/fcamagli/RESULTS/household-epidemics/output/model-halloween/thermo-integr/parameters.csv"
+
+# Load parameters data
+if (is.null(params_file_name)) {
+  target <- list()
+} else {
+  params <- read.csv(params_file_name, sep = ",", header = FALSE, row.names = 1)
+  target <- as.list(params$V2)
+}
+
+# Load setup data
+if (is.null(setup_file_name)) {
+  num_adapt_iter <- 0
+  burn_in <- 0
+} else {
+  # Read setup file
+  setup <- read.csv(setup_file_name, sep = ",", header = FALSE, row.names = 1)
+
+  # Extract values
+  num_adapt_iter <- as.integer(setup["num_adapt_iter", ])
+  burn_in <- num_adapt_iter
+}
+
+# Load results data
+results <- read.csv(file_name, sep = ",")
+df <- results[results["iter"] > num_adapt_iter + burn_in, ]
+
+cols <- colnames(df)
+cols <- cols[cols != "iter"]
+cols <- cols[!grepl("__a", cols)]
+
+thinning <- df[["iter"]][2] - df[["iter"]][1]
+N <- length(df[["iter"]])
+```
+
+```{R}
+# Define a custom theme
+custom_theme <- theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.border = element_rect(color = "black", fill = NA)
+  )
+# Set the custom theme as the default theme for all plots
+theme_set(custom_theme)
+
+plot_list <- list()
+for (p in cols) {
+  # plot Monte Carlo Markov Chain
+  plot_list[[p]] <- ggplot(df, aes(x = iter, y = .data[[p]])) + 
+  geom_line()
+
+  # plot histogram of values
+  plot_list[[paste0(p, "p-hist")]] <- ggplot(df, aes(y = .data[[p]])) +
+  geom_density()
+}
+
+arranged_plots <- grid.arrange(grobs = plot_list, ncol = 2)
+```

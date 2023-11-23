@@ -1,4 +1,4 @@
-// varia.hpp //
+// varia.h //
 
 #ifndef VARIA__H
 #define VARIA__H
@@ -10,7 +10,7 @@
 #include <random>
 #include <iostream>
 
-#include "utils.hpp"
+#include "utils.h"
 
 #define DEFAULT_ACCEPT_RATE 0.24 // default acceptation rate for MCMC
 
@@ -23,29 +23,29 @@
 class Base_Proposer
 {
 protected:
-	double value_0;
+	double strat_zero;
 	bool zero_start = false;
 	unsigned num_proposed_moves = 0;
 	double accept_rate = 0.0;
-	std::vector<std::string> args_to_adapt = {};
+	std::vector<size_t> args_to_adapt = {};
 	Distribution_1D *distr_ptr;
 
 public:
-	// Constructors
+	//=====Constructors=====//
 	Base_Proposer(
 		Distribution_1D *distr,
-		double value_0 = INFINITY,
+		double strat_zero = INFINITY,
 		kwargs value_range = {},
-		std::vector<std::string> args_to_adapt = {});
+		std::vector<size_t> args_to_adapt = {});
 	~Base_Proposer(){};
 
 	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
-	double get_value_0() const { return value_0; }
-	double get_arg(std::string argID) const { return (distr_ptr->get_arg)(argID); }
+	double get_strat_zero() const { return strat_zero; }
+	double get_arg(size_t argID) const { return (distr_ptr->get_arg)(argID); }
 
 	//=====Setter=====//
-	void set_value_0(double new_val) { value_0 = new_val; }
+	void set_strat_zero(double new_val) { strat_zero = new_val; }
 	void set_range(kwargs new_range);
 
 	double rand(std::mt19937_64 &rng) { return (distr_ptr->rand)(rng); }
@@ -54,11 +54,13 @@ public:
 	virtual double propose(std::mt19937_64 &rng, double start = 0.0) { return (this->*_propose_method_)(rng, start); }
 	virtual double log_ratio(double old_val, double new_val) { return (this->*_log_ratio_method_)(old_val, new_val); }
 
-	// methods for adaptive
+	//=====Methods (for adaptive)=====//
 	double get_accept_rate() const { return accept_rate; };
 	void update_accept_rate(bool is_accepted);
 	void reset_accept_rate();
 	void adapt(double ratio);
+
+	std::string display(char delim = ' ', char dict_delim = '/');
 
 private:
 	//=====valid : functional methods=====//
@@ -66,60 +68,84 @@ private:
 	double _range_up_ = INFINITY;
 	bool (Base_Proposer::*_valid_func_)(double new_val);
 
-	bool _valid_range_low_(double new_val) { return (new_val > _range_low_); }
-	bool _valid_range_up_(double new_val) { return (new_val < _range_up_); }
-	bool _valid_range_both_(double new_val) { return _valid_range_low_(new_val) && _valid_range_up_(new_val); }
-	bool _valid_dummy_(double new_val)
+	bool _valid_range_low_(double x) { return (x > _range_low_); }
+	bool _valid_range_up_(double x) { return (x < _range_up_); }
+	bool _valid_range_both_(double x) { return _valid_range_low_(x) && _valid_range_up_(x); }
+	bool _valid_dummy_(double x)
 	{
-		(void)new_val;
-		return false;
+		UNUSED(x);
+		return true;
 	}
 
 protected:
+	double undefined_call_error()
+	{
+		std::cerr << "\nERROR: Attempt to call a method of an undefined proposer." << std::endl;
+		std::cerr << "Exit...\n"
+				  << std::endl;
+		std::exit(EXIT_FAILURE);
+		return INFINITY;
+	}
+
 	//=====propose : functional methods=====//
 	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &rng, double start);
+
+	double _undef_propose_(std::mt19937_64 &rng, double start)
+	{
+		UNUSED(rng);
+		UNUSED(start);
+		return undefined_call_error();
+	}
+	double _add_to_previous_(std::mt19937_64 &rng, double start) { return start + rand(rng); }
+	double _times_previous_(std::mt19937_64 &rng, double start) { return start * rand(rng); }
 	double _draw_rand_(std::mt19937_64 &rng, double start)
 	{
-		(void)start;
+		UNUSED(start);
 		return rand(rng);
-	}
-	double _add_to_previous_(std::mt19937_64 &rng, double start)
-	{
-		return start + rand(rng);
-	}
-	double _times_previous_(std::mt19937_64 &rng, double start)
-	{
-		return start * rand(rng);
 	}
 
 	//=====propose : functional methods=====//
 	double (Base_Proposer::*_log_ratio_method_)(double old_val, double new_val);
 
-	double _log_ratio_pdf_(double old_val, double new_val)
+	double _undef_log_ratio_(double old_val, double new_val)
 	{
-		return distr_ptr->log_ratio(old_val, new_val);
+		UNUSED(old_val);
+		UNUSED(new_val);
+		return undefined_call_error();
 	}
-	double _log_ratio_add_to_zero_(double old_val, double new_val)
-	{
-		return _log_ratio_pdf_(old_val - get_value_0(), new_val - get_value_0());
-	}
-	double _log_ratio_times_zero_(double old_val, double new_val)
-	{
-		return _log_ratio_pdf_(old_val / get_value_0(), new_val / get_value_0());
-	}
+	double _log_ratio_pdf_(double old_val, double new_val) { return distr_ptr->log_ratio(old_val, new_val); }
+	// FIXME : double check these
+	double _log_ratio_add_to_zero_(double old_val, double new_val) { return _log_ratio_pdf_(old_val - get_strat_zero(), new_val - get_strat_zero()); }
+	double _log_ratio_times_zero_(double old_val, double new_val) { return _log_ratio_pdf_(old_val / get_strat_zero(), new_val / get_strat_zero()); }
 	double _log_ratio_symm_(double old_val, double new_val)
 	{
-		(void)old_val;
-		(void)new_val;
+		UNUSED(old_val);
+		UNUSED(new_val);
 		return 0.0;
 	}
 	double _log_ratio_lognorm_symm_(double old_val, double new_val)
 	{
-		return (std::log(old_val) - std::log(new_val)); // FIXME : check *2
+		return std::log(old_val) - std::log(new_val);
 	}
 };
 
-Base_Proposer *proposer_switchboard(std::string name, kwargs args = {}, double value_0 = INFINITY, kwargs value_range = {});
+Base_Proposer *proposer_switchboard(std::string name = UNDEFINED, kwargs args = {}, double strat_zero = INFINITY, kwargs value_range = {});
+
+///////////////////////////////////////////////////////////////////////
+// /////////////////// Undefined_Proposer : class ////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+class Undefined_Proposer : public Base_Proposer
+{
+public:
+	//=====Constructors=====//
+	Undefined_Proposer() : Base_Proposer(new Undefined_Distr())
+	{
+		_propose_method_ = &Undefined_Proposer::_undef_propose_;
+		_log_ratio_method_ = &Undefined_Proposer::_undef_log_ratio_;
+	}
+	~Undefined_Proposer() {}
+};
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Uniform_Proposer : class /////////////////// //
@@ -131,8 +157,8 @@ public:
 	//=====Constructors=====//
 	Uniform_Proposer(
 		kwargs new_args = {{"low", (double)-0.5}, {"up", (double)0.5}},
-		double value_0 = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), value_0, value_range, {"low", "up"})
+		double strat_zero = INFINITY,
+		kwargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"low", "up"})
 	{
 		_propose_method_ = &Uniform_Proposer::_add_to_previous_;
 		_log_ratio_method_ = &Uniform_Proposer::_log_ratio_symm_;
@@ -150,8 +176,8 @@ public:
 	//=====Constructor=====//
 	Normal_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double value_0 = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), value_0, value_range, {"sd"})
+		double strat_zero = INFINITY,
+		kwargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Normal_Proposer::_add_to_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Normal_Proposer::_log_ratio_add_to_zero_ : &Normal_Proposer::_log_ratio_symm_;
@@ -169,8 +195,8 @@ public:
 	//=====Constructor=====//
 	Lognorm_Proposer(
 		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double value_0 = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), value_0, value_range, {"sd"})
+		double strat_zero = INFINITY,
+		kwargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Lognorm_Proposer::_times_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Lognorm_Proposer::_log_ratio_times_zero_ : &Lognorm_Proposer::_log_ratio_lognorm_symm_;
@@ -202,40 +228,27 @@ template <typename kwargs_int_or_ext>
 class Base_Parameter
 {
 protected:
-	double value;
-	bool infer;
-	Distribution_1D *distr_ptr;
-	Base_Proposer *prop_ptr;
+	double value = INFINITY;
+	bool infer = false;
+	Distribution_1D *distr_ptr = nullptr;
+	Base_Proposer *prop_ptr = nullptr;
 
 public:
 	//=====Constructor=====//
 	Base_Parameter(
 		double value,
-		std::string prior_name = UNDEF,
-		kwargs_int_or_ext prior_args = {},
-		std::string strat_name = UNDEF,
+		std::string distr_name = UNDEFINED,
+		kwargs_int_or_ext distr_args = {},
+		std::string strat_name = UNDEFINED,
 		kwargs strat_args = {},
-		double value_0 = INFINITY,
-		kwargs value_range = {}) : distr_ptr(nullptr), prop_ptr(nullptr)
+		double strat_zero = INFINITY,
+		kwargs value_range = {})
 	{
 		set_value(value);
-		if (strat_name != UNDEF)
-		{
-			infer = true;
-			distr_ptr = distribution_switchboard(prior_name, prior_args);
-
-			//=====proposer ---//
-			if (strat_name == "prior")
-			{
-				prop_ptr = new Prior_Proposer(distr_ptr);
-			}
-			else
-			{
-				prop_ptr = proposer_switchboard(strat_name, strat_args, value_0, value_range);
-			}
-
-			_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
-		}
+		distr_ptr = distribution_switchboard(distr_name, distr_args);
+		infer = (strat_name == UNDEFINED) ? false : true;
+		prop_ptr = (strat_name == "prior") ? (new Prior_Proposer(distr_ptr)) : proposer_switchboard(strat_name, strat_args, strat_zero, value_range);
+		_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
 	}
 	~Base_Parameter() {}
 
@@ -244,10 +257,10 @@ public:
 	const double *get_address() const { return &value; }
 	bool get_infer() const { return infer; }
 	bool is_zero_start() const { return (prop_ptr->is_zero_start)(); }
-	double get_value_0() const { return (prop_ptr->get_value_0)(); }
+	double get_strat_zero() const { return (prop_ptr->get_strat_zero)(); }
 
 	//=====Setter=====//
-	void set_value(double value) { this->value = value; }
+	void set_value(double x) { value = x; }
 
 	//=====distr_ptr : methods=====//
 	double distr_rand(std::mt19937_64 &rng) { return distr_ptr->rand(rng); }
@@ -265,11 +278,23 @@ public:
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
+	//=====Display=====//
+	std::string display(char delim = ' ', char dict_delim = '/')
+	{
+		std::string output = std::to_string(get_value());
+		output += delim + (std::string)((infer) ? "true" : "false");
+		if (infer)
+		{
+			output += delim + distr_ptr->display(delim, dict_delim) + delim + prop_ptr->display(delim, dict_delim);
+		}
+		return output;
+	}
+
 private:
 	//=====Propose : functional methods=====//
 	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &rng);
 	double _propose_from_previous_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value()); }
-	double _propose_from_zero_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value_0()); }
+	double _propose_from_zero_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_strat_zero()); }
 };
 
 /////////////////////////////////////////////////////////////////
@@ -282,9 +307,9 @@ public:
 	//=====Constructor=====//
 	Parameter(
 		double new_val,
-		std::string prior_name = UNDEF,
+		std::string prior_name = UNDEFINED,
 		kwargs prior_args = {},
-		std::string strat_name = UNDEF,
+		std::string strat_name = UNDEFINED,
 		kwargs strat_args = {},
 		kwargs value_range = {}) : Base_Parameter(new_val,
 												  prior_name,
@@ -294,7 +319,7 @@ public:
 												  INFINITY, // is_zero_start() = false
 												  value_range){};
 
-	// Aliases
+	//=====Aliases=====//
 	double prior_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
 	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double prior_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
@@ -311,6 +336,7 @@ private:
 	std::unordered_map<std::string, Parameter> params = {};
 	double buffer_value;
 	double buffer_log_ratio;
+	const double _reference = 1.0;
 
 public:
 	std::vector<std::string> param_to_be_inferred = {};
@@ -320,15 +346,17 @@ public:
 	void add_param(
 		const std::string k,
 		double new_val,
-		std::string prior_name = UNDEF,
+		std::string prior_name = UNDEFINED,
 		kwargs prior_args = {},
-		std::string strat_name = UNDEF,
+		std::string strat_name = UNDEFINED,
 		kwargs strat_args = {},
 		kwargs value_range = {});
 
 	//=====Getter=====//
+	void check(const std::string k);
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
+	const double *get_reference() const { return &_reference; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
 
@@ -347,7 +375,7 @@ public:
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
 	//=====Display=====//
-	void print(char delim = ' ');
+	void display_parameters(char delim = ' ', char dict_delim = '/');
 };
 
 /////////////////////////////////////////////////////////////////
@@ -360,17 +388,17 @@ public:
 	//=====Constructor=====//
 	Augmented(
 		double value,
-		std::string model_name = UNDEF,
+		std::string model_name = UNDEFINED,
 		kwargs_ext model_args_ext = {},
-		std::string strat_name = UNDEF,
+		std::string strat_name = UNDEFINED,
 		kwargs strat_args = {},
-		double value_0 = INFINITY,
+		double strat_zero = INFINITY,
 		kwargs value_range = {}) : Base_Parameter(value,
 												  model_name,
 												  model_args_ext,
 												  strat_name,
 												  strat_args,
-												  value_0,
+												  strat_zero,
 												  value_range){};
 	//=====Aliases=====//
 	double model_rand(std::mt19937_64 &rng) { return distr_rand(rng); }

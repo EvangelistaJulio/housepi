@@ -1,6 +1,6 @@
 // varia.cpp //
 
-#include "varia.hpp"
+#include "varia.h"
 
 using namespace std;
 
@@ -10,35 +10,31 @@ using namespace std;
 
 Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
-    double value_0,
+    double strategy_from_zero,
     kwargs value_range,
-    std::vector<std::string> args_to_adapt) : distr_ptr(distr)
+    std::vector<size_t> list_of_args_to_adapt) : distr_ptr(distr)
 {
-    this->args_to_adapt = args_to_adapt;
+    args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
-    if (value_0 == INFINITY)
+
+    if (strategy_from_zero == INFINITY)
     {
-        this->zero_start = false;
+        zero_start = false;
     }
     else
     {
-        this->zero_start = true;
-        set_value_0(value_0);
-
-        /*
-        // FIXME: maybe initial values could be forbidden values?
-                if (valid(value_0) == true)
+        if (valid(strategy_from_zero))
         {
-            this->zero_start = true;
-            set_value_0(value_0);
+            zero_start = true;
+            set_strat_zero(strategy_from_zero);
         }
         else
         {
-            std::cerr << "ERROR: initial value " << value_0 << " and value range are inconsistent." << std::endl;
+            std::cerr << "ERROR: initial value " << strategy_from_zero << " and value range {low:" << _range_low_ << ", up:" << _range_low_ << "} are inconsistent." << std::endl;
             std::cerr << "Exit...\n"
                       << std::endl;
+            std::exit(EXIT_FAILURE);
         }
-        */
     }
 };
 
@@ -47,7 +43,7 @@ void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - DEFAULT_ACCEPT_RATE);
 
-    for (std::string argID : args_to_adapt)
+    for (size_t argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -72,35 +68,37 @@ void Base_Proposer::set_range(kwargs new_range)
 {
     int condition = 0;
 
-    if (new_range.find("low") != new_range.end())
+    for (auto const &x : new_range)
     {
-        _range_low_ = new_range.at("low");
-        condition += 1;
-    }
-
-    if (new_range.find("up") != new_range.end())
-    {
-        _range_up_ = new_range.at("up");
-        condition += 2;
+        if (x.first == "low")
+        {
+            _range_low_ = x.second;
+            condition += 2;
+        }
+        else if (x.first == "up")
+        {
+            _range_up_ = x.second;
+            condition += 3;
+        }
     }
 
     if (condition == 0)
     {
         _valid_func_ = &Base_Proposer::_valid_dummy_;
     }
-    else if (condition == 1)
+    else if (condition == 2)
     {
         _valid_func_ = &Base_Proposer::_valid_range_low_;
     }
-    else if (condition == 2)
+    else if (condition == 3)
     {
         _valid_func_ = &Base_Proposer::_valid_range_up_;
     }
-    else
+    else if (condition == 5)
     {
         if (_range_low_ >= _range_up_)
         {
-            std::cerr << "ERROR: Provided an inconsistent range: {" << new_range.at("low") << ", " << new_range.at("up") << std::endl;
+            std::cerr << "ERROR: Provided an inconsistent range: {" << _range_low_ << ", " << _range_up_ << std::endl;
             std::cerr << "Exit...\n"
                       << std::endl;
             exit(EXIT_FAILURE);
@@ -110,22 +108,33 @@ void Base_Proposer::set_range(kwargs new_range)
             _valid_func_ = &Base_Proposer::_valid_range_both_;
         }
     }
+    else
+    {
+        std::cerr << "ERROR: Provided multiple definition for the range." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 /* Switchboard to select the custom metropolis strategy */
-Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_0, kwargs value_range)
+Base_Proposer *proposer_switchboard(std::string name, kwargs args, double strat_zero, kwargs value_range)
 {
-    if (name == "uniform")
+    if (name == UNDEFINED)
     {
-        return new Uniform_Proposer(args, value_0, value_range);
+        return new Undefined_Proposer();
+    }
+    else if (name == "uniform")
+    {
+        return new Uniform_Proposer(args, strat_zero, value_range);
     }
     else if (name == "normal")
     {
-        return new Normal_Proposer(args, value_0, value_range);
+        return new Normal_Proposer(args, strat_zero, value_range);
     }
     else if (name == "lognorm")
     {
-        return new Lognorm_Proposer(args, value_0, value_range);
+        return new Lognorm_Proposer(args, strat_zero, value_range);
     }
     else
     {
@@ -136,9 +145,43 @@ Base_Proposer *proposer_switchboard(std::string name, kwargs args, double value_
     }
 }
 
+std::string Base_Proposer::display(char delim, char dict_delim)
+{
+    std::string output = distr_ptr->display(delim, dict_delim);
+    output += delim;
+    if (_range_low_ > -INFINITY)
+    {
+        std::string aux = "low";
+        output += aux + dict_delim + std::to_string(_range_low_);
+        if (_range_up_ < INFINITY)
+        {
+            output += dict_delim;
+        }
+    }
+    if (_range_up_ < INFINITY)
+    {
+        std::string aux = "up";
+        output += aux + dict_delim + std::to_string(_range_up_);
+    }
+
+    return output;
+}
+
 ///////////////////////////////////////////////////////////
 //////// Parameter_Dictionary : methods ///////////////////
 ///////////////////////////////////////////////////////////
+
+/* Check if the given parameter is defined, otherwise exits. */
+void Parameter_Dictionary::check(const std::string k)
+{
+    if (params.find(k) == params.end())
+    {
+        std::cerr << "ERROR: Parameter `" << k << "` is not defined." << std::endl;
+        std::cerr << "Exit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+}
 
 /* add_param */
 void Parameter_Dictionary::add_param(
@@ -161,6 +204,7 @@ void Parameter_Dictionary::add_param(
         std::cerr << "ERROR: Parameter `" << k << "` has multiple definitions." << std::endl;
         std::cerr << "Exit...\n"
                   << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 
     // update the lists of parameters to be inferred or not
@@ -174,29 +218,35 @@ void Parameter_Dictionary::add_param(
     }
 }
 
-/* print the user model parameters */
-void Parameter_Dictionary::print(char delim)
+/* display the user model parameters */
+void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
 {
-    std::cout << "-NAME-" << delim << "-INFER-" << endl;
     for (std::string k : param_to_be_inferred)
     {
-        std::cout << k << delim << "true" << endl;
+        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
     for (std::string k : param_not_to_be_inferred)
     {
-        std::cout << k << delim << "false" << endl;
+        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
 }
 
 /* randomly initialize values of the parameters to be inferred */
 void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 {
+    double new_val;
     for (std::string k : param_to_be_inferred)
     {
-        set_value(k, params.at(k).prior_rand(rng));
+        new_val = params.at(k).prior_rand(rng);
+        while (params.at(k).valid(new_val) == false)
+        {
+            new_val = params.at(k).prior_rand(rng);
+        }
+        set_value(k, new_val);
     }
 }
 
+/* FIXME */
 bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
 {
     double new_val = params.at(k).propose(rng); // propose new value
@@ -215,7 +265,7 @@ bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_
     {
         params.at(k).update_accept_rate(false);
     }
-    
+
     return is_valid;
 }
 

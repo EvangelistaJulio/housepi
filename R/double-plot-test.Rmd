@@ -1,0 +1,131 @@
+```{R}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(scales))
+
+# options
+MIN_MCMC_VAR <- 1e-10
+UNIROOT_TOL <- 1e-6
+UNIROOT_MAXITER <- 1e3
+PERC_BURN_IN <- 0.10 
+NUM_BINS <- 25
+COL_STAT <- "black"
+COL_PRIOR <- "darkgray"
+
+# Path to files
+file <- "/Volumes/MMMICovid/fcamagli/RESULTS/household-epidemics/output/comparison/test-1/thermo-integr/infer/infer-0.csv"
+setup_file <- "/Volumes/MMMICovid/fcamagli/RESULTS/household-epidemics/parameters/setup.csv"
+params_file <- "/Volumes/MMMICovid/fcamagli/RESULTS/household-epidemics/output/comparison/test-1/parameters.csv"
+
+# Load setup 
+if (is.null(setup_file)) {
+  delim <- ","
+  burn_in <- 0
+} else if (file.exists(setup_file)) {
+  setup <- read_csv(setup_file, col_names = FALSE, show_col_types = FALSE)
+  setup <- setup %>% column_to_rownames(., var = "X1")
+  delim <- as.character(setup["delim", ])
+  num_iter <- as.integer(setup["num_iter", ])
+  burn_in <- floor(PERC_BURN_IN * num_iter)
+} else {  
+  cat("Setup file ", setup_file, " not found.\n")
+}
+
+# Load results 
+if (file.exists(file)) {
+  results <- read_delim(file, delim = delim, show_col_types = FALSE)
+} else {
+  cat("File ", file, " not found.\n")
+}
+
+# Load parameters 
+if (is.null(params_file)) {
+  params <- tibble()
+} else if (file.exists(params_file)) {
+  params <- read_delim(params_file, delim = delim, col_names = FALSE, show_col_types = FALSE)
+  params <- params %>% column_to_rownames(., var = "X1")
+} else {
+  cat("Parameters file ", params_file, " not found.\n")
+}
+
+# Define working data frame
+# extract adaptive steps and burn_in
+df <- results %>% filter(.data[["iter"]] > burn_in)
+thinning = df[["iter"]][2] - df[["iter"]][1]
+
+sample_size <- length(df[["iter"]])
+# find columns of interest 
+cols <- colnames(df)
+cols <- cols[cols != "iter"]
+cols <- cols[!grepl("__a", cols)]
+```
+
+```{R}
+p <- cols[length(cols)]
+signal <- as.vector(df[[p]])
+
+# compute autocorrelation function
+acorr <- acf(signal - mean(signal), lag.max=floor(length(signal) / 2), plot=FALSE)[["acf"]]
+x <- seq(0, length(acorr)-1, 1)
+# linear inerpolation
+interp_func <- approxfun(x, acorr, method="linear") 
+
+# find first root
+end <- x[which(acorr < 0)[1]]
+if (end < length(acorr)-1) {
+  x_0 <- uniroot(interp_func, c(0, end), tol=UNIROOT_TOL, maxiter=UNIROOT_MAXITER, check.conv=TRUE)
+  period <- as.integer(round(x_0[["root"]]))
+} else {
+  # pathological case : acorr converges asymptotically to 0
+  period <- length(acorr)-1
+}
+
+# mask for effective sample
+mask <- seq(1, sample_size, period)
+
+# compute statistics on effective sample
+mu <- mean(signal[mask])
+sigma <- sd(signal[mask])
+
+# plot Monte Carlo Markov Chain
+min_y <- min(df[[p]])
+max_y <- max(df[[p]])
+
+# plot histogram of values
+binwidth <- (max_y - min_y) / NUM_BINS
+tag = paste0(p, "p-hist")
+my_plot <- ggplot()
+
+my_plot <- my_plot +
+  geom_freqpoly(data = df, mapping = aes(x = .data[[p]], y=after_stat(density)), binwidth = binwidth, color = "red")
+
+if (p %in% rownames(params)) {
+  # load prior
+  prior_name <- params[p, "X4"]
+  prior_args_string <- params[p, "X5"]
+  prior_args <- list()
+  aux <- unlist(strsplit(prior_args_string, "/"))
+  for (i in seq(1, length(aux), 2)) {
+    prior_args[[aux[i]]] <- as.numeric(aux[i+1])
+  }
+
+  X <- seq(min_y-binwidth, max_y+binwidth, 0.5*binwidth)
+  if (prior_name == "uniform") {
+    Y <- dunif(X, min = prior_args[["low"]], max = prior_args[["up"]])
+  } else if (prior_name == "normal") {
+    Y <- dnorm(X, mean = prior_args[["mean"]], sd = prior_args[["sd"]])
+  } else if (prior_name == "lognorm") {
+    Y <- dlnorm(X, meanlog = prior_args[["mean"]], sdlog = prior_args[["sd"]])
+  } else if (prior_name == "gamma") {
+    Y <- dgamma(X, shape = prior_args[["shape"]], scale = prior_args[["scale"]])
+  } else if (prior_name == "exp") {
+    Y <- dexp(X, rate = prior_args[["rate"]])
+  }
+  my_plot <- my_plot +
+    geom_line(data = tibble(xaxis=X, yaxis=Y), mapping = aes(x=xaxis, y=yaxis), color=COL_PRIOR)
+}
+my_plot <- my_plot + coord_flip()
+
+print(my_plot)
+
+```

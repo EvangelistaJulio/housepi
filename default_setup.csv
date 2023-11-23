@@ -1,8 +1,0 @@
-seed,20210415
-num_iter,2000
-num_adapt_iter,500
-thinning,10
-verbose,TRUE
-is_data_augm,TRUE
-delim," "
-dict_delim,"/"

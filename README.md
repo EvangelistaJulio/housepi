@@ -4,5 +4,6 @@ Epidemics mathematical modeling of houselhold surveys.
 ```
 make
 make clean
-./program.exe data/database_waning_clean.txt data/community_infection_israel.txt data/model-parameters.tsv output/test.tsv > output/log.txt
+./program.exe -infer -d database.txt -c community_infection.txt -p parameters.txt -o output.txt --save_augm augm.txt --init_rand -v
+
 ```
