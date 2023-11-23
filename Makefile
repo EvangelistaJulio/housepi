@@ -8,7 +8,7 @@ SOURCES := main.cpp mcmc.cpp ${MODEL}.cpp  individual.cpp varia.cpp utils.cpp
 OBJECTS := $(SOURCES:.cpp=.o)
 
 # Executable name
-EXECUTABLE := run-${MODEL}.exe
+EXECUTABLE := run-$(basename ${MODEL}).exe
 
 # Make rules
 all: $(EXECUTABLE)

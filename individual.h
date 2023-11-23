@@ -65,7 +65,7 @@ public:
 	}
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate(size_t r, std::string parID) { _which_rate[r] = parID; }
+	void assign_rate_per_group(size_t r, std::string parID) { _which_rate[r] = parID; }
 	double model_rate(size_t r) const { return *_rate_ptr[r]; }
 	void _set_rate(size_t r, const double *x) { _rate_ptr[r] = x; }
 	void _allocate_rates(size_t num_rates);
@@ -105,7 +105,8 @@ public:
 	int house_index = -1;
 	size_t size = 0;
 	size_t first_case = -1;
-	timetype infec_time = INFINITY;
+	timetype start_followup = INFINITY;
+	timetype end_followup = 0;
 	std::vector<size_t> susceptibles_list = {};
 	std::vector<size_t> infectors_list = {};
 
@@ -122,6 +123,7 @@ public:
 	void link_individual(size_t i, int status);
 	void change_status(size_t i, int new_status);
 	void update_first_case();
+	void assign_end_followup();
 
 	//======Loglike======//
 	double get_loglike() const { return loglike; }

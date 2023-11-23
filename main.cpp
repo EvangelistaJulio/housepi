@@ -20,10 +20,6 @@ using namespace std;
 
 bool Verbose = false;
 
-// FIXME: this depends on the model
-std::vector<double> Cumul_Comm_Infec = {};
-std::vector<double> Inst_Comm_Infec = {};
-
 // ////////////////////////////////////////////////////////////////////////// //
 // ////////////////////////////// FILE LOADING ////////////////////////////// //
 // ////////////////////////////////////////////////////////////////////////// //
@@ -57,23 +53,15 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
             //=====NAME=====//
             if (!getline(iss, name, delim))
             {
-                cerr << "\nERROR: Unable to extract setup name." << endl;
-                cerr << "Check line: " << line << "\n"
-                     << endl;
-                cerr << "Exit...\n"
-                     << endl;
-                exit(EXIT_FAILURE);
+                std::string err_text = "Unable to extract setup name.\nCheck file line: " + line;
+                exit_with_failure_error(err_text);
             }
 
             //=====CHOICE=====//
             if (!getline(iss, choice))
             {
-                cerr << "\nERROR: Unable to extract setup choice." << endl;
-                cerr << "Check line: " << line << "\n"
-                     << endl;
-                cerr << "Exit...\n"
-                     << endl;
-                exit(EXIT_FAILURE);
+                std::string err_text = "Unable to extract setup choice.\nCheck file line: " + line;
+                exit_with_failure_error(err_text);
             }
 
             // add the new setup
@@ -82,76 +70,28 @@ Setup_MCMC_Struct load_setup(string data_pathtofile)
 
         std::string seed_str = safe_load.at("seed");
         loader.seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
-
         loader.num_iter = stoi(safe_load.at("num_iter"));
         loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
         loader.thinning = stoi(safe_load.at("thinning"));
-        loader.delim = load_delim(safe_load.at("delim"));
-        loader.dict_delim = load_delim(safe_load.at("dict_delim"));
         loader.delta_t = stod(safe_load.at("delta_t"));
-
-        //=====Check for values validity=====//
-        if (loader.num_adapt_iter >= loader.num_iter)
-        {
-            std::cerr << "\nERROR: N. of adapative iteration >= N. of iterations." << endl;
-            std::cerr << "Exit...\n"
-                      << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
 
         //=====Display=====//
         if (Verbose)
         {
-            for (const auto &pair : safe_load)
-            {
-                std::cout << pair.first << " : " << pair.second << endl;
-            }
+            std::cout << "seed : " << loader.seed << endl;
+            std::cout << "num_iter : " << loader.num_iter << endl;
+            std::cout << "num_adapt_iter : " << loader.num_adapt_iter << endl;
+            std::cout << "thinning : " << loader.thinning << endl;
+            std::cout << "delta_t : " << loader.delta_t << endl;
         }
     }
     else
     {
-        std::cerr << "\nERROR: Impossible to read: " << data_pathtofile << endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        std::string err_text = "Impossible to read file: " + data_pathtofile + ".";
+        exit_with_failure_error(err_text);
     }
 
     return loader;
-}
-
-/* Read Extra File */
-void build_extra(string data_pathtofile)
-{
-    double date, inst_val, cumul_val;
-
-    ifstream input(data_pathtofile.c_str());
-    if (input.is_open())
-    {
-        if (Verbose)
-        {
-            std::cout << "\n================EXTRA=================" << std::endl;
-            std::cout << "Data file: " << data_pathtofile << std::endl;
-        }
-
-        // Create a stringstream of the current line
-        for (string line; getline(input, line);)
-        {
-            istringstream iss(line);
-
-            // Store information in variables
-            iss >> date >> inst_val >> cumul_val;
-
-            Inst_Comm_Infec.push_back(inst_val);
-            Cumul_Comm_Infec.push_back(cumul_val);
-        }
-    }
-    else
-    {
-        cerr << "\nERROR: Impossible to read: " << data_pathtofile << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
-    }
 }
 
 // /////////////////////////////////////////////////////////////////////////// //
@@ -160,8 +100,8 @@ void build_extra(string data_pathtofile)
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;                 // Command line argument iterator
-    double inver_temp = INFINITY;   // Inverse temperature // UPDATE : temporary
+    int carg_i = 1;               // Command line argument iterator
+    double inver_temp = INFINITY; // Inverse temperature // UPDATE : temporary
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;
@@ -176,12 +116,9 @@ int main(int argc, char *argv[])
     // ===== Test if some commands were supplied ===== //
     if (argc < 2)
     {
-        cerr << "The user did not supply any command.\n";
-        cerr << "Check the list of commands through:\n"
-             << argv[0] << " -h";
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
+        std::string aux = argv[0];
+        std::string err_text = "The user did not supply any command.\nCheck the list of commands through:\n" + aux + " -h";
+        exit_with_failure_error(err_text);
     }
 
     //=====Load commands and options=====//
@@ -190,10 +127,9 @@ int main(int argc, char *argv[])
         // Command line argument asking for help
         if (string(argv[carg_i]) == string("-h") or string(argv[carg_i]) == string("--help"))
         {
-            // Show the manual using man and installed manpages
-            cerr << "Software Manual missing. Contact the developer." << endl;
-            // End the program without error
-            exit(EXIT_SUCCESS);
+            // Show the manual using man and installed manpages // UPDATE : produce a manual
+            std::string err_text = "We apologize for the inconvenience, but the Software Manual is still missing.\nPlease, contact the developer.";
+            exit_with_failure_error(err_text);
         }
 
         else if (string(argv[carg_i]) == string("-infer"))
@@ -230,7 +166,7 @@ int main(int argc, char *argv[])
             parameters_pathtofile = argv[carg_i];
         }
 
-        else if (string(argv[carg_i]) == string("-c") || string(argv[carg_i]) == string("--community"))
+        else if (string(argv[carg_i]) == string("-e") || string(argv[carg_i]) == string("--extra"))
         {
             ++carg_i;
             extra_pathtofile = argv[carg_i];
@@ -262,10 +198,9 @@ int main(int argc, char *argv[])
 
         else
         {
-            cerr << "Unrecognized option :" << argv[carg_i] << endl;
-            cerr << "Exit...\n"
-                 << endl;
-            exit(EXIT_FAILURE);
+            std::string aux = argv[carg_i];
+            std::string err_text = "Unrecognized option `" + aux + "`.";
+            exit_with_failure_error(err_text);
         }
 
         ++carg_i; // Move to the next command line argument
@@ -275,10 +210,8 @@ int main(int argc, char *argv[])
 
     if (infer && simulate)
     {
-        cerr << "Incompatible options: choose one between -infer and -simulate." << endl;
-        cerr << "Exit...\n"
-             << endl;
-        exit(EXIT_FAILURE);
+        std::string err_text = "Incompatible options: choose one between -infer and -simulate.";
+        exit_with_failure_error(err_text);
     }
 
     //=====INITIALIZATION=====//
@@ -294,7 +227,6 @@ int main(int argc, char *argv[])
 
     // Load Data
     mcmc.build_data(database_pathtofile);
-    mcmc.pre_process_data();
 
     // UPDATE: there could be plenty extra files to be store somewhere
     if (extra_pathtofile != UNDEFINED)

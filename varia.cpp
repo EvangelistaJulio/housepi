@@ -4,9 +4,9 @@
 
 using namespace std;
 
-//----------------------------------------------------------------------
-// Strategy : functional methods
-//----------------------------------------------------------------------
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////  Base_Proposer : constructor ////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
@@ -23,6 +23,11 @@ Base_Proposer::Base_Proposer(
     }
     else
     {
+        zero_start = true;
+        set_strat_zero(strategy_from_zero);
+        /* 
+        NOTE : I sometimes initialized to not valid values
+        // UPDATE : place a warning maybe
         if (valid(strategy_from_zero))
         {
             zero_start = true;
@@ -30,11 +35,11 @@ Base_Proposer::Base_Proposer(
         }
         else
         {
-            std::cerr << "ERROR: initial value " << strategy_from_zero << " and value range {low:" << _range_low_ << ", up:" << _range_low_ << "} are inconsistent." << std::endl;
-            std::cerr << "Exit...\n"
-                      << std::endl;
-            std::exit(EXIT_FAILURE);
+            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range ";
+            err_text += " {low:" + std::to_string(_range_low_) + ", up:" + std::to_string(_range_up_) + "} are inconsistent.";
+            exit_with_failure_error(err_text);
         }
+        */
     }
 };
 
@@ -98,10 +103,8 @@ void Base_Proposer::set_range(kwargs new_range)
     {
         if (_range_low_ >= _range_up_)
         {
-            std::cerr << "ERROR: Provided an inconsistent range: {" << _range_low_ << ", " << _range_up_ << std::endl;
-            std::cerr << "Exit...\n"
-                      << std::endl;
-            exit(EXIT_FAILURE);
+            std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_low_) + ", up:" + std::to_string(_range_up_) + "}.";
+            exit_with_failure_error(err_text);
         }
         else
         {
@@ -110,10 +113,8 @@ void Base_Proposer::set_range(kwargs new_range)
     }
     else
     {
-        std::cerr << "ERROR: Provided multiple definition for the range." << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        exit(EXIT_FAILURE);
+        std::string err_text = "Provided multiple definition for the range.";
+        exit_with_failure_error(err_text);
     }
 }
 
@@ -138,10 +139,9 @@ Base_Proposer *proposer_switchboard(std::string name, kwargs args, double strat_
     }
     else
     {
-        std::cerr << "ERROR: Unknown metropolis strategy " << name << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        std::string err_text = "Unknown metropolis strategy `" + name + "`.";
+        exit_with_failure_error(err_text);
+        return nullptr;
     }
 }
 
@@ -176,10 +176,8 @@ void Parameter_Dictionary::check(const std::string k)
 {
     if (params.find(k) == params.end())
     {
-        std::cerr << "ERROR: Parameter `" << k << "` is not defined." << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        std::string err_text = "Parameter `" + k + "` is not defined.\n Check your model and parameter file.";
+        exit_with_failure_error(err_text);
     }
 }
 
@@ -201,20 +199,19 @@ void Parameter_Dictionary::add_param(
     }
     else
     {
-        std::cerr << "ERROR: Parameter `" << k << "` has multiple definitions." << std::endl;
-        std::cerr << "Exit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+        std::string err_text = "Parameter `" + k + "` has multiple definitions.";
+        exit_with_failure_error(err_text);
     }
 
     // update the lists of parameters to be inferred or not
     if (new_param.get_infer())
     {
         param_to_be_inferred.push_back(k);
+        num_param_to_infer = param_to_be_inferred.size();
     }
     else
     {
-        param_not_to_be_inferred.push_back(k);
+        param_static.push_back(k);
     }
 }
 
@@ -225,7 +222,7 @@ void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
     {
         std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
-    for (std::string k : param_not_to_be_inferred)
+    for (std::string k : param_static)
     {
         std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
@@ -270,13 +267,13 @@ bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_
 }
 
 /* move is accepted */
-void Parameter_Dictionary::accept_move(const std::string k)
+void Parameter_Dictionary::accept_param_move(const std::string k)
 {
     params.at(k).update_accept_rate(true);
 }
 
 /* move is refused: restore old value in the buffer */
-void Parameter_Dictionary::refuse_move(const std::string k)
+void Parameter_Dictionary::refuse_param_move(const std::string k)
 {
     set_value(k, buffer_value);
     params.at(k).update_accept_rate(false);

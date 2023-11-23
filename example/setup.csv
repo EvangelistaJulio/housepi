@@ -1,0 +1,5 @@
+seed,None
+delta_t,0.01
+num_iter,40000
+num_adapt_iter,5000
+thinning,25

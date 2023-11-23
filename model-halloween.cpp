@@ -1,12 +1,71 @@
-// model-simpler.cpp //
+// model-halloween.cpp //
 
 #include "model.h"
 
 using namespace std;
 
-// Shared Parameter Dictionary // UPDATE : generalize for external files
-extern std::vector<double> Cumul_Comm_Infec;
-extern std::vector<double> Inst_Comm_Infec;
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// use the EPI curve for the community contribution
+std::vector<double> Cumul_EPI_Curve;
+std::vector<double> Inst_EPI_Curve;
+
+/* Read Extra File */
+void build_extra(string data_pathtofile)
+{
+	double date, inst_val, cumul_val;
+
+	ifstream input(data_pathtofile.c_str());
+	if (input.is_open())
+	{
+		if (Verbose)
+		{
+			std::cout << "\n================EXTRA=================" << std::endl;
+			std::cout << "Data file: " << data_pathtofile << std::endl;
+		}
+
+		// Create a stringstream of the current line
+		for (string line; getline(input, line);)
+		{
+			istringstream iss(line);
+
+			// Store information in variables
+			iss >> date >> inst_val >> cumul_val;
+
+			Inst_EPI_Curve.push_back(inst_val);
+			Cumul_EPI_Curve.push_back(cumul_val);
+		}
+	}
+	else
+	{
+		std::string err_text = "Impossible to read file: " + data_pathtofile + ".";
+		exit_with_failure_error(err_text);
+	}
+}
+
+/* Linear interpolation for an indexed vector. */
+double lin_idx_interp(double x_value, const std::vector<double> &y)
+{
+	size_t x_0 = (int)std::floor(x_value);
+	double output = 0.0;
+
+	if (x_0 <= 0)
+	{ // Saturate to lower value
+		output = y[0];
+	}
+	else if (x_0 >= y.size() - 1)
+	{ // Saturate to upper value
+		output = y.back();
+	}
+	else
+	{ // Calculate the interpolated y value
+		output = y[x_0] + (x_value - x_0) * (y[x_0 + 1] - y[x_0]);
+	}
+
+	return output;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // //////////////////////////////// Model : Augmented Variables //////////////////////////////// //
@@ -16,20 +75,13 @@ extern std::vector<double> Inst_Comm_Infec;
 // FIXME (temporary) : this should be automatic
 void Model::fill_model_lists()
 {
-	// model augmented variables
-	augm_list.push_back("incub_period");
-	augm_list.push_back("onset_time");
-	augm_to_be_inferred.push_back("incub_period");
-	augm_to_be_inferred.push_back("onset_time");
-	augm_with_model.push_back("incub_period");
-
-	// model rates
-	rate_list.push_back("Infectivity");
-	rate_list.push_back("Susceptibility");
+	// model group rates
+	group_rate_list.push_back("Infectivity");
+	group_rate_list.push_back("Susceptibility");
 }
 
-// FIXME: this needs to become more user friendly
 /* Initialize augmented variables (MANDATORY) */
+// FIXME: this needs to become more user friendly
 void Model::assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &rng)
 {
 	int status = this_indiv->get_status();
@@ -39,7 +91,7 @@ void Model::assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &
 		std::string augmID = "incub_period";
 		double init_value = 0.;
 
-		std::string model_name = "gamma";
+		std::string model_name = (status == HEALTHY) ? UNDEFINED : "gamma";
 		kwargs_ext model_args = {
 			{"shape", get_address("incub_shape")},
 			{"scale", get_address("incub_scale")}};
@@ -64,6 +116,17 @@ void Model::assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &
 			init_value, model_name, model_args,
 			metropolis_strategy, metropolis_args, metropolis_zero, range);
 		(status == HEALTHY) ? this_indiv->add_augm(augmID, augm_var) : this_indiv->add_augm(augmID, augm_var, rng);
+
+		// automatic insertion to sets
+		augm_set.insert(augmID);
+		if (model_name != UNDEFINED)
+		{
+			augm_with_model_set.insert(augmID);
+		}
+		if (metropolis_strategy != UNDEFINED)
+		{
+			augm_to_infer_set.insert(augmID);
+		}
 	}
 
 	//=====onset_time=====//
@@ -83,12 +146,23 @@ void Model::assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &
 		double metropolis_zero = (status == HEALTHY) ? INFINITY : init_value;
 		kwargs range = {
 			{"low", get_value("onset_low")},
-			{"up", this_indiv->get_data("study_period") + 0.1}}; // FIXME onset_time == study_period!!!
+			{"up", this_indiv->get_data("study_period")}}; // FIXME onset_time == study_period!!!
 
 		Augmented augm_var(
 			init_value, model_name, model_args,
 			metropolis_strategy, metropolis_args, metropolis_zero, range);
 		this_indiv->add_augm(augmID, augm_var);
+
+		// automatic insertion to sets
+		augm_set.insert(augmID);
+		if (model_name != UNDEFINED)
+		{
+			augm_with_model_set.insert(augmID);
+		}
+		if (metropolis_strategy != UNDEFINED)
+		{
+			augm_to_infer_set.insert(augmID);
+		}
 	}
 }
 
@@ -103,25 +177,73 @@ timetype Individual::get_infec_time() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////// Time Onset to Time of Transmission //////////////////////////// //
+// /////////////////////////////// Infectivity_Profile_Function //////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* The Time from Onset of Symptoms to Transmission (TOST) is modeled as a skew-logistic distribution (type I).
-This distribution is also a function of the incubation time `t_incub`.
-Note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
+/* Choice of the Infectivity Profile Function.
+The infectivity profile is considered equal to the Time from Onset of Symptoms to Transmission `tost`
+>	tost = <time infection infectee> - <time onset infector>
+Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
+where the pre-symptomaticvalues are rescaled as a function of the incubation time `t_incub`.
+The arguments to provide are :
+	0) "tost_alpha" : shape;
+	1) "tost_mu" : location;
+	2) "tost_sigma" : scale;
+	3) "tost_tau" : mean incubation time;
+
+Side note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
+
 ----
 Ref:
 ----
 Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
 Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
 
-/* Probability distribution function for the Infectivity Profile. */
-double Onset_to_Transm::pdf(timetype tost, timetype t_incub)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////// Model : Infectivity Profiles /////////////////////////////////// //
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize the infectivity profiles. */
+void Model::assign_infec_profile_function()
 {
-	double a = get_arg(0);
-	double m = get_arg(1);
-	double s = get_arg(2);
-	double T = get_arg(3);
+	// dictionary with the address to the model parameters for the infectivity profile
+	kwargs_ext infec_profile_args = {
+		{"tost_alpha", get_address("tost_alpha")},
+		{"tost_mu", get_address("tost_mu")},
+		{"tost_sigma", get_address("tost_sigma")},
+		{"tost_tau", get_address("tost_tau")}};
+
+	// initialize the infectivity profile function of the model
+	infec_profile_func = new Infectivity_Profile_Function(infec_profile_args);
+
+	// produce the empty matrix for the infectivity profiles look-up-tables
+	inst_profile_lookuptab = new double[num_indiv * num_indiv];
+	cumul_profile_lookuptab = new double[num_indiv * num_indiv];
+}
+
+/* Instanteneous infectivity profile. */
+double Model::compute_infec_profile_inst(size_t i, timetype t_transm)
+{
+	timetype tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
+	timetype incub_period = indiv[i].get_augm("incub_period");
+	return infec_profile_func->pdf(tost, incub_period);
+}
+
+/* Cumulative infectivity profile. */
+double Model::compute_infec_profile_cumul(size_t i, timetype t_transm)
+{
+	timetype tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
+	timetype incub_period = indiv[i].get_augm("incub_period");
+	return infec_profile_func->cdf(tost, incub_period);
+}
+
+/* Probability distribution function for the Infectivity Profile. */
+double Infectivity_Profile_Function::pdf(timetype tost, timetype t_incub)
+{
+	double a = get_arg(0); // shape argument
+	double m = get_arg(1); // location argument
+	double s = get_arg(2); // shape argument
+	double T = get_arg(3); // mean incubation period argument
 
 	double norm_pdf = (s / a) * (1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - (t_incub / T) * (std::pow(1. + std::exp((m + T) / s), -a)));
 
@@ -133,12 +255,12 @@ double Onset_to_Transm::pdf(timetype tost, timetype t_incub)
 }
 
 /* Cumulative distribution function forthe Infectivity Profile. */
-double Onset_to_Transm::cdf(timetype tost, timetype t_incub)
+double Infectivity_Profile_Function::cdf(timetype tost, timetype t_incub)
 {
-	double a = get_arg(0);
-	double m = get_arg(1);
-	double s = get_arg(2);
-	double T = get_arg(3);
+	double a = get_arg(0); // shape argument
+	double m = get_arg(1); // location argument
+	double s = get_arg(2); // shape argument
+	double T = get_arg(3); // mean incubation period argument
 
 	double norm_cdf = (1. + (t_incub / T - 1.) * std::pow(1 + std::exp(m / s), -a) - (t_incub / T) * (std::pow(1. + std::exp((m + T) / s), -a)));
 
@@ -156,42 +278,9 @@ double Onset_to_Transm::cdf(timetype tost, timetype t_incub)
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////////// Model : Infectivity Profiles /////////////////////////////////// //
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize the infectivity profiles. */
-void Model::initialize_infec_profiles()
-{
-	// dictionary with the address to the model parameters for the infectivity profile
-	kwargs_ext infec_prof_args = {
-		{"tost_alpha", get_address("tost_alpha")},
-		{"tost_mu", get_address("tost_mu")},
-		{"tost_sigma", get_address("tost_sigma")},
-		{"tost_tau", get_address("tost_tau")}};
-
-	// initialize the infectivity profile function of the model
-	infec_profile_func = new Onset_to_Transm(infec_prof_args);
-}
-
-/* Instanteneous infectivity profile. */
-double Model::infec_profile_inst(size_t i, timetype t_transm)
-{
-	timetype tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
-	timetype incub_period = indiv[i].get_augm("incub_period");
-	return infec_profile_func->pdf(tost, incub_period);
-}
-
-/* Cumulative infectivity profile. */
-double Model::infec_profile_cumul(size_t i, timetype t_transm)
-{
-	timetype tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
-	timetype incub_period = indiv[i].get_augm("incub_period");
-	return infec_profile_func->cdf(tost, incub_period);
-}
-
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void Model::update_infec_profile(size_t i)
+// compute likelihood straight
+void Model::store_augm_var_dependecies(size_t i)
 {
 	size_t h = indiv[i].home;
 	timetype t_infec_i = indiv[i].get_infec_time();
@@ -204,61 +293,63 @@ void Model::update_infec_profile(size_t i)
 
 		if (t_infec_i < t_infec_k)
 		{ // `i` : infector, `k` : infectee
-			inst_profile[from_to(i, k)] = infec_profile_inst(i, t_infec_k);
-			cumul_profile[from_to(i, k)] = infec_profile_cumul(i, t_infec_k);
+			inst_profile_lookuptab[from_to(i, k)] = compute_infec_profile_inst(i, t_infec_k);
+			cumul_profile_lookuptab[from_to(i, k)] = compute_infec_profile_cumul(i, t_infec_k);
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
-			inst_profile[from_to(k, i)] = infec_profile_inst(k, t_infec_i);
-			cumul_profile[from_to(k, i)] = infec_profile_cumul(k, t_infec_i);
+			inst_profile_lookuptab[from_to(k, i)] = compute_infec_profile_inst(k, t_infec_i);
+			cumul_profile_lookuptab[from_to(k, i)] = compute_infec_profile_cumul(k, t_infec_i);
 		}
 		// NOTE : else is the case t_infec_i == t_infec_k, i. e. nothing to update
 	}
 
 	//=====loop over all healthy residents=====//
+	t_infec_k = househ[h].end_followup;
 	for (size_t k : househ[h].susceptibles_list)
 	{
-		t_infec_k = indiv[k].get_infec_time(); // == study_period (for all suceptible onset_time = study_period, incub_period = 0)
-		cumul_profile[from_to(i, k)] = infec_profile_cumul(i, t_infec_k);
+		cumul_profile_lookuptab[from_to(i, k)] = compute_infec_profile_cumul(i, t_infec_k);
 	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////// Model : Methods (modulators)  /////////////////////////////// //
+// ////////////////////////////// Model : associated rates  ////////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the parameters controlling infectivity for each individual */
-void Model::assign_rate_to_individual(Individual *this_indiv)
+// assign to
+void Model::assign_rate_per_group_to_individual(Individual *this_indiv)
 {
 	//=====rate 0 : Infectivity=====//
 	if ((this_indiv->get_data("recov") == false) && (this_indiv->get_data("vacc_status") == 0))
 	{ // unrecovered unvaccinated
-		this_indiv->assign_rate(0, "i_naive");
+		this_indiv->assign_rate_per_group(0, "i_naive");
 	}
 	else
 	{ // vaccinated o recovered : Infectivity [REFERENCE]
-		this_indiv->assign_rate(0, REFERENCE);
+		this_indiv->assign_rate_per_group(0, REFERENCE);
 	}
 
 	//=====rate 1 : Susceptiblity=====//
 	if (this_indiv->get_data("vacc_status") == 0)
 	{ // naive : Susceptiblity [REFERENCE]
-		this_indiv->assign_rate(1, REFERENCE);
+		this_indiv->assign_rate_per_group(1, REFERENCE);
 	}
-	else 
+	else
 	{ // 1 dose
-		this_indiv->assign_rate(1, "s_vacc");
+		this_indiv->assign_rate_per_group(1, "s_vacc");
 	}
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_contact_patterns(size_t i, size_t k)
+//
+void Model::assign_rate_per_contact(size_t i, size_t k)
 {
 	bool i_is_child = (indiv[i].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
 	bool i_is_adult = (i_is_child == false);							   // adults otherwise
 
-	bool k_is_child = (indiv[k].get_data("age") < get_value("child_age"));
-	bool k_is_adult = (k_is_child == false);
+	bool k_is_child = (indiv[k].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
+	bool k_is_adult = (k_is_child == false);							   // adults otherwise
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
@@ -283,21 +374,15 @@ void Model::assign_contact_patterns(size_t i, size_t k)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Instaneous risk of infection from community. */
-double Model::community_risk_inst(timetype t1)
+double Model::comm_risk_inst(timetype t1)
 {
-	return get_value("alpha") * lin_idx_interp(t1, Inst_Comm_Infec);
+	return get_value("alpha") * lin_idx_interp(t1, Inst_EPI_Curve);
 }
 
 /* Cumulative risk of infection from community */
-double Model::community_risk_cumul(timetype t0, timetype t1)
+double Model::comm_risk_cumul(timetype t0, timetype t1)
 {
-	return get_value("alpha") * (lin_idx_interp(t1, Cumul_Comm_Infec) - lin_idx_interp(t0, Cumul_Comm_Infec));
-}
-
-/* Model the transmissability: $\frac{-\beta}{n^{\delta}}$. */
-double Model::transmissability(size_t h)
-{
-	return get_value("beta") * pow(househ[h].size, -get_value("delta"));
+	return get_value("alpha") * (lin_idx_interp(t1, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
 }
 
 /* Sum over different hazards. */
@@ -316,40 +401,28 @@ double Model::_sum_hazards_(double *profiles, size_t i)
 		}
 	}
 
-	return output * transmissability(h);
-}
-
-/* Risk of infection. */
-double Model::risk_infec(size_t i)
-{
-	timetype t_transm = indiv[i].get_infec_time();
-	return indiv[i].model_rate(1) * (community_risk_inst(t_transm) + _sum_hazards_(inst_profile, i));
-}
-
-/* Risk of surviving (integral of risk_infec from the time of the first case). */
-double Model::risk_surv(size_t i)
-{
-	timetype t0 = househ[indiv[i].home].infec_time;
-	timetype t_transm = indiv[i].get_infec_time();
-	return indiv[i].model_rate(1) * (community_risk_cumul(t0, t_transm) + _sum_hazards_(cumul_profile, i));
+	return output * get_value("beta") * pow(get_value("median_size") /househ[h].size, get_value("delta"));
 }
 
 /* Compute the log-likelihood within household. */
 double Model::compute_loglike(size_t h)
 {
 	double loglike_house = 0.0;
+	timetype ti;
+	timetype t0 = househ[h].start_followup;
+	timetype tf = househ[h].end_followup;
 
 	// Contribution of healthy residents
 	for (size_t i : househ[h].susceptibles_list)
 	{
-		loglike_house -= risk_surv(i);
+		loglike_house -= indiv[i].model_rate(1) * (comm_risk_cumul(t0, tf) + _sum_hazards_(cumul_profile_lookuptab, i));
 	}
 
 	// Contribution of symptomatic residents
 	for (size_t i : househ[h].infectors_list)
 	{
 		// Contribution of model associated to augmented variables
-		for (std::string augmID : augm_with_model)
+		for (std::string augmID : augm_with_model_set)
 		{
 			loglike_house += indiv[i].augm_model_log_pdf(augmID);
 		}
@@ -357,12 +430,21 @@ double Model::compute_loglike(size_t h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
-			loglike_house += std::log(risk_infec(i)) - risk_surv(i);
+			ti = indiv[i].get_infec_time();
+			loglike_house += std::log(indiv[i].model_rate(1) * (comm_risk_inst(ti) + _sum_hazards_(inst_profile_lookuptab, i)));
+			loglike_house -= indiv[i].model_rate(1) * (comm_risk_cumul(t0, tf) + _sum_hazards_(cumul_profile_lookuptab, i));
 		}
 	}
 
 	return loglike_house;
 }
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////// Model : Methods (simulation)  /////////////////////////////// //
@@ -384,7 +466,7 @@ void Model::simulate_infection(timetype dt, std::mt19937_64 &rng)
 			indiv[i].init_augm("incub_period", rng);
 		}
 
-		// find maximum study periodo within the household
+		// find maximum study period within the household
 		end_followup = 0;
 		std::vector<size_t> copy_list = househ[h].infectors_list;
 		for (size_t i : copy_list)
@@ -399,7 +481,7 @@ void Model::simulate_infection(timetype dt, std::mt19937_64 &rng)
 		}
 
 		//=====simulate infection within household=====//
-		for (timetype t = dt + househ[h].infec_time; ((t < end_followup) && !househ[h].susceptibles_list.empty()); t += dt)
+		for (timetype t = dt + househ[h].start_followup; ((t < end_followup) && !househ[h].susceptibles_list.empty()); t += dt)
 		{
 			std::vector<size_t> copy_list = househ[h].susceptibles_list;
 			for (size_t i : copy_list)
@@ -408,10 +490,8 @@ void Model::simulate_infection(timetype dt, std::mt19937_64 &rng)
 				indiv[i].set_status(SYMPTOMATIC);
 
 				indiv[i].set_augm("onset_time", t + unif(rng) * dt + indiv[i].get_augm("incub_period"));
-				update_infec_profile(i);
-				proba = 1 - exp(-risk_infec(i) * dt);
-
-				// cerr << indiv[i].get_index() << " " << t << " " << proba << endl;
+				store_augm_var_dependecies(i);
+				proba = 1 - exp(-indiv[i].model_rate(1) * (comm_risk_inst(t) + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
 
 				// refuse
 				if (unif(rng) >= proba)

@@ -113,8 +113,18 @@ void Household::update_first_case()
 			new_case0 = i;
 		}
 	}
-	infec_time = new_t0;
 	first_case = new_case0;
+	start_followup = new_t0;
+}
+
+void Household::assign_end_followup()
+{
+	// find maximum study period within the household
+	end_followup = 0;
+	for (size_t i : infectors_list)
+	{
+		end_followup = std::max(end_followup, (*indiv_ptr)[i].get_data("study_period"));
+	}
 }
 
 /* Link an individual to the household */
