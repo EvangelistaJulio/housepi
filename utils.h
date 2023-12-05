@@ -3,7 +3,6 @@
 #ifndef DEF_USER_MODEL__H
 #define DEF_USER_MODEL__H
 
-
 //=====global macros=====//
 #define DELIM ','
 #define DICT_DELIM '/'
@@ -21,8 +20,10 @@
 #include <sstream>
 #include <iomanip>
 
-const std::string UNDEFINED = "None";           // name for undefined choice
-const std::string REFERENCE = "_reference_";    // name for reference choice
+// NOTE : maybe it's time to give-in and fall back to `boost`
+
+const std::string UNDEFINED = "None";        // name for undefined choice
+const std::string REFERENCE = "_reference_"; // name for reference choice
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////////////////// TYPEDEF //////////////////////////// //
@@ -31,9 +32,9 @@ const std::string REFERENCE = "_reference_";    // name for reference choice
 typedef std::map<std::string, double> kwargs;
 typedef std::map<std::string, const double *> kwargs_ext;
 
-///////////////////////////////////////////////////////////////////////
-// /////////////////////// Error Functions ///////////////////////// //
-///////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+// /////////////////////// Raise Error Functions ///////////////////////// //
+/////////////////////////////////////////////////////////////////////////////
 
 void exit_with_failure_error(std::string &error_text);
 void build_column_error(std::string var_name, std::string &line);
@@ -149,8 +150,8 @@ private:
 class Uniform_Distr : public Distribution_1D
 {
 public:
-    Uniform_Distr(kwargs new_args = {{"low", (double)0.0}, {"up", (double)1.0}}) : Distribution_1D(new_args, {"low", "up"}) { set_name("uniform"); }
-    Uniform_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"low", "up"}) { set_name("uniform"); }
+    Uniform_Distr(kwargs new_args = {{"min", (double)0.0}, {"max", (double)1.0}}) : Distribution_1D(new_args, {"min", "max"}) { set_name("uniform"); }
+    Uniform_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"min", "max"}) { set_name("uniform"); }
     ~Uniform_Distr() {}
 
     double pdf(double x) override;
@@ -166,15 +167,27 @@ public:
 class Normal_Distr : public Distribution_1D
 {
 public:
-    // Constructors
     Normal_Distr(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args, {"mean", "sd"}) { set_name("normal"); }
     Normal_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"mean", "sd"}) { set_name("normal"); }
     ~Normal_Distr(){};
 
+    virtual double pdf(double x) override;
+    virtual double log_pdf(double x) override;
+    virtual double log_ratio(double x, double y) override;
+    virtual double rand(std::mt19937_64 &rng) override;
+};
+
+class Normal_Distr_int : public Normal_Distr
+{
+public:
+    Normal_Distr_int(kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Normal_Distr(new_args) { set_name("normal_int"); }
+    Normal_Distr_int(kwargs_ext new_args_ext) : Normal_Distr(new_args_ext) { set_name("normal_int"); }
+    ~Normal_Distr_int(){};
+
     double pdf(double x) override;
-    double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    double log_pdf(double x) override { return std::log(pdf(x)); }
+    double log_ratio(double x, double y) override { return std::log(pdf(y) / pdf(x)); }
+    double rand(std::mt19937_64 &rng) override { return std::round(Normal_Distr::rand(rng)); }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -184,15 +197,27 @@ public:
 class Lognorm_Distr : public Distribution_1D
 {
 public:
-    // Constructors
     Lognorm_Distr(kwargs new_args = {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}) : Distribution_1D(new_args, {"meanlog", "sdlog"}) { set_name("lognorm"); }
     Lognorm_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"meanlog", "sdlog"}) { set_name("lognorm"); }
     ~Lognorm_Distr(){};
 
+    virtual double pdf(double x) override;
+    virtual double log_pdf(double x) override;
+    virtual double log_ratio(double x, double y) override;
+    virtual double rand(std::mt19937_64 &rng) override;
+};
+
+class Lognorm_Distr_int : public Lognorm_Distr
+{
+public:
+    Lognorm_Distr_int(kwargs new_args = {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}) : Lognorm_Distr(new_args) { set_name("lognorm_int"); }
+    Lognorm_Distr_int(kwargs_ext new_args_ext) : Lognorm_Distr(new_args_ext) { set_name("lognorm_int"); }
+    ~Lognorm_Distr_int(){};
+
     double pdf(double x) override;
-    double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    double log_pdf(double x) override { return std::log(pdf(x)); }
+    double log_ratio(double x, double y) override { return std::log(pdf(y) / pdf(x)); }
+    double rand(std::mt19937_64 &rng) override { return std::round(Lognorm_Distr::rand(rng)); }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -202,16 +227,17 @@ public:
 class Gamma_Distr : public Distribution_1D
 {
 public:
-    // Constructors
     Gamma_Distr(kwargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args, {"shape", "scale"}) { set_name("gamma"); }
     Gamma_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"shape", "scale"}) { set_name("gamma"); }
     ~Gamma_Distr(){};
 
-    double pdf(double x) override;
-    double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    virtual double pdf(double x) override;
+    virtual double log_pdf(double x) override;
+    virtual double log_ratio(double x, double y) override;
+    virtual double rand(std::mt19937_64 &rng) override;
 };
+
+// FIXME : the discretization requies boost (for incomplete gamma function)
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Weibull_Distr : class ///////////////////// //
@@ -220,33 +246,57 @@ public:
 class Weibull_Distr : public Distribution_1D
 {
 public:
-    // Constructors
     Weibull_Distr(kwargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args, {"shape", "scale"}) { set_name("weibull"); }
     Weibull_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"shape", "scale"}) { set_name("weibull"); }
     ~Weibull_Distr(){};
 
-    double pdf(double x) override;
-    double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    virtual double pdf(double x) override;
+    virtual double log_pdf(double x) override;
+    virtual double log_ratio(double x, double y) override;
+    virtual double rand(std::mt19937_64 &rng) override;
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Rayleigh_Distr : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
+class Weibull_Distr_int : public Weibull_Distr
+{
+public:
+    Weibull_Distr_int(kwargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Weibull_Distr(new_args) { set_name("weibull_int"); }
+    Weibull_Distr_int(kwargs_ext new_args_ext) : Weibull_Distr(new_args_ext) { set_name("weibull_int"); }
+    ~Weibull_Distr_int(){};
+
+    double pdf(double x) override;
+    double log_pdf(double x) override { return std::log(pdf(x)); }
+    double log_ratio(double x, double y) override { return std::log(pdf(y) / pdf(x)); }
+    double rand(std::mt19937_64 &rng) override { return std::round(Weibull_Distr::rand(rng)); }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////// Rayleigh_Distr : class ////////////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Rayleigh_Distr : public Distribution_1D
 {
 public:
-    // Constructors
     Rayleigh_Distr(kwargs new_args = {{"scale", (double)1.0}}) : Distribution_1D(new_args, {"scale"}) { set_name("rayleigh"); }
     Rayleigh_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"scale"}) { set_name("rayleigh"); }
     ~Rayleigh_Distr(){};
 
+    virtual double pdf(double x) override;
+    virtual double log_pdf(double x) override;
+    virtual double log_ratio(double x, double y) override;
+    virtual double rand(std::mt19937_64 &rng) override;
+};
+
+class Rayleigh_Distr_int : public Rayleigh_Distr
+{
+public:
+    Rayleigh_Distr_int(kwargs new_args = {{"scale", (double)1.0}}) : Rayleigh_Distr(new_args) { set_name("rayleigh_int"); }
+    Rayleigh_Distr_int(kwargs_ext new_args_ext) : Rayleigh_Distr(new_args_ext) { set_name("rayleigh_int"); }
+    ~Rayleigh_Distr_int(){};
+
     double pdf(double x) override;
-    double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    double log_pdf(double x) override { return std::log(pdf(x)); }
+    double log_ratio(double x, double y) override { return std::log(pdf(y) / pdf(x)); }
+    double rand(std::mt19937_64 &rng) override { return std::round(Rayleigh_Distr::rand(rng)); }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -260,10 +310,23 @@ public:
     Exponential_Distr(kwargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"rate"}) { set_name("exp"); }
     ~Exponential_Distr(){};
 
+    virtual double pdf(double x) override;
+    virtual double log_pdf(double x) override;
+    virtual double log_ratio(double x, double y) override;
+    virtual double rand(std::mt19937_64 &rng) override;
+};
+
+class Exponential_Distr_int : public Exponential_Distr
+{
+public:
+    Exponential_Distr_int(kwargs new_args = {{"rate", (double)1.0}}) : Exponential_Distr(new_args) { set_name("exp_int"); }
+    Exponential_Distr_int(kwargs_ext new_args_ext) : Exponential_Distr(new_args_ext) { set_name("exp_int"); }
+    ~Exponential_Distr_int(){};
+
     double pdf(double x) override;
     double log_pdf(double x) override;
     double log_ratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    double rand(std::mt19937_64 &rng) override { return std::round(Exponential_Distr::rand(rng)); }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -286,9 +349,17 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, kwargs_i
     {
         return new Normal_Distr(args);
     }
+    else if (name == "normal_int")
+    {
+        return new Normal_Distr_int(args);
+    }
     else if (name == "lognorm")
     {
         return new Lognorm_Distr(args);
+    }
+    else if (name == "lognorm_int")
+    {
+        return new Lognorm_Distr_int(args);
     }
     else if (name == "gamma")
     {
@@ -298,13 +369,25 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, kwargs_i
     {
         return new Weibull_Distr(args);
     }
+    else if (name == "weibull_int")
+    {
+        return new Weibull_Distr_int(args);
+    }
     else if (name == "rayleigh")
     {
         return new Rayleigh_Distr(args);
     }
+    else if (name == "rayleigh_int")
+    {
+        return new Rayleigh_Distr_int(args);
+    }
     else if (name == "exp")
     {
         return new Exponential_Distr(args);
+    }
+    else if (name == "exp_int")
+    {
+        return new Exponential_Distr_int(args);
     }
     else
     {

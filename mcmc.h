@@ -26,7 +26,7 @@ public:
 	unsigned num_iter = 20000;
 	unsigned num_adapt_iter = 5000;
 	unsigned thinning = 20;
-	timetype delta_t = 0.01;
+	double delta_t = 0.01;
 };
 
 ////////////////////////////////////////////////////////////////////////

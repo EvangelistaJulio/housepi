@@ -64,13 +64,13 @@ public:
 
 private:
 	//=====valid : functional methods=====//
-	double _range_low_ = -INFINITY;
-	double _range_up_ = INFINITY;
+	double _range_min_ = -INFINITY;
+	double _range_max_ = INFINITY;
 	bool (Base_Proposer::*_valid_func_)(double new_val);
 
-	bool _valid_range_low_(double x) { return (x > _range_low_); }
-	bool _valid_range_up_(double x) { return (x < _range_up_); }
-	bool _valid_range_both_(double x) { return _valid_range_low_(x) && _valid_range_up_(x); }
+	bool _valid_range_min_(double x) { return (x > _range_min_); }
+	bool _valid_range_max_(double x) { return (x < _range_max_); }
+	bool _valid_range_both_(double x) { return _valid_range_min_(x) && _valid_range_max_(x); }
 	bool _valid_dummy_(double x)
 	{
 		UNUSED(x);
@@ -156,9 +156,9 @@ class Uniform_Proposer : public Base_Proposer
 public:
 	//=====Constructors=====//
 	Uniform_Proposer(
-		kwargs new_args = {{"low", (double)-0.5}, {"up", (double)0.5}},
+		kwargs new_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"low", "up"})
+		kwargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"min", "max"})
 	{
 		_propose_method_ = &Uniform_Proposer::_add_to_previous_;
 		_log_ratio_method_ = &Uniform_Proposer::_log_ratio_symm_;

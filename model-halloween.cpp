@@ -4,7 +4,6 @@
 
 using namespace std;
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,8 +281,8 @@ void Model::assign_augmented_variables(std::mt19937_64 &rng)
 			*/
 
 			kwargs range = {
-				{"low", 0.0},
-				{"up", get_value("incub_max_value")}};
+				{"min", 0.0},
+				{"max", get_value("incub_max_value")}};
 
 			Augmented augm_var(
 				init_value, model_name, model_args,
@@ -318,8 +317,8 @@ void Model::assign_augmented_variables(std::mt19937_64 &rng)
 
 			double metropolis_zero = (status == HEALTHY) ? INFINITY : init_value;
 			kwargs range = {
-				{"low", get_value("onset_low")},
-				{"up", indiv[i].get_data("study_period")}}; // FIXME onset_time == study_period!!!
+				{"min", get_value("onset_min")},
+				{"max", indiv[i].get_data("study_period")}}; // FIXME onset_time == study_period!!!
 
 			Augmented augm_var(
 				init_value, model_name, model_args,

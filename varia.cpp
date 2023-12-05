@@ -36,7 +36,7 @@ Base_Proposer::Base_Proposer(
         else
         {
             std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range ";
-            err_text += " {low:" + std::to_string(_range_low_) + ", up:" + std::to_string(_range_up_) + "} are inconsistent.";
+            err_text += " {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "} are inconsistent.";
             exit_with_failure_error(err_text);
         }
         */
@@ -75,14 +75,14 @@ void Base_Proposer::set_range(kwargs new_range)
 
     for (auto const &x : new_range)
     {
-        if (x.first == "low")
+        if (x.first == "min")
         {
-            _range_low_ = x.second;
+            _range_min_ = x.second;
             condition += 2;
         }
-        else if (x.first == "up")
+        else if (x.first == "max")
         {
-            _range_up_ = x.second;
+            _range_max_ = x.second;
             condition += 3;
         }
     }
@@ -93,17 +93,17 @@ void Base_Proposer::set_range(kwargs new_range)
     }
     else if (condition == 2)
     {
-        _valid_func_ = &Base_Proposer::_valid_range_low_;
+        _valid_func_ = &Base_Proposer::_valid_range_min_;
     }
     else if (condition == 3)
     {
-        _valid_func_ = &Base_Proposer::_valid_range_up_;
+        _valid_func_ = &Base_Proposer::_valid_range_max_;
     }
     else if (condition == 5)
     {
-        if (_range_low_ >= _range_up_)
+        if (_range_min_ >= _range_max_)
         {
-            std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_low_) + ", up:" + std::to_string(_range_up_) + "}.";
+            std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "}.";
             exit_with_failure_error(err_text);
         }
         else
@@ -149,19 +149,19 @@ std::string Base_Proposer::display(char delim, char dict_delim)
 {
     std::string output = distr_ptr->display(delim, dict_delim);
     output += delim;
-    if (_range_low_ > -INFINITY)
+    if (_range_min_ > -INFINITY)
     {
-        std::string aux = "low";
-        output += aux + dict_delim + std::to_string(_range_low_);
-        if (_range_up_ < INFINITY)
+        std::string aux = "min";
+        output += aux + dict_delim + std::to_string(_range_min_);
+        if (_range_max_ < INFINITY)
         {
             output += dict_delim;
         }
     }
-    if (_range_up_ < INFINITY)
+    if (_range_max_ < INFINITY)
     {
-        std::string aux = "up";
-        output += aux + dict_delim + std::to_string(_range_up_);
+        std::string aux = "max";
+        output += aux + dict_delim + std::to_string(_range_max_);
     }
 
     return output;
@@ -243,7 +243,7 @@ void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
     }
 }
 
-/* FIXME */
+/* propose a valid move */
 bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
 {
     double new_val = params.at(k).propose(rng); // propose new value
