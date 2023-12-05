@@ -6,7 +6,6 @@
 #define DELIM ','
 #define DICT_DELIM '/'
 #define OPTION_DELIM ':'
-#define CONTINUOS_TIME      // UPDATE: options to switch to integer time
 #define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
 
 #include <algorithm>

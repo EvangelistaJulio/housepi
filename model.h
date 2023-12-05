@@ -22,21 +22,8 @@ extern bool Verbose;
 // Shared Parameter Dictionary // UPDATE : generalize for external files
 void build_extra(std::string data_pathtofile);
 
-///////////////////////////////////////////////////////////////////////
-// //////////////// Onset to Infectivity_Profile_Function : class ////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-class Infectivity_Profile_Function : public Base_Distrib
-{
-public:
-	// Constructors
-	Infectivity_Profile_Function(kwargs new_args) : Base_Distrib(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infectivity_Profile_Function(kwargs_ext new_args_ext) : Base_Distrib(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	~Infectivity_Profile_Function(){};
-
-	double pdf(timetype tost, timetype t_incub);
-	double cdf(timetype tost, timetype t_incub);
-};
+// forward declaration of the Infectivity Profile Function
+class Infectivity_Profile_Function;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////// Model : class /////////////////////////////////////////// //

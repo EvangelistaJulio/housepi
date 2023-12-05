@@ -553,12 +553,15 @@ void MCMC::build_data(std::string data_pathtofile)
         for (Individual this_indiv : aux_individuals)
         {
             add_individual(this_indiv);
+            num_cases += (this_indiv.get_status() != HEALTHY);
         }
 
         //=====assign structure of the community=====//
         assign_community_structure("HH_idx");
 
         //=====initialize contact patterns=====//
+        // FIXME : this should be optional
+        // FIXME : missing report
         contact_patterns = new const double *[num_indiv * num_indiv];
         std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
 
@@ -571,11 +574,8 @@ void MCMC::build_data(std::string data_pathtofile)
                 assign_rate_per_contact(i, k);
                 assign_rate_per_contact(k, i);
             }
-
-            //-----descriptive statistics-----//
-            num_cases += (indiv[i].get_status() != HEALTHY);
         }
-
+      
         //=====clean up list of headers for output files=====//
         data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
         data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
