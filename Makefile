@@ -6,7 +6,7 @@ NAME := $(notdir $(basename $(MODEL)))
 FLDR := $(shell dirname ${MODEL})
 
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=gnu++11 -I$(shell pwd) -Ofast 
+CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)
 
 # List of source files
 SRCS := main.cpp mcmc.cpp $(FLDR)/$(NAME).cpp individual.cpp varia.cpp utils.cpp
@@ -27,12 +27,10 @@ $(EXECUTABLE): $(OBJS)
 
 # For the model object
 $(NAME).o: $(FLDR)/$(NAME).cpp
-	$(info Compiling $< to $@...)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # For all other objects
 %.o: %.cpp
-	$(info Compiling $< to $@...)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # To clean objects

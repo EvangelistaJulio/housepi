@@ -44,7 +44,7 @@ public:
 	~Individual(){};
 
 	//=====Methods for the Model=====//
-	timetype get_infec_time() const;
+	double get_infec_time() const;
 
 	//=====Getter=====//
 	bool get_status() const { return status; }
@@ -105,8 +105,8 @@ public:
 	int house_index = -1;
 	size_t size = 0;
 	size_t first_case = -1;
-	timetype start_followup = INFINITY;
-	timetype end_followup = 0;
+	double start_followup = INFINITY;
+	double end_followup = 0;
 	std::vector<size_t> susceptibles_list = {};
 	std::vector<size_t> infectors_list = {};
 

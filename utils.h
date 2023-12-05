@@ -3,6 +3,8 @@
 #ifndef DEF_USER_MODEL__H
 #define DEF_USER_MODEL__H
 
+
+//=====global macros=====//
 #define DELIM ','
 #define DICT_DELIM '/'
 #define OPTION_DELIM ':'
@@ -25,13 +27,6 @@ const std::string REFERENCE = "_reference_";    // name for reference choice
 ///////////////////////////////////////////////////////////////////////
 // //////////////////////////// TYPEDEF //////////////////////////// //
 ///////////////////////////////////////////////////////////////////////
-
-#ifdef CONTINUOS_TIME
-typedef double timetype; // time values type
-#else
-typedef int timetype;
-// UPDATE : turn distributions into discrete LUT
-#endif
 
 typedef std::map<std::string, double> kwargs;
 typedef std::map<std::string, const double *> kwargs_ext;

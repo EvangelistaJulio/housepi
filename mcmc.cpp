@@ -548,13 +548,16 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             model_report[r].emplace("[reference]", 0);
         }
-        // initialize array of individuals
+        //-----initialize array of individuals-----//
         indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
         {
             add_individual(this_indiv);
             num_cases += (this_indiv.get_status() != HEALTHY);
         }
+
+        //=====assign augmented variables to all individuals=====//
+        assign_augmented_variables(rng);
 
         //=====assign structure of the community=====//
         assign_community_structure("HH_idx");
@@ -661,9 +664,6 @@ void MCMC::add_individual(Individual new_indiv)
                 }
             }
         }
-
-        //-----Assign Augmented Variables-----//
-        assign_augm_to_individual_(&new_indiv, rng);
 
         //-----Store New Individual-----//
         indiv[num_indiv] = new_indiv;

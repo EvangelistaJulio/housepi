@@ -100,8 +100,8 @@ WARNING: this strucutre assumes a single first infector.
 */
 void Household::update_first_case()
 {
-	timetype t_infec;
-	timetype new_t0 = INFINITY; // NOTE: init to impossible values
+	double t_infec;
+	double new_t0 = INFINITY; // NOTE: init to impossible values
 	size_t new_case0 = -1;		// NOTE: init to impossible values
 
 	for (size_t i : infectors_list)

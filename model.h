@@ -57,7 +57,7 @@ public:
 	int get_status(size_t i) const { return indiv[i].get_status(); }
 	
 	void assign_infec_profile_function();
-	void assign_augm_to_individual_(Individual *this_indiv, std::mt19937_64 &rng); // UPDATE: temporary
+	void assign_augmented_variables(std::mt19937_64 &rng); // UPDATE: temporary
 	void assign_rate_per_group_to_individual(Individual *this_indiv);
 	void fill_model_lists(); // UPDATE: temporary
 
@@ -65,7 +65,7 @@ public:
 
 	double compute_loglike(size_t h);
 
-	void simulate_infection(timetype delta_t, std::mt19937_64 &rng);
+	void simulate_infection(double delta_t, std::mt19937_64 &rng);
 
 	//=====Optional Methods=====//
 
@@ -74,14 +74,11 @@ public:
 	double get_contact_from_to(size_t i, size_t k) { return (*contact_patterns[from_to(i, k)]); }
 
 	//=====Infectivity Profiles=====//
-	double compute_infec_profile_inst(size_t i, timetype t_transm);
-	double compute_infec_profile_cumul(size_t i, timetype t_transm);
+	double compute_infec_profile_inst(size_t i, double t_transm);
+	double compute_infec_profile_cumul(size_t i, double t_transm);
 
 	//=====LogLikelihood=====//
 	double _sum_hazards_(double *profiles, size_t idx);
-
-	double comm_risk_inst(timetype t1);
-	double comm_risk_cumul(timetype t0, timetype t1);
 };
 
 #endif // MODEL__H
