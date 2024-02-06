@@ -28,7 +28,7 @@ private:
 	int status = 0;
 	int index = 0;
 
-	std::unordered_map<std::string, double> data = {};
+	sdargs data = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
 
 	const double **_rate_ptr = nullptr;
@@ -36,10 +36,10 @@ private:
 public:
 	//=====Public Attributes=====//
 	size_t home = -1;
-	std::string * _which_rate = nullptr;
+	std::string *_which_rate = nullptr;
 
 	//=====Constructors=====//
-	Individual(int status, int index, std::unordered_map<std::string, double> data);
+	Individual(sdargs data);
 	Individual() = default;
 	~Individual(){};
 
@@ -56,10 +56,8 @@ public:
 	{
 		if (data.find(dataID) == data.end())
 		{
-			std::cerr << "\nERROR: data column `" << dataID << "` unknown." << std::endl;
-			std::cerr << "Exit...\n"
-					  << std::endl;
-			std::exit(EXIT_FAILURE);
+			std::string err_text =  "Data column `" + dataID + "` unknown.";
+			exit_with_failure_error(err_text);
 		}
 		return data.at(dataID);
 	}

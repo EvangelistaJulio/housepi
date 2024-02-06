@@ -2,8 +2,6 @@
 
 #include "mcmc.h"
 
-using namespace std;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////  MCMC : setter ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -83,7 +81,7 @@ void MCMC::move_single_param(std::string parID)
         //=====Metropolis-Hastings=====//
         Q = inverse_temperature * (new_global_loglike - get_global_loglike());
         Q += get_move_log_ratio();
-        if (std::log(unif(rng)) < Q)
+        if (log(unif(rng)) < Q)
         {
             accept_param_move(parID);
             set_global_loglike(new_global_loglike);
@@ -113,7 +111,7 @@ void MCMC::move_parameters()
 }
 
 /* Sweep over all model parameters plus adaptive step. */
-void MCMC::move_and_adapt_parameters(unsigned step)
+void MCMC::move_and_adapt_parameters(unsigned step, double target)
 {
     std::string parID = UNDEFINED;
     double adapt_ratio = (double)(1.0 + step) / setup.num_adapt_iter;
@@ -122,7 +120,7 @@ void MCMC::move_and_adapt_parameters(unsigned step)
     {
         parID = param_to_be_inferred[param_picker(rng)];
         move_single_param(parID);
-        adapt(parID, adapt_ratio);
+        adapt(parID, adapt_ratio, target);
     }
 }
 
@@ -163,7 +161,7 @@ void MCMC::move_augm_variables()
                     Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
                     Q -= log_ratio_proposal;
 
-                    if (std::log(unif(rng)) < Q)
+                    if (log(unif(rng)) < Q)
                     {
                         househ[h].set_loglike(new_loglike_of_HH);
                         set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
@@ -270,351 +268,6 @@ void MCMC::simulation(std::string output_filename)
     initialize_model(false);
     simulate_infection(setup.delta_t, rng);
     print_augm_variables(output_filename);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////  MCMC : load parameters //////////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Model Parameters file */
-void MCMC::build_parameters(std::string data_pathtofile)
-{
-    std::ifstream input(data_pathtofile.c_str());
-
-    if (input.is_open())
-    {
-        if (Verbose)
-        {
-            std::cout << "\n=============PARAMETERS===============" << std::endl;
-            std::cout << "Model file: " << data_pathtofile << "\n"
-                      << std::endl;
-        }
-
-        // Create a stringstream of the current line
-        for (std::string line; getline(input, line);)
-        {
-            std::string name, value_str, infer, strategy, rate_str, range_str, prior_name, prior_args_str;
-            double value;
-            kwargs prior_args = {}, rate = {}, range = {};
-            std::istringstream iss(line);
-
-            //=====NAME=====//
-            if (!getline(iss, name, DELIM))
-            {
-                build_column_error("name", line);
-            }
-
-            //=====VALUE=====//
-            if (!getline(iss, value_str, DELIM))
-            {
-                build_column_error("value", line);
-            }
-            value = stod(value_str);
-
-            //=====INFER=====//
-            if (!getline(iss, infer, DELIM))
-            {
-                build_column_error("infer", line);
-            }
-
-            if (stobool(infer) == true)
-            {
-                //=====PRIOR=====//
-                if (!getline(iss, prior_name, DELIM))
-                {
-                    build_column_error("prior", line);
-                }
-
-                //=====ARGS=====//
-                if (!getline(iss, prior_args_str, DELIM))
-                {
-                    build_column_error("args", line);
-                }
-                prior_args = parse_dict_args(prior_args_str, DICT_DELIM);
-
-                //=====STRATEGY=====//
-                if (!getline(iss, strategy, DELIM))
-                {
-                    build_column_error("strategy", line);
-                }
-
-                //=====STRATEGY_ARGS=====//
-                if (!getline(iss, rate_str, DELIM))
-                {
-                    build_column_error("strat_args", line);
-                }
-                rate = parse_dict_args(rate_str, DICT_DELIM);
-
-                //=====RANGE=====//
-                if (!getline(iss, range_str, DELIM))
-                {
-                    build_column_error("range", line);
-                }
-                range = parse_dict_args(range_str, DICT_DELIM);
-
-                // add entry to shared parameter dictionary
-                add_param(name, value, prior_name, prior_args, strategy, rate, range);
-            }
-            else
-            {
-                // add entry to shared parameter dictionary
-                add_param(name, value);
-            }
-        }
-
-        //=====Initialize the uniform parameter picker=====//
-        param_picker = std::uniform_int_distribution<size_t>(0, num_param_to_infer - 1);
-
-        // display a summary of the used parameters
-        if (Verbose)
-        {
-            display_parameters();
-        }
-    }
-    else
-    {
-        std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
-        exit_with_failure_error(err_text);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////  MCMC : print parameters //////////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize the output param file with column names and initial values */
-void MCMC::init_param_file(std::string output_filename)
-{
-    param_ofstream.open(output_filename.c_str());
-
-    if (param_ofstream.is_open())
-    {
-        if (Verbose)
-        {
-            std::cout << "Inferred parameter file: " << output_filename << std::endl;
-        }
-
-        param_ofstream << "iter" << DELIM << "loglike";
-        for (std::string augmID : augm_to_infer_set)
-        {
-            param_ofstream << DELIM << "augm_" << augmID << "__a%";
-        }
-        for (std::string parID : param_to_be_inferred)
-        {
-            param_ofstream << DELIM << parID << DELIM << parID << "__a%";
-        }
-        param_ofstream << std::endl;
-        // print_parameters(0); // NOTE: meaningless if augmented steps are not saved
-    }
-    else
-    {
-        std::string err_text = "Unable to open file `" + output_filename + "`.";
-        exit_with_failure_error(err_text);
-    }
-}
-
-/* Print the model parameters at the given iteration time */
-void MCMC::print_parameters(unsigned step)
-{
-    if (param_ofstream.is_open())
-    {
-        param_ofstream << step << DELIM << get_global_loglike();
-        for (std::string augmID : augm_to_infer_set)
-        {
-            param_ofstream << DELIM << 100.0 * ((double)m_num_accept_data[augmID] / m_num_propos_data[augmID]);
-        }
-        for (std::string parID : param_to_be_inferred)
-        {
-            param_ofstream << DELIM << get_value(parID) << DELIM << 100.0 * get_accept_rate(parID);
-        }
-        param_ofstream << std::endl;
-    }
-    else
-    {
-        std::string err_text = "Output file closed unexpectedly.";
-        exit_with_failure_error(err_text);
-    }
-}
-
-/* Print the ensemble of augmented variables */
-void MCMC::print_augm_variables(std::string output_filename)
-{
-    std::ofstream augm_ofstream;
-    augm_ofstream.open(output_filename.c_str());
-
-    if (augm_ofstream.is_open())
-    {
-        if (Verbose)
-        {
-            std::cout << "Augmented variable file: " << output_filename << std::endl;
-        }
-
-        //=====Print column headers=====//
-        augm_ofstream << "index" << DELIM << "status";
-        for (std::string dataID : data_headers)
-        {
-            augm_ofstream << DELIM << dataID;
-        }
-        for (std::string augmID : augm_set)
-        {
-            augm_ofstream << DELIM << augmID;
-        }
-        augm_ofstream << std::endl;
-
-        for (size_t i = 0; i < num_indiv; i++)
-        {
-            augm_ofstream << indiv[i].get_index() << DELIM << indiv[i].get_status();
-            for (std::string dataID : data_headers)
-            {
-                augm_ofstream << DELIM << indiv[i].get_data(dataID);
-            }
-            for (std::string augmID : augm_set)
-            {
-                augm_ofstream << DELIM << indiv[i].get_augm(augmID);
-            }
-            augm_ofstream << std::endl;
-        }
-
-        augm_ofstream.close();
-    }
-    else
-    {
-        std::string err_text = "Unable to open file `" + output_filename + "`.";
-        exit_with_failure_error(err_text);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// //////////////////////////////////  MCMC : buil_data //////////////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read data file and pre-process the data*/
-void MCMC::build_data(std::string data_pathtofile)
-{
-    ifstream input(data_pathtofile.c_str());
-    std::vector<Individual> aux_individuals = {};
-
-    std::string line;
-    getline(input, line);
-    istringstream iss(line);
-    std::string token;
-    unordered_map<string, double> data = {};
-    int num_cases = 0;
-    size_t n_col;
-
-    if (input.is_open())
-    {
-        if (Verbose)
-        {
-            std::cout << "\n================DATA=================" << std::endl;
-            std::cout << "Data file: " << data_pathtofile << std::endl;
-        }
-
-        //=====Read column names for variables in the model=====//
-
-        // Tokenize the line using the specified delimiter
-        while (getline(iss, token, DELIM))
-        {
-            token = string_cleaner(token);
-            data_headers.push_back(token);
-            data.emplace(token, 0);
-        }
-
-        //=====Load individuals from the raw with values=====//
-        for (std::string line; getline(input, line);)
-        {
-            istringstream iss(line);
-
-            // Store information in variables
-            n_col = 0;
-            while (getline(iss, token, DELIM))
-            {
-                data.at(data_headers[n_col]) = stod(token);
-                n_col++;
-            }
-
-            // Create an onbject Individual and add it to the model
-            Individual this_indiv(data.at("status"), data.at("index"), data);
-            aux_individuals.push_back(this_indiv);
-        }
-
-        //=====List of Model Quantities=====//
-        fill_model_lists();
-
-        //=====assign individuals to mcmc=====//
-        // initialize the report
-        model_report.resize(group_rate_list.size());
-        for (size_t r = 0; r < group_rate_list.size(); r++)
-        {
-            model_report[r].emplace("[reference]", 0);
-        }
-        //-----initialize array of individuals-----//
-        indiv = new Individual[aux_individuals.size()];
-        for (Individual this_indiv : aux_individuals)
-        {
-            add_individual(this_indiv);
-            num_cases += (this_indiv.get_status() != HEALTHY);
-        }
-
-        //=====assign augmented variables to all individuals=====//
-        assign_augmented_variables(rng);
-
-        //=====assign structure of the community=====//
-        assign_community_structure("HH_idx");
-
-        //=====initialize contact patterns=====//
-        // FIXME : this should be optional
-        // FIXME : missing report
-        contact_patterns = new const double *[num_indiv * num_indiv];
-        std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
-
-        for (size_t i = 0; i < num_indiv; i++)
-        {
-            //-----contact patters-----//
-            // FIXME : there should be a control also here
-            for (size_t k = 0; k < i; k++)
-            {
-                assign_rate_per_contact(i, k);
-                assign_rate_per_contact(k, i);
-            }
-        }
-      
-        //=====clean up list of headers for output files=====//
-        data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "index"));
-        data_headers.erase(std::find(data_headers.begin(), data_headers.end(), "status"));
-
-        for (std::string augmID : augm_set)
-        {
-            auto it = std::find(data_headers.begin(), data_headers.end(), augmID);
-            if (it != data_headers.end())
-            {
-                data_headers.erase(it);
-            }
-        }
-
-        //=====Display=====//
-        if (Verbose)
-        {
-            std::cout << "\n============MODEL SUMMARY=============" << std::endl;
-            std::cout << "N. of individuals : " << num_indiv << std::endl;
-            std::cout << "N. of households : " << num_househ << std::endl;
-            std::cout << "N. of cases : " << num_cases << std::endl;
-            for (size_t r = 0; r < group_rate_list.size(); r++)
-            {
-                std::cout << group_rate_list[r] << " : " << std::endl;
-                for (auto const &x : model_report[r])
-                {
-                    std::cout << "    * " << x.first << " : " << x.second << " (" << (100.0 * x.second / num_indiv) << " %)" << std::endl;
-                }
-            }
-        }
-        model_report.clear();
-    }
-    else
-    {
-        std::string err_text = "Impossible to open file: " + data_pathtofile + ".";
-        exit_with_failure_error(err_text);
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -9,7 +9,7 @@ CXX := g++
 CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)
 
 # List of source files
-SRCS := main.cpp mcmc.cpp $(FLDR)/$(NAME).cpp individual.cpp varia.cpp utils.cpp
+SRCS := main.cpp build.cpp mcmc.cpp $(FLDR)/$(NAME).cpp individual.cpp varia.cpp utils.cpp
 
 # Object files to build (automatically generated from SRCS)
 OBJS := $(patsubst %.cpp, %.o, $(notdir $(SRCS)))

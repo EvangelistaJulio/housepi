@@ -11,8 +11,8 @@ using namespace std;
 Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
     double strategy_from_zero,
-    kwargs value_range,
-    std::vector<size_t> list_of_args_to_adapt) : distr_ptr(distr)
+    sdargs value_range,
+    std::vector<std::size_t> list_of_args_to_adapt) : distr_ptr(distr)
 {
     args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
@@ -35,8 +35,8 @@ Base_Proposer::Base_Proposer(
         }
         else
         {
-            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range ";
-            err_text += " {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "} are inconsistent.";
+            std::string err_text = "Initial value " + to_std::string(strategy_from_zero) + " and value range ";
+            err_text += " {low:" + to_std::string(_range_min_) + ", up:" + to_std::string(_range_max_) + "} are inconsistent.";
             exit_with_failure_error(err_text);
         }
         */
@@ -44,11 +44,11 @@ Base_Proposer::Base_Proposer(
 };
 
 /* increase spread if acceptation rate is high and viceversa */
-void Base_Proposer::adapt(double ratio)
+void Base_Proposer::adapt(double ratio, double target)
 {
-    double factor = 1. + (1. - ratio) * (get_accept_rate() - DEFAULT_ACCEPT_RATE);
+    double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
 
-    for (size_t argID : args_to_adapt)
+    for (std::size_t argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -69,7 +69,7 @@ void Base_Proposer::update_accept_rate(bool is_accepted)
 }
 
 /* set range validation functions */
-void Base_Proposer::set_range(kwargs new_range)
+void Base_Proposer::set_range(sdargs new_range)
 {
     int condition = 0;
 
@@ -119,7 +119,7 @@ void Base_Proposer::set_range(kwargs new_range)
 }
 
 /* Switchboard to select the custom metropolis strategy */
-Base_Proposer *proposer_switchboard(std::string name, kwargs args, double strat_zero, kwargs value_range)
+Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_zero, sdargs value_range)
 {
     if (name == UNDEFINED)
     {
@@ -186,10 +186,10 @@ void Parameter_Dictionary::add_param(
     const std::string k,
     double new_val,
     std::string prior_name,
-    kwargs prior_args,
+    sdargs prior_args,
     std::string strat_name,
-    kwargs strat_args,
-    kwargs value_range)
+    sdargs strat_args,
+    sdargs value_range)
 {
     Parameter new_param(new_val, prior_name, prior_args, strat_name, strat_args, value_range);
 
@@ -220,11 +220,11 @@ void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
 {
     for (std::string k : param_to_be_inferred)
     {
-        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
     for (std::string k : param_static)
     {
-        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
 }
 

@@ -1,3 +1,4 @@
+name,init_value,infer,prior,prior_args,strategy,strategy_args,range
 alpha,0.5,TRUE,uniform,low/0.0/up/1.0,lognorm,meanlog/0.0/sdlog/2.0,low/0.0/up/1.0
 beta,1.,TRUE,uniform,low/0.0/up/5.0,lognorm,meanlog/0.0/sdlog/1.0,low/0.0/up/5.0
 delta,1.0,TRUE,uniform,low/0.0/up/3.0,lognorm,meanlog/0.0/sdlog/1.0,low/0.0/up/3.0

@@ -2,21 +2,16 @@
 
 #include "individual.h"
 
-using namespace std;
-
 #define MAX_NUMBER_ATTEMPTS 10
 
 ////////////////////////////////////////////////////////////////////////
 // //////////////// Individual : Constructor /////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-Individual::Individual(
-	int new_status,
-	int new_index,
-	std::unordered_map<std::string, double> new_data)
+Individual::Individual(sdargs new_data)
 {
-	status = new_status;
-	index = new_index;
+	index = new_data.at("index");
+	status = new_data.at("status");
 	data = new_data;
 }
 
@@ -36,10 +31,8 @@ void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 	{
 		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
 		{
-			std::cerr << "ERROR: Number of attempts exceed in random initialization of " << augmID << std::endl;
-			std::cerr << "Exit...\n"
-					  << std::endl;
-			exit(EXIT_FAILURE);
+			std::string err_text = "Number of attempts exceed in random initialization of `" + augmID + "`.";
+			exit_with_failure_error(err_text);
 		}
 		init_value = augm_model_rand(augmID, rng);
 		num_attempts++;
@@ -56,10 +49,8 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	}
 	else
 	{
-		std::cerr << "ERROR: Augmented variable `" << augmID << "` has multiple definitions." << std::endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
+		std::string err_text = "Augmented variable `" + augmID + "` has multiple definitions.";
+		exit_with_failure_error(err_text);
 	}
 }
 
@@ -102,7 +93,7 @@ void Household::update_first_case()
 {
 	double t_infec;
 	double new_t0 = INFINITY; // NOTE: init to impossible values
-	size_t new_case0 = -1;		// NOTE: init to impossible values
+	size_t new_case0 = -1;	  // NOTE: init to impossible values
 
 	for (size_t i : infectors_list)
 	{
@@ -141,7 +132,7 @@ void Household::change_status(size_t i, int new_status)
 	std::vector<size_t> *old_list = (new_status == HEALTHY) ? &infectors_list : &susceptibles_list;
 
 	// erase the index from the first and add to the second
-	vector<size_t>::iterator element = std::find(old_list->begin(), old_list->end(), i);
+	std::vector<size_t>::iterator element = find(old_list->begin(), old_list->end(), i);
 
 	old_list->erase(element);
 	new_list->push_back(i);

@@ -217,11 +217,19 @@ main <- function() {
 
     # UPDATE : apprently this can be more compact in tidyverse piping
     # compute autocorrelation function
-    acorr <- acf(
-      signal - mean(signal),
-      lag.max = floor(0.5 * length(signal)),
-      plot = FALSE
-    )[["acf"]]
+
+    # se non funziona è colpa di GitHub Copilot
+    #acorr <- acf(
+    #  signal - mean(signal),
+    #  lag.max = floor(0.5 * length(signal)),
+    #  plot = FALSE
+    #)[["acf"]]
+
+    acorr <- signal %>%
+      subtract(mean(signal)) %>%
+      acf(lag.max = floor(0.5 * length(signal)), plot = FALSE) %>%
+      extract("acf")
+
     x <- seq(0, length(acorr) - 1, 1)
     # linear inerpolation
     interp_func <- approxfun(x, acorr, method = "linear")

@@ -12,8 +12,6 @@
 
 #include "utils.h"
 
-#define DEFAULT_ACCEPT_RATE 0.24 // default acceptation rate for MCMC
-
 ///////////////////////////////////////////////////////////////////////
 // //////////////////// Base_Proposer : class ////////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -27,7 +25,7 @@ protected:
 	bool zero_start = false;
 	unsigned num_proposed_moves = 0;
 	double accept_rate = 0.0;
-	std::vector<size_t> args_to_adapt = {};
+	std::vector<std::size_t> args_to_adapt = {};
 	Distribution_1D *distr_ptr;
 
 public:
@@ -35,18 +33,18 @@ public:
 	Base_Proposer(
 		Distribution_1D *distr,
 		double strat_zero = INFINITY,
-		kwargs value_range = {},
-		std::vector<size_t> args_to_adapt = {});
+		sdargs value_range = {},
+		std::vector<std::size_t> args_to_adapt = {});
 	~Base_Proposer(){};
 
 	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
 	double get_strat_zero() const { return strat_zero; }
-	double get_arg(size_t argID) const { return (distr_ptr->get_arg)(argID); }
+	double get_arg(std::size_t argID) const { return (distr_ptr->get_arg)(argID); }
 
 	//=====Setter=====//
 	void set_strat_zero(double new_val) { strat_zero = new_val; }
-	void set_range(kwargs new_range);
+	void set_range(sdargs new_range);
 
 	double rand(std::mt19937_64 &rng) { return (distr_ptr->rand)(rng); }
 	bool valid(double new_val) { return (this->*_valid_func_)(new_val); }
@@ -58,7 +56,7 @@ public:
 	double get_accept_rate() const { return accept_rate; };
 	void update_accept_rate(bool is_accepted);
 	void reset_accept_rate();
-	void adapt(double ratio);
+	void adapt(double ratio, double target);
 
 	std::string display(char delim = DELIM, char dict_delim = DICT_DELIM);
 
@@ -80,10 +78,8 @@ private:
 protected:
 	double undefined_call_error()
 	{
-		std::cerr << "\nERROR: Attempt to call a method of an undefined proposer." << std::endl;
-		std::cerr << "Exit...\n"
-				  << std::endl;
-		std::exit(EXIT_FAILURE);
+		std::string err_text = "Attempt to call a method of an undefined proposer.";
+		exit_with_failure_error(err_text);
 		return INFINITY;
 	}
 
@@ -125,11 +121,11 @@ protected:
 	}
 	double _log_ratio_lognorm_symm_(double old_val, double new_val)
 	{
-		return std::log(old_val) - std::log(new_val);
+		return log(old_val) - log(new_val);
 	}
 };
 
-Base_Proposer *proposer_switchboard(std::string name = UNDEFINED, kwargs args = {}, double strat_zero = INFINITY, kwargs value_range = {});
+Base_Proposer *proposer_switchboard(std::string name = UNDEFINED, sdargs args = {}, double strat_zero = INFINITY, sdargs value_range = {});
 
 ///////////////////////////////////////////////////////////////////////
 // /////////////////// Undefined_Proposer : class ////////////////// //
@@ -156,9 +152,9 @@ class Uniform_Proposer : public Base_Proposer
 public:
 	//=====Constructors=====//
 	Uniform_Proposer(
-		kwargs new_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
+		sdargs new_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"min", "max"})
+		sdargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"min", "max"})
 	{
 		_propose_method_ = &Uniform_Proposer::_add_to_previous_;
 		_log_ratio_method_ = &Uniform_Proposer::_log_ratio_symm_;
@@ -175,9 +171,9 @@ class Normal_Proposer : public Base_Proposer
 public:
 	//=====Constructor=====//
 	Normal_Proposer(
-		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
+		sdargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Normal_Proposer::_add_to_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Normal_Proposer::_log_ratio_add_to_zero_ : &Normal_Proposer::_log_ratio_symm_;
@@ -194,9 +190,9 @@ class Lognorm_Proposer : public Base_Proposer
 public:
 	//=====Constructor=====//
 	Lognorm_Proposer(
-		kwargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {1})
+		sdargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Lognorm_Proposer::_times_previous_;
 		_log_ratio_method_ = is_zero_start() ? &Lognorm_Proposer::_log_ratio_times_zero_ : &Lognorm_Proposer::_log_ratio_lognorm_symm_;
@@ -224,7 +220,7 @@ public:
 // ///////////////// Base_Parameter  : class /////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-template <typename kwargs_int_or_ext>
+template <typename sdargs_int_or_ext>
 class Base_Parameter
 {
 protected:
@@ -238,11 +234,11 @@ public:
 	Base_Parameter(
 		double value,
 		std::string distr_name = UNDEFINED,
-		kwargs_int_or_ext distr_args = {},
+		sdargs_int_or_ext distr_args = {},
 		std::string strat_name = UNDEFINED,
-		kwargs strat_args = {},
+		sdargs strat_args = {},
 		double strat_zero = INFINITY,
-		kwargs value_range = {})
+		sdargs value_range = {})
 	{
 		set_value(value);
 		distr_ptr = distribution_switchboard(distr_name, distr_args);
@@ -276,7 +272,7 @@ public:
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
-	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
+	void adapt(double ratio, double target) { (prop_ptr->adapt)(ratio, target); }
 
 	//=====Display=====//
 	std::string display(char delim = DELIM, char dict_delim = DICT_DELIM)
@@ -301,17 +297,17 @@ private:
 // ///////////////////// Parameter : class /////////////////// //
 /////////////////////////////////////////////////////////////////
 
-class Parameter : public Base_Parameter<kwargs>
+class Parameter : public Base_Parameter<sdargs>
 {
 public:
 	//=====Constructor=====//
 	Parameter(
 		double new_val,
 		std::string prior_name = UNDEFINED,
-		kwargs prior_args = {},
+		sdargs prior_args = {},
 		std::string strat_name = UNDEFINED,
-		kwargs strat_args = {},
-		kwargs value_range = {}) : Base_Parameter(new_val,
+		sdargs strat_args = {},
+		sdargs value_range = {}) : Base_Parameter(new_val,
 												  prior_name,
 												  prior_args,
 												  strat_name,
@@ -335,17 +331,17 @@ class Parameter_Dictionary
 public:
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
-	size_t num_param_to_infer = 0;
+	std::size_t num_param_to_infer = 0;
 
 	//=====Methods=====//
 	void add_param(
 		const std::string k,
 		double new_val,
 		std::string prior_name = UNDEFINED,
-		kwargs prior_args = {},
+		sdargs prior_args = {},
 		std::string strat_name = UNDEFINED,
-		kwargs strat_args = {},
-		kwargs value_range = {});
+		sdargs strat_args = {},
+		sdargs value_range = {});
 
 	//=====Getter=====//
 	void check(const std::string k);
@@ -367,7 +363,7 @@ public:
 	void refuse_param_move(const std::string k);
 
 	// acceptation rates / adaptive methods
-	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
+	void adapt(const std::string k, double ratio, double target) { params.at(k).adapt(ratio, target); }
 
 	//=====Display=====//
 	void display_parameters(char delim = DELIM, char dict_delim = DICT_DELIM);
@@ -383,18 +379,18 @@ private:
 // ///////////////////// Augmented : class /////////////////// //
 /////////////////////////////////////////////////////////////////
 
-class Augmented : public Base_Parameter<kwargs_ext>
+class Augmented : public Base_Parameter<sdargs_ext>
 {
 public:
 	//=====Constructor=====//
 	Augmented(
 		double value,
 		std::string model_name = UNDEFINED,
-		kwargs_ext model_args_ext = {},
+		sdargs_ext model_args_ext = {},
 		std::string strat_name = UNDEFINED,
-		kwargs strat_args = {},
+		sdargs strat_args = {},
 		double strat_zero = INFINITY,
-		kwargs value_range = {}) : Base_Parameter(value,
+		sdargs value_range = {}) : Base_Parameter(value,
 												  model_name,
 												  model_args_ext,
 												  strat_name,

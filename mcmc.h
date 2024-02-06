@@ -15,9 +15,16 @@
 
 #include "model.h"
 
+// declaration for type in data file
+std::string TYPE_PARAM = "P";
+std::string TYPE_DATA = "D";
+std::string TYPE_SCALAR = "S";
+// default acceptation rate for MCMC
+#define DEFAULT_ACCEPT_RATE 0.24
+
 extern bool Verbose;
 
-// Auxiliary struct to load all setup information
+//=====Auxiliary struct to load all setup information=====//
 struct Setup_MCMC_Struct
 {
 public:
@@ -28,6 +35,8 @@ public:
 	unsigned thinning = 20;
 	double delta_t = 0.01;
 };
+
+Setup_MCMC_Struct load_setup(std::string data_pathtofile);
 
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : Class ////////////////////////// //
@@ -49,9 +58,11 @@ public:
 
 	//=====Open data=====//
 	void build_parameters(std::string data_pathtofile);
+	void build_augmented(std::string data_pathtofile);
 	void build_data(std::string data_pathtofile);
 	void add_individual(Individual new_indiv);
 	void assign_community_structure(std::string HH_index_column);
+	void assign_augmented_variables();
 
 	//=====Setter=====//
 	void reset_moves();
@@ -62,7 +73,7 @@ public:
 	double compute_global_loglike();
 	void move_single_param(std::string parID);
 	void move_parameters();
-	void move_and_adapt_parameters(unsigned step);
+	void move_and_adapt_parameters(unsigned step, double target = DEFAULT_ACCEPT_RATE);
 	void move_augm_variables();
 
 	//=====INFER=====//
@@ -93,6 +104,14 @@ private:
 	Setup_MCMC_Struct setup = {};
 	std::ofstream param_ofstream;
 	std::vector<std::map<std::string, int>> model_report = {};
+
+	std::vector<ssargs> load_augm_def = {};
+
+	//=====Open data (auxiliary functions)=====//
+	double type_to_double(std::string token, int i, char option_delim = OPTION_DELIM);
+	const double *type_to_doubleptr(std::string token, int i, char option_delim);
+	sdargs typedict_to_sdargs(std::string token, int, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
+	sdargs_ext typedict_to_sdargs_ext(std::string token, int i, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
 };
 
 #endif // MCMC__H
