@@ -15,10 +15,6 @@
 
 #include "model.h"
 
-// declaration for type in data file
-std::string TYPE_PARAM = "P";
-std::string TYPE_DATA = "D";
-std::string TYPE_SCALAR = "S";
 // default acceptation rate for MCMC
 #define DEFAULT_ACCEPT_RATE 0.24
 
@@ -103,15 +99,15 @@ private:
 
 	Setup_MCMC_Struct setup = {};
 	std::ofstream param_ofstream;
-	std::vector<std::map<std::string, int>> model_report = {};
+	std::map<std::string, std::map<std::string, int>> model_report = {};
 
 	std::vector<ssargs> load_augm_def = {};
 
 	//=====Open data (auxiliary functions)=====//
 	double type_to_double(std::string token, int i, char option_delim = OPTION_DELIM);
-	const double *type_to_doubleptr(std::string token, int i, char option_delim);
-	sdargs typedict_to_sdargs(std::string token, int, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
-	sdargs_ext typedict_to_sdargs_ext(std::string token, int i, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
+	const double *type_to_doubleptr(std::string token, char option_delim);
+	sdargs typedict_to_sdargs(std::string token, int i, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
+	sdargs_ext typedict_to_sdargs_ext(std::string token, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
 };
 
 #endif // MCMC__H

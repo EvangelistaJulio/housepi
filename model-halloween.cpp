@@ -244,101 +244,6 @@ double Individual::get_infec_time() const
 	return get_augm("onset_time") - get_augm("incub_period");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// //////////////////////////////// Model : Augmented Variables //////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize augmented variables (MANDATORY) */
-// FIXME: this needs to become more user fristd::endly
-/*
-void Model::assign_augmented_variables(std::mt19937_64 &rng)
-{
-	for (std::size_t i = 0; i < num_indiv; i++)
-	{
-		int status = indiv[i].get_status();
-
-		//=====incub_period=====//
-		{
-			std::string augmID = "incub_period";
-			double init_value = 0.;
-
-			std::string model_name = (status == HEALTHY) ? UNDEFINED : "gamma";
-			sdargs_ext model_args = {
-				{"shape", get_address("incub_shape")},
-				{"scale", get_address("incub_scale")}};
-
-			std::string metropolis_strategy = (status == HEALTHY) ? UNDEFINED : "normal";
-			sdargs metropolis_args = {
-				{"mean", 0.0},
-				{"sd", get_value("incub_mcmc_sd")}};
-			double metropolis_zero = INFINITY; // from old value
-
-
-			// FIXME : prior requires a checkup
-			//std::string metropolis_strategy = (status == HEALTHY) ? UNDEFINED : "prior";
-			//sdargs metropolis_args = {};
-
-
-sdargs range = {
-	{"min", 0.0},
-	{"max", get_value("incub_max_value")}};
-
-Augmented augm_var(
-	init_value, model_name, model_args,
-	metropolis_strategy, metropolis_args, metropolis_zero, range);
-(status == HEALTHY) ? indiv[i].add_augm(augmID, augm_var) : indiv[i].add_augm(augmID, augm_var, rng);
-
-// automatic insertion to sets // FIXME : temporary
-augm_set.insert(augmID);
-if (model_name != UNDEFINED)
-{
-	augm_with_model_set.insert(augmID);
-}
-if (metropolis_strategy != UNDEFINED)
-{
-	augm_to_infer_set.insert(augmID);
-}
-}
-
-//=====onset_time=====//
-{
-	std::string augmID = "onset_time";
-	double init_value = (status == HEALTHY) ? indiv[i].get_data("study_period") : indiv[i].get_data("onset_time");
-
-	std::string model_name = UNDEFINED;
-	sdargs_ext model_args = {};
-
-	std::string metropolis_strategy = (status == HEALTHY) ? UNDEFINED : "normal";
-
-	sdargs metropolis_args = {
-		{"mean", 0.0},
-		{"sd", get_value("onset_err")}};
-
-	double metropolis_zero = (status == HEALTHY) ? INFINITY : init_value;
-	sdargs range = {
-		{"min", get_value("onset_min")},
-		{"max", indiv[i].get_data("study_period")}}; // FIXME onset_time == study_period!!!
-
-	Augmented augm_var(
-		init_value, model_name, model_args,
-		metropolis_strategy, metropolis_args, metropolis_zero, range);
-	indiv[i].add_augm(augmID, augm_var);
-
-	// automatic insertion to sets // FIXME : temporary
-	augm_set.insert(augmID);
-	if (model_name != UNDEFINED)
-	{
-		augm_with_model_set.insert(augmID);
-	}
-	if (metropolis_strategy != UNDEFINED)
-	{
-		augm_to_infer_set.insert(augmID);
-	}
-}
-}
-}
-* /
-
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
@@ -350,36 +255,27 @@ if (metropolis_strategy != UNDEFINED)
 // ////////////////////////////// Model : associated rates  ////////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* List of Model Quantities */
-// FIXME (temporary) : this should be automatic
-void Model::fill_model_lists()
-{
-	// model group rates
-	group_rate_list.push_back("Infectivity");
-	group_rate_list.push_back("Susceptibility");
-}
-
 /* Assign the parameters controlling infectivity for each individual */
 void Model::assign_rate_per_group_to_individual(Individual *this_indiv)
 {
 	//=====rate 0 : Infectivity=====//
 	if ((this_indiv->get_data("recov") == false) && (this_indiv->get_data("vacc_status") == 0))
 	{ // unrecovered unvaccinated
-		this_indiv->assign_rate_per_group(0, "i_naive");
+		this_indiv->assign_rate_per_group("Infectivity", "i_naive");
 	}
 	else
 	{ // vaccinated o recovered : Infectivity [REFERENCE]
-		this_indiv->assign_rate_per_group(0, REFERENCE);
+		this_indiv->assign_rate_per_group("Infectivity", REFERENCE);
 	}
 
 	//=====rate 1 : Susceptiblity=====//
 	if (this_indiv->get_data("vacc_status") == 0)
 	{ // naive : Susceptiblity [REFERENCE]
-		this_indiv->assign_rate_per_group(1, REFERENCE);
+		this_indiv->assign_rate_per_group("Susceptiblity", REFERENCE);
 	}
 	else
 	{ // 1 dose
-		this_indiv->assign_rate_per_group(1, "s_vacc");
+		this_indiv->assign_rate_per_group("Susceptiblity", "s_vacc");
 	}
 }
 
@@ -433,7 +329,7 @@ double Model::_sum_hazards_(double *profiles, std::size_t i)
 		if (k != i)
 		{
 			// 			contact pattern					infectivity			infectivity profile
-			output += get_contact_from_to(k, i) * indiv[k].model_rate(0) * profiles[from_to(k, i)];
+			output += get_contact_from_to(k, i) * indiv[k].model_rate("Infectivity") * profiles[from_to(k, i)];
 		}
 	}
 
@@ -454,7 +350,7 @@ double Model::compute_loglike(std::size_t h)
 	// Contribution of healthy residents
 	for (std::size_t i : househ[h].susceptibles_list)
 	{
-		loglike_house -= indiv[i].model_rate(1) * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
+		loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
 	}
 
 	// Contribution of symptomatic residents
@@ -471,8 +367,8 @@ double Model::compute_loglike(std::size_t h)
 		{
 			ti = indiv[i].get_infec_time();
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(ti, Inst_EPI_Curve);
-			loglike_house += log(indiv[i].model_rate(1) * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)));
-			loglike_house -= indiv[i].model_rate(1) * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
+			loglike_house += log(indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)));
+			loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
 		}
 	}
 
@@ -528,7 +424,7 @@ void Model::simulate_infection(double dt, std::mt19937_64 &rng)
 				indiv[i].set_augm("onset_time", t + unif(rng) * dt + indiv[i].get_augm("incub_period"));
 				store_augm_var_dependecies(i);
 				comm_risk_inst = get_value("alpha") * lin_idx_interp(t, Inst_EPI_Curve);
-				proba = 1 - exp(-indiv[i].model_rate(1) * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
+				proba = 1 - exp(-indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
 
 				// refuse
 				if (unif(rng) >= proba)

@@ -30,13 +30,12 @@ private:
 
 	sdargs data = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
-
-	const double **_rate_ptr = nullptr;
+	sdargs_ext _rate_ptr = {};
 
 public:
 	//=====Public Attributes=====//
 	size_t home = -1;
-	std::string *_which_rate = nullptr;
+	std::unordered_map<std::string, std::string> _which_rate = {};
 
 	//=====Constructors=====//
 	Individual(sdargs data);
@@ -52,21 +51,12 @@ public:
 	int get_index() const { return index; }
 
 	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
-	double get_data(std::string dataID) const
-	{
-		if (data.find(dataID) == data.end())
-		{
-			std::string err_text =  "Data column `" + dataID + "` unknown.";
-			exit_with_failure_error(err_text);
-		}
-		return data.at(dataID);
-	}
+	double get_data(std::string dataID) const;
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate_per_group(size_t r, std::string parID) { _which_rate[r] = parID; }
-	double model_rate(size_t r) const { return *_rate_ptr[r]; }
-	void _set_rate(size_t r, const double *x) { _rate_ptr[r] = x; }
-	void _allocate_rates(size_t num_rates);
+	void assign_rate_per_group(std::string rateID, std::string parID);
+	void _set_rate(std::string rateID, const double *x);
+	double model_rate(std::string rateID) const;
 
 	//=====Augmented Variables=====//
 	void add_augm(std::string augmID, Augmented new_augm);

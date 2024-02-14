@@ -20,7 +20,7 @@ extern bool Verbose;
 ///////////////////////////////////////////////////////////////////////
 
 // Shared Parameter Dictionary // UPDATE : generalize for external files
-void build_extra(std::string data_pathtofile);
+void build_extra(std::string data_pathtofile); // FIXME
 
 // forward declaration of the Infectivity Profile Function
 class Infectivity_Profile_Function;
@@ -40,7 +40,6 @@ protected:
 	std::set<std::string> augm_set = {};
 	std::set<std::string> augm_with_model_set = {};
 	std::set<std::string> augm_to_infer_set = {};
-	std::vector<std::string> group_rate_list = {};
 	std::vector<std::string> data_headers = {};
 	
 	//=====Optional Attributes=====//
@@ -57,10 +56,7 @@ public:
 	int get_status(std::size_t i) const { return indiv[i].get_status(); }
 	
 	void assign_infec_profile_function();
-	//virtual void assign_augmented_variables(std::mt19937_64 &rng); // UPDATE: temporary
 	void assign_rate_per_group_to_individual(Individual *this_indiv);
-	void fill_model_lists(); // UPDATE: temporary
-
 	void store_augm_var_dependecies(std::size_t i);
 
 	double compute_loglike(std::size_t h);

@@ -1,7 +1,7 @@
-// user_model.h //
+// utils.h //
 
-#ifndef DEF_USER_MODEL__H
-#define DEF_USER_MODEL__H
+#ifndef UTILS__H
+#define UTILS__H
 
 //=====Global Macros=====//
 #define DELIM ','
@@ -389,4 +389,4 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
 // //////////////////// Analyzer : class ////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-#endif // DEF_USER_MODEL__H
+#endif // UTILS__H

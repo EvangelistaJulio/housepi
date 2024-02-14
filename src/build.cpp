@@ -2,6 +2,11 @@
 
 #include "mcmc.h"
 
+// declaration for type in data file
+std::string TYPE_PARAM = "P";
+std::string TYPE_DATA = "D";
+std::string TYPE_SCALAR = "S";
+
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Auxiliary Functions /////////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -147,7 +152,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
     double output = INFINITY;
     if (token != UNDEFINED)
     {
-        std::size_t pos = token.find(OPTION_DELIM);
+        std::size_t pos = token.find(option_delim);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_SCALAR)
@@ -172,12 +177,12 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
 }
 
 /* Convert a type-string to a double-pointer */
-const double * MCMC::type_to_doubleptr(std::string token, int i, char option_delim)
+const double * MCMC::type_to_doubleptr(std::string token, char option_delim)
 {
     const double * output = nullptr;
     if (token != UNDEFINED)
     {
-        std::size_t pos = token.find(OPTION_DELIM);
+        std::size_t pos = token.find(option_delim);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
@@ -206,13 +211,13 @@ sdargs MCMC::typedict_to_sdargs(std::string token, int, char dict_delim, char op
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token, int i, char dict_delim, char option_delim)
+sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token, char dict_delim, char option_delim)
 {
     ssargs input = parse_dict_string(token, dict_delim);
     sdargs_ext output = {};
     for (auto const &x : input)
     {
-        output.emplace(x.first, type_to_doubleptr(x.second, 0, option_delim));
+        output.emplace(x.first, type_to_doubleptr(x.second, option_delim));
     }
     return output;
 }
@@ -407,7 +412,7 @@ void MCMC::assign_augmented_variables()
             Augmented augm_var(
                 type_to_double(loader.at("init_value"), i),
                 loader.at("model_name"),                    
-                typedict_to_sdargs_ext(loader.at("model_args"), i),                   
+                typedict_to_sdargs_ext(loader.at("model_args")),                   
                 loader.at("strategy"),                     
                 typedict_to_sdargs(loader.at("strategy_args"), i),
                 type_to_double(loader.at("move_from"), i),
@@ -454,17 +459,7 @@ void MCMC::build_data(std::string data_pathtofile)
             aux_individuals.push_back(this_indiv);
         }
 
-        //=====List of Model Quantities=====//
-        fill_model_lists(); // FIXME : temporary
-
         //=====assign individuals to mcmc=====//
-        // initialize the report
-        model_report.resize(group_rate_list.size());
-        for (std::size_t r = 0; r < group_rate_list.size(); r++)
-        {
-            model_report[r].emplace("[reference]", 0);
-        }
-        //-----initialize array of individuals-----//
         int num_cases = 0;
         indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
@@ -516,10 +511,10 @@ void MCMC::build_data(std::string data_pathtofile)
             std::cout << "N. of individuals : " << num_indiv << std::endl;
             std::cout << "N. of households : " << num_househ << std::endl;
             std::cout << "N. of cases : " << num_cases << std::endl;
-            for (std::size_t r = 0; r < group_rate_list.size(); r++)
+            for (const auto& which : model_report)
             {
-                std::cout << group_rate_list[r] << " : " << std::endl;
-                for (auto const &x : model_report[r])
+                std::cout << which.first << " : " << std::endl;
+                for (auto const &x : which.second)
                 {
                     std::cout << "    * " << x.first << " : " << x.second << " (" << (100.0 * x.second / num_indiv) << " %)" << std::endl;
                 }

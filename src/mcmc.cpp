@@ -278,6 +278,7 @@ void MCMC::simulation(std::string output_filename)
 void MCMC::add_individual(Individual new_indiv)
 {
     int status = new_indiv.get_status();
+    std::string rateID = UNDEFINED;
     std::string parID = UNDEFINED;
 
     //=====check for the validity of the status (FIXME: temporary)=====//
@@ -289,31 +290,52 @@ void MCMC::add_individual(Individual new_indiv)
     else
     {
         //-----Assign Model Rates-----//
-        new_indiv._allocate_rates(group_rate_list.size());
         assign_rate_per_group_to_individual(&new_indiv);
-        for (size_t r = 0; r < group_rate_list.size(); r++)
+
+        for (const auto& which : new_indiv._which_rate)
         {
-            if (new_indiv._which_rate[r] == UNDEFINED)
+            rateID = which.first;
+            parID = which.second;
+
+            if(num_indiv == 0){
+                // if first individual, initialize rateID-report
+                model_report.emplace(rateID, std::map<std::string, int>());
+                model_report.at(rateID).emplace("[reference]", 0);
+            }
+            else 
             {
-                std::string err_text = "Rate `" + group_rate_list[r] + "` is not provided for individual " + std::to_string(new_indiv.get_index()) + ".";
+                // all individuals must have the same set of rates of first individual
+                if (model_report.find(rateID) == model_report.end())
+                {
+                    std::string err_text = "Rate `" + rateID + "` is not provided for all individuals.";
+                    exit_with_failure_error(err_text); 
+                }
+            }
+
+            // set rates and update report
+            if (parID == UNDEFINED)
+            {
+                // error : undefined rate
+                std::string err_text = "Rate `" + rateID + "` is not provided for individual " + std::to_string(new_indiv.get_index()) + ".";
                 exit_with_failure_error(err_text);
             }
-            else if (new_indiv._which_rate[r] == REFERENCE)
+            else if (parID == REFERENCE)
             {
-                new_indiv._set_rate(r, get_reference());
-                model_report[r].at("[reference]") += 1;
+                // rate set to reference
+                new_indiv._set_rate(rateID, get_reference());
+                model_report.at(rateID).at("[reference]") += 1;
             }
             else
             {
-                parID = new_indiv._which_rate[r];
-                new_indiv._set_rate(r, get_address(parID));
-                if (model_report[r].find(parID) == model_report[r].end())
+                // rate associated to parameter
+                new_indiv._set_rate(rateID, get_address(parID));
+                if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
                 {
-                    model_report[r].emplace(parID, 1);
+                    model_report.at(rateID).emplace(parID, 1);
                 }
                 else
                 {
-                    model_report[r].at(parID) += 1;
+                    model_report.at(rateID).at(parID) += 1;
                 }
             }
         }

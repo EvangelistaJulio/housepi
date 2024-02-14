@@ -5,7 +5,7 @@
 #define MAX_NUMBER_ATTEMPTS 10
 
 ////////////////////////////////////////////////////////////////////////
-// //////////////// Individual : Constructor /////////////////// //
+// /////////////////// Individual : Constructor ///////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
 Individual::Individual(sdargs new_data)
@@ -15,11 +15,45 @@ Individual::Individual(sdargs new_data)
 	data = new_data;
 }
 
-void Individual::_allocate_rates(size_t num_rates)
+/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+double Individual::get_data(std::string dataID) const
 {
-	_rate_ptr = new const double *[num_rates];
-	_which_rate = new std::string[num_rates];
+	if (data.find(dataID) == data.end())
+	{
+		std::string err_text =  "Data column `" + dataID + "` unknown.";
+		exit_with_failure_error(err_text);
+	}
+	return data.at(dataID);
 }
+
+//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
+
+/* Assign a model rate */
+void Individual::assign_rate_per_group(std::string rateID, std::string parID)
+{
+    if (_which_rate.find(rateID) == _which_rate.end()) { 
+		// if rateID was undeclared, add it 
+        _which_rate.emplace(rateID, parID);
+
+    } else {
+        // rateID was previously declared
+		std::string err_text = "Found individual with multiple definitions for group rate `" + rateID + "`.";
+		exit_with_failure_error(err_text);
+    }
+}
+
+/* Link the rate value with a pointer */
+void Individual::_set_rate(std::string rateID, const double *x) {
+	_rate_ptr.emplace(rateID, x);
+}
+
+/* Return value of model rate */
+double Individual::model_rate(std::string rateID) const {
+	return *_rate_ptr.at(rateID);
+}
+
+
+//=====Augmented Variables=====//
 
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
