@@ -95,8 +95,10 @@ public:
 	size_t first_case = -1;
 	double start_followup = INFINITY;
 	double end_followup = 0;
+	std::vector<size_t> house_members = {};
 	std::vector<size_t> susceptibles_list = {};
 	std::vector<size_t> infectors_list = {};
+	std::vector<size_t> unknown_status_list = {};
 
 	//=====Constructors=====//
 	Household() {}
@@ -104,6 +106,7 @@ public:
 
 	//======Getter======//
 	int get_index() const { return house_index; }
+	Individual get_indiv(size_t i) const { return (*indiv_ptr)[i]; }
 
 	//======Setter======//
 	void set_index(int index) { house_index = index; }

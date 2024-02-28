@@ -2,6 +2,35 @@
 
 #include "utils.h"
 
+/* Progress bar */
+void print_progress_bar(int progress, int total)
+{
+    float percentage = static_cast<float>(progress) / total;
+    int barWidth = 70;
+
+    std::cerr << "[";
+
+    int pos = barWidth * percentage;
+    for (int i = 0; i < barWidth; ++i)
+    {
+        if (i < pos)
+        {
+            std::cerr << "=";
+        }
+        else if (i == pos)
+        {
+            std::cerr << ">";
+        }
+        else
+        {
+            std::cerr << " ";
+        }
+    }
+
+    std::cerr << "] " << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
+    std::cerr.flush();
+}
+
 ///////////////////////////////////////////////////////////////////////
 // /////////////////////// Error Functions ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -12,6 +41,13 @@ void exit_with_failure_error(std::string &message)
     std::cerr << "ERROR: " << message << "\nExit...\n"
               << std::endl;
     exit(EXIT_FAILURE);
+}
+
+void raise_warning_message(std::string &message)
+{
+    std::cerr << std::endl;
+    std::cerr << "WARNING: " << message << "\nIf this was \n"
+              << std::endl;
 }
 
 // -----------------------------------------------------------------------------------------------------------//

@@ -2,37 +2,33 @@
 
 #include "mcmc.h"
 
+// Warning for status
+bool Unknown_Status_Warning = true;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////  MCMC : setter ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-/* Initialize parameters and augmented variables */
-void MCMC::initialize_model(bool is_rand_params)
+/* Assign the contact patterns between a couple of individuals. */
+void MCMC::assign_rate_per_contact(size_t i, size_t k)
 {
-    if (is_rand_params)
-    {
-        init_rand_params(rng);
-    }
-
-    assign_infec_profile_function(); // initialize infectivity profiles
-
-    // compute infectivity profiles for each of the symptomatic and relative infectees
-    for (size_t i = 0; i < num_indiv; i++)
-    {
-        store_augm_var_dependecies(i);
-    }
-
-    // find the first case for each household
-    for (size_t h = 0; h < num_househ; h++)
-    {
-        househ[h].assign_end_followup();
-        househ[h].update_first_case();
-    }
+    UNUSED(i);
+    UNUSED(k);
 }
 
+/* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
+void MCMC::store_augm_var_dependecies(size_t i)
+{
+    UNUSED(i);
+}
+
+double MCMC::compute_single_house_loglike(std::size_t h)
+{
+    UNUSED(h);
+    return 0.;
+};
+
 /* Compute global loglikelihood */
-// UPDATE : emberassing parallel
 double MCMC::compute_global_loglike()
 {
     double output = 0.0;
@@ -40,7 +36,7 @@ double MCMC::compute_global_loglike()
 
     for (size_t h = 0; h < num_househ; h++)
     {
-        tmp = compute_loglike(h);
+        tmp = compute_single_house_loglike(h);
         househ[h].set_loglike(tmp);
         output += tmp;
     }
@@ -81,7 +77,7 @@ void MCMC::move_single_param(std::string parID)
         //=====Metropolis-Hastings=====//
         Q = inverse_temperature * (new_global_loglike - get_global_loglike());
         Q += get_move_log_ratio();
-        if (log(unif(rng)) < Q)
+        if (log(uniform(rng)) < Q)
         {
             accept_param_move(parID);
             set_global_loglike(new_global_loglike);
@@ -155,13 +151,13 @@ void MCMC::move_augm_variables()
                     househ[h].update_first_case();      // Update information of first cases
                     store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
 
-                    new_loglike_of_HH = compute_loglike(h);
+                    new_loglike_of_HH = compute_single_house_loglike(h);
                     log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
 
                     Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
                     Q -= log_ratio_proposal;
 
-                    if (log(unif(rng)) < Q)
+                    if (log(uniform(rng)) < Q)
                     {
                         househ[h].set_loglike(new_loglike_of_HH);
                         set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
@@ -192,15 +188,20 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
         std::cout << "\n---------MCMC:initialization----------" << std::endl;
     }
 
-    initialize_model(is_rand_params);
-    set_global_loglike(compute_global_loglike());
-    reset_moves();
-
     //=====Initialize output file=====//
     init_param_file(output_file);
 
-    //=====Assign ivnverse temperature=====//
-    // UPDATE : code can be optimized to avoid * 1 or * 0
+    //=====Initialize parameter inference====//
+    if (is_rand_params)
+    {
+        init_rand_params(rng);
+    }
+    initialize_model();
+    set_global_loglike(compute_global_loglike());
+    reset_moves();
+
+    //=====Assign inverse temperature=====//
+    // FIXME : code can be optimized to avoid * 1 or * 0
     if (inv_temper == INFINITY)
     {
         inverse_temperature = 1.0;
@@ -228,6 +229,11 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         move_and_adapt_parameters(step);
         move_augm_variables();
+
+        if (step % setup.thinning)
+        {
+            print_progress_bar(step, setup.num_adapt_iter);
+        }
     }
 
     //=====MCMC execution=====//
@@ -237,12 +243,13 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     }
     for (unsigned i = 0; i < setup.num_iter; i += setup.thinning)
     {
-        for (unsigned j = 0; j < setup.thinning; j++)
+        move_parameters();
+        move_augm_variables();
+        if (i % setup.thinning)
         {
-            move_parameters();
-            move_augm_variables();
+            print_parameters(i);
+            print_progress_bar(i, setup.num_iter);
         }
-        print_parameters(i + setup.thinning);
     }
 
     //=====MCMC ending=====//
@@ -265,8 +272,8 @@ void MCMC::simulation(std::string output_filename)
         std::cout << "\n=============SIMULATION===============" << std::endl;
     }
 
-    initialize_model(false);
-    simulate_infection(setup.delta_t, rng);
+    initialize_model();
+    simulate_infection();
     print_augm_variables(output_filename);
 }
 
@@ -281,69 +288,78 @@ void MCMC::add_individual(Individual new_indiv)
     std::string rateID = UNDEFINED;
     std::string parID = UNDEFINED;
 
-    //=====check for the validity of the status (FIXME: temporary)=====//
-    if ((status != HEALTHY) && (status != SYMPTOMATIC))
+    //=====check for the validity of the status=====//
+    if ((status != HEALTHY) && (status != SYMPTOMATIC) && Unknown_Status_Warning)
     {
-        std::string err_text = "Unkown status: " + std::to_string(status) + ".\nCheck your model.";
-        exit_with_failure_error(err_text);
+        std::string warn_text = "Unknown status `" + std::to_string(status) + "`.";
+        warn_text += " Use " + std::to_string(HEALTHY) + "/" + std::to_string(SYMPTOMATIC) + " for healthy/non-healthy state.";
+        warn_text += "\n If it was intentional, ignore this message.";
+        raise_warning_message(warn_text);
+        Unknown_Status_Warning = false;
     }
-    else
+
+    //-----Assign Model Rates-----//
+    assign_rate_per_group_to_individual(&new_indiv);
+
+    for (const auto &which : new_indiv._which_rate)
     {
-        //-----Assign Model Rates-----//
-        assign_rate_per_group_to_individual(&new_indiv);
+        rateID = which.first;
+        parID = which.second;
 
-        for (const auto& which : new_indiv._which_rate)
+        if (num_indiv == 0)
         {
-            rateID = which.first;
-            parID = which.second;
-
-            if(num_indiv == 0){
-                // if first individual, initialize rateID-report
-                model_report.emplace(rateID, std::map<std::string, int>());
-                model_report.at(rateID).emplace("[reference]", 0);
-            }
-            else 
+            // if first individual, initialize rateID-report
+            model_report.emplace(rateID, std::map<std::string, int>());
+            model_report.at(rateID).emplace("[reference]", 0);
+        }
+        else
+        {
+            // all individuals must have the same set of rates of first individual
+            if (model_report.find(rateID) == model_report.end())
             {
-                // all individuals must have the same set of rates of first individual
-                if (model_report.find(rateID) == model_report.end())
-                {
-                    std::string err_text = "Rate `" + rateID + "` is not provided for all individuals.";
-                    exit_with_failure_error(err_text); 
-                }
-            }
-
-            // set rates and update report
-            if (parID == UNDEFINED)
-            {
-                // error : undefined rate
-                std::string err_text = "Rate `" + rateID + "` is not provided for individual " + std::to_string(new_indiv.get_index()) + ".";
+                std::string err_text = "Rate `" + rateID + "` is not provided for all individuals.";
                 exit_with_failure_error(err_text);
-            }
-            else if (parID == REFERENCE)
-            {
-                // rate set to reference
-                new_indiv._set_rate(rateID, get_reference());
-                model_report.at(rateID).at("[reference]") += 1;
-            }
-            else
-            {
-                // rate associated to parameter
-                new_indiv._set_rate(rateID, get_address(parID));
-                if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
-                {
-                    model_report.at(rateID).emplace(parID, 1);
-                }
-                else
-                {
-                    model_report.at(rateID).at(parID) += 1;
-                }
             }
         }
 
-        //-----Store New Individual-----//
-        indiv[num_indiv] = new_indiv;
-        num_indiv++;
+        // set rates and update report
+        if (parID == UNDEFINED)
+        {
+            // error : undefined rate
+            std::string err_text = "Rate `" + rateID + "` is not provided for individual " + std::to_string(new_indiv.get_index()) + ".";
+            exit_with_failure_error(err_text);
+        }
+        else if (parID == REFERENCE)
+        {
+            // rate set to reference
+            new_indiv._set_rate(rateID, get_reference());
+            model_report.at(rateID).at("[reference]") += 1;
+        }
+        else
+        {
+            // rate associated to parameter
+            new_indiv._set_rate(rateID, get_address(parID));
+            if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
+            {
+                model_report.at(rateID).emplace(parID, 1);
+            }
+            else
+            {
+                model_report.at(rateID).at(parID) += 1;
+            }
+        }
     }
+
+    //-----Store New Individual-----//
+    indiv[num_indiv] = new_indiv;
+    num_indiv++;
+}
+
+/* Assign group rate to an individual */
+void MCMC::assign_rate_per_group_to_individual(Individual *this_indiv)
+{
+    this_indiv->assign_rate_per_group("Infectivity", REFERENCE);
+    this_indiv->assign_rate_per_group("Susceptibility", REFERENCE);
 }
 
 /* Assign community structure to individuals. I returns a report. */

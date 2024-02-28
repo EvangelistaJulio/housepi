@@ -218,6 +218,11 @@ void Parameter_Dictionary::add_param(
 /* display the user model parameters */
 void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
 {
+    for (std::string k : param_file_required_headers)
+    {
+        cout << k << delim;
+    }
+    cout << endl;
     for (std::string k : param_to_be_inferred)
     {
         cout << k << delim << params.at(k).display(delim, dict_delim) << endl;

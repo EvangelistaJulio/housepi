@@ -11,6 +11,7 @@
 #include <time.h>
 
 #include "mcmc.h"
+#include MODEL_HEADER
 
 //=====Define the global variables=====//
 
@@ -148,37 +149,37 @@ int main(int argc, char *argv[])
     // Load Setup
     setup = load_setup(setup_pathtofile);
 
-    // Initialize MCMC object
-    MCMC mcmc(setup);
+    // Initialize Model object
+    Model model(setup);
 
     // Load Parameters
-    mcmc.build_parameters(parameters_pathtofile);
+    model.build_parameters(parameters_pathtofile);
 
     // Load Augmented Variables
-    mcmc.build_augmented(augmented_pathtofile);
+    model.build_augmented(augmented_pathtofile);
 
     // Load Data
-    mcmc.build_data(database_pathtofile);
+    model.build_data(database_pathtofile);
 
     // UPDATE: there could be plenty extra files to be store somewhere
     if (extra_pathtofile != UNDEFINED)
     {
-        build_extra(extra_pathtofile);
+        model.build_extra(extra_pathtofile);
     }
 
     //=====EXECUTION=====//
-
+    
     if (infer) // Parameter Inference
     {
-        mcmc.inference(output_pathtofile, rand_init_params, inver_temp);
+        model.inference(output_pathtofile, rand_init_params, inver_temp);
         if (save_augm_pathtofile != UNDEFINED)
         {
-            mcmc.print_augm_variables(save_augm_pathtofile);
+            model.print_augm_variables(save_augm_pathtofile);
         }
     }
     else if (simulate) // Simulation Study
     {
-        mcmc.simulation(output_pathtofile);
+        model.simulation(output_pathtofile);
     }
 
     if (Verbose)

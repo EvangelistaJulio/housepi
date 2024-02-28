@@ -95,7 +95,6 @@ sdargs parse_dict_args(std::string token, char dict_delim)
     return output;
 }
 
-
 /* Read column headers */
 std::vector<std::string> read_column_headers(std::ifstream &input, char delim = DELIM)
 {
@@ -177,9 +176,9 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
 }
 
 /* Convert a type-string to a double-pointer */
-const double * MCMC::type_to_doubleptr(std::string token, char option_delim)
+const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
 {
-    const double * output = nullptr;
+    const double *output = nullptr;
     if (token != UNDEFINED)
     {
         std::size_t pos = token.find(option_delim);
@@ -300,7 +299,6 @@ Setup_MCMC_Struct load_setup(std::string data_pathtofile)
     return loader;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // //////////////////////////////// MCMC : load parameters ///////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -321,22 +319,30 @@ void MCMC::build_parameters(std::string data_pathtofile)
 
         //=====Load column headers=====//
         std::vector<std::string> headers = read_column_headers(input, DELIM);
-        // FIXME : check the validity of the headers
+        // check the validity of the headers
+        for (std::string req : param_file_required_headers)
+        {
+            if (std::find(headers.begin(), headers.end(), req) == headers.end())
+            {
+                std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
+                exit_with_failure_error(err_text);
+            }
+        }
 
         //=====Load parameters from the row with options=====//
-        for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row, DELIM); this_row.clear())
+        for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row, DELIM); this_row.clear())
         {
             // add entry to shared parameter dictionary
             if (stobool(this_row.at("infer")))
             {
                 add_param(
-                    this_row.at("name"),
-                    std::stod(this_row.at("init_value")),
-                    this_row.at("prior_name"),
-                    parse_dict_args(this_row.at("prior_args"), DICT_DELIM),
-                    this_row.at("strategy"),
-                    parse_dict_args(this_row.at("strategy_args"), DICT_DELIM),
-                    parse_dict_args(this_row.at("range"), DICT_DELIM));
+                    this_row["name"],
+                    std::stod(this_row["init_value"]),
+                    this_row["prior"],
+                    parse_dict_args(this_row["prior_args"], DICT_DELIM),
+                    this_row["strategy"],
+                    parse_dict_args(this_row["strategy_args"], DICT_DELIM),
+                    parse_dict_args(this_row["range"], DICT_DELIM));
             }
             else
             {
@@ -368,30 +374,43 @@ void MCMC::build_parameters(std::string data_pathtofile)
 void MCMC::build_augmented(std::string data_pathtofile)
 {
     std::ifstream input(data_pathtofile.c_str());
+    std::vector<std::string> required_headers = {
+        "name", "init_value", "model", "model_args", "strategy", "strategy_args", "move_from", "range"};
 
-    if (input.is_open())
+    if (data_pathtofile != UNDEFINED)
     {
-        if (Verbose)
+        if (input.is_open())
         {
-            std::cout << "\n==============AUGMENTED===============" << std::endl;
-            std::cout << "Augmented Variable file: " << data_pathtofile << "\n"
-                      << std::endl;
+            if (Verbose)
+            {
+                std::cout << "\n==============AUGMENTED===============" << std::endl;
+                std::cout << "Augmented Variable file: " << data_pathtofile << "\n"
+                          << std::endl;
+            }
+
+            //=====Load column headers=====//
+            std::vector<std::string> headers = read_column_headers(input, DELIM);
+            // check the validity of the headers
+            for (std::string req : required_headers)
+            {
+                if (std::find(headers.begin(), headers.end(), req) == headers.end())
+                {
+                    std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
+                    exit_with_failure_error(err_text);
+                }
+            }
+
+            //=====Load augmented from the row with options=====//
+            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row, DELIM); this_row.clear())
+            {
+                load_augm_definition.push_back(this_row);
+            }
         }
-
-        //=====Load column headers=====//
-        std::vector<std::string> headers = read_column_headers(input, DELIM);
-        // FIXME : check the validity of the headers
-
-        //=====Load augmented from the row with options=====//
-        for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row, DELIM); this_row.clear())
+        else
         {
-            load_augm_def.push_back(this_row);
+            std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
+            exit_with_failure_error(err_text);
         }
-    }
-    else
-    {
-        std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
-        exit_with_failure_error(err_text);
     }
 }
 
@@ -399,6 +418,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
 // //////////////////////////  MCMC : assign augmented variables /////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Assign augmented variables to all individuals. */
 void MCMC::assign_augmented_variables()
 {
     std::string augmID;
@@ -406,18 +426,19 @@ void MCMC::assign_augmented_variables()
     {
         int status = indiv[i].get_status();
 
-        for (ssargs loader : load_augm_def)
+        for (ssargs loader : load_augm_definition)
         {
             augmID = loader.at("name");
             Augmented augm_var(
                 type_to_double(loader.at("init_value"), i),
-                loader.at("model_name"),                    
-                typedict_to_sdargs_ext(loader.at("model_args")),                   
-                loader.at("strategy"),                     
+                loader.at("model_name"),
+                typedict_to_sdargs_ext(loader.at("model_args")),
+                loader.at("strategy"),
                 typedict_to_sdargs(loader.at("strategy_args"), i),
                 type_to_double(loader.at("move_from"), i),
-                typedict_to_sdargs(loader.at("range"), i)
-            );
+                typedict_to_sdargs(loader.at("range"), i));
+
+            // if the individual is not healthy, randomly initializes the augmented variable
             (status == HEALTHY) ? indiv[i].add_augm(augmID, augm_var) : indiv[i].add_augm(augmID, augm_var, rng);
         }
     }
@@ -434,10 +455,17 @@ void MCMC::assign_augmented_variables()
 // ////////////////////////////////// MCMC : build_data //////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Read Extra File (default unused) */
+void MCMC::build_extra(std::string data_pathtofile)
+{
+    UNUSED(data_pathtofile);
+}
+
 /* Read data file and pre-process the data*/
 void MCMC::build_data(std::string data_pathtofile)
 {
     std::ifstream input(data_pathtofile.c_str());
+    std::vector<std::string> required_headers = {"index", "status", "HH_idx"};
 
     if (input.is_open())
     {
@@ -449,7 +477,15 @@ void MCMC::build_data(std::string data_pathtofile)
 
         //=====Load column headers=====//
         data_headers = read_column_headers(input, DELIM);
-        // FIXME : check that status and index are defined within headers
+        // check the validity of the headers
+        for (std::string req : required_headers)
+        {
+            if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
+            {
+                std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
+                exit_with_failure_error(err_text);
+            }
+        }
 
         //=====Load individuals from the row with values=====//
         std::vector<Individual> aux_individuals = {};
@@ -461,18 +497,26 @@ void MCMC::build_data(std::string data_pathtofile)
 
         //=====assign individuals to mcmc=====//
         int num_cases = 0;
+        int num_unknown_status = 0;
         indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
         {
             add_individual(this_indiv);
-            num_cases += (this_indiv.get_status() != HEALTHY);
+            if (this_indiv.get_status() == SYMPTOMATIC)
+            {
+                num_cases++;
+            }
+            else if (this_indiv.get_status() != HEALTHY)
+            {
+                num_unknown_status++;
+            }
         }
 
         //=====assign augmented variables to all individuals=====//
         assign_augmented_variables();
 
         //=====assign structure of the community=====//
-        assign_community_structure("HH_idx"); // FIXME : to be generalized
+        assign_community_structure("HH_idx"); // FIXME : see above
 
         //=====initialize contact patterns=====//
         // FIXME : this should be optional
@@ -511,7 +555,12 @@ void MCMC::build_data(std::string data_pathtofile)
             std::cout << "N. of individuals : " << num_indiv << std::endl;
             std::cout << "N. of households : " << num_househ << std::endl;
             std::cout << "N. of cases : " << num_cases << std::endl;
-            for (const auto& which : model_report)
+            if (num_unknown_status > 0)
+            {
+                std::cout << "N. of missing status : " << num_unknown_status << std::endl;
+            }
+
+            for (const auto &which : model_report)
             {
                 std::cout << which.first << " : " << std::endl;
                 for (auto const &x : which.second)
@@ -540,7 +589,7 @@ void MCMC::build_data(std::string data_pathtofile)
 // ///////////////////////////////  MCMC : print parameters //////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize the output param file with column names and initial values */
+/* Initialize the output file with inferred parameters with column names and initial values */
 void MCMC::init_param_file(std::string output_filename)
 {
     param_ofstream.open(output_filename.c_str());
@@ -562,7 +611,7 @@ void MCMC::init_param_file(std::string output_filename)
             param_ofstream << DELIM << parID << DELIM << parID << "__a%";
         }
         param_ofstream << std::endl;
-        // print_parameters(0); // NOTE: meaningless if augmented steps are not saved
+        // print_parameters(0); // FIXME: meaningless if augmented steps are not saved
     }
     else
     {

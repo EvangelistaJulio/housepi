@@ -329,6 +329,8 @@ public:
 class Parameter_Dictionary
 {
 public:
+	std::vector<std::string> param_file_required_headers = {
+        "name", "init_value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
 	std::size_t num_param_to_infer = 0;

@@ -4,6 +4,7 @@ MODEL ?= example/default_model.cpp
 # Trim the file extension
 NAME := $(notdir $(basename $(MODEL)))
 FLDR := $(shell dirname ${MODEL})
+MODEL_HEADER := $(NAME).h
 
 # List of source files
 SRCDIR := src
@@ -17,8 +18,8 @@ EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # compiler and rules
 CXX := g++
-CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)/${SRCDIR}
-
+#CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)/$(SRCDIR)
+CXXFLAGS := -Wall -Wextra -std=gnu++11 -I$(shell pwd)/$(SRCDIR)
 
 # Make rules
 all: $(EXECUTABLE)
@@ -30,7 +31,11 @@ $(EXECUTABLE): $(OBJECTS)
 
 # For the model object
 $(NAME).o: $(FLDR)/$(NAME).cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I${FLDR} -c $< -o $@
+
+# For the main object
+$(SRCDIR)/main.o: $(SRCDIR)/main.cpp
+	$(CXX) $(CXXFLAGS) -I$(FLDR) -DMODEL_HEADER=\"$(MODEL_HEADER)\" -c $< -o $@
 
 # For all other objects
 %.o: %.cpp
@@ -38,5 +43,6 @@ $(NAME).o: $(FLDR)/$(NAME).cpp
 
 # To clean objects
 clean:
+	rm -rf ./*.o
 	rm -rf src/*.o
 	rm -rf ${FLDR}/*.o

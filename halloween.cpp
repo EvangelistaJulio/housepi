@@ -1,6 +1,6 @@
-// model-halloween.cpp //
+// halloween.cpp //
 
-#include "model.h"
+#include "halloween.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
@@ -251,6 +251,26 @@ double Individual::get_infec_time() const
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
+
+/* Initialize parameters and augmented variables */
+void Model::initialize_model()
+{
+    assign_infec_profile_function(); // initialize infectivity profiles
+
+    // compute infectivity profiles for each of the symptomatic and relative infectees
+    for (size_t i = 0; i < num_indiv; i++)
+    {
+        store_augm_var_dependecies(i);
+    }
+
+    // find the first case for each household
+    for (size_t h = 0; h < num_househ; h++)
+    {
+        househ[h].assign_end_followup();
+        househ[h].update_first_case();
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////// Model : associated rates  ////////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -337,7 +357,7 @@ double Model::_sum_hazards_(double *profiles, std::size_t i)
 }
 
 /* Compute the log-likelihood within household. */
-double Model::compute_loglike(std::size_t h)
+double Model::compute_single_house_loglike(std::size_t h)
 {
 	double loglike_house = 0.0;
 	double ti;
@@ -387,10 +407,10 @@ double Model::compute_loglike(std::size_t h)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Poisson point process to simulate data. */
-void Model::simulate_infection(double dt, std::mt19937_64 &rng)
+void Model::simulate_infection()
 {
+	double dt = setup.delta_t;
 	double proba, comm_risk_inst;
-	std::uniform_real_distribution<double> unif(0.0, 1.0);
 
 	// simulate the infection for each household
 	for (std::size_t h = 0; h < num_househ; h++)
@@ -421,13 +441,13 @@ void Model::simulate_infection(double dt, std::mt19937_64 &rng)
 				househ[h].change_status(i, SYMPTOMATIC);
 				indiv[i].set_status(SYMPTOMATIC);
 
-				indiv[i].set_augm("onset_time", t + unif(rng) * dt + indiv[i].get_augm("incub_period"));
+				indiv[i].set_augm("onset_time", t + uniform(rng) * dt + indiv[i].get_augm("incub_period"));
 				store_augm_var_dependecies(i);
 				comm_risk_inst = get_value("alpha") * lin_idx_interp(t, Inst_EPI_Curve);
 				proba = 1 - exp(-indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
 
 				// refuse
-				if (unif(rng) >= proba)
+				if (uniform(rng) >= proba)
 				{
 					househ[h].change_status(i, HEALTHY);
 					indiv[i].set_status(HEALTHY);

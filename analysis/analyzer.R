@@ -144,6 +144,7 @@ main <- function() {
   }
 
   # display a short summary
+  cat("\n===============ANALYSIS===============\n")
   cat("Performing analysis on file : ", input_file, "\n")
   cat("Results are saved on file : ", output_file, "\n")
   if (save_fig == TRUE) {
@@ -217,18 +218,11 @@ main <- function() {
 
     # UPDATE : apprently this can be more compact in tidyverse piping
     # compute autocorrelation function
-
-    # se non funziona è colpa di GitHub Copilot
-    #acorr <- acf(
-    #  signal - mean(signal),
-    #  lag.max = floor(0.5 * length(signal)),
-    #  plot = FALSE
-    #)[["acf"]]
-
-    acorr <- signal %>%
-      subtract(mean(signal)) %>%
-      acf(lag.max = floor(0.5 * length(signal)), plot = FALSE) %>%
-      extract("acf")
+    acorr <- acf(
+      signal - mean(signal),
+      lag.max = floor(0.5 * length(signal)),
+      plot = FALSE
+    )[["acf"]]
 
     x <- seq(0, length(acorr) - 1, 1)
     # linear inerpolation
@@ -292,8 +286,8 @@ main <- function() {
         if (prior_name == "uniform") {
           prior_y <- dunif(
             prior_x,
-            min = prior_args[["low"]],
-            max = prior_args[["up"]]
+            min = prior_args[["min"]],
+            max = prior_args[["max"]]
           )
         } else if (prior_name == "normal") {
           prior_y <- dnorm(

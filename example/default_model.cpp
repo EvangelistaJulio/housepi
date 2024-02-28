@@ -1,41 +1,8 @@
 // default_model.cpp //
 
-// the user model must include the model.h header
-#include "model.h"
+#include "default_model.h"
 
 using namespace std;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////////  Optional Features  ///////////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
- 
-/* Read Extra File */
-void build_extra(string data_pathtofile)
-{
-	UNUSED(data_pathtofile);
-}
-
-/* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-// compute likelihood straight
-void Model::store_augm_var_dependecies(size_t i)
-{
-	UNUSED(i);
-}
-
-/* Assign the contact patterns between a couple of individuals. */
-//
-void Model::assign_rate_per_contact(size_t i, size_t k)
-{
-	UNUSED(i);
-	UNUSED(k);
-}
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
@@ -159,6 +126,19 @@ double Model::compute_infec_profile_cumul(size_t i, double t_transm)
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
+/* Initialize parameters and augmented variables */
+void Model::initialize_model()
+{
+    assign_infec_profile_function(); // initialize infectivity profiles
+
+    // find the first case for each household
+    for (size_t h = 0; h < num_househ; h++)
+    {
+        househ[h].assign_end_followup();
+        househ[h].update_first_case();
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////// Model : associated rates  ////////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -193,7 +173,7 @@ void Model::assign_rate_per_group_to_individual(Individual *this_indiv)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_loglike(size_t h)
+double Model::compute_single_house_loglike(size_t h)
 {
 	double hazard_inst = 0.0, hazard_cumul = 0.0;
 	double loglike_house = 0.0;
@@ -267,7 +247,7 @@ double Model::compute_loglike(size_t h)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Poisson point process to simulate data. */
-void Model::simulate_infection(double dt, std::mt19937_64 &rng)
+void Model::simulate_infection(double dt)
 {
 	double proba, hazard_inst;
 	std::uniform_real_distribution<double> unif(0.0, 1.0);

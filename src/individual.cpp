@@ -20,7 +20,7 @@ double Individual::get_data(std::string dataID) const
 {
 	if (data.find(dataID) == data.end())
 	{
-		std::string err_text =  "Data column `" + dataID + "` unknown.";
+		std::string err_text = "Data column `" + dataID + "` unknown.";
 		exit_with_failure_error(err_text);
 	}
 	return data.at(dataID);
@@ -31,27 +31,30 @@ double Individual::get_data(std::string dataID) const
 /* Assign a model rate */
 void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 {
-    if (_which_rate.find(rateID) == _which_rate.end()) { 
-		// if rateID was undeclared, add it 
-        _which_rate.emplace(rateID, parID);
-
-    } else {
-        // rateID was previously declared
+	if (_which_rate.find(rateID) == _which_rate.end())
+	{
+		// if rateID was undeclared, add it
+		_which_rate.emplace(rateID, parID);
+	}
+	else
+	{
+		// rateID was previously declared
 		std::string err_text = "Found individual with multiple definitions for group rate `" + rateID + "`.";
 		exit_with_failure_error(err_text);
-    }
+	}
 }
 
 /* Link the rate value with a pointer */
-void Individual::_set_rate(std::string rateID, const double *x) {
+void Individual::_set_rate(std::string rateID, const double *x)
+{
 	_rate_ptr.emplace(rateID, x);
 }
 
 /* Return value of model rate */
-double Individual::model_rate(std::string rateID) const {
+double Individual::model_rate(std::string rateID) const
+{
 	return *_rate_ptr.at(rateID);
 }
-
 
 //=====Augmented Variables=====//
 
@@ -142,32 +145,72 @@ void Household::update_first_case()
 	start_followup = new_t0;
 }
 
+/* */ // FIXME : is then study_period a standard name? In general, how to load household data?
+// FIXME : this should be a function of the time-models maybe
 void Household::assign_end_followup()
 {
 	// find maximum study period within the household
 	end_followup = 0;
 	for (size_t i : infectors_list)
 	{
-		end_followup = std::max(end_followup, (*indiv_ptr)[i].get_data("study_period"));
+		end_followup = std::max(end_followup, get_indiv(i).get_data("study_period"));
 	}
 }
 
 /* Link an individual to the household */
 void Household::link_individual(size_t i, int status)
 {
-	(status == HEALTHY) ? susceptibles_list.push_back(i) : infectors_list.push_back(i);
+	house_members.push_back(i);
+
+	// status list
+	if (status == HEALTHY)
+	{
+		susceptibles_list.push_back(i);
+	}
+	else if (status == SYMPTOMATIC)
+	{
+		infectors_list.push_back(i);
+	}
+	else
+	{
+		unknown_status_list.push_back(i);
+	}
 }
 
-/* Change_status of individual i to new status (without controls).
-WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
+/* Change_status of individual i to new status (without controls). 
+	WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(size_t i, int new_status)
 {
-	std::vector<size_t> *new_list = (new_status == HEALTHY) ? &susceptibles_list : &infectors_list;
-	std::vector<size_t> *old_list = (new_status == HEALTHY) ? &infectors_list : &susceptibles_list;
+	int old_status = (*indiv_ptr)[i].get_status();
 
-	// erase the index from the first and add to the second
-	std::vector<size_t>::iterator element = find(old_list->begin(), old_list->end(), i);
+	if (old_status != new_status)
+	{
+		// erase individual i from previous list
+		if (old_status == HEALTHY)
+		{
+			susceptibles_list.erase(find(susceptibles_list.begin(), susceptibles_list.end(), i));
+		}
+		else if (old_status == SYMPTOMATIC)
+		{
+			infectors_list.erase(find(infectors_list.begin(), infectors_list.end(), i));
+		}
+		else
+		{
+			unknown_status_list.erase(find(unknown_status_list.begin(), unknown_status_list.end(), i));
+		}
 
-	old_list->erase(element);
-	new_list->push_back(i);
+		// add individual i to new list
+		if (new_status == HEALTHY)
+		{
+			susceptibles_list.push_back(i);
+		}
+		else if (new_status == SYMPTOMATIC)
+		{
+			infectors_list.push_back(i);
+		}
+		else
+		{
+			unknown_status_list.push_back(i);
+		}
+	}
 }
