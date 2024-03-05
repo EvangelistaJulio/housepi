@@ -273,12 +273,14 @@ Setup_MCMC_Struct load_setup(std::string data_pathtofile)
             safe_load.emplace(string_cleaner(name), string_cleaner(choice));
         }
 
+        // seed for pseudo-random number generator (default is time)
         std::string seed_str = safe_load.at("seed");
         loader.seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
+
+        // MCMCM number of iterations
         loader.num_iter = stoi(safe_load.at("num_iter"));
         loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
         loader.thinning = stoi(safe_load.at("thinning"));
-        loader.delta_t = stod(safe_load.at("delta_t"));
 
         //=====Display=====//
         if (Verbose)
@@ -287,7 +289,6 @@ Setup_MCMC_Struct load_setup(std::string data_pathtofile)
             std::cout << "num_iter : " << loader.num_iter << std::endl;
             std::cout << "num_adapt_iter : " << loader.num_adapt_iter << std::endl;
             std::cout << "thinning : " << loader.thinning << std::endl;
-            std::cout << "delta_t : " << loader.delta_t << std::endl;
         }
     }
     else

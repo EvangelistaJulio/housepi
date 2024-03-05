@@ -18,8 +18,7 @@ EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # compiler and rules
 CXX := g++
-#CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)/$(SRCDIR)
-CXXFLAGS := -Wall -Wextra -std=gnu++11 -I$(shell pwd)/$(SRCDIR)
+CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)/$(SRCDIR)
 
 # Make rules
 all: $(EXECUTABLE)

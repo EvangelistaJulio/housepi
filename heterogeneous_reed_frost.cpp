@@ -170,15 +170,15 @@ double Recursive_Function(usi N, mtx &escape_matrix)
 	{
 		for (unsigned c = 0; c < Num_of_Combs_LookupTable[N][k]; c++)
 		{
-			// FIXME : temporary
+			// FIXME : temporary (LookupTable to be converted to array)
 			vec_usi sub_indidx(N, 0);
-			for(usi j = 0; j < N; j ++)
+			for (usi j = 0; j < N; j++)
 			{
 				sub_indidx[j] = Combinations_LookupTable[N][k][c][j];
 			}
-			//
 
 			output -= Likelihood_Heterogeneous_ReedFrost(N, k, sub_indidx, escape_matrix);
+			//
 		}
 	}
 	return output;
@@ -209,23 +209,33 @@ double Individual::get_infec_time() const
 /* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
-	size_t max_size = 0;
+	size_t max_num = 0, aux = 0;
 
+	// find maximum possible number of sero-positives
 	for (size_t h = 0; h < num_househ; h++)
 	{
-		max_size = (househ[h].size > max_size) ? househ[h].size : max_size;
+		aux = househ[h].infectors_list.size() + househ[h].unknown_status_list.size();
+		max_num = (aux > max_num) ? aux : max_num;
 	}
-	initialize_LookupTable(max_size);
+
+	initialize_LookupTable(max_num);
 }
 
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(std::size_t h)
 {
-	double output = 0;
+	// >>>> FIXME : temporary
+	if (househ[h].unknown_status_list.size() > 0)
+	{
+		std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
+		exit_with_failure_error(err_txt);
+	}
+	// <<<< <<<< <<<< <<<<
+
+	double log_likelihood = 0;
 
 	int hh_size = househ[h].size;
 	int num_infec = househ[h].infectors_list.size();
-	int num_unknown_status = househ[h].unknown_status_list.size();
 
 	// allocate memory for escape matrix
 	mtx escape_matrix(hh_size + 1, std::vector<double>(hh_size));
@@ -234,48 +244,48 @@ double Model::compute_single_house_loglike(std::size_t h)
 	// Assign the values of the escape probabilities here :
 	// ---------->> //
 
-	bool is_child;
+	//=====community escape log-probability=====//
+	double commu_esc_proba = get_value("commu_esc_proba"); // exp(-get_value("alpha"));
+	// bool is_child;
+	// double commu_esc_proba_child = exp(-get_value("alpha_child"));
 
-	// community escape probability
-	int c = 0;
-	for (usi i : househ[h].house_members)
+	for (usi i = 0; i < hh_size; i++)
 	{
-		is_child = indiv[i].get_data("age") < get_value("child_age");
-		escape_matrix[0][c] = exp(-((is_child) ? get_value("beta_child") : get_value("beta_adult")));
-		c++;
+		// is_child = indiv[househ[h].house_members[i]].get_data("age") < get_value("child_age");
+		// escape_matrix[0][i] = (is_child) ? commu_esc_proba : commu_esc_proba_child;
+		escape_matrix[0][i] = commu_esc_proba;
 	}
 
+	//=====within house person-to-person escape probability=====//
 	// FIXME : temporary, need to distinguish between infectors, unknown, susceptibles...
-	// person-to-person within house escape probability
-	double p2p_esc_proba = exp(-get_value("lambda") * pow(hh_size, -get_value("gamma")));
+	// double p2p_esc_proba = exp(-get_value("lambda") * pow(hh_size, -get_value("gamma")));
+	double p2p_esc_proba = get_value("p2p_esc_proba"); // exp(-get_value("beta"));
+
 	for (usi k = 1; k <= hh_size; k++)
 	{
 		for (usi i = 0; i < hh_size; i++)
 		{
 			escape_matrix[k][i] = p2p_esc_proba;
 		}
-		escape_matrix[k][k - 1] = 1.; // note : this is just a place-holder
+		escape_matrix[k][k - 1] = 1.;
 	}
 
 	// <<---------- //
 	// <<---------- //
 
-	// FIXME : if heterogeneous within house this part must change
-
-	// initial array of individuals
+	//=====compute the loglikelihood=====//
+	// initialize array of indexes to {1, ..., hh_size}
 	vec_usi indidx(hh_size);
-	for (int i = 0; i < hh_size; i++)
-	{
-		indidx[i] = i + 1;
-	}
+	std::iota(indidx.begin(), indidx.end(), 1);
 
-	// compute the loglikelihood for all the scenario compatible with the missing data
-	for (int i = 0; i <= num_unknown_status; i++)
-	{
-		output += log(Likelihood_Heterogeneous_ReedFrost(hh_size, num_infec + i, indidx, escape_matrix));
-	}
+	log_likelihood = log(Likelihood_Heterogeneous_ReedFrost(hh_size, num_infec, indidx, escape_matrix));
 
-	return output;
+	// FLAG
+	// std::cout << "log_likelihood : " << log_likelihood << std::endl;
+	// std::exit(1);
+	// END-of-FLAG
+
+	return log_likelihood;
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -292,42 +302,44 @@ double Model::compute_single_house_loglike(std::size_t h)
 /* Poisson point process to simulate data. */
 void Model::simulate_infection()
 {
-	bool is_child;
 	size_t num_new_infectors = 0, num_old_infectors = 0;
 	std::vector<std::size_t> copy_list = {};
-	double commu_esc_proba, log_p2p_esc_proba;
+
+	// bool is_child = indiv[i].get_data("age") < get_value("child_age");
+	double commu_esc_proba = get_value("commu_esc_proba"); // exp(-((is_child) ? get_value("beta_child") : get_value("beta_adult")));
+
+	// compute person-to-person transmission // FIXME : this is the constant transmission proba case
+	double log_p2p_esc_proba = log(get_value("p2p_esc_proba")); // -get_value("lambda") * pow(househ[h].size, -get_value("gamma"));
 
 	// simulate the infection for each household
 	for (std::size_t h = 0; h < num_househ; h++)
 	{
 		//=====INITIALIZE=====//
-		// set all cases to healthy (change infectors to susceptibles)
+		// set all cases to healthy (change infectors and unknown to susceptibles)
 		copy_list = househ[h].infectors_list;
 		for (std::size_t i : copy_list)
 		{
-			indiv[i].set_status(HEALTHY);
 			househ[h].change_status(i, HEALTHY);
 		}
+		copy_list = househ[h].unknown_status_list;
+		for (std::size_t i : copy_list)
+		{
+			househ[h].change_status(i, HEALTHY);
+		}
+		num_new_infectors = 0;
 
 		//====GENERATION 0 : infection by community=====//
 		copy_list = househ[h].susceptibles_list;
 		for (std::size_t i : copy_list)
 		{
-			is_child = indiv[i].get_data("age") < get_value("child_age");
-			commu_esc_proba = exp(-((is_child) ? get_value("beta_child") : get_value("beta_adult")));
-
 			if (uniform(rng) > commu_esc_proba)
 			{
 				househ[h].change_status(i, SYMPTOMATIC);
-				indiv[i].set_status(SYMPTOMATIC);
+				num_new_infectors++;
 			}
 		}
 
-		// compute person-to-person transmission // FIXME : this is the constant transmission proba case
-		log_p2p_esc_proba = -get_value("lambda") * pow(househ[h].size, -get_value("gamma"));
-
 		//====GENERATION >=1 : infection by previous generatioon=====//
-		num_new_infectors = househ[h].infectors_list.size();
 		while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectors > 0))
 		{
 			num_old_infectors = num_new_infectors;
@@ -339,7 +351,6 @@ void Model::simulate_infection()
 				if (uniform(rng) > exp(num_old_infectors * log_p2p_esc_proba))
 				{
 					househ[h].change_status(i, SYMPTOMATIC);
-					indiv[i].set_status(SYMPTOMATIC);
 					num_new_infectors++;
 				}
 			}

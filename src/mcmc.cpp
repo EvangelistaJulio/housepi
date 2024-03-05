@@ -182,6 +182,8 @@ void MCMC::move_augm_variables()
 
 void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
+    int progbar_thin;
+    
     if (Verbose)
     {
         std::cout << "\n================MCMC==================" << std::endl;
@@ -225,12 +227,13 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         std::cout << "\n------------MCMC:adaptive-------------" << std::endl;
     }
+    progbar_thin = setup.num_adapt_iter / 100;
     for (unsigned step = 0; step < setup.num_adapt_iter; step++)
     {
         move_and_adapt_parameters(step);
         move_augm_variables();
 
-        if (step % setup.thinning)
+        if ((Verbose) && (step % progbar_thin == 0))
         {
             print_progress_bar(step, setup.num_adapt_iter);
         }
@@ -241,14 +244,19 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         std::cout << "\n-----------MCMC:execution-------------" << std::endl;
     }
+    progbar_thin = setup.num_iter / (100 * setup.thinning);
     for (unsigned i = 0; i < setup.num_iter; i += setup.thinning)
     {
-        move_parameters();
-        move_augm_variables();
-        if (i % setup.thinning)
+        for (unsigned j = 0; j < setup.thinning; j++)
         {
-            print_parameters(i);
-            print_progress_bar(i, setup.num_iter);
+            move_parameters();
+            move_augm_variables();
+        }
+        print_parameters(i + setup.thinning);
+
+        if ((Verbose) && (i % progbar_thin == 0))
+        {
+            print_progress_bar(i + setup.thinning, setup.num_iter);
         }
     }
 

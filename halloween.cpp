@@ -409,7 +409,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 /* Poisson point process to simulate data. */
 void Model::simulate_infection()
 {
-	double dt = setup.delta_t;
+	double dt = 0.01;
 	double proba, comm_risk_inst;
 
 	// simulate the infection for each household

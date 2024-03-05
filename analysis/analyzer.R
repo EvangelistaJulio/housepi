@@ -273,7 +273,7 @@ main <- function() {
       show_prior <- (p %in% rownames(params))
       if (show_prior == TRUE) {
         # load prior
-        prior_value <- params[p, "X2"]
+        prior_value <-as.numeric(params[p, "X2"])
         prior_name <- params[p, "X4"]
         prior_args_string <- params[p, "X5"]
         prior_args <- list()

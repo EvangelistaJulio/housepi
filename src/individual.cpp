@@ -212,5 +212,8 @@ void Household::change_status(size_t i, int new_status)
 		{
 			unknown_status_list.push_back(i);
 		}
+		
+		// change the status of individual
+		(*indiv_ptr)[i].set_status(new_status);
 	}
 }
