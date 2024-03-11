@@ -161,6 +161,7 @@ void Household::assign_end_followup()
 void Household::link_individual(size_t i, int status)
 {
 	house_members.push_back(i);
+	size++;
 
 	// status list
 	if (status == HEALTHY)
@@ -213,7 +214,7 @@ void Household::change_status(size_t i, int new_status)
 			unknown_status_list.push_back(i);
 		}
 		
-		// change the status of individual
+		// change the status of individual to new
 		(*indiv_ptr)[i].set_status(new_status);
 	}
 }

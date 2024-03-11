@@ -31,6 +31,7 @@ $(EXECUTABLE): $(OBJECTS)
 # For the model object
 $(NAME).o: $(FLDR)/$(NAME).cpp
 	$(CXX) $(CXXFLAGS) -I${FLDR} -c $< -o $@
+	clean
 
 # For the main object
 $(SRCDIR)/main.o: $(SRCDIR)/main.cpp
@@ -44,4 +45,5 @@ $(SRCDIR)/main.o: $(SRCDIR)/main.cpp
 clean:
 	rm -rf ./*.o
 	rm -rf src/*.o
+	rm -rf models/*.o
 	rm -rf ${FLDR}/*.o

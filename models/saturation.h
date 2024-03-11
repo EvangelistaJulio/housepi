@@ -1,4 +1,4 @@
-// reed_frost.h //
+// saturation.h //
 
 #ifndef MODEL__H
 #define MODEL__H
@@ -17,8 +17,7 @@ typedef std::vector<int> gentype;
 
 // auxiliary functions
 unsigned long long factorial(int n);
-std::vector<gentype> generation_span(int n_infec);
-std::vector<gentype> generation_count_span(int n_infec);
+std::vector<gentype> saturation_count_span(int n_infec);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////// Model : class /////////////////////////////////////////// //

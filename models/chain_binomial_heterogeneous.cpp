@@ -1,6 +1,6 @@
-// heterogeneous_reed_frost.cpp //
+// chain_binomial_heterogeneous.cpp //
 
-#include "heterogeneous_reed_frost.h"
+#include "chain_binomial_heterogeneous.h"
 
 // GLOBAL VARIABLES
 // Lookup table to store combinations and complements
@@ -90,7 +90,7 @@ void store_combinations(const usi N, const usi k)
 	}
 }
 
-/* Initialize the Look Up Table */
+/* Initialize the Look Up Table of combinations and their number */
 void initialize_LookupTable(const short max_N)
 {
 	unsigned num_combin;
@@ -123,19 +123,19 @@ Arguments :
 	indidx : [0 - k) seropositive indexes, [k - N) seronegative indexes. Indexes are [1, N]
 	escape_matrix : probability 'col' escaped from 'row' (including community as index 0)
 */
-double Likelihood_Heterogeneous_ReedFrost(usi N, usi k, vec_usi &indidx, mtx &escape_matrix)
+double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<double> &escape_matrix)
 {
 	double output;
 	// submatrix has always at least 1 infector: community
-	mtx sub_escape_matrix(k + 1, std::vector<double>(k));
+	std::vector<double> sub_escape_matrix((k + 1) * (k));
 
 	// find the submatrix of the given infectors if any
-	usi row = 0, inf = 0;
+	usi row = 0, inf = 0; // community (inf=0) is always at position (row=0)
 	while ((k > 0) && (row <= k))
 	{
 		for (usi col = 0; col < k; col++)
 		{
-			sub_escape_matrix[row][col] = escape_matrix[inf][indidx[col] - 1];
+			sub_escape_matrix[col + k * row] = escape_matrix[indidx[col] - 1 + N * inf];
 		}
 		// next infector
 		inf = indidx[row];
@@ -147,15 +147,16 @@ double Likelihood_Heterogeneous_ReedFrost(usi N, usi k, vec_usi &indidx, mtx &es
 	for (usi i = k; i < N; i++)
 	{
 		// from community
-		esc_product *= escape_matrix[0][indidx[i] - 1];
+		esc_product *= escape_matrix[indidx[i] - 1];
 
 		// from infected
 		for (usi j = 0; j < k; j++)
 		{
-			esc_product *= escape_matrix[indidx[j]][indidx[i] - 1];
+			esc_product *= escape_matrix[indidx[i] - 1 + N * indidx[j]];
 		}
 	}
-	output = Recursive_Function(k, sub_escape_matrix) * esc_product;
+
+	output = esc_product * _recursive_function(k, sub_escape_matrix);
 
 	return output;
 }
@@ -163,22 +164,15 @@ double Likelihood_Heterogeneous_ReedFrost(usi N, usi k, vec_usi &indidx, mtx &es
 /*
 Recursive fonction to break likelihood into shorter escape patterns.
  */
-double Recursive_Function(usi N, mtx &escape_matrix)
+double _recursive_function(usi N, std::vector<double> &escape_matrix)
 {
 	double output = 1.;
 	for (usi k = 0; k < N; k++)
 	{
 		for (unsigned c = 0; c < Num_of_Combs_LookupTable[N][k]; c++)
 		{
-			// FIXME : temporary (LookupTable to be converted to array)
-			vec_usi sub_indidx(N, 0);
-			for (usi j = 0; j < N; j++)
-			{
-				sub_indidx[j] = Combinations_LookupTable[N][k][c][j];
-			}
-
-			output -= Likelihood_Heterogeneous_ReedFrost(N, k, sub_indidx, escape_matrix);
-			//
+			output -= ll_chain_binomial_heterogeneous(
+				N, k, Combinations_LookupTable[N][k][c], escape_matrix);
 		}
 	}
 	return output;
@@ -216,74 +210,67 @@ void Model::initialize_model()
 	{
 		aux = househ[h].infectors_list.size() + househ[h].unknown_status_list.size();
 		max_num = (aux > max_num) ? aux : max_num;
+
+		// >>>> FIXME : temporary
+		if (househ[h].unknown_status_list.size() > 0)
+		{
+			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
+			exit_with_failure_error(err_txt);
+		}
+		// <<<< <<<< <<<< <<<<
 	}
 
 	initialize_LookupTable(max_num);
 }
 
-/* Compute the log-likelihood within household. */
+/* Compute the log-likelihood for a single household. */
 double Model::compute_single_house_loglike(std::size_t h)
 {
-	// >>>> FIXME : temporary
-	if (househ[h].unknown_status_list.size() > 0)
-	{
-		std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-		exit_with_failure_error(err_txt);
-	}
-	// <<<< <<<< <<<< <<<<
-
+	usi hh_size = househ[h].size;
+	usi num_infec = househ[h].infectors_list.size();
 	double log_likelihood = 0;
 
-	int hh_size = househ[h].size;
-	int num_infec = househ[h].infectors_list.size();
-
 	// allocate memory for escape matrix
-	mtx escape_matrix(hh_size + 1, std::vector<double>(hh_size));
+	std::vector<double> escape_matrix((hh_size + 1) * hh_size);
 
-	// ---------->> //
+	// ---------->>---------->>---------->>---------->> //
 	// Assign the values of the escape probabilities here :
-	// ---------->> //
+	// ---------->>---------->>---------->>---------->> //
 
-	//=====community escape log-probability=====//
-	double commu_esc_proba = get_value("commu_esc_proba"); // exp(-get_value("alpha"));
-	// bool is_child;
-	// double commu_esc_proba_child = exp(-get_value("alpha_child"));
+	//=====community escape probability=====//
+	double commu_esc_proba = exp(-get_value("alpha"));
 
 	for (usi i = 0; i < hh_size; i++)
 	{
-		// is_child = indiv[househ[h].house_members[i]].get_data("age") < get_value("child_age");
-		// escape_matrix[0][i] = (is_child) ? commu_esc_proba : commu_esc_proba_child;
-		escape_matrix[0][i] = commu_esc_proba;
+		escape_matrix[i] = commu_esc_proba;
 	}
 
-	//=====within house person-to-person escape probability=====//
-	// FIXME : temporary, need to distinguish between infectors, unknown, susceptibles...
-	// double p2p_esc_proba = exp(-get_value("lambda") * pow(hh_size, -get_value("gamma")));
-	double p2p_esc_proba = get_value("p2p_esc_proba"); // exp(-get_value("beta"));
+	//=====person-to-person escape log-probability=====//
+	// NOTE : change if to distinguish between infectors, unknown, susceptibles...
+	double p2p_esc_proba = exp(-get_value("beta"));
 
 	for (usi k = 1; k <= hh_size; k++)
 	{
 		for (usi i = 0; i < hh_size; i++)
 		{
-			escape_matrix[k][i] = p2p_esc_proba;
+			escape_matrix[i + k * hh_size] = p2p_esc_proba;
 		}
-		escape_matrix[k][k - 1] = 1.;
+		escape_matrix[k - 1 + k * hh_size] = 1.;
 	}
 
-	// <<---------- //
-	// <<---------- //
+	// <<----------<<----------<<----------<<---------- //
+	// <<----------<<----------<<----------<<---------- //
 
 	//=====compute the loglikelihood=====//
 	// initialize array of indexes to {1, ..., hh_size}
-	vec_usi indidx(hh_size);
-	std::iota(indidx.begin(), indidx.end(), 1);
+	usi *indidx = new usi[hh_size];
+	for (usi i = 0; i < hh_size; i++)
+	{
+		indidx[i] = i + 1;
+	}
 
-	log_likelihood = log(Likelihood_Heterogeneous_ReedFrost(hh_size, num_infec, indidx, escape_matrix));
-
-	// FLAG
-	// std::cout << "log_likelihood : " << log_likelihood << std::endl;
-	// std::exit(1);
-	// END-of-FLAG
+	log_likelihood = log(ll_chain_binomial_heterogeneous(hh_size, num_infec, indidx, escape_matrix));
+	delete[] indidx;
 
 	return log_likelihood;
 }
@@ -305,11 +292,11 @@ void Model::simulate_infection()
 	size_t num_new_infectors = 0, num_old_infectors = 0;
 	std::vector<std::size_t> copy_list = {};
 
-	// bool is_child = indiv[i].get_data("age") < get_value("child_age");
-	double commu_esc_proba = get_value("commu_esc_proba"); // exp(-((is_child) ? get_value("beta_child") : get_value("beta_adult")));
+	//=====community escape probability=====//
+	double commu_esc_proba = exp(-get_value("alpha"));
 
-	// compute person-to-person transmission // FIXME : this is the constant transmission proba case
-	double log_p2p_esc_proba = log(get_value("p2p_esc_proba")); // -get_value("lambda") * pow(househ[h].size, -get_value("gamma"));
+	//=====person-to-person escape log-probability=====//
+	double log_p2p_esc_proba = -get_value("beta");
 
 	// simulate the infection for each household
 	for (std::size_t h = 0; h < num_househ; h++)

@@ -91,14 +91,18 @@ private:
 public:
 	//=====Attributes=====//
 	int house_index = -1;
+
+	// membemrs-attributes
 	size_t size = 0;
-	size_t first_case = -1;
-	double start_followup = INFINITY;
-	double end_followup = 0;
 	std::vector<size_t> house_members = {};
 	std::vector<size_t> susceptibles_list = {};
 	std::vector<size_t> infectors_list = {};
 	std::vector<size_t> unknown_status_list = {};
+
+	// time-attributes
+	size_t first_case = -1;
+	double start_followup = INFINITY;
+	double end_followup = 0;
 
 	//=====Constructors=====//
 	Household() {}

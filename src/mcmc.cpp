@@ -110,7 +110,7 @@ void MCMC::move_parameters()
 void MCMC::move_and_adapt_parameters(unsigned step, double target)
 {
     std::string parID = UNDEFINED;
-    double adapt_ratio = (double)(1.0 + step) / setup.num_adapt_iter;
+    double adapt_ratio = (double)step / setup.num_adapt_iter;
 
     for (size_t z = 0; z < num_param_to_infer; z++)
     {
@@ -182,8 +182,9 @@ void MCMC::move_augm_variables()
 
 void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
-    int progbar_thin;
-    
+    unsigned num_iter_thin = setup.num_iter / setup.thinning;
+    unsigned progbar_thin;
+
     if (Verbose)
     {
         std::cout << "\n================MCMC==================" << std::endl;
@@ -228,7 +229,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
         std::cout << "\n------------MCMC:adaptive-------------" << std::endl;
     }
     progbar_thin = setup.num_adapt_iter / 100;
-    for (unsigned step = 0; step < setup.num_adapt_iter; step++)
+    for (unsigned step = 1; step <= setup.num_adapt_iter; step++)
     {
         move_and_adapt_parameters(step);
         move_augm_variables();
@@ -244,19 +245,19 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         std::cout << "\n-----------MCMC:execution-------------" << std::endl;
     }
-    progbar_thin = setup.num_iter / (100 * setup.thinning);
-    for (unsigned i = 0; i < setup.num_iter; i += setup.thinning)
+    progbar_thin = num_iter_thin / 100;
+    for (unsigned i = 1; i <= num_iter_thin; i++)
     {
         for (unsigned j = 0; j < setup.thinning; j++)
         {
             move_parameters();
             move_augm_variables();
         }
-        print_parameters(i + setup.thinning);
+        print_parameters(i * setup.thinning);
 
         if ((Verbose) && (i % progbar_thin == 0))
         {
-            print_progress_bar(i + setup.thinning, setup.num_iter);
+            print_progress_bar(i, num_iter_thin);
         }
     }
 
@@ -373,25 +374,28 @@ void MCMC::assign_rate_per_group_to_individual(Individual *this_indiv)
 /* Assign community structure to individuals. I returns a report. */
 void MCMC::assign_community_structure(std::string HH_index_column)
 {
-    size_t h, size;
+    size_t h;
     std::unordered_map<int, Household> load_househ = {};
 
     //=====safe load households=====//
     for (size_t i = 0; i < num_indiv; i++)
     {
         h = indiv[i].get_data(HH_index_column);
+
         // if househ_idx doesn't exist, append new household
         if (load_househ.find(h) == load_househ.end())
         {
             load_househ.emplace(h, Household());
             load_househ.at(h).set_index(h);
         }
+
         load_househ.at(h).link_individual(i, indiv[i].get_status());
     }
+    num_househ = load_househ.size();    // get number of unique household indexes
 
     //=====produce list of households=====//
-    num_househ = load_househ.size();    // get number of unique household index
-    househ = new Household[num_househ]; // initialize the array of household
+    househ = new Household[num_househ]; // initialize the MCMC array of households
+
     h = 0;
     for (const auto &pair : load_househ)
     {
@@ -399,22 +403,14 @@ void MCMC::assign_community_structure(std::string HH_index_column)
         househ[h].set_indiv_ptr(&indiv); // associate the array of individuals to the Structure
         h++;
     }
-    load_househ.clear(); // clear the dictionary for the loading
+    load_househ.clear(); // clear the loading dictionary
 
     //=====assign home to individuals=====//
     for (size_t h = 0; h < num_househ; h++)
     {
-        size = 0;
-        for (size_t i : househ[h].infectors_list)
+        for (size_t i : househ[h].house_members)
         {
             indiv[i].home = h;
-            size++;
         }
-        for (size_t i : househ[h].susceptibles_list)
-        {
-            indiv[i].home = h;
-            size++;
-        }
-        househ[h].size = size;
     }
 }
