@@ -91,7 +91,15 @@ void Model::initialize_model()
 	// find maximum possible number of sero-positives
 	for (size_t h = 0; h < num_househ; h++)
 	{
-		aux = househ[h].infectors_list.size() + househ[h].unknown_status_list.size();
+		// >>>> FIXME : temporary
+		if (househ[h].unknown_status_list.size() > 0)
+		{
+			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Cse not modeled yet.";
+			exit_with_failure_error(err_txt);
+		}
+		// <<<< <<<< <<<< <<<<
+
+		aux = househ[h].infectious_list.size() + househ[h].unknown_status_list.size();
 		max_num = (aux > max_num) ? aux : max_num;
 	}
 
@@ -110,17 +118,6 @@ void Model::initialize_model()
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Time of infection */
-// FIXME : this is not user-friendly
-double Individual::get_infec_time() const
-{
-	return 0.;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////// Model : Methods (likelihood)  /////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,16 +125,8 @@ double Individual::get_infec_time() const
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(std::size_t h)
 {
-	// >>>> FIXME : temporary
-	if (househ[h].unknown_status_list.size() > 0)
-	{
-		std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Cse not modeled yet.";
-		exit_with_failure_error(err_txt);
-	}
-	// <<<< <<<< <<<< <<<<
-
 	//=====community escape log-probability=====//
-	double log_commu_esc_proba = - get_value("alpha");
+	double log_commu_esc_proba = -get_value("alpha");
 	// community infection log-probability
 	double log_commu_infec_proba = log(1. - exp(-get_value("alpha")));
 
@@ -149,8 +138,8 @@ double Model::compute_single_house_loglike(std::size_t h)
 	double tmp, sero_positive_term;
 	int multiplicity;
 
-	int hh_size = househ[h].size;
-	int n_positive = househ[h].infectors_list.size();
+	int hh_size = househ[h].house_size;
+	int n_positive = househ[h].infectious_list.size();
 
 	//-----contribution of sero-negatives-----//
 	log_likelihood += (hh_size - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
@@ -209,21 +198,21 @@ double Model::compute_single_house_loglike(std::size_t h)
 /* Poisson point process to simulate data. */
 void Model::simulate_infection()
 {
-	size_t num_new_infectors = 0, num_old_infectors = 0;
+	size_t num_new_infectious = 0, num_old_infectious = 0;
 	std::vector<std::size_t> copy_list = {};
 
 	//=====community escape probability=====//
 	double commu_esc_proba = exp(-get_value("alpha"));
 
 	//=====person-to-person escape probability=====//
-	double p2p_esc_proba = exp(-get_value("beta")); 
+	double p2p_esc_proba = exp(-get_value("beta"));
 
 	//=====Simulate the infection for each household=====//
 	for (std::size_t h = 0; h < num_househ; h++)
 	{
 		//-----INITIALIZE-----//
-		// set all cases to healthy (change infectors and unknown to susceptibles)
-		copy_list = househ[h].infectors_list;
+		// set all cases to healthy (change infectious and unknown to susceptibles)
+		copy_list = househ[h].infectious_list;
 		for (std::size_t i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
@@ -235,30 +224,30 @@ void Model::simulate_infection()
 		}
 
 		//-----GENERATION 0 : infection by community-----//
-		num_new_infectors = 0;
+		num_new_infectious = 0;
 		copy_list = househ[h].susceptibles_list;
 		for (std::size_t i : copy_list)
 		{
 			if (uniform(rng) > commu_esc_proba)
 			{
 				househ[h].change_status(i, SYMPTOMATIC);
-				num_new_infectors++;
+				num_new_infectious++;
 			}
 		}
 
 		//-----GENERATION >=1 : infection by previous generation only-----//
-		while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectors > 0))
+		while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
 		{
-			num_old_infectors = num_new_infectors;
-			num_new_infectors = 0;
+			num_old_infectious = num_new_infectious;
+			num_new_infectious = 0;
 
 			copy_list = househ[h].susceptibles_list;
 			for (std::size_t i : copy_list)
 			{
-				if (uniform(rng) > pow(p2p_esc_proba, num_old_infectors))
+				if (uniform(rng) > pow(p2p_esc_proba, num_old_infectious))
 				{
 					househ[h].change_status(i, SYMPTOMATIC);
-					num_new_infectors++;
+					num_new_infectious++;
 				}
 			}
 		}

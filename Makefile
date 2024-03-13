@@ -27,11 +27,10 @@ all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS)
 	$(info Building $(EXECUTABLE)...)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(EXECUTABLE)
-
+	
 # For the model object
 $(NAME).o: $(FLDR)/$(NAME).cpp
 	$(CXX) $(CXXFLAGS) -I${FLDR} -c $< -o $@
-	clean
 
 # For the main object
 $(SRCDIR)/main.o: $(SRCDIR)/main.cpp

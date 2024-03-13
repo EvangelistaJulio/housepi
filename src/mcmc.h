@@ -72,7 +72,7 @@ public:
 	}
 	~MCMC() {}
 
-	//=====deal with raveled matrices=====//
+	//=====deal with flatten matrices=====//
 	std::size_t from_to(std::size_t i, std::size_t j) { return i * num_indiv + j; }
 	double get_contact_from_to(std::size_t i, std::size_t k) { return (*contact_patterns[from_to(i, k)]); }
 
@@ -89,9 +89,15 @@ public:
 	// attach individuals and assign group rate
 	void add_individual(Individual new_indiv);
 	int get_status(std::size_t i) const { return indiv[i].get_status(); }
-	virtual void assign_rate_per_group_to_individual(Individual *this_indiv);
+
+	virtual double get_infec_time(std::size_t i) const;
+
+	virtual void assign_rate_per_group_to_individual(std::size_t i);
 	virtual void assign_rate_per_contact(std::size_t i, std::size_t k);
 	virtual void assign_community_structure(std::string HH_index_column);
+
+	virtual void assign_end_followup(std::size_t h);
+	virtual void update_first_case(std::size_t h);
 
 	void assign_augmented_variables();
 	virtual void assign_infec_profile_function() {};

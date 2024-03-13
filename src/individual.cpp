@@ -18,11 +18,13 @@ Individual::Individual(sdargs new_data)
 /* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
 double Individual::get_data(std::string dataID) const
 {
+	/* // FIXME : control should be at the point of pre-processing
 	if (data.find(dataID) == data.end())
 	{
 		std::string err_text = "Data column `" + dataID + "` unknown.";
 		exit_with_failure_error(err_text);
 	}
+	*/
 	return data.at(dataID);
 }
 
@@ -123,62 +125,74 @@ double Individual::augm_propose_log_ratio(std::string augmID, double old_val, do
 // /////////////////////////// Household //////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-/* Update household first case and first infection time.
-WARNING: this strucutre assumes a single first infector.
-*/
-void Household::update_first_case()
-{
-	double t_infec;
-	double new_t0 = INFINITY; // NOTE: init to impossible values
-	size_t new_case0 = -1;	  // NOTE: init to impossible values
 
-	for (size_t i : infectors_list)
+/* Assign a data feature to the household */
+void Household::assign_data(std::string dataID, double value)
+{
+	if (house_data.find(dataID) == house_data.end())
 	{
-		t_infec = (*indiv_ptr)[i].get_infec_time();
-		new_t0 = std::min(t_infec, new_t0);
-		if (t_infec == new_t0)
-		{
-			new_case0 = i;
-		}
+		// if rateID was undeclared, add it
+		house_data.emplace(dataID, value);
 	}
-	first_case = new_case0;
-	start_followup = new_t0;
+	else
+	{
+		// rateID was previously declared
+		std::string err_text = "Found household with multiple definitions for data `" + dataID + "`.";
+		exit_with_failure_error(err_text);
+	}
 }
 
-/* */ // FIXME : is then study_period a standard name? In general, how to load household data?
-// FIXME : this should be a function of the time-models maybe
-void Household::assign_end_followup()
+/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+double Household::get_data(std::string dataID) const
 {
-	// find maximum study period within the household
-	end_followup = 0;
-	for (size_t i : infectors_list)
+	/* // FIXME : control should be done at the moment of pre-processing
+	if (house_data.find(dataID) == house_data.end())
 	{
-		end_followup = std::max(end_followup, get_indiv(i).get_data("study_period"));
+		std::string err_text = "Household data  `" + dataID + "` unknown.";
+		exit_with_failure_error(err_text);
 	}
+	*/
+	return house_data.at(dataID);
 }
 
 /* Link an individual to the household */
 void Household::link_individual(size_t i, int status)
 {
-	house_members.push_back(i);
-	size++;
-
 	// status list
-	if (status == HEALTHY)
+	if (status == SYMPTOMATIC)
+	{
+		infectious_list.push_back(i);
+	}
+	else if (status == HEALTHY)
 	{
 		susceptibles_list.push_back(i);
-	}
-	else if (status == SYMPTOMATIC)
-	{
-		infectors_list.push_back(i);
 	}
 	else
 	{
 		unknown_status_list.push_back(i);
 	}
+	house_size++;
 }
 
-/* Change_status of individual i to new status (without controls). 
+/* Return the indexes of the infectious, then the susceptibles, unknown statuses */
+std::vector<size_t> Household::get_house_members()
+{
+	std::vector<size_t> members;
+    members.reserve(house_size); // Reserve space
+
+    // Copy infectious
+    members.insert(members.end(), infectious_list.begin(), infectious_list.end());
+
+    // Copy susceptibles
+    members.insert(members.end(), susceptibles_list.begin(), susceptibles_list.end());
+
+    // Copy unknown
+    members.insert(members.end(), unknown_status_list.begin(), unknown_status_list.end());
+
+    return members;
+}
+
+/* Change_status of individual i to new status (without controls).
 	WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(size_t i, int new_status)
 {
@@ -193,7 +207,7 @@ void Household::change_status(size_t i, int new_status)
 		}
 		else if (old_status == SYMPTOMATIC)
 		{
-			infectors_list.erase(find(infectors_list.begin(), infectors_list.end(), i));
+			infectious_list.erase(find(infectious_list.begin(), infectious_list.end(), i));
 		}
 		else
 		{
@@ -207,13 +221,13 @@ void Household::change_status(size_t i, int new_status)
 		}
 		else if (new_status == SYMPTOMATIC)
 		{
-			infectors_list.push_back(i);
+			infectious_list.push_back(i);
 		}
 		else
 		{
 			unknown_status_list.push_back(i);
 		}
-		
+
 		// change the status of individual to new
 		(*indiv_ptr)[i].set_status(new_status);
 	}

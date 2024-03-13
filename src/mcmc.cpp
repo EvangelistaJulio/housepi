@@ -6,8 +6,15 @@
 bool Unknown_Status_Warning = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////////  MCMC : setter ////////////////////////////////////////// //
+// ///////////////////////////////////  MCMC : ???? ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Return the time of infection of a patient. */
+double MCMC::get_infec_time(size_t i) const
+{
+    UNUSED(i);
+    return INFINITY;
+}
 
 /* Assign the contact patterns between a couple of individuals. */
 void MCMC::assign_rate_per_contact(size_t i, size_t k)
@@ -21,6 +28,45 @@ void MCMC::store_augm_var_dependecies(size_t i)
 {
     UNUSED(i);
 }
+
+
+
+/* Update household first case and first infection time.
+WARNING: this strucutre assumes a single first infector.
+FIXME : this should be a function of the time-models maybe
+*/
+void MCMC::update_first_case(std::size_t h)
+{
+	double t_infec;
+	double new_t0 = INFINITY; // NOTE: init to impossible values
+	size_t new_case0 = -1;	  // NOTE: init to impossible values
+
+	for (size_t i : househ[h].infectious_list)
+	{
+		t_infec = get_infec_time(i);
+		new_t0 = std::min(t_infec, new_t0);
+		if (t_infec == new_t0)
+		{
+			new_case0 = i;
+		}
+	}
+	househ[h].first_case = new_case0;
+	househ[h].set_data("start_followup", new_t0);
+}
+
+/* */ // FIXME : is then study_period a standard name? In general, how to load household data?
+// FIXME : this should be a function of the time-models maybe
+void MCMC::assign_end_followup(std::size_t h)
+{
+	// find maximum study period within the household
+	double end_followup = 0;
+	for (size_t i : househ[h].infectious_list)
+	{
+		end_followup = std::max(end_followup, indiv[i].get_data("study_period"));
+	}
+	househ[h].set_data("end_followup", end_followup);
+}
+
 
 double MCMC::compute_single_house_loglike(std::size_t h)
 {
@@ -124,7 +170,10 @@ void MCMC::move_and_adapt_parameters(unsigned step, double target)
 // ///////////////////////////  MCMC : move augmented variables //////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Sweep over augmented variables. */
+/* 
+Sweep over augmented variables. 
+FIXME : data agumentation is not always time dependent
+*/
 void MCMC::move_augm_variables()
 {
     double old_val, new_val, Q;
@@ -135,7 +184,7 @@ void MCMC::move_augm_variables()
     for (size_t h = 0; h < num_househ; h++)
     {
         // Loop over infectious residents of the househould
-        for (size_t i : househ[h].infectors_list)
+        for (size_t i : househ[h].infectious_list)
         {
             for (std::string augmID : augm_to_infer_set)
             {
@@ -148,7 +197,7 @@ void MCMC::move_augm_variables()
                 if (indiv[i].augm_valid(augmID, new_val))
                 {                                       // Update with proposed value to perform computations
                     indiv[i].set_augm(augmID, new_val); // UPDATE: should be method Model
-                    househ[h].update_first_case();      // Update information of first cases
+                    update_first_case(h);               // Update information of first cases
                     store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
 
                     new_loglike_of_HH = compute_single_house_loglike(h);
@@ -166,7 +215,7 @@ void MCMC::move_augm_variables()
                     else
                     {
                         indiv[i].set_augm(augmID, old_val); // UPDATE: should be method Model
-                        househ[h].update_first_case();      // Update information of first cases
+                        update_first_case(h);               // Update information of first cases
                         store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
                     }
                 }
@@ -294,8 +343,13 @@ void MCMC::simulation(std::string output_filename)
 void MCMC::add_individual(Individual new_indiv)
 {
     int status = new_indiv.get_status();
+    size_t i = num_indiv; // index of the individual 
     std::string rateID = UNDEFINED;
     std::string parID = UNDEFINED;
+    
+    //=====Store New Individual=====//
+    indiv[i] = new_indiv;
+    num_indiv++;
 
     //=====check for the validity of the status=====//
     if ((status != HEALTHY) && (status != SYMPTOMATIC) && Unknown_Status_Warning)
@@ -306,11 +360,11 @@ void MCMC::add_individual(Individual new_indiv)
         raise_warning_message(warn_text);
         Unknown_Status_Warning = false;
     }
+    
+    //=====Assign Model Rates=====//
+    assign_rate_per_group_to_individual(i);
 
-    //-----Assign Model Rates-----//
-    assign_rate_per_group_to_individual(&new_indiv);
-
-    for (const auto &which : new_indiv._which_rate)
+    for (const auto &which : indiv[i]._which_rate)
     {
         rateID = which.first;
         parID = which.second;
@@ -335,19 +389,19 @@ void MCMC::add_individual(Individual new_indiv)
         if (parID == UNDEFINED)
         {
             // error : undefined rate
-            std::string err_text = "Rate `" + rateID + "` is not provided for individual " + std::to_string(new_indiv.get_index()) + ".";
+            std::string err_text = "Rate `" + rateID + "` is not provided for individual " + std::to_string(indiv[i].get_index()) + ".";
             exit_with_failure_error(err_text);
         }
         else if (parID == REFERENCE)
         {
             // rate set to reference
-            new_indiv._set_rate(rateID, get_reference());
+            indiv[i]._set_rate(rateID, get_reference());
             model_report.at(rateID).at("[reference]") += 1;
         }
         else
         {
             // rate associated to parameter
-            new_indiv._set_rate(rateID, get_address(parID));
+            indiv[i]._set_rate(rateID, get_address(parID));
             if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
             {
                 model_report.at(rateID).emplace(parID, 1);
@@ -358,17 +412,13 @@ void MCMC::add_individual(Individual new_indiv)
             }
         }
     }
-
-    //-----Store New Individual-----//
-    indiv[num_indiv] = new_indiv;
-    num_indiv++;
 }
 
 /* Assign group rate to an individual */
-void MCMC::assign_rate_per_group_to_individual(Individual *this_indiv)
+void MCMC::assign_rate_per_group_to_individual(std::size_t i)
 {
-    this_indiv->assign_rate_per_group("Infectivity", REFERENCE);
-    this_indiv->assign_rate_per_group("Susceptibility", REFERENCE);
+    indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
+    indiv[i].assign_rate_per_group("Susceptibility", REFERENCE);
 }
 
 /* Assign community structure to individuals. I returns a report. */
@@ -408,7 +458,7 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     //=====assign home to individuals=====//
     for (size_t h = 0; h < num_househ; h++)
     {
-        for (size_t i : househ[h].house_members)
+        for (size_t i : househ[h].get_house_members())
         {
             indiv[i].home = h;
         }

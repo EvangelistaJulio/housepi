@@ -44,7 +44,15 @@ void Model::initialize_model()
 	// find maximum possible number of sero-positives
 	for (size_t h = 0; h < num_househ; h++)
 	{
-		aux = househ[h].infectors_list.size() + househ[h].unknown_status_list.size();
+		// >>>> FIXME : temporary
+		if (househ[h].unknown_status_list.size() > 0)
+		{
+			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Cse not modeled yet.";
+			exit_with_failure_error(err_txt);
+		}
+		// <<<< <<<< <<<< <<<<
+
+		aux = househ[h].infectious_list.size() + househ[h].unknown_status_list.size();
 		max_num = (aux > max_num) ? aux : max_num;
 	}
 
@@ -63,17 +71,6 @@ void Model::initialize_model()
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Time of infection */
-// FIXME : this is not user-friendly
-double Individual::get_infec_time() const
-{
-	return 0.;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////// Model : Methods (likelihood)  /////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,14 +78,6 @@ double Individual::get_infec_time() const
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(std::size_t h)
 {
-	// >>>> FIXME : temporary
-	if (househ[h].unknown_status_list.size() > 0)
-	{
-		std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Cse not modeled yet.";
-		exit_with_failure_error(err_txt);
-	}
-	// <<<< <<<< <<<< <<<<
-
 	//=====community escape log-probability=====//
 	double log_commu_esc_proba = -get_value("alpha");
 
@@ -96,8 +85,8 @@ double Model::compute_single_house_loglike(std::size_t h)
 	double log_within_esc_proba = -get_value("beta");
 
 	//=====compute the likelihood according to the Reed-Frost model=====//
-	int hh_size = househ[h].size;
-	int n_positive = househ[h].infectors_list.size();
+	int hh_size = househ[h].house_size;
+	int n_positive = househ[h].infectious_list.size();
 	int multiplicity;
 
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
@@ -164,8 +153,8 @@ void Model::simulate_infection()
 	for (std::size_t h = 0; h < num_househ; h++)
 	{
 		//-----INITIALIZE-----//
-		// set all cases to healthy (change infectors and unknown to susceptibles)
-		copy_list = househ[h].infectors_list;
+		// set all cases to healthy (change infectious and unknown to susceptibles)
+		copy_list = househ[h].infectious_list;
 		for (std::size_t i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
@@ -176,7 +165,7 @@ void Model::simulate_infection()
 			househ[h].change_status(i, HEALTHY);
 		}
 		is_infec_by_community = false;
-		
+
 		//-----GENERATION 0 : infection by community-----//
 		copy_list = househ[h].susceptibles_list;
 		for (std::size_t i : copy_list)

@@ -129,7 +129,7 @@ double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<do
 	// submatrix has always at least 1 infector: community
 	std::vector<double> sub_escape_matrix((k + 1) * (k));
 
-	// find the submatrix of the given infectors if any
+	// find the submatrix of the given infectious if any
 	usi row = 0, inf = 0; // community (inf=0) is always at position (row=0)
 	while ((k > 0) && (row <= k))
 	{
@@ -142,7 +142,7 @@ double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<do
 		row++;
 	}
 
-	// product over all infectors of escape matrix for the escaped individuals
+	// product over all infectious of escape matrix for the escaped individuals
 	double esc_product = 1.;
 	for (usi i = k; i < N; i++)
 	{
@@ -185,17 +185,6 @@ double _recursive_function(usi N, std::vector<double> &escape_matrix)
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Time of infection */
-// FIXME : this is not user-friendly
-double Individual::get_infec_time() const
-{
-	return 0.;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////// Model : Methods (likelihood)  /////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -208,9 +197,6 @@ void Model::initialize_model()
 	// find maximum possible number of sero-positives
 	for (size_t h = 0; h < num_househ; h++)
 	{
-		aux = househ[h].infectors_list.size() + househ[h].unknown_status_list.size();
-		max_num = (aux > max_num) ? aux : max_num;
-
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
 		{
@@ -218,6 +204,10 @@ void Model::initialize_model()
 			exit_with_failure_error(err_txt);
 		}
 		// <<<< <<<< <<<< <<<<
+		
+		aux = househ[h].infectious_list.size() + househ[h].unknown_status_list.size();
+		max_num = (aux > max_num) ? aux : max_num;
+
 	}
 
 	initialize_LookupTable(max_num);
@@ -226,8 +216,8 @@ void Model::initialize_model()
 /* Compute the log-likelihood for a single household. */
 double Model::compute_single_house_loglike(std::size_t h)
 {
-	usi hh_size = househ[h].size;
-	usi num_infec = househ[h].infectors_list.size();
+	usi hh_size = househ[h].house_size;
+	usi num_infec = househ[h].infectious_list.size();
 	double log_likelihood = 0;
 
 	// allocate memory for escape matrix
@@ -246,7 +236,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 	}
 
 	//=====person-to-person escape log-probability=====//
-	// NOTE : change if to distinguish between infectors, unknown, susceptibles...
+	// NOTE : change if to distinguish between infectious, unknown, susceptibles...
 	double p2p_esc_proba = exp(-get_value("beta"));
 
 	for (usi k = 1; k <= hh_size; k++)
@@ -289,7 +279,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 /* Poisson point process to simulate data. */
 void Model::simulate_infection()
 {
-	size_t num_new_infectors = 0, num_old_infectors = 0;
+	size_t num_new_infectious = 0, num_old_infectious = 0;
 	std::vector<std::size_t> copy_list = {};
 
 	//=====community escape probability=====//
@@ -302,8 +292,8 @@ void Model::simulate_infection()
 	for (std::size_t h = 0; h < num_househ; h++)
 	{
 		//=====INITIALIZE=====//
-		// set all cases to healthy (change infectors and unknown to susceptibles)
-		copy_list = househ[h].infectors_list;
+		// set all cases to healthy (change infectious and unknown to susceptibles)
+		copy_list = househ[h].infectious_list;
 		for (std::size_t i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
@@ -313,7 +303,7 @@ void Model::simulate_infection()
 		{
 			househ[h].change_status(i, HEALTHY);
 		}
-		num_new_infectors = 0;
+		num_new_infectious = 0;
 
 		//====GENERATION 0 : infection by community=====//
 		copy_list = househ[h].susceptibles_list;
@@ -322,23 +312,23 @@ void Model::simulate_infection()
 			if (uniform(rng) > commu_esc_proba)
 			{
 				househ[h].change_status(i, SYMPTOMATIC);
-				num_new_infectors++;
+				num_new_infectious++;
 			}
 		}
 
 		//====GENERATION >=1 : infection by previous generatioon=====//
-		while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectors > 0))
+		while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
 		{
-			num_old_infectors = num_new_infectors;
-			num_new_infectors = 0;
+			num_old_infectious = num_new_infectious;
+			num_new_infectious = 0;
 
 			copy_list = househ[h].susceptibles_list;
 			for (std::size_t i : copy_list)
 			{
-				if (uniform(rng) > exp(num_old_infectors * log_p2p_esc_proba))
+				if (uniform(rng) > exp(num_old_infectious * log_p2p_esc_proba))
 				{
 					househ[h].change_status(i, SYMPTOMATIC);
-					num_new_infectors++;
+					num_new_infectious++;
 				}
 			}
 		}

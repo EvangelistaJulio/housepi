@@ -30,10 +30,11 @@ public:
 	//=====Required Methods=====//
 	
 	void assign_infec_profile_function() override;
-	void assign_rate_per_group_to_individual(Individual *this_indiv) override;
+	void assign_rate_per_group_to_individual(size_t i) override;
 	void store_augm_var_dependecies(std::size_t i) override;
 	void initialize_model() override;
 
+	double get_infec_time(std::size_t i) const override;
 	double compute_single_house_loglike(std::size_t h) override;
 
 	void simulate_infection() override;

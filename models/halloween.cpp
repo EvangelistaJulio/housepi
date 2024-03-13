@@ -198,13 +198,13 @@ double Model::compute_infec_profile_cumul(std::size_t i, double t_transm)
 void Model::store_augm_var_dependecies(std::size_t i)
 {
 	std::size_t h = indiv[i].home;
-	double t_infec_i = indiv[i].get_infec_time();
+	double t_infec_i = get_infec_time(i);
 	double t_infec_k;
 
 	//=====loop over all symptomatic residents=====//
-	for (std::size_t k : househ[h].infectors_list)
+	for (std::size_t k : househ[h].infectious_list)
 	{
-		t_infec_k = indiv[k].get_infec_time();
+		t_infec_k = get_infec_time(k);
 
 		if (t_infec_i < t_infec_k)
 		{ // `i` : infector, `k` : infectee
@@ -220,7 +220,7 @@ void Model::store_augm_var_dependecies(std::size_t i)
 	}
 
 	//=====loop over all healthy residents=====//
-	t_infec_k = househ[h].end_followup;
+	t_infec_k = househ[h].get_data("end_followup");
 	for (std::size_t k : househ[h].susceptibles_list)
 	{
 		cumul_profile_lookuptab[from_to(i, k)] = compute_infec_profile_cumul(i, t_infec_k);
@@ -239,9 +239,9 @@ void Model::store_augm_var_dependecies(std::size_t i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Time of infection */
-double Individual::get_infec_time() const
+double Model::get_infec_time(size_t i) const
 {
-	return get_augm("onset_time") - get_augm("incub_period");
+	return indiv[i].get_augm("onset_time") - indiv[i].get_augm("incub_period");
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -266,8 +266,9 @@ void Model::initialize_model()
     // find the first case for each household
     for (size_t h = 0; h < num_househ; h++)
     {
-        househ[h].assign_end_followup();
-        househ[h].update_first_case();
+		// FIXME : for the moment there's a mess between set and assignemtn, it might not work because of this
+        assign_end_followup(h);
+        update_first_case(h);
     }
 }
 
@@ -276,26 +277,26 @@ void Model::initialize_model()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the parameters controlling infectivity for each individual */
-void Model::assign_rate_per_group_to_individual(Individual *this_indiv)
+void Model::assign_rate_per_group_to_individual(size_t i)
 {
 	//=====rate 0 : Infectivity=====//
-	if ((this_indiv->get_data("recov") == false) && (this_indiv->get_data("vacc_status") == 0))
+	if ((indiv[i].get_data("recov") == false) && (indiv[i].get_data("vacc_status") == 0))
 	{ // unrecovered unvaccinated
-		this_indiv->assign_rate_per_group("Infectivity", "i_naive");
+		indiv[i].assign_rate_per_group("Infectivity", "i_naive");
 	}
 	else
 	{ // vaccinated o recovered : Infectivity [REFERENCE]
-		this_indiv->assign_rate_per_group("Infectivity", REFERENCE);
+		indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
 	}
 
 	//=====rate 1 : Susceptiblity=====//
-	if (this_indiv->get_data("vacc_status") == 0)
+	if (indiv[i].get_data("vacc_status") == 0)
 	{ // naive : Susceptiblity [REFERENCE]
-		this_indiv->assign_rate_per_group("Susceptiblity", REFERENCE);
+		indiv[i].assign_rate_per_group("Susceptiblity", REFERENCE);
 	}
 	else
 	{ // 1 dose
-		this_indiv->assign_rate_per_group("Susceptiblity", "s_vacc");
+		indiv[i].assign_rate_per_group("Susceptiblity", "s_vacc");
 	}
 }
 
@@ -344,7 +345,7 @@ double Model::_sum_hazards_(double *profiles, std::size_t i)
 	std::size_t h = indiv[i].home;
 
 	// Risk of infection from other household members
-	for (std::size_t k : househ[h].infectors_list)
+	for (std::size_t k : househ[h].infectious_list)
 	{
 		if (k != i)
 		{
@@ -353,7 +354,7 @@ double Model::_sum_hazards_(double *profiles, std::size_t i)
 		}
 	}
 
-	return output * get_value("beta") * pow(get_value("median_size") / househ[h].size, get_value("delta"));
+	return output * get_value("beta") * pow(get_value("median_size") / househ[h].house_size, get_value("delta"));
 }
 
 /* Compute the log-likelihood within household. */
@@ -361,8 +362,8 @@ double Model::compute_single_house_loglike(std::size_t h)
 {
 	double loglike_house = 0.0;
 	double ti;
-	double t0 = househ[h].start_followup;
-	double tf = househ[h].end_followup;
+	double t0 = househ[h].get_data("start_followup");
+	double tf = househ[h].get_data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
 	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
@@ -374,7 +375,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 	}
 
 	// Contribution of symptomatic residents
-	for (std::size_t i : househ[h].infectors_list)
+	for (std::size_t i : househ[h].infectious_list)
 	{
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model_set)
@@ -385,7 +386,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
-			ti = indiv[i].get_infec_time();
+			ti = get_infec_time(i);
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(ti, Inst_EPI_Curve);
 			loglike_house += log(indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)));
 			loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
@@ -422,7 +423,7 @@ void Model::simulate_infection()
 		}
 
 		// set all secondary cases to healthy
-		std::vector<std::size_t> copy_list = househ[h].infectors_list;
+		std::vector<std::size_t> copy_list = househ[h].infectious_list;
 		for (std::size_t i : copy_list)
 		{
 			if (i != househ[h].first_case)
@@ -433,7 +434,7 @@ void Model::simulate_infection()
 		}
 
 		//=====simulate infection within household=====//
-		for (double t = dt + househ[h].start_followup; ((t < househ[h].end_followup) && !househ[h].susceptibles_list.empty()); t += dt)
+		for (double t = dt + househ[h].get_data("start_followup"); ((t < househ[h].get_data("end_followup")) && !househ[h].susceptibles_list.empty()); t += dt)
 		{
 			std::vector<std::size_t> copy_list = househ[h].susceptibles_list;
 			for (std::size_t i : copy_list)

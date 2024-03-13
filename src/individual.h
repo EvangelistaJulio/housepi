@@ -42,9 +42,6 @@ public:
 	Individual() = default;
 	~Individual(){};
 
-	//=====Methods for the Model=====//
-	double get_infec_time() const;
-
 	//=====Getter=====//
 	bool get_status() const { return status; }
 	void set_status(int d) { status = d; }
@@ -84,41 +81,38 @@ public:
 class Household
 {
 private:
+	int house_index = -1;
 	Individual **indiv_ptr = nullptr;
+	sdargs house_data = {};
 	double loglike = -INFINITY;
 	double buffer = -INFINITY;
 
 public:
 	//=====Attributes=====//
-	int house_index = -1;
-
-	// membemrs-attributes
-	size_t size = 0;
-	std::vector<size_t> house_members = {};
-	std::vector<size_t> susceptibles_list = {};
-	std::vector<size_t> infectors_list = {};
-	std::vector<size_t> unknown_status_list = {};
-
-	// time-attributes
+	size_t house_size = 0;
 	size_t first_case = -1;
-	double start_followup = INFINITY;
-	double end_followup = 0;
+	std::vector<size_t> infectious_list = {};
+	std::vector<size_t> susceptibles_list = {};
+	std::vector<size_t> unknown_status_list = {};
 
 	//=====Constructors=====//
 	Household() {}
 	~Household(){};
-
-	//======Getter======//
-	int get_index() const { return house_index; }
-	Individual get_indiv(size_t i) const { return (*indiv_ptr)[i]; }
 
 	//======Setter======//
 	void set_index(int index) { house_index = index; }
 	void set_indiv_ptr(Individual **new_ptr) { indiv_ptr = new_ptr; }
 	void link_individual(size_t i, int status);
 	void change_status(size_t i, int new_status);
-	void update_first_case();
-	void assign_end_followup();
+	void assign_data(std::string dataID, double value);
+	void set_data(std::string dataID, double value) { house_data.at(dataID) = value; }
+
+	//======Getter======//
+	int get_index() const { return house_index; }
+	std::vector<size_t> get_house_members();
+
+	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+	double get_data(std::string dataID) const;
 
 	//======Loglike======//
 	double get_loglike() const { return loglike; }
