@@ -369,7 +369,7 @@ void MCMC::add_individual(Individual new_indiv)
         rateID = which.first;
         parID = which.second;
 
-        if (num_indiv == 0)
+        if (num_indiv == 1)
         {
             // if first individual, initialize rateID-report
             model_report.emplace(rateID, std::map<std::string, int>());
@@ -380,7 +380,7 @@ void MCMC::add_individual(Individual new_indiv)
             // all individuals must have the same set of rates of first individual
             if (model_report.find(rateID) == model_report.end())
             {
-                std::string err_text = "Rate `" + rateID + "` is not provided for all individuals.";
+                std::string err_text = "Rate `" + rateID + "` is not provided for individuals.";
                 exit_with_failure_error(err_text);
             }
         }

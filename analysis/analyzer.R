@@ -199,7 +199,6 @@ main <- function() {
     )
   }
 
-
   sample_size <- length(df[["iter"]])
   # extract thinning
   thinning <- df[["iter"]][2] - df[["iter"]][1]
@@ -250,7 +249,8 @@ main <- function() {
     ess <- length(mask)
     # compute statistics on effective sample
     mu <- mean(signal[mask])
-    sigma <- sd(signal[mask])
+    sigma <- sd(signal[mask])    
+    ci_95 <- quantile(signal[mask], probs = c(0.025, 0.975))
 
     # append results to the output dataframe
     key_data <- data.frame(
@@ -258,7 +258,9 @@ main <- function() {
       mean = mu,
       sd = sigma,
       period = period * thinning,
-      ESS = ess
+      ESS = ess,
+      CI95_min = ci_95[1],
+      CI95_max = ci_95[2]
     )
     output_df <- rbind(output_df, key_data)
 
@@ -320,8 +322,8 @@ main <- function() {
       mcmc_plot <- ggplot(df, aes(x = iter, y = .data[[p]])) +
         geom_line(color = colors[i]) +
         geom_hline(yintercept = mu, color = clr_stat) +
-        geom_hline(yintercept = mu - sigma, linetype = "dashed", color = clr_stat) +
-        geom_hline(yintercept = mu + sigma, linetype = "dashed", color = clr_stat)
+        geom_hline(yintercept = ci_95[1], linetype = "dashed", color = clr_stat) +
+        geom_hline(yintercept = ci_95[2], linetype = "dashed", color = clr_stat)
       if ((is_target == TRUE) && (show_prior == TRUE)) {
         mcmc_plot <- mcmc_plot +
           geom_hline(yintercept = prior_value, color = clr_target)
@@ -339,8 +341,8 @@ main <- function() {
       hist_plot <- hist_plot +
         geom_freqpoly(data = df, mapping = aes(x = .data[[p]], y = after_stat(density)), binwidth = binwidth, color = colors[i]) +
         geom_vline(xintercept = mu, color = clr_stat) +
-        geom_vline(xintercept = mu - sigma, linetype = "dashed", color = clr_stat) +
-        geom_vline(xintercept = mu + sigma, linetype = "dashed", color = clr_stat)
+        geom_vline(xintercept = ci_95[1], linetype = "dashed", color = clr_stat) +
+        geom_vline(xintercept = ci_95[2], linetype = "dashed", color = clr_stat)
       if ((is_target == TRUE) && (show_prior == TRUE)) {
         hist_plot <- hist_plot +
           geom_vline(xintercept = prior_value, color = clr_target)

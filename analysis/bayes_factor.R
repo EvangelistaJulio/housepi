@@ -1,5 +1,8 @@
 #!/usr/bin/env Rscript
 
+# clean environment
+rm(list = ls())
+
 # LIBRARIES
 suppressPackageStartupMessages(library(tidyverse))
 
@@ -23,27 +26,31 @@ parse_command_line_args <- function() {
 main <- function() {
   args <- parse_command_line_args()
   working_directory <- args[["working_directory"]]
-  out_file <- file.path(working_directory, "bayes_factor.csv")
 
-  # default path for
-  thermo_ladder_path <- file.path(working_directory, "thermo-integr/analysis")
+  # default path for pre-computed analysis results
+  path_to_analysis <- file.path(working_directory, "analysis")
+  # initialize output file
+  out_file <- file.path(path_to_analysis, "bayes_factor.csv")
+  
+  # initialize output dataframe
   thermo_integr <- data.frame(rung = integer(0), ll_mean = numeric(0), ll_sd = numeric(0))
-
+  
   # load the list of files with the MCMC of the thermodynamic ladder
-  thermo_ladder_files <- list.files(thermo_ladder_path)
+  thermo_ladder_files <- list.files(working_directory, pattern = "^infer.*\\.csv$")
   num_rungs <- length(thermo_ladder_files)
   if (num_rungs == 0) {
-    cat("The folder ", thermo_ladder_path,  " is empty.\n")
+    cat("The folder ", working_directory, " is empty.\n")
     quit("no", 1)
   }
 
   # load loglike statistics precedently computed
   for (file_name in thermo_ladder_files) {
     # Regular expression to extract rung from the filename
-    r <- as.integer(gsub("infer-(\\d+)-a.csv", "\\1", file_name))
+    r <- as.integer(gsub("infer-(\\d+).csv", "\\1", file_name))
 
     # Add the rung filename to the dictionary
-    df <- read_csv(file.path(thermo_ladder_path, file_name), show_col_types = FALSE)
+    analysis_file <- file.path(path_to_analysis, sprintf("infer-%d-a.csv", r))
+    df <- read_csv(analysis_file, show_col_types = FALSE)
     df <- df %>% column_to_rownames(., var = "key")
 
     # append the results
@@ -58,9 +65,9 @@ main <- function() {
 
   # Power Posterior estimation of marginal likelihood
   ll_mean <- thermo_integr[["ll_mean"]]
-  ll_var <- thermo_integr[["ll_sd"]] ^ 2
+  ll_var <- thermo_integr[["ll_sd"]]^2
 
-  # UPDATE : temporary choice of the rung - inverse temperature relation
+  # FIXME : temporary choice of the rung - inverse temperature relation
   inver_temp <- (seq(0, num_rungs - 1, 1) / (num_rungs - 1))^5
 
   # trapezoidal estimation of the integral
