@@ -11,8 +11,8 @@ using namespace std;
 Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
     double strategy_from_zero,
-    kwargs value_range,
-    std::vector<size_t> list_of_args_to_adapt) : distr_ptr(distr)
+    sdargs value_range,
+    std::vector<std::size_t> list_of_args_to_adapt) : distr_ptr(distr)
 {
     args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
@@ -35,8 +35,8 @@ Base_Proposer::Base_Proposer(
         }
         else
         {
-            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range ";
-            err_text += " {low:" + std::to_string(_range_low_) + ", up:" + std::to_string(_range_up_) + "} are inconsistent.";
+            std::string err_text = "Initial value " + to_std::string(strategy_from_zero) + " and value range ";
+            err_text += " {low:" + to_std::string(_range_min_) + ", up:" + to_std::string(_range_max_) + "} are inconsistent.";
             exit_with_failure_error(err_text);
         }
         */
@@ -44,11 +44,11 @@ Base_Proposer::Base_Proposer(
 };
 
 /* increase spread if acceptation rate is high and viceversa */
-void Base_Proposer::adapt(double ratio)
+void Base_Proposer::adapt(double ratio, double target)
 {
-    double factor = 1. + (1. - ratio) * (get_accept_rate() - DEFAULT_ACCEPT_RATE);
+    double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
 
-    for (size_t argID : args_to_adapt)
+    for (std::size_t argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -69,20 +69,20 @@ void Base_Proposer::update_accept_rate(bool is_accepted)
 }
 
 /* set range validation functions */
-void Base_Proposer::set_range(kwargs new_range)
+void Base_Proposer::set_range(sdargs new_range)
 {
     int condition = 0;
 
     for (auto const &x : new_range)
     {
-        if (x.first == "low")
+        if (x.first == "min")
         {
-            _range_low_ = x.second;
+            _range_min_ = x.second;
             condition += 2;
         }
-        else if (x.first == "up")
+        else if (x.first == "max")
         {
-            _range_up_ = x.second;
+            _range_max_ = x.second;
             condition += 3;
         }
     }
@@ -93,17 +93,17 @@ void Base_Proposer::set_range(kwargs new_range)
     }
     else if (condition == 2)
     {
-        _valid_func_ = &Base_Proposer::_valid_range_low_;
+        _valid_func_ = &Base_Proposer::_valid_range_min_;
     }
     else if (condition == 3)
     {
-        _valid_func_ = &Base_Proposer::_valid_range_up_;
+        _valid_func_ = &Base_Proposer::_valid_range_max_;
     }
     else if (condition == 5)
     {
-        if (_range_low_ >= _range_up_)
+        if (_range_min_ >= _range_max_)
         {
-            std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_low_) + ", up:" + std::to_string(_range_up_) + "}.";
+            std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "}.";
             exit_with_failure_error(err_text);
         }
         else
@@ -119,7 +119,7 @@ void Base_Proposer::set_range(kwargs new_range)
 }
 
 /* Switchboard to select the custom metropolis strategy */
-Base_Proposer *proposer_switchboard(std::string name, kwargs args, double strat_zero, kwargs value_range)
+Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_zero, sdargs value_range)
 {
     if (name == UNDEFINED)
     {
@@ -149,19 +149,19 @@ std::string Base_Proposer::display(char delim, char dict_delim)
 {
     std::string output = distr_ptr->display(delim, dict_delim);
     output += delim;
-    if (_range_low_ > -INFINITY)
+    if (_range_min_ > -INFINITY)
     {
-        std::string aux = "low";
-        output += aux + dict_delim + std::to_string(_range_low_);
-        if (_range_up_ < INFINITY)
+        std::string aux = "min";
+        output += aux + dict_delim + std::to_string(_range_min_);
+        if (_range_max_ < INFINITY)
         {
             output += dict_delim;
         }
     }
-    if (_range_up_ < INFINITY)
+    if (_range_max_ < INFINITY)
     {
-        std::string aux = "up";
-        output += aux + dict_delim + std::to_string(_range_up_);
+        std::string aux = "max";
+        output += aux + dict_delim + std::to_string(_range_max_);
     }
 
     return output;
@@ -186,10 +186,10 @@ void Parameter_Dictionary::add_param(
     const std::string k,
     double new_val,
     std::string prior_name,
-    kwargs prior_args,
+    sdargs prior_args,
     std::string strat_name,
-    kwargs strat_args,
-    kwargs value_range)
+    sdargs strat_args,
+    sdargs value_range)
 {
     Parameter new_param(new_val, prior_name, prior_args, strat_name, strat_args, value_range);
 
@@ -218,13 +218,18 @@ void Parameter_Dictionary::add_param(
 /* display the user model parameters */
 void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
 {
+    for (std::string k : param_file_required_headers)
+    {
+        cout << k << delim;
+    }
+    cout << endl;
     for (std::string k : param_to_be_inferred)
     {
-        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
     for (std::string k : param_static)
     {
-        std::cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
     }
 }
 
@@ -243,7 +248,7 @@ void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
     }
 }
 
-/* FIXME */
+/* propose a valid move */
 bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
 {
     double new_val = params.at(k).propose(rng); // propose new value

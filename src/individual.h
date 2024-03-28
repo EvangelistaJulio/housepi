@@ -28,23 +28,19 @@ private:
 	int status = 0;
 	int index = 0;
 
-	std::unordered_map<std::string, double> data = {};
+	sdargs data = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
-
-	const double **_rate_ptr = nullptr;
+	sdargs_ext _rate_ptr = {};
 
 public:
 	//=====Public Attributes=====//
 	size_t home = -1;
-	std::string * _which_rate = nullptr;
+	std::unordered_map<std::string, std::string> _which_rate = {};
 
 	//=====Constructors=====//
-	Individual(int status, int index, std::unordered_map<std::string, double> data);
+	Individual(sdargs data);
 	Individual() = default;
 	~Individual(){};
-
-	//=====Methods for the Model=====//
-	timetype get_infec_time() const;
 
 	//=====Getter=====//
 	bool get_status() const { return status; }
@@ -52,23 +48,12 @@ public:
 	int get_index() const { return index; }
 
 	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
-	double get_data(std::string dataID) const
-	{
-		if (data.find(dataID) == data.end())
-		{
-			std::cerr << "\nERROR: data column `" << dataID << "` unknown." << std::endl;
-			std::cerr << "Exit...\n"
-					  << std::endl;
-			std::exit(EXIT_FAILURE);
-		}
-		return data.at(dataID);
-	}
+	double get_data(std::string dataID) const;
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate_per_group(size_t r, std::string parID) { _which_rate[r] = parID; }
-	double model_rate(size_t r) const { return *_rate_ptr[r]; }
-	void _set_rate(size_t r, const double *x) { _rate_ptr[r] = x; }
-	void _allocate_rates(size_t num_rates);
+	void assign_rate_per_group(std::string rateID, std::string parID);
+	void _set_rate(std::string rateID, const double *x);
+	double model_rate(std::string rateID) const;
 
 	//=====Augmented Variables=====//
 	void add_augm(std::string augmID, Augmented new_augm);
@@ -96,34 +81,38 @@ public:
 class Household
 {
 private:
+	int house_index = -1;
 	Individual **indiv_ptr = nullptr;
+	sdargs house_data = {};
 	double loglike = -INFINITY;
 	double buffer = -INFINITY;
 
 public:
 	//=====Attributes=====//
-	int house_index = -1;
-	size_t size = 0;
+	size_t house_size = 0;
 	size_t first_case = -1;
-	timetype start_followup = INFINITY;
-	timetype end_followup = 0;
+	std::vector<size_t> infectious_list = {};
 	std::vector<size_t> susceptibles_list = {};
-	std::vector<size_t> infectors_list = {};
+	std::vector<size_t> unknown_status_list = {};
 
 	//=====Constructors=====//
 	Household() {}
 	~Household(){};
-
-	//======Getter======//
-	int get_index() const { return house_index; }
 
 	//======Setter======//
 	void set_index(int index) { house_index = index; }
 	void set_indiv_ptr(Individual **new_ptr) { indiv_ptr = new_ptr; }
 	void link_individual(size_t i, int status);
 	void change_status(size_t i, int new_status);
-	void update_first_case();
-	void assign_end_followup();
+	void assign_data(std::string dataID, double value);
+	void set_data(std::string dataID, double value) { house_data.at(dataID) = value; }
+
+	//======Getter======//
+	int get_index() const { return house_index; }
+	std::vector<size_t> get_house_members();
+
+	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+	double get_data(std::string dataID) const;
 
 	//======Loglike======//
 	double get_loglike() const { return loglike; }

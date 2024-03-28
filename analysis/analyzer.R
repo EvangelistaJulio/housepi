@@ -144,6 +144,7 @@ main <- function() {
   }
 
   # display a short summary
+  cat("\n===============ANALYSIS===============\n")
   cat("Performing analysis on file : ", input_file, "\n")
   cat("Results are saved on file : ", output_file, "\n")
   if (save_fig == TRUE) {
@@ -198,7 +199,6 @@ main <- function() {
     )
   }
 
-
   sample_size <- length(df[["iter"]])
   # extract thinning
   thinning <- df[["iter"]][2] - df[["iter"]][1]
@@ -222,6 +222,7 @@ main <- function() {
       lag.max = floor(0.5 * length(signal)),
       plot = FALSE
     )[["acf"]]
+
     x <- seq(0, length(acorr) - 1, 1)
     # linear inerpolation
     interp_func <- approxfun(x, acorr, method = "linear")
@@ -248,7 +249,8 @@ main <- function() {
     ess <- length(mask)
     # compute statistics on effective sample
     mu <- mean(signal[mask])
-    sigma <- sd(signal[mask])
+    sigma <- sd(signal[mask])    
+    ci_95 <- quantile(signal[mask], probs = c(0.025, 0.975))
 
     # append results to the output dataframe
     key_data <- data.frame(
@@ -256,7 +258,9 @@ main <- function() {
       mean = mu,
       sd = sigma,
       period = period * thinning,
-      ESS = ess
+      ESS = ess,
+      CI95_min = ci_95[1],
+      CI95_max = ci_95[2]
     )
     output_df <- rbind(output_df, key_data)
 
@@ -271,7 +275,7 @@ main <- function() {
       show_prior <- (p %in% rownames(params))
       if (show_prior == TRUE) {
         # load prior
-        prior_value <- params[p, "X2"]
+        prior_value <-as.numeric(params[p, "X2"])
         prior_name <- params[p, "X4"]
         prior_args_string <- params[p, "X5"]
         prior_args <- list()
@@ -284,8 +288,8 @@ main <- function() {
         if (prior_name == "uniform") {
           prior_y <- dunif(
             prior_x,
-            min = prior_args[["low"]],
-            max = prior_args[["up"]]
+            min = prior_args[["min"]],
+            max = prior_args[["max"]]
           )
         } else if (prior_name == "normal") {
           prior_y <- dnorm(
@@ -318,8 +322,8 @@ main <- function() {
       mcmc_plot <- ggplot(df, aes(x = iter, y = .data[[p]])) +
         geom_line(color = colors[i]) +
         geom_hline(yintercept = mu, color = clr_stat) +
-        geom_hline(yintercept = mu - sigma, linetype = "dashed", color = clr_stat) +
-        geom_hline(yintercept = mu + sigma, linetype = "dashed", color = clr_stat)
+        geom_hline(yintercept = ci_95[1], linetype = "dashed", color = clr_stat) +
+        geom_hline(yintercept = ci_95[2], linetype = "dashed", color = clr_stat)
       if ((is_target == TRUE) && (show_prior == TRUE)) {
         mcmc_plot <- mcmc_plot +
           geom_hline(yintercept = prior_value, color = clr_target)
@@ -337,8 +341,8 @@ main <- function() {
       hist_plot <- hist_plot +
         geom_freqpoly(data = df, mapping = aes(x = .data[[p]], y = after_stat(density)), binwidth = binwidth, color = colors[i]) +
         geom_vline(xintercept = mu, color = clr_stat) +
-        geom_vline(xintercept = mu - sigma, linetype = "dashed", color = clr_stat) +
-        geom_vline(xintercept = mu + sigma, linetype = "dashed", color = clr_stat)
+        geom_vline(xintercept = ci_95[1], linetype = "dashed", color = clr_stat) +
+        geom_vline(xintercept = ci_95[2], linetype = "dashed", color = clr_stat)
       if ((is_target == TRUE) && (show_prior == TRUE)) {
         hist_plot <- hist_plot +
           geom_vline(xintercept = prior_value, color = clr_target)
