@@ -277,11 +277,15 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         std::cout << "\n------------MCMC:adaptive-------------" << std::endl;
     }
-    progbar_thin = setup.num_adapt_iter / 100;
+    progbar_thin = std::max(1, (int)setup.num_adapt_iter / 100);
     for (unsigned step = 1; step <= setup.num_adapt_iter; step++)
     {
         move_and_adapt_parameters(step);
         move_augm_variables();
+
+        // FLAG
+        print_parameters(step);
+        // END-of-FLAG
 
         if ((Verbose) && (step % progbar_thin == 0))
         {
@@ -294,7 +298,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         std::cout << "\n-----------MCMC:execution-------------" << std::endl;
     }
-    progbar_thin = num_iter_thin / 100;
+    progbar_thin = std::max(1, (int)num_iter_thin / 100);
     for (unsigned i = 1; i <= num_iter_thin; i++)
     {
         for (unsigned j = 0; j < setup.thinning; j++)
@@ -302,7 +306,11 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
             move_parameters();
             move_augm_variables();
         }
-        print_parameters(i * setup.thinning);
+
+        //print_parameters(i * setup.thinning);
+        // FLAG
+        print_parameters(setup.num_adapt_iter + i * setup.thinning);
+        // END-of-FLAG
 
         if ((Verbose) && (i % progbar_thin == 0))
         {
