@@ -66,7 +66,7 @@ Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order
 {
     args_name = order;                          // developer assigment of the order of arguments
     args_int = new double[new_args_int.size()]; // dynamic allocation
-    for (std::size_t i = 0; i < args_name.size(); i++)
+    for (int i = 0; i < args_name.size(); i++)
     {
         args_int[i] = new_args_int.at(args_name[i]);
     }
@@ -78,7 +78,7 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 {
     args_name = order;                                  // developer assigment of the order of arguments
     args_ext = new const double *[new_args_ext.size()]; // dynamic allocation
-    for (std::size_t i = 0; i < args_name.size(); i++)
+    for (int i = 0; i < args_name.size(); i++)
     {
         args_ext[i] = new_args_ext.at(args_name[i]);
     }
@@ -89,11 +89,11 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 std::string Base_Function::display(char delim, char dict_delim)
 {
     std::string output = get_name() + delim;
-    for (std::size_t i = 0; i < args_name.size() - 1; i++)
+    for (int i = 0; i < args_name.size() - 1; i++)
     {
         output += args_name[i] + dict_delim + std::to_string(get_arg(i)) + dict_delim;
     }
-    std::size_t i = args_name.size() - 1;
+    int i = args_name.size() - 1;
     output += args_name[i] + dict_delim + std::to_string(get_arg(i));
     return output;
 }

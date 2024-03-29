@@ -34,7 +34,7 @@ private:
 
 public:
 	//=====Public Attributes=====//
-	size_t home = -1;
+	int home = -1;
 	std::unordered_map<std::string, std::string> _which_rate = {};
 
 	//=====Constructors=====//
@@ -89,11 +89,11 @@ private:
 
 public:
 	//=====Attributes=====//
-	size_t house_size = 0;
-	size_t first_case = -1;
-	std::vector<size_t> infectious_list = {};
-	std::vector<size_t> susceptibles_list = {};
-	std::vector<size_t> unknown_status_list = {};
+	int house_size = 0;
+	int first_case = -1;
+	std::vector<int> infectious_list = {};
+	std::vector<int> susceptibles_list = {};
+	std::vector<int> unknown_status_list = {};
 
 	//=====Constructors=====//
 	Household() {}
@@ -102,14 +102,14 @@ public:
 	//======Setter======//
 	void set_index(int index) { house_index = index; }
 	void set_indiv_ptr(Individual **new_ptr) { indiv_ptr = new_ptr; }
-	void link_individual(size_t i, int status);
-	void change_status(size_t i, int new_status);
+	void link_individual(int i, int status);
+	void change_status(int i, int new_status);
 	void assign_data(std::string dataID, double value);
 	void set_data(std::string dataID, double value) { house_data.at(dataID) = value; }
 
 	//======Getter======//
 	int get_index() const { return house_index; }
-	std::vector<size_t> get_house_members();
+	std::vector<int> get_house_members();
 
 	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
 	double get_data(std::string dataID) const;

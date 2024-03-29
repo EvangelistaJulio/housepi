@@ -34,11 +34,11 @@ class Model : public MCMC
 {
 public:
 	// Constructors
-	Model(Setup_MCMC_Struct new_setup) : MCMC(new_setup){};
+	Model() : MCMC(){};
 	~Model() {}
 
 	void initialize_model() override;
-	double compute_single_house_loglike(std::size_t h) override;
+	double compute_single_house_loglike(int h) override;
 	void simulate_infection() override;
 };
 

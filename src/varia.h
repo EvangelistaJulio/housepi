@@ -23,9 +23,9 @@ class Base_Proposer
 protected:
 	double strat_zero;
 	bool zero_start = false;
-	unsigned num_proposed_moves = 0;
+	int num_proposed_moves = 0;
 	double accept_rate = 0.0;
-	std::vector<std::size_t> args_to_adapt = {};
+	std::vector<int> args_to_adapt = {};
 	Distribution_1D *distr_ptr;
 
 public:
@@ -34,13 +34,13 @@ public:
 		Distribution_1D *distr,
 		double strat_zero = INFINITY,
 		sdargs value_range = {},
-		std::vector<std::size_t> args_to_adapt = {});
+		std::vector<int> args_to_adapt = {});
 	~Base_Proposer(){};
 
 	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
 	double get_strat_zero() const { return strat_zero; }
-	double get_arg(std::size_t argID) const { return (distr_ptr->get_arg)(argID); }
+	double get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
 
 	//=====Setter=====//
 	void set_strat_zero(double new_val) { strat_zero = new_val; }
@@ -333,7 +333,7 @@ public:
         "name", "init_value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
-	std::size_t num_param_to_infer = 0;
+	int num_param_to_infer = 0;
 
 	//=====Methods=====//
 	void add_param(

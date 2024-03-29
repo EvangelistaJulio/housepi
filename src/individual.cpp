@@ -156,7 +156,7 @@ double Household::get_data(std::string dataID) const
 }
 
 /* Link an individual to the household */
-void Household::link_individual(size_t i, int status)
+void Household::link_individual(int i, int status)
 {
 	// status list
 	if (status == SYMPTOMATIC)
@@ -175,9 +175,9 @@ void Household::link_individual(size_t i, int status)
 }
 
 /* Return the indexes of the infectious, then the susceptibles, unknown statuses */
-std::vector<size_t> Household::get_house_members()
+std::vector<int> Household::get_house_members()
 {
-	std::vector<size_t> members;
+	std::vector<int> members;
     members.reserve(house_size); // Reserve space
 
     // Copy infectious
@@ -194,7 +194,7 @@ std::vector<size_t> Household::get_house_members()
 
 /* Change_status of individual i to new status (without controls).
 	WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
-void Household::change_status(size_t i, int new_status)
+void Household::change_status(int i, int new_status)
 {
 	int old_status = (*indiv_ptr)[i].get_status();
 

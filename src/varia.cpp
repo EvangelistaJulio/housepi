@@ -12,7 +12,7 @@ Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
     double strategy_from_zero,
     sdargs value_range,
-    std::vector<std::size_t> list_of_args_to_adapt) : distr_ptr(distr)
+    std::vector<int> list_of_args_to_adapt) : distr_ptr(distr)
 {
     args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
@@ -48,7 +48,7 @@ void Base_Proposer::adapt(double ratio, double target)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
 
-    for (std::size_t argID : args_to_adapt)
+    for (int argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }

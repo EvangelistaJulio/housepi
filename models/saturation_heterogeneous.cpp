@@ -192,10 +192,10 @@ double _recursive_function(usi N, std::vector<double> &escape_matrix)
 /* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
-	size_t max_num = 0, aux = 0;
+	int max_num = 0, aux = 0;
 
 	// find maximum possible number of sero-positives
-	for (size_t h = 0; h < num_househ; h++)
+	for (int h = 0; h < num_househ; h++)
 	{		
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
@@ -214,7 +214,7 @@ void Model::initialize_model()
 
 
 /* Compute the log-likelihood within household. */
-double Model::compute_single_house_loglike(std::size_t h)
+double Model::compute_single_house_loglike(int h)
 {
 	usi hh_size = househ[h].house_size;
 	usi num_infec = househ[h].infectious_list.size();
@@ -276,7 +276,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 void Model::simulate_infection()
 {
 	bool is_infec_by_community;
-	std::vector<std::size_t> copy_list = {};
+	std::vector<int> copy_list = {};
 
 	//=====community escape probability=====//
 	double commu_esc_proba = exp(-get_value("alpha"));
@@ -285,17 +285,17 @@ void Model::simulate_infection()
 	double within_esc_proba = exp(-get_value("beta"));
 
 	// simulate the infection for each household
-	for (std::size_t h = 0; h < num_househ; h++)
+	for (int h = 0; h < num_househ; h++)
 	{
 		//=====INITIALIZE=====//
 		// set all cases to healthy (change infectious and unknown to susceptibles)
 		copy_list = househ[h].infectious_list;
-		for (std::size_t i : copy_list)
+		for (int i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
 		}
 		copy_list = househ[h].unknown_status_list;
-		for (std::size_t i : copy_list)
+		for (int i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
 		}
@@ -303,7 +303,7 @@ void Model::simulate_infection()
 
 		//====GENERATION 0 : infection by community=====//
 		copy_list = househ[h].susceptibles_list;
-		for (std::size_t i : copy_list)
+		for (int i : copy_list)
 		{
 			if (uniform(rng) > commu_esc_proba)
 			{
@@ -316,7 +316,7 @@ void Model::simulate_infection()
 		if (is_infec_by_community)
 		{
 			copy_list = househ[h].susceptibles_list;
-			for (std::size_t i : copy_list)
+			for (int i : copy_list)
 			{
 				if (uniform(rng) > within_esc_proba)
 				{

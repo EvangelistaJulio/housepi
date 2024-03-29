@@ -66,7 +66,7 @@ ssargs parse_dict_string(std::string token, char dict_delim)
     }
     else
     {
-        for (std::size_t i = 0; i < args_stock.size(); i += 2)
+        for (int i = 0; i < args_stock.size(); i += 2)
         {
             try
             {
@@ -119,7 +119,7 @@ bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers,
     if (getline(input, line))
     {
         std::istringstream iss(line);
-        std::size_t num_cols = 0;
+        int num_cols = 0;
 
         while (getline(iss, token, delim))
         {
@@ -151,7 +151,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
     double output = INFINITY;
     if (token != UNDEFINED)
     {
-        std::size_t pos = token.find(option_delim);
+        int pos = token.find(option_delim);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_SCALAR)
@@ -181,7 +181,7 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
     const double *output = nullptr;
     if (token != UNDEFINED)
     {
-        std::size_t pos = token.find(option_delim);
+        int pos = token.find(option_delim);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
@@ -233,10 +233,9 @@ sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token, char dict_delim, char
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-Setup_MCMC_Struct load_setup(std::string data_pathtofile)
+void MCMC::build_setup(std::string data_pathtofile)
 {
     char delim = ',';
-    Setup_MCMC_Struct loader;
     std::ifstream input(data_pathtofile.c_str());
     ssargs safe_load = {};
 
@@ -275,20 +274,20 @@ Setup_MCMC_Struct load_setup(std::string data_pathtofile)
 
         // seed for pseudo-random number generator (default is time)
         std::string seed_str = safe_load.at("seed");
-        loader.seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
+        setup_seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
 
         // MCMCM number of iterations
-        loader.num_iter = stoi(safe_load.at("num_iter"));
-        loader.num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
-        loader.thinning = stoi(safe_load.at("thinning"));
+        setup_num_iter = stoi(safe_load.at("num_iter"));
+        setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
+        setup_thinning = stoi(safe_load.at("thinning"));
 
         //=====Display=====//
         if (Verbose)
         {
-            std::cout << "seed : " << loader.seed << std::endl;
-            std::cout << "num_iter : " << loader.num_iter << std::endl;
-            std::cout << "num_adapt_iter : " << loader.num_adapt_iter << std::endl;
-            std::cout << "thinning : " << loader.thinning << std::endl;
+            std::cout << "seed : " << setup_seed << std::endl;
+            std::cout << "num_iter : " << setup_num_iter << std::endl;
+            std::cout << "num_adapt_iter : " << setup_num_adapt_iter << std::endl;
+            std::cout << "thinning : " << setup_thinning << std::endl;
         }
     }
     else
@@ -296,8 +295,6 @@ Setup_MCMC_Struct load_setup(std::string data_pathtofile)
         std::string err_text = "Impossible to read file: " + data_pathtofile + ".";
         exit_with_failure_error(err_text);
     }
-
-    return loader;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,7 +349,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         }
 
         //=====Initialize the uniform parameter picker=====//
-        param_picker = std::uniform_int_distribution<std::size_t>(0, num_param_to_infer - 1);
+        param_picker = std::uniform_int_distribution<int>(0, num_param_to_infer - 1);
 
         //=====display a summary of the used parameters=====//
         if (Verbose)
@@ -423,7 +420,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
 void MCMC::assign_augmented_variables()
 {
     std::string augmID;
-    for (std::size_t i = 0; i < num_indiv; i++)
+    for (int i = 0; i < num_indiv; i++)
     {
         int status = indiv[i].get_status();
 
@@ -525,11 +522,11 @@ void MCMC::build_data(std::string data_pathtofile)
         contact_patterns = new const double *[num_indiv * num_indiv];
         std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
 
-        for (std::size_t i = 0; i < num_indiv; i++)
+        for (int i = 0; i < num_indiv; i++)
         {
             //-----contact patters-----//
             // FIXME : there should be a control also here
-            for (std::size_t k = 0; k < i; k++)
+            for (int k = 0; k < i; k++)
             {
                 assign_rate_per_contact(i, k);
                 assign_rate_per_contact(k, i);
@@ -622,7 +619,7 @@ void MCMC::init_param_file(std::string output_filename)
 }
 
 /* Print the model parameters at the given iteration time */
-void MCMC::print_parameters(unsigned step)
+void MCMC::print_parameters(int step)
 {
     if (param_ofstream.is_open())
     {
@@ -669,7 +666,7 @@ void MCMC::print_augm_variables(std::string output_filename)
         }
         augm_ofstream << std::endl;
 
-        for (std::size_t i = 0; i < num_indiv; i++)
+        for (int i = 0; i < num_indiv; i++)
         {
             augm_ofstream << indiv[i].get_index() << DELIM << indiv[i].get_status();
             for (std::string dataID : data_headers)

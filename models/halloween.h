@@ -24,30 +24,30 @@ protected:
 
 public:
 	// Constructors
-	Model(Setup_MCMC_Struct new_setup) : MCMC(new_setup) {};
+	Model() : MCMC() {};
 	~Model() {}
 
 	//=====Required Methods=====//
 	
 	void assign_infec_profile_function() override;
-	void assign_rate_per_group_to_individual(size_t i) override;
-	void store_augm_var_dependecies(std::size_t i) override;
+	void assign_rate_per_group_to_individual(int i) override;
+	void store_augm_var_dependecies(int i) override;
 	void initialize_model() override;
 
-	double get_infec_time(std::size_t i) const override;
-	double compute_single_house_loglike(std::size_t h) override;
+	double get_infec_time(int i) const override;
+	double compute_single_house_loglike(int h) override;
 
 	void simulate_infection() override;
 
 	//=====Optional Methods=====//
-	void assign_rate_per_contact(std::size_t i, std::size_t k) override;
+	void assign_rate_per_contact(int i, int k) override;
 
 	//=====Infectivity Profiles=====//
-	double compute_infec_profile_inst(std::size_t i, double t_transm);
-	double compute_infec_profile_cumul(std::size_t i, double t_transm);
+	double compute_infec_profile_inst(int i, double t_transm);
+	double compute_infec_profile_cumul(int i, double t_transm);
 
 	//=====LogLikelihood=====//
-	double _sum_hazards_(double *profiles, std::size_t idx);
+	double _sum_hazards_(double *profiles, int idx);
 };
 
 #endif // MODEL__H

@@ -55,11 +55,11 @@ public:
 
     //=====Getter (functional)=====//
     std::string get_name() const { return name; }
-    double get_arg(std::size_t argID) { return (this->*_get_arg_func_)(argID); }
+    double get_arg(int argID) { return (this->*_get_arg_func_)(argID); }
 
     //=====Setter (for internal arguments)=====//
     void set_name(std::string new_name) { name = new_name; }
-    void set_arg(std::size_t argID, double new_value) { args_int[argID] = new_value; }
+    void set_arg(int argID, double new_value) { args_int[argID] = new_value; }
 
     std::string display(char delim = DELIM, char dict_delim = DICT_DELIM);
 
@@ -70,11 +70,11 @@ protected:
     const double **args_ext = nullptr; // external arguments (pointer to variable)
 
 private:
-    double (Base_Function::*_get_arg_func_)(std::size_t argID);
+    double (Base_Function::*_get_arg_func_)(int argID);
 
     // FIXME : gigantic bottleneck // FIXME !! need for translation into array for internal
-    double _get_arg_int_(std::size_t argID) { return args_int[argID]; }
-    double _get_arg_ext_(std::size_t argID) { return *(args_ext[argID]); }
+    double _get_arg_int_(int argID) { return args_int[argID]; }
+    double _get_arg_ext_(int argID) { return *(args_ext[argID]); }
 };
 
 ///////////////////////////////////////////////////////////////////////

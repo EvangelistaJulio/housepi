@@ -28,7 +28,6 @@ int main(int argc, char *argv[])
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;
-    Setup_MCMC_Struct setup = {}; // default setup
     std::string setup_pathtofile = UNDEFINED;
     std::string parameters_pathtofile = UNDEFINED;
     std::string extra_pathtofile = UNDEFINED;
@@ -146,11 +145,11 @@ int main(int argc, char *argv[])
 
     //=====INITIALIZATION=====//
 
-    // Load Setup
-    setup = load_setup(setup_pathtofile);
-
     // Initialize Model object
-    Model model(setup);
+    Model model();
+
+    // Load Setup
+    model.setup(setup_pathtofile);
 
     // Load Parameters
     model.build_parameters(parameters_pathtofile);

@@ -10,21 +10,21 @@ bool Unknown_Status_Warning = true;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return the time of infection of a patient. */
-double MCMC::get_infec_time(size_t i) const
+double MCMC::get_infec_time(int i) const
 {
     UNUSED(i);
     return INFINITY;
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_rate_per_contact(size_t i, size_t k)
+void MCMC::assign_rate_per_contact(int i, int k)
 {
     UNUSED(i);
     UNUSED(k);
 }
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::store_augm_var_dependecies(size_t i)
+void MCMC::store_augm_var_dependecies(int i)
 {
     UNUSED(i);
 }
@@ -35,13 +35,13 @@ void MCMC::store_augm_var_dependecies(size_t i)
 WARNING: this strucutre assumes a single first infector.
 FIXME : this should be a function of the time-models maybe
 */
-void MCMC::update_first_case(std::size_t h)
+void MCMC::update_first_case(int h)
 {
 	double t_infec;
 	double new_t0 = INFINITY; // NOTE: init to impossible values
-	size_t new_case0 = -1;	  // NOTE: init to impossible values
+	int new_case0 = -1;	  // NOTE: init to impossible values
 
-	for (size_t i : househ[h].infectious_list)
+	for (int i : househ[h].infectious_list)
 	{
 		t_infec = get_infec_time(i);
 		new_t0 = std::min(t_infec, new_t0);
@@ -56,11 +56,11 @@ void MCMC::update_first_case(std::size_t h)
 
 /* */ // FIXME : is then study_period a standard name? In general, how to load household data?
 // FIXME : this should be a function of the time-models maybe
-void MCMC::assign_end_followup(std::size_t h)
+void MCMC::assign_end_followup(int h)
 {
 	// find maximum study period within the household
 	double end_followup = 0;
-	for (size_t i : househ[h].infectious_list)
+	for (int i : househ[h].infectious_list)
 	{
 		end_followup = std::max(end_followup, indiv[i].get_data("study_period"));
 	}
@@ -68,7 +68,7 @@ void MCMC::assign_end_followup(std::size_t h)
 }
 
 
-double MCMC::compute_single_house_loglike(std::size_t h)
+double MCMC::compute_single_house_loglike(int h)
 {
     UNUSED(h);
     return 0.;
@@ -80,7 +80,7 @@ double MCMC::compute_global_loglike()
     double output = 0.0;
     double tmp;
 
-    for (size_t h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; h++)
     {
         tmp = compute_single_house_loglike(h);
         househ[h].set_loglike(tmp);
@@ -132,7 +132,7 @@ void MCMC::move_single_param(std::string parID)
         {
             refuse_param_move(parID);
             // restore loglike in households
-            for (size_t h = 0; h < num_househ; h++)
+            for (int h = 0; h < num_househ; h++)
             {
                 househ[h].refuse();
             }
@@ -145,7 +145,7 @@ void MCMC::move_parameters()
 {
     std::string parID = UNDEFINED;
 
-    for (size_t z = 0; z < num_param_to_infer; z++)
+    for (int z = 0; z < num_param_to_infer; z++)
     {
         parID = param_to_be_inferred[param_picker(rng)];
         move_single_param(parID);
@@ -153,12 +153,12 @@ void MCMC::move_parameters()
 }
 
 /* Sweep over all model parameters plus adaptive step. */
-void MCMC::move_and_adapt_parameters(unsigned step, double target)
+void MCMC::move_and_adapt_parameters(int step, double target)
 {
     std::string parID = UNDEFINED;
-    double adapt_ratio = (double)step / setup.num_adapt_iter;
+    double adapt_ratio = (double)step / setup_num_adapt_iter;
 
-    for (size_t z = 0; z < num_param_to_infer; z++)
+    for (int z = 0; z < num_param_to_infer; z++)
     {
         parID = param_to_be_inferred[param_picker(rng)];
         move_single_param(parID);
@@ -181,10 +181,10 @@ void MCMC::move_augm_variables()
     double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
 
     // Loop over households
-    for (size_t h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; h++)
     {
         // Loop over infectious residents of the househould
-        for (size_t i : househ[h].infectious_list)
+        for (int i : househ[h].infectious_list)
         {
             for (std::string augmID : augm_to_infer_set)
             {
@@ -231,8 +231,8 @@ void MCMC::move_augm_variables()
 
 void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
-    unsigned num_iter_thin = setup.num_iter / setup.thinning;
-    unsigned progbar_thin;
+    int num_iter_thin = setup_num_iter / setup_thinning;
+    int progbar_thin;
 
     if (Verbose)
     {
@@ -273,12 +273,12 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     }
 
     //=====Adaptative MCMC on parameters=====//
-    if (Verbose && (setup.num_adapt_iter > 0))
+    if (Verbose && (setup_num_adapt_iter > 0))
     {
         std::cout << "\n------------MCMC:adaptive-------------" << std::endl;
     }
-    progbar_thin = std::max(1, (int)setup.num_adapt_iter / 100);
-    for (unsigned step = 1; step <= setup.num_adapt_iter; step++)
+    progbar_thin = std::max(1, (int)setup_num_adapt_iter / 100);
+    for (int step = 1; step <= setup_num_adapt_iter; step++)
     {
         move_and_adapt_parameters(step);
         move_augm_variables();
@@ -289,7 +289,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
         if ((Verbose) && (step % progbar_thin == 0))
         {
-            print_progress_bar(step, setup.num_adapt_iter);
+            print_progress_bar(step, setup_num_adapt_iter);
         }
     }
 
@@ -299,17 +299,17 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
         std::cout << "\n-----------MCMC:execution-------------" << std::endl;
     }
     progbar_thin = std::max(1, (int)num_iter_thin / 100);
-    for (unsigned i = 1; i <= num_iter_thin; i++)
+    for (int i = 1; i <= num_iter_thin; i++)
     {
-        for (unsigned j = 0; j < setup.thinning; j++)
+        for (int j = 0; j < setup_thinning; j++)
         {
             move_parameters();
             move_augm_variables();
         }
 
-        //print_parameters(i * setup.thinning);
+        //print_parameters(i * setup_thinning);
         // FLAG
-        print_parameters(setup.num_adapt_iter + i * setup.thinning);
+        print_parameters(setup_num_adapt_iter + i * setup_thinning);
         // END-of-FLAG
 
         if ((Verbose) && (i % progbar_thin == 0))
@@ -351,7 +351,7 @@ void MCMC::simulation(std::string output_filename)
 void MCMC::add_individual(Individual new_indiv)
 {
     int status = new_indiv.get_status();
-    size_t i = num_indiv; // index of the individual 
+    int i = num_indiv; // index of the individual 
     std::string rateID = UNDEFINED;
     std::string parID = UNDEFINED;
     
@@ -423,7 +423,7 @@ void MCMC::add_individual(Individual new_indiv)
 }
 
 /* Assign group rate to an individual */
-void MCMC::assign_rate_per_group_to_individual(std::size_t i)
+void MCMC::assign_rate_per_group_to_individual(int i)
 {
     indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
     indiv[i].assign_rate_per_group("Susceptibility", REFERENCE);
@@ -432,11 +432,11 @@ void MCMC::assign_rate_per_group_to_individual(std::size_t i)
 /* Assign community structure to individuals. I returns a report. */
 void MCMC::assign_community_structure(std::string HH_index_column)
 {
-    size_t h;
+    int h;
     std::unordered_map<int, Household> load_househ = {};
 
     //=====safe load households=====//
-    for (size_t i = 0; i < num_indiv; i++)
+    for (int i = 0; i < num_indiv; i++)
     {
         h = indiv[i].get_data(HH_index_column);
 
@@ -464,9 +464,9 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     load_househ.clear(); // clear the loading dictionary
 
     //=====assign home to individuals=====//
-    for (size_t h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; h++)
     {
-        for (size_t i : househ[h].get_house_members())
+        for (int i : househ[h].get_house_members())
         {
             indiv[i].home = h;
         }
