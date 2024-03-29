@@ -121,8 +121,6 @@ private:
 	double global_loglike = 0.0;
 	double inverse_temperature = 1.0;
 
-	std::uniform_int_distribution<int> param_picker;
-
 	std::unordered_map<std::string, int> m_num_accept_data = {};
 	std::unordered_map<std::string, int> m_num_propos_data = {};
 

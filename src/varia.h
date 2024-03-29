@@ -333,7 +333,6 @@ public:
         "name", "init_value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
-	int num_param_to_infer = 0;
 
 	//=====Methods=====//
 	void add_param(

@@ -143,11 +143,8 @@ void MCMC::move_single_param(std::string parID)
 /* Sweep over all model parameters. */
 void MCMC::move_parameters()
 {
-    std::string parID = UNDEFINED;
-
-    for (int z = 0; z < num_param_to_infer; z++)
+    for (std::string parID : param_to_be_inferred)
     {
-        parID = param_to_be_inferred[param_picker(rng)];
         move_single_param(parID);
     }
 }
@@ -155,12 +152,10 @@ void MCMC::move_parameters()
 /* Sweep over all model parameters plus adaptive step. */
 void MCMC::move_and_adapt_parameters(int step, double target)
 {
-    std::string parID = UNDEFINED;
     double adapt_ratio = (double)step / setup_num_adapt_iter;
 
-    for (int z = 0; z < num_param_to_infer; z++)
+    for (std::string parID : param_to_be_inferred)
     {
-        parID = param_to_be_inferred[param_picker(rng)];
         move_single_param(parID);
         adapt(parID, adapt_ratio, target);
     }

@@ -348,9 +348,6 @@ void MCMC::build_parameters(std::string data_pathtofile)
             }
         }
 
-        //=====Initialize the uniform parameter picker=====//
-        param_picker = std::uniform_int_distribution<int>(0, num_param_to_infer - 1);
-
         //=====display a summary of the used parameters=====//
         if (Verbose)
         {

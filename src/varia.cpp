@@ -207,7 +207,6 @@ void Parameter_Dictionary::add_param(
     if (new_param.get_infer())
     {
         param_to_be_inferred.push_back(k);
-        num_param_to_infer = param_to_be_inferred.size();
     }
     else
     {
