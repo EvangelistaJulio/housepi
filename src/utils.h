@@ -39,7 +39,7 @@ typedef std::map<std::string, std::string> ssargs;
 
 void print_progress_bar(int progress, int total);
 void exit_with_failure_error(std::string &error_text);
-void raise_warning_message(std::string &message);
+void raise_warning_message(std::string &message, bool *is_warn_to_be_raised);
 
 ///////////////////////////////////////////////////////////////////////
 // ////////////////////// Base_Function : class ///////////////////// //

@@ -23,8 +23,8 @@ bool Verbose = false;
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;               // Command line argument iterator
-    double inver_temp = INFINITY; // Inverse temperature // UPDATE : temporary
+    int carg_i = 1;             // Command line argument iterator
+    double inver_temp = 1.0;    // Inverse temperature
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;

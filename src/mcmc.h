@@ -121,11 +121,13 @@ private:
 	double global_loglike = 0.0;
 	double inverse_temperature = 1.0;
 
-	std::unordered_map<std::string, int> m_num_accept_data = {};
-	std::unordered_map<std::string, int> m_num_propos_data = {};
-
+	// outoput parameter file
 	std::ofstream param_ofstream;
 	std::map<std::string, std::map<std::string, int>> model_report = {};
+	
+	// accpetance rates
+	std::unordered_map<std::string, int> m_num_accept_data = {};
+	std::unordered_map<std::string, int> m_num_propos_data = {};
 
 	std::vector<ssargs> load_augm_definition = {};
 

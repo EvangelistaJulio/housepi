@@ -148,23 +148,27 @@ sdargs row_to_sdargs(ssargs &this_row)
 /* Convert a type-string to a double */
 double MCMC::type_to_double(std::string token, int i, char option_delim)
 {
-    double output = INFINITY;
-    if (token != UNDEFINED)
+    if (token == UNDEFINED)
+    {
+        // UPDATE : when does it make sense to have token == UNDEFINED ?
+        return INFINITY;
+    }
+    else
     {
         int pos = token.find(option_delim);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_SCALAR)
         {
-            output = std::stod(v);
+            return std::stod(v);
         }
         else if (k == TYPE_DATA)
         {
-            output = indiv[i].get_data(v);
+            return indiv[i].get_data(v);
         }
         else if (k == TYPE_PARAM)
         {
-            output = get_value(v);
+            return get_value(v);
         }
         else
         {
@@ -172,21 +176,23 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
             exit_with_failure_error(err_text);
         }
     }
-    return output;
 }
 
 /* Convert a type-string to a double-pointer */
 const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
 {
-    const double *output = nullptr;
-    if (token != UNDEFINED)
+    if (token == UNDEFINED)
+    {
+        return nullptr;
+    }
+    else
     {
         int pos = token.find(option_delim);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
         {
-            output = get_address(v);
+            return get_address(v);
         }
         else
         {
@@ -194,7 +200,6 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
             exit_with_failure_error(err_text);
         }
     }
-    return output;
 }
 
 /* Convert a string with type-dictionary to string-to-double */

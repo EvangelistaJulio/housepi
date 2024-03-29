@@ -2,7 +2,8 @@
 
 #include "varia.h"
 
-using namespace std;
+// Warning for status
+bool Invalid_Proposer_Warning = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////  Base_Proposer : constructor ////////////////////////////////// //
@@ -23,23 +24,14 @@ Base_Proposer::Base_Proposer(
     }
     else
     {
+        if (!valid(strategy_from_zero))
+        {
+            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range ";
+            err_text += " {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "} are inconsistent.";
+            raise_warning_message(err_text, &Invalid_Proposer_Warning);
+        }
         zero_start = true;
         set_strat_zero(strategy_from_zero);
-        /* 
-        NOTE : I sometimes initialized to not valid values
-        // UPDATE : place a warning maybe
-        if (valid(strategy_from_zero))
-        {
-            zero_start = true;
-            set_strat_zero(strategy_from_zero);
-        }
-        else
-        {
-            std::string err_text = "Initial value " + to_std::string(strategy_from_zero) + " and value range ";
-            err_text += " {low:" + to_std::string(_range_min_) + ", up:" + to_std::string(_range_max_) + "} are inconsistent.";
-            exit_with_failure_error(err_text);
-        }
-        */
     }
 };
 
@@ -219,16 +211,16 @@ void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
 {
     for (std::string k : param_file_required_headers)
     {
-        cout << k << delim;
+        std::cout << k << delim;
     }
-    cout << endl;
+    std::cout << std::endl;
     for (std::string k : param_to_be_inferred)
     {
-        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        std::cout << k << delim << params.at(k).display(delim, dict_delim) << std::endl;
     }
     for (std::string k : param_static)
     {
-        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        std::cout << k << delim << params.at(k).display(delim, dict_delim) << std::endl;
     }
 }
 

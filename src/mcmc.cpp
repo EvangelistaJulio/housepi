@@ -249,13 +249,9 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
     //=====Assign inverse temperature=====//
     // FIXME : code can be optimized to avoid * 1 or * 0
-    if (inv_temper == INFINITY)
+    if ((inv_temper < 0) || (inv_temper > 1))
     {
-        inverse_temperature = 1.0;
-    }
-    else if ((inverse_temperature < 0) || (inverse_temperature > 1))
-    {
-        std::string err_text = "Inverse temperature " + std::to_string(inverse_temperature) + " out of range.";
+        std::string err_text = "Inverse temperature " + std::to_string(inv_temper) + " out of range.";
         exit_with_failure_error(err_text);
     }
     else
@@ -355,13 +351,12 @@ void MCMC::add_individual(Individual new_indiv)
     num_indiv++;
 
     //=====check for the validity of the status=====//
-    if ((status != HEALTHY) && (status != SYMPTOMATIC) && Unknown_Status_Warning)
+    if ((status != HEALTHY) && (status != SYMPTOMATIC))
     {
         std::string warn_text = "Unknown status `" + std::to_string(status) + "`.";
         warn_text += " Use " + std::to_string(HEALTHY) + "/" + std::to_string(SYMPTOMATIC) + " for healthy/non-healthy state.";
         warn_text += "\n If it was intentional, ignore this message.";
-        raise_warning_message(warn_text);
-        Unknown_Status_Warning = false;
+        raise_warning_message(warn_text, &Unknown_Status_Warning);
     }
     
     //=====Assign Model Rates=====//
