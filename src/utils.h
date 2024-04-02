@@ -51,7 +51,7 @@ public:
     //=====Constructors=====//
     Base_Function(sdargs new_args_int, std::vector<std::string> order = {});
     Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order = {});
-    ~Base_Function(){};
+    virtual ~Base_Function(){};
 
     //=====Getter (functional)=====//
     std::string get_name() const { return name; }
@@ -65,9 +65,9 @@ public:
 
 protected:
     std::string name = UNDEFINED;
-    std::vector<std::string> args_name;          // ordered list of argument names
-    double *args_int = nullptr;        // internal arguments (fixed at initialization)
-    const double **args_ext = nullptr; // external arguments (pointer to variable)
+    std::vector<std::string> args_name; // ordered list of argument names
+    double *args_int = nullptr;         // internal arguments (fixed at initialization)
+    const double **args_ext = nullptr;  // external arguments (pointer to variable)
 
 private:
     double (Base_Function::*_get_arg_func_)(int argID);

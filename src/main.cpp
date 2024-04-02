@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
     Model model();
 
     // Load Setup
-    model.setup(setup_pathtofile);
+    model.build_setup(setup_pathtofile);
 
     // Load Parameters
     model.build_parameters(parameters_pathtofile);

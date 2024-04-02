@@ -35,7 +35,7 @@ public:
 		double strat_zero = INFINITY,
 		sdargs value_range = {},
 		std::vector<int> args_to_adapt = {});
-	~Base_Proposer(){};
+	virtual ~Base_Proposer(){};
 
 	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
@@ -246,7 +246,7 @@ public:
 		prop_ptr = (strat_name == "prior") ? (new Prior_Proposer(distr_ptr)) : proposer_switchboard(strat_name, strat_args, strat_zero, value_range);
 		_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
 	}
-	~Base_Parameter() {}
+	virtual ~Base_Parameter(){};
 
 	//=====Getter=====//
 	double get_value() const { return value; }
@@ -328,11 +328,21 @@ public:
 // This is a wrapper class containing aliases for the model params.
 class Parameter_Dictionary
 {
+private:
+	std::unordered_map<std::string, Parameter> params = {};
+	double buffer_value = 0.0;
+	double buffer_log_ratio = 0.0;
+	const double _reference = 1.0;
+
 public:
 	std::vector<std::string> param_file_required_headers = {
-        "name", "init_value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
+		"name", "init_value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
+
+	//=====Constructors=====//
+	Parameter_Dictionary(){};
+	virtual ~Parameter_Dictionary(){};
 
 	//=====Methods=====//
 	void add_param(
@@ -368,12 +378,6 @@ public:
 
 	//=====Display=====//
 	void display_parameters(char delim = DELIM, char dict_delim = DICT_DELIM);
-
-private:
-	std::unordered_map<std::string, Parameter> params = {};
-	double buffer_value;
-	double buffer_log_ratio;
-	const double _reference = 1.0;
 };
 
 /////////////////////////////////////////////////////////////////

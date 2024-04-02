@@ -56,7 +56,7 @@ protected:
 public:
 	//=====Constructors=====//
 	MCMC() : uniform(0.0, 1.0) {}
-	~MCMC() {}
+	virtual ~MCMC(){};
 
 	//=====deal with flatten matrices=====//
 	int from_to(int i, int j) { return i * num_indiv + j; }
@@ -68,7 +68,7 @@ public:
 	void build_parameters(std::string data_pathtofile);
 	void build_augmented(std::string data_pathtofile);
 	void build_data(std::string data_pathtofile);
-	
+
 	// load extra non standard files
 	virtual void build_extra(std::string data_pathtofile);
 
@@ -124,7 +124,7 @@ private:
 	// outoput parameter file
 	std::ofstream param_ofstream;
 	std::map<std::string, std::map<std::string, int>> model_report = {};
-	
+
 	// accpetance rates
 	std::unordered_map<std::string, int> m_num_accept_data = {};
 	std::unordered_map<std::string, int> m_num_propos_data = {};
