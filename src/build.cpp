@@ -2,236 +2,8 @@
 
 #include "mcmc.h"
 
-// declaration for type in data file
-std::string TYPE_PARAM = "P";
-std::string TYPE_DATA = "D";
-std::string TYPE_SCALAR = "S";
-
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Auxiliary Functions /////////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-/* Cleaner std::string from forbidden characters*/
-std::string string_cleaner(std::string token)
-{
-    for (char r : {'\r', '\n'})
-    {
-        token.erase(remove(token.begin(), token.end(), r), token.end());
-    }
-    return token;
-}
-
-/* Convert string to boolean variable */
-bool stobool(std::string token)
-{
-    token = string_cleaner(token);
-
-    if (token == "TRUE" || token == "true" || token == "True" || token == "1")
-    {
-        return true;
-    }
-    else if (token == "FALSE" || token == "false" || token == "False" || token == "0")
-    {
-        return false;
-    }
-    else
-    {
-        std::string err_text = "Unrecognized boolean value for: " + token + ".";
-        exit_with_failure_error(err_text);
-        return false;
-    }
-}
-
-/* Parse the dictionary from the string */
-ssargs parse_dict_string(std::string token, char dict_delim)
-{
-    std::istringstream args_ss(token);
-    std::vector<std::string> args_stock;
-    ssargs output = {};
-    std::string tmp;
-
-    // rea the entryes of the dictionary
-    while (getline(args_ss, tmp, dict_delim))
-    {
-        args_stock.push_back(tmp);
-    }
-    if (args_stock.size() == 0)
-    {
-        output.clear(); // empty dictionary
-    }
-    else if (args_stock.size() % 2 == 1)
-    {
-        std::string err_text = "Incomplete dictionary: " + token + ".";
-        exit_with_failure_error(err_text);
-    }
-    else
-    {
-        for (int i = 0; i < args_stock.size(); i += 2)
-        {
-            try
-            {
-                output.emplace(args_stock[i], args_stock[i + 1]);
-            }
-            catch (const std::exception &)
-            {
-                std::string err_text = "Invalid entry of dictionary: " + token + ".";
-                exit_with_failure_error(err_text);
-            }
-        }
-    }
-
-    return output;
-}
-
-/* Parse the scalar arguments dictionary from the std::string */
-sdargs parse_dict_args(std::string token, char dict_delim)
-{
-    ssargs input = parse_dict_string(token, dict_delim);
-    sdargs output = {};
-    for (auto const &x : input)
-    {
-        output.emplace(x.first, std::stod(x.second));
-    }
-    return output;
-}
-
-/* Read column headers */
-std::vector<std::string> read_column_headers(std::ifstream &input, char delim = DELIM)
-{
-    std::string line, token;
-    getline(input, line);
-    std::istringstream iss(line);
-    std::vector<std::string> headers = {};
-
-    while (getline(iss, token, delim))
-    {
-        token = string_cleaner(token);
-        headers.push_back(token);
-    }
-
-    return headers;
-}
-
-/* Load parameters from the row with options */
-bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row, char delim = DELIM)
-{
-    std::string line, token;
-    if (getline(input, line))
-    {
-        std::istringstream iss(line);
-        int num_cols = 0;
-
-        while (getline(iss, token, delim))
-        {
-            this_row.emplace(headers[num_cols], token);
-            num_cols++;
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-/* convert the output of a row to a string-to-double dictionary */
-sdargs row_to_sdargs(ssargs &this_row)
-{
-    sdargs row_with_double = {};
-    for (auto const &x : this_row)
-    {
-        row_with_double.emplace(x.first, stod(x.second));
-    }
-    return row_with_double;
-}
-
-/* Convert a type-string to a double */
-double MCMC::type_to_double(std::string token, int i, char option_delim)
-{
-    if (token == UNDEFINED)
-    {
-        // UPDATE : when does it make sense to have token == UNDEFINED ?
-        return INFINITY;
-    }
-    else
-    {
-        int pos = token.find(option_delim);
-        std::string k = token.substr(0, pos);
-        std::string v = token.substr(pos + 1);
-        if (k == TYPE_SCALAR)
-        {
-            return std::stod(v);
-        }
-        else if (k == TYPE_DATA)
-        {
-            return indiv[i].get_data(v);
-        }
-        else if (k == TYPE_PARAM)
-        {
-            return get_value(v);
-        }
-        else
-        {
-            std::string err_text = "Unknown variable type specifier `" + k + "`.";
-            exit_with_failure_error(err_text);
-        }
-    }
-}
-
-/* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
-{
-    if (token == UNDEFINED)
-    {
-        return nullptr;
-    }
-    else
-    {
-        int pos = token.find(option_delim);
-        std::string k = token.substr(0, pos);
-        std::string v = token.substr(pos + 1);
-        if (k == TYPE_PARAM)
-        {
-            return get_address(v);
-        }
-        else
-        {
-            std::string err_text = "Expected variable type `" + TYPE_PARAM + "` while loading `" + token + "`. Specifier `" + k + "` not supported here.";
-            exit_with_failure_error(err_text);
-        }
-    }
-}
-
-/* Convert a string with type-dictionary to string-to-double */
-sdargs MCMC::typedict_to_sdargs(std::string token, int, char dict_delim, char option_delim)
-{
-    ssargs input = parse_dict_string(token, dict_delim);
-    sdargs output = {};
-    for (auto const &x : input)
-    {
-        output.emplace(x.first, type_to_double(x.second, 0, option_delim));
-    }
-    return output;
-}
-
-/* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token, char dict_delim, char option_delim)
-{
-    ssargs input = parse_dict_string(token, dict_delim);
-    sdargs_ext output = {};
-    for (auto const &x : input)
-    {
-        output.emplace(x.first, type_to_doubleptr(x.second, option_delim));
-    }
-    return output;
-}
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
+// Warning for status
+bool Unknown_Status_Warning = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////// Load Setup File /////////////////////////////////////// //
@@ -263,14 +35,16 @@ void MCMC::build_setup(std::string data_pathtofile)
             if (!getline(iss, name, delim))
             {
                 std::string err_text = "Unable to extract setup name.\nCheck file line: " + line;
-                exit_with_failure_error(err_text);
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
             }
 
             //=====CHOICE=====//
             if (!getline(iss, choice))
             {
                 std::string err_text = "Unable to extract setup choice.\nCheck file line: " + line;
-                exit_with_failure_error(err_text);
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
             }
 
             // add the new setup
@@ -280,6 +54,7 @@ void MCMC::build_setup(std::string data_pathtofile)
         // seed for pseudo-random number generator (default is time)
         std::string seed_str = safe_load.at("seed");
         setup_seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
+        rng.seed(setup_seed);
 
         // MCMCM number of iterations
         setup_num_iter = stoi(safe_load.at("num_iter"));
@@ -298,7 +73,8 @@ void MCMC::build_setup(std::string data_pathtofile)
     else
     {
         std::string err_text = "Impossible to read file: " + data_pathtofile + ".";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -328,7 +104,8 @@ void MCMC::build_parameters(std::string data_pathtofile)
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
                 std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
-                exit_with_failure_error(err_text);
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
             }
         }
 
@@ -362,7 +139,8 @@ void MCMC::build_parameters(std::string data_pathtofile)
     else
     {
         std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -396,7 +174,8 @@ void MCMC::build_augmented(std::string data_pathtofile)
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
                 {
                     std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
-                    exit_with_failure_error(err_text);
+                    raise_error_message(err_text);
+                    std::exit(EXIT_FAILURE);
                 }
             }
 
@@ -409,7 +188,8 @@ void MCMC::build_augmented(std::string data_pathtofile)
         else
         {
             std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -483,7 +263,8 @@ void MCMC::build_data(std::string data_pathtofile)
             if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
             {
                 std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
-                exit_with_failure_error(err_text);
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
             }
         }
 
@@ -574,7 +355,146 @@ void MCMC::build_data(std::string data_pathtofile)
     else
     {
         std::string err_text = "Impossible to open file: " + data_pathtofile + ".";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////  MCMC : add individuals and context ///////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Add individual */
+void MCMC::add_individual(Individual new_indiv)
+{
+    int status = new_indiv.get_status();
+    int i = num_indiv; // index of the individual
+    std::string rateID = UNDEFINED;
+    std::string parID = UNDEFINED;
+
+    //=====Store New Individual=====//
+    indiv[i] = new_indiv;
+    num_indiv++;
+
+    //=====check for the validity of the status=====//
+    if ((status != HEALTHY) && (status != SYMPTOMATIC))
+    {
+        std::string warn_text = "Unknown status `" + std::to_string(status) + "`.";
+        warn_text += " Use " + std::to_string(HEALTHY) + "/" + std::to_string(SYMPTOMATIC) + " for healthy/non-healthy state.";
+        warn_text += "\n If it was intentional, ignore this message.";
+        raise_warning_message(warn_text, &Unknown_Status_Warning);
+    }
+
+    //=====Assign Model Rates=====//
+    assign_rate_per_group_to_individual(i);
+
+    for (const auto &which : indiv[i]._which_rate)
+    {
+        rateID = which.first;
+        parID = which.second;
+
+        if (num_indiv == 1)
+        {
+            // if first individual, initialize rateID-report
+            model_report.emplace(rateID, std::map<std::string, int>());
+            model_report.at(rateID).emplace("[reference]", 0);
+        }
+        else
+        {
+            // all individuals must have the same set of rates of first individual
+            if (model_report.find(rateID) == model_report.end())
+            {
+                std::string err_text = "Rate `" + rateID + "` is not provided for individuals.";
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
+            }
+        }
+
+        // set rates and update report
+        if (parID == UNDEFINED)
+        {
+            // error : undefined rate
+            std::string err_text = "Rate `" + rateID + "` is not provided for individual " + std::to_string(indiv[i].get_index()) + ".";
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
+        }
+        else if (parID == REFERENCE)
+        {
+            // rate set to reference
+            indiv[i]._set_rate(rateID, get_reference());
+            model_report.at(rateID).at("[reference]") += 1;
+        }
+        else
+        {
+            // rate associated to parameter
+            indiv[i]._set_rate(rateID, get_address(parID));
+            if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
+            {
+                model_report.at(rateID).emplace(parID, 1);
+            }
+            else
+            {
+                model_report.at(rateID).at(parID) += 1;
+            }
+        }
+    }
+}
+
+/* Assign group rate to an individual */
+void MCMC::assign_rate_per_group_to_individual(int i)
+{
+    indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
+    indiv[i].assign_rate_per_group("Susceptibility", REFERENCE);
+}
+
+/* Assign community structure to individuals. I returns a report. */
+void MCMC::assign_community_structure(std::string HH_index_column)
+{
+    int h;
+    std::unordered_map<int, Household> load_househ = {};
+
+    //=====safe load households=====//
+    for (int i = 0; i < num_indiv; i++)
+    {
+        h = indiv[i].get_data(HH_index_column);
+
+        // if househ_idx doesn't exist, append new household
+        if (load_househ.find(h) == load_househ.end())
+        {
+            load_househ.emplace(h, Household());
+            load_househ.at(h).set_index(h);
+        }
+
+        load_househ.at(h).link_individual(i, indiv[i].get_status());
+    }
+    num_househ = load_househ.size(); // get number of unique household indexes
+
+    //=====produce list of households=====//
+    househ = new Household[num_househ]; // initialize the MCMC array of households
+
+    h = 0;
+    for (const auto &pair : load_househ)
+    {
+        househ[h] = pair.second;
+        househ[h].set_indiv_ptr(&indiv); // associate the array of individuals to the Structure
+        h++;
+    }
+    load_househ.clear(); // clear the loading dictionary
+
+    //=====assign home to individuals=====//
+    for (int h = 0; h < num_househ; h++)
+    {
+        for (int i : househ[h].get_house_members())
+        {
+            indiv[i].home = h;
+        }
     }
 }
 
@@ -616,7 +536,8 @@ void MCMC::init_param_file(std::string output_filename)
     else
     {
         std::string err_text = "Unable to open file `" + output_filename + "`.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -625,21 +546,23 @@ void MCMC::print_parameters(int step)
 {
     if (param_ofstream.is_open())
     {
-        param_ofstream << step << DELIM << get_global_loglike();
+        param_ofstream << step << DELIM<< std::setprecision(2) << std::fixed << get_global_loglike();
         for (std::string augmID : augm_to_infer_set)
         {
-            param_ofstream << DELIM << 100.0 * ((double)m_num_accept_data[augmID] / m_num_propos_data[augmID]);
+            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * ((double)m_num_accept_data[augmID] / m_num_propos_data[augmID]);
         }
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << DELIM << get_value(parID) << DELIM << 100.0 * get_accept_rate(parID);
+            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID); // parameter value
+            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID); // acceptance rate
         }
         param_ofstream << std::endl;
     }
     else
     {
         std::string err_text = "Output file closed unexpectedly.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -687,6 +610,7 @@ void MCMC::print_augm_variables(std::string output_filename)
     else
     {
         std::string err_text = "Unable to open file `" + output_filename + "`.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }

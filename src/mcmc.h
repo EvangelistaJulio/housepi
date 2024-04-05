@@ -32,7 +32,6 @@ class Infectivity_Profile_Function;
 class MCMC : public Parameter_Dictionary
 {
 protected:
-	bool setup_state = false;
 	int setup_seed = 20210415;
 	int setup_num_iter = 20000;
 	int setup_num_adapt_iter = 5000;
@@ -40,18 +39,28 @@ protected:
 	std::mt19937_64 rng;
 	std::uniform_real_distribution<double> uniform;
 
+	// classes to deal individuals and households
 	Individual *indiv;
 	Household *househ;
 	int num_indiv = 0;
 	int num_househ = 0;
 
-	const double **contact_patterns;
+	// definition of data variables
+	std::vector<std::string> data_headers = {};
 
-	Infectivity_Profile_Function *infec_profile_func;
+	// definition of augmented variables
 	std::set<std::string> augm_set = {};
 	std::set<std::string> augm_with_model_set = {};
 	std::set<std::string> augm_to_infer_set = {};
-	std::vector<std::string> data_headers = {};
+
+	// model auxiliary objects
+	Infectivity_Profile_Function *infec_profile_func;
+	const double **contact_patterns;
+
+	// auxiliary variables to compute Bayesian diagnostics
+	int dgn_sample_size = 0;
+	double dgn_mean_ll = 0.;
+	double dgn_mean_sqr_ll = 0.;
 
 public:
 	//=====Constructors=====//
@@ -69,20 +78,20 @@ public:
 	void build_augmented(std::string data_pathtofile);
 	void build_data(std::string data_pathtofile);
 
+	// attach individuals
+	void add_individual(Individual new_indiv);
+
 	// load extra non standard files
 	virtual void build_extra(std::string data_pathtofile);
 
 	//=====Initialization=====//
-	// attach individuals and assign group rate
-	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
-
-	virtual double get_infec_time(int i) const;
 
 	virtual void assign_rate_per_group_to_individual(int i);
 	virtual void assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
 
+	virtual double get_infec_time(int i) const;
 	virtual void assign_end_followup(int h);
 	virtual void update_first_case(int h);
 
@@ -99,13 +108,20 @@ public:
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void reset_moves();
-	void move_single_param(std::string parID);
-	void move_parameters();
-	void move_and_adapt_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
-	void move_augm_variables();
+	void move_all_parameters();
+	void move_all_augm_variables();
+	void move_and_adapt_all_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
+	void update_diagnostics();
 
-	//=====infer/simulate=====//
-	void inference(std::string output_filename, bool is_rand_params = false, double inv_temperature = 1.0);
+	//=====infer=====//
+	void inference(
+		std::string output_filename, 
+		bool is_rand_params = false, 
+		double inv_temperature = 1.0,
+		bool return_diagnostics = false
+		);
+
+	//=====simulate=====//
 	virtual void simulate_infection(){};
 	void simulation(std::string output_filename);
 
@@ -120,6 +136,10 @@ public:
 private:
 	double global_loglike = 0.0;
 	double inverse_temperature = 1.0;
+	
+	// single parameters moves
+	void _single_param_move_annealing(std::string parID);
+	void _single_param_move_zero_inv_temp_(std::string parID);
 
 	// outoput parameter file
 	std::ofstream param_ofstream;
@@ -133,6 +153,13 @@ private:
 
 	//=====internal auxiliary functions=====//
 	// file reading and formatting
+	std::string string_cleaner(std::string token);
+	bool stobool(std::string token);
+	ssargs parse_dict_string(std::string token, char dict_delim);
+	sdargs parse_dict_args(std::string token, char dict_delim);
+	std::vector<std::string> read_column_headers(std::ifstream &input, char delim = DELIM);
+	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row, char delim = DELIM);
+	sdargs row_to_sdargs(ssargs &this_row);
 	double type_to_double(std::string token, int i, char option_delim = OPTION_DELIM);
 	const double *type_to_doubleptr(std::string token, char option_delim);
 	sdargs typedict_to_sdargs(std::string token, int i, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);

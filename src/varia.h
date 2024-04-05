@@ -79,8 +79,8 @@ protected:
 	double undefined_call_error()
 	{
 		std::string err_text = "Attempt to call a method of an undefined proposer.";
-		exit_with_failure_error(err_text);
-		return INFINITY;
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 
 	//=====propose : functional methods=====//

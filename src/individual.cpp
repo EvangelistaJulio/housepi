@@ -22,7 +22,8 @@ double Individual::get_data(std::string dataID) const
 	if (data.find(dataID) == data.end())
 	{
 		std::string err_text = "Data column `" + dataID + "` unknown.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 	*/
 	return data.at(dataID);
@@ -42,7 +43,8 @@ void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 	{
 		// rateID was previously declared
 		std::string err_text = "Found individual with multiple definitions for group rate `" + rateID + "`.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
@@ -70,8 +72,9 @@ void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 	{
 		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
 		{
-			std::string err_text = "Number of attempts exceed in random initialization of `" + augmID + "`.";
-			exit_with_failure_error(err_text);
+			std::string err_text = "Number of attempts exceeded in random initialization of `" + augmID + "`.";
+			raise_error_message(err_text);
+			std::exit(EXIT_FAILURE);
 		}
 		init_value = augm_model_rand(augmID, rng);
 		num_attempts++;
@@ -89,7 +92,8 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	else
 	{
 		std::string err_text = "Augmented variable `" + augmID + "` has multiple definitions.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
@@ -125,7 +129,6 @@ double Individual::augm_propose_log_ratio(std::string augmID, double old_val, do
 // /////////////////////////// Household //////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-
 /* Assign a data feature to the household */
 void Household::assign_data(std::string dataID, double value)
 {
@@ -138,7 +141,8 @@ void Household::assign_data(std::string dataID, double value)
 	{
 		// rateID was previously declared
 		std::string err_text = "Found household with multiple definitions for data `" + dataID + "`.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
@@ -149,7 +153,8 @@ double Household::get_data(std::string dataID) const
 	if (house_data.find(dataID) == house_data.end())
 	{
 		std::string err_text = "Household data  `" + dataID + "` unknown.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 	*/
 	return house_data.at(dataID);
@@ -178,18 +183,18 @@ void Household::link_individual(int i, int status)
 std::vector<int> Household::get_house_members()
 {
 	std::vector<int> members;
-    members.reserve(house_size); // Reserve space
+	members.reserve(house_size); // Reserve space
 
-    // Copy infectious
-    members.insert(members.end(), infectious_list.begin(), infectious_list.end());
+	// Copy infectious
+	members.insert(members.end(), infectious_list.begin(), infectious_list.end());
 
-    // Copy susceptibles
-    members.insert(members.end(), susceptibles_list.begin(), susceptibles_list.end());
+	// Copy susceptibles
+	members.insert(members.end(), susceptibles_list.begin(), susceptibles_list.end());
 
-    // Copy unknown
-    members.insert(members.end(), unknown_status_list.begin(), unknown_status_list.end());
+	// Copy unknown
+	members.insert(members.end(), unknown_status_list.begin(), unknown_status_list.end());
 
-    return members;
+	return members;
 }
 
 /* Change_status of individual i to new status (without controls).
@@ -231,4 +236,12 @@ void Household::change_status(int i, int new_status)
 		// change the status of individual to new
 		(*indiv_ptr)[i].set_status(new_status);
 	}
+}
+
+// update the values for the Bayesian diagnostics
+void Household::update_dgn()
+{
+	dgn_mean_ll = (loglike + dgn_mean_ll * dgn_sample_size) / (dgn_sample_size + 1);
+	dgn_mean_sqr_ll = (std::pow(loglike, 2) + dgn_mean_sqr_ll * dgn_sample_size) / (dgn_sample_size + 1);
+	dgn_sample_size++;
 }

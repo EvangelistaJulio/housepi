@@ -96,7 +96,8 @@ void Base_Proposer::set_range(sdargs new_range)
         if (_range_min_ >= _range_max_)
         {
             std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "}.";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
         else
         {
@@ -106,7 +107,8 @@ void Base_Proposer::set_range(sdargs new_range)
     else
     {
         std::string err_text = "Provided multiple definition for the range.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -132,8 +134,8 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     else
     {
         std::string err_text = "Unknown metropolis strategy `" + name + "`.";
-        exit_with_failure_error(err_text);
-        return nullptr;
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -169,7 +171,8 @@ void Parameter_Dictionary::check(const std::string k)
     if (params.find(k) == params.end())
     {
         std::string err_text = "Parameter `" + k + "` is not defined.\n Check your model and parameter file.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -192,7 +195,8 @@ void Parameter_Dictionary::add_param(
     else
     {
         std::string err_text = "Parameter `" + k + "` has multiple definitions.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 
     // update the lists of parameters to be inferred or not

@@ -8,7 +8,8 @@ MODEL_HEADER := $(NAME).h
 
 # List of source files
 SRCDIR := src
-SOURCES := $(wildcard $(SRCDIR)/*.cpp) $(FLDR)/$(NAME).cpp
+EXCL_FILES := Rcpp_export_bindings.cpp
+SOURCES := $(filter-out $(addprefix $(SRCDIR)/,$(EXCL_FILES)), $(wildcard $(SRCDIR)/*.cpp) $(FLDR)/$(NAME).cpp)
 
 # Object files to build (automatically generated from SRCS)
 OBJECTS := $(SOURCES:.cpp=.o)

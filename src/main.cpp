@@ -23,8 +23,8 @@ bool Verbose = false;
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;             // Command line argument iterator
-    double inver_temp = 1.0;    // Inverse temperature
+    int carg_i = 1;          // Command line argument iterator
+    double inver_temp = 1.0; // Inverse temperature
     bool infer = false;
     bool simulate = false;
     bool rand_init_params = false;
@@ -41,7 +41,8 @@ int main(int argc, char *argv[])
     {
         std::string aux = argv[0];
         std::string err_text = "The user did not supply any command.\nCheck the list of commands through:\n" + aux + " -h";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====Load commands and options=====//
@@ -52,7 +53,8 @@ int main(int argc, char *argv[])
         {
             // Show the manual using man and installed manpages // UPDATE : produce a manual
             std::string err_text = "We apologize for the inconvenience, but the Software Manual is still missing.\nPlease, contact the developer.";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
 
         else if (std::string(argv[carg_i]) == std::string("-infer"))
@@ -129,7 +131,8 @@ int main(int argc, char *argv[])
         {
             std::string aux = argv[carg_i];
             std::string err_text = "Unrecognized option `" + aux + "`.";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
 
         ++carg_i; // Move to the next command line argument
@@ -140,45 +143,46 @@ int main(int argc, char *argv[])
     if (infer && simulate)
     {
         std::string err_text = "Incompatible options: choose one between -infer and -simulate.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====INITIALIZATION=====//
 
-    // Initialize Model object
-    Model model();
+    // Initialize Model object with user defined derived class
+    Model user_model;
 
     // Load Setup
-    model.build_setup(setup_pathtofile);
+    user_model.build_setup(setup_pathtofile);
 
     // Load Parameters
-    model.build_parameters(parameters_pathtofile);
+    user_model.build_parameters(parameters_pathtofile);
 
     // Load Augmented Variables
-    model.build_augmented(augmented_pathtofile);
+    user_model.build_augmented(augmented_pathtofile);
 
     // Load Data
-    model.build_data(database_pathtofile);
+    user_model.build_data(database_pathtofile);
 
     // UPDATE: there could be plenty extra files to be store somewhere
     if (extra_pathtofile != UNDEFINED)
     {
-        model.build_extra(extra_pathtofile);
+        user_model.build_extra(extra_pathtofile);
     }
 
     //=====EXECUTION=====//
-    
+
     if (infer) // Parameter Inference
     {
-        model.inference(output_pathtofile, rand_init_params, inver_temp);
+        user_model.inference(output_pathtofile, rand_init_params, inver_temp);
         if (save_augm_pathtofile != UNDEFINED)
         {
-            model.print_augm_variables(save_augm_pathtofile);
+            user_model.print_augm_variables(save_augm_pathtofile);
         }
     }
     else if (simulate) // Simulation Study
     {
-        model.simulation(output_pathtofile);
+        user_model.simulation(output_pathtofile);
     }
 
     if (Verbose)

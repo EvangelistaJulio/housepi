@@ -192,16 +192,17 @@ double _recursive_function(usi N, std::vector<double> &escape_matrix)
 /* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
-	size_t max_num = 0, aux = 0;
+	int max_num = 0, aux = 0;
 
 	// find maximum possible number of sero-positives
-	for (size_t h = 0; h < num_househ; h++)
+	for (int h = 0; h < num_househ; h++)
 	{
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
 		{
 			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-			exit_with_failure_error(err_txt);
+			raise_error_message(err_txt);
+			std::exit(EXIT_FAILURE);
 		}
 		// <<<< <<<< <<<< <<<<
 		
@@ -279,7 +280,7 @@ double Model::compute_single_house_loglike(int h)
 /* Poisson point process to simulate data. */
 void Model::simulate_infection()
 {
-	size_t num_new_infectious = 0, num_old_infectious = 0;
+	int num_new_infectious = 0, num_old_infectious = 0;
 	std::vector<int> copy_list = {};
 
 	//=====community escape probability=====//

@@ -38,7 +38,7 @@ typedef std::map<std::string, std::string> ssargs;
 /////////////////////////////////////////////////////////////////////////////
 
 void print_progress_bar(int progress, int total);
-void exit_with_failure_error(std::string &error_text);
+void raise_error_message(std::string &error_text);
 void raise_warning_message(std::string &message, bool *is_warn_to_be_raised);
 
 ///////////////////////////////////////////////////////////////////////
@@ -128,8 +128,8 @@ private:
     double undefined_call_error()
     {
         std::string err_text = "Attempt to call a method of an undefined distribution.";
-        exit_with_failure_error(err_text);
-        return INFINITY;
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 };
 
@@ -382,8 +382,8 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     else
     {
         std::string err_text = "Unknown distribution `" + name + "`.";
-        exit_with_failure_error(err_text);
-        return new Undefined_Distr();
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 

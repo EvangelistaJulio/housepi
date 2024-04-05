@@ -38,8 +38,9 @@ void build_extra(std::string data_pathtofile)
 	}
 	else
 	{
-		std::string err_text = "Impossible to read file: " + data_pathtofile + ".";
-		exit_with_failure_error(err_text);
+		std::string err_txt = "Impossible to read file: " + data_pathtofile + ".";
+		raise_error_message(err_txt);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
@@ -251,25 +252,24 @@ double Model::get_infec_time(int i) const
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-
 /* Initialize parameters and augmented variables */
 void Model::initialize_model()
 {
-    assign_infec_profile_function(); // initialize infectivity profiles
+	assign_infec_profile_function(); // initialize infectivity profiles
 
-    // compute infectivity profiles for each of the symptomatic and relative infectees
-    for (int i = 0; i < num_indiv; i++)
-    {
-        store_augm_var_dependecies(i);
-    }
+	// compute infectivity profiles for each of the symptomatic and relative infectees
+	for (int i = 0; i < num_indiv; i++)
+	{
+		store_augm_var_dependecies(i);
+	}
 
-    // find the first case for each household
-    for (int h = 0; h < num_househ; h++)
-    {
+	// find the first case for each household
+	for (int h = 0; h < num_househ; h++)
+	{
 		// FIXME : for the moment there's a mess between set and assignemtn, it might not work because of this
-        assign_end_followup(h);
-        update_first_case(h);
-    }
+		assign_end_followup(h);
+		update_first_case(h);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

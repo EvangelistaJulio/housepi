@@ -87,6 +87,11 @@ private:
 	double loglike = -INFINITY;
 	double buffer = -INFINITY;
 
+	// auxiliary variables to compute Bayesian diagnostics
+	int dgn_sample_size = 0;
+	double dgn_mean_ll = 0.;
+	double dgn_mean_sqr_ll = 0.;
+
 public:
 	//=====Attributes=====//
 	int house_size = 0;
@@ -122,6 +127,14 @@ public:
 		loglike = new_loglike;
 	}
 	void refuse() { loglike = buffer; }
+
+	// update the values for the Bayesian diagnostics
+	void update_dgn() 
+	{
+		dgn_mean_ll = (loglike + dgn_mean_ll * dgn_sample_size) / (dgn_sample_size + 1);
+		dgn_mean_sqr_ll = (std::pow(loglike, 2) + dgn_mean_sqr_ll * dgn_sample_size) / (dgn_sample_size + 1);
+		dgn_sample_size ++;
+	}
 };
 
 #endif // INDIVIDUAL__H

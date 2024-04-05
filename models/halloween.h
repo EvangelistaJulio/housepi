@@ -1,14 +1,7 @@
 // halloween.h //
 
-#ifndef HALLOW__H
+#ifndef MODEL__H
 #define MODEL__H
-
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <cmath>
-#include <random>
-#include <iostream>
 
 #include "mcmc.h"
 
@@ -23,12 +16,7 @@ protected:
 	double *cumul_profile_lookuptab;
 
 public:
-	// Constructors
-	Model() : MCMC() {};
-	~Model() {}
 
-	//=====Required Methods=====//
-	
 	void assign_infec_profile_function() override;
 	void assign_rate_per_group_to_individual(int i) override;
 	void store_augm_var_dependecies(int i) override;

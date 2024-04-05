@@ -196,22 +196,22 @@ void Model::initialize_model()
 
 	// find maximum possible number of sero-positives
 	for (int h = 0; h < num_househ; h++)
-	{		
+	{
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
 		{
 			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-			exit_with_failure_error(err_txt);
+			raise_error_message(err_txt);
+			std::exit(EXIT_FAILURE);
 		}
 		// <<<< <<<< <<<< <<<<
-		
+
 		aux = househ[h].infectious_list.size() + househ[h].unknown_status_list.size();
 		max_num = (aux > max_num) ? aux : max_num;
 	}
 
 	initialize_LookupTable(max_num);
 }
-
 
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(int h)
@@ -229,7 +229,7 @@ double Model::compute_single_house_loglike(int h)
 
 	//=====community escape probability=====//
 	double commu_esc_proba = exp(-get_value("alpha"));
-	
+
 	for (usi i = 0; i < hh_size; i++)
 	{
 		escape_matrix[i] = commu_esc_proba;
@@ -242,7 +242,7 @@ double Model::compute_single_house_loglike(int h)
 	for (usi i = 0; i < hh_size; i++)
 	{
 		escape_matrix[i + hh_size] = within_esc_proba;
-	}	
+	}
 
 	// <<----------<<----------<<----------<<---------- //
 	// <<----------<<----------<<----------<<---------- //

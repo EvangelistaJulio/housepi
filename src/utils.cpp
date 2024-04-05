@@ -2,45 +2,47 @@
 
 #include "utils.h"
 
-/* Progress bar */
+/* Percentual Progress bar */
 void print_progress_bar(int progress, int total)
 {
-    float percentage = static_cast<float>(progress) / total;
-    int barWidth = 70;
-
-    std::cerr << "[";
-
-    int pos = barWidth * percentage;
-    for (int i = 0; i < barWidth; ++i)
+    if ((total <= 100) || (progress % ((int)total / 100) == 0))
     {
-        if (i < pos)
-        {
-            std::cerr << "=";
-        }
-        else if (i == pos)
-        {
-            std::cerr << ">";
-        }
-        else
-        {
-            std::cerr << " ";
-        }
-    }
+        float percentage = static_cast<float>(progress) / total;
+        int barWidth = 70;
 
-    std::cerr << "] " << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
-    std::cerr.flush();
+        std::cerr << "[";
+
+        int pos = barWidth * percentage;
+        for (int i = 0; i < barWidth; ++i)
+        {
+            if (i < pos)
+            {
+                std::cerr << "=";
+            }
+            else if (i == pos)
+            {
+                std::cerr << ">";
+            }
+            else
+            {
+                std::cerr << " ";
+            }
+        }
+
+        std::cerr << "] " << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
+        std::cerr.flush();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////
 // /////////////////////// Error Functions ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-void exit_with_failure_error(std::string &message)
+void raise_error_message(std::string &message)
 {
     std::cerr << std::endl;
     std::cerr << "ERROR: " << message << "\nExit...\n"
               << std::endl;
-    exit(EXIT_FAILURE);
 }
 
 void raise_warning_message(std::string &message, bool *is_warn_to_be_raised)
@@ -70,7 +72,7 @@ Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order
 {
     args_name = order;                          // developer assigment of the order of arguments
     args_int = new double[new_args_int.size()]; // dynamic allocation
-    for (int i = 0; i < args_name.size(); i++)
+    for (std::size_t i = 0; i < args_name.size(); i++)
     {
         args_int[i] = new_args_int.at(args_name[i]);
     }
@@ -82,7 +84,7 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 {
     args_name = order;                                  // developer assigment of the order of arguments
     args_ext = new const double *[new_args_ext.size()]; // dynamic allocation
-    for (int i = 0; i < args_name.size(); i++)
+    for (std::size_t i = 0; i < args_name.size(); i++)
     {
         args_ext[i] = new_args_ext.at(args_name[i]);
     }
@@ -93,7 +95,7 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 std::string Base_Function::display(char delim, char dict_delim)
 {
     std::string output = get_name() + delim;
-    for (int i = 0; i < args_name.size() - 1; i++)
+    for (std::size_t i = 0; i < args_name.size() - 1; i++)
     {
         output += args_name[i] + dict_delim + std::to_string(get_arg(i)) + dict_delim;
     }
