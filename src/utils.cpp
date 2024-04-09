@@ -2,6 +2,12 @@
 
 #include "utils.h"
 
+/* Estimate sample variance from sum X, sum X^2 and sample size */
+double est_sample_variance(double sum_X, double sum_X2, double ss)
+{
+    return sum_X2 / (ss - 1.) - std::pow(sum_X, 2) / (ss * (ss - 1.));
+}
+
 /* Percentual Progress bar */
 void print_progress_bar(int progress, int total)
 {
@@ -92,15 +98,15 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 }
 
 /* return informations about the distribution */
-std::string Base_Function::display(char delim, char dict_delim)
+std::string Base_Function::message_to_display()
 {
-    std::string output = get_name() + delim;
+    std::string output = get_name() + DELIM;
     for (std::size_t i = 0; i < args_name.size() - 1; i++)
     {
-        output += args_name[i] + dict_delim + std::to_string(get_arg(i)) + dict_delim;
+        output += args_name[i] + DICT_DELIM + std::to_string(get_arg(i)) + DICT_DELIM;
     }
     int i = args_name.size() - 1;
-    output += args_name[i] + dict_delim + std::to_string(get_arg(i));
+    output += args_name[i] + DICT_DELIM + std::to_string(get_arg(i));
     return output;
 }
 

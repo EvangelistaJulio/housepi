@@ -62,6 +62,7 @@ void MCMC::assign_end_followup(int h)
     househ[h].set_data("end_followup", end_followup);
 }
 
+/* Compute the loglikelihood for a single household. */
 double MCMC::compute_single_house_loglike(int h)
 {
     UNUSED(h);
@@ -84,6 +85,10 @@ double MCMC::compute_global_loglike()
     return output;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////  MCMC : move parameters /////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Set accept rates to zero. */
 void MCMC::reset_moves()
 {
@@ -99,19 +104,17 @@ void MCMC::reset_moves()
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////////  MCMC : move parameters /////////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Attempt to move a single parameter */
-void MCMC::_single_param_move_annealing(std::string parID)
+/* Attempt to move a single parameter for the given inverse temperature. */
+void MCMC::single_param_move_annealing(std::string parID)
 {
     double Q, new_global_loglike;
 
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_move(parID, rng))
     {
-        // Compute the new log likelihood
+        // Compute the new gobla loglikelihood
+        // set loglike in households and store old value in buffer
+        // UPDATE : maybe it's more efficient to do the opposite (given 24% AR)
         new_global_loglike = compute_global_loglike();
 
         //=====Metropolis-Hastings=====//
@@ -134,37 +137,12 @@ void MCMC::_single_param_move_annealing(std::string parID)
     }
 }
 
-/* Attempt to move a single parameter at zero inverse temperature */
-void MCMC::_single_param_move_zero_inv_temp_(std::string parID)
-{
-    // proceed only if the new value is consistent
-    // otherwise automatically execute refuse_move(parID)
-    if (propose_valid_move(parID, rng))
-    {
-        //=====Metropolis-Hastings (only with priors)=====//
-        if (log(uniform(rng)) < get_move_log_ratio())
-        {
-            accept_param_move(parID);
-            set_global_loglike(compute_global_loglike());
-        }
-        else
-        {
-            refuse_param_move(parID);
-            // restore loglike in households
-            for (int h = 0; h < num_househ; h++)
-            {
-                househ[h].refuse();
-            }
-        }
-    }
-}
-
 /* Sweep over all model parameters. */
 void MCMC::move_all_parameters()
 {
     for (std::string parID : param_to_be_inferred)
     {
-        _single_param_move_annealing(parID);
+        single_param_move_annealing(parID);
     }
 }
 
@@ -175,7 +153,7 @@ void MCMC::move_and_adapt_all_parameters(int step, double target)
 
     for (std::string parID : param_to_be_inferred)
     {
-        _single_param_move_annealing(parID);
+        single_param_move_annealing(parID);
         adapt(parID, adapt_ratio, target);
     }
 }
@@ -242,21 +220,50 @@ void MCMC::move_all_augm_variables()
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////////  MCMC : update_diagnostics //////////////////////////////// //
+// /////////////////////////////////////  MCMC : diagnostics /////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update Bayesian diagnostics */
-void MCMC::update_diagnostics()
+void MCMC::update_model_diagnostics()
 {
+    // for all parameters
+    update_diagnostics();
+
     // Loop over households
     for (int h = 0; h < num_househ; h++)
     {
-        househ[h].update_dgn();
+        househ[h].update_diagnostics();
     }
 
-    dgn_mean_ll = (global_loglike + dgn_mean_ll * dgn_sample_size) / (dgn_sample_size + 1);
-    dgn_mean_sqr_ll = (std::pow(global_loglike, 2) + dgn_mean_sqr_ll * dgn_sample_size) / (dgn_sample_size + 1);
-    dgn_sample_size++;
+    // update the mean of the global loglikelihood
+    dgn_sum_loglike += global_loglike;
+    // update the mean of the squared global loglikelihood
+    dgn_sum_sqr_loglike += std::pow(global_loglike, 2);
+    // update the diagnostics sample size
+    dgn_ss++;
+}
+
+/* Display Bayesian diagnostics */
+void MCMC::display_model_diagnostics()
+{
+    double log_point_pred_dens = 0.;
+    double effec_num_params_waic = 0.;
+
+    // Loop over households
+    for (int h = 0; h < num_househ; h++)
+    {
+        log_point_pred_dens += std::log(househ[h].dgn_sum_likelihood / househ[h].dgn_ss);
+        effec_num_params_waic += est_sample_variance(househ[h].dgn_sum_loglike, househ[h].dgn_sum_sqr_loglike, househ[h].dgn_ss);
+    }
+
+    display_diagnostics();
+
+    std::cout << "loglikelihood.mean" << DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss << "\n"
+              << "loglikelihood.sd" << DELIM << est_sample_variance(dgn_sum_loglike, dgn_sum_sqr_loglike, dgn_ss) << "\n"
+              << "LPD" << DELIM << log_point_pred_dens << "\n"
+              << "effective.params" << DELIM << effec_num_params_waic << "\n"
+              << "WAIC" << DELIM << log_point_pred_dens - effec_num_params_waic;
+    std::cout << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,6 +356,7 @@ void MCMC::inference(
             move_all_parameters();
             move_all_augm_variables();
         }
+        update_model_diagnostics();
         print_parameters(i * setup_thinning);
 
         if (Verbose)
@@ -367,6 +375,8 @@ void MCMC::inference(
         std::cout << "\n--------------MCMC:end----------------" << std::endl;
         display_parameters();
     }
+
+    display_model_diagnostics(); // FIXME : this output needs to be specified probably
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

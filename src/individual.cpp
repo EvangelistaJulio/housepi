@@ -238,10 +238,11 @@ void Household::change_status(int i, int new_status)
 	}
 }
 
-// update the values for the Bayesian diagnostics
-void Household::update_dgn()
+/* update the values for the Bayesian diagnostics */
+void Household::update_diagnostics()
 {
-	dgn_mean_ll = (loglike + dgn_mean_ll * dgn_sample_size) / (dgn_sample_size + 1);
-	dgn_mean_sqr_ll = (std::pow(loglike, 2) + dgn_mean_sqr_ll * dgn_sample_size) / (dgn_sample_size + 1);
-	dgn_sample_size++;
+	dgn_sum_likelihood += std::exp(loglike);
+	dgn_sum_loglike += loglike;
+	dgn_sum_sqr_loglike += std::pow(loglike, 2);
+	dgn_ss++;
 }

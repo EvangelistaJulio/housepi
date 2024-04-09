@@ -58,7 +58,7 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio, double target);
 
-	std::string display(char delim = DELIM, char dict_delim = DICT_DELIM);
+	std::string message_to_display();
 
 private:
 	//=====valid : functional methods=====//
@@ -275,13 +275,12 @@ public:
 	void adapt(double ratio, double target) { (prop_ptr->adapt)(ratio, target); }
 
 	//=====Display=====//
-	std::string display(char delim = DELIM, char dict_delim = DICT_DELIM)
+	std::string message_to_display()
 	{
-		std::string output = std::to_string(get_value());
-		output += delim + (std::string)((infer) ? "true" : "false");
+		std::string output = std::to_string(get_value()) + DELIM + (std::string)((infer) ? "true" : "false");
 		if (infer)
 		{
-			output += delim + distr_ptr->display(delim, dict_delim) + delim + prop_ptr->display(delim, dict_delim);
+			output += DELIM + distr_ptr->message_to_display() + DELIM + prop_ptr->message_to_display();
 		}
 		return output;
 	}
@@ -300,6 +299,10 @@ private:
 class Parameter : public Base_Parameter<sdargs>
 {
 public:
+	int dgn_sample_size = 0;
+	long double dgn_sum = 0.;
+	long double dgn_sqr_sum = 0.;
+
 	//=====Constructor=====//
 	Parameter(
 		double new_val,
@@ -319,6 +322,9 @@ public:
 	double prior_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
 	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double prior_log_ratio(double old_val, double new_val) { return distr_log_ratio(old_val, new_val); }
+
+	void update_diagnostics();
+	std::string message_to_display_diagnostics();
 };
 
 ///////////////////////////////////////////////////////////
@@ -372,12 +378,14 @@ public:
 	double get_move_log_ratio() { return buffer_log_ratio; }
 	void accept_param_move(const std::string k);
 	void refuse_param_move(const std::string k);
+	void update_diagnostics();
 
 	// acceptation rates / adaptive methods
 	void adapt(const std::string k, double ratio, double target) { params.at(k).adapt(ratio, target); }
 
 	//=====Display=====//
-	void display_parameters(char delim = DELIM, char dict_delim = DICT_DELIM);
+	void display_parameters();
+	void display_diagnostics();
 };
 
 /////////////////////////////////////////////////////////////////

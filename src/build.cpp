@@ -91,7 +91,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
     {
         if (Verbose)
         {
-            std::cout << "\n==============PARAMETERS===============" << std::endl;
+            std::cout << "\n==============PARAMETERS==============" << std::endl;
             std::cout << "Parameters file: " << data_pathtofile << "\n"
                       << std::endl;
         }
@@ -251,7 +251,7 @@ void MCMC::build_data(std::string data_pathtofile)
     {
         if (Verbose)
         {
-            std::cout << "\n================DATA=================" << std::endl;
+            std::cout << "\n================DATA==================" << std::endl;
             std::cout << "Data file: " << data_pathtofile << std::endl;
         }
 
@@ -546,7 +546,7 @@ void MCMC::print_parameters(int step)
 {
     if (param_ofstream.is_open())
     {
-        param_ofstream << step << DELIM<< std::setprecision(2) << std::fixed << get_global_loglike();
+        param_ofstream << step << DELIM << std::setprecision(2) << std::fixed << get_global_loglike();
         for (std::string augmID : augm_to_infer_set)
         {
             param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * ((double)m_num_accept_data[augmID] / m_num_propos_data[augmID]);

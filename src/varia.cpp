@@ -139,27 +139,61 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     }
 }
 
-std::string Base_Proposer::display(char delim, char dict_delim)
+/* Display method for proposer (building on the distribution method) */
+std::string Base_Proposer::message_to_display()
 {
-    std::string output = distr_ptr->display(delim, dict_delim);
-    output += delim;
+    std::string output = distr_ptr->message_to_display();
+    output += DELIM;
     if (_range_min_ > -INFINITY)
     {
         std::string aux = "min";
-        output += aux + dict_delim + std::to_string(_range_min_);
+        output += aux + DICT_DELIM + std::to_string(_range_min_);
         if (_range_max_ < INFINITY)
         {
-            output += dict_delim;
+            output += DICT_DELIM;
         }
     }
     if (_range_max_ < INFINITY)
     {
         std::string aux = "max";
-        output += aux + dict_delim + std::to_string(_range_max_);
+        output += aux + DICT_DELIM + std::to_string(_range_max_);
     }
 
     return output;
 }
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////
+//////// Parameter : methods ///////////////////
+///////////////////////////////////////////////////////////
+
+/* Update the values for the Bayesian diagnostics */
+void Parameter::update_diagnostics()
+{
+    dgn_sum += get_value();
+    dgn_sqr_sum += std::pow(get_value(), 2);
+    dgn_sample_size++;
+}
+
+/* Message to be used at the moment of display diagnostics */
+std::string Parameter::message_to_display_diagnostics()
+{
+    std::string output = std::to_string(dgn_sum / dgn_sample_size) + DELIM;
+    return output + std::to_string(std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size)));
+}
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////
 //////// Parameter_Dictionary : methods ///////////////////
@@ -178,7 +212,7 @@ void Parameter_Dictionary::check(const std::string k)
 
 /* add_param */
 void Parameter_Dictionary::add_param(
-    const std::string k,
+    const std::string parID,
     double new_val,
     std::string prior_name,
     sdargs prior_args,
@@ -188,93 +222,117 @@ void Parameter_Dictionary::add_param(
 {
     Parameter new_param(new_val, prior_name, prior_args, strat_name, strat_args, value_range);
 
-    if (params.find(k) == params.end())
+    if (params.find(parID) == params.end())
     {
-        params.emplace(k, new_param);
+        params.emplace(parID, new_param);
     }
     else
     {
-        std::string err_text = "Parameter `" + k + "` has multiple definitions.";
+        std::string err_text = "Parameter `" + parID + "` has multiple definitions.";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
 
-    // update the lists of parameters to be inferred or not
+    // update the lists of parameters to be inferred, and these to be static
     if (new_param.get_infer())
     {
-        param_to_be_inferred.push_back(k);
+        param_to_be_inferred.push_back(parID);
     }
     else
     {
-        param_static.push_back(k);
+        param_static.push_back(parID);
     }
 }
 
 /* display the user model parameters */
-void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
+void Parameter_Dictionary::display_parameters()
 {
     for (std::string k : param_file_required_headers)
     {
-        std::cout << k << delim;
+        std::cout << k << DELIM;
     }
     std::cout << std::endl;
-    for (std::string k : param_to_be_inferred)
+
+    for (std::string parID : param_to_be_inferred)
     {
-        std::cout << k << delim << params.at(k).display(delim, dict_delim) << std::endl;
+        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
     }
-    for (std::string k : param_static)
+    for (std::string parID : param_static)
     {
-        std::cout << k << delim << params.at(k).display(delim, dict_delim) << std::endl;
+        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
     }
 }
 
 /* randomly initialize values of the parameters to be inferred */
 void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 {
-    double new_val;
-    for (std::string k : param_to_be_inferred)
+    double new_value;
+    for (std::string parID : param_to_be_inferred)
     {
-        new_val = params.at(k).prior_rand(rng);
-        while (params.at(k).valid(new_val) == false)
+        new_value = params.at(parID).prior_rand(rng);
+        while (params.at(parID).valid(new_value) == false)
         {
-            new_val = params.at(k).prior_rand(rng);
+            new_value = params.at(parID).prior_rand(rng);
         }
-        set_value(k, new_val);
+        set_value(parID, new_value);
     }
 }
 
-/* propose a valid move */
-bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
+/* propose a valid move (retrun true), otherwise update refusal (retrun false) */
+bool Parameter_Dictionary::propose_valid_move(const std::string parID, std::mt19937_64 &rng)
 {
-    double new_val = params.at(k).propose(rng); // propose new value
-    bool is_valid = false;
+    double new_value = params.at(parID).propose(rng); // propose new value
 
     // proceed only if valid
-    if (params.at(k).valid(new_val))
+    if (params.at(parID).valid(new_value))
     {
-        is_valid = true;
-        buffer_value = get_value(k); // store old value into buffer
-        buffer_log_ratio = params.at(k).prior_log_ratio(buffer_value, new_val);
-        buffer_log_ratio -= params.at(k).propose_log_ratio(buffer_value, new_val);
-        set_value(k, new_val);
+        // store old value into buffer
+        buffer_value = get_value(parID);
+        // add the prior logratio to buffer
+        buffer_log_ratio = params.at(parID).prior_log_ratio(buffer_value, new_value);
+        // add the proposal logratio to buffer
+        buffer_log_ratio -= params.at(parID).propose_log_ratio(buffer_value, new_value);
+        // set the new value of the parameter for computations
+        set_value(parID, new_value);
+        return true;
     }
     else
     {
-        params.at(k).update_accept_rate(false);
+        // update accept rate with the refusal
+        params.at(parID).update_accept_rate(false);
+        return false;
     }
-
-    return is_valid;
 }
 
 /* move is accepted */
-void Parameter_Dictionary::accept_param_move(const std::string k)
+void Parameter_Dictionary::accept_param_move(const std::string parID)
 {
-    params.at(k).update_accept_rate(true);
+    params.at(parID).update_accept_rate(true);
 }
 
 /* move is refused: restore old value in the buffer */
-void Parameter_Dictionary::refuse_param_move(const std::string k)
+void Parameter_Dictionary::refuse_param_move(const std::string parID)
 {
-    set_value(k, buffer_value);
-    params.at(k).update_accept_rate(false);
+    set_value(parID, buffer_value);
+    params.at(parID).update_accept_rate(false);
+}
+
+/* Update the diagnostics of all parameters */
+void Parameter_Dictionary::update_diagnostics()
+{
+    for (std::string parID : param_to_be_inferred)
+    {
+        params.at(parID).update_diagnostics();
+    }
+}
+
+/* display the diagnostics */
+void Parameter_Dictionary::display_diagnostics()
+{
+    std::cout << "param" << DELIM << "mean" << DELIM << "sd\n";
+    for (std::string parID : param_to_be_inferred)
+    {
+        std::cout << parID << DELIM << params.at(parID).message_to_display_diagnostics() << "\n";
+    }
+    std::cout << std::endl;
 }

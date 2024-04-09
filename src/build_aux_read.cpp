@@ -114,7 +114,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input, char de
     return headers;
 }
 
-/* Load parameters from the row with options */
+/* Load files from the row with headers */
 bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row, char delim)
 {
     std::string line, token;

@@ -87,18 +87,21 @@ private:
 	double loglike = -INFINITY;
 	double buffer = -INFINITY;
 
-	// auxiliary variables to compute Bayesian diagnostics
-	int dgn_sample_size = 0;
-	double dgn_mean_ll = 0.;
-	double dgn_mean_sqr_ll = 0.;
-
 public:
 	//=====Attributes=====//
 	int house_size = 0;
 	int first_case = -1;
+
+	// list of house members for given status
 	std::vector<int> infectious_list = {};
 	std::vector<int> susceptibles_list = {};
 	std::vector<int> unknown_status_list = {};
+	
+	// auxiliary variables to compute Bayesian diagnostics
+	int dgn_ss = 0;
+	long double dgn_sum_likelihood = 0.;
+	long double dgn_sum_loglike = 0.;
+	long double dgn_sum_sqr_loglike = 0.;
 
 	//=====Constructors=====//
 	Household() {}
@@ -129,12 +132,7 @@ public:
 	void refuse() { loglike = buffer; }
 
 	// update the values for the Bayesian diagnostics
-	void update_dgn() 
-	{
-		dgn_mean_ll = (loglike + dgn_mean_ll * dgn_sample_size) / (dgn_sample_size + 1);
-		dgn_mean_sqr_ll = (std::pow(loglike, 2) + dgn_mean_sqr_ll * dgn_sample_size) / (dgn_sample_size + 1);
-		dgn_sample_size ++;
-	}
+	void update_diagnostics();
 };
 
 #endif // INDIVIDUAL__H

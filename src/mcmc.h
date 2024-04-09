@@ -58,9 +58,9 @@ protected:
 	const double **contact_patterns;
 
 	// auxiliary variables to compute Bayesian diagnostics
-	int dgn_sample_size = 0;
-	double dgn_mean_ll = 0.;
-	double dgn_mean_sqr_ll = 0.;
+	int dgn_ss = 0;
+	long double dgn_sum_loglike = 0.;
+	long double dgn_sum_sqr_loglike = 0.;
 
 public:
 	//=====Constructors=====//
@@ -111,7 +111,8 @@ public:
 	void move_all_parameters();
 	void move_all_augm_variables();
 	void move_and_adapt_all_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
-	void update_diagnostics();
+	void update_model_diagnostics();
+	void display_model_diagnostics();
 
 	//=====infer=====//
 	void inference(
@@ -138,8 +139,7 @@ private:
 	double inverse_temperature = 1.0;
 	
 	// single parameters moves
-	void _single_param_move_annealing(std::string parID);
-	void _single_param_move_zero_inv_temp_(std::string parID);
+	void single_param_move_annealing(std::string parID);
 
 	// outoput parameter file
 	std::ofstream param_ofstream;
