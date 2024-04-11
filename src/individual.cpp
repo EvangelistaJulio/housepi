@@ -8,6 +8,7 @@
 // /////////////////// Individual : Constructor ///////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
+/* Constructor with a database row. */
 Individual::Individual(sdargs new_data)
 {
 	index = new_data.at("index");
@@ -15,17 +16,9 @@ Individual::Individual(sdargs new_data)
 	data = new_data;
 }
 
-/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+/* Return a feature of the Individual as provided in the database */
 double Individual::get_data(std::string dataID) const
 {
-	/* // FIXME : control should be at the point of pre-processing
-	if (data.find(dataID) == data.end())
-	{
-		std::string err_text = "Data column `" + dataID + "` unknown.";
-		raise_error_message(err_text);
-		std::exit(EXIT_FAILURE);
-	}
-	*/
 	return data.at(dataID);
 }
 
@@ -97,13 +90,6 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	}
 }
 
-/* Add an augmented variable to the individual, plus initialize it. */
-void Individual::add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng)
-{
-	add_augm(augmID, new_augm);
-	init_augm(augmID, rng);
-}
-
 double Individual::augm_model_log_pdf(std::string augmID)
 {
 	double new_val = augm_var.at(augmID).get_value();
@@ -146,17 +132,9 @@ void Household::assign_data(std::string dataID, double value)
 	}
 }
 
-/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+/* Return a feature of the Household which must be provided during initialization. */
 double Household::get_data(std::string dataID) const
 {
-	/* // FIXME : control should be done at the moment of pre-processing
-	if (house_data.find(dataID) == house_data.end())
-	{
-		std::string err_text = "Household data  `" + dataID + "` unknown.";
-		raise_error_message(err_text);
-		std::exit(EXIT_FAILURE);
-	}
-	*/
 	return house_data.at(dataID);
 }
 

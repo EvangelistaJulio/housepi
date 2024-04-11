@@ -342,7 +342,7 @@ private:
 
 public:
 	std::vector<std::string> param_file_required_headers = {
-		"name", "init_value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
+		"name", "value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
 
@@ -361,7 +361,7 @@ public:
 		sdargs value_range = {});
 
 	//=====Getter=====//
-	void check(const std::string k);
+	void assert_param(const std::string k);
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
 	const double *get_reference() const { return &_reference; }
@@ -374,7 +374,7 @@ public:
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
 
 	//=====Metropolis-Hastings moves=====//
-	bool propose_valid_move(const std::string k, std::mt19937_64 &rng);
+	bool propose_valid_param_move(const std::string k, std::mt19937_64 &rng);
 	double get_move_log_ratio() { return buffer_log_ratio; }
 	void accept_param_move(const std::string k);
 	void refuse_param_move(const std::string k);

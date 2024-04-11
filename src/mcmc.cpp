@@ -27,8 +27,7 @@ void MCMC::store_augm_var_dependecies(int i)
 }
 
 /* Update household first case and first infection time.
-WARNING: this strucutre assumes a single first infector.
-FIXME : this should be a function of the time-models maybe
+Note: this structure assumes a single first infector.
 */
 void MCMC::update_first_case(int h)
 {
@@ -46,20 +45,6 @@ void MCMC::update_first_case(int h)
         }
     }
     househ[h].first_case = new_case0;
-    househ[h].set_data("start_followup", new_t0);
-}
-
-/* */ // FIXME : is then study_period a standard name? In general, how to load household data?
-// FIXME : this should be a function of the time-models maybe
-void MCMC::assign_end_followup(int h)
-{
-    // find maximum study period within the household
-    double end_followup = 0;
-    for (int i : househ[h].infectious_list)
-    {
-        end_followup = std::max(end_followup, indiv[i].get_data("study_period"));
-    }
-    househ[h].set_data("end_followup", end_followup);
 }
 
 /* Compute the loglikelihood for a single household. */
@@ -92,7 +77,7 @@ double MCMC::compute_global_loglike()
 /* Set accept rates to zero. */
 void MCMC::reset_moves()
 {
-    for (std::string augmID : augm_to_infer_set)
+    for (std::string augmID : augm_to_be_inferred)
     {
         m_num_propos_data[augmID] = 0;
         m_num_accept_data[augmID] = 0;
@@ -110,7 +95,7 @@ void MCMC::single_param_move_annealing(std::string parID)
     double Q, new_global_loglike;
 
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
-    if (propose_valid_move(parID, rng))
+    if (propose_valid_param_move(parID, rng))
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old value in buffer
@@ -162,59 +147,62 @@ void MCMC::move_and_adapt_all_parameters(int step, double target)
 // ///////////////////////////  MCMC : move augmented variables //////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void MCMC::update_augm_var(int i, std::string augmID, double new_val)
+{
+    indiv[i].set_augm(augmID, new_val);
+    update_first_case(indiv[i].home); // Update information of first cases
+    store_augm_var_dependecies(i);    // Update infectivity profiles related to idx
+}
+
 /*
 Sweep over augmented variables.
 FIXME : data agumentation is not always time dependent
 */
 void MCMC::move_all_augm_variables()
 {
-    if (augm_to_infer_set.size() > 0)
+    double old_val, new_val, Q;
+    double log_ratio_proposal = 0.0;
+    double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
+
+    // Loop over households
+    for (int h = 0; h < num_househ; h++)
     {
-        double old_val, new_val, Q;
-        double log_ratio_proposal = 0.0;
-        double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
-
-        // Loop over households
-        for (int h = 0; h < num_househ; h++)
+        // Loop over infectious residents of the househould
+        for (int i : househ[h].infectious_list)
         {
-            // Loop over infectious residents of the househould
-            for (int i : househ[h].infectious_list)
+            // Loop over augmented variables of infectious
+            for (std::string augmID : augm_to_be_inferred)
             {
-                for (std::string augmID : augm_to_infer_set)
-                {
-                    old_val = indiv[i].get_augm(augmID);          // store old value
-                    old_loglike_of_HH = househ[h].get_loglike();  // store old loglike
-                    new_val = indiv[i].augm_propose(augmID, rng); // propose new value
+                old_val = indiv[i].get_augm(augmID);          // store old value
+                old_loglike_of_HH = househ[h].get_loglike();  // store old loglike
+                new_val = indiv[i].augm_propose(augmID, rng); // propose new value
 
-                    // proceed only if the new value is consistent
-                    // UPDATE : always valid if prior proposer
-                    if (indiv[i].augm_valid(augmID, new_val))
-                    {                                       // Update with proposed value to perform computations
-                        indiv[i].set_augm(augmID, new_val); // UPDATE : should be a method of Model
+                // proceed only if the new value is consistent
+                // UPDATE : always valid if prior proposer
+                if (indiv[i].augm_valid(augmID, new_val))
+                { // Update with proposed value to perform computations
+                    update_augm_var(i, augmID, new_val);
+
+                    new_loglike_of_HH = compute_single_house_loglike(h);
+                    log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
+
+                    Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
+                    Q -= log_ratio_proposal;
+
+                    if (log(uniform(rng)) < Q)
+                    {
+                        househ[h].set_loglike(new_loglike_of_HH);
+                        set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
+                        m_num_accept_data[augmID]++;
+                    }
+                    else
+                    {
+                        indiv[i].set_augm(augmID, old_val); // UPDATE: should be method Model
                         update_first_case(h);               // Update information of first cases
                         store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
-
-                        new_loglike_of_HH = compute_single_house_loglike(h);
-                        log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
-
-                        Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
-                        Q -= log_ratio_proposal;
-
-                        if (log(uniform(rng)) < Q)
-                        {
-                            househ[h].set_loglike(new_loglike_of_HH);
-                            set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
-                            m_num_accept_data[augmID]++;
-                        }
-                        else
-                        {
-                            indiv[i].set_augm(augmID, old_val); // UPDATE: should be method Model
-                            update_first_case(h);               // Update information of first cases
-                            store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
-                        }
                     }
-                    m_num_propos_data[augmID]++;
                 }
+                m_num_propos_data[augmID]++;
             }
         }
     }
@@ -332,7 +320,11 @@ void MCMC::inference(
     for (int step = 1; step <= setup_num_adapt_iter; step++)
     {
         move_and_adapt_all_parameters(step);
-        move_all_augm_variables();
+
+        if (is_data_augmentation)
+        {
+            move_all_augm_variables();
+        }
 
         if (Verbose)
         {
@@ -354,7 +346,10 @@ void MCMC::inference(
         for (int j = 0; j < setup_thinning; j++)
         {
             move_all_parameters();
-            move_all_augm_variables();
+            if (is_data_augmentation)
+            {
+                move_all_augm_variables();
+            }
         }
         update_model_diagnostics();
         print_parameters(i * setup_thinning);
@@ -372,10 +367,9 @@ void MCMC::inference(
     close_param_file();
     if (Verbose)
     {
-        std::cout << "\n--------------MCMC:end----------------" << std::endl;
-        display_parameters();
+        std::cout << "\n--------------MCMC:end----------------\n"
+                  << std::endl;
     }
-
     display_model_diagnostics(); // FIXME : this output needs to be specified probably
 }
 

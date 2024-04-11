@@ -6,7 +6,17 @@
 bool Unknown_Status_Warning = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////////// Load Setup File /////////////////////////////////////// //
+// /////////////////////////////////// MCMC : build extra ////////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Extra File (default unused) */
+void MCMC::build_extra(std::string data_pathtofile)
+{
+    UNUSED(data_pathtofile);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////// MCMC : build setup ////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
@@ -79,7 +89,7 @@ void MCMC::build_setup(std::string data_pathtofile)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// //////////////////////////////// MCMC : load parameters ///////////////////////////////////// //
+// //////////////////////////////// MCMC : build parameters //////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Parameters file */
@@ -117,7 +127,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
             {
                 add_param(
                     this_row["name"],
-                    std::stod(this_row["init_value"]),
+                    std::stod(this_row["value"]),
                     this_row["prior"],
                     parse_dict_args(this_row["prior_args"], DICT_DELIM),
                     this_row["strategy"],
@@ -126,7 +136,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
             }
             else
             {
-                add_param(this_row.at("name"), stod(this_row.at("init_value")));
+                add_param(this_row.at("name"), stod(this_row.at("value")));
             }
         }
 
@@ -145,7 +155,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////  MCMC : load augmented //////////////////////////////////// //
+// ////////////////////////////////  MCMC : build augmented //////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
@@ -153,7 +163,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
 {
     std::ifstream input(data_pathtofile.c_str());
     std::vector<std::string> required_headers = {
-        "name", "init_value", "model", "model_args", "strategy", "strategy_args", "move_from", "range"};
+        "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range"};
 
     if (data_pathtofile != UNDEFINED)
     {
@@ -202,25 +212,50 @@ void MCMC::build_augmented(std::string data_pathtofile)
 void MCMC::assign_augmented_variables()
 {
     std::string augmID;
+
+    // load the definitions of agumetned variablews and define lists of usage
+    for (ssargs loader : load_augm_definition)
+    {
+        augmID = loader.at("name");
+        augm_full_set.emplace(augmID);
+
+        if (loader.at("model") != UNDEFINED)
+        {
+            augm_to_be_inferred.emplace(augmID);
+        }
+
+        if (loader.at("model") != UNDEFINED)
+        {
+            augm_with_model_set.emplace(augmID);
+        }
+    }
+    is_data_augmentation = !augm_to_be_inferred.empty();
+
+    // assign augmented variables to each individual
     for (int i = 0; i < num_indiv; i++)
     {
-        int status = indiv[i].get_status();
-
         for (ssargs loader : load_augm_definition)
         {
-            augmID = loader.at("name");
-            Augmented augm_var(
-                type_to_double(loader.at("init_value"), i),
-                loader.at("model_name"),
-                typedict_to_sdargs_ext(loader.at("model_args")),
-                loader.at("strategy"),
-                typedict_to_sdargs(loader.at("strategy_args"), i),
-                type_to_double(loader.at("move_from"), i),
-                typedict_to_sdargs(loader.at("range"), i));
-
-            // if the individual is not healthy, randomly initializes the augmented variable
-            (status == HEALTHY) ? indiv[i].add_augm(augmID, augm_var) : indiv[i].add_augm(augmID, augm_var, rng);
+            Augmented augm_var(type_to_double(loader.at("value"), i),
+                               loader.at("model"),
+                               typedict_to_sdargs_ext(loader.at("model_args")),
+                               loader.at("strategy"),
+                               typedict_to_sdargs(loader.at("strategy_args"), i),
+                               type_to_double(loader.at("move_from"), i),
+                               typedict_to_sdargs(loader.at("range"), i));
+            indiv[i].add_augm(loader.at("name"), augm_var);
         }
+    }
+
+    // free memory
+    load_augm_definition.clear();
+}
+
+void MCMC::init_augmented_variable(std::string augmID)
+{
+    for (int i = 0; i < num_indiv; i++)
+    {
+        indiv[i].init_augm(augmID, rng);
     }
 }
 
@@ -234,12 +269,6 @@ void MCMC::assign_augmented_variables()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////// MCMC : build_data //////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Extra File (default unused) */
-void MCMC::build_extra(std::string data_pathtofile)
-{
-    UNUSED(data_pathtofile);
-}
 
 /* Read data file and pre-process the data*/
 void MCMC::build_data(std::string data_pathtofile)
@@ -297,7 +326,7 @@ void MCMC::build_data(std::string data_pathtofile)
         assign_augmented_variables();
 
         //=====assign structure of the community=====//
-        assign_community_structure("HH_idx"); // FIXME : see above
+        assign_community_structure("HH_idx"); // FIXME : HH_idx is found where
 
         //=====initialize contact patterns=====//
         // FIXME : this should be optional
@@ -319,8 +348,7 @@ void MCMC::build_data(std::string data_pathtofile)
         //=====clean up list of headers for output files=====//
         data_headers.erase(find(data_headers.begin(), data_headers.end(), "index"));
         data_headers.erase(find(data_headers.begin(), data_headers.end(), "status"));
-
-        for (std::string augmID : augm_set)
+        for (std::string augmID : augm_full_set)
         {
             auto it = find(data_headers.begin(), data_headers.end(), augmID);
             if (it != data_headers.end())
@@ -329,7 +357,7 @@ void MCMC::build_data(std::string data_pathtofile)
             }
         }
 
-        //=====Display=====//
+        //=====Display Model Summary=====//
         if (Verbose)
         {
             std::cout << "\n============MODEL SUMMARY=============" << std::endl;
@@ -346,7 +374,8 @@ void MCMC::build_data(std::string data_pathtofile)
                 std::cout << which.first << " : " << std::endl;
                 for (auto const &x : which.second)
                 {
-                    std::cout << "    * " << x.first << " : " << x.second << " (" << (100.0 * x.second / num_indiv) << " %)" << std::endl;
+                    std::cout << "    * " << x.first << " : " << x.second;
+                    std::cout << std::setprecision(2) << std::fixed << " (" << (100.0 * x.second / num_indiv) << " %)" << std::endl;
                 }
             }
         }
@@ -506,7 +535,7 @@ void MCMC::assign_community_structure(std::string HH_index_column)
 // -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////  MCMC : print parameters //////////////////////////////////// //
+// ////////////////////////////////  MCMC : init param file //////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the output file with inferred parameters with column names and initial values */
@@ -522,7 +551,7 @@ void MCMC::init_param_file(std::string output_filename)
         }
 
         param_ofstream << "iter" << DELIM << "loglike";
-        for (std::string augmID : augm_to_infer_set)
+        for (std::string augmID : augm_to_be_inferred)
         {
             param_ofstream << DELIM << "augm_" << augmID << "__a%";
         }
@@ -541,19 +570,23 @@ void MCMC::init_param_file(std::string output_filename)
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////// MCMC : print parameters //////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Print the model parameters at the given iteration time */
 void MCMC::print_parameters(int step)
 {
     if (param_ofstream.is_open())
     {
         param_ofstream << step << DELIM << std::setprecision(2) << std::fixed << get_global_loglike();
-        for (std::string augmID : augm_to_infer_set)
+        for (std::string augmID : augm_to_be_inferred)
         {
-            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * ((double)m_num_accept_data[augmID] / m_num_propos_data[augmID]);
+            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * m_num_accept_data[augmID] / m_num_propos_data[augmID];
         }
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID); // parameter value
+            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID);               // parameter value
             param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID); // acceptance rate
         }
         param_ofstream << std::endl;
@@ -566,7 +599,11 @@ void MCMC::print_parameters(int step)
     }
 }
 
-/* Print the ensemble of augmented variables */
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////// MCMC : print augm variables ///////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print all augmented variables of each individual */
 void MCMC::print_augm_variables(std::string output_filename)
 {
     std::ofstream augm_ofstream;
@@ -585,7 +622,7 @@ void MCMC::print_augm_variables(std::string output_filename)
         {
             augm_ofstream << DELIM << dataID;
         }
-        for (std::string augmID : augm_set)
+        for (std::string augmID : augm_full_set)
         {
             augm_ofstream << DELIM << augmID;
         }
@@ -598,7 +635,7 @@ void MCMC::print_augm_variables(std::string output_filename)
             {
                 augm_ofstream << DELIM << indiv[i].get_data(dataID);
             }
-            for (std::string augmID : augm_set)
+            for (std::string augmID : augm_full_set)
             {
                 augm_ofstream << DELIM << indiv[i].get_augm(augmID);
             }

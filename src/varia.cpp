@@ -185,7 +185,14 @@ void Parameter::update_diagnostics()
 std::string Parameter::message_to_display_diagnostics()
 {
     std::string output = std::to_string(dgn_sum / dgn_sample_size) + DELIM;
-    return output + std::to_string(std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size)));
+    output += std::to_string(std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size)));
+    output += DELIM + (std::string)((infer) ? "true" : "false");
+    if (infer)
+    {
+        output += DELIM + distr_ptr->message_to_display() + DELIM + prop_ptr->message_to_display();
+    }
+
+    return output;
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -200,7 +207,7 @@ std::string Parameter::message_to_display_diagnostics()
 ///////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise exits. */
-void Parameter_Dictionary::check(const std::string k)
+void Parameter_Dictionary::assert_param(const std::string k)
 {
     if (params.find(k) == params.end())
     {
@@ -244,25 +251,6 @@ void Parameter_Dictionary::add_param(
     }
 }
 
-/* display the user model parameters */
-void Parameter_Dictionary::display_parameters()
-{
-    for (std::string k : param_file_required_headers)
-    {
-        std::cout << k << DELIM;
-    }
-    std::cout << std::endl;
-
-    for (std::string parID : param_to_be_inferred)
-    {
-        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
-    }
-    for (std::string parID : param_static)
-    {
-        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
-    }
-}
-
 /* randomly initialize values of the parameters to be inferred */
 void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 {
@@ -279,7 +267,7 @@ void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
 }
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-bool Parameter_Dictionary::propose_valid_move(const std::string parID, std::mt19937_64 &rng)
+bool Parameter_Dictionary::propose_valid_param_move(const std::string parID, std::mt19937_64 &rng)
 {
     double new_value = params.at(parID).propose(rng); // propose new value
 
@@ -326,10 +314,40 @@ void Parameter_Dictionary::update_diagnostics()
     }
 }
 
+///////////////////////////////////////////////////////////
+//////// Parameter_Dictionary : display ///////////////////
+///////////////////////////////////////////////////////////
+
+/* display the user model parameters */
+void Parameter_Dictionary::display_parameters()
+{
+    std::cout << param_file_required_headers[0];
+    for (size_t k = 1; k < param_file_required_headers.size(); k++)
+    {
+        std::cout << DELIM << param_file_required_headers[k];
+    }
+    std::cout << std::endl;
+
+    for (std::string parID : param_to_be_inferred)
+    {
+        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+    }
+    for (std::string parID : param_static)
+    {
+        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+    }
+}
+
 /* display the diagnostics */
 void Parameter_Dictionary::display_diagnostics()
 {
-    std::cout << "param" << DELIM << "mean" << DELIM << "sd\n";
+    std::cout << "name" << DELIM << "vale" << DELIM << "value_sd";
+    for (size_t k = 2; k < param_file_required_headers.size(); k++)
+    {
+        std::cout << DELIM << param_file_required_headers[k];
+    }
+    std::cout << std::endl;
+
     for (std::string parID : param_to_be_inferred)
     {
         std::cout << parID << DELIM << params.at(parID).message_to_display_diagnostics() << "\n";

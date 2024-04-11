@@ -39,8 +39,7 @@ int main(int argc, char *argv[])
     // ===== Test if some commands were supplied ===== //
     if (argc < 2)
     {
-        std::string aux = argv[0];
-        std::string err_text = "The user did not supply any command.\nCheck the list of commands through:\n" + aux + " -h";
+        std::string err_text = "No argument or command found. Check the usage through:\n" + (std::string)(argv[0]) + " -h";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
@@ -138,11 +137,13 @@ int main(int argc, char *argv[])
         ++carg_i; // Move to the next command line argument
     }
 
-    // UPDATE : check for options validity
+    //=====check for options validity=====//
+
+    // UPDATE : complete check for options validity
 
     if (infer && simulate)
     {
-        std::string err_text = "Incompatible options: choose one between -infer and -simulate.";
+        std::string err_text = "Incompatible commands: choose one between -infer and -simulate.";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
@@ -153,16 +154,39 @@ int main(int argc, char *argv[])
     Model user_model;
 
     // Load Setup
-    user_model.build_setup(setup_pathtofile);
+    if (setup_pathtofile != UNDEFINED)
+    {
+        user_model.build_setup(setup_pathtofile);
+    }
 
-    // Load Parameters
-    user_model.build_parameters(parameters_pathtofile);
+    // Load Parameters : check
+    if (parameters_pathtofile == UNDEFINED)
+    {
+        std::string err_text = "Missing argument: parameter path/to/file not found.\n";
+        err_text += "Provide one like -p <path/to/file> ... or --params <path/to/file> ...";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else
+    {
+        user_model.build_parameters(parameters_pathtofile);
+    }
+
+    // Load Data : check
+    if (database_pathtofile == UNDEFINED)
+    {
+        std::string err_text = "Missing argument: database path/to/file not found.\n";
+        err_text += "Provide one like -d <path/to/file> ... or --database <path/to/file> ...";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else
+    {
+        user_model.build_data(database_pathtofile);
+    }
 
     // Load Augmented Variables
     user_model.build_augmented(augmented_pathtofile);
-
-    // Load Data
-    user_model.build_data(database_pathtofile);
 
     // UPDATE: there could be plenty extra files to be store somewhere
     if (extra_pathtofile != UNDEFINED)
@@ -175,6 +199,7 @@ int main(int argc, char *argv[])
     if (infer) // Parameter Inference
     {
         user_model.inference(output_pathtofile, rand_init_params, inver_temp);
+
         if (save_augm_pathtofile != UNDEFINED)
         {
             user_model.print_augm_variables(save_augm_pathtofile);

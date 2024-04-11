@@ -4,7 +4,8 @@
 rm(list = ls())
 
 # LIBRARIES
-suppressPackageStartupMessages(library(tidyverse))
+library(tidyverse)
+options(warn = -1)
 
 # Define a function to parse command-line arguments
 parse_command_line_args <- function() {

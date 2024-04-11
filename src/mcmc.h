@@ -48,10 +48,11 @@ protected:
 	// definition of data variables
 	std::vector<std::string> data_headers = {};
 
-	// definition of augmented variables
-	std::set<std::string> augm_set = {};
+	// definitions for data augmentation
+	bool is_data_augmentation = false;
+	std::set<std::string> augm_full_set = {};
+	std::set<std::string> augm_to_be_inferred = {};
 	std::set<std::string> augm_with_model_set = {};
-	std::set<std::string> augm_to_infer_set = {};
 
 	// model auxiliary objects
 	Infectivity_Profile_Function *infec_profile_func;
@@ -78,29 +79,26 @@ public:
 	void build_augmented(std::string data_pathtofile);
 	void build_data(std::string data_pathtofile);
 
-	// attach individuals
-	void add_individual(Individual new_indiv);
-
 	// load extra non standard files
 	virtual void build_extra(std::string data_pathtofile);
 
 	//=====Initialization=====//
+	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
-
+	void assign_augmented_variables();
+	void init_augmented_variable(std::string augmID);
 	virtual void assign_rate_per_group_to_individual(int i);
 	virtual void assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
-
-	virtual double get_infec_time(int i) const;
-	virtual void assign_end_followup(int h);
-	virtual void update_first_case(int h);
-
-	void assign_augmented_variables();
 	virtual void assign_infec_profile_function(){};
 	virtual void initialize_model(){};
 
-	//=====Log-Likelihood computations=====//
+	virtual double get_infec_time(int i) const;
+	virtual void update_augm_var(int i, std::string augmID, double new_val);
+	virtual void update_first_case(int h);
 	virtual void store_augm_var_dependecies(int i);
+
+	//=====Log-Likelihood computations=====//
 	virtual double compute_single_house_loglike(int h);
 	virtual double compute_global_loglike();
 	void set_global_loglike(double x) { global_loglike = x; };
@@ -115,7 +113,7 @@ public:
 	void display_model_diagnostics();
 
 	//=====infer=====//
-	void inference(
+	virtual void inference(
 		std::string output_filename, 
 		bool is_rand_params = false, 
 		double inv_temperature = 1.0,
@@ -124,7 +122,7 @@ public:
 
 	//=====simulate=====//
 	virtual void simulate_infection(){};
-	void simulation(std::string output_filename);
+	virtual void simulation(std::string output_filename);
 
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
@@ -149,6 +147,7 @@ private:
 	std::unordered_map<std::string, int> m_num_accept_data = {};
 	std::unordered_map<std::string, int> m_num_propos_data = {};
 
+	// temporary loader for augmented variable definition
 	std::vector<ssargs> load_augm_definition = {};
 
 	//=====internal auxiliary functions=====//

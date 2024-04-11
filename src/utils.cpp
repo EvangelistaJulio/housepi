@@ -56,7 +56,7 @@ void raise_warning_message(std::string &message, bool *is_warn_to_be_raised)
     if (*is_warn_to_be_raised)
     {
         std::cerr << std::endl;
-        std::cerr << "WARNING: " << message << "\nIf this was \n"
+        std::cerr << "WARNING: " << message << "\nIf this was intentional, ignore this message.\n"
                   << std::endl;
         *is_warn_to_be_raised = false;
     }

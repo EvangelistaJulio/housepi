@@ -57,11 +57,10 @@ public:
 
 	//=====Augmented Variables=====//
 	void add_augm(std::string augmID, Augmented new_augm);
-	void add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng);
-	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
-	bool get_augm_infer(std::string augmID) { return augm_var.at(augmID).get_infer(); }
-	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
 	void init_augm(std::string augmID, std::mt19937_64 &rng);
+	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
+	bool get_augm_infer(std::string augmID) const { return augm_var.at(augmID).get_infer(); }
+	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
 
 	//=====Augmented Variables: Model distribution=====//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
@@ -113,7 +112,6 @@ public:
 	void link_individual(int i, int status);
 	void change_status(int i, int new_status);
 	void assign_data(std::string dataID, double value);
-	void set_data(std::string dataID, double value) { house_data.at(dataID) = value; }
 
 	//======Getter======//
 	int get_index() const { return house_index; }

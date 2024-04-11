@@ -10,18 +10,37 @@
 std::vector<double> Cumul_EPI_Curve;
 std::vector<double> Inst_EPI_Curve;
 
+/* Linear interpolation for an indexed std::vector. */
+double lin_idx_interp(double x_value, const std::vector<double> &y)
+{
+	size_t x_0 = floor(x_value);
+
+	if (x_0 <= 0)
+	{ // Saturate to lower value
+		return y[0];
+	}
+	else if (x_0 >= y.size() - 1)
+	{ // Saturate to upper value
+		return y.back();
+	}
+	else
+	{ // Calculate the interpolated y value
+		return y[x_0] + (x_value - x_0) * (y[x_0 + 1] - y[x_0]);
+	}
+}
+
 /* Read Extra File */
-void build_extra(std::string data_pathtofile)
+void Model::build_extra(std::string extra_pathtofile)
 {
 	double date, inst_val, cumul_val;
 
-	std::ifstream input(data_pathtofile.c_str());
+	std::ifstream input(extra_pathtofile.c_str());
 	if (input.is_open())
 	{
 		if (Verbose)
 		{
 			std::cout << "\n================EXTRA=================" << std::endl;
-			std::cout << "Data file: " << data_pathtofile << std::endl;
+			std::cout << "Extra file: " << extra_pathtofile << std::endl;
 		}
 
 		// Create a std::stringstream of the current line
@@ -38,32 +57,27 @@ void build_extra(std::string data_pathtofile)
 	}
 	else
 	{
-		std::string err_txt = "Impossible to read file: " + data_pathtofile + ".";
+		std::string err_txt = "Impossible to read file: " + extra_pathtofile + ".";
 		raise_error_message(err_txt);
 		std::exit(EXIT_FAILURE);
 	}
 }
 
-/* Linear interpolation for an indexed std::vector. */
-double lin_idx_interp(double x_value, const std::vector<double> &y)
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Time of infection */
+double Model::get_infec_time(int i) const
 {
-	int x_0 = (int)floor(x_value);
-	double output = 0.0;
-
-	if (x_0 <= 0)
-	{ // Saturate to lower value
-		output = y[0];
-	}
-	else if (x_0 >= y.size() - 1)
-	{ // Saturate to upper value
-		output = y.back();
-	}
-	else
-	{ // Calculate the interpolated y value
-		output = y[x_0] + (x_value - x_0) * (y[x_0 + 1] - y[x_0]);
-	}
-
-	return output;
+	return indiv[i].get_augm("onset_time") - indiv[i].get_augm("incub_period");
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -202,7 +216,7 @@ void Model::store_augm_var_dependecies(int i)
 	double t_infec_i = get_infec_time(i);
 	double t_infec_k;
 
-	//=====loop over all symptomatic residents=====//
+	//=====loop over all symptomatic members=====//
 	for (int k : househ[h].infectious_list)
 	{
 		t_infec_k = get_infec_time(k);
@@ -220,7 +234,7 @@ void Model::store_augm_var_dependecies(int i)
 		// NOTE : else is the case t_infec_i == t_infec_k, i. e. nothing to update
 	}
 
-	//=====loop over all healthy residents=====//
+	//=====loop over all healthy members=====//
 	t_infec_k = househ[h].get_data("end_followup");
 	for (int k : househ[h].susceptibles_list)
 	{
@@ -235,40 +249,42 @@ void Model::store_augm_var_dependecies(int i)
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Time of infection */
-double Model::get_infec_time(int i) const
-{
-	return indiv[i].get_augm("onset_time") - indiv[i].get_augm("incub_period");
-}
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-
 /* Initialize parameters and augmented variables */
 void Model::initialize_model()
 {
-	assign_infec_profile_function(); // initialize infectivity profiles
+	// initialize infectivity profiles
+	assign_infec_profile_function();
 
-	// compute infectivity profiles for each of the symptomatic and relative infectees
-	for (int i = 0; i < num_indiv; i++)
-	{
-		store_augm_var_dependecies(i);
-	}
+	// FLAG
+	std::cerr << "AFTER: assign_infec_profile_function" << std::endl;
+	// END-of-FLAG
+
+	// random initialization of incubation periods
+	init_augmented_variable("incub_period");
+	
+	// FLAG
+	std::cerr << "AFTER: init_augmented_variable" << std::endl;
+	// END-of-FLAG
 
 	// find the first case for each household
 	for (int h = 0; h < num_househ; h++)
 	{
-		// FIXME : for the moment there's a mess between set and assignemtn, it might not work because of this
-		assign_end_followup(h);
+		// find maximum study period within the household
+		double end_followup = 0;
+		for (int i : househ[h].infectious_list)
+		{
+			end_followup = std::max(end_followup, indiv[i].get_data("study_period"));
+		}
+		househ[h].assign_data("end_followup", end_followup);
+
+		// find the first case for each household
 		update_first_case(h);
+	}
+
+	// store relative hazard for each of the symptomatic and relative infectees
+	for (int i = 0; i < num_indiv; i++)
+	{
+		store_augm_var_dependecies(i);
 	}
 }
 
@@ -360,21 +376,28 @@ double Model::_sum_hazards_(double *profiles, int i)
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(int h)
 {
+	// FLAG
+	std::cerr << "WITHIN: compute_single_house_loglike " << h << std::endl;
+	// END-of-FLAG
+
 	double loglike_house = 0.0;
-	double ti;
-	double t0 = househ[h].get_data("start_followup");
+	double t0 = get_infec_time(househ[h].first_case);
 	double tf = househ[h].get_data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
 	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
+	
+	// FLAG
+	std::cerr << "AFTER: comm_risk_cumul" << std::endl;
+	// END-of-FLAG
 
-	// Contribution of healthy residents
+	// Contribution of healthy members
 	for (int i : househ[h].susceptibles_list)
 	{
 		loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
 	}
 
-	// Contribution of symptomatic residents
+	// Contribution of symptomatic members
 	for (int i : househ[h].infectious_list)
 	{
 		// Contribution of model associated to augmented variables
@@ -386,8 +409,7 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
-			ti = get_infec_time(i);
-			comm_risk_inst = get_value("alpha") * lin_idx_interp(ti, Inst_EPI_Curve);
+			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
 			loglike_house += log(indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)));
 			loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
 		}
@@ -410,17 +432,17 @@ double Model::compute_single_house_loglike(int h)
 /* Poisson point process to simulate data. */
 void Model::simulate_infection()
 {
-	double dt = 0.01;
+	double dt = 0.01, t0, tf;
 	double proba, comm_risk_inst;
+
+	// fix all incub period at the beginning
+	init_augmented_variable("incub_period");
 
 	// simulate the infection for each household
 	for (int h = 0; h < num_househ; h++)
 	{
-		// fix all incub period at the beginning (all others should already be initialized)
-		for (int i : househ[h].susceptibles_list)
-		{
-			indiv[i].init_augm("incub_period", rng);
-		}
+		// find the first case
+		update_first_case(h);
 
 		// set all secondary cases to healthy
 		std::vector<int> copy_list = househ[h].infectious_list;
@@ -434,7 +456,9 @@ void Model::simulate_infection()
 		}
 
 		//=====simulate infection within household=====//
-		for (double t = dt + househ[h].get_data("start_followup"); ((t < househ[h].get_data("end_followup")) && !househ[h].susceptibles_list.empty()); t += dt)
+		t0 = get_infec_time(househ[h].first_case);
+		tf = househ[h].get_data("end_followup");
+		for (double t = dt + t0; (t < tf) && !househ[h].susceptibles_list.empty(); t += dt)
 		{
 			std::vector<int> copy_list = househ[h].susceptibles_list;
 			for (int i : copy_list)

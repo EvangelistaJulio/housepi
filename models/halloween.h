@@ -17,6 +17,8 @@ protected:
 
 public:
 
+	void build_extra(std::string extra_pathtofile ) override;
+
 	void assign_infec_profile_function() override;
 	void assign_rate_per_group_to_individual(int i) override;
 	void store_augm_var_dependecies(int i) override;
@@ -27,7 +29,6 @@ public:
 
 	void simulate_infection() override;
 
-	//=====Optional Methods=====//
 	void assign_rate_per_contact(int i, int k) override;
 
 	//=====Infectivity Profiles=====//
