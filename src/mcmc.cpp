@@ -160,53 +160,57 @@ FIXME : data agumentation is not always time dependent
 */
 void MCMC::move_all_augm_variables()
 {
-    double old_val, new_val, Q;
-    double log_ratio_proposal = 0.0;
-    double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
-
-    // Loop over households
-    for (int h = 0; h < num_househ; h++)
+    if (is_data_augmentation)
     {
-        // Loop over infectious residents of the househould
-        for (int i : househ[h].infectious_list)
+        double old_val, new_val, Q;
+        double log_ratio_proposal = 0.0;
+        double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
+
+        // Loop over households
+        for (int h = 0; h < num_househ; h++)
         {
-            // Loop over augmented variables of infectious
-            for (std::string augmID : augm_to_be_inferred)
+            // Loop over infectious residents of the househould
+            for (int i : househ[h].infectious_list)
             {
-                old_val = indiv[i].get_augm(augmID);          // store old value
-                old_loglike_of_HH = househ[h].get_loglike();  // store old loglike
-                new_val = indiv[i].augm_propose(augmID, rng); // propose new value
+                // Loop over augmented variables of infectious
+                for (std::string augmID : augm_to_be_inferred)
+                {
+                    old_val = indiv[i].get_augm(augmID);          // store old value
+                    old_loglike_of_HH = househ[h].get_loglike();  // store old loglike
+                    new_val = indiv[i].augm_propose(augmID, rng); // propose new value
 
-                // proceed only if the new value is consistent
-                // UPDATE : always valid if prior proposer
-                if (indiv[i].augm_valid(augmID, new_val))
-                { // Update with proposed value to perform computations
-                    update_augm_var(i, augmID, new_val);
+                    // proceed only if the new value is consistent
+                    // UPDATE : always valid if prior proposer
+                    if (indiv[i].augm_valid(augmID, new_val))
+                    { // Update with proposed value to perform computations
+                        update_augm_var(i, augmID, new_val);
 
-                    new_loglike_of_HH = compute_single_house_loglike(h);
-                    log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
+                        new_loglike_of_HH = compute_single_house_loglike(h);
+                        log_ratio_proposal = indiv[i].augm_propose_log_ratio(augmID, old_val, new_val);
 
-                    Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
-                    Q -= log_ratio_proposal;
+                        Q = inverse_temperature * (new_loglike_of_HH - old_loglike_of_HH);
+                        Q -= log_ratio_proposal;
 
-                    if (log(uniform(rng)) < Q)
-                    {
-                        househ[h].set_loglike(new_loglike_of_HH);
-                        set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
-                        m_num_accept_data[augmID]++;
+                        if (log(uniform(rng)) < Q)
+                        {
+                            househ[h].set_loglike(new_loglike_of_HH);
+                            set_global_loglike(get_global_loglike() + new_loglike_of_HH - old_loglike_of_HH);
+                            m_num_accept_data[augmID]++;
+                        }
+                        else
+                        {
+                            indiv[i].set_augm(augmID, old_val); // UPDATE: should be method Model
+                            update_first_case(h);               // Update information of first cases
+                            store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
+                        }
                     }
-                    else
-                    {
-                        indiv[i].set_augm(augmID, old_val); // UPDATE: should be method Model
-                        update_first_case(h);               // Update information of first cases
-                        store_augm_var_dependecies(i);      // Update infectivity profiles related to idx
-                    }
+                    m_num_propos_data[augmID]++;
                 }
-                m_num_propos_data[augmID]++;
             }
         }
     }
 }
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////  MCMC : diagnostics /////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -244,6 +248,7 @@ void MCMC::display_model_diagnostics()
         effec_num_params_waic += est_sample_variance(househ[h].dgn_sum_loglike, househ[h].dgn_sum_sqr_loglike, househ[h].dgn_ss);
     }
 
+    // display diagnostics of parameters
     display_diagnostics();
 
     std::cout << "loglikelihood.mean" << DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss << "\n"
@@ -258,23 +263,14 @@ void MCMC::display_model_diagnostics()
 // ///////////////////////////////////  MCMC : inference /////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::inference(
-    std::string output_file,
-    bool is_rand_params,
-    double inv_temper,
-    bool return_diagnostics)
+/* Performs the inference using Metropolis-Hastings with power posteriors. */
+void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
     // use the thin number of iteration (euclidean division)
     int num_iter_thin = setup_num_iter / setup_thinning;
 
-    // FIXME : temporaru
-    UNUSED(return_diagnostics);
-
-    if (Verbose)
-    {
-        std::cout << "\n================MCMC==================" << std::endl;
-        std::cout << "\n---------MCMC:initialization----------" << std::endl;
-    }
+    display_decorator("INFERENCE");
+    display_decorator("MCMC:initialization", '-', 1);
 
     //=====Initialize output file=====//
     init_param_file(output_file);
@@ -289,6 +285,7 @@ void MCMC::inference(
     reset_moves();
 
     //=====Assign inverse temperature=====//
+    // UPDATE : is someone interested in the case inv_temp > 1?
     if ((inv_temper < 0.) || (inv_temper > 1.))
     {
         std::string err_text = "Inverse temperature " + std::to_string(inv_temper) + " out of range.";
@@ -298,9 +295,10 @@ void MCMC::inference(
     else
     {
         inverse_temperature = inv_temper;
-        if ((Verbose) && (inv_temper != 1.))
+        if (inv_temper != 1.)
         {
-            std::cout << "Inverse_temperature : " << inverse_temperature << std::endl;
+            std::string text = "Inverse temperature " + std::to_string(inv_temper);
+            display_stdout(text);
         }
     }
 
@@ -309,26 +307,16 @@ void MCMC::inference(
     //=======================================//
 
     // UPDATE : probably can be modularized
-
     // UPDATE: add option for zero inverse temperature
 
-    if (Verbose && (setup_num_adapt_iter > 0))
+    if (setup_num_adapt_iter > 0)
     {
-        std::cout << "\n------------MCMC:adaptive-------------" << std::endl;
-    }
-
-    for (int step = 1; step <= setup_num_adapt_iter; step++)
-    {
-        move_and_adapt_all_parameters(step);
-
-        if (is_data_augmentation)
+        display_decorator("MCMC:adaptive", '-', 1);
+        for (int step = 1; step <= setup_num_adapt_iter; step++)
         {
+            move_and_adapt_all_parameters(step);
             move_all_augm_variables();
-        }
-
-        if (Verbose)
-        {
-            print_progress_bar(step, setup_num_adapt_iter);
+            display_progress_bar("adaptive", step, setup_num_adapt_iter);
         }
     }
 
@@ -336,28 +324,17 @@ void MCMC::inference(
     //=====Monte Carlo Markov Chain execution=====//
     //============================================//
 
-    if (Verbose)
-    {
-        std::cout << "\n-----------MCMC:execution-------------" << std::endl;
-    }
-
+    display_decorator("MCMC:execution", '-', 1);
     for (int i = 1; i <= num_iter_thin; i++)
     {
         for (int j = 0; j < setup_thinning; j++)
         {
             move_all_parameters();
-            if (is_data_augmentation)
-            {
-                move_all_augm_variables();
-            }
+            move_all_augm_variables();
         }
         update_model_diagnostics();
         print_parameters(i * setup_thinning);
-
-        if (Verbose)
-        {
-            print_progress_bar(i, num_iter_thin);
-        }
+        display_progress_bar("execution", i, num_iter_thin);
     }
 
     //==========================//
@@ -365,11 +342,7 @@ void MCMC::inference(
     //==========================//
 
     close_param_file();
-    if (Verbose)
-    {
-        std::cout << "\n--------------MCMC:end----------------\n"
-                  << std::endl;
-    }
+    display_decorator("MCMC:end", '-', 1);
     display_model_diagnostics(); // FIXME : this output needs to be specified probably
 }
 
@@ -377,13 +350,10 @@ void MCMC::inference(
 // //////////////////////////////////  MCMC : simulation /////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Perform simulation as provided by the user */
 void MCMC::simulation(std::string output_filename)
 {
-    if (Verbose)
-    {
-        std::cout << "\n=============SIMULATION===============" << std::endl;
-    }
-
+    display_decorator("SIMULATION");
     initialize_model();
     simulate_infection();
     print_augm_variables(output_filename);

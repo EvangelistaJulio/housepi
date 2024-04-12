@@ -19,9 +19,6 @@
 // default acceptation rate for MCMC
 #define DEFAULT_ACCEPT_RATE 0.24
 
-// verbose state
-extern bool Verbose;
-
 //=====Forward declaration of the Infectivity Profile Function=====//
 class Infectivity_Profile_Function;
 
@@ -32,7 +29,7 @@ class Infectivity_Profile_Function;
 class MCMC : public Parameter_Dictionary
 {
 protected:
-	int setup_seed = 20210415;
+	int setup_seed = time(NULL); // default random seed 
 	int setup_num_iter = 20000;
 	int setup_num_adapt_iter = 5000;
 	int setup_thinning = 20;
@@ -69,8 +66,9 @@ public:
 	virtual ~MCMC(){};
 
 	//=====deal with flatten matrices=====//
-	int from_to(int i, int j) { return i * num_indiv + j; }
-	double get_contact_from_to(int i, int k) { return (*contact_patterns[from_to(i, k)]); }
+	// FIXME : move inside households for coherency
+	int from_to(int from, int to) { return from * num_indiv + to; }
+	double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
 
 	//=====Build data and parameters=====//
 	// load standard files
@@ -116,8 +114,7 @@ public:
 	virtual void inference(
 		std::string output_filename, 
 		bool is_rand_params = false, 
-		double inv_temperature = 1.0,
-		bool return_diagnostics = false
+		double inv_temperature = 1.0
 		);
 
 	//=====simulate=====//

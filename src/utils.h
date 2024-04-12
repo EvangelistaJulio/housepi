@@ -20,10 +20,11 @@
 #include <sstream>
 #include <iomanip>
 
-// NOTE : maybe it's time to give-in and fall back to `boost`
-
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
+
+// verbose state
+extern bool Verbose;
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////////////////// TYPEDEF //////////////////////////// //
@@ -38,7 +39,9 @@ typedef std::map<std::string, std::string> ssargs;
 /////////////////////////////////////////////////////////////////////////////
 
 double est_sample_variance(double sum_X, double sum_X2, double ss);
-void print_progress_bar(int progress, int total);
+void display_stdout(std::string txt);
+void display_decorator(std::string txt, char decor = '=', int skip = 2);
+void display_progress_bar(std::string prog_txt, int progress, int total, char decor = '=');
 void raise_error_message(std::string &error_text);
 void raise_warning_message(std::string &message, bool *is_warn_to_be_raised);
 

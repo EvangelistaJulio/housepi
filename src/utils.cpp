@@ -8,35 +8,46 @@ double est_sample_variance(double sum_X, double sum_X2, double ss)
     return sum_X2 / (ss - 1.) - std::pow(sum_X, 2) / (ss * (ss - 1.));
 }
 
-/* Percentual Progress bar */
-void print_progress_bar(int progress, int total)
+///////////////////////////////////////////////////////////////////////
+// /////////////////////// Message Functions /////////////////////// //
+///////////////////////////////////////////////////////////////////////
+
+/* Display a message to stdout (if Verbose). */
+void display_stdout(std::string txt)
 {
-    if ((total <= 100) || (progress % ((int)total / 100) == 0))
+    if (Verbose)
     {
-        float percentage = static_cast<float>(progress) / total;
-        int barWidth = 70;
+        std::cout << txt << std::endl;
+    }
+}
 
-        std::cerr << "[";
+/* Display a decorator for a section (if Verbose) */
+void display_decorator(std::string text, char decor = '=', int skip = 2)
+{
+    if (Verbose)
+    {
+        size_t bar_width = (60 - text.length()) / 2;
+        std::cout << std::string(skip, '\n') << std::string(bar_width, decor) << text
+                  << std::string(60 - text.length() - bar_width, decor) << std::endl;
+    }
+}
 
-        int pos = barWidth * percentage;
-        for (int i = 0; i < barWidth; ++i)
+/* Display percentual progress bar */
+void display_progress_bar(std::string prog_text, int progress, int total, char decor = '=')
+{
+    if (Verbose)
+    {
+        if ((total <= 100) || (progress % (total / 100) == 0))
         {
-            if (i < pos)
-            {
-                std::cerr << "=";
-            }
-            else if (i == pos)
-            {
-                std::cerr << ">";
-            }
-            else
-            {
-                std::cerr << " ";
-            }
-        }
+            float percentage = static_cast<float>(progress) / total;
+            int bar_width = 68 - prog_text.length();
+            int where = percentage * bar_width;
 
-        std::cerr << "] " << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
-        std::cerr.flush();
+            std::cerr << prog_text << ": [" << std::string(where, decor) << " "
+                      << std::string(std::max(0, bar_width - where - 1), ' ') << "] "
+                      << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
+            std::cerr.flush();
+        }
     }
 }
 

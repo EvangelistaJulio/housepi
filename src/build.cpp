@@ -20,73 +20,84 @@ void MCMC::build_extra(std::string data_pathtofile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-void MCMC::build_setup(std::string data_pathtofile)
+void MCMC::build_setup(std::string setup_pathtofile)
 {
-    char delim = ',';
-    std::ifstream input(data_pathtofile.c_str());
-    ssargs safe_load = {};
-
-    if (input.is_open())
+    if (setup_pathtofile != UNDEFINED)
     {
-        if (Verbose)
-        {
-            std::cout << "\n================SETUP=================" << std::endl;
-            std::cout << "Setup file: " << data_pathtofile << "\n"
-                      << std::endl;
-        }
+        char delim = ',';
+        std::ifstream input(setup_pathtofile.c_str());
+        ssargs safe_load = {};
 
-        // Create a std::stringstream of the current line
-        for (std::string line; getline(input, line);)
+        if (input.is_open())
         {
-            std::string name, choice;
-            std::istringstream iss(line);
+            display_decorator("SETUP");
+            display_stdout("Setup file: " + setup_pathtofile);
 
-            //=====NAME=====//
-            if (!getline(iss, name, delim))
+            // Create a std::stringstream of the current line
+            for (std::string line; getline(input, line);)
             {
-                std::string err_text = "Unable to extract setup name.\nCheck file line: " + line;
-                raise_error_message(err_text);
-                std::exit(EXIT_FAILURE);
+                std::string name, choice;
+                std::istringstream iss(line);
+
+                //=====NAME=====//
+                if (!getline(iss, name, delim))
+                {
+                    std::string err_text = "Unable to extract setup name.\nCheck file line: " + line;
+                    raise_error_message(err_text);
+                    std::exit(EXIT_FAILURE);
+                }
+
+                //=====CHOICE=====//
+                if (!getline(iss, choice))
+                {
+                    std::string err_text = "Unable to extract setup choice.\nCheck file line: " + line;
+                    raise_error_message(err_text);
+                    std::exit(EXIT_FAILURE);
+                }
+
+                // add the new setup
+                safe_load.emplace(string_cleaner(name), string_cleaner(choice));
             }
 
-            //=====CHOICE=====//
-            if (!getline(iss, choice))
+            // MCMC number of iterations
+            setup_num_iter = stoi(safe_load.at("num_iter"));
+            setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
+            setup_thinning = stoi(safe_load.at("thinning"));
+
+            // seed for pseudo-random number generator (default is time)
+            std::string seed_str = safe_load.at("seed");
+            if (seed_str != UNDEFINED)
             {
-                std::string err_text = "Unable to extract setup choice.\nCheck file line: " + line;
-                raise_error_message(err_text);
-                std::exit(EXIT_FAILURE);
+                setup_seed = stoi(seed_str);
             }
-
-            // add the new setup
-            safe_load.emplace(string_cleaner(name), string_cleaner(choice));
         }
-
-        // seed for pseudo-random number generator (default is time)
-        std::string seed_str = safe_load.at("seed");
-        setup_seed = (seed_str == UNDEFINED) ? time(NULL) : stoi(seed_str);
-        rng.seed(setup_seed);
-
-        // MCMCM number of iterations
-        setup_num_iter = stoi(safe_load.at("num_iter"));
-        setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
-        setup_thinning = stoi(safe_load.at("thinning"));
-
-        //=====Display=====//
-        if (Verbose)
+        else
         {
-            std::cout << "seed : " << setup_seed << std::endl;
-            std::cout << "num_iter : " << setup_num_iter << std::endl;
-            std::cout << "num_adapt_iter : " << setup_num_adapt_iter << std::endl;
-            std::cout << "thinning : " << setup_thinning << std::endl;
+            std::string err_text = "Impossible to read file: " + setup_pathtofile + ".";
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
     }
-    else
+
+    //=====Pseudo-Random Number Generator Seeding=====//
+    rng.seed(setup_seed);
+
+    //=====Display=====//
+    if (Verbose)
     {
-        std::string err_text = "Impossible to read file: " + data_pathtofile + ".";
-        raise_error_message(err_text);
-        std::exit(EXIT_FAILURE);
+        std::cout << "\nseed : " << setup_seed << std::endl;
+        std::cout << "num_iter : " << setup_num_iter << std::endl;
+        std::cout << "num_adapt_iter : " << setup_num_adapt_iter << std::endl;
+        std::cout << "thinning : " << setup_thinning << std::endl;
     }
 }
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // //////////////////////////////// MCMC : build parameters //////////////////////////////////// //
@@ -99,12 +110,8 @@ void MCMC::build_parameters(std::string data_pathtofile)
 
     if (input.is_open())
     {
-        if (Verbose)
-        {
-            std::cout << "\n==============PARAMETERS==============" << std::endl;
-            std::cout << "Parameters file: " << data_pathtofile << "\n"
-                      << std::endl;
-        }
+        display_decorator("PARAMETERS");
+        display_stdout("Parameters file: " + data_pathtofile);
 
         //=====Load column headers=====//
         std::vector<std::string> headers = read_column_headers(input, DELIM);
@@ -141,121 +148,13 @@ void MCMC::build_parameters(std::string data_pathtofile)
         }
 
         //=====display a summary of the used parameters=====//
-        if (Verbose)
-        {
-            display_parameters();
-        }
+        display_parameters();
     }
     else
     {
         std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////  MCMC : build augmented //////////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Model Augmented Variable file */
-void MCMC::build_augmented(std::string data_pathtofile)
-{
-    std::ifstream input(data_pathtofile.c_str());
-    std::vector<std::string> required_headers = {
-        "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range"};
-
-    if (data_pathtofile != UNDEFINED)
-    {
-        if (input.is_open())
-        {
-            if (Verbose)
-            {
-                std::cout << "\n==============AUGMENTED===============" << std::endl;
-                std::cout << "Augmented Variable file: " << data_pathtofile << "\n"
-                          << std::endl;
-            }
-
-            //=====Load column headers=====//
-            std::vector<std::string> headers = read_column_headers(input, DELIM);
-            // check the validity of the headers
-            for (std::string req : required_headers)
-            {
-                if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                {
-                    std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
-                    raise_error_message(err_text);
-                    std::exit(EXIT_FAILURE);
-                }
-            }
-
-            //=====Load augmented from the row with options=====//
-            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row, DELIM); this_row.clear())
-            {
-                load_augm_definition.push_back(this_row);
-            }
-        }
-        else
-        {
-            std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
-            raise_error_message(err_text);
-            std::exit(EXIT_FAILURE);
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// //////////////////////////  MCMC : assign augmented variables /////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign augmented variables to all individuals. */
-void MCMC::assign_augmented_variables()
-{
-    std::string augmID;
-
-    // load the definitions of agumetned variablews and define lists of usage
-    for (ssargs loader : load_augm_definition)
-    {
-        augmID = loader.at("name");
-        augm_full_set.emplace(augmID);
-
-        if (loader.at("model") != UNDEFINED)
-        {
-            augm_to_be_inferred.emplace(augmID);
-        }
-
-        if (loader.at("model") != UNDEFINED)
-        {
-            augm_with_model_set.emplace(augmID);
-        }
-    }
-    is_data_augmentation = !augm_to_be_inferred.empty();
-
-    // assign augmented variables to each individual
-    for (int i = 0; i < num_indiv; i++)
-    {
-        for (ssargs loader : load_augm_definition)
-        {
-            Augmented augm_var(type_to_double(loader.at("value"), i),
-                               loader.at("model"),
-                               typedict_to_sdargs_ext(loader.at("model_args")),
-                               loader.at("strategy"),
-                               typedict_to_sdargs(loader.at("strategy_args"), i),
-                               type_to_double(loader.at("move_from"), i),
-                               typedict_to_sdargs(loader.at("range"), i));
-            indiv[i].add_augm(loader.at("name"), augm_var);
-        }
-    }
-
-    // free memory
-    load_augm_definition.clear();
-}
-
-void MCMC::init_augmented_variable(std::string augmID)
-{
-    for (int i = 0; i < num_indiv; i++)
-    {
-        indiv[i].init_augm(augmID, rng);
     }
 }
 
@@ -278,11 +177,8 @@ void MCMC::build_data(std::string data_pathtofile)
 
     if (input.is_open())
     {
-        if (Verbose)
-        {
-            std::cout << "\n================DATA==================" << std::endl;
-            std::cout << "Data file: " << data_pathtofile << std::endl;
-        }
+        display_decorator("DATA");
+        display_stdout("Data file: " + data_pathtofile);
 
         //=====Load column headers=====//
         data_headers = read_column_headers(input, DELIM);
@@ -322,11 +218,8 @@ void MCMC::build_data(std::string data_pathtofile)
             }
         }
 
-        //=====assign augmented variables to all individuals=====//
-        assign_augmented_variables();
-
         //=====assign structure of the community=====//
-        assign_community_structure("HH_idx"); // FIXME : HH_idx is found where
+        assign_community_structure("HH_idx"); // FIXME : HH_idx is found where??
 
         //=====initialize contact patterns=====//
         // FIXME : this should be optional
@@ -360,7 +253,7 @@ void MCMC::build_data(std::string data_pathtofile)
         //=====Display Model Summary=====//
         if (Verbose)
         {
-            std::cout << "\n============MODEL SUMMARY=============" << std::endl;
+            display_decorator("MODEL SUMMARY", '-', 1);
             std::cout << "N. of individuals : " << num_indiv << std::endl;
             std::cout << "N. of households : " << num_househ << std::endl;
             std::cout << "N. of cases : " << num_cases << std::endl;
@@ -389,7 +282,7 @@ void MCMC::build_data(std::string data_pathtofile)
     }
 }
 
-// -----------------------------------------------------------------------------------------------------------//
+//---------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
@@ -535,6 +428,118 @@ void MCMC::assign_community_structure(std::string HH_index_column)
 // -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////  MCMC : build augmented //////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Model Augmented Variable file */
+void MCMC::build_augmented(std::string data_pathtofile)
+{
+    if (data_pathtofile != UNDEFINED)
+    {
+        std::ifstream input(data_pathtofile.c_str());
+        std::vector<std::string> required_headers = {
+            "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range"};
+
+        if (input.is_open())
+        {
+            display_decorator("AUGMENTED");
+            display_stdout("Augmented Variable file: " + data_pathtofile);
+
+            //=====Load column headers=====//
+            std::vector<std::string> headers = read_column_headers(input, DELIM);
+            // check the validity of the headers
+            for (std::string req : required_headers)
+            {
+                if (std::find(headers.begin(), headers.end(), req) == headers.end())
+                {
+                    std::string err_text = "Missing column `" + req + "`. Please check file : " + data_pathtofile + ".";
+                    raise_error_message(err_text);
+                    std::exit(EXIT_FAILURE);
+                }
+            }
+
+            //=====Load augmented from the row with options=====//
+            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row, DELIM); this_row.clear())
+            {
+                load_augm_definition.push_back(this_row);
+            }
+
+            //=====assign augmented variables to all individuals=====//
+            assign_augmented_variables();
+        }
+        else
+        {
+            std::string err_text = "Impossible to read file:" + data_pathtofile + ".";
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////  MCMC : assign augmented variables /////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign augmented variables to all individuals. */
+void MCMC::assign_augmented_variables()
+{
+    std::string augmID;
+
+    // load the definitions of agumetned variablews and define lists of usage
+    for (ssargs loader : load_augm_definition)
+    {
+        augmID = loader.at("name");
+        augm_full_set.emplace(augmID);
+
+        if (loader.at("model") != UNDEFINED)
+        {
+            augm_to_be_inferred.emplace(augmID);
+        }
+
+        if (loader.at("model") != UNDEFINED)
+        {
+            augm_with_model_set.emplace(augmID);
+        }
+    }
+    is_data_augmentation = !augm_to_be_inferred.empty();
+
+    // assign augmented variables to each individual
+    for (int i = 0; i < num_indiv; i++)
+    {
+        for (ssargs loader : load_augm_definition)
+        {
+            Augmented augm_var(
+                type_to_double(loader.at("value"), i),
+                loader.at("model"),
+                typedict_to_sdargs_ext(loader.at("model_args")),
+                loader.at("strategy"),
+                typedict_to_sdargs(loader.at("strategy_args"), i),
+                type_to_double(loader.at("move_from"), i),
+                typedict_to_sdargs(loader.at("range"), i));
+            indiv[i].add_augm(loader.at("name"), augm_var);
+        }
+    }
+
+    // free memory
+    load_augm_definition.clear();
+}
+
+void MCMC::init_augmented_variable(std::string augmID)
+{
+    for (int i = 0; i < num_indiv; i++)
+    {
+        indiv[i].init_augm(augmID, rng);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////  MCMC : init param file //////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -545,10 +550,7 @@ void MCMC::init_param_file(std::string output_filename)
 
     if (param_ofstream.is_open())
     {
-        if (Verbose)
-        {
-            std::cout << "Inferred parameter file: " << output_filename << std::endl;
-        }
+        display_stdout("Inferred parameter file: " + output_filename);
 
         param_ofstream << "iter" << DELIM << "loglike";
         for (std::string augmID : augm_to_be_inferred)
@@ -604,50 +606,51 @@ void MCMC::print_parameters(int step)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(std::string output_filename)
+void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 {
-    std::ofstream augm_ofstream;
-    augm_ofstream.open(output_filename.c_str());
-
-    if (augm_ofstream.is_open())
+    if (save_augm_pathtofile != UNDEFINED)
     {
-        if (Verbose)
-        {
-            std::cout << "Augmented variable file: " << output_filename << std::endl;
-        }
+        std::ofstream augm_ofstream;
+        augm_ofstream.open(save_augm_pathtofile.c_str());
 
-        //=====Print column headers=====//
-        augm_ofstream << "index" << DELIM << "status";
-        for (std::string dataID : data_headers)
+        if (augm_ofstream.is_open())
         {
-            augm_ofstream << DELIM << dataID;
-        }
-        for (std::string augmID : augm_full_set)
-        {
-            augm_ofstream << DELIM << augmID;
-        }
-        augm_ofstream << std::endl;
+            display_decorator("", '-', 1);
+            display_stdout("Augmented variable file: " + save_augm_pathtofile);
 
-        for (int i = 0; i < num_indiv; i++)
-        {
-            augm_ofstream << indiv[i].get_index() << DELIM << indiv[i].get_status();
+            //=====Print column headers=====//
+            augm_ofstream << "index" << DELIM << "status";
             for (std::string dataID : data_headers)
             {
-                augm_ofstream << DELIM << indiv[i].get_data(dataID);
+                augm_ofstream << DELIM << dataID;
             }
             for (std::string augmID : augm_full_set)
             {
-                augm_ofstream << DELIM << indiv[i].get_augm(augmID);
+                augm_ofstream << DELIM << augmID;
             }
             augm_ofstream << std::endl;
-        }
 
-        augm_ofstream.close();
-    }
-    else
-    {
-        std::string err_text = "Unable to open file `" + output_filename + "`.";
-        raise_error_message(err_text);
-        std::exit(EXIT_FAILURE);
+            for (int i = 0; i < num_indiv; i++)
+            {
+                augm_ofstream << indiv[i].get_index() << DELIM << indiv[i].get_status();
+                for (std::string dataID : data_headers)
+                {
+                    augm_ofstream << DELIM << indiv[i].get_data(dataID);
+                }
+                for (std::string augmID : augm_full_set)
+                {
+                    augm_ofstream << DELIM << indiv[i].get_augm(augmID);
+                }
+                augm_ofstream << std::endl;
+            }
+
+            augm_ofstream.close();
+        }
+        else
+        {
+            std::string err_text = "Unable to open file `" + save_augm_pathtofile + "`.";
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
+        }
     }
 }

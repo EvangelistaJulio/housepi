@@ -26,7 +26,7 @@ Base_Proposer::Base_Proposer(
     {
         if (!valid(strategy_from_zero))
         {
-            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range ";
+            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range";
             err_text += " {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "} are inconsistent.";
             raise_warning_message(err_text, &Invalid_Proposer_Warning);
         }
@@ -321,27 +321,31 @@ void Parameter_Dictionary::update_diagnostics()
 /* display the user model parameters */
 void Parameter_Dictionary::display_parameters()
 {
-    std::cout << param_file_required_headers[0];
-    for (size_t k = 1; k < param_file_required_headers.size(); k++)
+    if (Verbose)
     {
-        std::cout << DELIM << param_file_required_headers[k];
-    }
-    std::cout << std::endl;
+        std::cout << "\n"
+                  << param_file_required_headers[0];
+        for (size_t k = 1; k < param_file_required_headers.size(); k++)
+        {
+            std::cout << DELIM << param_file_required_headers[k];
+        }
+        std::cout << std::endl;
 
-    for (std::string parID : param_to_be_inferred)
-    {
-        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
-    }
-    for (std::string parID : param_static)
-    {
-        std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+        for (std::string parID : param_to_be_inferred)
+        {
+            std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+        }
+        for (std::string parID : param_static)
+        {
+            std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+        }
     }
 }
 
 /* display the diagnostics */
 void Parameter_Dictionary::display_diagnostics()
 {
-    std::cout << "name" << DELIM << "vale" << DELIM << "value_sd";
+    std::cout << "name" << DELIM << "value" << DELIM << "value_sd";
     for (size_t k = 2; k < param_file_required_headers.size(); k++)
     {
         std::cout << DELIM << param_file_required_headers[k];

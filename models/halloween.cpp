@@ -39,7 +39,7 @@ void Model::build_extra(std::string extra_pathtofile)
 	{
 		if (Verbose)
 		{
-			std::cout << "\n================EXTRA=================" << std::endl;
+			print_decorator("EXTRA");
 			std::cout << "Extra file: " << extra_pathtofile << std::endl;
 		}
 
@@ -255,16 +255,8 @@ void Model::initialize_model()
 	// initialize infectivity profiles
 	assign_infec_profile_function();
 
-	// FLAG
-	std::cerr << "AFTER: assign_infec_profile_function" << std::endl;
-	// END-of-FLAG
-
 	// random initialization of incubation periods
 	init_augmented_variable("incub_period");
-	
-	// FLAG
-	std::cerr << "AFTER: init_augmented_variable" << std::endl;
-	// END-of-FLAG
 
 	// find the first case for each household
 	for (int h = 0; h < num_househ; h++)
@@ -305,14 +297,14 @@ void Model::assign_rate_per_group_to_individual(int i)
 		indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
 	}
 
-	//=====rate 1 : Susceptiblity=====//
+	//=====rate 1 : Susceptibility=====//
 	if (indiv[i].get_data("vacc_status") == 0)
-	{ // naive : Susceptiblity [REFERENCE]
-		indiv[i].assign_rate_per_group("Susceptiblity", REFERENCE);
+	{ // naive : Susceptibility [REFERENCE]
+		indiv[i].assign_rate_per_group("Susceptibility", REFERENCE);
 	}
 	else
 	{ // 1 dose
-		indiv[i].assign_rate_per_group("Susceptiblity", "s_vacc");
+		indiv[i].assign_rate_per_group("Susceptibility", "s_vacc");
 	}
 }
 
@@ -325,6 +317,7 @@ void Model::assign_rate_per_contact(int i, int k)
 	bool k_is_child = (indiv[k].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
 	bool k_is_adult = (k_is_child == false);							   // adults otherwise
 
+	// FIXME : need a more solid function here
 	if (i_is_child && k_is_child)
 	{ // Child to Child
 		contact_patterns[from_to(i, k)] = get_address("c_kid_to_kid");
@@ -376,20 +369,12 @@ double Model::_sum_hazards_(double *profiles, int i)
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(int h)
 {
-	// FLAG
-	std::cerr << "WITHIN: compute_single_house_loglike " << h << std::endl;
-	// END-of-FLAG
-
 	double loglike_house = 0.0;
 	double t0 = get_infec_time(househ[h].first_case);
 	double tf = househ[h].get_data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
 	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
-	
-	// FLAG
-	std::cerr << "AFTER: comm_risk_cumul" << std::endl;
-	// END-of-FLAG
 
 	// Contribution of healthy members
 	for (int i : househ[h].susceptibles_list)

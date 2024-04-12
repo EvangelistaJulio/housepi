@@ -137,33 +137,21 @@ int main(int argc, char *argv[])
         ++carg_i; // Move to the next command line argument
     }
 
-    //=====check for options validity=====//
-
-    // UPDATE : complete check for options validity
-
-    if (infer && simulate)
-    {
-        std::string err_text = "Incompatible commands: choose one between -infer and -simulate.";
-        raise_error_message(err_text);
-        std::exit(EXIT_FAILURE);
-    }
-
     //=====INITIALIZATION=====//
+
+    display_decorator("Household Survey EPI Modeling");
+    display_decorator("author: F. Camaglia (2024)", '-', 0);
 
     // Initialize Model object with user defined derived class
     Model user_model;
 
-    // Load Setup
-    if (setup_pathtofile != UNDEFINED)
-    {
-        user_model.build_setup(setup_pathtofile);
-    }
+    // 1) Load Setup (optional)
+    user_model.build_setup(setup_pathtofile);
 
-    // Load Parameters : check
+    // 2) Load Parameters and Check (required)
     if (parameters_pathtofile == UNDEFINED)
     {
-        std::string err_text = "Missing argument: parameter path/to/file not found.\n";
-        err_text += "Provide one like -p <path/to/file> ... or --params <path/to/file> ...";
+        std::string err_text = "Required argument: parameter path/to/file not found.";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
@@ -172,11 +160,10 @@ int main(int argc, char *argv[])
         user_model.build_parameters(parameters_pathtofile);
     }
 
-    // Load Data : check
+    // 3) Load Data and Check (required)
     if (database_pathtofile == UNDEFINED)
     {
-        std::string err_text = "Missing argument: database path/to/file not found.\n";
-        err_text += "Provide one like -d <path/to/file> ... or --database <path/to/file> ...";
+        std::string err_text = "Required argument: database path/to/file not found.";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
@@ -189,31 +176,31 @@ int main(int argc, char *argv[])
     user_model.build_augmented(augmented_pathtofile);
 
     // UPDATE: there could be plenty extra files to be store somewhere
-    if (extra_pathtofile != UNDEFINED)
-    {
-        user_model.build_extra(extra_pathtofile);
-    }
+    user_model.build_extra(extra_pathtofile);
 
     //=====EXECUTION=====//
 
-    if (infer) // Parameter Inference
-    {
-        user_model.inference(output_pathtofile, rand_init_params, inver_temp);
+    //=====check for options validity=====//
 
-        if (save_augm_pathtofile != UNDEFINED)
-        {
-            user_model.print_augm_variables(save_augm_pathtofile);
-        }
-    }
-    else if (simulate) // Simulation Study
+    // UPDATE : complete check for options validity
+
+    if (infer && simulate)
     {
+        std::string err_text = "Incompatible commands: choose one between -infer and -simulate.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else if (infer)
+    { // Parameter Inference
+        user_model.inference(output_pathtofile, rand_init_params, inver_temp);
+        user_model.print_augm_variables(save_augm_pathtofile);
+    }
+    else if (simulate)
+    { // Simulation Study
         user_model.simulation(output_pathtofile);
     }
 
-    if (Verbose)
-    {
-        std::cout << "\n=================END==================" << std::endl;
-    }
+    display_decorator("END");
 
     return EXIT_SUCCESS;
 }
