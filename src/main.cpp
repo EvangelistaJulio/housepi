@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
 {
     int carg_i = 1;          // Command line argument iterator
     double inver_temp = 1.0; // Inverse temperature
-    bool infer = false;
-    bool simulate = false;
+    bool infer = false, simulate = false;
     bool rand_init_params = false;
+    int num_threads =1;
     std::string setup_pathtofile = UNDEFINED;
     std::string parameters_pathtofile = UNDEFINED;
     std::string extra_pathtofile = UNDEFINED;
@@ -127,6 +127,12 @@ int main(int argc, char *argv[])
             save_augm_pathtofile = argv[carg_i];
         }
 
+        else if (std::string(argv[carg_i]) == std::string("--num_threads"))
+        {
+            ++carg_i;
+            num_threads = std::stoi(argv[carg_i]);
+        }
+
         else
         {
             std::string aux = argv[carg_i];
@@ -141,10 +147,13 @@ int main(int argc, char *argv[])
     //=====INITIALIZATION=====//
 
     display_decorator("Household Survey EPI Modeling");
-    display_decorator("F. Camaglia, Institut Pasteur (2024)", '-', 0);
+    display_decorator("Camaglia F., Institut Pasteur (2024)", '-', 0);
 
     // Initialize Model object with user defined derived class
     Model user_model;
+
+    // 0) set number of threads
+    user_model.set_num_threads(num_threads);
 
     // 1) Load Setup (optional)
     user_model.build_setup(setup_pathtofile);
@@ -201,7 +210,8 @@ int main(int argc, char *argv[])
         user_model.simulation(output_pathtofile);
     }
 
-    display_decorator("END\n");
+    display_decorator("END");
+    display_stdout("\n");
 
     return EXIT_SUCCESS;
 }

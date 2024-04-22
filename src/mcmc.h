@@ -83,6 +83,7 @@ public:
 	virtual void build_extra(std::string data_pathtofile);
 
 	//=====Initialization=====//
+	void set_num_threads(int n = 1);
 	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
 	void assign_augmented_variables();
@@ -99,13 +100,14 @@ public:
 	virtual void store_augm_var_dependecies(int i);
 
 	//=====Log-Likelihood computations=====//
-	virtual double compute_single_house_loglike(int h);
-	virtual double compute_global_loglike();
 	void set_global_loglike(double x) { global_loglike = x; };
 	double get_global_loglike() const { return global_loglike; };
+	virtual double compute_single_house_loglike(int h);
+	virtual double compute_global_loglike();
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void reset_moves();
+	void single_param_move(std::string parID);
 	void move_all_parameters();
 	void move_all_augm_variables();
 	void move_and_adapt_all_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
@@ -134,23 +136,21 @@ public:
 private:
 	double global_loglike = 0.0;
 	double inverse_temperature = 1.0;
-	
-	// single parameters moves
-	void single_param_move_annealing(std::string parID);
+
+	//=====BUILD=====//
+
+	//-----build auxiliary attributes-----//
 
 	// outoput parameter file
 	std::ofstream param_ofstream;
 	std::map<std::string, std::map<std::string, int>> model_report = {};
-
 	// accpetance rates
 	std::unordered_map<std::string, int> m_num_accept_data = {};
 	std::unordered_map<std::string, int> m_num_propos_data = {};
-
 	// temporary loader for augmented variable definition
 	std::vector<ssargs> load_augm_definition = {};
 
-	//=====internal auxiliary functions=====//
-	// file reading and formatting
+	//----build auxiliary functions-----//
 	std::string string_cleaner(std::string token);
 	bool stobool(std::string token);
 	ssargs parse_dict_string(std::string token, char dict_delim);

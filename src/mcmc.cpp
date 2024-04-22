@@ -3,6 +3,12 @@
 
 #include "mcmc.h"
 
+/* */
+void MCMC::set_num_threads(int n) 
+{ 
+    omp_set_num_threads(n);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////  MCMC : ???? ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,7 +98,7 @@ void MCMC::reset_moves()
 }
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::single_param_move_annealing(std::string parID)
+void MCMC::single_param_move(std::string parID)
 {
     double Q, new_global_loglike;
 
@@ -129,7 +135,7 @@ void MCMC::move_all_parameters()
 {
     for (std::string parID : param_to_be_inferred)
     {
-        single_param_move_annealing(parID);
+        single_param_move(parID);
     }
 }
 
@@ -140,7 +146,7 @@ void MCMC::move_and_adapt_all_parameters(int step, double target)
 
     for (std::string parID : param_to_be_inferred)
     {
-        single_param_move_annealing(parID);
+        single_param_move(parID);
         adapt(parID, adapt_ratio, target);
     }
 }
@@ -316,13 +322,14 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     if (setup_num_adapt_iter > 0)
     {
         display_decorator("MCMC:adaptive", '-', 1);
-        display_progress_bar("adaptive", 0, setup_num_adapt_iter);
+        display_progress_bar("adaptive", 0, 100);
         for (int step = 1; step <= setup_num_adapt_iter; step++)
         {
             move_and_adapt_all_parameters(step);
             move_all_augm_variables();
             display_progress_bar("adaptive", step, setup_num_adapt_iter);
         }
+        display_progress_bar("adaptive", 100, 100);
     }
 
     //============================================//
@@ -330,7 +337,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //============================================//
 
     display_decorator("MCMC:execution", '-', 1 + (setup_num_adapt_iter > 0));
-    display_progress_bar("execution", 0, num_iter_thin);
+    display_progress_bar("execution", 0, 100);
     for (int i = 1; i <= num_iter_thin; i++)
     {
         for (int j = 0; j < setup_thinning; j++)
@@ -342,13 +349,14 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
         print_parameters(i * setup_thinning);
         display_progress_bar("execution", i, num_iter_thin);
     }
+    display_progress_bar("execution", 100, 100);
 
     //==========================//
     //=====end of inference=====//
     //==========================//
 
     close_param_file();
-    display_decorator("MCMC:end", '-', 1);
+    display_decorator("MCMC:end", '-', );
     display_model_diagnostics(); // FIXME : this output needs to be specified probably
 }
 
