@@ -1,4 +1,5 @@
 // individual.h //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #ifndef INDIVIDUAL__H
 #define INDIVIDUAL__H

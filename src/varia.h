@@ -1,4 +1,5 @@
 // varia.h //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #ifndef VARIA__H
 #define VARIA__H

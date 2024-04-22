@@ -1,4 +1,5 @@
 // utils.h //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #ifndef UTILS__H
 #define UTILS__H

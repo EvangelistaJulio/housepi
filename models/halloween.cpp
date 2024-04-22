@@ -37,11 +37,8 @@ void Model::build_extra(std::string extra_pathtofile)
 	std::ifstream input(extra_pathtofile.c_str());
 	if (input.is_open())
 	{
-		if (Verbose)
-		{
-			print_decorator("EXTRA");
-			std::cout << "Extra file: " << extra_pathtofile << std::endl;
-		}
+		display_decorator("EXTRA");
+		display_stdout("Extra file: " + extra_pathtofile);
 
 		// Create a std::stringstream of the current line
 		for (std::string line; getline(input, line);)

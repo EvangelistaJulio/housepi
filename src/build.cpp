@@ -1,4 +1,5 @@
 // build.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "mcmc.h"
 
@@ -85,10 +86,10 @@ void MCMC::build_setup(std::string setup_pathtofile)
     //=====Display=====//
     if (Verbose)
     {
-        std::cout << "\nseed : " << setup_seed << std::endl;
-        std::cout << "num_iter : " << setup_num_iter << std::endl;
-        std::cout << "num_adapt_iter : " << setup_num_adapt_iter << std::endl;
-        std::cout << "thinning : " << setup_thinning << std::endl;
+        std::cout << "\nseed: " << setup_seed << std::endl;
+        std::cout << "num_iter: " << setup_num_iter << std::endl;
+        std::cout << "num_adapt_iter: " << setup_num_adapt_iter << std::endl;
+        std::cout << "thinning: " << setup_thinning << std::endl;
     }
 }
 
@@ -550,7 +551,7 @@ void MCMC::init_param_file(std::string output_filename)
 
     if (param_ofstream.is_open())
     {
-        display_stdout("Inferred parameter file: " + output_filename);
+        display_stdout("Saving MCMC iterations to: " + output_filename);
 
         param_ofstream << "iter" << DELIM << "loglike";
         for (std::string augmID : augm_to_be_inferred)

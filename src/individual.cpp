@@ -1,4 +1,5 @@
 // individual.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "individual.h"
 

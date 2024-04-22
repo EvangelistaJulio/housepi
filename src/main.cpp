@@ -1,4 +1,5 @@
 // main.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include <string>
 #include <map>
@@ -140,7 +141,7 @@ int main(int argc, char *argv[])
     //=====INITIALIZATION=====//
 
     display_decorator("Household Survey EPI Modeling");
-    display_decorator("author: F. Camaglia (2024)", '-', 0);
+    display_decorator("F. Camaglia, Institut Pasteur (2024)", '-', 0);
 
     // Initialize Model object with user defined derived class
     Model user_model;
@@ -200,7 +201,7 @@ int main(int argc, char *argv[])
         user_model.simulation(output_pathtofile);
     }
 
-    display_decorator("END");
+    display_decorator("END\n");
 
     return EXIT_SUCCESS;
 }

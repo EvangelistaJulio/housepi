@@ -1,4 +1,5 @@
 // utils.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "utils.h"
 
@@ -22,7 +23,7 @@ void display_stdout(std::string txt)
 }
 
 /* Display a decorator for a section (if Verbose) */
-void display_decorator(std::string text, char decor = '=', int skip = 2)
+void display_decorator(std::string text, char decor, int skip)
 {
     if (Verbose)
     {
@@ -33,14 +34,14 @@ void display_decorator(std::string text, char decor = '=', int skip = 2)
 }
 
 /* Display percentual progress bar */
-void display_progress_bar(std::string prog_text, int progress, int total, char decor = '=')
+void display_progress_bar(std::string prog_text, int progress, int total, char decor)
 {
-    if (Verbose)
+    if ((Verbose) && (total > 100))
     {
-        if ((total <= 100) || (progress % (total / 100) == 0))
+        if (progress % (total / 100) == 0)
         {
             float percentage = static_cast<float>(progress) / total;
-            int bar_width = 68 - prog_text.length();
+            int bar_width = 60; // - prog_text.length();
             int where = percentage * bar_width;
 
             std::cerr << prog_text << ": [" << std::string(where, decor) << " "
@@ -67,7 +68,7 @@ void raise_warning_message(std::string &message, bool *is_warn_to_be_raised)
     if (*is_warn_to_be_raised)
     {
         std::cerr << std::endl;
-        std::cerr << "WARNING: " << message << "\nIf this was intentional, ignore this message.\n"
+        std::cerr << "WARNING: " << message << "\nIf this was intentional, ignore this message."
                   << std::endl;
         *is_warn_to_be_raised = false;
     }

@@ -1,4 +1,5 @@
 // mcmc.h //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #ifndef MCMC__H
 #define MCMC__H
@@ -13,6 +14,7 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
+#include <omp.h>
 
 #include "individual.h"
 

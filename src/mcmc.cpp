@@ -1,4 +1,5 @@
 // mcmc.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "mcmc.h"
 
@@ -58,11 +59,12 @@ double MCMC::compute_single_house_loglike(int h)
 double MCMC::compute_global_loglike()
 {
     double output = 0.0;
-    double tmp;
 
+    // FIXME : parallelization to ve verified 
+    #pragma omp parallel for reduction(+:output)
     for (int h = 0; h < num_househ; h++)
     {
-        tmp = compute_single_house_loglike(h);
+        double tmp = compute_single_house_loglike(h);
         househ[h].set_loglike(tmp);
         output += tmp;
     }
@@ -167,6 +169,7 @@ void MCMC::move_all_augm_variables()
         double old_loglike_of_HH = 0.0, new_loglike_of_HH = 0.0;
 
         // Loop over households
+        // FIXME : this can be improved if old values are stored locally
         for (int h = 0; h < num_househ; h++)
         {
             // Loop over infectious residents of the househould
@@ -218,10 +221,11 @@ void MCMC::move_all_augm_variables()
 /* Update Bayesian diagnostics */
 void MCMC::update_model_diagnostics()
 {
-    // for all parameters
+    // diagnostics for all parameters
     update_diagnostics();
 
-    // Loop over households
+    // diagnostics over households
+    #pragma omp parallel for default(shared)
     for (int h = 0; h < num_househ; h++)
     {
         househ[h].update_diagnostics();
@@ -312,6 +316,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     if (setup_num_adapt_iter > 0)
     {
         display_decorator("MCMC:adaptive", '-', 1);
+        display_progress_bar("adaptive", 0, setup_num_adapt_iter);
         for (int step = 1; step <= setup_num_adapt_iter; step++)
         {
             move_and_adapt_all_parameters(step);
@@ -324,7 +329,8 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //=====Monte Carlo Markov Chain execution=====//
     //============================================//
 
-    display_decorator("MCMC:execution", '-', 1);
+    display_decorator("MCMC:execution", '-', 1 + (setup_num_adapt_iter > 0));
+    display_progress_bar("execution", 0, num_iter_thin);
     for (int i = 1; i <= num_iter_thin; i++)
     {
         for (int j = 0; j < setup_thinning; j++)
