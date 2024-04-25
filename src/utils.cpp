@@ -1,53 +1,77 @@
 // utils.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "utils.h"
 
-/* Progress bar */
-void print_progress_bar(int progress, int total)
+/* Estimate sample variance from sum X, sum X^2 and sample size */
+double est_sample_variance(double sum_X, double sum_X2, double ss)
 {
-    float percentage = static_cast<float>(progress) / total;
-    int barWidth = 70;
+    return sum_X2 / (ss - 1.) - std::pow(sum_X, 2) / (ss * (ss - 1.));
+}
 
-    std::cerr << "[";
+///////////////////////////////////////////////////////////////////////
+// /////////////////////// Message Functions /////////////////////// //
+///////////////////////////////////////////////////////////////////////
 
-    int pos = barWidth * percentage;
-    for (int i = 0; i < barWidth; ++i)
+/* Display a message to stdout (if Verbose). */
+void display_stdout(std::string txt)
+{
+    if (Verbose)
     {
-        if (i < pos)
+        std::cout << txt << std::endl;
+    }
+}
+
+/* Display a decorator for a section (if Verbose) */
+void display_decorator(std::string text, char decor, int skip)
+{
+    if (Verbose)
+    {
+        size_t bar_width = (60 - text.length()) / 2;
+        std::cout << std::string(skip, '\n') << std::string(bar_width, decor) << text
+                  << std::string(60 - text.length() - bar_width, decor) << std::endl;
+    }
+}
+
+/* Display percentual progress bar */
+void display_progress_bar(std::string prog_text, int progress, int total, char decor)
+{
+    if ((Verbose) && (total >= 100))
+    {
+        if ((progress % (total / 100)) == 0)
         {
-            std::cerr << "=";
-        }
-        else if (i == pos)
-        {
-            std::cerr << ">";
-        }
-        else
-        {
-            std::cerr << " ";
+            float percentage = static_cast<float>(progress) / total;
+            int bar_width = 60; // - prog_text.length();
+            int where = percentage * bar_width;
+
+            std::cerr << prog_text << ": [" << std::string(where, decor) << " "
+                      << std::string(std::max(0, bar_width - where - 1), ' ') << "] "
+                      << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
+            std::cerr.flush();
         }
     }
-
-    std::cerr << "] " << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
-    std::cerr.flush();
 }
 
 ///////////////////////////////////////////////////////////////////////
 // /////////////////////// Error Functions ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-void exit_with_failure_error(std::string &message)
+void raise_error_message(std::string &message)
 {
     std::cerr << std::endl;
     std::cerr << "ERROR: " << message << "\nExit...\n"
               << std::endl;
-    exit(EXIT_FAILURE);
 }
 
-void raise_warning_message(std::string &message)
+void raise_warning_message(std::string &message, bool *is_warn_to_be_raised)
 {
-    std::cerr << std::endl;
-    std::cerr << "WARNING: " << message << "\nIf this was \n"
-              << std::endl;
+    if (*is_warn_to_be_raised)
+    {
+        std::cerr << std::endl;
+        std::cerr << "WARNING: " << message << "\nIf it was intentional, ignore this message."
+                  << std::endl;
+        *is_warn_to_be_raised = false;
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -86,15 +110,15 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 }
 
 /* return informations about the distribution */
-std::string Base_Function::display(char delim, char dict_delim)
+std::string Base_Function::message_to_display()
 {
-    std::string output = get_name() + delim;
+    std::string output = get_name() + DELIM;
     for (std::size_t i = 0; i < args_name.size() - 1; i++)
     {
-        output += args_name[i] + dict_delim + std::to_string(get_arg(i)) + dict_delim;
+        output += args_name[i] + DICT_DELIM + std::to_string(get_arg(i)) + DICT_DELIM;
     }
-    std::size_t i = args_name.size() - 1;
-    output += args_name[i] + dict_delim + std::to_string(get_arg(i));
+    int i = args_name.size() - 1;
+    output += args_name[i] + DICT_DELIM + std::to_string(get_arg(i));
     return output;
 }
 
@@ -128,7 +152,7 @@ double Uniform_Distr::log_pdf(double x)
 }
 
 /* uniform probability density function */
-double Uniform_Distr::log_ratio(double x, double y)
+double Uniform_Distr::logratio(double x, double y)
 {
     (void)x;
     (void)y;
@@ -165,7 +189,7 @@ double Normal_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the normal probability density function */
-double Normal_Distr::log_ratio(double x, double y)
+double Normal_Distr::logratio(double x, double y)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -214,7 +238,7 @@ double Lognorm_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the lognormal probability density function */
-double Lognorm_Distr::log_ratio(double x, double y)
+double Lognorm_Distr::logratio(double x, double y)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -264,7 +288,7 @@ double Gamma_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the gamma probability density function */
-double Gamma_Distr::log_ratio(double x, double y)
+double Gamma_Distr::logratio(double x, double y)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -301,7 +325,7 @@ double Weibull_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the weibull probability density function */
-double Weibull_Distr::log_ratio(double x, double y)
+double Weibull_Distr::logratio(double x, double y)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -348,7 +372,7 @@ double Rayleigh_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the rayleigh probability density function */
-double Rayleigh_Distr::log_ratio(double x, double y)
+double Rayleigh_Distr::logratio(double x, double y)
 {
     double scale = get_arg(0);
     return log(y / x) + 0.5 * pow(scale, -2) * (pow(x, 2) - pow(y, 2));
@@ -392,7 +416,7 @@ double Exponential_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the exponential probability density function */
-double Exponential_Distr::log_ratio(double x, double y)
+double Exponential_Distr::logratio(double x, double y)
 {
     double rate = get_arg(0);
     return rate * (x - y);
@@ -422,7 +446,7 @@ double Exponential_Distr_int::log_pdf(double x)
     return -rate * floor(x) + log(1 - exp(-rate));
 }
 
-double Exponential_Distr_int::log_ratio(double x, double y)
+double Exponential_Distr_int::logratio(double x, double y)
 {
     double rate = get_arg(0);
     return rate * (floor(x) - floor(y));

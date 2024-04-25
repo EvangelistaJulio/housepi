@@ -4,11 +4,11 @@
 rm(list = ls())
 
 # LIBRARIES
-suppressPackageStartupMessages(library(tidyverse))
-suppressPackageStartupMessages(library(scales)) # for hue_pal
-suppressPackageStartupMessages(library(ggcorrplot)) # for ggcorrplo
-suppressPackageStartupMessages(library(cowplot))
-suppressPackageStartupMessages(library(optparse))
+library(tidyverse)
+library(scales) # for hue_pal
+library(ggcorrplot) # for ggcorrplo
+library(cowplot)
+library(optparse)
 options(warn = -1)
 
 # FORMAT : options

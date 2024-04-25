@@ -1,8 +1,10 @@
 // varia.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "varia.h"
 
-using namespace std;
+// Warning for status
+bool Invalid_Proposer_Warning = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////  Base_Proposer : constructor ////////////////////////////////// //
@@ -12,7 +14,7 @@ Base_Proposer::Base_Proposer(
     Distribution_1D *distr,
     double strategy_from_zero,
     sdargs value_range,
-    std::vector<std::size_t> list_of_args_to_adapt) : distr_ptr(distr)
+    std::vector<int> list_of_args_to_adapt) : distr_ptr(distr)
 {
     args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
@@ -23,32 +25,27 @@ Base_Proposer::Base_Proposer(
     }
     else
     {
+        if (!valid(strategy_from_zero))
+        {
+            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range";
+            err_text += " {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "} are inconsistent.";
+            raise_warning_message(err_text, &Invalid_Proposer_Warning);
+        }
         zero_start = true;
         set_strat_zero(strategy_from_zero);
-        /* 
-        NOTE : I sometimes initialized to not valid values
-        // UPDATE : place a warning maybe
-        if (valid(strategy_from_zero))
-        {
-            zero_start = true;
-            set_strat_zero(strategy_from_zero);
-        }
-        else
-        {
-            std::string err_text = "Initial value " + to_std::string(strategy_from_zero) + " and value range ";
-            err_text += " {low:" + to_std::string(_range_min_) + ", up:" + to_std::string(_range_max_) + "} are inconsistent.";
-            exit_with_failure_error(err_text);
-        }
-        */
     }
 };
 
 /* increase spread if acceptation rate is high and viceversa */
 void Base_Proposer::adapt(double ratio, double target)
 {
+    // linear
     double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
+    
+    // quadratic 
+    //double factor = 1. + sqrt(1. - ratio) * (get_accept_rate() - target);
 
-    for (std::size_t argID : args_to_adapt)
+    for (int argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -104,7 +101,8 @@ void Base_Proposer::set_range(sdargs new_range)
         if (_range_min_ >= _range_max_)
         {
             std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "}.";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
         else
         {
@@ -114,7 +112,8 @@ void Base_Proposer::set_range(sdargs new_range)
     else
     {
         std::string err_text = "Provided multiple definition for the range.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -140,50 +139,92 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     else
     {
         std::string err_text = "Unknown metropolis strategy `" + name + "`.";
-        exit_with_failure_error(err_text);
-        return nullptr;
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
-std::string Base_Proposer::display(char delim, char dict_delim)
+/* Display method for proposer (building on the distribution method) */
+std::string Base_Proposer::message_to_display()
 {
-    std::string output = distr_ptr->display(delim, dict_delim);
-    output += delim;
+    std::string output = distr_ptr->message_to_display();
+    output += DELIM;
     if (_range_min_ > -INFINITY)
     {
         std::string aux = "min";
-        output += aux + dict_delim + std::to_string(_range_min_);
+        output += aux + DICT_DELIM + std::to_string(_range_min_);
         if (_range_max_ < INFINITY)
         {
-            output += dict_delim;
+            output += DICT_DELIM;
         }
     }
     if (_range_max_ < INFINITY)
     {
         std::string aux = "max";
-        output += aux + dict_delim + std::to_string(_range_max_);
+        output += aux + DICT_DELIM + std::to_string(_range_max_);
     }
 
     return output;
 }
 
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////
-//////// Parameter_Dictionary : methods ///////////////////
+//////// Parameter : methods ///////////////////
+///////////////////////////////////////////////////////////
+
+/* Update the values for the Bayesian diagnostics */
+void Parameter::update_diagnostics()
+{
+    dgn_sum += get_value();
+    dgn_sqr_sum += std::pow(get_value(), 2);
+    dgn_sample_size++;
+}
+
+/* Message to be used at the moment of display diagnostics */
+std::string Parameter::message_to_display_diagnostics()
+{
+    std::string output = std::to_string(dgn_sum / dgn_sample_size) + DELIM;
+    output += std::to_string(std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size)));
+    output += DELIM + (std::string)((infer) ? "true" : "false");
+    if (infer)
+    {
+        output += DELIM + distr_ptr->message_to_display() + DELIM + prop_ptr->message_to_display();
+    }
+
+    return output;
+}
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////
+//////// Monte_Carlo_Core : methods ///////////////////
 ///////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise exits. */
-void Parameter_Dictionary::check(const std::string k)
+void Monte_Carlo_Core::assert_param(const std::string k)
 {
     if (params.find(k) == params.end())
     {
         std::string err_text = "Parameter `" + k + "` is not defined.\n Check your model and parameter file.";
-        exit_with_failure_error(err_text);
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
-/* add_param */
-void Parameter_Dictionary::add_param(
-    const std::string k,
+/* add_parameter */
+void Monte_Carlo_Core::add_parameter(
+    const std::string parID,
     double new_val,
     std::string prior_name,
     sdargs prior_args,
@@ -191,95 +232,148 @@ void Parameter_Dictionary::add_param(
     sdargs strat_args,
     sdargs value_range)
 {
-    Parameter new_param(new_val, prior_name, prior_args, strat_name, strat_args, value_range);
+    Parameter new_param(new_val,
+                        prior_name,
+                        prior_args,
+                        strat_name,
+                        strat_args,
+                        value_range);
 
-    if (params.find(k) == params.end())
+    if (params.find(parID) == params.end())
     {
-        params.emplace(k, new_param);
+        params.emplace(parID, new_param);
     }
     else
     {
-        std::string err_text = "Parameter `" + k + "` has multiple definitions.";
-        exit_with_failure_error(err_text);
+        std::string err_text = "Parameter `" + parID + "` has multiple definitions.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 
-    // update the lists of parameters to be inferred or not
+    // update the lists of parameters to be inferred, and these to be static
     if (new_param.get_infer())
     {
-        param_to_be_inferred.push_back(k);
-        num_param_to_infer = param_to_be_inferred.size();
+        param_to_be_inferred.push_back(parID);
     }
     else
     {
-        param_static.push_back(k);
-    }
-}
-
-/* display the user model parameters */
-void Parameter_Dictionary::display_parameters(char delim, char dict_delim)
-{
-    for (std::string k : param_file_required_headers)
-    {
-        cout << k << delim;
-    }
-    cout << endl;
-    for (std::string k : param_to_be_inferred)
-    {
-        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
-    }
-    for (std::string k : param_static)
-    {
-        cout << k << delim << params.at(k).display(delim, dict_delim) << endl;
+        param_static.push_back(parID);
     }
 }
 
 /* randomly initialize values of the parameters to be inferred */
-void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
+void Monte_Carlo_Core::init_rand_params()
 {
-    double new_val;
-    for (std::string k : param_to_be_inferred)
+    int num_attempts = 0;
+    double new_value;
+
+    for (std::string parID : param_to_be_inferred)
     {
-        new_val = params.at(k).prior_rand(rng);
-        while (params.at(k).valid(new_val) == false)
+        new_value = params.at(parID).prior_rand(prng);
+        while (params.at(parID).valid(new_value) == false)
         {
-            new_val = params.at(k).prior_rand(rng);
+            if (num_attempts >= MAX_NUMBER_ATTEMPTS)
+            {
+                std::string err_text = "Number of attempts exceeded in random initialization of `" + parID + "`.";
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
+            }
+            num_attempts++;
+            new_value = params.at(parID).prior_rand(prng);
         }
-        set_value(k, new_val);
+        set_value(parID, new_value);
     }
 }
 
-/* propose a valid move */
-bool Parameter_Dictionary::propose_valid_move(const std::string k, std::mt19937_64 &rng)
+/* propose a valid move (retrun true), otherwise update refusal (retrun false) */
+bool Monte_Carlo_Core::propose_valid_param_move(const std::string parID)
 {
-    double new_val = params.at(k).propose(rng); // propose new value
-    bool is_valid = false;
+    double new_value = params.at(parID).propose(prng); // propose new value
 
     // proceed only if valid
-    if (params.at(k).valid(new_val))
+    if (params.at(parID).valid(new_value))
     {
-        is_valid = true;
-        buffer_value = get_value(k); // store old value into buffer
-        buffer_log_ratio = params.at(k).prior_log_ratio(buffer_value, new_val);
-        buffer_log_ratio -= params.at(k).propose_log_ratio(buffer_value, new_val);
-        set_value(k, new_val);
+        // store old value into buffer
+        buffer_value = get_value(parID);
+        // add the prior logratio to buffer
+        buffer_logratio = params.at(parID).prior_logratio(buffer_value, new_value);
+        // add the proposal logratio to buffer
+        buffer_logratio -= params.at(parID).propose_logratio(buffer_value, new_value);
+        // set the new value of the parameter for computations
+        set_value(parID, new_value);
+        return true;
     }
     else
     {
-        params.at(k).update_accept_rate(false);
+        // update accept rate with the refusal
+        params.at(parID).update_accept_rate(false);
+        return false;
     }
-
-    return is_valid;
 }
 
 /* move is accepted */
-void Parameter_Dictionary::accept_param_move(const std::string k)
+void Monte_Carlo_Core::accept_param_move(const std::string parID)
 {
-    params.at(k).update_accept_rate(true);
+    params.at(parID).update_accept_rate(true);
 }
 
 /* move is refused: restore old value in the buffer */
-void Parameter_Dictionary::refuse_param_move(const std::string k)
+void Monte_Carlo_Core::refuse_param_move(const std::string parID)
 {
-    set_value(k, buffer_value);
-    params.at(k).update_accept_rate(false);
+    set_value(parID, buffer_value);
+    params.at(parID).update_accept_rate(false);
+}
+
+/* Update the diagnostics of all parameters */
+void Monte_Carlo_Core::update_diagnostics()
+{
+    for (std::string parID : param_to_be_inferred)
+    {
+        params.at(parID).update_diagnostics();
+    }
+}
+
+///////////////////////////////////////////////////////////
+//////// Monte_Carlo_Core : display ///////////////////
+///////////////////////////////////////////////////////////
+
+/* display the user model parameters */
+void Monte_Carlo_Core::display_parameters()
+{
+    if (Verbose)
+    {
+        std::cout << "\n"
+                  << param_file_required_headers[0];
+        for (size_t k = 1; k < param_file_required_headers.size(); k++)
+        {
+            std::cout << DELIM << param_file_required_headers[k];
+        }
+        std::cout << std::endl;
+
+        for (std::string parID : param_to_be_inferred)
+        {
+            std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+        }
+        for (std::string parID : param_static)
+        {
+            std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+        }
+    }
+}
+
+/* display the diagnostics */
+void Monte_Carlo_Core::display_diagnostics()
+{
+    std::cout << "name" << DELIM << "value" << DELIM << "value_sd";
+    for (size_t k = 2; k < param_file_required_headers.size(); k++)
+    {
+        std::cout << DELIM << param_file_required_headers[k];
+    }
+    std::cout << std::endl;
+
+    for (std::string parID : param_to_be_inferred)
+    {
+        std::cout << parID << DELIM << params.at(parID).message_to_display_diagnostics() << "\n";
+    }
+    std::cout << std::endl;
 }

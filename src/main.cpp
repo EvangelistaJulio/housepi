@@ -1,4 +1,5 @@
 // main.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include <string>
 #include <map>
@@ -23,12 +24,11 @@ bool Verbose = false;
 
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;               // Command line argument iterator
-    double inver_temp = INFINITY; // Inverse temperature // UPDATE : temporary
-    bool infer = false;
-    bool simulate = false;
+    int carg_i = 1;          // Command line argument iterator
+    double inver_temp = 1.0; // Inverse temperature
+    bool is_infer = false, is_simulate = false;
     bool rand_init_params = false;
-    Setup_MCMC_Struct setup = {}; // default setup
+    int num_threads =1;
     std::string setup_pathtofile = UNDEFINED;
     std::string parameters_pathtofile = UNDEFINED;
     std::string extra_pathtofile = UNDEFINED;
@@ -40,9 +40,9 @@ int main(int argc, char *argv[])
     // ===== Test if some commands were supplied ===== //
     if (argc < 2)
     {
-        std::string aux = argv[0];
-        std::string err_text = "The user did not supply any command.\nCheck the list of commands through:\n" + aux + " -h";
-        exit_with_failure_error(err_text);
+        std::string err_text = "No argument or command found. Check the usage through:\n" + (std::string)(argv[0]) + " -h";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 
     //=====Load commands and options=====//
@@ -53,19 +53,20 @@ int main(int argc, char *argv[])
         {
             // Show the manual using man and installed manpages // UPDATE : produce a manual
             std::string err_text = "We apologize for the inconvenience, but the Software Manual is still missing.\nPlease, contact the developer.";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
 
         else if (std::string(argv[carg_i]) == std::string("-infer"))
         {
             // Command line asking for infer
-            infer = true;
+            is_infer = true;
         }
 
         else if (std::string(argv[carg_i]) == std::string("-simulate"))
         {
             // Command line asking for simulate
-            simulate = true;
+            is_simulate = true;
         }
 
         else if (std::string(argv[carg_i]) == std::string("-v") || std::string(argv[carg_i]) == std::string("--verbose"))
@@ -126,66 +127,92 @@ int main(int argc, char *argv[])
             save_augm_pathtofile = argv[carg_i];
         }
 
+        else if (std::string(argv[carg_i]) == std::string("--num_threads"))
+        {
+            ++carg_i;
+            num_threads = std::stoi(argv[carg_i]);
+        }
+
         else
         {
             std::string aux = argv[carg_i];
             std::string err_text = "Unrecognized option `" + aux + "`.";
-            exit_with_failure_error(err_text);
+            raise_error_message(err_text);
+            std::exit(EXIT_FAILURE);
         }
 
         ++carg_i; // Move to the next command line argument
     }
 
-    // UPDATE : check for options validity
-
-    if (infer && simulate)
-    {
-        std::string err_text = "Incompatible options: choose one between -infer and -simulate.";
-        exit_with_failure_error(err_text);
-    }
-
     //=====INITIALIZATION=====//
 
-    // Load Setup
-    setup = load_setup(setup_pathtofile);
+    display_decorator("Household Survey EPI Modeling");
+    display_decorator("Camaglia F., Institut Pasteur (2024)", '-', 0);
 
-    // Initialize Model object
-    Model model(setup);
+    // Initialize Model object with user defined derived class
+    Model user_model;
 
-    // Load Parameters
-    model.build_parameters(parameters_pathtofile);
+    // 0) set number of threads
+    user_model.set_num_threads(num_threads);
+
+    // 1) Load Setup (optional)
+    user_model.build_setup(setup_pathtofile);
+
+    // 2) Load Parameters and Check (required)
+    if (parameters_pathtofile == UNDEFINED)
+    {
+        std::string err_text = "Required argument: parameter path/to/file not found.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else
+    {
+        user_model.build_parameters(parameters_pathtofile);
+    }
+
+    // 3) Load Data and Check (required)
+    if (database_pathtofile == UNDEFINED)
+    {
+        std::string err_text = "Required argument: database path/to/file not found.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else
+    {
+        user_model.build_data(database_pathtofile);
+    }
 
     // Load Augmented Variables
-    model.build_augmented(augmented_pathtofile);
-
-    // Load Data
-    model.build_data(database_pathtofile);
+    user_model.build_augmented(augmented_pathtofile);
 
     // UPDATE: there could be plenty extra files to be store somewhere
-    if (extra_pathtofile != UNDEFINED)
-    {
-        model.build_extra(extra_pathtofile);
-    }
+    user_model.build_extra(extra_pathtofile);
 
     //=====EXECUTION=====//
-    
-    if (infer) // Parameter Inference
+
+    //=====check for options validity=====//
+
+    // UPDATE : complete check for options validity
+
+    if (is_infer && is_simulate)
     {
-        model.inference(output_pathtofile, rand_init_params, inver_temp);
-        if (save_augm_pathtofile != UNDEFINED)
-        {
-            model.print_augm_variables(save_augm_pathtofile);
-        }
+        std::string err_text = "Incompatible commands: choose one between -infer and -simulate.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
-    else if (simulate) // Simulation Study
-    {
-        model.simulation(output_pathtofile);
+    else if (is_infer)
+    { // Parameter Inference
+        user_model.inference(output_pathtofile, rand_init_params, inver_temp);
+        user_model.print_augm_variables(save_augm_pathtofile);
+    }
+    else if (is_simulate)
+    { // Simulation Study
+        user_model.simulation();
+        user_model.print_augm_variables(output_pathtofile);
     }
 
-    if (Verbose)
-    {
-        std::cout << "\n=================END==================" << std::endl;
-    }
+    display_decorator("END");
+    display_stdout("\n");
 
     return EXIT_SUCCESS;
 }

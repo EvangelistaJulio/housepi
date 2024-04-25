@@ -192,16 +192,17 @@ double _recursive_function(usi N, std::vector<double> &escape_matrix)
 /* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
-	size_t max_num = 0, aux = 0;
+	int max_num = 0, aux = 0;
 
 	// find maximum possible number of sero-positives
-	for (size_t h = 0; h < num_househ; h++)
+	for (int h = 0; h < num_househ; h++)
 	{
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
 		{
 			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-			exit_with_failure_error(err_txt);
+			raise_error_message(err_txt);
+			std::exit(EXIT_FAILURE);
 		}
 		// <<<< <<<< <<<< <<<<
 		
@@ -214,7 +215,7 @@ void Model::initialize_model()
 }
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_single_house_loglike(std::size_t h)
+double Model::compute_single_house_loglike(int h)
 {
 	usi hh_size = househ[h].house_size;
 	usi num_infec = househ[h].infectious_list.size();
@@ -276,61 +277,58 @@ double Model::compute_single_house_loglike(std::size_t h)
 // ///////////////////////////// Model : Methods (simulation)  /////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Poisson point process to simulate data. */
-void Model::simulate_infection()
+/* Simulate the infection within a household. */
+void Model::simulate_single_house(int h)()
 {
-	size_t num_new_infectious = 0, num_old_infectious = 0;
-	std::vector<std::size_t> copy_list = {};
+	int num_new_infectious = 0, num_old_infectious = 0;
+	std::vector<int> store_old_list = {};
 
-	//=====community escape probability=====//
+	//-----community escape probability-----//
 	double commu_esc_proba = exp(-get_value("alpha"));
 
-	//=====person-to-person escape log-probability=====//
+	//-----person-to-person escape log-probability-----//
 	double log_p2p_esc_proba = -get_value("beta");
 
-	// simulate the infection for each household
-	for (std::size_t h = 0; h < num_househ; h++)
+	//=====INITIALIZE=====//
+	// set all cases to healthy (change infectious and unknown to susceptibles)
+	store_old_list = househ[h].infectious_list;
+	for (int i : store_old_list)
 	{
-		//=====INITIALIZE=====//
-		// set all cases to healthy (change infectious and unknown to susceptibles)
-		copy_list = househ[h].infectious_list;
-		for (std::size_t i : copy_list)
+		househ[h].change_status(i, HEALTHY);
+	}
+	store_old_list = househ[h].unknown_status_list;
+	for (int i : store_old_list)
+	{
+		househ[h].change_status(i, HEALTHY);
+	}
+	num_new_infectious = 0;
+
+	//====GENERATION 0 : infection by community=====//
+	store_old_list = househ[h].susceptibles_list;
+	for (int i : store_old_list)
+	{
+		if (uniform(rng) > commu_esc_proba)
 		{
-			househ[h].change_status(i, HEALTHY);
+			househ[h].change_status(i, SYMPTOMATIC);
+			num_new_infectious++;
 		}
-		copy_list = househ[h].unknown_status_list;
-		for (std::size_t i : copy_list)
-		{
-			househ[h].change_status(i, HEALTHY);
-		}
+	}
+
+	//====GENERATION >=1 : infection by previous generatioon=====//
+	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
+	{
+		num_old_infectious = num_new_infectious;
 		num_new_infectious = 0;
 
-		//====GENERATION 0 : infection by community=====//
-		copy_list = househ[h].susceptibles_list;
-		for (std::size_t i : copy_list)
+		store_old_list = househ[h].susceptibles_list;
+		for (int i : store_old_list)
 		{
-			if (uniform(rng) > commu_esc_proba)
+			if (uniform(rng) > exp(num_old_infectious * log_p2p_esc_proba))
 			{
 				househ[h].change_status(i, SYMPTOMATIC);
 				num_new_infectious++;
 			}
 		}
-
-		//====GENERATION >=1 : infection by previous generatioon=====//
-		while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
-		{
-			num_old_infectious = num_new_infectious;
-			num_new_infectious = 0;
-
-			copy_list = househ[h].susceptibles_list;
-			for (std::size_t i : copy_list)
-			{
-				if (uniform(rng) > exp(num_old_infectious * log_p2p_esc_proba))
-				{
-					househ[h].change_status(i, SYMPTOMATIC);
-					num_new_infectious++;
-				}
-			}
-		}
 	}
+	
 }

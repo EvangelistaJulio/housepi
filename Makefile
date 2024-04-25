@@ -8,7 +8,8 @@ MODEL_HEADER := $(NAME).h
 
 # List of source files
 SRCDIR := src
-SOURCES := $(wildcard $(SRCDIR)/*.cpp) $(FLDR)/$(NAME).cpp
+EXCL_FILES := Rcpp_export_bindings.cpp # FIXME
+SOURCES := $(filter-out $(addprefix $(SRCDIR)/,$(EXCL_FILES)), $(wildcard $(SRCDIR)/*.cpp) $(FLDR)/$(NAME).cpp)
 
 # Object files to build (automatically generated from SRCS)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -18,7 +19,7 @@ EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # compiler and rules
 CXX := g++
-CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -I$(shell pwd)/$(SRCDIR)
+CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -fopenmp -I$(shell pwd)/$(SRCDIR)
 
 # Make rules
 all: $(EXECUTABLE)
@@ -44,5 +45,4 @@ $(SRCDIR)/main.o: $(SRCDIR)/main.cpp
 clean:
 	rm -rf ./*.o
 	rm -rf src/*.o
-	rm -rf models/*.o
 	rm -rf ${FLDR}/*.o

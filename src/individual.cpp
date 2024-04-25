@@ -1,13 +1,13 @@
 // individual.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "individual.h"
-
-#define MAX_NUMBER_ATTEMPTS 10
 
 ////////////////////////////////////////////////////////////////////////
 // /////////////////// Individual : Constructor ///////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
+/* Constructor with a database row. */
 Individual::Individual(sdargs new_data)
 {
 	index = new_data.at("index");
@@ -15,16 +15,9 @@ Individual::Individual(sdargs new_data)
 	data = new_data;
 }
 
-/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+/* Return a feature of the Individual as provided in the database */
 double Individual::get_data(std::string dataID) const
 {
-	/* // FIXME : control should be at the point of pre-processing
-	if (data.find(dataID) == data.end())
-	{
-		std::string err_text = "Data column `" + dataID + "` unknown.";
-		exit_with_failure_error(err_text);
-	}
-	*/
 	return data.at(dataID);
 }
 
@@ -42,7 +35,8 @@ void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 	{
 		// rateID was previously declared
 		std::string err_text = "Found individual with multiple definitions for group rate `" + rateID + "`.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
@@ -70,8 +64,9 @@ void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 	{
 		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
 		{
-			std::string err_text = "Number of attempts exceed in random initialization of `" + augmID + "`.";
-			exit_with_failure_error(err_text);
+			std::string err_text = "Number of attempts exceeded in random initialization of `" + augmID + "`.";
+			raise_error_message(err_text);
+			std::exit(EXIT_FAILURE);
 		}
 		init_value = augm_model_rand(augmID, rng);
 		num_attempts++;
@@ -89,42 +84,32 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	else
 	{
 		std::string err_text = "Augmented variable `" + augmID + "` has multiple definitions.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
-/* Add an augmented variable to the individual, plus initialize it. */
-void Individual::add_augm(std::string augmID, Augmented new_augm, std::mt19937_64 &rng)
+/* Propose a new value for the augmented variable. */
+double Individual::augm_propose(std::string augmID, std::mt19937_64 &prng)
 {
-	add_augm(augmID, new_augm);
-	init_augm(augmID, rng);
+	return augm_var.at(augmID).propose(prng);
 }
 
-double Individual::augm_model_log_pdf(std::string augmID)
+/* Log ratio of the proposal rule associated to the move old_value to new_value. */
+double Individual::augm_propose_logratio(std::string augmID, double old_value, double new_value)
 {
-	double new_val = augm_var.at(augmID).get_value();
-	return augm_var.at(augmID).model_log_pdf(new_val);
+	return augm_var.at(augmID).propose_logratio(old_value, new_value);
 }
 
-double Individual::augm_model_log_ratio(std::string augmID, double old_val, double new_val)
+/* Log ratio of the model associated to the move old_value to new_value.  */
+double Individual::augm_model_logratio(std::string augmID, double old_value, double new_value)
 {
-	return augm_var.at(augmID).model_log_ratio(old_val, new_val);
-}
-
-double Individual::augm_propose(std::string augmID, std::mt19937_64 &rng)
-{
-	return augm_var.at(augmID).propose(rng);
-}
-
-double Individual::augm_propose_log_ratio(std::string augmID, double old_val, double new_val)
-{
-	return augm_var.at(augmID).propose_log_ratio(old_val, new_val);
+	return augm_var.at(augmID).model_logratio(old_value, new_value);
 }
 
 ////////////////////////////////////////////////////////////////////////
 // /////////////////////////// Household //////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
-
 
 /* Assign a data feature to the household */
 void Household::assign_data(std::string dataID, double value)
@@ -138,32 +123,26 @@ void Household::assign_data(std::string dataID, double value)
 	{
 		// rateID was previously declared
 		std::string err_text = "Found household with multiple definitions for data `" + dataID + "`.";
-		exit_with_failure_error(err_text);
+		raise_error_message(err_text);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
-/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+/* Return a feature of the Household which must be provided during initialization. */
 double Household::get_data(std::string dataID) const
 {
-	/* // FIXME : control should be done at the moment of pre-processing
-	if (house_data.find(dataID) == house_data.end())
-	{
-		std::string err_text = "Household data  `" + dataID + "` unknown.";
-		exit_with_failure_error(err_text);
-	}
-	*/
 	return house_data.at(dataID);
 }
 
 /* Link an individual to the household */
-void Household::link_individual(size_t i, int status)
+void Household::link_individual(int i, int status)
 {
 	// status list
-	if (status == SYMPTOMATIC)
+	if (status == INFECTIOUS)
 	{
 		infectious_list.push_back(i);
 	}
-	else if (status == HEALTHY)
+	else if (status == SUSCEPTIBLE)
 	{
 		susceptibles_list.push_back(i);
 	}
@@ -175,37 +154,37 @@ void Household::link_individual(size_t i, int status)
 }
 
 /* Return the indexes of the infectious, then the susceptibles, unknown statuses */
-std::vector<size_t> Household::get_house_members()
+std::vector<int> Household::get_house_members()
 {
-	std::vector<size_t> members;
-    members.reserve(house_size); // Reserve space
+	std::vector<int> members;
+	members.reserve(house_size); // Reserve space
 
-    // Copy infectious
-    members.insert(members.end(), infectious_list.begin(), infectious_list.end());
+	// Copy infectious
+	members.insert(members.end(), infectious_list.begin(), infectious_list.end());
 
-    // Copy susceptibles
-    members.insert(members.end(), susceptibles_list.begin(), susceptibles_list.end());
+	// Copy susceptibles
+	members.insert(members.end(), susceptibles_list.begin(), susceptibles_list.end());
 
-    // Copy unknown
-    members.insert(members.end(), unknown_status_list.begin(), unknown_status_list.end());
+	// Copy unknown
+	members.insert(members.end(), unknown_status_list.begin(), unknown_status_list.end());
 
-    return members;
+	return members;
 }
 
 /* Change_status of individual i to new status (without controls).
-	WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
-void Household::change_status(size_t i, int new_status)
+	WARNING : this introduces augmented variables -> it requires RJMCMC in case of inference.*/
+void Household::change_status(int i, int new_status)
 {
 	int old_status = (*indiv_ptr)[i].get_status();
 
 	if (old_status != new_status)
 	{
 		// erase individual i from previous list
-		if (old_status == HEALTHY)
+		if (old_status == SUSCEPTIBLE)
 		{
 			susceptibles_list.erase(find(susceptibles_list.begin(), susceptibles_list.end(), i));
 		}
-		else if (old_status == SYMPTOMATIC)
+		else if (old_status == INFECTIOUS)
 		{
 			infectious_list.erase(find(infectious_list.begin(), infectious_list.end(), i));
 		}
@@ -215,11 +194,11 @@ void Household::change_status(size_t i, int new_status)
 		}
 
 		// add individual i to new list
-		if (new_status == HEALTHY)
+		if (new_status == SUSCEPTIBLE)
 		{
 			susceptibles_list.push_back(i);
 		}
-		else if (new_status == SYMPTOMATIC)
+		else if (new_status == INFECTIOUS)
 		{
 			infectious_list.push_back(i);
 		}
@@ -231,4 +210,27 @@ void Household::change_status(size_t i, int new_status)
 		// change the status of individual to new
 		(*indiv_ptr)[i].set_status(new_status);
 	}
+}
+
+/* Set to zero the counts of given augmented variables moves. */
+void Household::reset_augm_accept_rate(std::string augmID)
+{
+	num_accept_augm_moves[augmID] = 0;
+	num_propos_augm_moves[augmID] = 0;
+}
+
+/* Update counts for acceptance rate of given augemented variable. */
+void Household::update_augm_accept_rate(std::string augmID, bool is_accepted)
+{
+	num_accept_augm_moves[augmID] += is_accepted;
+	num_propos_augm_moves[augmID]++;
+}
+
+/* update the values for the Bayesian diagnostics */
+void Household::update_diagnostics()
+{
+	dgn_sum_likelihood += std::exp(loglike);
+	dgn_sum_loglike += loglike;
+	dgn_sum_sqr_loglike += std::pow(loglike, 2);
+	dgn_ss++;
 }

@@ -39,16 +39,17 @@ std::vector<gentype> saturation_count_span(int n)
 /* Initialize the Lookup Table */
 void Model::initialize_model()
 {
-	size_t max_num = 0, aux = 0;
+	int max_num = 0, aux = 0;
 
 	// find maximum possible number of sero-positives
-	for (size_t h = 0; h < num_househ; h++)
+	for (int h = 0; h < num_househ; h++)
 	{
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
 		{
 			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Cse not modeled yet.";
-			exit_with_failure_error(err_txt);
+			raise_error_message(err_txt);
+			std::exit(EXIT_FAILURE);
 		}
 		// <<<< <<<< <<<< <<<<
 
@@ -58,7 +59,7 @@ void Model::initialize_model()
 
 	// initialize LookupTable to largest possible value
 	Saturation_Lookup_Table.emplace(0, std::vector<gentype>());
-	for (size_t n = 1; n <= max_num; n++)
+	for (int n = 1; n <= max_num; n++)
 	{
 		Saturation_Lookup_Table.emplace(n, saturation_count_span(n));
 	}
@@ -76,7 +77,7 @@ void Model::initialize_model()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_single_house_loglike(std::size_t h)
+double Model::compute_single_house_loglike(int h)
 {
 	//=====community escape log-probability=====//
 	double log_commu_esc_proba = -get_value("alpha");
@@ -141,7 +142,7 @@ double Model::compute_single_house_loglike(std::size_t h)
 void Model::simulate_infection()
 {
 	bool is_infec_by_community;
-	std::vector<std::size_t> copy_list = {};
+	std::vector<int> copy_list = {};
 
 	//=====community escape probability=====//
 	double commu_esc_proba = exp(-get_value("alpha"));
@@ -150,17 +151,17 @@ void Model::simulate_infection()
 	double within_esc_proba = exp(-get_value("beta"));
 
 	//=====Simulate the infection for each household=====//
-	for (std::size_t h = 0; h < num_househ; h++)
+	for (int h = 0; h < num_househ; h++)
 	{
 		//-----INITIALIZE-----//
 		// set all cases to healthy (change infectious and unknown to susceptibles)
 		copy_list = househ[h].infectious_list;
-		for (std::size_t i : copy_list)
+		for (int i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
 		}
 		copy_list = househ[h].unknown_status_list;
-		for (std::size_t i : copy_list)
+		for (int i : copy_list)
 		{
 			househ[h].change_status(i, HEALTHY);
 		}
@@ -168,7 +169,7 @@ void Model::simulate_infection()
 
 		//-----GENERATION 0 : infection by community-----//
 		copy_list = househ[h].susceptibles_list;
-		for (std::size_t i : copy_list)
+		for (int i : copy_list)
 		{
 			if (uniform(rng) > commu_esc_proba)
 			{
@@ -181,7 +182,7 @@ void Model::simulate_infection()
 		if (is_infec_by_community)
 		{
 			copy_list = househ[h].susceptibles_list;
-			for (std::size_t i : copy_list)
+			for (int i : copy_list)
 			{
 				if (uniform(rng) > within_esc_proba)
 				{

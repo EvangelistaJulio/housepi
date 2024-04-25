@@ -1,4 +1,5 @@
 // utils.h //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #ifndef UTILS__H
 #define UTILS__H
@@ -20,10 +21,11 @@
 #include <sstream>
 #include <iomanip>
 
-// NOTE : maybe it's time to give-in and fall back to `boost`
-
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
+
+// verbose state
+extern bool Verbose;
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////////////////// TYPEDEF //////////////////////////// //
@@ -34,12 +36,15 @@ typedef std::map<std::string, const double *> sdargs_ext;
 typedef std::map<std::string, std::string> ssargs;
 
 /////////////////////////////////////////////////////////////////////////////
-// /////////////////////// Raise Error Functions ///////////////////////// //
+// /////////////////////// Auxiliary Functions /////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////
 
-void print_progress_bar(int progress, int total);
-void exit_with_failure_error(std::string &error_text);
-void raise_warning_message(std::string &message);
+double est_sample_variance(double sum_X, double sum_X2, double ss);
+void display_stdout(std::string txt);
+void display_decorator(std::string txt, char decor = '=', int skip = 2);
+void display_progress_bar(std::string prog_txt, int progress, int total, char decor = '=');
+void raise_error_message(std::string &error_text);
+void raise_warning_message(std::string &message, bool *is_warn_to_be_raised);
 
 ///////////////////////////////////////////////////////////////////////
 // ////////////////////// Base_Function : class ///////////////////// //
@@ -51,30 +56,30 @@ public:
     //=====Constructors=====//
     Base_Function(sdargs new_args_int, std::vector<std::string> order = {});
     Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order = {});
-    ~Base_Function(){};
+    virtual ~Base_Function(){};
 
     //=====Getter (functional)=====//
     std::string get_name() const { return name; }
-    double get_arg(std::size_t argID) { return (this->*_get_arg_func_)(argID); }
+    double get_arg(int argID) { return (this->*_get_arg_func_)(argID); }
 
     //=====Setter (for internal arguments)=====//
     void set_name(std::string new_name) { name = new_name; }
-    void set_arg(std::size_t argID, double new_value) { args_int[argID] = new_value; }
+    void set_arg(int argID, double new_value) { args_int[argID] = new_value; }
 
-    std::string display(char delim = DELIM, char dict_delim = DICT_DELIM);
+    std::string message_to_display();
 
 protected:
     std::string name = UNDEFINED;
-    std::vector<std::string> args_name;          // ordered list of argument names
-    double *args_int = nullptr;        // internal arguments (fixed at initialization)
-    const double **args_ext = nullptr; // external arguments (pointer to variable)
+    std::vector<std::string> args_name; // ordered list of argument names
+    double *args_int = nullptr;         // internal arguments (fixed at initialization)
+    const double **args_ext = nullptr;  // external arguments (pointer to variable)
 
 private:
-    double (Base_Function::*_get_arg_func_)(std::size_t argID);
+    double (Base_Function::*_get_arg_func_)(int argID);
 
     // FIXME : gigantic bottleneck // FIXME !! need for translation into array for internal
-    double _get_arg_int_(std::size_t argID) { return args_int[argID]; }
-    double _get_arg_ext_(std::size_t argID) { return *(args_ext[argID]); }
+    double _get_arg_int_(int argID) { return args_int[argID]; }
+    double _get_arg_ext_(int argID) { return *(args_ext[argID]); }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -89,7 +94,7 @@ public:
     //=====Virtual functions=====//
     virtual double pdf(double x) = 0;
     virtual double log_pdf(double x) = 0;
-    virtual double log_ratio(double x, double y) = 0;
+    virtual double logratio(double x, double y) = 0;
     virtual double rand(std::mt19937_64 &rng) = 0;
 };
 
@@ -112,11 +117,11 @@ public:
         UNUSED(x);
         return undefined_call_error();
     }
-    double log_ratio(double x, double y) override
+    double logratio(double x, double y) override
     {
         UNUSED(x);
         UNUSED(y);
-        return undefined_call_error();
+        return 0.0;
     }
     double rand(std::mt19937_64 &rng) override
     {
@@ -128,8 +133,8 @@ private:
     double undefined_call_error()
     {
         std::string err_text = "Attempt to call a method of an undefined distribution.";
-        exit_with_failure_error(err_text);
-        return INFINITY;
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 };
 
@@ -146,7 +151,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
+    double logratio(double x, double y) override;
     double rand(std::mt19937_64 &rng) override;
 };
 
@@ -163,7 +168,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -176,7 +181,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Normal_Distr::rand(rng)); }
 };
 
@@ -193,7 +198,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -206,7 +211,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Lognorm_Distr::rand(rng)); }
 };
 
@@ -223,7 +228,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -242,7 +247,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -255,7 +260,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Weibull_Distr::rand(rng)); }
 };
 
@@ -272,7 +277,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -285,7 +290,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Rayleigh_Distr::rand(rng)); }
 };
 
@@ -302,7 +307,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -315,7 +320,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
+    double logratio(double x, double y) override;
     double rand(std::mt19937_64 &rng) override { return round(Exponential_Distr::rand(rng)); }
 };
 
@@ -382,8 +387,8 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     else
     {
         std::string err_text = "Unknown distribution `" + name + "`.";
-        exit_with_failure_error(err_text);
-        return new Undefined_Distr();
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
     }
 }
 
