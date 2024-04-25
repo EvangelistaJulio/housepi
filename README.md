@@ -66,4 +66,4 @@ For the other available options use the flag `--help`.
 
 ## Compute Bayes Factor
 
-To be updated.  
+To be updated. 
