@@ -6,6 +6,7 @@
 // /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef TEST_EPI_CURVE
 // use the EPI curve for the community contribution
 std::vector<double> Cumul_EPI_Curve;
 std::vector<double> Inst_EPI_Curve;
@@ -38,7 +39,7 @@ void Model::build_extra(std::string extra_pathtofile)
 	if (input.is_open())
 	{
 		display_decorator("EXTRA");
-		display_stdout("Extra file: " + extra_pathtofile);
+		display_stdout("Loading extra information from: " + extra_pathtofile);
 
 		// Create a std::stringstream of the current line
 		for (std::string line; getline(input, line);)
@@ -59,6 +60,7 @@ void Model::build_extra(std::string extra_pathtofile)
 		std::exit(EXIT_FAILURE);
 	}
 }
+#endif
 
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
@@ -172,24 +174,6 @@ double Infectivity_Profile_Function::cdf(double tost, double t_incub)
 // /////////////////////////////////// Model : Infectivity Profiles /////////////////////////////////// //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize the infectivity profiles. */
-void Model::assign_infec_profile_function()
-{
-	// dictionary with the address to the model parameters for the infectivity profile
-	sdargs_ext infec_profile_args = {
-		{"tost_alpha", get_address("tost_alpha")},
-		{"tost_mu", get_address("tost_mu")},
-		{"tost_sigma", get_address("tost_sigma")},
-		{"tost_tau", get_address("tost_tau")}};
-
-	// initialize the infectivity profile function of the model
-	infec_profile_func = new Infectivity_Profile_Function(infec_profile_args);
-
-	// produce the empty matrix for the infectivity profiles look-up-tables
-	inst_profile_lookuptab = new double[num_indiv * num_indiv];
-	cumul_profile_lookuptab = new double[num_indiv * num_indiv];
-}
-
 /* Instanteneous infectivity profile. */
 double Model::compute_infec_profile_inst(int i, double t_transm)
 {
@@ -249,10 +233,22 @@ void Model::store_augm_var_dependecies(int i)
 /* Initialize parameters and augmented variables */
 void Model::initialize_model()
 {
-	// initialize infectivity profiles
-	assign_infec_profile_function();
+	//-----initialize infectivity profiles-----//
+	// dictionary with the address to the model parameters for the infectivity profile
+	sdargs_ext infec_profile_args = {
+		{"tost_alpha", get_address("tost_alpha")},
+		{"tost_mu", get_address("tost_mu")},
+		{"tost_sigma", get_address("tost_sigma")},
+		{"tost_tau", get_address("tost_tau")}};
 
-	// random initialization of incubation periods
+	// initialize the infectivity profile function of the model
+	infec_profile_func = new Infectivity_Profile_Function(infec_profile_args);
+
+	// produce the empty matrix for the infectivity profiles look-up-tables
+	inst_profile_lookuptab = new double[num_indiv * num_indiv];
+	cumul_profile_lookuptab = new double[num_indiv * num_indiv];
+
+	//-----random initialization of incubation periods-----//
 	init_augmented_variable("incub_period");
 
 	// find the first case for each household
@@ -306,7 +302,7 @@ void Model::assign_rate_per_group_to_individual(int i)
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_rate_per_contact(int i, int k)
+std::string Model::assign_rate_per_contact(int i, int k)
 {
 	bool i_is_child = (indiv[i].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
 	bool i_is_adult = (i_is_child == false);							   // adults otherwise
@@ -314,22 +310,21 @@ void Model::assign_rate_per_contact(int i, int k)
 	bool k_is_child = (indiv[k].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
 	bool k_is_adult = (k_is_child == false);							   // adults otherwise
 
-	// FIXME : need a more solid function here
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		contact_patterns[from_to(i, k)] = get_address("c_kid_to_kid");
+		return "c_kid_to_kid";
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		contact_patterns[from_to(i, k)] = get_address("c_kid_to_adu");
+		return "c_kid_to_adu";
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		contact_patterns[from_to(i, k)] = get_address("c_adu_to_kid");
+		return "c_adu_to_kid";
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		contact_patterns[from_to(i, k)] = get_reference();
+		return REFERENCE;
 	}
 }
 
@@ -371,7 +366,11 @@ double Model::compute_single_house_loglike(int h)
 	double tf = househ[h].get_data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
+#ifdef TEST_EPI_CURVE
 	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
+#else
+	comm_risk_cumul = get_value("alpha") * (tf - t0);
+#endif
 
 	// Contribution of healthy members
 	for (int i : househ[h].susceptibles_list)
@@ -391,7 +390,11 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
+#ifdef TEST_EPI_CURVE
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
+#else
+			comm_risk_inst = get_value("alpha");
+#endif
 			loglike_house += log(indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)));
 			loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
 		}
@@ -411,66 +414,65 @@ double Model::compute_single_house_loglike(int h)
 // ///////////////////////////// Model : Methods (simulation)  /////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Poisson point process to simulate data. */
-void Model::simulate_infection()
+/* Poisson point process to simulate outbreak in a single household. */
+void Model::simulate_single_house(int h)
 {
-	double dt = 0.01, t0, tf;
-	double proba, comm_risk_inst;
+	const double dt = 0.01;
+	// note: incub period of all members are already initialized
+	// note: first cases are already initialized
+	const double t0 = get_infec_time(househ[h].first_case);
+	const double tf = househ[h].get_data("end_followup");
 
-	// fix all incub period at the beginning
-	init_augmented_variable("incub_period");
-
-	// simulate the infection for each household
-	for (int h = 0; h < num_househ; h++)
+	//-----set all secondary cases to healthy-----//
+	std::vector<int> store_old_list = househ[h].infectious_list;
+	for (int i : store_old_list)
 	{
-		// find the first case
-		update_first_case(h);
-
-		// set all secondary cases to healthy
-		std::vector<int> copy_list = househ[h].infectious_list;
-		for (int i : copy_list)
+		if (i != househ[h].first_case)
 		{
-			if (i != househ[h].first_case)
-			{
-				indiv[i].set_status(HEALTHY);
-				househ[h].change_status(i, HEALTHY);
-			}
-		}
-
-		//=====simulate infection within household=====//
-		t0 = get_infec_time(househ[h].first_case);
-		tf = househ[h].get_data("end_followup");
-		for (double t = dt + t0; (t < tf) && !househ[h].susceptibles_list.empty(); t += dt)
-		{
-			std::vector<int> copy_list = househ[h].susceptibles_list;
-			for (int i : copy_list)
-			{
-				househ[h].change_status(i, SYMPTOMATIC);
-				indiv[i].set_status(SYMPTOMATIC);
-
-				indiv[i].set_augm("onset_time", t + uniform(rng) * dt + indiv[i].get_augm("incub_period"));
-				store_augm_var_dependecies(i);
-				comm_risk_inst = get_value("alpha") * lin_idx_interp(t, Inst_EPI_Curve);
-				proba = 1 - exp(-indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
-
-				// refuse
-				if (uniform(rng) >= proba)
-				{
-					househ[h].change_status(i, HEALTHY);
-					indiv[i].set_status(HEALTHY);
-				}
-			}
+			househ[h].change_status(i, SUSCEPTIBLE);
 		}
 	}
 
-	// Output formatter
+	//=====simulate infection within household=====//
+	double proba;
+	double comm_risk_inst;
+	for (double t = dt + t0; (t < tf) && !househ[h].susceptibles_list.empty(); t += dt)
+	{
+		std::vector<int> store_old_list = househ[h].susceptibles_list;
+		for (int i : store_old_list)
+		{
+			// set new status for computations
+			househ[h].change_status(i, INFECTIOUS);
+			indiv[i].set_augm("onset_time", t + uniform() * dt + indiv[i].get_augm("incub_period"));
+			store_augm_var_dependecies(i);
+
+#ifdef TEST_EPI_CURVE
+			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
+#else
+			comm_risk_inst = get_value("alpha");
+#endif
+			proba = 1. - exp(-indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
+
+			// refuse new status
+			if (uniform() >= proba)
+			{
+				househ[h].change_status(i, SUSCEPTIBLE);
+				store_augm_var_dependecies(i);
+			}
+		}
+	}
+}
+
+/* Output formatter */
+void Model::format_simulation()
+{
 	for (int i = 0; i < num_indiv; i++)
 	{
-		if (indiv[i].get_status() == SYMPTOMATIC)
+		if (indiv[i].get_status() == INFECTIOUS)
 		{
 			if (indiv[i].get_augm("onset_time") > indiv[i].get_data("study_period"))
 			{
-				indiv[i].set_status(HEALTHY);
+				indiv[i].set_status(SUSCEPTIBLE);
 			}
 			else
 			{
@@ -478,7 +480,7 @@ void Model::simulate_infection()
 			}
 		}
 
-		if (indiv[i].get_status() == HEALTHY)
+		if (indiv[i].get_status() == SUSCEPTIBLE)
 		{
 			indiv[i].set_augm("onset_time", 1000);
 			indiv[i].set_augm("incub_period", 0);

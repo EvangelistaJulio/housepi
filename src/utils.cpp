@@ -68,7 +68,7 @@ void raise_warning_message(std::string &message, bool *is_warn_to_be_raised)
     if (*is_warn_to_be_raised)
     {
         std::cerr << std::endl;
-        std::cerr << "WARNING: " << message << "\nIf this was intentional, ignore this message."
+        std::cerr << "WARNING: " << message << "\nIf it was intentional, ignore this message."
                   << std::endl;
         *is_warn_to_be_raised = false;
     }
@@ -152,7 +152,7 @@ double Uniform_Distr::log_pdf(double x)
 }
 
 /* uniform probability density function */
-double Uniform_Distr::log_ratio(double x, double y)
+double Uniform_Distr::logratio(double x, double y)
 {
     (void)x;
     (void)y;
@@ -189,7 +189,7 @@ double Normal_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the normal probability density function */
-double Normal_Distr::log_ratio(double x, double y)
+double Normal_Distr::logratio(double x, double y)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -238,7 +238,7 @@ double Lognorm_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the lognormal probability density function */
-double Lognorm_Distr::log_ratio(double x, double y)
+double Lognorm_Distr::logratio(double x, double y)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -288,7 +288,7 @@ double Gamma_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the gamma probability density function */
-double Gamma_Distr::log_ratio(double x, double y)
+double Gamma_Distr::logratio(double x, double y)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -325,7 +325,7 @@ double Weibull_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the weibull probability density function */
-double Weibull_Distr::log_ratio(double x, double y)
+double Weibull_Distr::logratio(double x, double y)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -372,7 +372,7 @@ double Rayleigh_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the rayleigh probability density function */
-double Rayleigh_Distr::log_ratio(double x, double y)
+double Rayleigh_Distr::logratio(double x, double y)
 {
     double scale = get_arg(0);
     return log(y / x) + 0.5 * pow(scale, -2) * (pow(x, 2) - pow(y, 2));
@@ -416,7 +416,7 @@ double Exponential_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the exponential probability density function */
-double Exponential_Distr::log_ratio(double x, double y)
+double Exponential_Distr::logratio(double x, double y)
 {
     double rate = get_arg(0);
     return rate * (x - y);
@@ -446,7 +446,7 @@ double Exponential_Distr_int::log_pdf(double x)
     return -rate * floor(x) + log(1 - exp(-rate));
 }
 
-double Exponential_Distr_int::log_ratio(double x, double y)
+double Exponential_Distr_int::logratio(double x, double y)
 {
     double rate = get_arg(0);
     return rate * (floor(x) - floor(y));

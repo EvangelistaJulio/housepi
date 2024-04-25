@@ -39,7 +39,11 @@ Base_Proposer::Base_Proposer(
 /* increase spread if acceptation rate is high and viceversa */
 void Base_Proposer::adapt(double ratio, double target)
 {
+    // linear
     double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
+    
+    // quadratic 
+    //double factor = 1. + sqrt(1. - ratio) * (get_accept_rate() - target);
 
     for (int argID : args_to_adapt)
     {
@@ -204,11 +208,11 @@ std::string Parameter::message_to_display_diagnostics()
 // -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////
-//////// Parameter_Dictionary : methods ///////////////////
+//////// Monte_Carlo_Core : methods ///////////////////
 ///////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise exits. */
-void Parameter_Dictionary::assert_param(const std::string k)
+void Monte_Carlo_Core::assert_param(const std::string k)
 {
     if (params.find(k) == params.end())
     {
@@ -218,8 +222,8 @@ void Parameter_Dictionary::assert_param(const std::string k)
     }
 }
 
-/* add_param */
-void Parameter_Dictionary::add_param(
+/* add_parameter */
+void Monte_Carlo_Core::add_parameter(
     const std::string parID,
     double new_val,
     std::string prior_name,
@@ -228,7 +232,12 @@ void Parameter_Dictionary::add_param(
     sdargs strat_args,
     sdargs value_range)
 {
-    Parameter new_param(new_val, prior_name, prior_args, strat_name, strat_args, value_range);
+    Parameter new_param(new_val,
+                        prior_name,
+                        prior_args,
+                        strat_name,
+                        strat_args,
+                        value_range);
 
     if (params.find(parID) == params.end())
     {
@@ -253,24 +262,33 @@ void Parameter_Dictionary::add_param(
 }
 
 /* randomly initialize values of the parameters to be inferred */
-void Parameter_Dictionary::init_rand_params(std::mt19937_64 &rng)
+void Monte_Carlo_Core::init_rand_params()
 {
+    int num_attempts = 0;
     double new_value;
+
     for (std::string parID : param_to_be_inferred)
     {
-        new_value = params.at(parID).prior_rand(rng);
+        new_value = params.at(parID).prior_rand(prng);
         while (params.at(parID).valid(new_value) == false)
         {
-            new_value = params.at(parID).prior_rand(rng);
+            if (num_attempts >= MAX_NUMBER_ATTEMPTS)
+            {
+                std::string err_text = "Number of attempts exceeded in random initialization of `" + parID + "`.";
+                raise_error_message(err_text);
+                std::exit(EXIT_FAILURE);
+            }
+            num_attempts++;
+            new_value = params.at(parID).prior_rand(prng);
         }
         set_value(parID, new_value);
     }
 }
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-bool Parameter_Dictionary::propose_valid_param_move(const std::string parID, std::mt19937_64 &rng)
+bool Monte_Carlo_Core::propose_valid_param_move(const std::string parID)
 {
-    double new_value = params.at(parID).propose(rng); // propose new value
+    double new_value = params.at(parID).propose(prng); // propose new value
 
     // proceed only if valid
     if (params.at(parID).valid(new_value))
@@ -278,9 +296,9 @@ bool Parameter_Dictionary::propose_valid_param_move(const std::string parID, std
         // store old value into buffer
         buffer_value = get_value(parID);
         // add the prior logratio to buffer
-        buffer_log_ratio = params.at(parID).prior_log_ratio(buffer_value, new_value);
+        buffer_logratio = params.at(parID).prior_logratio(buffer_value, new_value);
         // add the proposal logratio to buffer
-        buffer_log_ratio -= params.at(parID).propose_log_ratio(buffer_value, new_value);
+        buffer_logratio -= params.at(parID).propose_logratio(buffer_value, new_value);
         // set the new value of the parameter for computations
         set_value(parID, new_value);
         return true;
@@ -294,20 +312,20 @@ bool Parameter_Dictionary::propose_valid_param_move(const std::string parID, std
 }
 
 /* move is accepted */
-void Parameter_Dictionary::accept_param_move(const std::string parID)
+void Monte_Carlo_Core::accept_param_move(const std::string parID)
 {
     params.at(parID).update_accept_rate(true);
 }
 
 /* move is refused: restore old value in the buffer */
-void Parameter_Dictionary::refuse_param_move(const std::string parID)
+void Monte_Carlo_Core::refuse_param_move(const std::string parID)
 {
     set_value(parID, buffer_value);
     params.at(parID).update_accept_rate(false);
 }
 
 /* Update the diagnostics of all parameters */
-void Parameter_Dictionary::update_diagnostics()
+void Monte_Carlo_Core::update_diagnostics()
 {
     for (std::string parID : param_to_be_inferred)
     {
@@ -316,11 +334,11 @@ void Parameter_Dictionary::update_diagnostics()
 }
 
 ///////////////////////////////////////////////////////////
-//////// Parameter_Dictionary : display ///////////////////
+//////// Monte_Carlo_Core : display ///////////////////
 ///////////////////////////////////////////////////////////
 
 /* display the user model parameters */
-void Parameter_Dictionary::display_parameters()
+void Monte_Carlo_Core::display_parameters()
 {
     if (Verbose)
     {
@@ -344,7 +362,7 @@ void Parameter_Dictionary::display_parameters()
 }
 
 /* display the diagnostics */
-void Parameter_Dictionary::display_diagnostics()
+void Monte_Carlo_Core::display_diagnostics()
 {
     std::cout << "name" << DELIM << "value" << DELIM << "value_sd";
     for (size_t k = 2; k < param_file_required_headers.size(); k++)

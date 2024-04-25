@@ -21,22 +21,20 @@
 // default acceptation rate for MCMC
 #define DEFAULT_ACCEPT_RATE 0.24
 
-//=====Forward declaration of the Infectivity Profile Function=====//
-class Infectivity_Profile_Function;
+// print also adaptive iterations 
+//#define PRINT_ADAPT_ITER
 
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : Class ////////////////////////// //
 ////////////////////////////////////////////////////////////////////////
 
-class MCMC : public Parameter_Dictionary
+class MCMC : public Monte_Carlo_Core
 {
 protected:
-	int setup_seed = time(NULL); // default random seed 
+	int setup_seed = time(NULL); // default random seed
 	int setup_num_iter = 20000;
 	int setup_num_adapt_iter = 5000;
 	int setup_thinning = 20;
-	std::mt19937_64 rng;
-	std::uniform_real_distribution<double> uniform;
 
 	// classes to deal individuals and households
 	Individual *indiv;
@@ -54,7 +52,6 @@ protected:
 	std::set<std::string> augm_with_model_set = {};
 
 	// model auxiliary objects
-	Infectivity_Profile_Function *infec_profile_func;
 	const double **contact_patterns;
 
 	// auxiliary variables to compute Bayesian diagnostics
@@ -63,15 +60,6 @@ protected:
 	long double dgn_sum_sqr_loglike = 0.;
 
 public:
-	//=====Constructors=====//
-	MCMC() : uniform(0.0, 1.0) {}
-	virtual ~MCMC(){};
-
-	//=====deal with flatten matrices=====//
-	// FIXME : move inside households for coherency
-	int from_to(int from, int to) { return from * num_indiv + to; }
-	double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
-
 	//=====Build data and parameters=====//
 	// load standard files
 	void build_setup(std::string data_pathtofile);
@@ -89,9 +77,8 @@ public:
 	void assign_augmented_variables();
 	void init_augmented_variable(std::string augmID);
 	virtual void assign_rate_per_group_to_individual(int i);
-	virtual void assign_rate_per_contact(int i, int k);
+	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
-	virtual void assign_infec_profile_function(){};
 	virtual void initialize_model(){};
 
 	virtual double get_infec_time(int i) const;
@@ -109,21 +96,23 @@ public:
 	void reset_moves();
 	void single_param_move(std::string parID);
 	void move_all_parameters();
+	double single_household_augm_move(int h);
+	double get_augm_accept_rate(std::string augmID);
 	void move_all_augm_variables();
 	void move_and_adapt_all_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
 	void update_model_diagnostics();
 	void display_model_diagnostics();
 
 	//=====infer=====//
-	virtual void inference(
-		std::string output_filename, 
-		bool is_rand_params = false, 
-		double inv_temperature = 1.0
-		);
+	void inference(
+		std::string output_filename,
+		bool is_rand_params = false,
+		double inv_temperature = 1.0);
 
 	//=====simulate=====//
-	virtual void simulate_infection(){};
-	virtual void simulation(std::string output_filename);
+	virtual void simulate_single_house(int h);
+	virtual void format_simulation(){};
+	void simulation();
 
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
@@ -132,6 +121,11 @@ public:
 
 	//=====Save augmented variables=====//
 	void print_augm_variables(std::string output_filename);
+	
+	//=====deal with flatten matrices=====//
+	// FIXME : move inside households for coherency
+	int from_to(int from, int to) { return from * num_indiv + to; }
+	double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
 
 private:
 	double global_loglike = 0.0;
@@ -144,9 +138,6 @@ private:
 	// outoput parameter file
 	std::ofstream param_ofstream;
 	std::map<std::string, std::map<std::string, int>> model_report = {};
-	// accpetance rates
-	std::unordered_map<std::string, int> m_num_accept_data = {};
-	std::unordered_map<std::string, int> m_num_propos_data = {};
 	// temporary loader for augmented variable definition
 	std::vector<ssargs> load_augm_definition = {};
 

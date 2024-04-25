@@ -3,8 +3,6 @@
 
 #include "individual.h"
 
-#define MAX_NUMBER_ATTEMPTS 10
-
 ////////////////////////////////////////////////////////////////////////
 // /////////////////// Individual : Constructor ///////////////////// //
 ////////////////////////////////////////////////////////////////////////
@@ -91,25 +89,22 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	}
 }
 
-double Individual::augm_model_log_pdf(std::string augmID)
+/* Propose a new value for the augmented variable. */
+double Individual::augm_propose(std::string augmID, std::mt19937_64 &prng)
 {
-	double new_val = augm_var.at(augmID).get_value();
-	return augm_var.at(augmID).model_log_pdf(new_val);
+	return augm_var.at(augmID).propose(prng);
 }
 
-double Individual::augm_model_log_ratio(std::string augmID, double old_val, double new_val)
+/* Log ratio of the proposal rule associated to the move old_value to new_value. */
+double Individual::augm_propose_logratio(std::string augmID, double old_value, double new_value)
 {
-	return augm_var.at(augmID).model_log_ratio(old_val, new_val);
+	return augm_var.at(augmID).propose_logratio(old_value, new_value);
 }
 
-double Individual::augm_propose(std::string augmID, std::mt19937_64 &rng)
+/* Log ratio of the model associated to the move old_value to new_value.  */
+double Individual::augm_model_logratio(std::string augmID, double old_value, double new_value)
 {
-	return augm_var.at(augmID).propose(rng);
-}
-
-double Individual::augm_propose_log_ratio(std::string augmID, double old_val, double new_val)
-{
-	return augm_var.at(augmID).propose_log_ratio(old_val, new_val);
+	return augm_var.at(augmID).model_logratio(old_value, new_value);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -143,11 +138,11 @@ double Household::get_data(std::string dataID) const
 void Household::link_individual(int i, int status)
 {
 	// status list
-	if (status == SYMPTOMATIC)
+	if (status == INFECTIOUS)
 	{
 		infectious_list.push_back(i);
 	}
-	else if (status == HEALTHY)
+	else if (status == SUSCEPTIBLE)
 	{
 		susceptibles_list.push_back(i);
 	}
@@ -177,7 +172,7 @@ std::vector<int> Household::get_house_members()
 }
 
 /* Change_status of individual i to new status (without controls).
-	WARNING : this introduce augmented variables -> it requires RJMCMC in case of inference.*/
+	WARNING : this introduces augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(int i, int new_status)
 {
 	int old_status = (*indiv_ptr)[i].get_status();
@@ -185,11 +180,11 @@ void Household::change_status(int i, int new_status)
 	if (old_status != new_status)
 	{
 		// erase individual i from previous list
-		if (old_status == HEALTHY)
+		if (old_status == SUSCEPTIBLE)
 		{
 			susceptibles_list.erase(find(susceptibles_list.begin(), susceptibles_list.end(), i));
 		}
-		else if (old_status == SYMPTOMATIC)
+		else if (old_status == INFECTIOUS)
 		{
 			infectious_list.erase(find(infectious_list.begin(), infectious_list.end(), i));
 		}
@@ -199,11 +194,11 @@ void Household::change_status(int i, int new_status)
 		}
 
 		// add individual i to new list
-		if (new_status == HEALTHY)
+		if (new_status == SUSCEPTIBLE)
 		{
 			susceptibles_list.push_back(i);
 		}
-		else if (new_status == SYMPTOMATIC)
+		else if (new_status == INFECTIOUS)
 		{
 			infectious_list.push_back(i);
 		}
@@ -215,6 +210,20 @@ void Household::change_status(int i, int new_status)
 		// change the status of individual to new
 		(*indiv_ptr)[i].set_status(new_status);
 	}
+}
+
+/* Set to zero the counts of given augmented variables moves. */
+void Household::reset_augm_accept_rate(std::string augmID)
+{
+	num_accept_augm_moves[augmID] = 0;
+	num_propos_augm_moves[augmID] = 0;
+}
+
+/* Update counts for acceptance rate of given augemented variable. */
+void Household::update_augm_accept_rate(std::string augmID, bool is_accepted)
+{
+	num_accept_augm_moves[augmID] += is_accepted;
+	num_propos_augm_moves[augmID]++;
 }
 
 /* update the values for the Bayesian diagnostics */

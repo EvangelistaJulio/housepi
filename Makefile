@@ -45,5 +45,4 @@ $(SRCDIR)/main.o: $(SRCDIR)/main.cpp
 clean:
 	rm -rf ./*.o
 	rm -rf src/*.o
-	rm -rf models/*.o
 	rm -rf ${FLDR}/*.o

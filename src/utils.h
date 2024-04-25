@@ -94,7 +94,7 @@ public:
     //=====Virtual functions=====//
     virtual double pdf(double x) = 0;
     virtual double log_pdf(double x) = 0;
-    virtual double log_ratio(double x, double y) = 0;
+    virtual double logratio(double x, double y) = 0;
     virtual double rand(std::mt19937_64 &rng) = 0;
 };
 
@@ -117,11 +117,11 @@ public:
         UNUSED(x);
         return undefined_call_error();
     }
-    double log_ratio(double x, double y) override
+    double logratio(double x, double y) override
     {
         UNUSED(x);
         UNUSED(y);
-        return undefined_call_error();
+        return 0.0;
     }
     double rand(std::mt19937_64 &rng) override
     {
@@ -151,7 +151,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
+    double logratio(double x, double y) override;
     double rand(std::mt19937_64 &rng) override;
 };
 
@@ -168,7 +168,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -181,7 +181,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Normal_Distr::rand(rng)); }
 };
 
@@ -198,7 +198,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -211,7 +211,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Lognorm_Distr::rand(rng)); }
 };
 
@@ -228,7 +228,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -247,7 +247,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -260,7 +260,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Weibull_Distr::rand(rng)); }
 };
 
@@ -277,7 +277,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -290,7 +290,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
-    double log_ratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
     double rand(std::mt19937_64 &rng) override { return round(Rayleigh_Distr::rand(rng)); }
 };
 
@@ -307,7 +307,7 @@ public:
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
-    virtual double log_ratio(double x, double y) override;
+    virtual double logratio(double x, double y) override;
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
@@ -320,7 +320,7 @@ public:
 
     double pdf(double x) override;
     double log_pdf(double x) override;
-    double log_ratio(double x, double y) override;
+    double logratio(double x, double y) override;
     double rand(std::mt19937_64 &rng) override { return round(Exponential_Distr::rand(rng)); }
 };
 

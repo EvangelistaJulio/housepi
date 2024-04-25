@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 {
     int carg_i = 1;          // Command line argument iterator
     double inver_temp = 1.0; // Inverse temperature
-    bool infer = false, simulate = false;
+    bool is_infer = false, is_simulate = false;
     bool rand_init_params = false;
     int num_threads =1;
     std::string setup_pathtofile = UNDEFINED;
@@ -60,13 +60,13 @@ int main(int argc, char *argv[])
         else if (std::string(argv[carg_i]) == std::string("-infer"))
         {
             // Command line asking for infer
-            infer = true;
+            is_infer = true;
         }
 
         else if (std::string(argv[carg_i]) == std::string("-simulate"))
         {
             // Command line asking for simulate
-            simulate = true;
+            is_simulate = true;
         }
 
         else if (std::string(argv[carg_i]) == std::string("-v") || std::string(argv[carg_i]) == std::string("--verbose"))
@@ -194,20 +194,21 @@ int main(int argc, char *argv[])
 
     // UPDATE : complete check for options validity
 
-    if (infer && simulate)
+    if (is_infer && is_simulate)
     {
         std::string err_text = "Incompatible commands: choose one between -infer and -simulate.";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
-    else if (infer)
+    else if (is_infer)
     { // Parameter Inference
         user_model.inference(output_pathtofile, rand_init_params, inver_temp);
         user_model.print_augm_variables(save_augm_pathtofile);
     }
-    else if (simulate)
+    else if (is_simulate)
     { // Simulation Study
-        user_model.simulation(output_pathtofile);
+        user_model.simulation();
+        user_model.print_augm_variables(output_pathtofile);
     }
 
     display_decorator("END");

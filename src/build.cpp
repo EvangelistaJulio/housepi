@@ -32,7 +32,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
         if (input.is_open())
         {
             display_decorator("SETUP");
-            display_stdout("Setup file: " + setup_pathtofile);
+            display_stdout("Loaing setup from: " + setup_pathtofile);
 
             // Create a std::stringstream of the current line
             for (std::string line; getline(input, line);)
@@ -81,7 +81,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
     }
 
     //=====Pseudo-Random Number Generator Seeding=====//
-    rng.seed(setup_seed);
+    prng_seed(setup_seed);
 
     //=====Display=====//
     if (Verbose)
@@ -112,7 +112,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
     if (input.is_open())
     {
         display_decorator("PARAMETERS");
-        display_stdout("Parameters file: " + data_pathtofile);
+        display_stdout("Loading parameters definition from: " + data_pathtofile);
 
         //=====Load column headers=====//
         std::vector<std::string> headers = read_column_headers(input, DELIM);
@@ -133,7 +133,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
             // add entry to shared parameter dictionary
             if (stobool(this_row.at("infer")))
             {
-                add_param(
+                add_parameter(
                     this_row["name"],
                     std::stod(this_row["value"]),
                     this_row["prior"],
@@ -144,7 +144,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
             }
             else
             {
-                add_param(this_row.at("name"), stod(this_row.at("value")));
+                add_parameter(this_row.at("name"), stod(this_row.at("value")));
             }
         }
 
@@ -178,8 +178,8 @@ void MCMC::build_data(std::string data_pathtofile)
 
     if (input.is_open())
     {
-        display_decorator("DATA");
-        display_stdout("Data file: " + data_pathtofile);
+        display_decorator("DATABASE");
+        display_stdout("Loading data from: " + data_pathtofile);
 
         //=====Load column headers=====//
         data_headers = read_column_headers(input, DELIM);
@@ -209,11 +209,11 @@ void MCMC::build_data(std::string data_pathtofile)
         for (Individual this_indiv : aux_individuals)
         {
             add_individual(this_indiv);
-            if (this_indiv.get_status() == SYMPTOMATIC)
+            if (this_indiv.get_status() == INFECTIOUS)
             {
                 num_cases++;
             }
-            else if (this_indiv.get_status() != HEALTHY)
+            else if (this_indiv.get_status() != SUSCEPTIBLE)
             {
                 num_unknown_status++;
             }
@@ -222,56 +222,97 @@ void MCMC::build_data(std::string data_pathtofile)
         //=====assign structure of the community=====//
         assign_community_structure("HH_idx"); // FIXME : HH_idx is found where??
 
+        // database analysis
+        int min_house_size = 1000, max_house_size = 0;
+        int no_house_cases = 0, atleast_one_case = 0, atleast_two_cases = 0;
+        for (int h = 0; h < num_househ; h++)
+        {
+            min_house_size = std::min(househ[h].house_size, min_house_size);
+            max_house_size = std::max(househ[h].house_size, max_house_size);
+            int aux = househ[h].infectious_list.size();
+            if (aux == 0)
+            {
+                no_house_cases++;
+            }
+            else
+            {
+                atleast_one_case++;
+                if (aux > 1)
+                {
+                    atleast_two_cases++;
+                }
+            }
+        }
+
         //=====initialize contact patterns=====//
-        // FIXME : this should be optional
-        // FIXME : missing report
+        // UPDATE: this scale like individuls, but could scale as househodls
+        // NOTE : however the indexes are tricky to be mapped back
         contact_patterns = new const double *[num_indiv * num_indiv];
         std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
 
-        for (int i = 0; i < num_indiv; i++)
+        // FIXME : missing report and control
+        for (int h = 0; h < num_househ; h++)
         {
-            //-----contact patters-----//
-            // FIXME : there should be a control also here
-            for (int k = 0; k < i; k++)
+            for (int i : househ[h].get_house_members())
             {
-                assign_rate_per_contact(i, k);
-                assign_rate_per_contact(k, i);
-            }
-        }
-
-        //=====clean up list of headers for output files=====//
-        data_headers.erase(find(data_headers.begin(), data_headers.end(), "index"));
-        data_headers.erase(find(data_headers.begin(), data_headers.end(), "status"));
-        for (std::string augmID : augm_full_set)
-        {
-            auto it = find(data_headers.begin(), data_headers.end(), augmID);
-            if (it != data_headers.end())
-            {
-                data_headers.erase(it);
-            }
-        }
-
-        //=====Display Model Summary=====//
-        if (Verbose)
-        {
-            display_decorator("MODEL SUMMARY", '-', 1);
-            std::cout << "N. of individuals : " << num_indiv << std::endl;
-            std::cout << "N. of households : " << num_househ << std::endl;
-            std::cout << "N. of cases : " << num_cases << std::endl;
-            if (num_unknown_status > 0)
-            {
-                std::cout << "N. of missing status : " << num_unknown_status << std::endl;
-            }
-
-            for (const auto &which : model_report)
-            {
-                std::cout << which.first << " : " << std::endl;
-                for (auto const &x : which.second)
+                for (int k : househ[h].get_house_members())
                 {
-                    std::cout << "    * " << x.first << " : " << x.second;
-                    std::cout << std::setprecision(2) << std::fixed << " (" << (100.0 * x.second / num_indiv) << " %)" << std::endl;
+                    if (i != k)
+                    {
+                        std::string parID = assign_rate_per_contact(i, k);
+                        if (parID == REFERENCE)
+                        {
+                            contact_patterns[from_to(i, k)] = get_reference();
+                        }
+                        else
+                        {
+                            contact_patterns[from_to(i, k)] = get_address(parID);
+                        }
+                    }
                 }
             }
+        }
+
+        //=====Display General Information=====//
+        if (Verbose)
+        {
+            std::ostringstream oss;
+
+            //-----Display Database Summary-----//
+            display_decorator("DATABASE::summary", '-', 1);
+            oss << "N. of individuals: " << num_indiv
+                << "\nN. of cases: " << num_cases;
+            if (num_unknown_status > 0)
+            {
+                oss << "\nN. of missing status : " << num_unknown_status;
+            }
+            oss << "\nN. of households: " << num_househ
+                << "\n    * with no cases: " << no_house_cases
+                << std::fixed << std::setprecision(2) << " (" << (100.0 * no_house_cases / num_househ) << " %)"
+                << "\n    * with at least 1 case: " << atleast_one_case
+                << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_one_case / num_househ) << " %)"
+                << "\n    * with at least 2 cases: " << atleast_two_cases
+                << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_two_cases / num_househ) << " %)"
+                << "\nMin n. house members: " << min_house_size
+                << "\nMax n. house members: " << max_house_size;
+            display_stdout(oss.str());
+            oss.str("");
+            oss.clear();
+
+            //-----Display Model Report-----//
+            display_decorator("DATABASE::groups", '-', 1);
+            for (const auto &which : model_report)
+            {
+                oss << which.first << ": \n";
+                for (auto const &x : which.second)
+                {
+                    oss << "    * " << x.first << ": " << x.second
+                        << std::fixed << std::setprecision(2) << " (" << (100.0 * x.second / num_indiv) << " %)\n";
+                }
+            }
+            display_stdout(oss.str());
+            oss.str("");
+            oss.clear();
         }
         model_report.clear();
     }
@@ -307,10 +348,10 @@ void MCMC::add_individual(Individual new_indiv)
     num_indiv++;
 
     //=====check for the validity of the status=====//
-    if ((status != HEALTHY) && (status != SYMPTOMATIC))
+    if ((status != SUSCEPTIBLE) && (status != INFECTIOUS))
     {
         std::string warn_text = "Unknown status `" + std::to_string(status) + "`.";
-        warn_text += " Use " + std::to_string(HEALTHY) + "/" + std::to_string(SYMPTOMATIC) + " for healthy/non-healthy state.";
+        warn_text += " Use " + std::to_string(SUSCEPTIBLE) + "/" + std::to_string(INFECTIOUS) + " for healthy/non-healthy state.";
         warn_text += "\n If it was intentional, ignore this message.";
         raise_warning_message(warn_text, &Unknown_Status_Warning);
     }
@@ -406,7 +447,7 @@ void MCMC::assign_community_structure(std::string HH_index_column)
     for (const auto &pair : load_househ)
     {
         househ[h] = pair.second;
-        househ[h].set_indiv_ptr(&indiv); // associate the array of individuals to the Structure
+        househ[h].set_indiv_ptr(&indiv); // associate MCMC array of individuals to the Structure
         h++;
     }
     load_househ.clear(); // clear the loading dictionary
@@ -444,7 +485,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
         if (input.is_open())
         {
             display_decorator("AUGMENTED");
-            display_stdout("Augmented Variable file: " + data_pathtofile);
+            display_stdout("Loading augmented definition from: " + data_pathtofile);
 
             //=====Load column headers=====//
             std::vector<std::string> headers = read_column_headers(input, DELIM);
@@ -492,14 +533,17 @@ void MCMC::assign_augmented_variables()
         augmID = loader.at("name");
         augm_full_set.emplace(augmID);
 
-        if (loader.at("model") != UNDEFINED)
+        // list of augmented variables to be inferred
+        if (loader.at("strategy") != UNDEFINED)
         {
             augm_to_be_inferred.emplace(augmID);
-        }
 
-        if (loader.at("model") != UNDEFINED)
-        {
-            augm_with_model_set.emplace(augmID);
+            // list of augmented variables with a model
+            // note: no contribution of constant variables to Metropolis
+            if (loader.at("model") != UNDEFINED)
+            {
+                augm_with_model_set.emplace(augmID);
+            }
         }
     }
     is_data_augmentation = !augm_to_be_inferred.empty();
@@ -525,11 +569,12 @@ void MCMC::assign_augmented_variables()
     load_augm_definition.clear();
 }
 
+/* Initialize augmented variable for all individuals */
 void MCMC::init_augmented_variable(std::string augmID)
 {
     for (int i = 0; i < num_indiv; i++)
     {
-        indiv[i].init_augm(augmID, rng);
+        indiv[i].init_augm(augmID, prng);
     }
 }
 
@@ -585,7 +630,7 @@ void MCMC::print_parameters(int step)
         param_ofstream << step << DELIM << std::setprecision(2) << std::fixed << get_global_loglike();
         for (std::string augmID : augm_to_be_inferred)
         {
-            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * m_num_accept_data[augmID] / m_num_propos_data[augmID];
+            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
         }
         for (std::string parID : param_to_be_inferred)
         {
@@ -617,7 +662,19 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         if (augm_ofstream.is_open())
         {
             display_decorator("", '-', 1);
-            display_stdout("Augmented variable file: " + save_augm_pathtofile);
+            display_stdout("Saving augmented database to: " + save_augm_pathtofile);
+
+            //=====Clean up list of headers for output files=====//
+            data_headers.erase(find(data_headers.begin(), data_headers.end(), "index"));
+            data_headers.erase(find(data_headers.begin(), data_headers.end(), "status"));
+            for (std::string augmID : augm_full_set)
+            {
+                auto it = find(data_headers.begin(), data_headers.end(), augmID);
+                if (it != data_headers.end())
+                {
+                    data_headers.erase(it);
+                }
+            }
 
             //=====Print column headers=====//
             augm_ofstream << "index" << DELIM << "status";

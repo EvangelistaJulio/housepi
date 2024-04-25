@@ -15,8 +15,8 @@
 #include "varia.h"
 
 // model
-#define HEALTHY 0
-#define SYMPTOMATIC 1
+#define SUSCEPTIBLE 0
+#define INFECTIOUS 1
 
 /////////////////////////////////////////////////////////
 ///////// Individual : Class declaration ///////////////
@@ -59,19 +59,19 @@ public:
 	//=====Augmented Variables=====//
 	void add_augm(std::string augmID, Augmented new_augm);
 	void init_augm(std::string augmID, std::mt19937_64 &rng);
-	void set_augm(std::string augmID, double new_val) { augm_var.at(augmID).set_value(new_val); }
+	void set_augm(std::string augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
 	bool get_augm_infer(std::string augmID) const { return augm_var.at(augmID).get_infer(); }
 	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
 
 	//=====Augmented Variables: Model distribution=====//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
-	double augm_model_log_pdf(std::string augmID);
-	double augm_model_log_ratio(std::string augmID, double old_value, double new_val);
+	double augm_model_log_pdf(std::string augmID) {	return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value());}
+	double augm_model_logratio(std::string augmID, double old_value, double new_value);
 
 	//=====Augmented Variables: Proposer=====//
 	double augm_propose(std::string augmID, std::mt19937_64 &rng);
-	double augm_propose_log_ratio(std::string augmID, double old_value, double new_val);
-	bool augm_valid(std::string augmID, double new_val) { return augm_var.at(augmID).valid(new_val); }
+	double augm_propose_logratio(std::string augmID, double old_value, double new_value);
+	bool augm_valid(std::string augmID, double new_value) { return augm_var.at(augmID).valid(new_value); }
 };
 
 /////////////////////////////////////////////////////////
@@ -82,10 +82,16 @@ class Household
 {
 private:
 	int house_index = -1;
-	Individual **indiv_ptr = nullptr;
 	sdargs house_data = {};
+	Individual **indiv_ptr = nullptr; // pointer to individauls' list
+
+	// log-likelihood
 	double loglike = -INFINITY;
 	double buffer = -INFINITY;
+
+	// accpetance rates for augmented variables
+	std::unordered_map<std::string, int> num_accept_augm_moves = {};
+	std::unordered_map<std::string, int> num_propos_augm_moves = {};
 
 public:
 	//=====Attributes=====//
@@ -129,6 +135,11 @@ public:
 		loglike = new_loglike;
 	}
 	void refuse() { loglike = buffer; }
+
+	void reset_augm_accept_rate(std::string augmID);
+	void update_augm_accept_rate(std::string augmID, bool is_accepted);
+	int get_augm_accept_counts(std::string augmID) { return num_accept_augm_moves[augmID]; }
+	int get_augm_propos_counts(std::string augmID) { return num_propos_augm_moves[augmID]; }
 
 	// update the values for the Bayesian diagnostics
 	void update_diagnostics();

@@ -26,8 +26,8 @@ double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<do
 class Model : public MCMC
 {
 	void initialize_model() override;
-	double compute_single_house_loglike(int h) override;
-	void simulate_infection() override;
+	double compute_single_house_loglike(int h) override;	
+	void simulate_single_house(int h) override;
 };
 
 #endif // MODEL__H
