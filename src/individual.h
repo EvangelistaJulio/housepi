@@ -86,8 +86,8 @@ private:
 	Individual **indiv_ptr = nullptr; // pointer to individauls' list
 
 	// log-likelihood
-	double loglike = -INFINITY;
-	double buffer = -INFINITY;
+	double loglike = -INF_DOUBLE;
+	double buffer = -INF_DOUBLE;
 
 	// accpetance rates for augmented variables
 	std::unordered_map<std::string, int> num_accept_augm_moves = {};

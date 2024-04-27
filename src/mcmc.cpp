@@ -17,7 +17,7 @@ void MCMC::set_num_threads(int n)
 double MCMC::get_infec_time(int i) const
 {
     UNUSED(i);
-    return INFINITY;
+    return INF_DOUBLE;
 }
 
 /* Assign the contact patterns between a couple of individuals. */
@@ -40,7 +40,7 @@ Note: this structure assumes a single first infector.
 void MCMC::update_first_case(int h)
 {
     double t_infec;
-    double new_t0 = INFINITY; // NOTE: init to impossible values
+    double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
     int new_case0 = -1;       // NOTE: init to impossible values
 
     for (int i : househ[h].infectious_list)
@@ -104,7 +104,7 @@ void MCMC::reset_moves()
 /* Attempt to move a single parameter for the given inverse temperature. */
 void MCMC::single_param_move(std::string parID)
 {
-    double logQ = -INFINITY;
+    double logQ = -INF_DOUBLE;
     double new_global_loglike = 0.;
 
     // FLAG

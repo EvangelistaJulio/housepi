@@ -94,7 +94,7 @@ void Model::initialize_model()
 		// >>>> FIXME : temporary
 		if (househ[h].unknown_status_list.size() > 0)
 		{
-			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Cse not modeled yet.";
+			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
 			raise_error_message(err_txt);
 			std::exit(EXIT_FAILURE);
 		}
