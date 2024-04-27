@@ -36,9 +36,10 @@ void display_decorator(std::string text, char decor, int skip)
 /* Display percentual progress bar */
 void display_progress_bar(std::string prog_text, int progress, int total, char decor)
 {
-    if ((Verbose) && (total >= 100))
+    int thin_bar = 100;
+    if ((Verbose) && (total >= thin_bar))
     {
-        if ((progress % (total / 100)) == 0)
+        if ((progress % (total / thin_bar)) == 0)
         {
             float percentage = static_cast<float>(progress) / total;
             int bar_width = 60; // - prog_text.length();

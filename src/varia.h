@@ -35,7 +35,7 @@ public:
 	//=====Constructors=====//
 	Base_Proposer(
 		Distribution_1D *distr,
-		double strat_zero = INFINITY,
+		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {},
 		std::vector<int> args_to_adapt = {});
 	virtual ~Base_Proposer(){};
@@ -65,8 +65,8 @@ public:
 
 private:
 	//=====valid : functional methods=====//
-	double _range_min_ = -INFINITY;
-	double _range_max_ = INFINITY;
+	double _range_min_ = -INF_DOUBLE;
+	double _range_max_ = INF_DOUBLE;
 	bool (Base_Proposer::*_valid_func_)(double new_val);
 
 	bool _valid_range_min_(double x) { return (x > _range_min_); }
@@ -128,7 +128,7 @@ protected:
 	}
 };
 
-Base_Proposer *proposer_switchboard(std::string name = UNDEFINED, sdargs args = {}, double strat_zero = INFINITY, sdargs value_range = {});
+Base_Proposer *proposer_switchboard(std::string name = UNDEFINED, sdargs args = {}, double strat_zero = INF_DOUBLE, sdargs value_range = {});
 
 ///////////////////////////////////////////////////////////////////////
 // /////////////////// Undefined_Proposer : class ////////////////// //
@@ -156,7 +156,7 @@ public:
 	//=====Constructors=====//
 	Uniform_Proposer(
 		sdargs new_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
-		double strat_zero = INFINITY,
+		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"min", "max"})
 	{
 		_propose_method_ = &Uniform_Proposer::_add_to_previous_;
@@ -175,7 +175,7 @@ public:
 	//=====Constructor=====//
 	Normal_Proposer(
 		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double strat_zero = INFINITY,
+		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Normal_Proposer::_add_to_previous_;
@@ -194,7 +194,7 @@ public:
 	//=====Constructor=====//
 	Lognorm_Proposer(
 		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double strat_zero = INFINITY,
+		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Lognorm_Proposer::_times_previous_;
@@ -227,7 +227,7 @@ template <typename sdargs_int_or_ext>
 class Base_Parameter
 {
 protected:
-	double value = INFINITY;
+	double value = INF_DOUBLE;
 	bool infer = false;
 	Distribution_1D *distr_ptr = nullptr;
 	Base_Proposer *prop_ptr = nullptr;
@@ -240,7 +240,7 @@ public:
 		sdargs_int_or_ext distr_args = {},
 		std::string strat_name = UNDEFINED,
 		sdargs strat_args = {},
-		double strat_zero = INFINITY,
+		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {})
 	{
 		set_value(value);
@@ -318,7 +318,7 @@ public:
 												  prior_args,
 												  strat_name,
 												  strat_args,
-												  INFINITY, // is_zero_start() = false
+												  INF_DOUBLE, // is_zero_start() = false
 												  value_range){};
 
 	//=====Aliases=====//
@@ -411,7 +411,7 @@ public:
 		sdargs_ext model_args_ext = {},
 		std::string strat_name = UNDEFINED,
 		sdargs strat_args = {},
-		double strat_zero = INFINITY,
+		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Parameter(value,
 												  model_name,
 												  model_args_ext,

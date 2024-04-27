@@ -1,4 +1,4 @@
-// halloween.h //
+// single_introduction_augmented.h //
 
 #ifndef MODEL__H
 #define MODEL__H

@@ -19,7 +19,7 @@ Base_Proposer::Base_Proposer(
     args_to_adapt = list_of_args_to_adapt;
     set_range(value_range);
 
-    if (strategy_from_zero == INFINITY)
+    if (strategy_from_zero == INF_DOUBLE)
     {
         zero_start = false;
     }
@@ -149,16 +149,16 @@ std::string Base_Proposer::message_to_display()
 {
     std::string output = distr_ptr->message_to_display();
     output += DELIM;
-    if (_range_min_ > -INFINITY)
+    if (_range_min_ > -INF_DOUBLE)
     {
         std::string aux = "min";
         output += aux + DICT_DELIM + std::to_string(_range_min_);
-        if (_range_max_ < INFINITY)
+        if (_range_max_ < INF_DOUBLE)
         {
             output += DICT_DELIM;
         }
     }
-    if (_range_max_ < INFINITY)
+    if (_range_max_ < INF_DOUBLE)
     {
         std::string aux = "max";
         output += aux + DICT_DELIM + std::to_string(_range_max_);

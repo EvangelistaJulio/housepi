@@ -4,10 +4,10 @@
 #include "mcmc.h"
 
 // declaration for type in data file
-std::string TYPE_PARAM = "P";
-std::string TYPE_DATA = "D";
-std::string TYPE_SCALAR = "S";
-std::string TYPE_COMMAND = "C";
+std::string TYPE_PARAM = "P";       // Parameter type declaration
+std::string TYPE_DATA = "D";        // Data type declaration
+std::string TYPE_SCALAR = "S";      // Scalar type declaration
+std::string TYPE_COMMAND = "C";     // Command type declaration
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Auxiliary Functions /////////////////////// //
@@ -152,7 +152,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
     if (token == UNDEFINED)
     {
         // UPDATE : when does it make sense to have token == UNDEFINED ?
-        return INFINITY;
+        return INF_DOUBLE;
     }
     else
     {
@@ -176,7 +176,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
         {
             if (v == "default")
             {
-                return INFINITY;
+                return INF_DOUBLE;
             }
             else
             {

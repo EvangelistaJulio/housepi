@@ -1,14 +1,14 @@
 # If MODEL is not provided, set a default value
-MODEL ?= example/default_model.cpp
+MODEL ?= models/chain_binomial/chain_binomial.cpp
 
 # Trim the file extension
 NAME := $(notdir $(basename $(MODEL)))
 FLDR := $(shell dirname ${MODEL})
 MODEL_HEADER := $(NAME).h
 
-# List of source files
+# List of source files as found in the software directory
 SRCDIR := src
-EXCL_FILES := Rcpp_export_bindings.cpp # FIXME
+EXCL_FILES := Rcpp_export_bindings.cpp # FIXME (temporary)
 SOURCES := $(filter-out $(addprefix $(SRCDIR)/,$(EXCL_FILES)), $(wildcard $(SRCDIR)/*.cpp) $(FLDR)/$(NAME).cpp)
 
 # Object files to build (automatically generated from SRCS)
@@ -17,9 +17,29 @@ OBJECTS := $(SOURCES:.cpp=.o)
 # Executable name
 EXECUTABLE := $(FLDR)/$(NAME).exe
 
-# compiler and rules
-CXX := g++
+# Common compilation flags
 CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -fopenmp -I$(shell pwd)/$(SRCDIR)
+
+# Change options according to the operating system
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Linux)
+	CXX := g++
+
+else ifeq ($(UNAME_S),Darwin)
+	ifeq ($(shell command -v brew),)
+		$(error Homebrew is not installed. Please install Homebrew.)
+	endif		
+	
+	ifeq ($(shell brew list --versions llvm),)
+		$(error LLVM is not installed via Homebrew. Please install LLVM.)
+	endif
+	
+	CXX := $(shell brew --prefix)/opt/llvm/bin/clang++
+	CXXFLAGS += -I$(shell brew --prefix)/opt/llvm/include
+else
+	$(error Unsupported operating system.)
+endif
 
 # Make rules
 all: $(EXECUTABLE)
