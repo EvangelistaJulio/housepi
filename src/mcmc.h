@@ -22,7 +22,7 @@
 #define DEFAULT_ACCEPT_RATE 0.24
 
 // print also adaptive iterations 
-//#define PRINT_ADAPT_ITER
+#define PRINT_ADAPT_ITER
 
 ////////////////////////////////////////////////////////////////////////
 // ////////////////////////// MCMC : Class ////////////////////////// //
@@ -35,6 +35,7 @@ protected:
 	int setup_num_iter = 20000;
 	int setup_num_adapt_iter = 5000;
 	int setup_thinning = 20;
+	int setup_num_omp_threads = 1;
 
 	// classes to deal individuals and households
 	Individual *indiv;
@@ -50,6 +51,7 @@ protected:
 	std::set<std::string> augm_full_set = {};
 	std::set<std::string> augm_to_be_inferred = {};
 	std::set<std::string> augm_with_model_set = {};
+	std::set<std::string> augm_rand_init_set = {};
 
 	// model auxiliary objects
 	const double **contact_patterns;
@@ -80,6 +82,7 @@ public:
 	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
 	virtual void initialize_model(){};
+	void display_model_report();
 
 	virtual double get_infec_time(int i) const;
 	virtual void update_augm_var(int i, std::string augmID, double new_val);
@@ -101,7 +104,7 @@ public:
 	void move_all_augm_variables();
 	void move_and_adapt_all_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
 	void update_model_diagnostics();
-	void display_model_diagnostics();
+	void display_thin_results();
 
 	//=====infer=====//
 	void inference(
@@ -111,7 +114,7 @@ public:
 
 	//=====simulate=====//
 	virtual void simulate_single_house(int h);
-	virtual void format_simulation(){};
+	virtual void format_augmented_data(){};
 	void simulation();
 
 	//=====Save parameters=====//

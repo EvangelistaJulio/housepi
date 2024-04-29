@@ -84,13 +84,17 @@ void MCMC::build_setup(std::string setup_pathtofile)
     prng_seed(setup_seed);
 
     //=====Display=====//
-    if (Verbose)
+    display_decorator("SETUP::definitions", '-', 1);
+    std::ostringstream oss;
+    oss << "seed" << DELIM << setup_seed
+        << "\nnum_iter" << DELIM << setup_num_iter
+        << "\nnum_adapt_iter" << DELIM << setup_num_adapt_iter
+        << "\nthinning" << DELIM << setup_thinning;
+    if (setup_num_omp_threads > 1)
     {
-        std::cout << "\nseed: " << setup_seed << std::endl;
-        std::cout << "num_iter: " << setup_num_iter << std::endl;
-        std::cout << "num_adapt_iter: " << setup_num_adapt_iter << std::endl;
-        std::cout << "thinning: " << setup_thinning << std::endl;
+        oss << "\nnum_threads" << DELIM << setup_num_omp_threads;
     }
+    display_stdout(oss.str());
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -149,6 +153,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         }
 
         //=====display a summary of the used parameters=====//
+        display_decorator("PARAMETERS::definitions", '-', 1);
         display_parameters();
     }
     else
@@ -165,6 +170,41 @@ void MCMC::build_parameters(std::string data_pathtofile)
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
+
+void MCMC::display_model_report()
+{
+    if (Verbose)
+    {
+        // check if user defined groups other than reference
+        bool has_non_reference_groups = false;
+        if (!model_report.empty())
+        {
+            for (const auto &entry : model_report)
+            {
+                if (entry.second.size() > 1)
+                {
+                    has_non_reference_groups = true;
+                    break;
+                }
+            }
+        }
+        if (has_non_reference_groups)
+        {
+            std::ostringstream oss;
+            display_decorator("DATABASE::groups", '-', 1);
+            for (const auto &which : model_report)
+            {
+                oss << which.first << ":";
+                for (auto const &x : which.second)
+                {
+                    oss << "\n    * " << x.first << ": " << x.second
+                        << std::fixed << std::setprecision(2) << " (" << (100.0 * x.second / num_indiv) << " %)";
+                }
+            }
+            display_stdout(oss.str());
+        }
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////// MCMC : build_data //////////////////////////////////////// //
@@ -281,15 +321,19 @@ void MCMC::build_data(std::string data_pathtofile)
             //-----Display Database Summary-----//
             display_decorator("DATABASE::summary", '-', 1);
             oss << "N. of individuals: " << num_indiv
-                << "\nN. of cases: " << num_cases;
+                << "\n    * N. of cases: " << num_cases
+                << std::fixed << std::setprecision(2) << " (" << (100.0 * num_cases / num_indiv) << " %)";
             if (num_unknown_status > 0)
             {
                 oss << "\nN. of missing status : " << num_unknown_status;
             }
-            oss << "\nN. of households: " << num_househ
-                << "\n    * with no cases: " << no_house_cases
-                << std::fixed << std::setprecision(2) << " (" << (100.0 * no_house_cases / num_househ) << " %)"
-                << "\n    * with at least 1 case: " << atleast_one_case
+            oss << "\nN. of households: " << num_househ;
+            if (no_house_cases > 0)
+            {
+                oss << "\n    * with no cases: " << no_house_cases
+                    << std::fixed << std::setprecision(2) << " (" << (100.0 * no_house_cases / num_househ) << " %)";
+            }
+            oss << "\n    * with at least 1 case: " << atleast_one_case
                 << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_one_case / num_househ) << " %)"
                 << "\n    * with at least 2 cases: " << atleast_two_cases
                 << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_two_cases / num_househ) << " %)"
@@ -298,27 +342,13 @@ void MCMC::build_data(std::string data_pathtofile)
             display_stdout(oss.str());
             oss.str("");
             oss.clear();
-
-            //-----Display Model Report-----//
-            display_decorator("DATABASE::groups", '-', 1);
-            for (const auto &which : model_report)
-            {
-                oss << which.first << ": \n";
-                for (auto const &x : which.second)
-                {
-                    oss << "    * " << x.first << ": " << x.second
-                        << std::fixed << std::setprecision(2) << " (" << (100.0 * x.second / num_indiv) << " %)\n";
-                }
-            }
-            display_stdout(oss.str());
-            oss.str("");
-            oss.clear();
         }
+        display_model_report();
         model_report.clear();
     }
     else
     {
-        std::string err_text = "Impossible to open file: " + data_pathtofile + ".";
+        std::string err_text = "Impossible to open file: `" + data_pathtofile + "`";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
@@ -480,7 +510,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
     {
         std::ifstream input(data_pathtofile.c_str());
         std::vector<std::string> required_headers = {
-            "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range"};
+            "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range", "init_rand"};
 
         if (input.is_open())
         {
@@ -543,6 +573,10 @@ void MCMC::assign_augmented_variables()
             if (loader.at("model") != UNDEFINED)
             {
                 augm_with_model_set.emplace(augmID);
+                if (stobool(loader.at("init_rand")) == true)
+                {
+                    augm_rand_init_set.emplace(augmID);
+                }
             }
         }
     }
@@ -612,7 +646,7 @@ void MCMC::init_param_file(std::string output_filename)
     }
     else
     {
-        std::string err_text = "Unable to open file `" + output_filename + "`.";
+        std::string err_text = "Unable to open file `" + output_filename + "`";
         raise_error_message(err_text);
         std::exit(EXIT_FAILURE);
     }
@@ -661,8 +695,11 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            display_decorator("", '-', 1);
+            display_decorator("OUTPUT::augmented database", '-', 1);
             display_stdout("Saving augmented database to: " + save_augm_pathtofile);
+
+            // change format of augmented data
+            format_augmented_data();
 
             //=====Clean up list of headers for output files=====//
             data_headers.erase(find(data_headers.begin(), data_headers.end(), "index"));
@@ -706,7 +743,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         }
         else
         {
-            std::string err_text = "Unable to open file `" + save_augm_pathtofile + "`.";
+            std::string err_text = "Unable to open file `" + save_augm_pathtofile + "`";
             raise_error_message(err_text);
             std::exit(EXIT_FAILURE);
         }

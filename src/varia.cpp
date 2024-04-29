@@ -27,9 +27,11 @@ Base_Proposer::Base_Proposer(
     {
         if (!valid(strategy_from_zero))
         {
-            std::string err_text = "Initial value " + std::to_string(strategy_from_zero) + " and value range";
-            err_text += " {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "} are inconsistent.";
-            raise_warning_message(err_text, &Invalid_Proposer_Warning);
+            std::ostringstream oss;
+            oss << "Initial value " << strategy_from_zero << " and value range"
+                << " {low:" << _range_min_ << ", up:" << _range_max_ << "} are inconsistent."
+                << "\nIf it was intentional, ignore this message.";
+            raise_warning_message(oss.str(), &Invalid_Proposer_Warning);
         }
         zero_start = true;
         set_strat_zero(strategy_from_zero);
@@ -342,38 +344,36 @@ void Monte_Carlo_Core::display_parameters()
 {
     if (Verbose)
     {
-        std::cout << "\n"
-                  << param_file_required_headers[0];
+        std::ostringstream oss;
+        oss << param_file_required_headers[0];
         for (size_t k = 1; k < param_file_required_headers.size(); k++)
         {
-            std::cout << DELIM << param_file_required_headers[k];
+            oss << DELIM << param_file_required_headers[k];
         }
-        std::cout << std::endl;
-
         for (std::string parID : param_to_be_inferred)
         {
-            std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+            oss << "\n" << parID << DELIM << params.at(parID).message_to_display();
         }
         for (std::string parID : param_static)
         {
-            std::cout << parID << DELIM << params.at(parID).message_to_display() << std::endl;
+            oss << "\n" << parID << DELIM << params.at(parID).message_to_display();
         }
+        display_stdout(oss.str());
     }
 }
 
 /* display the diagnostics */
-void Monte_Carlo_Core::display_diagnostics()
+void Monte_Carlo_Core::display_param_diagnostics()
 {
-    std::cout << "name" << DELIM << "value" << DELIM << "value_sd";
+    std::ostringstream oss;
+    oss << "name" << DELIM << "value" << DELIM << "value_sd";
     for (size_t k = 2; k < param_file_required_headers.size(); k++)
     {
-        std::cout << DELIM << param_file_required_headers[k];
+        oss << DELIM << param_file_required_headers[k];
     }
-    std::cout << std::endl;
-
     for (std::string parID : param_to_be_inferred)
     {
-        std::cout << parID << DELIM << params.at(parID).message_to_display_diagnostics() << "\n";
+        oss << "\n" << parID << DELIM << params.at(parID).message_to_display_diagnostics();
     }
-    std::cout << std::endl;
+    display_stdout(oss.str());
 }

@@ -21,6 +21,18 @@ double Individual::get_data(std::string dataID) const
 	return data.at(dataID);
 }
 
+/* check if the individal has the data defined */
+void Individual::assert_data(std::string dataID)
+{
+	if (data.find(dataID) == data.end())
+	{
+		std::ostringstream oss;
+		oss << "Unknown data `" << dataID << "` for individual n." << get_index();
+		raise_error_message(oss.str());
+		std::exit(EXIT_FAILURE);
+	}
+}
+
 //=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 
 /* Assign a model rate */
