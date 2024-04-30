@@ -49,10 +49,10 @@ public:
 	void set_strat_zero(double new_val) { strat_zero = new_val; }
 	void set_range(sdargs new_range);
 
-	double rand(std::mt19937_64 &rng) { return (distr_ptr->rand)(rng); }
+	double rand(std::mt19937_64 &prng) { return (distr_ptr->rand)(prng); }
 	bool valid(double new_val) { return (this->*_valid_func_)(new_val); }
 
-	virtual double propose(std::mt19937_64 &rng, double start = 0.0) { return (this->*_propose_method_)(rng, start); }
+	virtual double propose(std::mt19937_64 &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
 	virtual double logratio(double old_val, double new_val) { return (this->*_logratio_method_)(old_val, new_val); }
 
 	//=====Methods (for adaptive)=====//
@@ -87,20 +87,20 @@ protected:
 	}
 
 	//=====propose : functional methods=====//
-	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &rng, double start);
+	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &prng, double start);
 
-	double _undef_propose_(std::mt19937_64 &rng, double start)
+	double _undef_propose_(std::mt19937_64 &prng, double start)
 	{
-		UNUSED(rng);
+		UNUSED(prng);
 		UNUSED(start);
 		return undefined_call_error();
 	}
-	double _add_to_previous_(std::mt19937_64 &rng, double start) { return start + rand(rng); }
-	double _times_previous_(std::mt19937_64 &rng, double start) { return start * rand(rng); }
-	double _draw_rand_(std::mt19937_64 &rng, double start)
+	double _add_to_previous_(std::mt19937_64 &prng, double start) { return start + rand(prng); }
+	double _times_previous_(std::mt19937_64 &prng, double start) { return start * rand(prng); }
+	double _draw_rand_(std::mt19937_64 &prng, double start)
 	{
 		UNUSED(start);
-		return rand(rng);
+		return rand(prng);
 	}
 
 	//=====propose : functional methods=====//
@@ -243,11 +243,23 @@ public:
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {})
 	{
+		// assing value
 		set_value(value);
+		// define distribution
 		distr_ptr = distribution_switchboard(distr_name, distr_args);
+		// if no strategy is defined, do not "infer"
 		infer = (strat_name == UNDEFINED) ? false : true;
-		prop_ptr = (strat_name == "prior") ? (new Prior_Proposer(distr_ptr)) : proposer_switchboard(strat_name, strat_args, strat_zero, value_range);
-		_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
+
+		// define strategy : prior/model or else
+		if (strat_name == "prior" || strat_name == "model")
+		{
+			prop_ptr = new Prior_Proposer(distr_ptr);
+		}
+		else
+		{
+			prop_ptr = proposer_switchboard(strat_name, strat_args, strat_zero, value_range);
+			_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
+		}
 	}
 	virtual ~Base_Parameter(){};
 
@@ -262,12 +274,12 @@ public:
 	void set_value(double x) { value = x; }
 
 	//=====distr_ptr : methods=====//
-	double distr_rand(std::mt19937_64 &rng) { return distr_ptr->rand(rng); }
+	double distr_rand(std::mt19937_64 &prng) { return distr_ptr->rand(prng); }
 	double distr_log_pdf(double new_val) { return distr_ptr->log_pdf(new_val); }
 	double distr_logratio(double old_val, double new_val) { return distr_ptr->logratio(old_val, new_val); }
 
 	//=====prop_ptr : propose methods=====//
-	double propose(std::mt19937_64 &rng) { return (this->*_propose_method_)(rng); }
+	double propose(std::mt19937_64 &prng) { return (this->*_propose_method_)(prng); }
 	double propose_logratio(double old_val, double new_val) { return (prop_ptr->logratio)(old_val, new_val); }
 	bool valid(double new_val) { return prop_ptr->valid(new_val); }
 
@@ -290,9 +302,9 @@ public:
 
 private:
 	//=====Propose : functional methods=====//
-	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &rng);
-	double _propose_from_previous_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_value()); }
-	double _propose_from_zero_(std::mt19937_64 &rng) { return (prop_ptr->propose)(rng, get_strat_zero()); }
+	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &prng);
+	double _propose_from_previous_(std::mt19937_64 &prng) { return (prop_ptr->propose)(rng, get_value()); }
+	double _propose_from_zero_(std::mt19937_64 &prng) { return (prop_ptr->propose)(rng, get_strat_zero()); }
 };
 
 /////////////////////////////////////////////////////////////////
@@ -322,7 +334,7 @@ public:
 												  value_range){};
 
 	//=====Aliases=====//
-	double prior_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
+	double prior_rand(std::mt19937_64 &prng) { return distr_rand(prng); }
 	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
@@ -355,7 +367,7 @@ public:
 	Monte_Carlo_Core() : _internal_uniform_dist_(0.0, 1.0) {}
 	virtual ~Monte_Carlo_Core(){};
 
-	//build dictionary
+	// build dictionary
 	void add_parameter(
 		const std::string k,
 		double new_val,
@@ -379,7 +391,7 @@ public:
 
 	//=====Setter=====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
-	void init_rand_params();
+	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
 
 	//=====Metropolis-Hastings moves=====//
@@ -420,7 +432,7 @@ public:
 												  strat_zero,
 												  value_range){};
 	//=====Aliases=====//
-	double model_rand(std::mt19937_64 &rng) { return distr_rand(rng); }
+	double model_rand(std::mt19937_64 &prng) { return distr_rand(prng); }
 	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double model_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 };

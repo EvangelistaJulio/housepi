@@ -43,7 +43,8 @@ typedef std::map<std::string, std::string> ssargs;
 
 // FIXME : passing a copy of the string
 double est_sample_variance(double sum_X, double sum_X2, double ss);
-void display_stdout(std::string osstxt);
+void display_stdout(std::ostringstream* oss);
+void display_stdout(std::string txt);
 void display_decorator(std::string txt, char decor = '=', int skip = 2);
 void display_progress_bar(std::string prog_txt, int progress, int total, char decor = '=');
 void raise_error_message(std::string error_text);

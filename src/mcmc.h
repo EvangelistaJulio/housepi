@@ -77,7 +77,7 @@ public:
 	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
 	void assign_augmented_variables();
-	void init_augmented_variable(std::string augmID);
+	void init_augmented_variables();
 	virtual void assign_rate_per_group_to_individual(int i);
 	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
@@ -96,7 +96,7 @@ public:
 	virtual double compute_global_loglike();
 
 	//=====Monte Carlo Markov Chain moves=====//
-	void reset_moves();
+	void reset_move_counts();
 	void single_param_move(std::string parID);
 	void move_all_parameters();
 	double single_household_augm_move(int h);

@@ -43,9 +43,9 @@ void Base_Proposer::adapt(double ratio, double target)
 {
     // linear
     double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
-    
-    // quadratic 
-    //double factor = 1. + sqrt(1. - ratio) * (get_accept_rate() - target);
+
+    // quadratic
+    // double factor = 1. + sqrt(1. - ratio) * (get_accept_rate() - target);
 
     for (int argID : args_to_adapt)
     {
@@ -264,26 +264,29 @@ void Monte_Carlo_Core::add_parameter(
 }
 
 /* randomly initialize values of the parameters to be inferred */
-void Monte_Carlo_Core::init_rand_params()
+void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 {
-    int num_attempts = 0;
-    double new_value;
-
-    for (std::string parID : param_to_be_inferred)
+    if (is_rand_params)
     {
-        new_value = params.at(parID).prior_rand(prng);
-        while (params.at(parID).valid(new_value) == false)
+        int num_attempts = 0;
+        double new_value;
+
+        for (std::string parID : param_to_be_inferred)
         {
-            if (num_attempts >= MAX_NUMBER_ATTEMPTS)
-            {
-                std::string err_text = "Number of attempts exceeded in random initialization of `" + parID + "`.";
-                raise_error_message(err_text);
-                std::exit(EXIT_FAILURE);
-            }
-            num_attempts++;
             new_value = params.at(parID).prior_rand(prng);
+            while (params.at(parID).valid(new_value) == false)
+            {
+                if (num_attempts >= MAX_NUMBER_ATTEMPTS)
+                {
+                    std::string err_text = "Number of attempts exceeded in random initialization of `" + parID + "`.";
+                    raise_error_message(err_text);
+                    std::exit(EXIT_FAILURE);
+                }
+                num_attempts++;
+                new_value = params.at(parID).prior_rand(prng);
+            }
+            set_value(parID, new_value);
         }
-        set_value(parID, new_value);
     }
 }
 
@@ -352,11 +355,13 @@ void Monte_Carlo_Core::display_parameters()
         }
         for (std::string parID : param_to_be_inferred)
         {
-            oss << "\n" << parID << DELIM << params.at(parID).message_to_display();
+            oss << "\n"
+                << parID << DELIM << params.at(parID).message_to_display();
         }
         for (std::string parID : param_static)
         {
-            oss << "\n" << parID << DELIM << params.at(parID).message_to_display();
+            oss << "\n"
+                << parID << DELIM << params.at(parID).message_to_display();
         }
         display_stdout(oss.str());
     }
@@ -373,7 +378,8 @@ void Monte_Carlo_Core::display_param_diagnostics()
     }
     for (std::string parID : param_to_be_inferred)
     {
-        oss << "\n" << parID << DELIM << params.at(parID).message_to_display_diagnostics();
+        oss << "\n"
+            << parID << DELIM << params.at(parID).message_to_display_diagnostics();
     }
     display_stdout(oss.str());
 }
