@@ -14,11 +14,11 @@ double est_sample_variance(double sum_X, double sum_X2, double ss)
 ///////////////////////////////////////////////////////////////////////
 
 /* Display a message to stdout (if Verbose). */
-void display_stdout(std::string txt)
+void display_stdout(std::string osstxt)
 {
     if (Verbose)
     {
-        std::cout << txt << std::endl;
+        std::cout << osstxt << std::endl;
     }
 }
 
@@ -27,9 +27,11 @@ void display_decorator(std::string text, char decor, int skip)
 {
     if (Verbose)
     {
-        size_t bar_width = (60 - text.length()) / 2;
-        std::cout << std::string(skip, '\n') << std::string(bar_width, decor) << text
-                  << std::string(60 - text.length() - bar_width, decor) << std::endl;
+        size_t bar_width = (75 - text.length()) / 2;
+        std::ostringstream oss;
+        oss << std::string(skip, '\n') << std::string(bar_width, decor)
+            << text << std::string(75 - text.length() - bar_width, decor);
+        std::cout << oss.str() << std::endl;
     }
 }
 
@@ -42,7 +44,7 @@ void display_progress_bar(std::string prog_text, int progress, int total, char d
         if ((progress % (total / thin_bar)) == 0)
         {
             float percentage = static_cast<float>(progress) / total;
-            int bar_width = 60; // - prog_text.length();
+            int bar_width = 50; // - prog_text.length();
             int where = percentage * bar_width;
 
             std::cerr << prog_text << ": [" << std::string(where, decor) << " "
@@ -57,20 +59,18 @@ void display_progress_bar(std::string prog_text, int progress, int total, char d
 // /////////////////////// Error Functions ///////////////////////// //
 ///////////////////////////////////////////////////////////////////////
 
-void raise_error_message(std::string &message)
+void raise_error_message(std::string message)
 {
-    std::cerr << std::endl;
-    std::cerr << "ERROR: " << message << "\nExit...\n"
+    std::cerr << "\nERROR: " << message << "\nExit...\n"
               << std::endl;
 }
 
-void raise_warning_message(std::string &message, bool *is_warn_to_be_raised)
+void raise_warning_message(std::string message, bool *is_warn_to_be_raised)
 {
     if (*is_warn_to_be_raised)
     {
         std::cerr << std::endl;
-        std::cerr << "WARNING: " << message << "\nIf it was intentional, ignore this message."
-                  << std::endl;
+        std::cerr << "WARNING: " << message << std::endl;
         *is_warn_to_be_raised = false;
     }
 }

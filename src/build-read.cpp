@@ -4,10 +4,12 @@
 #include "mcmc.h"
 
 // declaration for type in data file
-std::string TYPE_PARAM = "P";       // Parameter type declaration
-std::string TYPE_DATA = "D";        // Data type declaration
-std::string TYPE_SCALAR = "S";      // Scalar type declaration
-std::string TYPE_COMMAND = "C";     // Command type declaration
+std::string TYPE_PARAM = "P";   // Parameter type declaration
+std::string TYPE_DATA = "D";    // Data type declaration
+std::string TYPE_SCALAR = "S";  // Scalar type declaration
+std::string TYPE_COMMAND = "C"; // Command type declaration
+
+bool Param_Infer_Fixed_Move_Warning = false;
 
 ///////////////////////////////////////////////////////////////////////
 // ///////////////////// Auxiliary Functions /////////////////////// //
@@ -165,11 +167,19 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
         }
         else if (k == TYPE_DATA)
         {
+            indiv[i].assert_data(v);
             return indiv[i].get_data(v);
         }
         else if (k == TYPE_PARAM)
         {
             assert_param(v);
+            if (get_infer(v))
+            {
+                std::ostringstream oss;
+                oss << "The parameter `" << v << "` is chosen for a fixed value move."
+                    << "Eventual hanges of the parameter will not affect the move.";
+                raise_warning_message(oss.str(), &Param_Infer_Fixed_Move_Warning);
+            }
             return get_value(v);
         }
         else if (k == TYPE_COMMAND)

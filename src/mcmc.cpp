@@ -3,10 +3,20 @@
 
 #include "mcmc.h"
 
-/* Set the number of threads for parrell computations. */
+/* Set the number of threads for parrell computations (default is 1). */
 void MCMC::set_num_threads(int n)
 {
-    omp_set_num_threads(n);
+    if (n < 1)
+    {
+        std::string err_text = "Number of threads must be equal or greater than 1.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else
+    {
+        setup_num_omp_threads = n;
+        omp_set_num_threads(n);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +51,7 @@ void MCMC::update_first_case(int h)
 {
     double t_infec;
     double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
-    int new_case0 = -1;       // NOTE: init to impossible values
+    int new_case0 = -1;         // NOTE: init to impossible values
 
     for (int i : househ[h].infectious_list)
     {
@@ -115,11 +125,11 @@ void MCMC::single_param_move(std::string parID)
     oss << " -> " << get_value(parID)
         << ((is_valid) ? " (valid)" : " (not valid)");
     */
-   // END-of-FLAG
+    // END-of-FLAG
 
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_param_move(parID))
-    //if (is_valid)
+    // if (is_valid)
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old values in buffer
@@ -133,9 +143,9 @@ void MCMC::single_param_move(std::string parID)
         {
             accept_param_move(parID);
             set_global_loglike(new_global_loglike);
-            
+
             // FLAG
-            //oss << " | accept (" << exp(logQ) << ")";
+            // oss << " | accept (" << exp(logQ) << ")";
             // END-of-FLAG
         }
         else
@@ -150,13 +160,13 @@ void MCMC::single_param_move(std::string parID)
             }
 
             // FLAG
-            //oss << " | refuse (" << exp(logQ) << ")";
+            // oss << " | refuse (" << exp(logQ) << ")";
             // END-of-FLAG
         }
     }
 
     // FLAG
-    //display_stdout(oss.str());
+    // display_stdout(oss.str());
     // END-of-FLAG
 }
 
@@ -311,29 +321,38 @@ void MCMC::update_model_diagnostics()
     dgn_ss++;
 }
 
-/* Display Bayesian diagnostics */
-void MCMC::display_model_diagnostics()
+/* Display results as sampled during thin iterations.
+// FIXME : this output needs to be user specified probably
+*/
+void MCMC::display_thin_results()
 {
-    double log_point_pred_dens = 0.;
-    double effec_num_params_waic = 0.;
-
-    // Loop over households
-#pragma omp parallel for reduction(+ : log_point_pred_dens, effec_num_params_waic)
-    for (int h = 0; h < num_househ; h++)
+    if (setup_num_iter >= setup_thinning)
     {
-        log_point_pred_dens += std::log(househ[h].dgn_sum_likelihood / househ[h].dgn_ss);
-        effec_num_params_waic += est_sample_variance(househ[h].dgn_sum_loglike, househ[h].dgn_sum_sqr_loglike, househ[h].dgn_ss);
+        double log_point_pred_dens = 0.;
+        double effec_num_params_waic = 0.;
+        std::ostringstream oss;
+
+        // Loop over households
+#pragma omp parallel for reduction(+ : log_point_pred_dens, effec_num_params_waic)
+        for (int h = 0; h < num_househ; h++)
+        {
+            log_point_pred_dens += std::log(househ[h].dgn_sum_likelihood / househ[h].dgn_ss);
+            effec_num_params_waic += est_sample_variance(househ[h].dgn_sum_loglike, househ[h].dgn_sum_sqr_loglike, househ[h].dgn_ss);
+        }
+
+        // parameters (sampled every thinning iterration)
+        display_decorator("MCMC::results", '-', 2);
+        display_param_diagnostics();
+
+        // diagnostics (sampled every thinning iterration)
+        display_decorator("MCMC::diagnostics", '-', 1);
+        oss << "loglikelihood_mean" << DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss << "\n"
+            << "loglikelihood_sd" << DELIM << est_sample_variance(dgn_sum_loglike, dgn_sum_sqr_loglike, dgn_ss) << "\n"
+            << "logpoint_predict_dens" << DELIM << log_point_pred_dens << "\n"
+            << "effective_parameters" << DELIM << effec_num_params_waic << "\n"
+            << "WAIC" << DELIM << log_point_pred_dens - effec_num_params_waic;
+        display_stdout(oss.str());
     }
-
-    // display diagnostics of parameters
-    display_diagnostics();
-
-    std::cout << "loglikelihood_mean" << DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss << "\n"
-              << "loglikelihood_sd" << DELIM << est_sample_variance(dgn_sum_loglike, dgn_sum_sqr_loglike, dgn_ss) << "\n"
-              << "logpoint_predict_dens" << DELIM << log_point_pred_dens << "\n"
-              << "effective_parameters" << DELIM << effec_num_params_waic << "\n"
-              << "WAIC" << DELIM << log_point_pred_dens - effec_num_params_waic;
-    std::cout << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -358,6 +377,13 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     {
         init_rand_params();
     }
+    //-----random initialization of incubation periods-----//
+    // UPODATE : default init
+    for (std::string augmID : augm_rand_init_set)
+    {
+        init_augmented_variable(augmID);
+    }
+
     initialize_model();
     set_global_loglike(compute_global_loglike());
     reset_moves();
@@ -375,8 +401,9 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
         inverse_temperature = inv_temper;
         if (inv_temper != 1.)
         {
-            std::string text = "Inverse temperature " + std::to_string(inv_temper);
-            display_stdout(text);
+            std::ostringstream oss;
+            oss << "Inverse temperature " << inv_temper;
+            display_stdout(oss.str());
         }
     }
 
@@ -436,12 +463,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //==========================//
 
     close_param_file();
-    display_decorator("MCMC::end", '-', 2);
-    if (num_iter_thin > 1)
-    {
-        // FIXME : this output needs to be user specified probably
-        display_model_diagnostics();
-    }
+    display_thin_results();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -458,6 +480,14 @@ void MCMC::simulate_single_house(int h)
 void MCMC::simulation()
 {
     display_decorator("SIMULATION");
+
+    //-----random initialization of incubation periods-----//
+    // UPODATE : default init
+    for (std::string augmID : augm_rand_init_set)
+    {
+        init_augmented_variable(augmID);
+    }
+
     initialize_model();
 
 #pragma omp parallel for default(shared)
@@ -465,5 +495,4 @@ void MCMC::simulation()
     {
         simulate_single_house(h);
     }
-    format_simulation();
 }

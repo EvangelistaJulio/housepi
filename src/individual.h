@@ -50,6 +50,7 @@ public:
 
 	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
 	double get_data(std::string dataID) const;
+	void assert_data(std::string dataID);
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 	void assign_rate_per_group(std::string rateID, std::string parID);
@@ -65,7 +66,7 @@ public:
 
 	//=====Augmented Variables: Model distribution=====//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
-	double augm_model_log_pdf(std::string augmID) {	return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value());}
+	double augm_model_log_pdf(std::string augmID) { return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value()); }
 	double augm_model_logratio(std::string augmID, double old_value, double new_value);
 
 	//=====Augmented Variables: Proposer=====//
@@ -102,7 +103,7 @@ public:
 	std::vector<int> infectious_list = {};
 	std::vector<int> susceptibles_list = {};
 	std::vector<int> unknown_status_list = {};
-	
+
 	// auxiliary variables to compute Bayesian diagnostics
 	int dgn_ss = 0;
 	long double dgn_sum_likelihood = 0.;

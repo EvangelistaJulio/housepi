@@ -394,7 +394,7 @@ public:
 
 	//=====Display=====//
 	void display_parameters();
-	void display_diagnostics();
+	void display_param_diagnostics();
 };
 
 /////////////////////////////////////////////////////////////////
