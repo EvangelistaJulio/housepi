@@ -18,9 +18,6 @@
 
 #include "individual.h"
 
-// default acceptation rate for MCMC
-#define DEFAULT_ACCEPT_RATE 0.24
-
 // print also adaptive iterations 
 #define PRINT_ADAPT_ITER
 
@@ -102,7 +99,7 @@ public:
 	double single_household_augm_move(int h);
 	double get_augm_accept_rate(std::string augmID);
 	void move_all_augm_variables();
-	void move_and_adapt_all_parameters(int step, double target = DEFAULT_ACCEPT_RATE);
+	void move_and_adapt_all_parameters(int step);
 	void update_model_diagnostics();
 	void display_thin_results();
 

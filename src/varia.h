@@ -13,7 +13,11 @@
 
 #include "utils.h"
 
+// maximum number of attempts for initialization
 #define MAX_NUMBER_ATTEMPTS 20
+
+// target acceptation rate for MCMC
+#define TARGET_ACCEPT_RATE 0.234
 
 ///////////////////////////////////////////////////////////////////////
 // //////////////////// Base_Proposer : class ////////////////////// //
@@ -59,7 +63,7 @@ public:
 	double get_accept_rate() const { return accept_rate; };
 	void update_accept_rate(bool is_accepted);
 	void reset_accept_rate();
-	void adapt(double ratio, double target);
+	void adapt(double ratio);
 
 	std::string message_to_display();
 
@@ -245,15 +249,18 @@ public:
 	{
 		// assing value
 		set_value(value);
+		
 		// define distribution
 		distr_ptr = distribution_switchboard(distr_name, distr_args);
+
 		// if no strategy is defined, do not "infer"
 		infer = (strat_name == UNDEFINED) ? false : true;
 
-		// define strategy : prior/model or else
+		// define strategy : prior/model or else with functional programming
 		if (strat_name == "prior" || strat_name == "model")
 		{
 			prop_ptr = new Prior_Proposer(distr_ptr);
+			_propose_method_ = &Base_Parameter::_propose_from_prior_model_;
 		}
 		else
 		{
@@ -287,24 +294,26 @@ public:
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
-	void adapt(double ratio, double target) { (prop_ptr->adapt)(ratio, target); }
+	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//=====Display=====//
 	std::string message_to_display()
 	{
-		std::string output = std::to_string(get_value()) + DELIM + (std::string)((infer) ? "true" : "false");
+		std::ostringstream oss;
+		oss << get_value() << DELIM << ((infer) ? "true" : "false");
 		if (infer)
 		{
-			output += DELIM + distr_ptr->message_to_display() + DELIM + prop_ptr->message_to_display();
+			oss << DELIM << distr_ptr->message_to_display() << DELIM << prop_ptr->message_to_display();
 		}
-		return output;
+		return oss.str();
 	}
 
 private:
 	//=====Propose : functional methods=====//
 	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &prng);
-	double _propose_from_previous_(std::mt19937_64 &prng) { return (prop_ptr->propose)(rng, get_value()); }
-	double _propose_from_zero_(std::mt19937_64 &prng) { return (prop_ptr->propose)(rng, get_strat_zero()); }
+	double _propose_from_prior_model_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, 0); }
+	double _propose_from_previous_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, get_value()); }
+	double _propose_from_zero_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, get_strat_zero()); }
 };
 
 /////////////////////////////////////////////////////////////////
@@ -402,7 +411,7 @@ public:
 	void update_diagnostics();
 
 	// acceptation rates / adaptive methods
-	void adapt(const std::string k, double ratio, double target) { params.at(k).adapt(ratio, target); }
+	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
 
 	//=====Display=====//
 	void display_parameters();

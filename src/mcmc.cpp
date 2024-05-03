@@ -77,19 +77,12 @@ double MCMC::compute_global_loglike()
 {
     double output = 0.0;
 
-// FLAG
-//#pragma omp parallel for reduction(+ : output)
+#pragma omp parallel for reduction(+ : output)
     for (int h = 0; h < num_househ; h++)
     {
         double tmp = compute_single_house_loglike(h);
         househ[h].set_loglike(tmp);
         output += tmp;
-
-        // FLAG
-        std::ostringstream oss;
-        oss << househ[h].get_index() << ") " << tmp << "\n";
-        display_stdout(&oss);     
-        // END-of-FLAG   
     }
 
     return output;
@@ -128,17 +121,8 @@ void MCMC::reset_move_counts()
 /* Attempt to move a single parameter for the given inverse temperature. */
 void MCMC::single_param_move(std::string parID)
 {
-    // FLAG
-    std::ostringstream oss;
-    oss << parID << ": " << get_value(parID);
-    bool is_valid = propose_valid_param_move(parID);
-    oss << " -> " << get_value(parID)
-        << ((is_valid) ? " (valid)" : " (not valid)");
-    // END-of-FLAG
-
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
-    //if (propose_valid_param_move(parID))
-    if (is_valid) // FLAG
+    if (propose_valid_param_move(parID))
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old values in buffer
@@ -152,31 +136,18 @@ void MCMC::single_param_move(std::string parID)
         {
             accept_param_move(parID);
             set_global_loglike(new_global_loglike);
-
-            // FLAG
-            oss << " | accept (" << exp(logQ) << ")";
-            // END-of-FLAG
         }
         else
         {
             refuse_param_move(parID);
             // restore loglike in households
-            // FLAG
 #pragma omp parallel for default(shared)
             for (int h = 0; h < num_househ; h++)
             {
                 househ[h].refuse();
             }
-
-            // FLAG
-            oss << " | refuse (" << exp(logQ) << ")";
-            // END-of-FLAG
         }
     }
-
-    // FLAG
-    display_stdout(oss.str());
-    // END-of-FLAG
 }
 
 /* Sweep over all model parameters. */
@@ -189,14 +160,14 @@ void MCMC::move_all_parameters()
 }
 
 /* Sweep over all model parameters plus adaptive step. */
-void MCMC::move_and_adapt_all_parameters(int step, double target)
+void MCMC::move_and_adapt_all_parameters(int step)
 {
     double adapt_ratio = (double)step / setup_num_adapt_iter;
 
     for (std::string parID : param_to_be_inferred)
     {
         single_param_move(parID);
-        adapt(parID, adapt_ratio, target);
+        adapt(parID, adapt_ratio);
     }
 }
 
@@ -229,14 +200,14 @@ double MCMC::single_household_augm_move(int h)
         for (std::string augmID : augm_to_be_inferred)
         {
             is_accepted = false;
-            old_value = indiv[i].get_augm(augmID);              // store old value
-            old_house_loglike = househ[h].get_loglike();        // store old loglike
-            new_value = indiv[i].augm_propose(augmID, prng);    // propose new value
+            old_value = indiv[i].get_augm(augmID);           // store old value
+            old_house_loglike = househ[h].get_loglike();     // store old loglike
+            new_value = indiv[i].augm_propose(augmID, prng); // propose new value
 
             // proceed only if the new value is consistent
             if (indiv[i].augm_valid(augmID, new_value))
             {
-                update_augm_var(i, augmID, new_value);          // update value to perform computations
+                update_augm_var(i, augmID, new_value); // update value to perform computations
                 new_house_loglike = compute_single_house_loglike(h);
 
                 // metropolis-hasting contribution
@@ -255,20 +226,6 @@ double MCMC::single_household_augm_move(int h)
                 }
             }
             househ[h].update_augm_accept_rate(augmID, is_accepted);
-
-            // FLAG
-            /*
-            std::ostringstream oss;
-            oss << i << ", " << augmID << ") " << (is_accepted? ": true" : ": false")
-                << " | " << old_val << "
-                (" << old_house_loglike << "), "
-                << new_val << " (" << new_house_loglike << ")"
-                << " | " << indiv[i].augm_model_logratio(augmID, old_val, new_val)
-                << " | " << indiv[i].augm_propose_logratio(augmID, old_val, new_val)
-                << " | " << logQ;
-            display_stdout(oss.str());
-            */
-            // END-of-FLAG
         }
     }
 
@@ -280,13 +237,14 @@ void MCMC::move_all_augm_variables()
 {
     if (is_data_augmentation)
     {
-        double output = 0.;
+        double variation = 0.;
 
-#pragma omp parallel for reduction(+ : output)
+#pragma omp parallel for reduction(+ : variation)
         for (int h = 0; h < num_househ; h++)
         {
-            output += single_household_augm_move(h);
+            variation += single_household_augm_move(h);
         }
+        set_global_loglike(get_global_loglike() + variation);
     }
 }
 
@@ -387,18 +345,10 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
     //-----random initialization of augmented variables with model-----//
     init_augmented_variables();
-    
+
     //-----Initialize model-----//
     initialize_model();
     set_global_loglike(compute_global_loglike());
-    reset_move_counts();
-
-    // FLAG
-    std::ostringstream oss;
-    oss << "Initial global loglike : " << get_global_loglike();
-    display_stdout(oss.str());
-    std::exit(EXIT_FAILURE);
-    //END-of-FLAG
 
     //-----Assign inverse temperature-----//
     // UPDATE : is someone interested in the case inv_temp > 1?
@@ -418,7 +368,6 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
             display_stdout(oss.str());
         }
     }
-    
 
     //=======================================//
     //=====Adaptative MCMC on parameters=====//
@@ -426,22 +375,21 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
     if (setup_num_adapt_iter > 0)
     {
+        reset_move_counts();
         display_decorator("MCMC::adaptive", '-', 1);
         display_progress_bar("adaptive", 0, 100);
         for (int i = 1; i <= num_adapt_iter_thin; i++)
         {
-            for (int j = 0; j < setup_thinning; j++)
+            for (int j = 1; j <= setup_thinning; j++)
             {
                 move_all_augm_variables();
-                move_and_adapt_all_parameters(j + i * setup_thinning);
+                move_and_adapt_all_parameters(j + (i - 1) * setup_thinning);
             }
 #ifdef PRINT_ADAPT_ITER
             print_parameters(i * setup_thinning);
 #endif
             display_progress_bar("adaptive", i, num_adapt_iter_thin);
         }
-        display_progress_bar("adaptive", 100, 100);    
-        reset_move_counts();
     }
 
     //============================================//
@@ -450,11 +398,12 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
     if (num_iter_thin > 0)
     {
+        reset_move_counts();
         display_decorator("MCMC::execution", '-', 1 + (setup_num_adapt_iter > 0));
         display_progress_bar("execution", 0, 100);
         for (int i = 1; i <= num_iter_thin; i++)
         {
-            for (int j = 0; j < setup_thinning; j++)
+            for (int j = 1; j <= setup_thinning; j++)
             {
                 move_all_augm_variables();
                 move_all_parameters();
@@ -470,7 +419,6 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 #endif
             display_progress_bar("execution", i, num_iter_thin);
         }
-        display_progress_bar("execution", 100, 100);
     }
     //==========================//
     //=====end of inference=====//
