@@ -14,11 +14,20 @@ double est_sample_variance(double sum_X, double sum_X2, double ss)
 ///////////////////////////////////////////////////////////////////////
 
 /* Display a message to stdout (if Verbose). */
-void display_stdout(std::string osstxt)
+void display_stdout(std::ostringstream* oss)
 {
     if (Verbose)
     {
-        std::cout << osstxt << std::endl;
+        std::cout << oss->str() << std::endl;
+    }
+}
+
+/* Display a message to stdout (if Verbose). */
+void display_stdout(std::string text)
+{
+    if (Verbose)
+    {
+        std::cout << text << std::endl;
     }
 }
 

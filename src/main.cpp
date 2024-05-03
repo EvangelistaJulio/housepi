@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
     // Initialize Model object with user defined derived class
     Model user_model;
 
-    // 0) set number of threads
+    // 0) Set number of threads (optional)
     user_model.set_num_threads(num_threads);
 
     // 1) Load Setup (optional)

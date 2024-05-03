@@ -94,7 +94,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
     {
         oss << "\nnum_threads" << DELIM << setup_num_omp_threads;
     }
-    display_stdout(oss.str());
+    display_stdout(&oss);
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -201,7 +201,7 @@ void MCMC::display_model_report()
                         << std::fixed << std::setprecision(2) << " (" << (100.0 * x.second / num_indiv) << " %)";
                 }
             }
-            display_stdout(oss.str());
+            display_stdout(&oss);
         }
     }
 }
@@ -339,7 +339,7 @@ void MCMC::build_data(std::string data_pathtofile)
                 << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_two_cases / num_househ) << " %)"
                 << "\nMin n. house members: " << min_house_size
                 << "\nMax n. house members: " << max_house_size;
-            display_stdout(oss.str());
+            display_stdout(&oss);
             oss.str("");
             oss.clear();
         }
@@ -591,7 +591,7 @@ void MCMC::assign_augmented_variables()
                 type_to_double(loader.at("value"), i),
                 loader.at("model"),
                 typedict_to_sdargs_ext(loader.at("model_args")),
-                loader.at("strategy"),
+                loader.at("strategy"), 
                 typedict_to_sdargs(loader.at("strategy_args"), i),
                 type_to_double(loader.at("move_from"), i),
                 typedict_to_sdargs(loader.at("range"), i));
@@ -604,11 +604,14 @@ void MCMC::assign_augmented_variables()
 }
 
 /* Initialize augmented variable for all individuals */
-void MCMC::init_augmented_variable(std::string augmID)
+void MCMC::init_augmented_variables()
 {
-    for (int i = 0; i < num_indiv; i++)
+    for (std::string augmID : augm_rand_init_set)
     {
-        indiv[i].init_augm(augmID, prng);
+        for (int i = 0; i < num_indiv; i++)
+        {
+            indiv[i].init_augm(augmID, prng);
+        }
     }
 }
 
@@ -668,8 +671,8 @@ void MCMC::print_parameters(int step)
         }
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID);               // parameter value
-            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID); // acceptance rate
+            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID);               
+            param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
         param_ofstream << std::endl;
     }
