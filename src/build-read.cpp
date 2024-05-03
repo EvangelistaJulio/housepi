@@ -1,4 +1,4 @@
-// build-read_format.cpp //
+// build-read.cpp //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "mcmc.h"

@@ -39,13 +39,10 @@ Base_Proposer::Base_Proposer(
 };
 
 /* increase spread if acceptation rate is high and viceversa */
-void Base_Proposer::adapt(double ratio, double target)
+void Base_Proposer::adapt(double ratio)
 {
     // linear
-    double factor = 1. + (1. - ratio) * (get_accept_rate() - target);
-
-    // quadratic
-    // double factor = 1. + sqrt(1. - ratio) * (get_accept_rate() - target);
+    double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
     for (int argID : args_to_adapt)
     {
