@@ -131,7 +131,7 @@ double Model::compute_infec_profile_cumul(int i, double t_transm)
 }
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void Model::store_augm_var_dependecies(int i)
+void Model::augm_var_store_dependecies(int i)
 {
 	int h = indiv[i].home;
 	double t_infec_i = get_infec_time(i);
@@ -207,7 +207,7 @@ void Model::initialize_model()
 	// store relative hazard for each of the symptomatic and relative infectees
 	for (int i = 0; i < num_indiv; i++)
 	{
-		store_augm_var_dependecies(i);
+		augm_var_store_dependecies(i);
 	}
 }
 
@@ -311,7 +311,7 @@ void Model::simulate_single_house(int h)
 			// set new status for computations
 			househ[h].change_status(i, INFECTIOUS);
 			indiv[i].set_augm("onset_time", t + uniform() * dt + indiv[i].get_augm("incub_period"));
-			store_augm_var_dependecies(i);
+			augm_var_store_dependecies(i);
 
 			// refuse according to Bernoulli process
 			esc_proba = exp(-hazards_of_infec(&inst_profile_LUT, i) * dt);
@@ -319,7 +319,7 @@ void Model::simulate_single_house(int h)
 			if (uniform() < esc_proba)
 			{
 				househ[h].change_status(i, SUSCEPTIBLE);
-				store_augm_var_dependecies(i);
+				augm_var_store_dependecies(i);
 			}
 		}
 	}

@@ -20,7 +20,6 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
-#include <limits>
 
 const double INF_DOUBLE = 1e15;              // infinity value
 const std::string UNDEFINED = "None";        // name for undefined choice

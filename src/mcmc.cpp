@@ -3,22 +3,6 @@
 
 #include "mcmc.h"
 
-/* Set the number of threads for parrell computations (default is 1). */
-void MCMC::set_num_threads(int n)
-{
-    if (n < 1)
-    {
-        std::string err_text = "Number of threads must be equal or greater than 1.";
-        raise_error_message(err_text);
-        std::exit(EXIT_FAILURE);
-    }
-    else
-    {
-        setup_num_omp_threads = n;
-        omp_set_num_threads(n);
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////  MCMC : ???? ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +44,7 @@ void MCMC::update_first_case(int h)
 }
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::store_augm_var_dependecies(int i)
+void MCMC::augm_var_store_dependecies(int i)
 {
     UNUSED(i);
 }
@@ -175,11 +159,18 @@ void MCMC::move_and_adapt_all_parameters(int step)
 // ///////////////////////////  MCMC : move augmented variables //////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::update_augm_var(int i, std::string augmID, double new_val)
+/* Propose augmented variable `augmID` for individual `i`. */
+double MCMC::augm_var_propose(int i, std::string augmID)
+{
+    return indiv[i].augm_propose(augmID, get_prng());
+}
+
+/* Update augmented variable `augmID` for individual `i` (). */
+void MCMC::augm_var_update(int i, std::string augmID, double new_val)
 {
     indiv[i].set_augm(augmID, new_val);
     update_first_case(indiv[i].home); // Update information of first cases
-    store_augm_var_dependecies(i);    // Update infectivity profiles related to idx
+    augm_var_store_dependecies(i);    // Update infectivity profiles related to idx
 }
 
 /* Move augmented variables for infectious members of a single household.
@@ -200,14 +191,14 @@ double MCMC::single_household_augm_move(int h)
         for (std::string augmID : augm_to_be_inferred)
         {
             is_accepted = false;
-            old_value = indiv[i].get_augm(augmID);           // store old value
-            old_house_loglike = househ[h].get_loglike();     // store old loglike
-            new_value = indiv[i].augm_propose(augmID, prng); // propose new value
+            old_value = indiv[i].get_augm(augmID);       // store old value
+            old_house_loglike = househ[h].get_loglike(); // store old loglike
+            new_value = augm_var_propose(i, augmID);     // propose new value
 
             // proceed only if the new value is consistent
             if (indiv[i].augm_valid(augmID, new_value))
             {
-                update_augm_var(i, augmID, new_value); // update value to perform computations
+                augm_var_update(i, augmID, new_value); // update value to perform computations
                 new_house_loglike = compute_single_house_loglike(h);
 
                 // metropolis-hasting contribution
@@ -222,7 +213,7 @@ double MCMC::single_household_augm_move(int h)
                 }
                 else
                 {
-                    update_augm_var(i, augmID, old_value); // restore old value
+                    augm_var_update(i, augmID, old_value); // restore old value
                 }
             }
             househ[h].update_augm_accept_rate(augmID, is_accepted);
