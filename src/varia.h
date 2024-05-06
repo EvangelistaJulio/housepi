@@ -10,6 +10,7 @@
 #include <cmath>
 #include <random>
 #include <iostream>
+#include <omp.h>
 
 #include "utils.h"
 
@@ -249,7 +250,7 @@ public:
 	{
 		// assing value
 		set_value(value);
-		
+
 		// define distribution
 		distr_ptr = distribution_switchboard(distr_name, distr_args);
 
@@ -358,22 +359,14 @@ public:
 // This is a wrapper class containing aliases for the model params.
 class Monte_Carlo_Core
 {
-private:
-	std::unordered_map<std::string, Parameter> params = {};
-	double buffer_value = 0.0;
-	double buffer_logratio = 0.0;
-	const double _reference = 1.0;
-	std::uniform_real_distribution<double> _internal_uniform_dist_;
-
 public:
-	std::mt19937_64 prng;
 	std::vector<std::string> param_file_required_headers = {
 		"name", "value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
 
 	//=====Constructors=====//
-	Monte_Carlo_Core() : _internal_uniform_dist_(0.0, 1.0) {}
+	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
 	virtual ~Monte_Carlo_Core(){};
 
 	// build dictionary
@@ -386,9 +379,14 @@ public:
 		sdargs strat_args = {},
 		sdargs value_range = {});
 
+	//=====Parallelization=====//
+	void set_num_threads(int n = 1);
+	int get_num_threads() const { return setup_num_omp_threads; };
+
 	//=====Pseudo-Random Number Generator=====//
-	void prng_seed(int seed) { prng.seed(seed); }
-	double uniform() { return _internal_uniform_dist_(prng); }
+	void prng_seed(int seed);
+	std::mt19937_64 &get_prng() { return (this->*_prng_method_)(); }
+	double uniform() { return _aux_unif_dist_(get_prng()); }
 
 	//=====Getter=====//
 	void assert_param(const std::string k);
@@ -416,6 +414,23 @@ public:
 	//=====Display=====//
 	void display_parameters();
 	void display_param_diagnostics();
+
+private:
+	std::unordered_map<std::string, Parameter> params = {};
+	double buffer_value = 0.0;
+	double buffer_logratio = 0.0;
+	const double _reference = 1.0;
+
+	// number of OMP threads
+	int setup_num_omp_threads = 1;
+
+	// pseudo random number generator
+	std::mt19937_64 prng;
+	std::vector<std::mt19937_64> prng_parallel = {};
+	std::mt19937_64 &(Monte_Carlo_Core::*_prng_method_)();
+	std::mt19937_64 &_prng_unique_thread_() { return prng; }
+	std::mt19937_64 &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+	std::uniform_real_distribution<double> _aux_unif_dist_;
 };
 
 /////////////////////////////////////////////////////////////////

@@ -14,7 +14,6 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
-#include <omp.h>
 
 #include "individual.h"
 
@@ -32,7 +31,6 @@ protected:
 	int setup_num_iter = 20000;
 	int setup_num_adapt_iter = 5000;
 	int setup_thinning = 20;
-	int setup_num_omp_threads = 1;
 
 	// classes to deal individuals and households
 	Individual *indiv;
@@ -69,22 +67,23 @@ public:
 	// load extra non standard files
 	virtual void build_extra(std::string data_pathtofile);
 
-	//=====Initialization=====//
-	void set_num_threads(int n = 1);
+	//=====General Initialization=====//
 	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
-	void assign_augmented_variables();
-	void init_augmented_variables();
 	virtual void assign_rate_per_group_to_individual(int i);
 	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
 	virtual void initialize_model(){};
 	void display_model_report();
 
-	virtual double get_infec_time(int i) const;
-	virtual void update_augm_var(int i, std::string augmID, double new_val);
+	//=====Augmented Variables=====//
+	void assign_augmented_variables();
+	void init_augmented_variables();
 	virtual void update_first_case(int h);
-	virtual void store_augm_var_dependecies(int i);
+	virtual void augm_var_store_dependecies(int i);
+	virtual double augm_var_propose(int i, std::string augmID);
+	virtual void augm_var_update(int i, std::string augmID, double new_val);
+	virtual double get_infec_time(int i) const;
 
 	//=====Log-Likelihood computations=====//
 	void set_global_loglike(double x) { global_loglike = x; };

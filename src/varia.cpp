@@ -206,6 +206,52 @@ std::string Parameter::message_to_display_diagnostics()
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
+/* Set the number of threads for parrell computations (default is 1). */
+void Monte_Carlo_Core::set_num_threads(int n)
+{
+    if (n < 1)
+    {
+        std::string err_text = "Number of threads must be equal or greater than 1.";
+        raise_error_message(err_text);
+        std::exit(EXIT_FAILURE);
+    }
+    else
+    {
+        // declare the global number of omp threads
+        omp_set_num_threads(n);
+        setup_num_omp_threads = n;
+
+        // create different generators for different parallel threads
+        // UPDATE: they are used only to parallelize data augmentantion
+        if (n > 1)
+        {
+            prng_parallel.reserve(n); 
+            _prng_method_ = &Monte_Carlo_Core::_prng_parallel_threads_;
+        }
+        else
+        {
+            _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
+        }
+    }
+}
+
+/* Assign seed for random generators. */
+void Monte_Carlo_Core::prng_seed(int seed) 
+{
+    // seed for the unique thread rand num generator
+    prng.seed(seed);
+
+    // seeds for the case of parallelization
+    if (setup_num_omp_threads > 1)
+    {
+        std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
+        for(int n = 0; n < setup_num_omp_threads; n++)
+        {
+            prng_parallel[n].seed(seed_generator(prng));
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////
 //////// Monte_Carlo_Core : methods ///////////////////
 ///////////////////////////////////////////////////////////

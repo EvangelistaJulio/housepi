@@ -90,9 +90,9 @@ void MCMC::build_setup(std::string setup_pathtofile)
         << "\nnum_iter" << DELIM << setup_num_iter
         << "\nnum_adapt_iter" << DELIM << setup_num_adapt_iter
         << "\nthinning" << DELIM << setup_thinning;
-    if (setup_num_omp_threads > 1)
+    if (get_num_threads() > 1)
     {
-        oss << "\nnum_threads" << DELIM << setup_num_omp_threads;
+        oss << "\nnum_threads" << DELIM << get_num_threads();
     }
     display_stdout(&oss);
 }
@@ -591,7 +591,7 @@ void MCMC::assign_augmented_variables()
                 type_to_double(loader.at("value"), i),
                 loader.at("model"),
                 typedict_to_sdargs_ext(loader.at("model_args")),
-                loader.at("strategy"), 
+                loader.at("strategy"),
                 typedict_to_sdargs(loader.at("strategy_args"), i),
                 type_to_double(loader.at("move_from"), i),
                 typedict_to_sdargs(loader.at("range"), i));
@@ -610,7 +610,7 @@ void MCMC::init_augmented_variables()
     {
         for (int i = 0; i < num_indiv; i++)
         {
-            indiv[i].init_augm(augmID, prng);
+            indiv[i].init_augm(augmID, get_prng());
         }
     }
 }
@@ -671,7 +671,7 @@ void MCMC::print_parameters(int step)
         }
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID);               
+            param_ofstream << DELIM << std::setprecision(5) << std::fixed << get_value(parID);
             param_ofstream << DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
         param_ofstream << std::endl;

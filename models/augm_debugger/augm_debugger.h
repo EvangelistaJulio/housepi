@@ -25,7 +25,7 @@ public:
 	double compute_infec_profile_cumul(int i, double t_transm);
 	double hazards_of_infec(std::vector<double> *profiles, int idx);
 
-	void store_augm_var_dependecies(int i) override;
+	void augm_var_store_dependecies(int i) override;
 	double get_infec_time(int i) const override;
 	double compute_single_house_loglike(int h) override;
 	void initialize_model() override;
