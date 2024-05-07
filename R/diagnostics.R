@@ -3,19 +3,25 @@
 # clean environment
 rm(list = ls())
 
-# LIBRARIES
-library(tidyverse)
-library(scales) # for hue_pal
-library(ggcorrplot) # for ggcorrplo
-library(cowplot)
-library(optparse)
+# LIBRARIES # FIXME : semplify
 options(warn = -1)
+suppressPackageStartupMessages(library(optparse))
+suppressPackageStartupMessages(library(tidyverse))
+# for hue_pal
+suppressPackageStartupMessages(library(scales)) 
+# for ggcorrplo
+suppressPackageStartupMessages(library(ggcorrplot)) 
+suppressPackageStartupMessages(library(cowplot))
 
-# FORMAT : options
+#================#
+#====OPTIONS=====#
+#================#
+
+#-----Format-----#
 delim <- ","
 dict_delim <- "/"
 
-# ANALYSIS : options
+#-----Analysis-----#
 perc_burn_in <- 0.10
 min_mcmc_var <- 1e-10
 uniroot_tol <- 1e-6
@@ -23,11 +29,13 @@ uniroot_maxiter <- 1e3
 acorr_n_period <- 5
 num_hist_bins <- 22
 
-# FIGURE : options
+#-----Figure-----#
+# Define custom colors
 clr_stat <- "black"
 clr_prior <- "grey"
 clr_target <- "red"
 clr_heatmap <- c("#297db8", "white", "#e55b11")
+
 # Define a custom theme and set it as the default theme for all plots
 custom_theme <- theme_bw() +
   theme(
@@ -36,6 +44,7 @@ custom_theme <- theme_bw() +
   )
 theme_set(custom_theme)
 
+#=====COMMAND LINE OPTIONS=====#
 # Define a function to parse command-line arguments
 parse_command_line_args <- function() {
   if (length(commandArgs(trailingOnly = TRUE)) == 0) {
@@ -57,9 +66,12 @@ parse_command_line_args <- function() {
   }
 }
 
-# MAIN
+#==============#
+#=====MAIN=====#
+#==============#
 main <- function() {
-  # Load options
+
+  #-----Load options-----#
   args <- parse_command_line_args()
   input_file <- args[["input_file"]]
   output_file <- args[["output_file"]]
@@ -69,7 +81,8 @@ main <- function() {
   save_fig <- args[["save_fig"]]
   is_target <- args[["is_target"]]
 
-  # Load setup
+  #-----Load setup-----#
+
   if (is.null(setup_file)) {
     burn_in <- 0
   } else if (file.exists(setup_file)) {

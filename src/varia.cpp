@@ -29,7 +29,7 @@ Base_Proposer::Base_Proposer(
         {
             std::ostringstream oss;
             oss << "Initial value " << strategy_from_zero << " and value range"
-                << " {low:" << _range_min_ << ", up:" << _range_max_ << "} are inconsistent."
+                << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
                 << "\nIf it was intentional, ignore this message.";
             raise_warning_message(oss.str(), &Invalid_Proposer_Warning);
         }
@@ -99,7 +99,7 @@ void Base_Proposer::set_range(sdargs new_range)
     {
         if (_range_min_ >= _range_max_)
         {
-            std::string err_text = "Provided an inconsistent range: {low:" + std::to_string(_range_min_) + ", up:" + std::to_string(_range_max_) + "}.";
+            std::string err_text = "Provided an inconsistent range: {min:" + std::to_string(_range_min_) + ", max:" + std::to_string(_range_max_) + "}.";
             raise_error_message(err_text);
             std::exit(EXIT_FAILURE);
         }
