@@ -27,8 +27,8 @@ void Individual::assert_data(std::string dataID)
 	if (data.find(dataID) == data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data `" << dataID << "` for individual n." << get_index();
-		raise_error_message(oss.str());
+		oss << "Unknown data `" << dataID << "` for individual " << get_index() << ".";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
@@ -46,8 +46,9 @@ void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 	else
 	{
 		// rateID was previously declared
-		std::string err_text = "Found individual with multiple definitions for group rate `" + rateID + "`.";
-		raise_error_message(err_text);
+		std::ostringstream oss;
+		oss << "Individual " << get_index() << " has multiple definitions for group rate `" << rateID << "`.";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
@@ -76,8 +77,11 @@ void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 	{
 		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
 		{
-			std::string err_text = "Number of attempts exceeded in random initialization of `" + augmID + "`.";
-			raise_error_message(err_text);
+			std::ostringstream oss;
+			oss << "Number of attempts exceeded (" << ">=" << MAX_NUMBER_ATTEMPTS << ")"
+				<< " in random initialization of `" << augmID << "`"
+				<< " for individual " << get_index();
+			display_error_message(oss);
 			std::exit(EXIT_FAILURE);
 		}
 		init_value = augm_model_rand(augmID, rng);
@@ -95,8 +99,9 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	}
 	else
 	{
-		std::string err_text = "Augmented variable `" + augmID + "` has multiple definitions.";
-		raise_error_message(err_text);
+		std::ostringstream oss;
+		oss << "Individual " << get_index() << " has multiple definitions for augmented variable `" << augmID << "`.";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
@@ -134,8 +139,9 @@ void Household::assign_data(std::string dataID, double value)
 	else
 	{
 		// rateID was previously declared
-		std::string err_text = "Found household with multiple definitions for data `" + dataID + "`.";
-		raise_error_message(err_text);
+		std::ostringstream oss; 
+		oss << "Household " << get_index() << " has multiple definitions for data `" + dataID + "`.";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }

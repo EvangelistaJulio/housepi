@@ -3,49 +3,50 @@
 
 #include "utils.h"
 
-/* Estimate sample variance from sum X, sum X^2 and sample size */
-double est_sample_variance(double sum_X, double sum_X2, double ss)
-{
-    return sum_X2 / (ss - 1.) - std::pow(sum_X, 2) / (ss * (ss - 1.));
-}
-
-///////////////////////////////////////////////////////////////////////
-// /////////////////////// Message Functions /////////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////// Message Functions  ///////////////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Display a message to stdout (if Verbose). */
-void display_stdout(std::ostringstream* oss)
+void display_stdout(const std::string &txt)
 {
     if (Verbose)
     {
-        std::cout << oss->str() << std::endl;
+        std::cout << txt << std::endl;
     }
 }
-
-/* Display a message to stdout (if Verbose). */
-void display_stdout(std::string text)
+void display_stdout(const char * txt)
 {
-    if (Verbose)
-    {
-        std::cout << text << std::endl;
-    }
+    display_stdout(std::string(txt));
+}
+void display_stdout(const std::ostringstream &oss)
+{
+    display_stdout(oss.str());
 }
 
 /* Display a decorator for a section (if Verbose) */
-void display_decorator(std::string text, char decor, int skip)
+void display_decorator(const std::string &txt, char decor, int skip)
 {
     if (Verbose)
     {
-        size_t bar_width = (75 - text.length()) / 2;
+        size_t bar_width = (75 - txt.length()) / 2;
         std::ostringstream oss;
         oss << std::string(skip, '\n') << std::string(bar_width, decor)
-            << text << std::string(75 - text.length() - bar_width, decor);
+            << txt << std::string(75 - txt.length() - bar_width, decor);
         std::cout << oss.str() << std::endl;
     }
 }
+void display_decorator(const char * txt, char decor, int skip)
+{
+    display_decorator(std::string(txt), decor, skip);
+}
+void display_decorator(const std::ostringstream &oss, char decor, int skip)
+{
+    display_decorator(oss.str(), decor, skip);
+}
 
 /* Display percentual progress bar */
-void display_progress_bar(std::string prog_text, int progress, int total, char decor)
+void display_progress_bar(const std::string &txt, int progress, int total, char decor)
 {
     int thin_bar = 100;
     if ((Verbose) && (total >= thin_bar))
@@ -56,32 +57,58 @@ void display_progress_bar(std::string prog_text, int progress, int total, char d
             int bar_width = 50; // - prog_text.length();
             int where = percentage * bar_width;
 
-            std::cerr << prog_text << ": [" << std::string(where, decor) << " "
+            std::cerr << txt << ": [" << std::string(where, decor) << " "
                       << std::string(std::max(0, bar_width - where - 1), ' ') << "] "
                       << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
             std::cerr.flush();
         }
     }
 }
-
-///////////////////////////////////////////////////////////////////////
-// /////////////////////// Error Functions ///////////////////////// //
-///////////////////////////////////////////////////////////////////////
-
-void raise_error_message(std::string message)
+void display_progress_bar(const char * txt, int progress, int total, char decor)
 {
-    std::cerr << "\nERROR: " << message << "\nExit...\n"
-              << std::endl;
+    display_progress_bar(std::string(txt), progress, total, decor);
+}
+void display_progress_bar(const std::ostringstream &oss, int progress, int total, char decor)
+{
+    display_progress_bar(oss.str(), progress, total, decor);
 }
 
-void raise_warning_message(std::string message, bool *is_warn_to_be_raised)
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////// Error Functions  ///////////////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Display an error message. */
+void display_error_message(const std::string &txt)
+{
+    std::cerr << "\nERROR: " << txt << "\nExit...\n"
+              << std::endl;
+}
+void display_error_message(const char * txt)
+{
+    display_error_message(std::string(txt));
+}
+void display_error_message(const std::ostringstream &oss)
+{
+    display_error_message(oss.str());
+}
+
+/* Raise a warning if it wasn't raised before. */
+void raise_warning_message(const std::string &txt, bool *is_warn_to_be_raised)
 {
     if (*is_warn_to_be_raised)
     {
         std::cerr << std::endl;
-        std::cerr << "WARNING: " << message << std::endl;
+        std::cerr << "WARNING: " << txt << std::endl;
         *is_warn_to_be_raised = false;
     }
+}
+void raise_warning_message(const char * txt, bool *is_warn_to_be_raised)
+{
+    raise_warning_message(std::string(txt), is_warn_to_be_raised);
+}
+void raise_warning_message(const std::ostringstream &oss, bool *is_warn_to_be_raised)
+{
+    raise_warning_message(oss.str(), is_warn_to_be_raised);
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -120,16 +147,17 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 }
 
 /* return informations about the distribution */
-std::string Base_Function::message_to_display()
+std::ostringstream Base_Function::message_to_display()
 {
-    std::string output = get_name() + DELIM;
+    std::ostringstream oss;
+    oss << get_name() << DELIM;
     for (std::size_t i = 0; i < args_name.size() - 1; i++)
     {
-        output += args_name[i] + DICT_DELIM + std::to_string(get_arg(i)) + DICT_DELIM;
+        oss << args_name[i] << DICT_DELIM << get_arg(i) << DICT_DELIM;
     }
     int i = args_name.size() - 1;
-    output += args_name[i] + DICT_DELIM + std::to_string(get_arg(i));
-    return output;
+    oss << args_name[i] << DICT_DELIM << get_arg(i);
+    return oss;
 }
 
 // -----------------------------------------------------------------------------------------------------------//

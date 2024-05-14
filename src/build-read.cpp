@@ -38,8 +38,7 @@ bool MCMC::stobool(std::string token)
     }
     else
     {
-        std::string err_text = "Unrecognized boolean value for: " + token + ".";
-        raise_error_message(err_text);
+        display_error_message("Unrecognized boolean value for: " + token + ".");
         std::exit(EXIT_FAILURE);
     }
 }
@@ -63,8 +62,7 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
     }
     else if (args_stock.size() % 2 == 1)
     {
-        std::string err_text = "Incomplete dictionary: " + token + ".";
-        raise_error_message(err_text);
+        display_error_message("Incomplete dictionary: " + token + ".");
         std::exit(EXIT_FAILURE);
     }
     else
@@ -77,8 +75,7 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
             }
             catch (const std::exception &)
             {
-                std::string err_text = "Invalid entry of dictionary: " + token + ".";
-                raise_error_message(err_text);
+                display_error_message("Invalid entry of dictionary: " + token + ".");
                 std::exit(EXIT_FAILURE);
             }
         }
@@ -178,7 +175,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
                 std::ostringstream oss;
                 oss << "The parameter `" << v << "` is chosen for a fixed value move."
                     << "Eventual hanges of the parameter will not affect the move.";
-                raise_warning_message(oss.str(), &Param_Infer_Fixed_Move_Warning);
+                raise_warning_message(oss, &Param_Infer_Fixed_Move_Warning);
             }
             return get_value(v);
         }
@@ -190,15 +187,13 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
             }
             else
             {
-                std::string err_text = "Unknown command `" + v + "`.";
-                raise_error_message(err_text);
+                display_error_message("Unknown command `" + v + "`.");
                 std::exit(EXIT_FAILURE);
             }
         }
         else
         {
-            std::string err_text = "Unknown variable type specifier `" + k + "`.";
-            raise_error_message(err_text);
+            display_error_message("Unknown variable type specifier `" + k + "`.");
             std::exit(EXIT_FAILURE);
         }
     }
@@ -223,8 +218,10 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
         }
         else
         {
-            std::string err_text = "Expected variable type `" + TYPE_PARAM + "` while loading `" + token + "`. Specifier `" + k + "` not supported here.";
-            raise_error_message(err_text);
+            std::ostringstream oss;
+            oss << "Unsopported type specifier `" + k + "` found while loading `" << token << "`. "
+                << "Expected type specifier `" << TYPE_PARAM << "` instead.";
+            display_error_message(oss);
             std::exit(EXIT_FAILURE);
         }
     }

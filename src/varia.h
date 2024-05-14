@@ -20,6 +20,8 @@
 // target acceptation rate for MCMC
 #define TARGET_ACCEPT_RATE 0.234
 
+double est_sample_variance(double sum_X, double sum_X2, double ss);
+
 ///////////////////////////////////////////////////////////////////////
 // //////////////////// Base_Proposer : class ////////////////////// //
 ///////////////////////////////////////////////////////////////////////
@@ -66,7 +68,7 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	std::string message_to_display();
+	std::ostringstream message_to_display();
 
 private:
 	//=====valid : functional methods=====//
@@ -86,8 +88,7 @@ private:
 protected:
 	double undefined_call_error()
 	{
-		std::string err_text = "Attempt to call a method of an undefined proposer.";
-		raise_error_message(err_text);
+		display_error_message("Attempt to call a method of an undefined proposer.");
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -304,7 +305,8 @@ public:
 		oss << get_value() << DELIM << ((infer) ? "true" : "false");
 		if (infer)
 		{
-			oss << DELIM << distr_ptr->message_to_display() << DELIM << prop_ptr->message_to_display();
+			oss << DELIM << distr_ptr->message_to_display().str()
+				<< DELIM << prop_ptr->message_to_display().str();
 		}
 		return oss.str();
 	}
@@ -349,7 +351,7 @@ public:
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
 	void update_diagnostics();
-	std::string message_to_display_diagnostics();
+	std::ostringstream message_to_display_diagnostics();
 };
 
 ///////////////////////////////////////////////////////////

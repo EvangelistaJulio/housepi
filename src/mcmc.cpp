@@ -304,12 +304,12 @@ void MCMC::display_thin_results()
 
         // diagnostics (sampled every thinning iterration)
         display_decorator("MCMC::diagnostics", '-', 1);
-        oss << "loglikelihood_mean" << DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss << "\n"
-            << "loglikelihood_sd" << DELIM << est_sample_variance(dgn_sum_loglike, dgn_sum_sqr_loglike, dgn_ss) << "\n"
-            << "logpoint_predict_dens" << DELIM << log_point_pred_dens << "\n"
-            << "effective_parameters" << DELIM << effec_num_params_waic << "\n"
-            << "WAIC" << DELIM << log_point_pred_dens - effec_num_params_waic;
-        display_stdout(oss.str());
+        oss << "loglikelihood_mean" << DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss
+            << "\nloglikelihood_sd" << DELIM << est_sample_variance(dgn_sum_loglike, dgn_sum_sqr_loglike, dgn_ss)
+            << "\nlogpoint_predict_dens" << DELIM << log_point_pred_dens
+            << "\neffective_parameters" << DELIM << effec_num_params_waic
+            << "\nWAIC" << DELIM << log_point_pred_dens - effec_num_params_waic;
+        display_stdout(oss);
     }
 }
 
@@ -345,8 +345,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     // UPDATE : is someone interested in the case inv_temp > 1?
     if ((inv_temper < 0.) || (inv_temper > 1.))
     {
-        std::string err_text = "Inverse temperature " + std::to_string(inv_temper) + " out of range.";
-        raise_error_message(err_text);
+        display_error_message("Inverse temperature " + std::to_string(inv_temper) + " out of range.");
         std::exit(EXIT_FAILURE);
     }
     else
@@ -354,9 +353,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
         inverse_temperature = inv_temper;
         if (inv_temper != 1.)
         {
-            std::ostringstream oss;
-            oss << "Inverse temperature " << inv_temper;
-            display_stdout(oss.str());
+            display_stdout("Inverse temperature " + std::to_string(inv_temper));
         }
     }
 

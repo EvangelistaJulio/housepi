@@ -85,7 +85,7 @@ public:
     void set_name(std::string new_name) { name = new_name; }
     void set_arg(int argID, double new_value) { args_int[argID] = new_value; }
 
-    std::string message_to_display();
+    std::ostringstream message_to_display();
 
 protected:
     std::string name = UNDEFINED;
@@ -151,8 +151,7 @@ public:
 private:
     double undefined_call_error()
     {
-        std::string err_text = "Attempt to call a method of an undefined distribution.";
-        raise_error_message(err_text);
+        display_error_message("Attempt to call a method of an undefined distribution.");
         std::exit(EXIT_FAILURE);
     }
 };
@@ -405,8 +404,7 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     }
     else
     {
-        std::string err_text = "Unknown distribution `" + name + "`.";
-        raise_error_message(err_text);
+        display_error_message("Unknown distribution `" + name + "`.");
         std::exit(EXIT_FAILURE);
     }
 }
