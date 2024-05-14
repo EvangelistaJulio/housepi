@@ -132,6 +132,7 @@ Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order
         args_int[i] = new_args_int.at(args_name[i]);
     }
     _get_arg_func_ = &Base_Function::_get_arg_int_; // assign getter
+    _set_arg_func_ = &Base_Function::_set_arg_int_; // assign setter
 }
 
 /* Overload constructor for external arguments */
@@ -144,6 +145,7 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
         args_ext[i] = new_args_ext.at(args_name[i]);
     }
     _get_arg_func_ = &Base_Function::_get_arg_ext_; // assign getter
+    _set_arg_func_ = &Base_Function::_set_arg_ext_; // assign setter
 }
 
 /* return informations about the distribution */

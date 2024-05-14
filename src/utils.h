@@ -80,26 +80,30 @@ public:
 
     //=====Getter (functional)=====//
     std::string get_name() const { return name; }
-    double get_arg(int argID) { return (this->*_get_arg_func_)(argID); }
+    double get_arg(int argID) const { return (this->*_get_arg_func_)(argID); }
 
     //=====Setter (for internal arguments)=====//
     void set_name(std::string new_name) { name = new_name; }
-    void set_arg(int argID, double new_value) { args_int[argID] = new_value; }
+    void set_arg(int argID, double new_value) { (this->*_set_arg_func_)(argID, new_value); }
 
     std::ostringstream message_to_display();
 
-protected:
+private:
     std::string name = UNDEFINED;
     std::vector<std::string> args_name; // ordered list of argument names
     double *args_int = nullptr;         // internal arguments (fixed at initialization)
     const double **args_ext = nullptr;  // external arguments (pointer to variable)
 
-private:
-    double (Base_Function::*_get_arg_func_)(int argID);
+    double (Base_Function::*_get_arg_func_)(int argID) const;
+    double _get_arg_int_(int argID) const { return args_int[argID]; }
+    double _get_arg_ext_(int argID) const { return *(args_ext[argID]); }
 
-    // FIXME : gigantic bottleneck // FIXME !! need for translation into array for internal
-    double _get_arg_int_(int argID) { return args_int[argID]; }
-    double _get_arg_ext_(int argID) { return *(args_ext[argID]); }
+    void (Base_Function::*_set_arg_func_)(int argID, double new_value);
+    void _set_arg_int_(int argID, double new_value) { args_int[argID] = new_value; }
+    void _set_arg_ext_(int argID, double new_value) { 
+        UNUSED(new_value);
+        display_error_message("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
+        }
 };
 
 ///////////////////////////////////////////////////////////////////////
