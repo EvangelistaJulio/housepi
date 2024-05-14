@@ -70,7 +70,7 @@ public:
 	//=====General Initialization=====//
 	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
-	virtual void assign_rate_per_group_to_individual(int i);
+	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void assign_community_structure(std::string HH_index_column);
 	virtual void initialize_model(){};

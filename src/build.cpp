@@ -242,6 +242,7 @@ void MCMC::build_data(std::string data_pathtofile)
         indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
         {
+            assign_rate_per_group_to_individual(this_indiv);
             add_individual(this_indiv);
             if (this_indiv.get_status() == INFECTIOUS)
             {
@@ -373,15 +374,14 @@ void MCMC::add_individual(Individual new_indiv)
     //=====check for the validity of the status=====//
     if ((status != SUSCEPTIBLE) && (status != INFECTIOUS))
     {
-        std::string warn_text = "Unknown status `" + std::to_string(status) + "`.";
-        warn_text += " Use " + std::to_string(SUSCEPTIBLE) + "/" + std::to_string(INFECTIOUS) + " for healthy/non-healthy state.";
-        warn_text += "\n If it was intentional, ignore this message.";
-        raise_warning_message(warn_text, &Unknown_Status_Warning);
+        std::ostringstream oss;
+        oss << "Status `" << status << "` interpreted as missing."
+            << " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
+            << "\n If it was intentional, ignore this message.";
+        raise_warning_message(oss, &Unknown_Status_Warning);
     }
 
-    //=====Assign Model Rates=====//
-    assign_rate_per_group_to_individual(i);
-
+    //=====Model Report=====//
     for (const auto &which : indiv[i]._which_rate)
     {
         rateID = which.first;
@@ -435,10 +435,10 @@ void MCMC::add_individual(Individual new_indiv)
 }
 
 /* Assign group rate to an individual */
-void MCMC::assign_rate_per_group_to_individual(int i)
+void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
-    indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
-    indiv[i].assign_rate_per_group("Susceptibility", REFERENCE);
+    this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
+    this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
 }
 
 /* Assign community structure to individuals. I returns a report. */

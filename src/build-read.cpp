@@ -174,7 +174,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
             {
                 std::ostringstream oss;
                 oss << "The parameter `" << v << "` is chosen for a fixed value move."
-                    << "Eventual hanges of the parameter will not affect the move.";
+                    << "Eventual changes of the parameter will not affect the move.";
                 raise_warning_message(oss, &Param_Infer_Fixed_Move_Warning);
             }
             return get_value(v);

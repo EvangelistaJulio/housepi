@@ -21,7 +21,7 @@
 #include <sstream>
 #include <iomanip>
 
-const double INF_DOUBLE = 1e15;              // infinity value
+const double INF_DOUBLE = 1e10;              // infinity value
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
 
