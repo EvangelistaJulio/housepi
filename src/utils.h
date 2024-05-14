@@ -41,29 +41,29 @@ typedef std::map<std::string, std::string> ssargs;
 /////////////////////////////////////////////////////////////////////////////
 
 // simple stdout
-void display_stdout(const std::string& txt);
-void display_stdout(const char* txt);
-void display_stdout(const std::ostringstream& oss);
+void display_stdout(const std::string &txt);
+void display_stdout(const char *txt);
+void display_stdout(const std::ostringstream &oss);
 
-// decorator 
-void display_decorator(const std::string& txt, char decor = '=', int skip = 2);
-void display_decorator(const char* txt, char decor = '=', int skip = 2);
-void display_decorator(const std::ostringstream& oss, char decor = '=', int skip = 2);
+// decorator
+void display_decorator(const std::string &txt, char decor = '=', int skip = 2);
+void display_decorator(const char *txt, char decor = '=', int skip = 2);
+void display_decorator(const std::ostringstream &oss, char decor = '=', int skip = 2);
 
 // progress bar
-void display_progress_bar(const std::string& txt, int progress, int total, char decor = '=');
-void display_progress_bar(const char* txt, int progress, int total, char decor = '=');
-void display_progress_bar(const std::ostringstream& oss, int progress, int total, char decor = '=');
+void display_progress_bar(const std::string &txt, int progress, int total, char decor = '=');
+void display_progress_bar(const char *txt, int progress, int total, char decor = '=');
+void display_progress_bar(const std::ostringstream &oss, int progress, int total, char decor = '=');
 
 // errors
-void display_error_message(const std::string& txt);
-void display_error_message(const char* txt);
-void display_error_message(const std::ostringstream& oss);
+void display_error_message(const std::string &txt);
+void display_error_message(const char *txt);
+void display_error_message(const std::ostringstream &oss);
 
 // warnings
-void raise_warning_message(const std::string& txt, bool *is_warn_to_be_raised);
-void raise_warning_message(const char* txt, bool *is_warn_to_be_raised);
-void raise_warning_message(const std::ostringstream& oss, bool *is_warn_to_be_raised);
+void raise_warning_message(const std::string &txt, bool *is_warn_to_be_raised);
+void raise_warning_message(const char *txt, bool *is_warn_to_be_raised);
+void raise_warning_message(const std::ostringstream &oss, bool *is_warn_to_be_raised);
 
 ///////////////////////////////////////////////////////////////////////
 // ////////////////////// Base_Function : class ///////////////////// //
@@ -73,6 +73,7 @@ class Base_Function
 {
 public:
     //=====Constructors=====//
+    Base_Function(){};
     Base_Function(sdargs new_args_int, std::vector<std::string> order = {});
     Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order = {});
     virtual ~Base_Function(){};

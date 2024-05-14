@@ -26,42 +26,6 @@ double Model::get_infec_time(int i) const
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Infectivity_Profile_Function //////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Choice of the Infectivity Profile Function.
-The infectivity profile is considered equal to the Time from Onset of Symptoms to Transmission `tost`
->	tost = <time infection infectee> - <time onset infector>
-Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-where the pre-symptomaticvalues are rescaled as a function of the incubation time `t_incub`.
-The arguments to provide are :
-	0) "tost_alpha" : shape;
-	1) "tost_mu" : location;
-	2) "tost_sigma" : scale;
-	3) "tost_tau" : mean incubation time;
-
-Side note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
-
-----
-Ref:
-----
-Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
-Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
-
-/* Define the Infectivity_Profile_Function class */
-class Infectivity_Profile_Function : public Base_Function
-{
-public:
-	// Constructors
-	Infectivity_Profile_Function(sdargs new_args) : Base_Function(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infectivity_Profile_Function(sdargs_ext new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	~Infectivity_Profile_Function(){};
-
-	double pdf(double tost, double t_incub);
-	double cdf(double tost, double t_incub);
-};
-
 /* Probability distribution function for the Infectivity Profile. */
 double Infectivity_Profile_Function::pdf(double tost, double t_incub)
 {
@@ -119,7 +83,7 @@ double Model::compute_infec_profile_inst(int i, double t_transm)
 {
 	double tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
 	double incub_period = indiv[i].get_augm("incub_period");
-	return infec_profile_func->pdf(tost, incub_period);
+	return infec_profile_func.pdf(tost, incub_period);
 }
 
 /* Cumulative infectivity profile. */
@@ -127,7 +91,7 @@ double Model::compute_infec_profile_cumul(int i, double t_transm)
 {
 	double tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
 	double incub_period = indiv[i].get_augm("incub_period");
-	return infec_profile_func->cdf(tost, incub_period);
+	return infec_profile_func.cdf(tost, incub_period);
 }
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
@@ -182,7 +146,7 @@ void Model::initialize_model()
 		{"tost_tau", get_address("tost_tau")}};
 
 	// initialize the infectivity profile function of the model
-	infec_profile_func = new Infectivity_Profile_Function(infec_profile_args);
+	infec_profile_func = Infectivity_Profile_Function(infec_profile_args);
 
 	// produce the empty matrix for the infectivity profiles look-up-tables
 	inst_profile_LUT.assign(num_indiv * num_indiv, 0.0);
