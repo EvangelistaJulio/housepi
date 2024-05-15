@@ -68,11 +68,11 @@ public:
 	virtual void build_extra(std::string data_pathtofile);
 
 	//=====General Initialization=====//
-	void add_individual(Individual new_indiv);
 	int get_status(int i) const { return indiv[i].get_status(); }
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void initialize_model(){};
+	void update_model_report(Individual &this_indiv);
 	void display_model_report();
 
 	//=====Augmented Variables=====//

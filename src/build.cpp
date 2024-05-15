@@ -236,24 +236,36 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             Individual this_indiv(row_to_sdargs(this_row));
             assign_rate_per_group_to_individual(this_indiv);
-            
-            num_cases += (this_indiv.get_status() == INFECTIOUS);
-            num_unknown_status += (this_indiv.get_status() != SUSCEPTIBLE);
-
             aux_individuals.push_back(this_indiv);
+
+            //=====check for the validity of the status=====//
+            if (this_indiv.get_status() == INFECTIOUS)
+            {
+                num_cases++;
+            }
+            if (this_indiv.get_status() != SUSCEPTIBLE)
+            {
+                num_unknown_status++;
+                std::ostringstream oss;
+                oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
+                    << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
+                    << "\nIf it was intentional, ignore this message.";
+                raise_warning_message(oss, &Unknown_Status_Warning);
+            }
         }
 
         //=====assign individuals to mcmc=====//
         indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
         {
-            add_individual(this_indiv);
+            update_model_report(this_indiv);
+            indiv[num_indiv] = this_indiv;
+            num_indiv++;
         }
 
+        //=====safe load households=====//
         int h;
         std::unordered_map<int, Household> aux_households = {};
-
-        //=====safe load households=====//
         for (int i = 0; i < num_indiv; i++)
         {
             h = indiv[i].get_data("HH_idx"); // FIXME : HH_idx is found where??
@@ -265,7 +277,7 @@ void MCMC::build_data(std::string data_pathtofile)
                 aux_households.at(h).set_index(h);
                 // FIXME : to be deleted
                 // associate MCMC array of individuals to the Structure
-                aux_households.at(h).set_indiv_ptr(&indiv); 
+                aux_households.at(h).set_indiv_ptr(&indiv);
             }
 
             aux_households.at(h).link_individual(i, indiv[i].get_status());
@@ -280,7 +292,7 @@ void MCMC::build_data(std::string data_pathtofile)
 
         // clear the loading dictionary
         aux_individuals.clear();
-        aux_households.clear(); 
+        aux_households.clear();
 
         //=====assign home to individuals=====//
         // FIXME : to be deleted
@@ -394,35 +406,15 @@ void MCMC::build_data(std::string data_pathtofile)
 // ///////////////////////////  MCMC : add individuals and context ///////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Add individual */
-void MCMC::add_individual(Individual new_indiv)
+/* Update model report and set group rates associate to new individual. */
+void MCMC::update_model_report(Individual &this_indiv)
 {
-    int status = new_indiv.get_status();
-    int i = num_indiv; // index of the individual
-    std::string rateID = UNDEFINED;
-    std::string parID = UNDEFINED;
-
-    //=====Store New Individual=====//
-    indiv[i] = new_indiv;
-    num_indiv++;
-
-    //=====check for the validity of the status=====//
-    if ((status != SUSCEPTIBLE) && (status != INFECTIOUS))
+    for (const auto &which : this_indiv._which_rate)
     {
-        std::ostringstream oss;
-        oss << "Status `" << status << "` interpreted as missing."
-            << " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
-            << "\n If it was intentional, ignore this message.";
-        raise_warning_message(oss, &Unknown_Status_Warning);
-    }
+        std::string rateID = which.first;
+        std::string parID = which.second;
 
-    //=====Model Report=====//
-    for (const auto &which : indiv[i]._which_rate)
-    {
-        rateID = which.first;
-        parID = which.second;
-
-        if (num_indiv == 1)
+        if (num_indiv == 0)
         {
             // if first individual, initialize rateID-report
             model_report.emplace(rateID, std::map<std::string, int>());
@@ -438,7 +430,7 @@ void MCMC::add_individual(Individual new_indiv)
             }
         }
 
-        // set rates and update report
+        //-----set rates and update report-----//
         if (parID == UNDEFINED)
         {
             // error : undefined rate
@@ -450,13 +442,13 @@ void MCMC::add_individual(Individual new_indiv)
         else if (parID == REFERENCE)
         {
             // rate set to reference
-            indiv[i]._set_rate(rateID, get_reference());
+            this_indiv._set_rate(rateID, get_reference());
             model_report.at(rateID).at("[reference]") += 1;
         }
         else
         {
             // rate associated to parameter
-            indiv[i]._set_rate(rateID, get_address(parID));
+            this_indiv._set_rate(rateID, get_address(parID));
             if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
             {
                 model_report.at(rateID).emplace(parID, 1);
