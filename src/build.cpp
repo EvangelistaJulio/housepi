@@ -229,35 +229,74 @@ void MCMC::build_data(std::string data_pathtofile)
         }
 
         //=====Load individuals from the row with values=====//
+        int num_cases = 0;
+        int num_unknown_status = 0;
         std::vector<Individual> aux_individuals = {};
         for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row, DELIM); this_row.clear())
         {
             Individual this_indiv(row_to_sdargs(this_row));
+            assign_rate_per_group_to_individual(this_indiv);
+            
+            num_cases += (this_indiv.get_status() == INFECTIOUS);
+            num_unknown_status += (this_indiv.get_status() != SUSCEPTIBLE);
+
             aux_individuals.push_back(this_indiv);
         }
 
         //=====assign individuals to mcmc=====//
-        int num_cases = 0;
-        int num_unknown_status = 0;
         indiv = new Individual[aux_individuals.size()];
         for (Individual this_indiv : aux_individuals)
         {
-            assign_rate_per_group_to_individual(this_indiv);
             add_individual(this_indiv);
-            if (this_indiv.get_status() == INFECTIOUS)
+        }
+
+        int h;
+        std::unordered_map<int, Household> aux_households = {};
+
+        //=====safe load households=====//
+        for (int i = 0; i < num_indiv; i++)
+        {
+            h = indiv[i].get_data("HH_idx"); // FIXME : HH_idx is found where??
+
+            // if househ_idx doesn't exist, append new household
+            if (aux_households.find(h) == aux_households.end())
             {
-                num_cases++;
+                aux_households.emplace(h, Household());
+                aux_households.at(h).set_index(h);
+                // FIXME : to be deleted
+                // associate MCMC array of individuals to the Structure
+                aux_households.at(h).set_indiv_ptr(&indiv); 
             }
-            else if (this_indiv.get_status() != SUSCEPTIBLE)
+
+            aux_households.at(h).link_individual(i, indiv[i].get_status());
+        }
+        num_househ = aux_households.size(); // get number of unique household indexes
+
+        //=====produce list of households=====//
+        househ = new Household[num_househ]; // initialize the MCMC array of households
+
+        h = 0;
+        for (const auto &pair : aux_households)
+        {
+            househ[h] = pair.second;
+            h++;
+        }
+
+        // clear the loading dictionary
+        aux_individuals.clear();
+        aux_households.clear(); 
+
+        //=====assign home to individuals=====//
+        // FIXME : to be deleted
+        for (int h = 0; h < num_househ; h++)
+        {
+            for (int i : househ[h].get_house_members())
             {
-                num_unknown_status++;
+                indiv[i].home = h;
             }
         }
 
-        //=====assign structure of the community=====//
-        assign_community_structure("HH_idx"); // FIXME : HH_idx is found where??
-
-        // database analysis
+        //=====Database A   nalysis=====//
         int min_house_size = 1000, max_house_size = 0;
         int no_house_cases = 0, atleast_one_case = 0, atleast_two_cases = 0;
         for (int h = 0; h < num_househ; h++)
@@ -439,50 +478,6 @@ void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
     this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
     this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
-}
-
-/* Assign community structure to individuals. I returns a report. */
-void MCMC::assign_community_structure(std::string HH_index_column)
-{
-    int h;
-    std::unordered_map<int, Household> load_househ = {};
-
-    //=====safe load households=====//
-    for (int i = 0; i < num_indiv; i++)
-    {
-        h = indiv[i].get_data(HH_index_column);
-
-        // if househ_idx doesn't exist, append new household
-        if (load_househ.find(h) == load_househ.end())
-        {
-            load_househ.emplace(h, Household());
-            load_househ.at(h).set_index(h);
-        }
-
-        load_househ.at(h).link_individual(i, indiv[i].get_status());
-    }
-    num_househ = load_househ.size(); // get number of unique household indexes
-
-    //=====produce list of households=====//
-    househ = new Household[num_househ]; // initialize the MCMC array of households
-
-    h = 0;
-    for (const auto &pair : load_househ)
-    {
-        househ[h] = pair.second;
-        househ[h].set_indiv_ptr(&indiv); // associate MCMC array of individuals to the Structure
-        h++;
-    }
-    load_househ.clear(); // clear the loading dictionary
-
-    //=====assign home to individuals=====//
-    for (int h = 0; h < num_househ; h++)
-    {
-        for (int i : househ[h].get_house_members())
-        {
-            indiv[i].home = h;
-        }
-    }
 }
 
 // -----------------------------------------------------------------------------------------------------------//
