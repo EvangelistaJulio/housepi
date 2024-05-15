@@ -273,13 +273,9 @@ void MCMC::build_data(std::string data_pathtofile)
         num_househ = aux_households.size(); // get number of unique household indexes
 
         //=====produce list of households=====//
-        househ = new Household[num_househ]; // initialize the MCMC array of households
-
-        h = 0;
         for (const auto &pair : aux_households)
         {
-            househ[h] = pair.second;
-            h++;
+            househ.push_back(pair.second);
         }
 
         // clear the loading dictionary

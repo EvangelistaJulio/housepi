@@ -34,7 +34,7 @@ protected:
 
 	// classes to deal individuals and households
 	Individual *indiv;
-	Household *househ;
+	std::vector<Household> househ = {};
 	int num_indiv = 0;
 	int num_househ = 0;
 
