@@ -86,21 +86,17 @@ std::vector<gentype> generation_count_span(int n)
 /* Initialize the Lookup Table */
 void Model::initialize_model()
 {
-	size_t max_num = 0, aux = 0;
+	if (report_data["n.unk.stat"] > 0)
+	{
+		display_error_message("A missing status was found : case not modeled yet.");
+		std::exit(EXIT_FAILURE);
+	}
 
 	// find maximum possible number of sero-positives
+	size_t max_num = 0, aux = 0;
 	for (int h = 0; h < num_househ; h++)
 	{
-		// >>>> FIXME : temporary
-		if (househ[h].unknown_status_list.size() > 0)
-		{
-			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-			raise_error_message(err_txt);
-			std::exit(EXIT_FAILURE);
-		}
-		// <<<< <<<< <<<< <<<<
-
-		aux = househ[h].infectious_list.size() + househ[h].unknown_status_list.size();
+		aux = househ[h].infectious_list.size(); // + househ[h].unknown_status_list.size();
 		max_num = (aux > max_num) ? aux : max_num;
 	}
 

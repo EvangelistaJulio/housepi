@@ -44,7 +44,7 @@ bool MCMC::stobool(std::string token)
 }
 
 /* Parse the dictionary from the string */
-ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
+ssargs MCMC::parse_dict_string(std::string token)
 {
     std::istringstream args_ss(token);
     std::vector<std::string> args_stock;
@@ -52,7 +52,7 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
     std::string tmp;
 
     // rea the entryes of the dictionary
-    while (getline(args_ss, tmp, dict_delim))
+    while (getline(args_ss, tmp, DICT_DELIM))
     {
         args_stock.push_back(tmp);
     }
@@ -85,9 +85,9 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
 }
 
 /* Parse the scalar arguments dictionary from the std::string */
-sdargs MCMC::parse_dict_args(std::string token, char dict_delim)
+sdargs MCMC::parse_dict_args(std::string token)
 {
-    ssargs input = parse_dict_string(token, dict_delim);
+    ssargs input = parse_dict_string(token);
     sdargs output = {};
     for (auto const &x : input)
     {
@@ -97,14 +97,14 @@ sdargs MCMC::parse_dict_args(std::string token, char dict_delim)
 }
 
 /* Read column headers */
-std::vector<std::string> MCMC::read_column_headers(std::ifstream &input, char delim)
+std::vector<std::string> MCMC::read_column_headers(std::ifstream &input)
 {
     std::string line, token;
     getline(input, line);
     std::istringstream iss(line);
     std::vector<std::string> headers = {};
 
-    while (getline(iss, token, delim))
+    while (getline(iss, token, DELIM))
     {
         headers.push_back(string_cleaner(token));
     }
@@ -113,7 +113,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input, char de
 }
 
 /* Load files from the row with headers */
-bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row, char delim)
+bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row)
 {
     std::string line, token;
     if (getline(input, line))
@@ -121,7 +121,7 @@ bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> he
         std::istringstream iss(line);
         int num_cols = 0;
 
-        while (getline(iss, token, delim))
+        while (getline(iss, token, DELIM))
         {
             this_row.emplace(headers[num_cols], string_cleaner(token));
             num_cols++;
@@ -146,7 +146,7 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
 }
 
 /* Convert a type-string to a double */
-double MCMC::type_to_double(std::string token, int i, char option_delim)
+double MCMC::type_to_double(std::string token, int h, int i)
 {
     if (token == UNDEFINED)
     {
@@ -155,7 +155,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
     }
     else
     {
-        int pos = token.find(option_delim);
+        int pos = token.find(OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_SCALAR)
@@ -164,8 +164,8 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
         }
         else if (k == TYPE_DATA)
         {
-            indiv[i].assert_data(v);
-            return indiv[i].get_data(v);
+            househ[h].indiv[i].assert_data(v);
+            return househ[h].indiv[i].get_data(v);
         }
         else if (k == TYPE_PARAM)
         {
@@ -200,7 +200,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
 }
 
 /* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
+const double *MCMC::type_to_doubleptr(std::string token)
 {
     if (token == UNDEFINED)
     {
@@ -208,7 +208,7 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
     }
     else
     {
-        int pos = token.find(option_delim);
+        int pos = token.find(OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
@@ -228,30 +228,30 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
 }
 
 /* Convert a string with type-dictionary to string-to-double */
-sdargs MCMC::typedict_to_sdargs(std::string token, int, char dict_delim, char option_delim)
+sdargs MCMC::typedict_to_sdargs(std::string token, int h, int i)
 {
     sdargs output = {};
     if (token != UNDEFINED)
     {
-        ssargs input = parse_dict_string(token, dict_delim);
+        ssargs input = parse_dict_string(token);
         for (auto const &x : input)
         {
-            output.emplace(x.first, type_to_double(x.second, 0, option_delim));
+            output.emplace(x.first, type_to_double(x.second, h, i));
         }
     }
     return output;
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token, char dict_delim, char option_delim)
+sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token)
 {
     sdargs_ext output = {};
     if (token != UNDEFINED)
     {
-        ssargs input = parse_dict_string(token, dict_delim);
+        ssargs input = parse_dict_string(token);
         for (auto const &x : input)
         {
-            output.emplace(x.first, type_to_doubleptr(x.second, option_delim));
+            output.emplace(x.first, type_to_doubleptr(x.second));
         }
     }
     return output;

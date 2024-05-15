@@ -3,9 +3,9 @@
 
 #include "individual.h"
 
-////////////////////////////////////////////////////////////////////////
-// /////////////////// Individual : Constructor ///////////////////// //
-////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////// Individual : constructor ////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Constructor with a database row. */
 Individual::Individual(sdargs new_data)
@@ -15,13 +15,17 @@ Individual::Individual(sdargs new_data)
 	data = new_data;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////// Individual : methods //////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Return a feature of the Individual as provided in the database */
 double Individual::get_data(std::string dataID) const
 {
 	return data.at(dataID);
 }
 
-/* check if the individal has the data defined */
+/* Check if the individal has the data defined */
 void Individual::assert_data(std::string dataID)
 {
 	if (data.find(dataID) == data.end())
@@ -33,7 +37,9 @@ void Individual::assert_data(std::string dataID)
 	}
 }
 
-//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////// Individual : methods (Groutp Rates) /////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a model rate */
 void Individual::assign_rate_per_group(std::string rateID, std::string parID)
@@ -65,7 +71,9 @@ double Individual::model_rate(std::string rateID) const
 	return *_rate_ptr.at(rateID);
 }
 
-//=====Augmented Variables=====//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////// Individual : methods (Augmented Variables) /////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
@@ -124,9 +132,16 @@ double Individual::augm_model_logratio(std::string augmID, double old_value, dou
 	return augm_var.at(augmID).model_logratio(old_value, new_value);
 }
 
-////////////////////////////////////////////////////////////////////////
-// /////////////////////////// Household //////////////////////////// //
-////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////// Household : methods ////////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a data feature to the household */
 void Household::assign_data(std::string dataID, double value)
@@ -140,7 +155,7 @@ void Household::assign_data(std::string dataID, double value)
 	{
 		// rateID was previously declared
 		std::ostringstream oss; 
-		oss << "Household " << get_index() << " has multiple definitions for data `" + dataID + "`.";
+		oss << "Household " << get_index() << " has multiple definitions for data `" << dataID << "`.";
 		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
@@ -153,25 +168,29 @@ double Household::get_data(std::string dataID) const
 }
 
 /* Link an individual to the household */
-void Household::link_individual(int i, int status)
+void Household::add_individual(Individual this_indiv)
 {
+	int status = this_indiv.get_status();
+	indiv.push_back(this_indiv);
+
 	// status list
 	if (status == INFECTIOUS)
 	{
-		infectious_list.push_back(i);
+		infectious_list.push_back(house_size);
 	}
 	else if (status == SUSCEPTIBLE)
 	{
-		susceptibles_list.push_back(i);
+		susceptibles_list.push_back(house_size);
 	}
 	else
 	{
-		unknown_status_list.push_back(i);
+		unknown_status_list.push_back(house_size);
 	}
 	house_size++;
 }
 
 /* Return the indexes of the infectious, then the susceptibles, unknown statuses */
+// FIXME : is this necessary anymore?
 std::vector<int> Household::get_house_members()
 {
 	std::vector<int> members;
@@ -193,7 +212,7 @@ std::vector<int> Household::get_house_members()
 	WARNING : this introduces augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(int i, int new_status)
 {
-	int old_status = (*indiv_ptr)[i].get_status();
+	int old_status = indiv[i].get_status();
 
 	if (old_status != new_status)
 	{
@@ -226,7 +245,7 @@ void Household::change_status(int i, int new_status)
 		}
 
 		// change the status of individual to new
-		(*indiv_ptr)[i].set_status(new_status);
+		indiv[i].set_status(new_status);
 	}
 }
 

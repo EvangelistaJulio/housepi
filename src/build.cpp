@@ -116,7 +116,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         display_stdout("Loading parameters definition from: " + data_pathtofile);
 
         //=====Load column headers=====//
-        std::vector<std::string> headers = read_column_headers(input, DELIM);
+        std::vector<std::string> headers = read_column_headers(input);
         // check the validity of the headers
         for (std::string req : param_file_required_headers)
         {
@@ -128,7 +128,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         }
 
         //=====Load parameters from the row with options=====//
-        for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row, DELIM); this_row.clear())
+        for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
         {
             // add entry to shared parameter dictionary
             if (stobool(this_row.at("infer")))
@@ -137,10 +137,10 @@ void MCMC::build_parameters(std::string data_pathtofile)
                     this_row["name"],
                     std::stod(this_row["value"]),
                     this_row["prior"],
-                    parse_dict_args(this_row["prior_args"], DICT_DELIM),
+                    parse_dict_args(this_row["prior_args"]),
                     this_row["strategy"],
-                    parse_dict_args(this_row["strategy_args"], DICT_DELIM),
-                    parse_dict_args(this_row["range"], DICT_DELIM));
+                    parse_dict_args(this_row["strategy_args"]),
+                    parse_dict_args(this_row["range"]));
             }
             else
             {
@@ -166,15 +166,58 @@ void MCMC::build_parameters(std::string data_pathtofile)
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
-void MCMC::display_model_report()
+void MCMC::display_report()
 {
     if (Verbose)
     {
+        //=====Perform Database Analysis=====//
+        for (int h = 0; h < num_househ; h++)
+        {
+            report_data["min.HH.size"] = std::min(househ[h].house_size, report_data["min.HH.size"]);
+            report_data["max.HH.size"] = std::max(househ[h].house_size, report_data["max.HH.size"]);
+            int aux = househ[h].infectious_list.size();
+            report_data["no.HH.case"] += (aux == 0);
+            report_data["lst.1.case"] += (aux > 0);
+            report_data["lst.2.case"] += (aux > 1);
+        }
+
+        //=====Display Database Summary=====//
+        display_decorator("DATABASE::summary", '-', 1);
+        std::ostringstream oss;
+        oss << "N. of individuals: " << report_data["n.indiv"]
+            << "\n    * N. of cases: " << report_data["n.cases"]
+            << std::fixed << std::setprecision(2)
+            << " (" << (100.0 * report_data["n.cases"] / report_data["n.indiv"]) << " %)";
+        if (report_data["n.unk.stat"] > 0)
+        {
+            oss << "\nN. of missing status : " << report_data["n.unk.stat"];
+        }
+        oss << "\nN. of households: " << num_househ;
+        if (report_data["no.HH.case"] > 0)
+        {
+            oss << "\n    * with no cases: " << report_data["no.HH.case"]
+                << std::fixed << std::setprecision(2)
+                << " (" << (100.0 * report_data["no.HH.case"] / num_househ) << " %)";
+        }
+        oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
+            << std::fixed << std::setprecision(2)
+            << " (" << (100.0 * report_data["lst.1.case"] / num_househ) << " %)"
+            << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
+            << std::fixed << std::setprecision(2)
+            << " (" << (100.0 * report_data["lst.2.case"] / num_househ) << " %)"
+            << "\nMin n. house members: " << report_data["min.HH.size"]
+            << "\nMax n. house members: " << report_data["max.HH.size"];
+        display_stdout(oss);
+        oss.str("");
+        oss.clear();
+
+        //=====Display Model Summary=====//
+
         // check if user defined groups other than reference
         bool has_non_reference_groups = false;
-        if (!model_report.empty())
+        if (!report_model.empty())
         {
-            for (const auto &entry : model_report)
+            for (const auto &entry : report_model)
             {
                 if (entry.second.size() > 1)
                 {
@@ -183,17 +226,20 @@ void MCMC::display_model_report()
                 }
             }
         }
+
+        // in such case display the model summary
         if (has_non_reference_groups)
         {
             std::ostringstream oss;
             display_decorator("DATABASE::groups", '-', 1);
-            for (const auto &which : model_report)
+            for (const auto &which : report_model)
             {
                 oss << which.first << ":";
                 for (auto const &x : which.second)
                 {
                     oss << "\n    * " << x.first << ": " << x.second
-                        << std::fixed << std::setprecision(2) << " (" << (100.0 * x.second / num_indiv) << " %)";
+                        << std::fixed << std::setprecision(2)
+                        << " (" << (100.0 * x.second / report_data["n.indiv"]) << " %)";
                 }
             }
             display_stdout(oss);
@@ -217,7 +263,7 @@ void MCMC::build_data(std::string data_pathtofile)
         display_stdout("Loading data from: " + data_pathtofile);
 
         //=====Load column headers=====//
-        data_headers = read_column_headers(input, DELIM);
+        data_headers = read_column_headers(input);
         // check the validity of the headers
         for (std::string req : required_headers)
         {
@@ -229,23 +275,24 @@ void MCMC::build_data(std::string data_pathtofile)
         }
 
         //=====Load individuals from the row with values=====//
-        int num_cases = 0;
-        int num_unknown_status = 0;
         std::vector<Individual> aux_individuals = {};
-        for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row, DELIM); this_row.clear())
+        for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
         {
             Individual this_indiv(row_to_sdargs(this_row));
             assign_rate_per_group_to_individual(this_indiv);
+            update_model_report(this_indiv);
             aux_individuals.push_back(this_indiv);
+            report_data["n.indiv"]++;
 
             //=====check for the validity of the status=====//
             if (this_indiv.get_status() == INFECTIOUS)
             {
-                num_cases++;
+                report_data["n.cases"]++;
             }
-            if (this_indiv.get_status() != SUSCEPTIBLE)
+            else if (this_indiv.get_status() != SUSCEPTIBLE)
             {
-                num_unknown_status++;
+                report_data["n.unk.stat"]++;
+
                 std::ostringstream oss;
                 oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
                     << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
@@ -254,35 +301,22 @@ void MCMC::build_data(std::string data_pathtofile)
             }
         }
 
-        //=====assign individuals to mcmc=====//
-        indiv = new Individual[aux_individuals.size()];
+        //=====safe load households=====//
+        int hh_idx;
+        std::unordered_map<int, Household> aux_households = {};
         for (Individual this_indiv : aux_individuals)
         {
-            update_model_report(this_indiv);
-            indiv[num_indiv] = this_indiv;
-            num_indiv++;
-        }
+            hh_idx = this_indiv.get_data("HH_idx"); // FIXME : HH_idx is found where ??
 
-        //=====safe load households=====//
-        int h;
-        std::unordered_map<int, Household> aux_households = {};
-        for (int i = 0; i < num_indiv; i++)
-        {
-            h = indiv[i].get_data("HH_idx"); // FIXME : HH_idx is found where??
-
-            // if househ_idx doesn't exist, append new household
-            if (aux_households.find(h) == aux_households.end())
+            // if household index doesn't exist, add new household
+            if (aux_households.find(hh_idx) == aux_households.end())
             {
-                aux_households.emplace(h, Household());
-                aux_households.at(h).set_index(h);
-                // FIXME : to be deleted
-                // associate MCMC array of individuals to the Structure
-                aux_households.at(h).set_indiv_ptr(&indiv);
+                aux_households.emplace(hh_idx, Household());
+                aux_households.at(hh_idx).set_index(hh_idx);
             }
 
-            aux_households.at(h).link_individual(i, indiv[i].get_status());
+            aux_households.at(hh_idx).add_individual(this_indiv);
         }
-        num_househ = aux_households.size(); // get number of unique household indexes
 
         //=====produce list of households=====//
         for (const auto &pair : aux_households)
@@ -290,45 +324,18 @@ void MCMC::build_data(std::string data_pathtofile)
             househ.push_back(pair.second);
         }
 
+        // get number of unique household indexes
+        num_househ = househ.size();
+
         // clear the loading dictionary
         aux_individuals.clear();
         aux_households.clear();
 
-        //=====assign home to individuals=====//
-        // FIXME : to be deleted
-        for (int h = 0; h < num_househ; h++)
-        {
-            for (int i : househ[h].get_house_members())
-            {
-                indiv[i].home = h;
-            }
-        }
-
-        //=====Database A   nalysis=====//
-        int min_house_size = 1000, max_house_size = 0;
-        int no_house_cases = 0, atleast_one_case = 0, atleast_two_cases = 0;
-        for (int h = 0; h < num_househ; h++)
-        {
-            min_house_size = std::min(househ[h].house_size, min_house_size);
-            max_house_size = std::max(househ[h].house_size, max_house_size);
-            int aux = househ[h].infectious_list.size();
-            if (aux == 0)
-            {
-                no_house_cases++;
-            }
-            else
-            {
-                atleast_one_case++;
-                if (aux > 1)
-                {
-                    atleast_two_cases++;
-                }
-            }
-        }
-
         //=====initialize contact patterns=====//
+        // FIXME : to be moved inside Household
         // UPDATE: this scale like individuls, but could scale as househodls
         // NOTE : however the indexes are tricky to be mapped back
+        /*
         contact_patterns = new const double *[num_indiv * num_indiv];
         std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
 
@@ -354,39 +361,10 @@ void MCMC::build_data(std::string data_pathtofile)
                 }
             }
         }
+        */
 
         //=====Display General Information=====//
-        if (Verbose)
-        {
-            std::ostringstream oss;
-
-            //-----Display Database Summary-----//
-            display_decorator("DATABASE::summary", '-', 1);
-            oss << "N. of individuals: " << num_indiv
-                << "\n    * N. of cases: " << num_cases
-                << std::fixed << std::setprecision(2) << " (" << (100.0 * num_cases / num_indiv) << " %)";
-            if (num_unknown_status > 0)
-            {
-                oss << "\nN. of missing status : " << num_unknown_status;
-            }
-            oss << "\nN. of households: " << num_househ;
-            if (no_house_cases > 0)
-            {
-                oss << "\n    * with no cases: " << no_house_cases
-                    << std::fixed << std::setprecision(2) << " (" << (100.0 * no_house_cases / num_househ) << " %)";
-            }
-            oss << "\n    * with at least 1 case: " << atleast_one_case
-                << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_one_case / num_househ) << " %)"
-                << "\n    * with at least 2 cases: " << atleast_two_cases
-                << std::fixed << std::setprecision(2) << " (" << (100.0 * atleast_two_cases / num_househ) << " %)"
-                << "\nMin n. house members: " << min_house_size
-                << "\nMax n. house members: " << max_house_size;
-            display_stdout(oss);
-            oss.str("");
-            oss.clear();
-        }
-        display_model_report();
-        model_report.clear();
+        display_report();
     }
     else
     {
@@ -414,16 +392,16 @@ void MCMC::update_model_report(Individual &this_indiv)
         std::string rateID = which.first;
         std::string parID = which.second;
 
-        if (num_indiv == 0)
+        if (report_data["n.indiv"] == 0)
         {
             // if first individual, initialize rateID-report
-            model_report.emplace(rateID, std::map<std::string, int>());
-            model_report.at(rateID).emplace("[reference]", 0);
+            report_model.emplace(rateID, std::map<std::string, int>());
+            report_model.at(rateID).emplace("[reference]", 0);
         }
         else
         {
             // all individuals must have the same set of rates of first individual
-            if (model_report.find(rateID) == model_report.end())
+            if (report_model.find(rateID) == report_model.end())
             {
                 display_error_message("Group rate `" + rateID + "` has not been provided for all individuals.");
                 std::exit(EXIT_FAILURE);
@@ -435,7 +413,7 @@ void MCMC::update_model_report(Individual &this_indiv)
         {
             // error : undefined rate
             std::ostringstream oss;
-            oss << "Rate `" << rateID << "` is not provided for individual " << indiv[i].get_index() << ".";
+            oss << "Rate `" << rateID << "` is not provided for individual " << this_indiv.get_index() << ".";
             display_error_message(oss);
             std::exit(EXIT_FAILURE);
         }
@@ -443,19 +421,19 @@ void MCMC::update_model_report(Individual &this_indiv)
         {
             // rate set to reference
             this_indiv._set_rate(rateID, get_reference());
-            model_report.at(rateID).at("[reference]") += 1;
+            report_model.at(rateID).at("[reference]") += 1;
         }
         else
         {
             // rate associated to parameter
             this_indiv._set_rate(rateID, get_address(parID));
-            if (model_report.at(rateID).find(parID) == model_report.at(rateID).end())
+            if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
             {
-                model_report.at(rateID).emplace(parID, 1);
+                report_model.at(rateID).emplace(parID, 1);
             }
             else
             {
-                model_report.at(rateID).at(parID) += 1;
+                report_model.at(rateID).at(parID) += 1;
             }
         }
     }
@@ -494,7 +472,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
             display_stdout("Loading augmented definition from: " + data_pathtofile);
 
             //=====Load column headers=====//
-            std::vector<std::string> headers = read_column_headers(input, DELIM);
+            std::vector<std::string> headers = read_column_headers(input);
             // check the validity of the headers
             for (std::string req : required_headers)
             {
@@ -506,7 +484,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
             }
 
             //=====Load augmented from the row with options=====//
-            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row, DELIM); this_row.clear())
+            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
             {
                 load_augm_definition.push_back(this_row);
             }
@@ -557,19 +535,22 @@ void MCMC::assign_augmented_variables()
     is_data_augmentation = !augm_to_be_inferred.empty();
 
     // assign augmented variables to each individual
-    for (int i = 0; i < num_indiv; i++)
+    for (int h = 0; h < num_househ; h++)
     {
-        for (ssargs loader : load_augm_definition)
+        for (int i = 0; i < househ[h].house_size; i++)
         {
-            Augmented augm_var(
-                type_to_double(loader.at("value"), i),
-                loader.at("model"),
-                typedict_to_sdargs_ext(loader.at("model_args")),
-                loader.at("strategy"),
-                typedict_to_sdargs(loader.at("strategy_args"), i),
-                type_to_double(loader.at("move_from"), i),
-                typedict_to_sdargs(loader.at("range"), i));
-            indiv[i].add_augm(loader.at("name"), augm_var);
+            for (ssargs loader : load_augm_definition)
+            {
+                Augmented augm_var(
+                    type_to_double(loader.at("value"), h, i),
+                    loader.at("model"),
+                    typedict_to_sdargs_ext(loader.at("model_args")),
+                    loader.at("strategy"),
+                    typedict_to_sdargs(loader.at("strategy_args"), h, i),
+                    type_to_double(loader.at("move_from"), h, i),
+                    typedict_to_sdargs(loader.at("range"), h, i));
+                househ[h].indiv[i].add_augm(loader.at("name"), augm_var);
+            }
         }
     }
 
@@ -582,9 +563,12 @@ void MCMC::init_augmented_variables()
 {
     for (std::string augmID : augm_rand_init_set)
     {
-        for (int i = 0; i < num_indiv; i++)
+        for (int h = 0; h < num_househ; h++)
         {
-            indiv[i].init_augm(augmID, get_prng());
+            for (int i = 0; i < househ[h].house_size; i++)
+            {
+                househ[h].indiv[i].init_augm(augmID, get_prng());
+            }
         }
     }
 }
@@ -699,18 +683,21 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             }
             augm_ofstream << std::endl;
 
-            for (int i = 0; i < num_indiv; i++)
+            for (int h = 0; h < num_househ; h++)
             {
-                augm_ofstream << indiv[i].get_index() << DELIM << indiv[i].get_status();
-                for (std::string dataID : data_headers)
+                for (int i = 0; i < househ[h].house_size; i++)
                 {
-                    augm_ofstream << DELIM << indiv[i].get_data(dataID);
+                    augm_ofstream << househ[h].indiv[i].get_index() << DELIM << househ[h].indiv[i].get_status();
+                    for (std::string dataID : data_headers)
+                    {
+                        augm_ofstream << DELIM << househ[h].indiv[i].get_data(dataID);
+                    }
+                    for (std::string augmID : augm_full_set)
+                    {
+                        augm_ofstream << DELIM << househ[h].indiv[i].get_augm(augmID);
+                    }
+                    augm_ofstream << std::endl;
                 }
-                for (std::string augmID : augm_full_set)
-                {
-                    augm_ofstream << DELIM << indiv[i].get_augm(augmID);
-                }
-                augm_ofstream << std::endl;
             }
 
             augm_ofstream.close();

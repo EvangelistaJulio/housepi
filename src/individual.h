@@ -35,7 +35,6 @@ private:
 
 public:
 	//=====Public Attributes=====//
-	int home = -1;
 	std::unordered_map<std::string, std::string> _which_rate = {};
 
 	//=====Constructors=====//
@@ -82,9 +81,9 @@ public:
 class Household
 {
 private:
+	//=====Attributes (private)=====//
 	int house_index = -1;
 	sdargs house_data = {};
-	Individual **indiv_ptr = nullptr; // pointer to individauls' list
 
 	// log-likelihood
 	double loglike = -INF_DOUBLE;
@@ -95,9 +94,10 @@ private:
 	std::unordered_map<std::string, int> num_propos_augm_moves = {};
 
 public:
-	//=====Attributes=====//
+	//=====Attributes (public)=====//
 	int house_size = 0;
 	int first_case = -1;
+	std::vector<Individual> indiv = {};
 
 	// list of house members for given status
 	std::vector<int> infectious_list = {};
@@ -116,10 +116,9 @@ public:
 
 	//======Setter======//
 	void set_index(int index) { house_index = index; }
-	void set_indiv_ptr(Individual **new_ptr) { indiv_ptr = new_ptr; }
-	void link_individual(int i, int status);
-	void change_status(int i, int new_status);
 	void assign_data(std::string dataID, double value);
+	void add_individual(Individual this_indiv);
+	void change_status(int i, int new_status);
 
 	//======Getter======//
 	int get_index() const { return house_index; }

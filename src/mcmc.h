@@ -33,9 +33,7 @@ protected:
 	int setup_thinning = 20;
 
 	// classes to deal individuals and households
-	Individual *indiv;
 	std::vector<Household> househ = {};
-	int num_indiv = 0;
 	int num_househ = 0;
 
 	// definition of data variables
@@ -56,6 +54,15 @@ protected:
 	long double dgn_sum_loglike = 0.;
 	long double dgn_sum_sqr_loglike = 0.;
 
+	// report of the database
+	std::map<std::string, int> report_data = {
+		{"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0},
+		{"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0},
+		{"min.HH.size", 1000}, {"max.HH.size", 0}
+	};
+	// report of the model
+	std::map<std::string, std::map<std::string, int>> report_model = {};
+
 public:
 	//=====Build data and parameters=====//
 	// load standard files
@@ -68,21 +75,20 @@ public:
 	virtual void build_extra(std::string data_pathtofile);
 
 	//=====General Initialization=====//
-	int get_status(int i) const { return indiv[i].get_status(); }
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual std::string assign_rate_per_contact(int i, int k);
 	virtual void initialize_model(){};
 	void update_model_report(Individual &this_indiv);
-	void display_model_report();
+	void display_report();
 
 	//=====Augmented Variables=====//
 	void assign_augmented_variables();
 	void init_augmented_variables();
 	virtual void update_first_case(int h);
-	virtual void augm_var_store_dependecies(int i);
-	virtual double augm_var_propose(int i, std::string augmID);
-	virtual void augm_var_update(int i, std::string augmID, double new_val);
-	virtual double get_infec_time(int i) const;
+	virtual void augm_var_store_dependecies(int h, int i);
+	virtual double augm_var_propose(int h, int i, std::string augmID);
+	virtual void augm_var_update(int h, int i, std::string augmID, double new_val);
+	virtual double get_infec_time(int h, int i) const;
 
 	//=====Log-Likelihood computations=====//
 	void set_global_loglike(double x) { global_loglike = x; };
@@ -122,8 +128,8 @@ public:
 	
 	//=====deal with flatten matrices=====//
 	// FIXME : move inside households for coherency
-	int from_to(int from, int to) { return from * num_indiv + to; }
-	double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
+	//int from_to(int from, int to) { return from * num_indiv + to; }
+	//double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
 
 private:
 	double global_loglike = 0.0;
@@ -132,25 +138,23 @@ private:
 	//=====BUILD=====//
 
 	//-----build auxiliary attributes-----//
-
 	// outoput parameter file
 	std::ofstream param_ofstream;
-	std::map<std::string, std::map<std::string, int>> model_report = {};
 	// temporary loader for augmented variable definition
 	std::vector<ssargs> load_augm_definition = {};
 
 	//----build auxiliary functions-----//
 	std::string string_cleaner(std::string token);
 	bool stobool(std::string token);
-	ssargs parse_dict_string(std::string token, char dict_delim);
-	sdargs parse_dict_args(std::string token, char dict_delim);
-	std::vector<std::string> read_column_headers(std::ifstream &input, char delim = DELIM);
-	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row, char delim = DELIM);
+	ssargs parse_dict_string(std::string token);
+	sdargs parse_dict_args(std::string token);
+	std::vector<std::string> read_column_headers(std::ifstream &input);
+	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row);
 	sdargs row_to_sdargs(ssargs &this_row);
-	double type_to_double(std::string token, int i, char option_delim = OPTION_DELIM);
-	const double *type_to_doubleptr(std::string token, char option_delim);
-	sdargs typedict_to_sdargs(std::string token, int i, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
-	sdargs_ext typedict_to_sdargs_ext(std::string token, char dict_delim = DICT_DELIM, char option_delim = OPTION_DELIM);
+	double type_to_double(std::string token, int h, int i);
+	const double *type_to_doubleptr(std::string token);
+	sdargs typedict_to_sdargs(std::string token, int h, int i);
+	sdargs_ext typedict_to_sdargs_ext(std::string token);
 };
 
 #endif // MCMC__H

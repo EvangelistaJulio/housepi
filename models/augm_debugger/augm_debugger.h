@@ -46,25 +46,29 @@ public:
 // ////////////////////////////////////////// Model : class /////////////////////////////////////////// //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Define a type alias for a matrix
+using Matrix = std::vector<std::vector<double>>;
+
 class Model : public MCMC
 {
 protected:
-	std::vector<double> inst_profile_LUT = {};
-	std::vector<double> cumul_profile_LUT = {};
+	std::vector<Matrix> inst_profile_LUT = {};
+	std::vector<Matrix> cumul_profile_LUT = {};
 
 public:
 	Model() : infec_profile_func(){};
 
-	//=====Model Specifc Methods =====//
+	//=====Model Specifc Methods=====//
 	Infectivity_Profile_Function infec_profile_func;
-	double compute_infec_profile_inst(int i, double t_transm);
-	double compute_infec_profile_cumul(int i, double t_transm);
-	double hazards_of_infec(std::vector<double> *profiles, int idx);
+	double compute_infec_profile_inst(int h, int i, double t_transm);
+	double compute_infec_profile_cumul(int h, int i, double t_transm);
+	double hazards_of_infec(int h, int i, std::vector<Matrix> &profiles);
 
-	void augm_var_store_dependecies(int i) override;
-	double get_infec_time(int i) const override;
-	double compute_single_house_loglike(int h) override;
+	//=====Override General Methods=====//
 	void initialize_model() override;
+	void augm_var_store_dependecies(int h, int i) override;
+	double get_infec_time(int h, int i) const override;
+	double compute_single_house_loglike(int h) override;
 
 	void simulate_single_house(int h) override;
 	void format_augmented_data() override;

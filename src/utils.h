@@ -78,6 +78,9 @@ public:
     Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order = {});
     virtual ~Base_Function(){};
 
+    // FIXME : 
+    // need to assign args later in case constructor is empty
+
     //=====Getter (functional)=====//
     std::string get_name() const { return name; }
     double get_arg(int argID) const { return (this->*_get_arg_func_)(argID); }
