@@ -17,67 +17,65 @@
 
 #include "individual.h"
 
-// print also adaptive iterations 
-#define PRINT_ADAPT_ITER
+// to switch off this option, silent next line
+#define PRINT_ADAPT_ITER // print also adaptive iterations
 
-////////////////////////////////////////////////////////////////////////
-// ////////////////////////// MCMC : Class ////////////////////////// //
-////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////  MCMC : class  ////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class MCMC : public Monte_Carlo_Core
 {
 protected:
-	int setup_seed = time(NULL); // default random seed
-	int setup_num_iter = 20000;
-	int setup_num_adapt_iter = 5000;
-	int setup_thinning = 20;
+	//=====Setup=====//
+	int setup_seed = time(NULL);  // random seed
+	int setup_num_iter = 20000;	  // number of iterations
+	int setup_num_adapt_iter = 0; // number of (finite) adaptive steps
+	int setup_thinning = 20;	  // number of thinning iterations
 
-	// classes to deal individuals and households
+	//=====Database=====//
+	std::vector<std::string> data_headers = {};
+
+	//=====List of Households=====//
 	std::vector<Household> househ = {};
 	int num_househ = 0;
 
-	// definition of data variables
-	std::vector<std::string> data_headers = {};
-
-	// definitions for data augmentation
+	//=====Augmented Variables=====//
 	bool is_data_augmentation = false;
 	std::set<std::string> augm_full_set = {};
 	std::set<std::string> augm_to_be_inferred = {};
 	std::set<std::string> augm_with_model_set = {};
 	std::set<std::string> augm_rand_init_set = {};
 
-	// model auxiliary objects
-	const double **contact_patterns;
+	//=====Diagnostics=====//
+	int dgn_ss = 0;						  // sample size
+	long double dgn_sum_loglike = 0.;	  // sum of the loglikelihood
+	long double dgn_sum_sqr_loglike = 0.; // sum of the squared loglikelihood
 
-	// auxiliary variables to compute Bayesian diagnostics
-	int dgn_ss = 0;
-	long double dgn_sum_loglike = 0.;
-	long double dgn_sum_sqr_loglike = 0.;
-
-	// report of the database
+	//=====Reports (Database, Model)=====//
 	std::map<std::string, int> report_data = {
-		{"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0},
-		{"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0},
-		{"min.HH.size", 1000}, {"max.HH.size", 0}
-	};
-	// report of the model
+		{"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, {"min.HH.size", 1000}, {"max.HH.size", 0}};
 	std::map<std::string, std::map<std::string, int>> report_model = {};
 
 public:
 	//=====Build data and parameters=====//
-	// load standard files
 	void build_setup(std::string data_pathtofile);
 	void build_parameters(std::string data_pathtofile);
 	void build_augmented(std::string data_pathtofile);
-	void build_data(std::string data_pathtofile);
-
-	// load extra non standard files
-	virtual void build_extra(std::string data_pathtofile);
+	void build_data(std::string data_pathtofile);	
+	virtual void build_extra(std::string data_pathtofile); // load non standard file
 
 	//=====General Initialization=====//
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual std::string assign_rate_per_contact(int i, int k);
-	virtual void initialize_model(){};
+	virtual void initialize_model() {};
 	void update_model_report(Individual &this_indiv);
 	void display_report();
 
@@ -107,15 +105,15 @@ public:
 	void update_model_diagnostics();
 	void display_thin_results();
 
-	//=====infer=====//
+	//=====Infer=====//
 	void inference(
 		std::string output_filename,
 		bool is_rand_params = false,
 		double inv_temperature = 1.0);
 
-	//=====simulate=====//
+	//=====Simulate=====//
 	virtual void simulate_single_house(int h);
-	virtual void format_augmented_data(){};
+	virtual void format_augmented_data() {};
 	void simulation();
 
 	//=====Save parameters=====//
@@ -125,11 +123,13 @@ public:
 
 	//=====Save augmented variables=====//
 	void print_augm_variables(std::string output_filename);
-	
+
 	//=====deal with flatten matrices=====//
+	// model auxiliary objects
+	// const double **contact_patterns;
 	// FIXME : move inside households for coherency
-	//int from_to(int from, int to) { return from * num_indiv + to; }
-	//double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
+	// int from_to(int from, int to) { return from * num_indiv + to; }
+	// double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
 
 private:
 	double global_loglike = 0.0;
@@ -137,13 +137,11 @@ private:
 
 	//=====BUILD=====//
 
-	//-----build auxiliary attributes-----//
-	// outoput parameter file
-	std::ofstream param_ofstream;
-	// temporary loader for augmented variable definition
-	std::vector<ssargs> load_augm_definition = {};
+	//-----build : auxiliary attributes-----//
+	std::ofstream param_ofstream; 	// outoput parameter file
+	std::vector<ssargs> load_augm_definition = {}; // temporary loader for augmented variable definition
 
-	//----build auxiliary functions-----//
+	//----build : auxiliary functions-----//
 	std::string string_cleaner(std::string token);
 	bool stobool(std::string token);
 	ssargs parse_dict_string(std::string token);
@@ -151,10 +149,19 @@ private:
 	std::vector<std::string> read_column_headers(std::ifstream &input);
 	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row);
 	sdargs row_to_sdargs(ssargs &this_row);
+	
+	//----build : type-specified variables-----//
 	double type_to_double(std::string token, int h, int i);
 	const double *type_to_doubleptr(std::string token);
 	sdargs typedict_to_sdargs(std::string token, int h, int i);
 	sdargs_ext typedict_to_sdargs_ext(std::string token);
 };
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 #endif // MCMC__H

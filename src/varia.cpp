@@ -3,8 +3,15 @@
 
 #include "varia.h"
 
-// Warning for status
-bool Invalid_Proposer_Warning = true;
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Auxiliary Functions  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Estimate sample variance from sum X, sum X^2 and sample size */
 double est_sample_variance(double sum_X, double sum_X2, double ss)
@@ -12,8 +19,15 @@ double est_sample_variance(double sum_X, double sum_X2, double ss)
     return sum_X2 / (ss - 1.) - std::pow(sum_X, 2) / (ss * (ss - 1.));
 }
 
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////  Base_Proposer : constructor ////////////////////////////////// //
+////////////////////////////////  Base_Proposer : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(
@@ -37,17 +51,20 @@ Base_Proposer::Base_Proposer(
             oss << "Initial value " << strategy_from_zero << " and value range"
                 << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
                 << "\nIf it was intentional, ignore this message.";
-            raise_warning_message(oss.str(), &Invalid_Proposer_Warning);
+            raise_warning_message(oss, &Invalid_Proposer_Range_Warning);
         }
         zero_start = true;
         set_strat_zero(strategy_from_zero);
     }
 };
 
-/* increase spread if acceptation rate is high and viceversa */
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Base_Proposer : methods  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Increase spread if acceptation rate is high and viceversa. */
 void Base_Proposer::adapt(double ratio)
 {
-    // linear
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
     for (int argID : args_to_adapt)
@@ -56,21 +73,21 @@ void Base_Proposer::adapt(double ratio)
     }
 }
 
-/* reset acceptation rate */
+/* Reset acceptation rate. */
 void Base_Proposer::reset_accept_rate()
 {
     accept_rate = 0.0;
     num_proposed_moves = 0;
 };
 
-/* update accept rate */
+/* Update the parameter accept rate. */
 void Base_Proposer::update_accept_rate(bool is_accepted)
 {
     accept_rate = (double)(accept_rate * num_proposed_moves + is_accepted) / (num_proposed_moves + 1);
     num_proposed_moves += 1;
 }
 
-/* set range validation functions */
+/* Set the range of validity of the value, and the corresponding validation function. */
 void Base_Proposer::set_range(sdargs new_range)
 {
     int condition = 0;
@@ -105,8 +122,9 @@ void Base_Proposer::set_range(sdargs new_range)
     {
         if (_range_min_ >= _range_max_)
         {
-            std::string err_text = "Provided an inconsistent range: {min:" + std::to_string(_range_min_) + ", max:" + std::to_string(_range_max_) + "}.";
-            display_error_message(err_text);
+            std::ostringstream oss;
+            oss << "Provided an inconsistent range: {min:" << _range_min_ << ", max:" <<_range_max_ << "}.";
+            display_error_message(oss);
             std::exit(EXIT_FAILURE);
         }
         else
@@ -116,13 +134,12 @@ void Base_Proposer::set_range(sdargs new_range)
     }
     else
     {
-        std::string err_text = "Provided multiple definition for the range.";
-        display_error_message(err_text);
+        display_error_message("Provided multiple definition for the range.");
         std::exit(EXIT_FAILURE);
     }
 }
 
-/* Switchboard to select the custom metropolis strategy */
+/* Switchboard to select the custom metropolis strategy. */
 Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_zero, sdargs value_range)
 {
     if (name == UNDEFINED)
@@ -143,45 +160,44 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     }
     else
     {
-        std::string err_text = "Unknown metropolis strategy `" + name + "`.";
-        display_error_message(err_text);
+        display_error_message("Unknown metropolis strategy `" + name + "`.");
         std::exit(EXIT_FAILURE);
     }
 }
 
-/* Display method for proposer (building on the distribution method) */
+/* Display method for proposer (building on the distribution method). */
 std::ostringstream Base_Proposer::message_to_display()
 {
     std::ostringstream oss;
-    oss << distr_ptr->message_to_display().str() << DELIM;
+    oss << distr_ptr->message_to_display().str() << C_DELIM;
     if (_range_min_ > -INF_DOUBLE)
     {
-        oss << "min" << DICT_DELIM << _range_min_;
+        oss << "min" << C_DICT_DELIM << _range_min_;
         if (_range_max_ < INF_DOUBLE)
         {
-            oss << DICT_DELIM;
+            oss << C_DICT_DELIM;
         }
     }
     if (_range_max_ < INF_DOUBLE)
     {
-        oss << "max" << DICT_DELIM << _range_max_;
+        oss << "max" << C_DICT_DELIM << _range_max_;
     }
 
     return oss;
 }
 
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////
-//////// Parameter : methods ///////////////////
-///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Parameter : methods  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Update the values for the Bayesian diagnostics */
+/* Update the values for the Bayesian diagnostics. */
 void Parameter::update_diagnostics()
 {
     dgn_sum += get_value();
@@ -189,28 +205,65 @@ void Parameter::update_diagnostics()
     dgn_sample_size++;
 }
 
-/* Message to be used at the moment of display diagnostics */
+/* Message to be used at the moment of display diagnostics. */
 std::ostringstream Parameter::message_to_display_diagnostics()
 {
     std::ostringstream oss;
     oss << (dgn_sum / dgn_sample_size)
-        << DELIM << std::to_string(std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size)))
-        << DELIM << ((infer) ? "true" : "false");
+        << C_DELIM << std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size))
+        << C_DELIM << ((infer) ? "true" : "false");
     if (infer)
     {
-        oss << DELIM << distr_ptr->message_to_display().str()
-            << DELIM << prop_ptr->message_to_display().str();
+        oss << C_DELIM << distr_ptr->message_to_display().str()
+            << C_DELIM << prop_ptr->message_to_display().str();
     }
 
     return oss;
 }
 
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign a new parameter to the dictionary. */
+void Monte_Carlo_Core::assign_parameter(
+    const std::string parID, double new_val,
+    std::string prior_name, sdargs prior_args,
+    std::string strat_name, sdargs strat_args,
+    sdargs value_range)
+{
+    Parameter new_param(new_val,
+                        prior_name, prior_args,
+                        strat_name, strat_args,
+                        value_range);
+
+    if (params.find(parID) == params.end())
+    {
+        params.emplace(parID, new_param);
+    }
+    else
+    {
+        display_error_message("Parameter `" + parID + "` has multiple definitions.");
+        std::exit(EXIT_FAILURE);
+    }
+
+    // update the lists of parameters to be inferred, and these to be static
+    if (new_param.get_infer())
+    {
+        param_to_be_inferred.push_back(parID);
+    }
+    else
+    {
+        param_static.push_back(parID);
+    }
+}
 
 /* Set the number of threads for parrell computations (default is 1). */
 void Monte_Carlo_Core::set_num_threads(int n)
@@ -241,7 +294,7 @@ void Monte_Carlo_Core::set_num_threads(int n)
 }
 
 /* Assign seed for random generators. */
-void Monte_Carlo_Core::prng_seed(int seed)
+void Monte_Carlo_Core::set_prng_seed(int seed)
 {
     // seed for the unique thread rand num generator
     prng.seed(seed);
@@ -257,9 +310,9 @@ void Monte_Carlo_Core::prng_seed(int seed)
     }
 }
 
-///////////////////////////////////////////////////////////
-//////// Monte_Carlo_Core : methods ///////////////////
-///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise exits. */
 void Monte_Carlo_Core::assert_param(const std::string k)
@@ -268,44 +321,6 @@ void Monte_Carlo_Core::assert_param(const std::string k)
     {
         display_error_message("Parameter `" + k + "` is not defined.\n Check your model and parameter file.");
         std::exit(EXIT_FAILURE);
-    }
-}
-
-/* add_parameter */
-void Monte_Carlo_Core::add_parameter(
-    const std::string parID,
-    double new_val,
-    std::string prior_name,
-    sdargs prior_args,
-    std::string strat_name,
-    sdargs strat_args,
-    sdargs value_range)
-{
-    Parameter new_param(new_val,
-                        prior_name,
-                        prior_args,
-                        strat_name,
-                        strat_args,
-                        value_range);
-
-    if (params.find(parID) == params.end())
-    {
-        params.emplace(parID, new_param);
-    }
-    else
-    {
-        display_error_message("Parameter `" + parID + "` has multiple definitions.");
-        std::exit(EXIT_FAILURE);
-    }
-
-    // update the lists of parameters to be inferred, and these to be static
-    if (new_param.get_infer())
-    {
-        param_to_be_inferred.push_back(parID);
-    }
-    else
-    {
-        param_static.push_back(parID);
     }
 }
 
@@ -334,6 +349,10 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
         }
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////  Monte_Carlo_Core : methods (parameter moves)  //////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
 bool Monte_Carlo_Core::propose_valid_param_move(const std::string parID)
@@ -383,9 +402,9 @@ void Monte_Carlo_Core::update_diagnostics()
     }
 }
 
-///////////////////////////////////////////////////////////
-//////// Monte_Carlo_Core : display ///////////////////
-///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Monte_Carlo_Core : methods (display) ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* display the user model parameters */
 void Monte_Carlo_Core::display_parameters()
@@ -396,17 +415,17 @@ void Monte_Carlo_Core::display_parameters()
         oss << param_file_required_headers[0];
         for (size_t k = 1; k < param_file_required_headers.size(); k++)
         {
-            oss << DELIM << param_file_required_headers[k];
+            oss << C_DELIM << param_file_required_headers[k];
         }
         for (std::string parID : param_to_be_inferred)
         {
             oss << "\n"
-                << parID << DELIM << params.at(parID).message_to_display();
+                << parID << C_DELIM << params.at(parID).message_to_display();
         }
         for (std::string parID : param_static)
         {
             oss << "\n"
-                << parID << DELIM << params.at(parID).message_to_display();
+                << parID << C_DELIM << params.at(parID).message_to_display();
         }
         display_stdout(oss.str());
     }
@@ -416,15 +435,22 @@ void Monte_Carlo_Core::display_parameters()
 void Monte_Carlo_Core::display_param_diagnostics()
 {
     std::ostringstream oss;
-    oss << "name" << DELIM << "value" << DELIM << "value_sd";
+    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
     for (size_t k = 2; k < param_file_required_headers.size(); k++)
     {
-        oss << DELIM << param_file_required_headers[k];
+        oss << C_DELIM << param_file_required_headers[k];
     }
     for (std::string parID : param_to_be_inferred)
     {
         oss << "\n"
-            << parID << DELIM << params.at(parID).message_to_display_diagnostics().str();
+            << parID << C_DELIM << params.at(parID).message_to_display_diagnostics().str();
     }
     display_stdout(oss.str());
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//

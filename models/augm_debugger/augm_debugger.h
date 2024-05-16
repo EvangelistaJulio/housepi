@@ -6,7 +6,7 @@
 #include "mcmc.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Infectivity_Profile_Function //////////////////////////////// //
+////////////////////////////////// Infectivity_Profile_Function ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Choice of the Infectivity Profile Function.
@@ -43,17 +43,17 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////// Model : class /////////////////////////////////////////// //
+///////////////////////////////////////////// Model : class //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Define a type alias for a matrix
-using Matrix = std::vector<std::vector<double>>;
+using SquareMatrix = std::vector<std::vector<double>>;
 
 class Model : public MCMC
 {
 protected:
-	std::vector<Matrix> inst_profile_LUT = {};
-	std::vector<Matrix> cumul_profile_LUT = {};
+	std::vector<SquareMatrix> inst_profile_LUT = {};
+	std::vector<SquareMatrix> cumul_profile_LUT = {};
 
 public:
 	Model() : infec_profile_func(){};
@@ -62,7 +62,7 @@ public:
 	Infectivity_Profile_Function infec_profile_func;
 	double compute_infec_profile_inst(int h, int i, double t_transm);
 	double compute_infec_profile_cumul(int h, int i, double t_transm);
-	double hazards_of_infec(int h, int i, std::vector<Matrix> &profiles);
+	double hazards_of_infec(int h, int i, std::vector<SquareMatrix> &profiles);
 
 	//=====Override General Methods=====//
 	void initialize_model() override;
@@ -72,7 +72,6 @@ public:
 
 	void simulate_single_house(int h) override;
 	void format_augmented_data() override;
-
 };
 
 #endif // MODEL__H

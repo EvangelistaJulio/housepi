@@ -14,28 +14,28 @@
 
 #include "varia.h"
 
-// model
-#define SUSCEPTIBLE 0
-#define INFECTIOUS 1
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
-/////////////////////////////////////////////////////////
-///////// Individual : Class declaration ///////////////
-////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Individual : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Individual
 {
 private:
-	//=====Private Attributes=====//
-	int status = 0;
-	int index = 0;
-
-	sdargs data = {};
-	sdargs_ext _rate_ptr = {};
-	std::unordered_map<std::string, Augmented> augm_var = {};
+	//=====Attributes (private)=====//
+	int status = 0;	  // status of the individual
+	int index = 0;	  // database index of the individual
+	sdargs data = {}; // database associated to individual
 
 public:
-	//=====Public Attributes=====//
-	std::unordered_map<std::string, std::string> _which_rate = {};
+	//=====Attributes (public)=====//
+	std::unordered_map<std::string, std::string> which_rate = {};
 
 	//=====Constructors=====//
 	Individual(sdargs data);
@@ -47,18 +47,18 @@ public:
 	void set_status(int d) { status = d; }
 	int get_index() const { return index; }
 
-	// Note : get_data is bottleneck if called every iteration. 
+	// Note : get_data is bottleneck if called every iteration.
 	// Deprecated outisde of pre-processing.
 	double get_data(std::string dataID) const;
 	void assert_data(std::string dataID);
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
+	void set_rate(std::string rateID, const double *x);
 	void assign_rate_per_group(std::string rateID, std::string parID);
 	double model_rate(std::string rateID) const;
-	void _set_rate(std::string rateID, const double *x);
 
 	//=====Augmented Variables=====//
-	void add_augm(std::string augmID, Augmented new_augm);
+	void assign_augm(std::string augmID, Augmented new_augm);
 	void init_augm(std::string augmID, std::mt19937_64 &rng);
 	void set_augm(std::string augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
 	bool get_augm_infer(std::string augmID) const { return augm_var.at(augmID).get_infer(); }
@@ -73,22 +73,31 @@ public:
 	double augm_propose(std::string augmID, std::mt19937_64 &rng);
 	double augm_propose_logratio(std::string augmID, double old_value, double new_value);
 	bool augm_valid(std::string augmID, double new_value) { return augm_var.at(augmID).valid(new_value); }
+
+private:
+	sdargs_ext rate_ptr = {};
+	std::unordered_map<std::string, Augmented> augm_var = {};
 };
 
-/////////////////////////////////////////////////////////
-////////// Household : Class declaration ///////////////
-////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Household : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Household
 {
 private:
 	//=====Attributes (private)=====//
-	int house_index = -1;
-	sdargs house_data = {};
-
-	// log-likelihood
-	double loglike = -INF_DOUBLE;
-	double buffer = -INF_DOUBLE;
+	int house_index = -1;		  // database index of the household
+	sdargs house_data = {};		  // database associated to individual
+	double loglike = -INF_DOUBLE; // log-likelihood value
+	double buffer = -INF_DOUBLE;  // store buffer value of the log-likelihood
 
 	// accpetance rates for augmented variables
 	std::unordered_map<std::string, int> num_accept_augm_moves = {};
@@ -116,7 +125,7 @@ public:
 	~Household(){};
 
 	//======Setter======//
-	void add_individual(Individual this_indiv);
+	void assign_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
 	void assign_data(std::string dataID, double value);
 	void change_status(int i, int new_status);
@@ -134,8 +143,6 @@ public:
 		loglike = new_loglike;
 	}
 	void refuse() { loglike = buffer; }
-
-	// update the values for the Bayesian diagnostics
 	void update_diagnostics();
 
 	//=====Acceptation Rate=====//
@@ -144,5 +151,12 @@ public:
 	int get_augm_accept_counts(std::string augmID) { return num_accept_augm_moves[augmID]; }
 	int get_augm_propos_counts(std::string augmID) { return num_propos_augm_moves[augmID]; }
 };
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 #endif // INDIVIDUAL__H

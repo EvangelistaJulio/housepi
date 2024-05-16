@@ -3,17 +3,28 @@
 
 #include "mcmc.h"
 
-// declaration for type in data file
-std::string TYPE_PARAM = "P";   // Parameter type declaration
-std::string TYPE_DATA = "D";    // Data type declaration
-std::string TYPE_SCALAR = "S";  // Scalar type declaration
-std::string TYPE_COMMAND = "C"; // Command type declaration
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Param_Infer_Fixed_Move_Warning = false;
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Auxiliary Functions /////////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  MCMC : methods (auxiliary read functions)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// declaration for type in data file
+const std::string TYPE_PARAM = "P";   // Parameter type declaration
+const std::string TYPE_DATA = "D";    // Data type declaration
+const std::string TYPE_SCALAR = "S";  // Scalar type declaration
+const std::string TYPE_COMMAND = "C"; // Command type declaration
 
 /* Cleaner std::string from forbidden characters*/
 std::string MCMC::string_cleaner(std::string token)
@@ -52,7 +63,7 @@ ssargs MCMC::parse_dict_string(std::string token)
     std::string tmp;
 
     // rea the entryes of the dictionary
-    while (getline(args_ss, tmp, DICT_DELIM))
+    while (getline(args_ss, tmp, C_DICT_DELIM))
     {
         args_stock.push_back(tmp);
     }
@@ -104,7 +115,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input)
     std::istringstream iss(line);
     std::vector<std::string> headers = {};
 
-    while (getline(iss, token, DELIM))
+    while (getline(iss, token, C_DELIM))
     {
         headers.push_back(string_cleaner(token));
     }
@@ -121,7 +132,7 @@ bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> he
         std::istringstream iss(line);
         int num_cols = 0;
 
-        while (getline(iss, token, DELIM))
+        while (getline(iss, token, C_DELIM))
         {
             this_row.emplace(headers[num_cols], string_cleaner(token));
             num_cols++;
@@ -145,6 +156,10 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
     return row_with_double;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Convert a type-string to a double */
 double MCMC::type_to_double(std::string token, int h, int i)
 {
@@ -155,7 +170,7 @@ double MCMC::type_to_double(std::string token, int h, int i)
     }
     else
     {
-        int pos = token.find(OPTION_DELIM);
+        int pos = token.find(C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_SCALAR)
@@ -208,7 +223,7 @@ const double *MCMC::type_to_doubleptr(std::string token)
     }
     else
     {
-        int pos = token.find(OPTION_DELIM);
+        int pos = token.find(C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
@@ -256,3 +271,10 @@ sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token)
     }
     return output;
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
