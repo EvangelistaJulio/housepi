@@ -218,7 +218,7 @@ void Model::initialize_model()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::hazards_of_infec(int h, int i, std::vector<SquareMatrix> &profiles)
+double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles)
 {
 	double output = 0.0;
 

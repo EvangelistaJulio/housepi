@@ -74,7 +74,7 @@ public:
 
 	//=====General Initialization=====//
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
-	virtual std::string assign_rate_per_contact(int i, int k);
+	virtual std::string assign_rate_per_contact(int from, int to);
 	virtual void initialize_model() {};
 	void update_model_report(Individual &this_indiv);
 	void display_report();
@@ -123,13 +123,6 @@ public:
 
 	//=====Save augmented variables=====//
 	void print_augm_variables(std::string output_filename);
-
-	//=====deal with flatten matrices=====//
-	// model auxiliary objects
-	// const double **contact_patterns;
-	// FIXME : move inside households for coherency
-	// int from_to(int from, int to) { return from * num_indiv + to; }
-	// double get_contact_from_to(int from, int to) { return (*contact_patterns[from_to(from, to)]); }
 
 private:
 	double global_loglike = 0.0;

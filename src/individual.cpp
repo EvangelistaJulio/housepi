@@ -66,18 +66,6 @@ void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 	}
 }
 
-/* Link the rate value with a pointer. */
-void Individual::set_rate(std::string rateID, const double *x)
-{
-	rate_ptr.emplace(rateID, x);
-}
-
-/* Return value of model rate. */
-double Individual::model_rate(std::string rateID) const
-{
-	return *rate_ptr.at(rateID);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////  Individual : methods (augmented variables)  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,6 +182,9 @@ void Household::assign_individual(Individual this_indiv)
 		unknown_status_list.push_back(house_size);
 	}
 	house_size++;
+
+	// allocate contact patterns
+    contact_rates.resize(house_size, std::vector<const double *>(house_size, &_Reference_Value_));
 }
 
 /* Return the indexes of the infectious, then the susceptibles, unknown statuses */

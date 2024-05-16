@@ -15,10 +15,10 @@ void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-std::string MCMC::assign_rate_per_contact(int i, int k)
+std::string MCMC::assign_rate_per_contact(int from, int to)
 {
-    UNUSED(i);
-    UNUSED(k);
+    UNUSED(from);
+    UNUSED(to);
     return REFERENCE;
 }
 

@@ -2,7 +2,7 @@
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 /*
-==========
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 Homogeneous Chain Binomial Model using the re-summation over transmission generations.
 
 ----
@@ -11,7 +11,7 @@ Ref:
 Bi Q, Lessler J, Eckerle I, Lauer SA, Kaiser L, Vuilleumier N, et al. 
 Insights into household transmission of SARS-CoV-2 from a population-based serological survey. 
 Nat Commun. 2021;12: 3643. doi:10.1038/s41467-021-23733-5
-==========
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 */
 
 #ifndef MODEL__H

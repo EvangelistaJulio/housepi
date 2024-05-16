@@ -39,24 +39,24 @@
 const double INF_DOUBLE = 1e10;              // infinity value
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
+const double _Reference_Value_ = 1.0;        // auxiliary reference value for the parameters
 extern bool Verbose;                         // external declaration of verbose global state
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef std::map<std::string, double> sdargs;
-typedef std::map<std::string, const double *> sdargs_ext;
-typedef std::map<std::string, std::string> ssargs;
+typedef std::map<std::string, double> sdargs;             // string to double arguments (internal)
+typedef std::map<std::string, const double *> sdargs_ext; // string to pointer to double arguments (external)
+typedef std::map<std::string, std::string> ssargs;        // string to string
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Auxiliary Functions  ////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// base print stdout
-void display_stdout(const std::string &txt);
-void display_stdout(const char *txt);
-void display_stdout(const std::ostringstream &oss);
+void display_stdout(const std::string &txt);        // base print stdout
+void display_stdout(const char *txt);               // overload for char array
+void display_stdout(const std::ostringstream &oss); // overload for ostringstream
 
 // print decorator to stdout
 void display_decorator(const std::string &txt, int skip = 2, char decor = C_DECOR);

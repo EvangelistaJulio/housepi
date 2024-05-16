@@ -53,9 +53,9 @@ public:
 	void assert_data(std::string dataID);
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void set_rate(std::string rateID, const double *x);
 	void assign_rate_per_group(std::string rateID, std::string parID);
-	double model_rate(std::string rateID) const;
+	void set_rate(std::string rateID, const double *x) { rate_ptr.emplace(rateID, x); }
+	double get_group_rate(std::string rateID) const { return *rate_ptr.at(rateID); }
 
 	//=====Augmented Variables=====//
 	void assign_augm(std::string augmID, Augmented new_augm);
@@ -103,6 +103,9 @@ private:
 	std::unordered_map<std::string, int> num_accept_augm_moves = {};
 	std::unordered_map<std::string, int> num_propos_augm_moves = {};
 
+	// contact rate address
+	std::vector<std::vector<const double *>> contact_rates;
+
 public:
 	//=====Attributes (public)=====//
 	int house_size = 0;
@@ -134,6 +137,10 @@ public:
 	int get_index() const { return house_index; }
 	double get_data(std::string dataID) const;
 	std::vector<int> get_house_members(); // FIXME : to be checked
+
+	//======Contact Rates======//
+	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
+	double get_contact_rate(int from, int to) const { return (*contact_rates[from][to]); }
 
 	//======Loglike======//
 	double get_loglike() const { return loglike; }

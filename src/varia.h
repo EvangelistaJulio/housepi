@@ -10,7 +10,7 @@
 #include <cmath>
 #include <random>
 #include <iostream>
-#include <omp.h>
+//#include <omp.h>
 
 #include "utils.h"
 
@@ -434,7 +434,7 @@ public:
 	void assert_param(const std::string k);
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
-	const double *get_reference() const { return &_reference_; }
+	const double *get_reference() const { return &_Reference_Value_; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
 
@@ -472,7 +472,6 @@ public:
 private:
 	//=====Auxiliary Attributes=====//
 	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
-	const double _reference_ = 1.0;							// auxiliary reference value for the parameters
 	double buffer_value = 0.0;								// buffer value of the current parameter
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution

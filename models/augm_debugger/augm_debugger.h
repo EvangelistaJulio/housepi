@@ -2,7 +2,7 @@
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 /* 
-==========
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Choice of the Infectivity Profile Function.
 -----
@@ -22,7 +22,7 @@ Ref:
 Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dörner L, et al. 
 The timing of COVID-19 transmission. 
 medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
-==========
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 */
 
 #ifndef MODEL__H
@@ -30,8 +30,8 @@ medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
 
 #include "mcmc.h"
 
-// Define a type alias for a matrix
-using SquareMatrix = std::vector<std::vector<double>>;
+// alias for a square matrix
+typedef std::vector<std::vector<double>> squarematrix; 
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -74,8 +74,8 @@ class Model : public MCMC
 {
 public:
 	//=====Attributes for Look-Up-Tables=====//
-	std::vector<SquareMatrix> inst_profile_LUT = {};
-	std::vector<SquareMatrix> cumul_profile_LUT = {};
+	std::vector<squarematrix> inst_profile_LUT = {};
+	std::vector<squarematrix> cumul_profile_LUT = {};
 
 	//=====Constructor=====//
 	Model() : infec_profile_func(){};
@@ -84,7 +84,7 @@ public:
 	Infectivity_Profile_Function infec_profile_func;
 	double compute_infec_profile_inst(int h, int i, double t_transm);
 	double compute_infec_profile_cumul(int h, int i, double t_transm);
-	double hazards_of_infec(int h, int i, std::vector<SquareMatrix> &profiles);
+	double hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles);
 
 	//=====Override General Methods=====//
 	void initialize_model() override;
