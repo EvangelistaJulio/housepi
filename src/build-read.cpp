@@ -26,7 +26,7 @@ const std::string TYPE_DATA = "D";    // Data type declaration
 const std::string TYPE_SCALAR = "S";  // Scalar type declaration
 const std::string TYPE_COMMAND = "C"; // Command type declaration
 
-/* Cleaner std::string from forbidden characters*/
+/* Cleaner std::string from forbidden characters. */
 std::string MCMC::string_cleaner(std::string token)
 {
     for (char r : {'\r', '\n'})
@@ -36,7 +36,7 @@ std::string MCMC::string_cleaner(std::string token)
     return token;
 }
 
-/* Convert string to boolean variable */
+/* Convert string to boolean variable. */
 bool MCMC::stobool(std::string token)
 {
     if (token == "TRUE" || token == "true" || token == "True" || token == "1")
@@ -54,7 +54,7 @@ bool MCMC::stobool(std::string token)
     }
 }
 
-/* Parse the dictionary from the string */
+/* Parse the dictionary from the string. */
 ssargs MCMC::parse_dict_string(std::string token)
 {
     std::istringstream args_ss(token);

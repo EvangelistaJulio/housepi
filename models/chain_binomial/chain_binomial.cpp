@@ -5,11 +5,18 @@
 // auxiliary global variable
 std::map<int, std::vector<gentype>> Generations_Lookup_Table = {};
 
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// //////////////////////////////////// Auxiliary Functions //////////////////////////////////// //
+/////////////////////////////////////// Auxiliary Functions ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Standard definition for the factorial */
+/* Standard definition for the factorial. */
 unsigned long long factorial(int n)
 {
 	if (n <= 1)
@@ -52,7 +59,7 @@ std::vector<gentype> generation_span(int n)
 	return output;
 }
 
-/* Count-compression of all possible ranked offpsring generations */
+/* Count-compression of all possible ranked offpsring generations. */
 std::vector<gentype> generation_count_span(int n)
 {
 	std::vector<gentype> output = {};
@@ -83,24 +90,32 @@ std::vector<gentype> generation_count_span(int n)
 	return output;
 }
 
-/* Initialize the Lookup Table */
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
+	// Unknown status are not modeled 
 	if (report_data["n.unk.stat"] > 0)
 	{
-		display_error_message("A missing status was found : case not modeled yet.");
+		display_error_message("A missing status was found : incompatible with the model.");
 		std::exit(EXIT_FAILURE);
 	}
 
-	// find maximum possible number of sero-positives
-	size_t max_num = 0, aux = 0;
+	//=====Find maximum possible number of sero-positives=====//
+	int max_num = 0, aux = 0;
 	for (int h = 0; h < num_househ; h++)
 	{
-		aux = househ[h].infectious_list.size(); // + househ[h].unknown_status_list.size();
+		aux = househ[h].infectious_list.size();
 		max_num = (aux > max_num) ? aux : max_num;
 	}
 
-	// initialize LookupTable to largest possible value
+	//=====Initialize look-up-table to largest possible value=====//
 	Generations_Lookup_Table.emplace(0, std::vector<gentype>());
 	for (size_t n = 1; n <= max_num; n++)
 	{
@@ -122,26 +137,28 @@ void Model::initialize_model()
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(int h)
 {
-	//=====community escape log-probability=====//
-	double log_commu_esc_proba = -get_value("alpha");
-	// community infection log-probability
-	double log_commu_infec_proba = log(1. - exp(-get_value("alpha")));
-
-	//=====within house person-to-person escape probability=====//
-	double log_p2p_esc_proba = -get_value("beta");
-
-	//=====compute the likelihood according to the Reed-Frost model=====//
 	double log_likelihood = 0;
-	double tmp, sero_positive_term;
-	int multiplicity;
 
 	int hh_size = househ[h].house_size;
 	int n_positive = househ[h].infectious_list.size();
 
-	//-----contribution of sero-negatives-----//
+	double log_commu_esc_proba = -get_value("alpha");				   // community escape log-probability
+	double log_commu_infec_proba = log(1. - exp(-get_value("alpha"))); // community infection log-probability
+	double log_p2p_esc_proba = -get_value("beta");					   // within house person-to-person escape probability
+
+	//==============================================//
+	//========Contribution of Sero-Negatives========//
+	//==============================================//
+
 	log_likelihood += (hh_size - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
 
-	//-----contribution of sero-positives-----//
+	//==============================================//
+	//========Contribution of Sero-Positives========//
+	//==============================================//
+
+	int multiplicity;
+	double tmp, sero_positive_term;
+
 	if (n_positive > 0)
 	{
 		sero_positive_term = 0.;
@@ -189,22 +206,23 @@ double Model::compute_single_house_loglike(int h)
 // -----------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////// Model : Methods (simulation)  /////////////////////////////// //
+// ////////////////////////////  Model : Methods (simulation)  /////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {
-	int num_new_infectious = 0, num_old_infectious = 0;
+	int num_new_infectious = 0;
+	int num_old_infectious = 0;
 	std::vector<int> store_old_list = {};
 
-	//-----community escape probability-----//
-	double commu_esc_proba = exp(-get_value("alpha"));
+	double commu_esc_proba = exp(-get_value("alpha")); // community escape probability
+	double log_p2p_esc_proba = -get_value("beta");	   // person-to-person escape log-probability
 
-	//-----person-to-person escape log-probability-----//
-	double log_p2p_esc_proba = -get_value("beta");
-
+	//====================//
 	//=====INITIALIZE=====//
+	//====================//
+
 	// set all cases to healthy (change infectious and unknown to susceptibles)
 	store_old_list = househ[h].infectious_list;
 	for (int i : store_old_list)
@@ -218,7 +236,10 @@ void Model::simulate_single_house(int h)
 	}
 	num_new_infectious = 0;
 
+	//==============================================//
 	//====GENERATION 0 : infection by community=====//
+	//==============================================//
+
 	store_old_list = househ[h].susceptibles_list;
 	for (int i : store_old_list)
 	{
@@ -229,7 +250,10 @@ void Model::simulate_single_house(int h)
 		}
 	}
 
-	//====GENERATION >=1 : infection by previous generatioon=====//
+	//==========================================================//
+	//====GENERATION >=1 : infection by previous generation=====//
+	//==========================================================//
+
 	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
 	{
 		num_old_infectious = num_new_infectious;
@@ -246,3 +270,10 @@ void Model::simulate_single_house(int h)
 		}
 	}
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//

@@ -1,34 +1,50 @@
 // augm_debugger.h //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+
+/* 
+==========
+
+Choice of the Infectivity Profile Function.
+-----
+The infectivity profile is considered equal to the Time from Onset of Symptoms to Transmission `tost`
+>	tost = <time infection infectee> - <time onset infector>
+Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
+where the pre-symptomatic values are rescaled as a function of the incubation time `t_incub`.
+The arguments to provide are :
+	0) "tost_alpha" : shape;
+	1) "tost_mu" : location;
+	2) "tost_sigma" : scale;
+	3) "tost_tau" : mean incubation time;
+Side note: symtoms can occur after infection (pre-symptomatic transmission), i. e. `tost` can be negative.
+----
+Ref:
+----
+Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dörner L, et al. 
+The timing of COVID-19 transmission. 
+medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
+==========
+*/
 
 #ifndef MODEL__H
 #define MODEL__H
 
 #include "mcmc.h"
 
+// Define a type alias for a matrix
+using SquareMatrix = std::vector<std::vector<double>>;
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// Infectivity_Profile_Function ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Choice of the Infectivity Profile Function.
-The infectivity profile is considered equal to the Time from Onset of Symptoms to Transmission `tost`
->	tost = <time infection infectee> - <time onset infector>
-Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-where the pre-symptomaticvalues are rescaled as a function of the incubation time `t_incub`.
-The arguments to provide are :
-	0) "tost_alpha" : shape;
-	1) "tost_mu" : location;
-	2) "tost_sigma" : scale;
-	3) "tost_tau" : mean incubation time;
-
-Side note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
-
-----
-Ref:
-----
-Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
-Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
-
-/* Define the Infectivity_Profile_Function class */
+/* Define the Infectivity_Profile_Function class. */
 class Infectivity_Profile_Function : public Base_Function
 {
 public:
@@ -42,20 +58,26 @@ public:
 	double cdf(double tost, double t_incub);
 };
 
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////// Model : class //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Define a type alias for a matrix
-using SquareMatrix = std::vector<std::vector<double>>;
-
+/* User defined Model as a child class of MCMC. */
 class Model : public MCMC
 {
-protected:
+public:
+	//=====Attributes for Look-Up-Tables=====//
 	std::vector<SquareMatrix> inst_profile_LUT = {};
 	std::vector<SquareMatrix> cumul_profile_LUT = {};
 
-public:
+	//=====Constructor=====//
 	Model() : infec_profile_func(){};
 
 	//=====Model Specifc Methods=====//
@@ -68,10 +90,20 @@ public:
 	void initialize_model() override;
 	void augm_var_store_dependecies(int h, int i) override;
 	double get_infec_time(int h, int i) const override;
+
+	//=====Override Methods for Inference=====//
 	double compute_single_house_loglike(int h) override;
 
+	//=====Override Methods for Simulations=====//
 	void simulate_single_house(int h) override;
 	void format_augmented_data() override;
 };
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 #endif // MODEL__H
