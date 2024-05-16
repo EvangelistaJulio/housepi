@@ -30,8 +30,8 @@ private:
 	int index = 0;
 
 	sdargs data = {};
-	std::unordered_map<std::string, Augmented> augm_var = {};
 	sdargs_ext _rate_ptr = {};
+	std::unordered_map<std::string, Augmented> augm_var = {};
 
 public:
 	//=====Public Attributes=====//
@@ -47,14 +47,15 @@ public:
 	void set_status(int d) { status = d; }
 	int get_index() const { return index; }
 
-	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
+	// Note : get_data is bottleneck if called every iteration. 
+	// Deprecated outisde of pre-processing.
 	double get_data(std::string dataID) const;
 	void assert_data(std::string dataID);
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 	void assign_rate_per_group(std::string rateID, std::string parID);
-	void _set_rate(std::string rateID, const double *x);
 	double model_rate(std::string rateID) const;
+	void _set_rate(std::string rateID, const double *x);
 
 	//=====Augmented Variables=====//
 	void add_augm(std::string augmID, Augmented new_augm);
@@ -63,12 +64,12 @@ public:
 	bool get_augm_infer(std::string augmID) const { return augm_var.at(augmID).get_infer(); }
 	double get_augm(std::string augmID) const { return augm_var.at(augmID).get_value(); }
 
-	//=====Augmented Variables: Model distribution=====//
+	//-----Augmented Variables: Model distribution-----//
 	double augm_model_rand(std::string augmID, std::mt19937_64 &rng) { return augm_var.at(augmID).model_rand(rng); }
 	double augm_model_log_pdf(std::string augmID) { return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value()); }
 	double augm_model_logratio(std::string augmID, double old_value, double new_value);
 
-	//=====Augmented Variables: Proposer=====//
+	//-----Augmented Variables: Proposer-----//
 	double augm_propose(std::string augmID, std::mt19937_64 &rng);
 	double augm_propose_logratio(std::string augmID, double old_value, double new_value);
 	bool augm_valid(std::string augmID, double new_value) { return augm_var.at(augmID).valid(new_value); }
@@ -115,17 +116,15 @@ public:
 	~Household(){};
 
 	//======Setter======//
+	void add_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
 	void assign_data(std::string dataID, double value);
-	void add_individual(Individual this_indiv);
 	void change_status(int i, int new_status);
 
 	//======Getter======//
 	int get_index() const { return house_index; }
-	std::vector<int> get_house_members();
-
-	/* get_data : bottleneck if data are called every iteration. Deprecated outisde of pre-processing.*/
 	double get_data(std::string dataID) const;
+	std::vector<int> get_house_members(); // FIXME : to be checked
 
 	//======Loglike======//
 	double get_loglike() const { return loglike; }
@@ -136,13 +135,14 @@ public:
 	}
 	void refuse() { loglike = buffer; }
 
+	// update the values for the Bayesian diagnostics
+	void update_diagnostics();
+
+	//=====Acceptation Rate=====//
 	void reset_augm_accept_rate(std::string augmID);
 	void update_augm_accept_rate(std::string augmID, bool is_accepted);
 	int get_augm_accept_counts(std::string augmID) { return num_accept_augm_moves[augmID]; }
 	int get_augm_propos_counts(std::string augmID) { return num_propos_augm_moves[augmID]; }
-
-	// update the values for the Bayesian diagnostics
-	void update_diagnostics();
 };
 
 #endif // INDIVIDUAL__H
