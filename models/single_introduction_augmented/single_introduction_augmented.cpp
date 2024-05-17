@@ -1,6 +1,14 @@
 // single_introduction_augmented.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "single_introduction_augmented.h"
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
@@ -55,72 +63,22 @@ void Model::build_extra(std::string extra_pathtofile)
 	}
 	else
 	{
-		std::string err_txt = "Impossible to read file: " + extra_pathtofile + ".";
-		raise_error_message(err_txt);
+		raise_error_message("Impossible to read file: " + extra_pathtofile + ".");
 		std::exit(EXIT_FAILURE);
 	}
 }
 #endif
 
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Individual : Methods for Model ////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Time of infection */
-double Model::get_infec_time(int i) const
-{
-	return indiv[i].get_augm("onset_time") - indiv[i].get_augm("incub_period");
-}
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////// Infectivity_Profile_Function //////////////////////////////// //
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Choice of the Infectivity Profile Function.
-The infectivity profile is considered equal to the Time from Onset of Symptoms to Transmission `tost`
->	tost = <time infection infectee> - <time onset infector>
-Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-where the pre-symptomaticvalues are rescaled as a function of the incubation time `t_incub`.
-The arguments to provide are :
-	0) "tost_alpha" : shape;
-	1) "tost_mu" : location;
-	2) "tost_sigma" : scale;
-	3) "tost_tau" : mean incubation time;
-
-Side note: symtoms can occur after infection (pre-symptomatic transmission), in other words `tost` can be negative.
-
-----
-Ref:
-----
-Ferretti, L. et al. The timing of COVID-19 transmission. 2020.09.04.20188516
-Preprint at https://doi.org/10.1101/2020.09.04.20188516 (2020).*/
-
-/* Define the Infectivity_Profile_Function class */
-class Infectivity_Profile_Function : public Base_Function
-{
-public:
-	// Constructors
-	Infectivity_Profile_Function(sdargs new_args) : Base_Function(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infectivity_Profile_Function(sdargs_ext new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	~Infectivity_Profile_Function(){};
-
-	double pdf(double tost, double t_incub);
-	double cdf(double tost, double t_incub);
-};
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////// Infectivity_Profile_Function : probability distribution function /////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Probability distribution function for the Infectivity Profile. */
 double Infectivity_Profile_Function::pdf(double tost, double t_incub)
@@ -138,6 +96,10 @@ double Infectivity_Profile_Function::pdf(double tost, double t_incub)
 	}
 	return exp((m - tost) / s) * pow(1. + exp((m - tost) / s), -1. - a) / norm_pdf;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////// Infectivity_Profile_Function : cumulative distribution function /////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Cumulative distribution function forthe Infectivity Profile. */
 double Infectivity_Profile_Function::cdf(double tost, double t_incub)
@@ -163,6 +125,23 @@ double Infectivity_Profile_Function::cdf(double tost, double t_incub)
 	}
 }
 
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Model : get infection time  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Time of infection */
+double Model::get_infec_time(int h, int i) const
+{
+	return househ[h].indiv[i].get_augm("onset_time") - househ[h].indiv[i].get_augm("incub_period");
+}
+
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
@@ -170,56 +149,84 @@ double Infectivity_Profile_Function::cdf(double tost, double t_incub)
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
 
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////////// Model : Infectivity Profiles /////////////////////////////////// //
+//////////////////////// Model : compute infectivity profile instantaneous ///////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Instanteneous infectivity profile. */
-double Model::compute_infec_profile_inst(int i, double t_transm)
+double Model::compute_infec_profile_inst(int h, int i, double t_transm)
 {
-	double tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
-	double incub_period = indiv[i].get_augm("incub_period");
-	return infec_profile_func->pdf(tost, incub_period);
+	// tost : time from onset of symptoms to transmission
+	double tost = t_transm - househ[h].indiv[i].get_augm("onset_time");
+	double incub_period = househ[h].indiv[i].get_augm("incub_period");
+	return infec_profile_func.pdf(tost, incub_period);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////// Model : compute infectivity profile cumulative ////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Cumulative infectivity profile. */
-double Model::compute_infec_profile_cumul(int i, double t_transm)
+double Model::compute_infec_profile_cumul(int h, int i, double t_transm)
 {
-	double tost = t_transm - indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
-	double incub_period = indiv[i].get_augm("incub_period");
-	return infec_profile_func->cdf(tost, incub_period);
+	double tost = t_transm - househ[h].indiv[i].get_augm("onset_time"); // time from onset of symptoms to transmission
+	double incub_period = househ[h].indiv[i].get_augm("incub_period");
+	return infec_profile_func.cdf(tost, incub_period);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////// Model : augmented variables store dependencies //////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void Model::store_augm_var_dependecies(int i)
+void Model::augm_var_store_dependecies(int h, int i)
 {
-	int h = indiv[i].home;
-	double t_infec_i = get_infec_time(i);
+	double t_infec_i = get_infec_time(h, i);
 	double t_infec_k;
 
-	//=====loop over all symptomatic members=====//
+	//============================//
+	//=====Infectious Members=====//
+	//============================//
+
 	for (int k : househ[h].infectious_list)
 	{
-		t_infec_k = get_infec_time(k);
+		t_infec_k = get_infec_time(h, k);
 
 		if (t_infec_i < t_infec_k)
 		{ // `i` : infector, `k` : infectee
-			inst_profile_lookuptab[from_to(i, k)] = compute_infec_profile_inst(i, t_infec_k);
-			cumul_profile_lookuptab[from_to(i, k)] = compute_infec_profile_cumul(i, t_infec_k);
+			inst_profile_LUT[h][i][k] = compute_infec_profile_inst(h, i, t_infec_k);
+			cumul_profile_LUT[h][i][k] = compute_infec_profile_cumul(h, i, t_infec_k);
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
-			inst_profile_lookuptab[from_to(k, i)] = compute_infec_profile_inst(k, t_infec_i);
-			cumul_profile_lookuptab[from_to(k, i)] = compute_infec_profile_cumul(k, t_infec_i);
+			inst_profile_LUT[h][k][i] = compute_infec_profile_inst(h, k, t_infec_i);
+			cumul_profile_LUT[h][k][i] = compute_infec_profile_cumul(h, k, t_infec_i);
 		}
 		// NOTE : else is the case t_infec_i == t_infec_k, i. e. nothing to update
 	}
 
-	//=====loop over all healthy members=====//
+	//=============================//
+	//=====Susceptible Members=====//
+	//=============================//
+
 	t_infec_k = househ[h].get_data("end_followup");
 	for (int k : househ[h].susceptibles_list)
 	{
-		cumul_profile_lookuptab[from_to(i, k)] = compute_infec_profile_cumul(i, t_infec_k);
+		cumul_profile_LUT[h][i][k] = compute_infec_profile_cumul(h, i, t_infec_k);
 	}
 }
 
@@ -233,7 +240,7 @@ void Model::store_augm_var_dependecies(int i)
 /* Initialize parameters and augmented variables */
 void Model::initialize_model()
 {
-	//-----initialize infectivity profiles-----//
+	//=====Initialize infectivity profiles=====//
 	// dictionary with the address to the model parameters for the infectivity profile
 	sdargs_ext infec_profile_args = {
 		{"tost_alpha", get_address("tost_alpha")},
@@ -242,23 +249,21 @@ void Model::initialize_model()
 		{"tost_tau", get_address("tost_tau")}};
 
 	// initialize the infectivity profile function of the model
-	infec_profile_func = new Infectivity_Profile_Function(infec_profile_args);
+	infec_profile_func = Infectivity_Profile_Function(infec_profile_args);
 
-	// produce the empty matrix for the infectivity profiles look-up-tables
-	inst_profile_lookuptab = new double[num_indiv * num_indiv];
-	cumul_profile_lookuptab = new double[num_indiv * num_indiv];
-
-	//-----random initialization of incubation periods-----//
-	init_augmented_variable("incub_period");
-
-	// find the first case for each household
+	//=====Initialize household features=====//
 	for (int h = 0; h < num_househ; h++)
 	{
+		// produce the empty matrix for the infectivity profiles look-up-tables
+		int h_size = househ[h].house_size;
+		inst_profile_LUT.emplace_back(h_size, std::vector<double>(h_size, 0.0));
+		cumul_profile_LUT.emplace_back(h_size, std::vector<double>(h_size, 0.0));
+
 		// find maximum study period within the household
 		double end_followup = 0;
 		for (int i : househ[h].infectious_list)
 		{
-			end_followup = std::max(end_followup, indiv[i].get_data("study_period"));
+			end_followup = std::max(end_followup, househ[h].indiv[i].get_data("study_period"));
 		}
 		househ[h].assign_data("end_followup", end_followup);
 
@@ -266,65 +271,81 @@ void Model::initialize_model()
 		update_first_case(h);
 	}
 
+	//=====Initialize the dependencies of augmented variables=====//
 	// store relative hazard for each of the symptomatic and relative infectees
-	for (int i = 0; i < num_indiv; i++)
+	for (int h = 0; h < num_househ; h++)
 	{
-		store_augm_var_dependecies(i);
+		for (int i = 0; i < househ[h].house_size; i++)
+		{
+			augm_var_store_dependecies(h, i);
+		}
 	}
 }
 
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ////////////////////////////// Model : associated rates  ////////////////////////////////// //
+////////////////////////  Model : assign rate_per group to individual  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign the parameters controlling infectivity for each individual */
-void Model::assign_rate_per_group_to_individual(int i)
+void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
 	//=====rate 0 : Infectivity=====//
-	if ((indiv[i].get_data("recov") == false) && (indiv[i].get_data("vacc_status") == 0))
+	if ((this_indiv.get_data("recov") == false) && (this_indiv.get_data("vacc_status") == 0))
 	{ // unrecovered unvaccinated
-		indiv[i].assign_rate_per_group("Infectivity", "i_naive");
+		this_indiv.assign_rate_per_group("Infectivity", "i_naive");
 	}
 	else
 	{ // vaccinated o recovered : Infectivity [REFERENCE]
-		indiv[i].assign_rate_per_group("Infectivity", REFERENCE);
+		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
 	}
 
 	//=====rate 1 : Susceptibility=====//
-	if (indiv[i].get_data("vacc_status") == 0)
+	if (this_indiv.get_data("vacc_status") == 0)
 	{ // naive : Susceptibility [REFERENCE]
-		indiv[i].assign_rate_per_group("Susceptibility", REFERENCE);
+		this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
 	}
 	else
 	{ // 1 dose
-		indiv[i].assign_rate_per_group("Susceptibility", "s_vacc");
+		this_indiv.assign_rate_per_group("Susceptibility", "s_vacc");
 	}
 }
 
-/* Assign the contact patterns between a couple of individuals. */
-std::string Model::assign_rate_per_contact(int i, int k)
-{
-	bool i_is_child = (indiv[i].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
-	bool i_is_adult = (i_is_child == false);							   // adults otherwise
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  Model : assign rate_per group to individual  //////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	bool k_is_child = (indiv[k].get_data("age") < get_value("child_age")); // children if younger than 12 y.o.
-	bool k_is_adult = (k_is_child == false);							   // adults otherwise
+/* Assign the contact patterns between a couple of individuals. */
+void Model::assign_rate_per_contact_to_household(int h, int i, int k)
+{
+	// from `i` -> to `k`
+	// children if younger than 12 y.o., adults otherwise
+	bool i_is_child = (househ[h].indiv[i].get_data("age") < get_value("child_age"));
+	bool i_is_adult = (i_is_child == false);
+
+	bool k_is_child = (househ[h].indiv[k].get_data("age") < get_value("child_age"));
+	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		return "c_kid_to_kid";
+		househ[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		return "c_kid_to_adu";
+		househ[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		return "c_adu_to_kid";
+		househ[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		return REFERENCE;
+		househ[h].assign_rate_per_contact(i, k, REFERENCE);
 	}
 }
 
@@ -336,33 +357,35 @@ std::string Model::assign_rate_per_contact(int i, int k)
 // -----------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////// Model : Methods (likelihood)  /////////////////////////////// //
+////////////////////////////////  Model : hazards of infection  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Sum over different hazards. */
-double Model::_sum_hazards_(double *profiles, int i)
+/* Sum over all hazards of infection. */
+double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles)
 {
 	double output = 0.0;
-	int h = indiv[i].home;
 
-	// Risk of infection from other household members
+	// Risk of infection from other household members (k)
 	for (int k : househ[h].infectious_list)
 	{
 		if (k != i)
 		{
-			// 			contact pattern					infectivity			infectivity profile
-			output += get_contact_from_to(k, i) * indiv[k].model_rate("Infectivity") * profiles[from_to(k, i)];
+			output += househ[h].get_contact_rate(k, i) * househ[h].indiv[k].get_group_rate("Infectivity") * profiles[h][k][i];
 		}
 	}
 
 	return output * get_value("beta") * pow(get_value("median_size") / househ[h].house_size, get_value("delta"));
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////  Model : compute single house log-likelihood  ///////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Compute the log-likelihood within household. */
 double Model::compute_single_house_loglike(int h)
 {
 	double loglike_house = 0.0;
-	double t0 = get_infec_time(househ[h].first_case);
+	double t0 = get_infec_time(h, househ[h].first_case);
 	double tf = househ[h].get_data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
@@ -375,7 +398,7 @@ double Model::compute_single_house_loglike(int h)
 	// Contribution of healthy members
 	for (int i : househ[h].susceptibles_list)
 	{
-		loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
+		loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + hazards_of_infec(h, i, cumul_profile_LUT));
 	}
 
 	// Contribution of symptomatic members
@@ -384,7 +407,7 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model_set)
 		{
-			loglike_house += indiv[i].augm_model_log_pdf(augmID);
+			loglike_house += househ[h].indiv[i].augm_model_log_pdf(augmID);
 		}
 
 		// Contribution of secondary cases
@@ -395,8 +418,8 @@ double Model::compute_single_house_loglike(int h)
 #else
 			comm_risk_inst = get_value("alpha");
 #endif
-			loglike_house += log(indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)));
-			loglike_house -= indiv[i].model_rate("Susceptibility") * (comm_risk_cumul + _sum_hazards_(cumul_profile_lookuptab, i));
+			loglike_house += log(househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + hazards_of_infec(h, i, inst_profile_LUT)));
+			loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + hazards_of_infec(h, i, cumul_profile_LUT));
 		}
 	}
 
@@ -417,10 +440,11 @@ double Model::compute_single_house_loglike(int h)
 /* Poisson point process to simulate outbreak in a single household. */
 void Model::simulate_single_house(int h)
 {
-	const double dt = 0.01;
-	// note: incub period of all members are already initialized
+	// note: incub periods are initialized according to option in augm file
 	// note: first cases are already initialized
-	const double t0 = get_infec_time(househ[h].first_case);
+
+	const double dt = 0.01;
+	const double t0 = get_infec_time(h, househ[h].first_case);
 	const double tf = househ[h].get_data("end_followup");
 
 	//-----set all secondary cases to healthy-----//
@@ -434,8 +458,7 @@ void Model::simulate_single_house(int h)
 	}
 
 	//=====simulate infection within household=====//
-	double proba;
-	double comm_risk_inst;
+	double esc_proba, comm_risk_inst;
 	for (double t = dt + t0; (t < tf) && !househ[h].susceptibles_list.empty(); t += dt)
 	{
 		std::vector<int> store_old_list = househ[h].susceptibles_list;
@@ -443,47 +466,44 @@ void Model::simulate_single_house(int h)
 		{
 			// set new status for computations
 			househ[h].change_status(i, INFECTIOUS);
-			indiv[i].set_augm("onset_time", t + uniform() * dt + indiv[i].get_augm("incub_period"));
-			store_augm_var_dependecies(i);
+			househ[h].indiv[i].set_augm(
+				"onset_time",
+				t + uniform() * dt + househ[h].indiv[i].get_augm("incub_period"));
+			augm_var_store_dependecies(h, i);
 
 #ifdef TEST_EPI_CURVE
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
 #else
 			comm_risk_inst = get_value("alpha");
 #endif
-			proba = 1. - exp(-indiv[i].model_rate("Susceptibility") * (comm_risk_inst + _sum_hazards_(inst_profile_lookuptab, i)) * dt);
+			// refuse according to Bernoulli process
+			esc_proba = exp(-househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + hazards_of_infec(h, i, inst_profile_LUT)) * dt);
 
-			// refuse new status
-			if (uniform() >= proba)
+			if (uniform() < esc_proba)
 			{
 				househ[h].change_status(i, SUSCEPTIBLE);
-				store_augm_var_dependecies(i);
+				augm_var_store_dependecies(h, i);
 			}
 		}
 	}
 }
 
-/* Output formatter */
-void Model::format_simulation()
-{
-	for (int i = 0; i < num_indiv; i++)
-	{
-		if (indiv[i].get_status() == INFECTIOUS)
-		{
-			if (indiv[i].get_augm("onset_time") > indiv[i].get_data("study_period"))
-			{
-				indiv[i].set_status(SUSCEPTIBLE);
-			}
-			else
-			{
-				indiv[i].set_augm("onset_time", round(indiv[i].get_augm("onset_time")));
-			}
-		}
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  Model : format augmented data  /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-		if (indiv[i].get_status() == SUSCEPTIBLE)
+/* Format the augmented variables before printing them to output. */
+void Model::format_augmented_data()
+{
+	for (int h = 0; h < num_househ; h++)
+	{
+		for (int i = 0; i < househ[h].house_size; i++)
 		{
-			indiv[i].set_augm("onset_time", 1000);
-			indiv[i].set_augm("incub_period", 0);
+			if (househ[h].indiv[i].get_status() == SUSCEPTIBLE)
+			{
+				househ[h].indiv[i].set_augm("onset_time", 1000);
+				househ[h].indiv[i].set_augm("incub_period", 0);
+			}
 		}
 	}
 }

@@ -3,19 +3,30 @@
 
 #include "mcmc.h"
 
-// declaration for type in data file
-std::string TYPE_PARAM = "P";   // Parameter type declaration
-std::string TYPE_DATA = "D";    // Data type declaration
-std::string TYPE_SCALAR = "S";  // Scalar type declaration
-std::string TYPE_COMMAND = "C"; // Command type declaration
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Param_Infer_Fixed_Move_Warning = false;
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Auxiliary Functions /////////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
-/* Cleaner std::string from forbidden characters*/
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  MCMC : methods (auxiliary read functions)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// declaration for type in data file
+const std::string TYPE_PARAM = "P";   // Parameter type declaration
+const std::string TYPE_DATA = "D";    // Data type declaration
+const std::string TYPE_SCALAR = "S";  // Scalar type declaration
+const std::string TYPE_COMMAND = "C"; // Command type declaration
+
+/* Cleaner std::string from forbidden characters. */
 std::string MCMC::string_cleaner(std::string token)
 {
     for (char r : {'\r', '\n'})
@@ -25,7 +36,7 @@ std::string MCMC::string_cleaner(std::string token)
     return token;
 }
 
-/* Convert string to boolean variable */
+/* Convert string to boolean variable. */
 bool MCMC::stobool(std::string token)
 {
     if (token == "TRUE" || token == "true" || token == "True" || token == "1")
@@ -38,14 +49,13 @@ bool MCMC::stobool(std::string token)
     }
     else
     {
-        std::string err_text = "Unrecognized boolean value for: " + token + ".";
-        raise_error_message(err_text);
+        display_error_message("Unrecognized boolean value for: " + token + ".");
         std::exit(EXIT_FAILURE);
     }
 }
 
-/* Parse the dictionary from the string */
-ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
+/* Parse the dictionary from the string. */
+ssargs MCMC::parse_dict_string(std::string token)
 {
     std::istringstream args_ss(token);
     std::vector<std::string> args_stock;
@@ -53,7 +63,7 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
     std::string tmp;
 
     // rea the entryes of the dictionary
-    while (getline(args_ss, tmp, dict_delim))
+    while (getline(args_ss, tmp, C_DICT_DELIM))
     {
         args_stock.push_back(tmp);
     }
@@ -63,8 +73,7 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
     }
     else if (args_stock.size() % 2 == 1)
     {
-        std::string err_text = "Incomplete dictionary: " + token + ".";
-        raise_error_message(err_text);
+        display_error_message("Incomplete dictionary: " + token + ".");
         std::exit(EXIT_FAILURE);
     }
     else
@@ -77,8 +86,7 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
             }
             catch (const std::exception &)
             {
-                std::string err_text = "Invalid entry of dictionary: " + token + ".";
-                raise_error_message(err_text);
+                display_error_message("Invalid entry of dictionary: " + token + ".");
                 std::exit(EXIT_FAILURE);
             }
         }
@@ -88,9 +96,9 @@ ssargs MCMC::parse_dict_string(std::string token, char dict_delim)
 }
 
 /* Parse the scalar arguments dictionary from the std::string */
-sdargs MCMC::parse_dict_args(std::string token, char dict_delim)
+sdargs MCMC::parse_dict_args(std::string token)
 {
-    ssargs input = parse_dict_string(token, dict_delim);
+    ssargs input = parse_dict_string(token);
     sdargs output = {};
     for (auto const &x : input)
     {
@@ -100,14 +108,14 @@ sdargs MCMC::parse_dict_args(std::string token, char dict_delim)
 }
 
 /* Read column headers */
-std::vector<std::string> MCMC::read_column_headers(std::ifstream &input, char delim)
+std::vector<std::string> MCMC::read_column_headers(std::ifstream &input)
 {
     std::string line, token;
     getline(input, line);
     std::istringstream iss(line);
     std::vector<std::string> headers = {};
 
-    while (getline(iss, token, delim))
+    while (getline(iss, token, C_DELIM))
     {
         headers.push_back(string_cleaner(token));
     }
@@ -116,7 +124,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input, char de
 }
 
 /* Load files from the row with headers */
-bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row, char delim)
+bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row)
 {
     std::string line, token;
     if (getline(input, line))
@@ -124,7 +132,7 @@ bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> he
         std::istringstream iss(line);
         int num_cols = 0;
 
-        while (getline(iss, token, delim))
+        while (getline(iss, token, C_DELIM))
         {
             this_row.emplace(headers[num_cols], string_cleaner(token));
             num_cols++;
@@ -148,8 +156,12 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
     return row_with_double;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Convert a type-string to a double */
-double MCMC::type_to_double(std::string token, int i, char option_delim)
+double MCMC::type_to_double(std::string token, int h, int i)
 {
     if (token == UNDEFINED)
     {
@@ -158,7 +170,7 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
     }
     else
     {
-        int pos = token.find(option_delim);
+        int pos = token.find(C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_SCALAR)
@@ -167,8 +179,8 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
         }
         else if (k == TYPE_DATA)
         {
-            indiv[i].assert_data(v);
-            return indiv[i].get_data(v);
+            househ[h].indiv[i].assert_data(v);
+            return househ[h].indiv[i].get_data(v);
         }
         else if (k == TYPE_PARAM)
         {
@@ -177,8 +189,8 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
             {
                 std::ostringstream oss;
                 oss << "The parameter `" << v << "` is chosen for a fixed value move."
-                    << "Eventual hanges of the parameter will not affect the move.";
-                raise_warning_message(oss.str(), &Param_Infer_Fixed_Move_Warning);
+                    << "Eventual changes of the parameter will not affect the move.";
+                raise_warning_message(oss, &Param_Infer_Fixed_Move_Warning);
             }
             return get_value(v);
         }
@@ -190,22 +202,20 @@ double MCMC::type_to_double(std::string token, int i, char option_delim)
             }
             else
             {
-                std::string err_text = "Unknown command `" + v + "`.";
-                raise_error_message(err_text);
+                display_error_message("Unknown command `" + v + "`.");
                 std::exit(EXIT_FAILURE);
             }
         }
         else
         {
-            std::string err_text = "Unknown variable type specifier `" + k + "`.";
-            raise_error_message(err_text);
+            display_error_message("Unknown variable type specifier `" + k + "`.");
             std::exit(EXIT_FAILURE);
         }
     }
 }
 
 /* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
+const double *MCMC::type_to_doubleptr(std::string token)
 {
     if (token == UNDEFINED)
     {
@@ -213,7 +223,7 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
     }
     else
     {
-        int pos = token.find(option_delim);
+        int pos = token.find(C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
@@ -223,39 +233,48 @@ const double *MCMC::type_to_doubleptr(std::string token, char option_delim)
         }
         else
         {
-            std::string err_text = "Expected variable type `" + TYPE_PARAM + "` while loading `" + token + "`. Specifier `" + k + "` not supported here.";
-            raise_error_message(err_text);
+            std::ostringstream oss;
+            oss << "Unsopported type specifier `" + k + "` found while loading `" << token << "`. "
+                << "Expected type specifier `" << TYPE_PARAM << "` instead.";
+            display_error_message(oss);
             std::exit(EXIT_FAILURE);
         }
     }
 }
 
 /* Convert a string with type-dictionary to string-to-double */
-sdargs MCMC::typedict_to_sdargs(std::string token, int, char dict_delim, char option_delim)
+sdargs MCMC::typedict_to_sdargs(std::string token, int h, int i)
 {
     sdargs output = {};
     if (token != UNDEFINED)
     {
-        ssargs input = parse_dict_string(token, dict_delim);
+        ssargs input = parse_dict_string(token);
         for (auto const &x : input)
         {
-            output.emplace(x.first, type_to_double(x.second, 0, option_delim));
+            output.emplace(x.first, type_to_double(x.second, h, i));
         }
     }
     return output;
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token, char dict_delim, char option_delim)
+sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token)
 {
     sdargs_ext output = {};
     if (token != UNDEFINED)
     {
-        ssargs input = parse_dict_string(token, dict_delim);
+        ssargs input = parse_dict_string(token);
         for (auto const &x : input)
         {
-            output.emplace(x.first, type_to_doubleptr(x.second, option_delim));
+            output.emplace(x.first, type_to_doubleptr(x.second));
         }
     }
     return output;
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//

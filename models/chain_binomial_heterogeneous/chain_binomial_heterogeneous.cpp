@@ -1,12 +1,17 @@
 // chain_binomial_heterogeneous.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 #include "chain_binomial_heterogeneous.h"
 
-// GLOBAL VARIABLES
-// Lookup table to store combinations and complements
-usi ****Combinations_LookupTable;
-// Lookup table to store the number of combinations
-unsigned **Num_of_Combs_LookupTable;
+usi ****Combinations_LUT;	 // look-up-table to store combinations and complements
+unsigned **Num_of_Combs_LUT; // look-up-table to store the number of combinations
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // //////////////////////////////////// Auxiliary Functions //////////////////////////////////// //
@@ -35,9 +40,14 @@ unsigned binomial_coefficient(const usi N, const usi k)
 /*
 Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
 The elements are indexed from 1 to N.
+
+----
+Ref:
+----
+Daniel Angel Jimenez
 https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
 */
-void _recursive_combinations_span(usi N, usi k, vec_usi &current, usi start, usi loop, std::vector<vec_usi> &results)
+void recursive_combinations_span(usi N, usi k, vec_usi &current, usi start, usi loop, std::vector<vec_usi> &results)
 {
 	if (loop > k)
 	{
@@ -64,7 +74,7 @@ void _recursive_combinations_span(usi N, usi k, vec_usi &current, usi start, usi
 		for (usi i = start; i <= N; i++)
 		{
 			current[loop - 1] = i;
-			_recursive_combinations_span(N, k, current, i + 1, loop + 1, results);
+			recursive_combinations_span(N, k, current, i + 1, loop + 1, results);
 		}
 	}
 }
@@ -75,39 +85,39 @@ void store_combinations(const usi N, const usi k)
 	// Generate combinations with the recurisve algorithm
 	std::vector<vec_usi> results;
 	vec_usi current(N, 0); // initialize to impossible value (not in [1, N])
-	_recursive_combinations_span(N, k, current, 1, 1, results);
+	recursive_combinations_span(N, k, current, 1, 1, results);
 
 	unsigned c = 0;
 	for (vec_usi current : results)
 	{
 		// store the generated combination + complement
-		Combinations_LookupTable[N][k][c] = new unsigned short[N];
+		Combinations_LUT[N][k][c] = new unsigned short[N];
 		for (short i = 0; i < N; i++)
 		{
-			Combinations_LookupTable[N][k][c][i] = current[i];
+			Combinations_LUT[N][k][c][i] = current[i];
 		}
 		c++;
 	}
 }
 
 /* Initialize the Look Up Table of combinations and their number */
-void initialize_LookupTable(const short max_N)
+void initialize_LUT(const short max_N)
 {
 	unsigned num_combin;
 
-	Combinations_LookupTable = new usi ***[max_N + 1];
-	Num_of_Combs_LookupTable = new unsigned *[max_N + 1];
+	Combinations_LUT = new usi ***[max_N + 1];
+	Num_of_Combs_LUT = new unsigned *[max_N + 1];
 
 	for (usi N = 0; N <= max_N; N++)
 	{
-		Combinations_LookupTable[N] = new usi **[N];
-		Num_of_Combs_LookupTable[N] = new unsigned[N];
+		Combinations_LUT[N] = new usi **[N];
+		Num_of_Combs_LUT[N] = new unsigned[N];
 
 		for (usi k = 0; k < N; k++)
 		{
 			num_combin = binomial_coefficient(N, k);
-			Combinations_LookupTable[N][k] = new usi *[num_combin];
-			Num_of_Combs_LookupTable[N][k] = num_combin;
+			Combinations_LUT[N][k] = new usi *[num_combin];
+			Num_of_Combs_LUT[N][k] = num_combin;
 
 			store_combinations(N, k);
 		}
@@ -125,7 +135,6 @@ Arguments :
 */
 double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<double> &escape_matrix)
 {
-	double output;
 	// submatrix has always at least 1 infector: community
 	std::vector<double> sub_escape_matrix((k + 1) * (k));
 
@@ -156,25 +165,23 @@ double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<do
 		}
 	}
 
-	output = esc_product * _recursive_function(k, sub_escape_matrix);
-
-	return output;
+	return esc_product * recursive_function(k, sub_escape_matrix);
 }
 
-/*
-Recursive fonction to break likelihood into shorter escape patterns.
- */
-double _recursive_function(usi N, std::vector<double> &escape_matrix)
+/* Recursive function to break likelihood into shorter escape patterns. */
+double recursive_function(usi N, std::vector<double> &escape_matrix)
 {
 	double output = 1.;
+
 	for (usi k = 0; k < N; k++)
 	{
-		for (unsigned c = 0; c < Num_of_Combs_LookupTable[N][k]; c++)
+		for (unsigned c = 0; c < Num_of_Combs_LUT[N][k]; c++)
 		{
 			output -= ll_chain_binomial_heterogeneous(
-				N, k, Combinations_LookupTable[N][k][c], escape_matrix);
+				N, k, Combinations_LUT[N][k][c], escape_matrix);
 		}
 	}
+
 	return output;
 }
 
@@ -186,33 +193,34 @@ double _recursive_function(usi N, std::vector<double> &escape_matrix)
 // -----------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////// Model : Methods (likelihood)  /////////////////////////////// //
+// ///////////////////////////////  Model : initialize model  //////////////////////////////// //
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
-	int max_num = 0, aux = 0;
-
-	// find maximum possible number of sero-positives
-	for (int h = 0; h < num_househ; h++)
+	// Unknown status are not modeled
+	if (report_data["n.unk.stat"] > 0)
 	{
-		// >>>> FIXME : temporary
-		if (househ[h].unknown_status_list.size() > 0)
-		{
-			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-			raise_error_message(err_txt);
-			std::exit(EXIT_FAILURE);
-		}
-		// <<<< <<<< <<<< <<<<
-		
-		aux = househ[h].infectious_list.size() + househ[h].unknown_status_list.size();
-		max_num = (aux > max_num) ? aux : max_num;
-
+		display_error_message("A missing status was found : incompatible with the model.");
+		std::exit(EXIT_FAILURE);
 	}
 
-	initialize_LookupTable(max_num);
+	//=====Find maximum possible number of sero-positives=====//
+	int max_num = 0, aux = 0;
+	for (int h = 0; h < num_househ; h++)
+	{
+		aux = househ[h].infectious_list.size();
+		max_num = (aux > max_num) ? aux : max_num;
+	}
+
+	//=====Initialize look-up-table to largest possible value=====//
+	initialize_LUT(max_num);
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////  Model : compute single house loglike  /////////////////////////// //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
 double Model::compute_single_house_loglike(int h)
@@ -222,13 +230,14 @@ double Model::compute_single_house_loglike(int h)
 	double log_likelihood = 0;
 
 	// allocate memory for escape matrix
-	std::vector<double> escape_matrix((hh_size + 1) * hh_size);
+	std::vector<double> escape_matrix((hh_size + 1) * hh_size, 1.);
 
-	// ---------->>---------->>---------->>---------->> //
-	// Assign the values of the escape probabilities here :
-	// ---------->>---------->>---------->>---------->> //
+	// ---------->>---------->>---------->>---------->>
+	// ---------->>---------->>---------->>---------->>
 
-	//=====community escape probability=====//
+	// Assign the values of the escape probabilities HERE :
+
+	// community escape probability
 	double commu_esc_proba = exp(-get_value("alpha"));
 
 	for (usi i = 0; i < hh_size; i++)
@@ -236,7 +245,7 @@ double Model::compute_single_house_loglike(int h)
 		escape_matrix[i] = commu_esc_proba;
 	}
 
-	//=====person-to-person escape log-probability=====//
+	// person-to-person escape log-probability
 	// NOTE : change if to distinguish between infectious, unknown, susceptibles...
 	double p2p_esc_proba = exp(-get_value("beta"));
 
@@ -246,11 +255,10 @@ double Model::compute_single_house_loglike(int h)
 		{
 			escape_matrix[i + k * hh_size] = p2p_esc_proba;
 		}
-		escape_matrix[k - 1 + k * hh_size] = 1.;
 	}
 
-	// <<----------<<----------<<----------<<---------- //
-	// <<----------<<----------<<----------<<---------- //
+	// <<----------<<----------<<----------<<----------
+	// <<----------<<----------<<----------<<----------
 
 	//=====compute the loglikelihood=====//
 	// initialize array of indexes to {1, ..., hh_size}
@@ -280,6 +288,8 @@ double Model::compute_single_house_loglike(int h)
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)()
 {
+	// FIXME
+
 	int num_new_infectious = 0, num_old_infectious = 0;
 	std::vector<int> store_old_list = {};
 
@@ -294,12 +304,12 @@ void Model::simulate_single_house(int h)()
 	store_old_list = househ[h].infectious_list;
 	for (int i : store_old_list)
 	{
-		househ[h].change_status(i, HEALTHY);
+		househ[h].change_status(i, SUSCEPTIBLE);
 	}
 	store_old_list = househ[h].unknown_status_list;
 	for (int i : store_old_list)
 	{
-		househ[h].change_status(i, HEALTHY);
+		househ[h].change_status(i, SUSCEPTIBLE);
 	}
 	num_new_infectious = 0;
 
@@ -309,7 +319,7 @@ void Model::simulate_single_house(int h)()
 	{
 		if (uniform(rng) > commu_esc_proba)
 		{
-			househ[h].change_status(i, SYMPTOMATIC);
+			househ[h].change_status(i, INFECTIOUS);
 			num_new_infectious++;
 		}
 	}
@@ -325,10 +335,16 @@ void Model::simulate_single_house(int h)()
 		{
 			if (uniform(rng) > exp(num_old_infectious * log_p2p_esc_proba))
 			{
-				househ[h].change_status(i, SYMPTOMATIC);
+				househ[h].change_status(i, INFECTIOUS);
 				num_new_infectious++;
 			}
 		}
 	}
-	
 }
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//

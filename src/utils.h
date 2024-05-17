@@ -4,12 +4,6 @@
 #ifndef UTILS__H
 #define UTILS__H
 
-//=====Global Macros=====//
-#define DELIM ','
-#define DICT_DELIM '/'
-#define OPTION_DELIM ':'
-#define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
-
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -21,73 +15,125 @@
 #include <sstream>
 #include <iomanip>
 
-const double INF_DOUBLE = 1e15;              // infinity value
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MACROS  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
+
+#define C_DELIM ','        // file delimiter
+#define C_DICT_DELIM '/'   // dictionary delimiter
+#define C_OPTION_DELIM ':' // option delimiter
+#define C_DECOR '='        // decorator for prints
+
+#define SUSCEPTIBLE 0 // status of susceptible
+#define INFECTIOUS 1  // status of infectious
+
+#define MAX_NUMBER_ATTEMPTS 20   // max n. of attempts for initialization
+#define TARGET_ACCEPT_RATE 0.234 // target acceptation rate for MCMC
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+const double INF_DOUBLE = 1e10;              // infinity value
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
+const std::string CONTACT_RATE = "Contact";  // name for Contact rate
+const double _Reference_Value_ = 1.0;        // auxiliary reference value for the parameters
+extern bool Verbose;                         // external declaration of verbose global state
 
-// verbose state
-extern bool Verbose;
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////
-// //////////////////////////// TYPEDEF //////////////////////////// //
-///////////////////////////////////////////////////////////////////////
+typedef std::map<std::string, double> sdargs;             // string to double arguments (internal)
+typedef std::map<std::string, const double *> sdargs_ext; // string to pointer to double arguments (external)
+typedef std::map<std::string, std::string> ssargs;        // string to string
 
-typedef std::map<std::string, double> sdargs;
-typedef std::map<std::string, const double *> sdargs_ext;
-typedef std::map<std::string, std::string> ssargs;
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Auxiliary Functions  ////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////////////////////////////
-// /////////////////////// Auxiliary Functions /////////////////////////// //
-/////////////////////////////////////////////////////////////////////////////
+void display_stdout(const std::string &txt);        // base print stdout
+void display_stdout(const char *txt);               // overload for char array
+void display_stdout(const std::ostringstream &oss); // overload for ostringstream
 
-// FIXME : passing a copy of the string
-double est_sample_variance(double sum_X, double sum_X2, double ss);
-void display_stdout(std::ostringstream* oss);
-void display_stdout(std::string txt);
-void display_decorator(std::string txt, char decor = '=', int skip = 2);
-void display_progress_bar(std::string prog_txt, int progress, int total, char decor = '=');
-void raise_error_message(std::string error_text);
-void raise_warning_message(std::string message, bool *is_warn_to_be_raised);
+// print decorator to stdout
+void display_decorator(const std::string &txt, int skip = 2, char decor = C_DECOR);
+void display_decorator(const char *txt, int skip = 2, char decor = C_DECOR);
+void display_decorator(const std::ostringstream &oss, int skip = 2, char decor = C_DECOR);
 
-///////////////////////////////////////////////////////////////////////
-// ////////////////////// Base_Function : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
+// print progress bar to stdout
+void display_progress_bar(const std::string &txt, int progress, int total);
+void display_progress_bar(const char *txt, int progress, int total);
+void display_progress_bar(const std::ostringstream &oss, int progress, int total);
+
+// print warnings to stderr
+void raise_warning_message(const std::string &txt, bool *is_raised_once);
+void raise_warning_message(const char *txt, bool *is_raised_once);
+void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once);
+
+// print error message to stderr
+void display_error_message(const std::string &txt);
+void display_error_message(const char *txt);
+void display_error_message(const std::ostringstream &oss);
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Base Function : class //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Base_Function
 {
 public:
     //=====Constructors=====//
+    Base_Function(){};
     Base_Function(sdargs new_args_int, std::vector<std::string> order = {});
     Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order = {});
     virtual ~Base_Function(){};
 
+    // FIXME :
+    // need to assign args later in case constructor is empty
+
     //=====Getter (functional)=====//
     std::string get_name() const { return name; }
-    double get_arg(int argID) { return (this->*_get_arg_func_)(argID); }
+    double get_arg(int argID) const { return (this->*_get_arg_func_)(argID); }
 
     //=====Setter (for internal arguments)=====//
     void set_name(std::string new_name) { name = new_name; }
-    void set_arg(int argID, double new_value) { args_int[argID] = new_value; }
+    void set_arg(int argID, double new_value) { (this->*_set_arg_func_)(argID, new_value); }
 
-    std::string message_to_display();
+    std::ostringstream message_to_display();
 
-protected:
+private:
     std::string name = UNDEFINED;
     std::vector<std::string> args_name; // ordered list of argument names
     double *args_int = nullptr;         // internal arguments (fixed at initialization)
     const double **args_ext = nullptr;  // external arguments (pointer to variable)
 
-private:
-    double (Base_Function::*_get_arg_func_)(int argID);
+    double (Base_Function::*_get_arg_func_)(int argID) const;
+    double _get_arg_int_(int argID) const { return args_int[argID]; }
+    double _get_arg_ext_(int argID) const { return *(args_ext[argID]); }
 
-    // FIXME : gigantic bottleneck // FIXME !! need for translation into array for internal
-    double _get_arg_int_(int argID) { return args_int[argID]; }
-    double _get_arg_ext_(int argID) { return *(args_ext[argID]); }
+    void (Base_Function::*_set_arg_func_)(int argID, double new_value);
+    void _set_arg_int_(int argID, double new_value) { args_int[argID] = new_value; }
+    void _set_arg_ext_(int argID, double new_value)
+    {
+        UNUSED(new_value);
+        display_error_message("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
+    }
 };
 
-///////////////////////////////////////////////////////////////////////
-// /////////////////// Distribution_1D : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Base Distribution_1D : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Distribution_1D : public Base_Function
 {
@@ -101,9 +147,16 @@ public:
     virtual double rand(std::mt19937_64 &rng) = 0;
 };
 
-///////////////////////////////////////////////////////////////////////
-// //////////////////// Undefined_Distr : class //////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Undefined_Distr : class  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Undefined_Distr : public Distribution_1D
 {
@@ -135,15 +188,14 @@ public:
 private:
     double undefined_call_error()
     {
-        std::string err_text = "Attempt to call a method of an undefined distribution.";
-        raise_error_message(err_text);
+        display_error_message("Attempt to call a method of an undefined distribution.");
         std::exit(EXIT_FAILURE);
     }
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Uniform_Distr : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Uniform_Distr : class  //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Uniform_Distr : public Distribution_1D
 {
@@ -158,9 +210,9 @@ public:
     double rand(std::mt19937_64 &rng) override;
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Normal_Distr : class ////////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Normal_Distr : class  //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Normal_Distr : public Distribution_1D
 {
@@ -188,9 +240,9 @@ public:
     double rand(std::mt19937_64 &rng) override { return round(Normal_Distr::rand(rng)); }
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Lognorm_Distr : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Lognorm_Distr : class  //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Lognorm_Distr : public Distribution_1D
 {
@@ -218,9 +270,9 @@ public:
     double rand(std::mt19937_64 &rng) override { return round(Lognorm_Distr::rand(rng)); }
 };
 
-///////////////////////////////////////////////////////////////////////
-// ////////////////////// Gamma_Distr : class ////////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Gamma_Distr : class  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Gamma_Distr : public Distribution_1D
 {
@@ -235,11 +287,11 @@ public:
     virtual double rand(std::mt19937_64 &rng) override;
 };
 
-// FIXME : the discretization requies boost (for incomplete gamma function)
+// FIXME : the discretization requires boost (for incomplete gamma function)
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Weibull_Distr : class ///////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Weibull_Distr : class  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Weibull_Distr : public Distribution_1D
 {
@@ -268,7 +320,7 @@ public:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////// Rayleigh_Distr : class ////////////////////////////////// //
+///////////////////////////////////  Rayleigh_Distr : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Rayleigh_Distr : public Distribution_1D
@@ -297,9 +349,9 @@ public:
     double rand(std::mt19937_64 &rng) override { return round(Rayleigh_Distr::rand(rng)); }
 };
 
-///////////////////////////////////////////////////////////////////////
-// /////////////////// Exponential_Distr : class /////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Exponential_Distr : class  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Exponential_Distr : public Distribution_1D
 {
@@ -327,11 +379,18 @@ public:
     double rand(std::mt19937_64 &rng) override { return round(Exponential_Distr::rand(rng)); }
 };
 
-///////////////////////////////////////////////////////////////////////
-// //////////////////// distribution_switchboard /////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
-/* Return the chosen distribution */
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  distribution_switchboard  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Return the chosen distribution. */
 template <typename sdargs_int_or_ext>
 Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_int_or_ext args = {})
 {
@@ -389,14 +448,16 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     }
     else
     {
-        std::string err_text = "Unknown distribution `" + name + "`.";
-        raise_error_message(err_text);
+        display_error_message("Unknown distribution `" + name + "`.");
         std::exit(EXIT_FAILURE);
     }
 }
 
-///////////////////////////////////////////////////////////////////////
-// //////////////////// Analyzer : class ////////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 #endif // UTILS__H

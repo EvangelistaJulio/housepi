@@ -3,9 +3,16 @@
 
 #include "individual.h"
 
-////////////////////////////////////////////////////////////////////////
-// /////////////////// Individual : Constructor ///////////////////// //
-////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Individual : constructor  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Constructor with a database row. */
 Individual::Individual(sdargs new_data)
@@ -15,56 +22,53 @@ Individual::Individual(sdargs new_data)
 	data = new_data;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Individual : methods (general)  ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Return a feature of the Individual as provided in the database */
 double Individual::get_data(std::string dataID) const
 {
 	return data.at(dataID);
 }
 
-/* check if the individal has the data defined */
+/* Check if the individal has the data defined */
 void Individual::assert_data(std::string dataID)
 {
 	if (data.find(dataID) == data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data `" << dataID << "` for individual n." << get_index();
-		raise_error_message(oss.str());
+		oss << "Unknown data `" << dataID << "` for individual " << get_index() << ".";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
 
-//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////  Individual : methods (group rates)  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a model rate */
 void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 {
-	if (_which_rate.find(rateID) == _which_rate.end())
+	if (which_rate.find(rateID) == which_rate.end())
 	{
 		// if rateID was undeclared, add it
-		_which_rate.emplace(rateID, parID);
+		which_rate.emplace(rateID, parID);
 	}
 	else
 	{
 		// rateID was previously declared
-		std::string err_text = "Found individual with multiple definitions for group rate `" + rateID + "`.";
-		raise_error_message(err_text);
+		std::ostringstream oss;
+		oss << "Individual " << get_index() << " has multiple definitions for group rate `" << rateID << "`.";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
 
-/* Link the rate value with a pointer */
-void Individual::_set_rate(std::string rateID, const double *x)
-{
-	_rate_ptr.emplace(rateID, x);
-}
-
-/* Return value of model rate */
-double Individual::model_rate(std::string rateID) const
-{
-	return *_rate_ptr.at(rateID);
-}
-
-//=====Augmented Variables=====//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  Individual : methods (augmented variables)  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
@@ -76,8 +80,11 @@ void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 	{
 		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
 		{
-			std::string err_text = "Number of attempts exceeded in random initialization of `" + augmID + "`.";
-			raise_error_message(err_text);
+			std::ostringstream oss;
+			oss << "Number of attempts exceeded (" << ">=" << MAX_NUMBER_ATTEMPTS << ")"
+				<< " in random initialization of `" << augmID << "`"
+				<< " for individual " << get_index();
+			display_error_message(oss);
 			std::exit(EXIT_FAILURE);
 		}
 		init_value = augm_model_rand(augmID, rng);
@@ -86,8 +93,8 @@ void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
 	set_augm(augmID, init_value);
 }
 
-/* Add an augmented variable to the individual. */
-void Individual::add_augm(std::string augmID, Augmented new_augm)
+/* Assign an augmented variable to the individual. */
+void Individual::assign_augm(std::string augmID, Augmented new_augm)
 {
 	if (augm_var.find(augmID) == augm_var.end())
 	{
@@ -95,8 +102,9 @@ void Individual::add_augm(std::string augmID, Augmented new_augm)
 	}
 	else
 	{
-		std::string err_text = "Augmented variable `" + augmID + "` has multiple definitions.";
-		raise_error_message(err_text);
+		std::ostringstream oss;
+		oss << "Individual " << get_index() << " has multiple definitions for augmented variable `" << augmID << "`.";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
@@ -119,9 +127,16 @@ double Individual::augm_model_logratio(std::string augmID, double old_value, dou
 	return augm_var.at(augmID).model_logratio(old_value, new_value);
 }
 
-////////////////////////////////////////////////////////////////////////
-// /////////////////////////// Household //////////////////////////// //
-////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  Household : methods (general)  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a data feature to the household */
 void Household::assign_data(std::string dataID, double value)
@@ -134,8 +149,9 @@ void Household::assign_data(std::string dataID, double value)
 	else
 	{
 		// rateID was previously declared
-		std::string err_text = "Found household with multiple definitions for data `" + dataID + "`.";
-		raise_error_message(err_text);
+		std::ostringstream oss;
+		oss << "Household " << get_index() << " has multiple definitions for data `" << dataID << "`.";
+		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
 	}
 }
@@ -147,25 +163,30 @@ double Household::get_data(std::string dataID) const
 }
 
 /* Link an individual to the household */
-void Household::link_individual(int i, int status)
+void Household::assign_individual(Individual this_indiv)
 {
+	int status = this_indiv.get_status();
+	indiv.push_back(this_indiv);
+
 	// status list
 	if (status == INFECTIOUS)
 	{
-		infectious_list.push_back(i);
+		infectious_list.push_back(house_size);
 	}
 	else if (status == SUSCEPTIBLE)
 	{
-		susceptibles_list.push_back(i);
+		susceptibles_list.push_back(house_size);
 	}
 	else
 	{
-		unknown_status_list.push_back(i);
+		unknown_status_list.push_back(house_size);
 	}
 	house_size++;
 }
 
+
 /* Return the indexes of the infectious, then the susceptibles, unknown statuses */
+// FIXME : is this necessary anymore?
 std::vector<int> Household::get_house_members()
 {
 	std::vector<int> members;
@@ -187,7 +208,7 @@ std::vector<int> Household::get_house_members()
 	WARNING : this introduces augmented variables -> it requires RJMCMC in case of inference.*/
 void Household::change_status(int i, int new_status)
 {
-	int old_status = (*indiv_ptr)[i].get_status();
+	int old_status = indiv[i].get_status();
 
 	if (old_status != new_status)
 	{
@@ -205,7 +226,7 @@ void Household::change_status(int i, int new_status)
 			unknown_status_list.erase(find(unknown_status_list.begin(), unknown_status_list.end(), i));
 		}
 
-		// add individual i to new list
+		// assign individual i to new list
 		if (new_status == SUSCEPTIBLE)
 		{
 			susceptibles_list.push_back(i);
@@ -220,9 +241,13 @@ void Household::change_status(int i, int new_status)
 		}
 
 		// change the status of individual to new
-		(*indiv_ptr)[i].set_status(new_status);
+		indiv[i].set_status(new_status);
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Household : methods (monte carlo)  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set to zero the counts of given augmented variables moves. */
 void Household::reset_augm_accept_rate(std::string augmID)
@@ -246,3 +271,10 @@ void Household::update_diagnostics()
 	dgn_sum_sqr_loglike += std::pow(loglike, 2);
 	dgn_ss++;
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//

@@ -12,23 +12,33 @@
 #include <time.h>
 
 #include "mcmc.h"
+
+// Header to the user defined model provided by the Make command
 #include MODEL_HEADER
 
-//=====Define the global variables=====//
+bool Verbose = false; // assign externally defined global variable
 
-bool Verbose = false;
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
-// /////////////////////////////////////////////////////////////////////////// //
-// ////////////////////////////// MAIN FUNCTION ////////////////////////////// //
-// /////////////////////////////////////////////////////////////////////////// //
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  * ***** * MAIN FUNCTION * ***** *  ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* The Main Function. */
 int main(int argc, char *argv[])
 {
     int carg_i = 1;          // Command line argument iterator
     double inver_temp = 1.0; // Inverse temperature
     bool is_infer = false, is_simulate = false;
     bool rand_init_params = false;
-    int num_threads =1;
+    int num_threads = 1;
+
+    // paths/to/files
     std::string setup_pathtofile = UNDEFINED;
     std::string parameters_pathtofile = UNDEFINED;
     std::string extra_pathtofile = UNDEFINED;
@@ -40,8 +50,10 @@ int main(int argc, char *argv[])
     // ===== Test if some commands were supplied ===== //
     if (argc < 2)
     {
-        std::string err_text = "No argument or command found. Check the usage through:\n" + (std::string)(argv[0]) + " -h";
-        raise_error_message(err_text);
+        std::ostringstream oss;
+        oss << "No argument or command found. Check the usage through:\n"
+            << argv[0] << " -h";
+        display_error_message(oss);
         std::exit(EXIT_FAILURE);
     }
 
@@ -52,8 +64,10 @@ int main(int argc, char *argv[])
         if (std::string(argv[carg_i]) == std::string("-h") or std::string(argv[carg_i]) == std::string("--help"))
         {
             // Show the manual using man and installed manpages // UPDATE : produce a manual
-            std::string err_text = "We apologize for the inconvenience, but the Software Manual is still missing.\nPlease, contact the developer.";
-            raise_error_message(err_text);
+            std::ostringstream oss;
+            oss << "We apologize for the inconvenience, but the Software Manual is still missing.\n"
+                << "Please, contact the developer.";
+            display_error_message(oss);
             std::exit(EXIT_FAILURE);
         }
 
@@ -135,9 +149,7 @@ int main(int argc, char *argv[])
 
         else
         {
-            std::string aux = argv[carg_i];
-            std::string err_text = "Unrecognized option `" + aux + "`.";
-            raise_error_message(err_text);
+            display_error_message("Unrecognized option `" + std::string(argv[carg_i]) + "`.");
             std::exit(EXIT_FAILURE);
         }
 
@@ -161,8 +173,7 @@ int main(int argc, char *argv[])
     // 2) Load Parameters and Check (required)
     if (parameters_pathtofile == UNDEFINED)
     {
-        std::string err_text = "Required argument: parameter path/to/file not found.";
-        raise_error_message(err_text);
+        display_error_message("Required argument: parameter path/to/file not found.");
         std::exit(EXIT_FAILURE);
     }
     else
@@ -173,8 +184,7 @@ int main(int argc, char *argv[])
     // 3) Load Data and Check (required)
     if (database_pathtofile == UNDEFINED)
     {
-        std::string err_text = "Required argument: database path/to/file not found.";
-        raise_error_message(err_text);
+        display_error_message("Required argument: database path/to/file not found.");
         std::exit(EXIT_FAILURE);
     }
     else
@@ -190,14 +200,11 @@ int main(int argc, char *argv[])
 
     //=====EXECUTION=====//
 
-    //=====check for options validity=====//
-
     // UPDATE : complete check for options validity
 
     if (is_infer && is_simulate)
     {
-        std::string err_text = "Incompatible commands: choose one between -infer and -simulate.";
-        raise_error_message(err_text);
+        display_error_message("Incompatible commands: choose one between -infer and -simulate.");
         std::exit(EXIT_FAILURE);
     }
     else if (is_infer)
@@ -216,3 +223,10 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//

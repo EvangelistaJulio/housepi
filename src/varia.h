@@ -14,27 +14,34 @@
 
 #include "utils.h"
 
-// maximum number of attempts for initialization
-#define MAX_NUMBER_ATTEMPTS 20
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Auxiliary Functions  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-// target acceptation rate for MCMC
-#define TARGET_ACCEPT_RATE 0.234
+double est_sample_variance(double sum_X, double sum_X2, double ss);
 
-///////////////////////////////////////////////////////////////////////
-// //////////////////// Base_Proposer : class ////////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Base_Proposer : class  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME : impose mean=0, etc...
 
 class Base_Proposer
 {
 protected:
+	Distribution_1D *distr_ptr;
 	double strat_zero;
 	bool zero_start = false;
 	int num_proposed_moves = 0;
 	double accept_rate = 0.0;
 	std::vector<int> args_to_adapt = {};
-	Distribution_1D *distr_ptr;
 
 public:
 	//=====Constructors=====//
@@ -60,20 +67,19 @@ public:
 	virtual double propose(std::mt19937_64 &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
 	virtual double logratio(double old_val, double new_val) { return (this->*_logratio_method_)(old_val, new_val); }
 
-	//=====Methods (for adaptive)=====//
+	//=====Finite Adaptive=====//
 	double get_accept_rate() const { return accept_rate; };
 	void update_accept_rate(bool is_accepted);
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	std::string message_to_display();
+	std::ostringstream message_to_display();
 
 private:
-	//=====valid : functional methods=====//
+	//=====Valid Move : functional methods=====//
 	double _range_min_ = -INF_DOUBLE;
 	double _range_max_ = INF_DOUBLE;
 	bool (Base_Proposer::*_valid_func_)(double new_val);
-
 	bool _valid_range_min_(double x) { return (x > _range_min_); }
 	bool _valid_range_max_(double x) { return (x < _range_max_); }
 	bool _valid_range_both_(double x) { return _valid_range_min_(x) && _valid_range_max_(x); }
@@ -86,8 +92,7 @@ private:
 protected:
 	double undefined_call_error()
 	{
-		std::string err_text = "Attempt to call a method of an undefined proposer.";
-		raise_error_message(err_text);
+		display_error_message("Attempt to call a method of an undefined proposer.");
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -100,7 +105,7 @@ protected:
 		UNUSED(start);
 		return undefined_call_error();
 	}
-	double _add_to_previous_(std::mt19937_64 &prng, double start) { return start + rand(prng); }
+	double _sum_to_previous_(std::mt19937_64 &prng, double start) { return start + rand(prng); }
 	double _times_previous_(std::mt19937_64 &prng, double start) { return start * rand(prng); }
 	double _draw_rand_(std::mt19937_64 &prng, double start)
 	{
@@ -119,7 +124,7 @@ protected:
 	}
 	double _logratio_pdf_(double old_val, double new_val) { return distr_ptr->logratio(old_val, new_val); }
 	// FIXME : double check these
-	double _logratio_add_to_zero_(double old_val, double new_val) { return _logratio_pdf_(old_val - get_strat_zero(), new_val - get_strat_zero()); }
+	double _logratio_sum_to_zero_(double old_val, double new_val) { return _logratio_pdf_(old_val - get_strat_zero(), new_val - get_strat_zero()); }
 	double _logratio_times_zero_(double old_val, double new_val) { return _logratio_pdf_(old_val / get_strat_zero(), new_val / get_strat_zero()); }
 	double _logratio_symm_(double old_val, double new_val)
 	{
@@ -133,11 +138,26 @@ protected:
 	}
 };
 
-Base_Proposer *proposer_switchboard(std::string name = UNDEFINED, sdargs args = {}, double strat_zero = INF_DOUBLE, sdargs value_range = {});
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  proposer_switchboard  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////
-// /////////////////// Undefined_Proposer : class ////////////////// //
-///////////////////////////////////////////////////////////////////////
+Base_Proposer *proposer_switchboard(
+	std::string name = UNDEFINED,
+	sdargs args = {},
+	double strat_zero = INF_DOUBLE,
+	sdargs value_range = {});
+	
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Undefined_Proposer : class  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Undefined_Proposer : public Base_Proposer
 {
@@ -151,9 +171,9 @@ public:
 	~Undefined_Proposer() {}
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Uniform_Proposer : class /////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Uniform_Proposer : public Base_Proposer
 {
@@ -164,15 +184,15 @@ public:
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"min", "max"})
 	{
-		_propose_method_ = &Uniform_Proposer::_add_to_previous_;
+		_propose_method_ = &Uniform_Proposer::_sum_to_previous_;
 		_logratio_method_ = &Uniform_Proposer::_logratio_symm_;
 	}
 	~Uniform_Proposer() {}
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Normal_Proposer : class /////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Normal_Proposer : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Normal_Proposer : public Base_Proposer
 {
@@ -183,15 +203,15 @@ public:
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
 	{
-		_propose_method_ = &Normal_Proposer::_add_to_previous_;
-		_logratio_method_ = is_zero_start() ? &Normal_Proposer::_logratio_add_to_zero_ : &Normal_Proposer::_logratio_symm_;
+		_propose_method_ = &Normal_Proposer::_sum_to_previous_;
+		_logratio_method_ = is_zero_start() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
 	}
 	~Normal_Proposer() {}
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////////// Lognorm_Proposer : class ////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Lognorm_Proposer : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Lognorm_Proposer : public Base_Proposer
 {
@@ -208,9 +228,9 @@ public:
 	~Lognorm_Proposer() {}
 };
 
-///////////////////////////////////////////////////////////////////////
-// ////////////////////// Prior_Proposer : class /////////////////// //
-///////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Prior_Proposer : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Prior_Proposer : public Base_Proposer
 {
@@ -224,27 +244,32 @@ public:
 	~Prior_Proposer() {}
 };
 
-///////////////////////////////////////////////////////////////////////
-// ///////////////// Base_Parameter  : class /////////////////// //
-///////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Base_Parameter : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename sdargs_int_or_ext>
 class Base_Parameter
 {
 protected:
-	double value = INF_DOUBLE;
-	bool infer = false;
-	Distribution_1D *distr_ptr = nullptr;
-	Base_Proposer *prop_ptr = nullptr;
+	double value = INF_DOUBLE;			  // value of the parameter
+	bool infer = false;					  // to be inferred or static
+	Distribution_1D *distr_ptr = nullptr; // prior/model distribution of the parameter
+	Base_Proposer *prop_ptr = nullptr;	  // propose strategy for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
 	Base_Parameter(
 		double value,
-		std::string distr_name = UNDEFINED,
-		sdargs_int_or_ext distr_args = {},
-		std::string strat_name = UNDEFINED,
-		sdargs strat_args = {},
+		std::string distr_name = UNDEFINED, sdargs_int_or_ext distr_args = {},
+		std::string strat_name = UNDEFINED, sdargs strat_args = {},
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {})
 	{
@@ -301,10 +326,11 @@ public:
 	std::string message_to_display()
 	{
 		std::ostringstream oss;
-		oss << get_value() << DELIM << ((infer) ? "true" : "false");
+		oss << get_value() << C_DELIM << ((infer) ? "true" : "false");
 		if (infer)
 		{
-			oss << DELIM << distr_ptr->message_to_display() << DELIM << prop_ptr->message_to_display();
+			oss << C_DELIM << distr_ptr->message_to_display().str()
+				<< C_DELIM << prop_ptr->message_to_display().str();
 		}
 		return oss.str();
 	}
@@ -317,29 +343,26 @@ private:
 	double _propose_from_zero_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, get_strat_zero()); }
 };
 
-/////////////////////////////////////////////////////////////////
-// ///////////////////// Parameter : class /////////////////// //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Parameter : class  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Parameter : public Base_Parameter<sdargs>
 {
 public:
-	int dgn_sample_size = 0;
-	long double dgn_sum = 0.;
-	long double dgn_sqr_sum = 0.;
+	//=====Diagnostic : attributes=====//
+	int dgn_sample_size = 0;	  // sample size
+	long double dgn_sum = 0.;	  // sum of the values in the sample
+	long double dgn_sqr_sum = 0.; // sum of the squaredvalues in the sample
 
 	//=====Constructor=====//
 	Parameter(
 		double new_val,
-		std::string prior_name = UNDEFINED,
-		sdargs prior_args = {},
-		std::string strat_name = UNDEFINED,
-		sdargs strat_args = {},
+		std::string prior_name = UNDEFINED, sdargs prior_args = {},
+		std::string strat_name = UNDEFINED, sdargs strat_args = {},
 		sdargs value_range = {}) : Base_Parameter(new_val,
-												  prior_name,
-												  prior_args,
-												  strat_name,
-												  strat_args,
+												  prior_name, prior_args,
+												  strat_name, strat_args,
 												  INF_DOUBLE, // is_zero_start() = false
 												  value_range){};
 
@@ -348,94 +371,14 @@ public:
 	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
+	//=====Diagnostic : methods=====//
 	void update_diagnostics();
-	std::string message_to_display_diagnostics();
+	std::ostringstream message_to_display_diagnostics();
 };
 
-///////////////////////////////////////////////////////////
-/////// Monte_Carlo_Core : class declaration //////////
-///////////////////////////////////////////////////////////
-
-// This is a wrapper class containing aliases for the model params.
-class Monte_Carlo_Core
-{
-public:
-	std::vector<std::string> param_file_required_headers = {
-		"name", "value", "infer", "prior", "prior_args", "strategy", "strategy_args", "range"};
-	std::vector<std::string> param_to_be_inferred = {};
-	std::vector<std::string> param_static = {};
-
-	//=====Constructors=====//
-	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
-	virtual ~Monte_Carlo_Core(){};
-
-	// build dictionary
-	void add_parameter(
-		const std::string k,
-		double new_val,
-		std::string prior_name = UNDEFINED,
-		sdargs prior_args = {},
-		std::string strat_name = UNDEFINED,
-		sdargs strat_args = {},
-		sdargs value_range = {});
-
-	//=====Parallelization=====//
-	void set_num_threads(int n = 1);
-	int get_num_threads() const { return setup_num_omp_threads; };
-
-	//=====Pseudo-Random Number Generator=====//
-	void prng_seed(int seed);
-	std::mt19937_64 &get_prng() { return (this->*_prng_method_)(); }
-	double uniform() { return _aux_unif_dist_(get_prng()); }
-
-	//=====Getter=====//
-	void assert_param(const std::string k);
-	double get_value(const std::string k) const { return params.at(k).get_value(); }
-	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
-	const double *get_reference() const { return &_reference; }
-	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
-	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
-
-	//=====Setter=====//
-	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
-	void init_rand_params(bool is_rand_params);
-	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
-
-	//=====Metropolis-Hastings moves=====//
-	bool propose_valid_param_move(const std::string k);
-	double get_move_logratio() { return buffer_logratio; }
-	void accept_param_move(const std::string k);
-	void refuse_param_move(const std::string k);
-	void update_diagnostics();
-
-	// acceptation rates / adaptive methods
-	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
-
-	//=====Display=====//
-	void display_parameters();
-	void display_param_diagnostics();
-
-private:
-	std::unordered_map<std::string, Parameter> params = {};
-	double buffer_value = 0.0;
-	double buffer_logratio = 0.0;
-	const double _reference = 1.0;
-
-	// number of OMP threads
-	int setup_num_omp_threads = 1;
-
-	// pseudo random number generator
-	std::mt19937_64 prng;
-	std::vector<std::mt19937_64> prng_parallel = {};
-	std::mt19937_64 &(Monte_Carlo_Core::*_prng_method_)();
-	std::mt19937_64 &_prng_unique_thread_() { return prng; }
-	std::mt19937_64 &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
-	std::uniform_real_distribution<double> _aux_unif_dist_;
-};
-
-/////////////////////////////////////////////////////////////////
-// ///////////////////// Augmented : class /////////////////// //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Augmented : class  //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Augmented : public Base_Parameter<sdargs_ext>
 {
@@ -460,5 +403,94 @@ public:
 	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double model_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 };
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Monte_Carlo_Core : class  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* This is a wrapper class containing aliases for the model params. */
+class Monte_Carlo_Core
+{
+public:
+	std::vector<std::string> param_file_required_headers = {
+		"name", "value", "infer",
+		"prior", "prior_args",
+		"strategy", "strategy_args", "range"};
+	std::vector<std::string> param_to_be_inferred = {};
+	std::vector<std::string> param_static = {};
+
+	//=====Constructors=====//
+	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
+	virtual ~Monte_Carlo_Core(){};
+
+	//=====Getter=====//
+	void assert_param(const std::string k);
+	double get_value(const std::string k) const { return params.at(k).get_value(); }
+	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
+	const double *get_reference() const { return &_Reference_Value_; }
+	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
+	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
+
+	//=====Setter=====//
+	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
+	void init_rand_params(bool is_rand_params);
+	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
+	void assign_parameter(
+		const std::string k, double new_val,
+		std::string prior_name = UNDEFINED, sdargs prior_args = {},
+		std::string strat_name = UNDEFINED, sdargs strat_args = {},
+		sdargs value_range = {});
+
+	//=====Parallelization=====//
+	void set_num_threads(int n = 1);
+	int get_num_threads() const { return setup_num_omp_threads; };
+
+	//=====Metropolis-Hastings moves=====//
+	bool propose_valid_param_move(const std::string k);
+	double get_move_logratio() { return buffer_logratio; }
+	void accept_param_move(const std::string k);
+	void refuse_param_move(const std::string k);
+	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
+	void update_diagnostics();
+
+	//=====Display=====//
+	void display_parameters();
+	void display_param_diagnostics();
+
+	//=====Pseudo-Random Number Generator=====//
+	void set_prng_seed(int seed);
+	std::mt19937_64 &get_prng() { return (this->*_prng_method_)(); }
+	double uniform() { return _aux_unif_dist_(get_prng()); }
+
+private:
+	//=====Auxiliary Attributes=====//
+	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
+	double buffer_value = 0.0;								// buffer value of the current parameter
+	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
+	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
+	int setup_num_omp_threads = 1;							// number of OMP threads
+
+	//=====Pseudo Random Number Generator (auxiliary methods)=====//
+	// FIXME : it should be checked in case it's 32bit
+	std::mt19937_64 prng;							 //  Mersenne Twister 19937 (64bit) generator
+	std::vector<std::mt19937_64> prng_parallel = {}; // parallel generators (for multi-threading)
+	std::mt19937_64 &(Monte_Carlo_Core::*_prng_method_)();
+	std::mt19937_64 &_prng_unique_thread_() { return prng; }
+	std::mt19937_64 &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+};
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 #endif // VARIA__H
