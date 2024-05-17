@@ -10,7 +10,7 @@
 #include <cmath>
 #include <random>
 #include <iostream>
-//#include <omp.h>
+#include <omp.h>
 
 #include "utils.h"
 

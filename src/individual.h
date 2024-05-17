@@ -103,25 +103,26 @@ private:
 	std::unordered_map<std::string, int> num_accept_augm_moves = {};
 	std::unordered_map<std::string, int> num_propos_augm_moves = {};
 
-	// contact rate address
-	std::vector<std::vector<const double *>> contact_rates;
-
 public:
 	//=====Attributes (public)=====//
+	std::vector<Individual> indiv = {};
 	int house_size = 0;
 	int first_case = -1;
-	std::vector<Individual> indiv = {};
+
+	// contact rate address
+	std::vector<std::vector<const double *>> contact_rates;
+	std::vector<std::vector<std::string>> which_rate;
 
 	// list of house members for given status
 	std::vector<int> infectious_list = {};
 	std::vector<int> susceptibles_list = {};
 	std::vector<int> unknown_status_list = {};
 
-	// auxiliary variables to compute Bayesian diagnostics
-	int dgn_ss = 0;
-	long double dgn_sum_likelihood = 0.;
-	long double dgn_sum_loglike = 0.;
-	long double dgn_sum_sqr_loglike = 0.;
+	//=====Diagnostics=====//
+	int dgn_ss = 0;							// sample size
+	long double dgn_sum_likelihood = 0.;	// sum of (house) likelihood
+	long double dgn_sum_loglike = 0.;		// sum of (house) log-likelihood
+	long double dgn_sum_sqr_loglike = 0.;	// sum of squared (house) log-likelihood
 
 	//=====Constructors=====//
 	Household() {}
@@ -131,6 +132,7 @@ public:
 	void assign_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
 	void assign_data(std::string dataID, double value);
+	void assign_rate_per_contact(int from, int to, std::string parID) { which_rate[from][to] = parID; }
 	void change_status(int i, int new_status);
 
 	//======Getter======//

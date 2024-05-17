@@ -74,9 +74,10 @@ public:
 
 	//=====General Initialization=====//
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
-	virtual std::string assign_rate_per_contact(int from, int to);
+	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
 	virtual void initialize_model() {};
-	void update_model_report(Individual &this_indiv);
+	void set_rate_per_group(Individual &this_indiv);
+	void set_rate_per_contact(int h);
 	void display_report();
 
 	//=====Augmented Variables=====//

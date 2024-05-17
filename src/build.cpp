@@ -7,8 +7,7 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Warning for status
-bool Unknown_Status_Warning = false;
+bool Unknown_Status_Warning = false; // Warning for unknown status
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -92,7 +91,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
     set_prng_seed(setup_seed);
 
     //=====Display=====//
-    display_decorator("SETUP::definitions", '-', 1);
+    display_decorator("SETUP::definitions", 1, '-');
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
         << "\nnum_iter" << C_DELIM << setup_num_iter
@@ -160,7 +159,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         }
 
         //=====display a summary of the used parameters=====//
-        display_decorator("PARAMETERS::definitions", '-', 1);
+        display_decorator("PARAMETERS::definitions", 1, '-');
         display_parameters();
     }
     else
@@ -185,7 +184,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
 void MCMC::build_data(std::string data_pathtofile)
 {
     std::ifstream input(data_pathtofile.c_str());
-    std::vector<std::string> required_headers = {"index", "status", "HH_idx"};
+    std::vector<std::string> required_headers = {"index", "status", "house_index"};
 
     if (input.is_open())
     {
@@ -210,7 +209,7 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             Individual this_indiv(row_to_sdargs(this_row));
             assign_rate_per_group_to_individual(this_indiv);
-            update_model_report(this_indiv);
+            set_rate_per_group(this_indiv);
             aux_individuals.push_back(this_indiv);
             report_data["n.indiv"]++;
 
@@ -233,67 +232,29 @@ void MCMC::build_data(std::string data_pathtofile)
 
         //=====safe load households=====//
         int hh_idx;
-        std::unordered_map<int, Household> aux_households = {};
+        std::unordered_map<int, int> aux_house_idx = {};
         for (Individual this_indiv : aux_individuals)
         {
-            hh_idx = this_indiv.get_data("HH_idx"); // FIXME : HH_idx is found where ??
+            hh_idx = this_indiv.get_data("house_index");
 
             // if household index doesn't exist, add new household
-            if (aux_households.find(hh_idx) == aux_households.end())
+            if (aux_house_idx.find(hh_idx) == aux_house_idx.end())
             {
-                aux_households.emplace(hh_idx, Household());
-                aux_households.at(hh_idx).set_index(hh_idx);
+                aux_house_idx.emplace(hh_idx, num_househ);
+                househ.emplace_back();
+                househ[num_househ].set_index(hh_idx);
+                num_househ++;
             }
-
-            aux_households.at(hh_idx).assign_individual(this_indiv);
-        }
-
-        //=====produce list of households=====//
-        for (const auto &pair : aux_households)
-        {
-            househ.push_back(pair.second);
-        }
-
-        // get number of unique household indexes
-        num_househ = househ.size();
-
-        // clear the loading dictionary
-        aux_individuals.clear();
-        aux_households.clear();
-
-        //=====initialize contact patterns=====//
-        // FIXME : to be moved inside Household
-        // UPDATE: this scale like individuls, but could scale as househodls
-        // NOTE : however the indexes are tricky to be mapped back
-        /*
-        contact_patterns = new const double *[num_indiv * num_indiv];
-        std::fill_n(contact_patterns, num_indiv * num_indiv, nullptr);
-
-        // FIXME : missing report and control
+            househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
+        }        
         for (int h = 0; h < num_househ; h++)
         {
-            for (int i : househ[h].get_house_members())
-            {
-                for (int k : househ[h].get_house_members())
-                {
-                    if (i != k)
-                    {
-                        std::string parID = assign_rate_per_contact(i, k);
-                        if (parID == REFERENCE)
-                        {
-                            contact_patterns[from_to(i, k)] = get_reference();
-                        }
-                        else
-                        {
-                            contact_patterns[from_to(i, k)] = get_address(parID);
-                        }
-                    }
-                }
-            }
+            set_rate_per_contact(h);
         }
-        */
 
-        //=====Display General Information=====//
+        //=====Produce Household List and Set Contact Rates=====//
+
+        //=====Display Database and Model Reports=====//
         display_report();
     }
     else
@@ -311,17 +272,18 @@ void MCMC::build_data(std::string data_pathtofile)
 //------------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : update model report  ///////////////////////////////////
+//////////////////////////////////  MCMC : set rate per group  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update model report and set group rates associate to new individual. */
-void MCMC::update_model_report(Individual &this_indiv)
+void MCMC::set_rate_per_group(Individual &this_indiv)
 {
     for (const auto &which : this_indiv.which_rate)
     {
         std::string rateID = which.first;
         std::string parID = which.second;
 
+        //=====initialize model report=====//
         if (report_data["n.indiv"] == 0)
         {
             // if first individual, initialize rateID-report
@@ -338,7 +300,7 @@ void MCMC::update_model_report(Individual &this_indiv)
             }
         }
 
-        //-----set rates and update report-----//
+        //=====set rates and update report=====//
         if (parID == UNDEFINED)
         {
             // error : undefined rate
@@ -370,6 +332,76 @@ void MCMC::update_model_report(Individual &this_indiv)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Set contact rate according to user assignement. */
+void MCMC::set_rate_per_contact(int h)
+{
+    std::string rateID = "Contact"; // FIXME "Contact" becomes a forbidden rateID for individuals
+
+	// allocate contact patterns
+    int s = househ[h].house_size;
+	househ[h].which_rate.resize(s, std::vector<std::string>(s, UNDEFINED));
+	househ[h].contact_rates.resize(s, std::vector<const double *>(s, &_Reference_Value_));
+
+    if (h == 0)
+    {
+        // if first household, initialize contact rate report
+        report_model.emplace(rateID, std::map<std::string, int>());
+        report_model.at(rateID).emplace("[reference]", 0);
+    }
+    else
+    {
+        // all household must have a contact rate
+        if (report_model.find(rateID) == report_model.end())
+        {
+            display_error_message("Contact rate has not been provided for all households.");
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    for (int i = 0; i < househ[h].house_size; i++)
+    {
+        for (int k = 0; k < househ[h].house_size; k++)
+        {
+            // note : from `i` --> to `k`
+            if (i != k)
+            {
+                assign_rate_per_contact_to_household(h, i, k);
+                std::string parID = househ[h].which_rate[i][k];
+
+                if (parID == UNDEFINED)
+                {
+                    std::ostringstream oss;
+                    oss << "Contact rate not provided for individuals " << househ[h].indiv[i].get_index()
+                        << " and " << househ[h].indiv[k].get_index() << " within household " << househ[h].get_index();
+                    display_error_message(oss);
+                    std::exit(EXIT_FAILURE);
+                }
+                else if (parID == REFERENCE)
+                {
+                    househ[h].set_rate(i, k, get_reference()); // reference rate
+                    report_model.at(rateID).at("[reference]") += 1;
+                }
+                else
+                {
+                    househ[h].set_rate(i, k, get_address(parID)); // parameter rate
+                    if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
+                    {
+                        report_model.at(rateID).emplace(parID, 1);
+                    }
+                    else
+                    {
+                        report_model.at(rateID).at(parID) += 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : display report  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -393,7 +425,7 @@ void MCMC::display_report()
         //=====Display Database Report=====//
         //=================================//
 
-        display_decorator("DATABASE::summary", '-', 1);
+        display_decorator("DATABASE::summary", 1, '-');
         std::ostringstream oss;
         oss << "N. of individuals: " << report_data["n.indiv"]
             << "\n    * N. of cases: " << report_data["n.cases"]
@@ -444,7 +476,7 @@ void MCMC::display_report()
         if (has_non_reference_groups)
         {
             std::ostringstream oss;
-            display_decorator("DATABASE::groups", '-', 1);
+            display_decorator("DATABASE::groups", 1, '-');
             for (const auto &which : report_model)
             {
                 oss << which.first << ":";
@@ -667,7 +699,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            display_decorator("OUTPUT::augmented database", '-', 1);
+            display_decorator("OUTPUT::augmented database", 1, '-');
             display_stdout("Saving augmented database to: " + save_augm_pathtofile);
 
             // change format of augmented data
@@ -676,6 +708,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             //=====Clean up list of headers for output files=====//
             data_headers.erase(find(data_headers.begin(), data_headers.end(), "index"));
             data_headers.erase(find(data_headers.begin(), data_headers.end(), "status"));
+            data_headers.erase(find(data_headers.begin(), data_headers.end(), "house_index"));
             for (std::string augmID : augm_full_set)
             {
                 auto it = find(data_headers.begin(), data_headers.end(), augmID);
@@ -686,7 +719,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             }
 
             //=====Print column headers=====//
-            augm_ofstream << "index" << C_DELIM << "status";
+            augm_ofstream << "index" << C_DELIM << "status" << C_DELIM << "house_index";
             for (std::string dataID : data_headers)
             {
                 augm_ofstream << C_DELIM << dataID;
@@ -697,12 +730,14 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             }
             augm_ofstream << std::endl;
 
+            //=====Print augmented variables for each individual=====//
             for (int h = 0; h < num_househ; h++)
             {
                 for (int i = 0; i < househ[h].house_size; i++)
                 {
                     augm_ofstream << househ[h].indiv[i].get_index()
-                                  << C_DELIM << househ[h].indiv[i].get_status();
+                                  << C_DELIM << househ[h].indiv[i].get_status()
+                                  << C_DELIM << househ[h].get_index();
                     for (std::string dataID : data_headers)
                     {
                         augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);

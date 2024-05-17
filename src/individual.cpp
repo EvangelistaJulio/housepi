@@ -149,7 +149,7 @@ void Household::assign_data(std::string dataID, double value)
 	else
 	{
 		// rateID was previously declared
-		std::ostringstream oss; 
+		std::ostringstream oss;
 		oss << "Household " << get_index() << " has multiple definitions for data `" << dataID << "`.";
 		display_error_message(oss);
 		std::exit(EXIT_FAILURE);
@@ -182,10 +182,8 @@ void Household::assign_individual(Individual this_indiv)
 		unknown_status_list.push_back(house_size);
 	}
 	house_size++;
-
-	// allocate contact patterns
-    contact_rates.resize(house_size, std::vector<const double *>(house_size, &_Reference_Value_));
 }
+
 
 /* Return the indexes of the infectious, then the susceptibles, unknown statuses */
 // FIXME : is this necessary anymore?
