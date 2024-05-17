@@ -39,6 +39,7 @@
 const double INF_DOUBLE = 1e10;              // infinity value
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
+const std::string CONTACT_RATE = "Contact";  // name for Contact rate
 const double _Reference_Value_ = 1.0;        // auxiliary reference value for the parameters
 extern bool Verbose;                         // external declaration of verbose global state
 

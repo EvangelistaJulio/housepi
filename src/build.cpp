@@ -246,7 +246,7 @@ void MCMC::build_data(std::string data_pathtofile)
                 num_househ++;
             }
             househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
-        }        
+        }
         for (int h = 0; h < num_househ; h++)
         {
             set_rate_per_contact(h);
@@ -281,6 +281,14 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
     for (const auto &which : this_indiv.which_rate)
     {
         std::string rateID = which.first;
+        if (rateID == CONTACT_RATE)
+        {
+            std::ostringstream oss;
+            oss << "The group rate name `" << CONTACT_RATE << "` is reserved."
+                << "Please choose a different one.";
+            display_error_message(oss);
+        }
+
         std::string parID = which.second;
 
         //=====initialize model report=====//
@@ -338,12 +346,12 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 /* Set contact rate according to user assignement. */
 void MCMC::set_rate_per_contact(int h)
 {
-    std::string rateID = "Contact"; // FIXME "Contact" becomes a forbidden rateID for individuals
+    std::string rateID = CONTACT_RATE;
 
-	// allocate contact patterns
+    // allocate contact patterns
     int s = househ[h].house_size;
-	househ[h].which_rate.resize(s, std::vector<std::string>(s, UNDEFINED));
-	househ[h].contact_rates.resize(s, std::vector<const double *>(s, &_Reference_Value_));
+    househ[h].which_rate.resize(s, std::vector<std::string>(s, UNDEFINED));
+    househ[h].contact_rates.resize(s, std::vector<const double *>(s, &_Reference_Value_));
 
     if (h == 0)
     {
@@ -375,7 +383,7 @@ void MCMC::set_rate_per_contact(int h)
                 {
                     std::ostringstream oss;
                     oss << "Contact rate not provided for individuals " << househ[h].indiv[i].get_index()
-                        << " and " << househ[h].indiv[k].get_index() << " within household " << househ[h].get_index();
+                        << " and " << househ[h].indiv[k].get_index() << " within household " << househ[h].get_index() << ".";
                     display_error_message(oss);
                     std::exit(EXIT_FAILURE);
                 }
@@ -396,6 +404,9 @@ void MCMC::set_rate_per_contact(int h)
                         report_model.at(rateID).at(parID) += 1;
                     }
                 }
+
+                // count the total number of pairs
+                report_data.at("_n.contacts_")++;
             }
         }
     }
@@ -476,16 +487,28 @@ void MCMC::display_report()
         if (has_non_reference_groups)
         {
             std::ostringstream oss;
-            display_decorator("DATABASE::groups", 1, '-');
-            for (const auto &which : report_model)
+            display_decorator("DATABASE::rates", 1, '-');
+
+            for (const auto &entry : report_model)
             {
-                oss << which.first << ":";
-                for (auto const &x : which.second)
+                if (entry.first != CONTACT_RATE)
                 {
-                    oss << "\n    * " << x.first << ": " << x.second
-                        << std::fixed << std::setprecision(2)
-                        << " (" << (100.0 * x.second / report_data["n.indiv"]) << " %)";
+                    oss << entry.first << ":";
+                    for (auto const &x : entry.second)
+                    {
+                        oss << "\n    * " << x.first << ": " << x.second
+                            << std::fixed << std::setprecision(2)
+                            << " (" << (100.0 * x.second / report_data["n.indiv"]) << " %)";
+                    }
+                    oss << "\n";
                 }
+            }
+            oss << CONTACT_RATE << ":";
+            for (auto const &x : report_model.at(CONTACT_RATE))
+            {
+                oss << "\n    * " << x.first << ": " << x.second
+                    << std::fixed << std::setprecision(2)
+                    << " (" << (100.0 * x.second / report_data["_n.contacts_"]) << " %)";
             }
             display_stdout(oss);
         }
@@ -565,16 +588,25 @@ void MCMC::assign_augmented_variables()
         if (loader.at("strategy") != UNDEFINED)
         {
             augm_to_be_inferred.emplace(augmID);
+        }
 
-            // list of augmented variables with a model
-            // note: no contribution of constant variables to Metropolis
-            if (loader.at("model") != UNDEFINED)
+        // list of augmented variables with a model
+        // note: no contribution of constant variables to Metropolis
+        if (loader.at("model") == UNDEFINED)
+        {
+            if (stobool(loader.at("init_rand")) == true)
             {
-                augm_with_model_set.emplace(augmID);
-                if (stobool(loader.at("init_rand")) == true)
-                {
-                    augm_rand_init_set.emplace(augmID);
-                }
+                display_error_message("Unknown random initialization without a model for `" + augmID + "`.");
+                std::exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            augm_with_model_set.emplace(augmID);
+
+            if (stobool(loader.at("init_rand")) == true)
+            {
+                augm_rand_init_set.emplace(augmID);
             }
         }
     }
