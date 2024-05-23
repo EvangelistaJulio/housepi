@@ -68,16 +68,43 @@ void MCMC::build_setup(std::string setup_pathtofile)
                 safe_load.emplace(string_cleaner(name), string_cleaner(choice));
             }
 
-            // MCMC number of iterations
+            // load MCMC number of iterations
             setup_num_iter = stoi(safe_load.at("num_iter"));
-            setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
-            setup_thinning = stoi(safe_load.at("thinning"));
+            if (setup_num_iter < 1)
+            {
+                display_error_message("Setup value of `num_iter` must be greater than 0.");
+                std::exit(EXIT_FAILURE);
+            }
 
-            // seed for pseudo-random number generator (default is time)
+            // load MCMC number of finite adaptive iterations
+            setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
+            if (setup_num_adapt_iter < 1)
+            {
+                display_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
+                std::exit(EXIT_FAILURE);
+            }
+
+            // load MCMC thinning factor
+            setup_thinning = stoi(safe_load.at("thinning"));
+            if (setup_num_adapt_iter < 1)
+            {
+                display_error_message("Setup value of `thinning` must be greater than 0.");
+                std::exit(EXIT_FAILURE);
+            }
+
+            // define MCMC number of prints
+            setup_num_prints = setup_num_iter / setup_thinning;
+
+            // load seed for pseudo-random number generator (default is time)
             std::string seed_str = safe_load.at("seed");
             if (seed_str != UNDEFINED)
             {
                 setup_seed = stoi(seed_str);
+                if (setup_seed < 1)
+                {
+                    display_error_message("Setup value of `seed` must be " + UNDEFINED + "(default) or greater than 0.");
+                    std::exit(EXIT_FAILURE);
+                }
             }
         }
         else
@@ -132,7 +159,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
-                display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile + ".");
+                display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile);
                 std::exit(EXIT_FAILURE);
             }
         }
@@ -164,7 +191,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
     }
     else
     {
-        display_error_message("Impossible to read file:" + data_pathtofile + ".");
+        display_error_message("Impossible to read file: " + data_pathtofile);
         std::exit(EXIT_FAILURE);
     }
 }
@@ -198,7 +225,7 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
             {
-                display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile + ".");
+                display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile);
                 std::exit(EXIT_FAILURE);
             }
         }
@@ -259,7 +286,7 @@ void MCMC::build_data(std::string data_pathtofile)
     }
     else
     {
-        display_error_message("Impossible to open file: `" + data_pathtofile + "`");
+        display_error_message("Impossible to open file: " + data_pathtofile);
         std::exit(EXIT_FAILURE);
     }
 }
@@ -547,7 +574,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
             {
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
                 {
-                    display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile + ".");
+                    display_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
                     std::exit(EXIT_FAILURE);
                 }
             }
@@ -563,7 +590,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
         }
         else
         {
-            display_error_message("Impossible to read file:" + data_pathtofile + ".");
+            display_error_message("Impossible to read file: " + data_pathtofile);
             std::exit(EXIT_FAILURE);
         }
     }
@@ -684,7 +711,7 @@ void MCMC::init_param_file(std::string output_filename)
     }
     else
     {
-        display_error_message("Unable to open file `" + output_filename + "`");
+        display_error_message("Unable to open file: " + output_filename);
         std::exit(EXIT_FAILURE);
     }
 }
@@ -786,7 +813,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         }
         else
         {
-            display_error_message("Unable to open file `" + save_augm_pathtofile + "`");
+            display_error_message("Unable to open file: " + save_augm_pathtofile);
             std::exit(EXIT_FAILURE);
         }
     }

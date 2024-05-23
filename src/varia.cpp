@@ -9,16 +9,6 @@
 
 bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Auxiliary Functions  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Estimate sample variance from sum X, sum X^2 and sample size */
-double est_sample_variance(double sum_X, double sum_X2, double ss)
-{
-    return sum_X2 / (ss - 1.) - std::pow(sum_X, 2) / (ss * (ss - 1.));
-}
-
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -197,20 +187,27 @@ std::ostringstream Base_Proposer::message_to_display()
 /////////////////////////////////////  Parameter : methods  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Init the values for the Bayesian diagnostics. */
+void Parameter::init_diagnostics(int sample_size)
+{
+    dgn_sample_size = sample_size;
+    dgn_mean = 0.;
+    dgn_mean_sqr = 0;
+}
+
 /* Update the values for the Bayesian diagnostics. */
 void Parameter::update_diagnostics()
 {
-    dgn_sum += get_value();
-    dgn_sqr_sum += std::pow(get_value(), 2);
-    dgn_sample_size++;
+    dgn_mean += get_value() / dgn_sample_size;
+    dgn_mean_sqr += std::pow(get_value(), 2) / dgn_sample_size;
 }
 
 /* Message to be used at the moment of display diagnostics. */
 std::ostringstream Parameter::message_to_display_diagnostics()
 {
     std::ostringstream oss;
-    oss << (dgn_sum / dgn_sample_size)
-        << C_DELIM << std::sqrt(est_sample_variance(dgn_sum, dgn_sqr_sum, dgn_sample_size))
+    oss << dgn_mean
+        << C_DELIM << std::sqrt(dgn_mean_sqr - std::pow(dgn_mean, 2) * (dgn_sample_size / (dgn_sample_size - 1.)))
         << C_DELIM << ((infer) ? "true" : "false");
     if (infer)
     {
@@ -315,11 +312,11 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise exits. */
-void Monte_Carlo_Core::assert_param(const std::string k)
+void Monte_Carlo_Core::assert_param(const std::string k) const
 {
     if (params.find(k) == params.end())
     {
-        display_error_message("Parameter `" + k + "` is not defined.\n Check your model and parameter file.");
+        display_error_message("Parameter `" + k + "` is not defined. Check your model and parameter file.");
         std::exit(EXIT_FAILURE);
     }
 }
@@ -393,8 +390,17 @@ void Monte_Carlo_Core::refuse_param_move(const std::string parID)
     params.at(parID).update_accept_rate(false);
 }
 
-/* Update the diagnostics of all parameters */
-void Monte_Carlo_Core::update_diagnostics()
+/* Init diagnostics for all parameters */
+void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
+{
+    for (std::string parID : param_to_be_inferred)
+    {
+        params.at(parID).init_diagnostics(sample_size);
+    }
+}
+
+/* Update diagnostics for all parameters */
+void Monte_Carlo_Core::update_param_diagnostics()
 {
     for (std::string parID : param_to_be_inferred)
     {

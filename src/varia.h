@@ -14,12 +14,6 @@
 
 #include "utils.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Auxiliary Functions  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double est_sample_variance(double sum_X, double sum_X2, double ss);
-
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -147,7 +141,7 @@ Base_Proposer *proposer_switchboard(
 	sdargs args = {},
 	double strat_zero = INF_DOUBLE,
 	sdargs value_range = {});
-	
+
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -351,9 +345,9 @@ class Parameter : public Base_Parameter<sdargs>
 {
 public:
 	//=====Diagnostic : attributes=====//
-	int dgn_sample_size = 0;	  // sample size
-	long double dgn_sum = 0.;	  // sum of the values in the sample
-	long double dgn_sqr_sum = 0.; // sum of the squaredvalues in the sample
+	int dgn_sample_size = 0;	   // sample size
+	long double dgn_mean = 0.;	   // mean value
+	long double dgn_mean_sqr = 0.; // mean squared value
 
 	//=====Constructor=====//
 	Parameter(
@@ -372,6 +366,7 @@ public:
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
 	//=====Diagnostic : methods=====//
+	void init_diagnostics(int sample_size);
 	void update_diagnostics();
 	std::ostringstream message_to_display_diagnostics();
 };
@@ -431,7 +426,7 @@ public:
 	virtual ~Monte_Carlo_Core(){};
 
 	//=====Getter=====//
-	void assert_param(const std::string k);
+	void assert_param(const std::string k) const;
 	double get_value(const std::string k) const { return params.at(k).get_value(); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
 	const double *get_reference() const { return &_Reference_Value_; }
@@ -458,7 +453,8 @@ public:
 	void accept_param_move(const std::string k);
 	void refuse_param_move(const std::string k);
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
-	void update_diagnostics();
+	void init_param_diagnostics(int sample_size);
+	void update_param_diagnostics();
 
 	//=====Display=====//
 	void display_parameters();
@@ -476,6 +472,8 @@ private:
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
 	int setup_num_omp_threads = 1;							// number of OMP threads
+
+	//=====Getter (auxiliary methods)=====//
 
 	//=====Pseudo Random Number Generator (auxiliary methods)=====//
 	// FIXME : it should be checked in case it's 32bit
