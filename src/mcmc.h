@@ -35,10 +35,10 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	int setup_seed = time(NULL);  // random seed
-	int setup_num_iter = 20000;	  // n. iterations
+	int setup_seed = 0XFFFFFF;	  // random seed
+	int setup_num_iter = 0;		  // n. iterations
 	int setup_num_adapt_iter = 0; // n. (finite) adaptive steps
-	int setup_thinning = 20;	  // n. thinning iterations
+	int setup_thinning = 1;		  // n. thinning iterations
 	int setup_num_prints = 0;	  // n. prints
 
 	//=====Database=====//
@@ -69,7 +69,7 @@ public:
 	void build_setup(std::string data_pathtofile);
 	void build_parameters(std::string data_pathtofile);
 	void build_augmented(std::string data_pathtofile);
-	void build_data(std::string data_pathtofile);	
+	void build_data(std::string data_pathtofile);
 	virtual void build_extra(std::string data_pathtofile); // load non standard file
 
 	//=====General Initialization=====//
@@ -133,7 +133,7 @@ private:
 	//=====BUILD=====//
 
 	//-----build : auxiliary attributes-----//
-	std::ofstream param_ofstream; 	// outoput parameter file
+	std::ofstream param_ofstream;				   // outoput parameter file
 	std::vector<ssargs> load_augm_definition = {}; // temporary loader for augmented variable definition
 
 	//----build : auxiliary functions-----//
@@ -144,7 +144,7 @@ private:
 	std::vector<std::string> read_column_headers(std::ifstream &input);
 	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row);
 	sdargs row_to_sdargs(ssargs &this_row);
-	
+
 	//----build : type-specified variables-----//
 	double type_to_double(std::string token, int h, int i);
 	const double *type_to_doubleptr(std::string token);

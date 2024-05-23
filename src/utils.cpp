@@ -4,6 +4,12 @@
 #include "utils.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::chrono::steady_clock::time_point _Prog_Bar_Start_;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -15,7 +21,7 @@ void display_stdout(const std::string &txt)
         std::cout << txt << std::endl;
     }
 }
-void display_stdout(const char * txt)
+void display_stdout(const char *txt)
 {
     display_stdout(std::string(txt));
 }
@@ -30,14 +36,14 @@ void display_decorator(const std::string &txt, int skip, char decor)
     if (Verbose)
     {
         size_t tot_bar_len = 75;
-        size_t half_bar_len = (tot_bar_len- txt.length()) / 2;
+        size_t half_bar_len = (tot_bar_len - txt.length()) / 2;
         std::ostringstream oss;
         oss << std::string(skip, '\n') << std::string(half_bar_len, decor)
             << txt << std::string(tot_bar_len - txt.length() - half_bar_len, decor);
         std::cout << oss.str() << std::endl;
     }
 }
-void display_decorator(const char * txt, int skip, char decor)
+void display_decorator(const char *txt, int skip, char decor)
 {
     display_decorator(std::string(txt), skip, decor);
 }
@@ -46,32 +52,94 @@ void display_decorator(const std::ostringstream &oss, int skip, char decor)
     display_decorator(oss.str(), skip, decor);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Format the  */
+std::string format_elapsed_millisecs(long long elapsed)
+{
+    using namespace std::chrono;
+
+    auto dys = duration_cast<duration<int, std::ratio<86400>>>(milliseconds(elapsed));
+    elapsed -= duration_cast<milliseconds>(dys).count();
+
+    auto hrs = duration_cast<hours>(milliseconds(elapsed));
+    elapsed -= duration_cast<milliseconds>(hrs).count();
+
+    auto mns = duration_cast<minutes>(milliseconds(elapsed));
+    elapsed -= duration_cast<milliseconds>(mns).count();
+
+    auto scs = duration_cast<seconds>(milliseconds(elapsed));
+
+    std::ostringstream oss;
+    if (dys.count() > 1)
+    {
+        oss << dys.count() << "d";
+    }
+    if (hrs.count() > 1)
+    {
+        oss << std::setfill('0') << std::setw(2) << hrs.count() << "h";
+    }
+    oss << std::setfill('0') << std::setw(2) << mns.count() << "m"
+        << std::setfill('0') << std::setw(2) << scs.count() << "s";
+
+    return oss.str();
+}
+
+/*  Initialize progress bar. */
+void display_init_progress_bar(const std::string &txt)
+{
+    using namespace std::chrono;
+
+    if (Verbose)
+    {
+        std::cerr << txt << ": [" << std::string(PROGBAR_WIDTH, ' ') << "] "
+                  << std::fixed << std::setprecision(2) << 0.0 << " %\r";
+        std::cerr.flush();
+        _Prog_Bar_Start_ = steady_clock::now();
+    }
+}
+
 /* Display a percentual progress bar (progress/total). */
 void display_progress_bar(const std::string &txt, int progress, int total)
 {
-    int thin_bar = 100;
-    if ((Verbose) && (total >= thin_bar))
-    {
-        if ((progress % (total / thin_bar)) == 0)
-        {
-            float percentage = static_cast<float>(progress) / total;
-            int bar_width = 50; // - prog_text.length();
-            int where = percentage * bar_width;
+    using namespace std::chrono;
 
-            std::cerr << txt << ": [" << std::string(where, C_DECOR) << " "
-                      << std::string(std::max(0, bar_width - where - 1), ' ') << "] "
-                      << std::fixed << std::setprecision(2) << percentage * 100.0 << " %\r";
+    if (Verbose)
+    {
+        if ((total < PROGBAR_THIN) || (progress % (total / PROGBAR_THIN) == 0))
+        {
+            double percentage = static_cast<double>(progress) / total;
+            int where = percentage * PROGBAR_WIDTH;
+            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
+            double time_missing = static_cast<double>(time_elapsed) * (1. - percentage) / percentage;
+
+            std::cerr << txt << ": [" << std::string(where, C_DECOR)
+                      << std::string(std::max(0, PROGBAR_WIDTH - where), ' ') << "] "
+                      << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
+                      << " (" << format_elapsed_millisecs(time_elapsed) 
+                      << "<" << format_elapsed_millisecs(time_missing) << ")"
+                      << std::string(20, ' ') << "\r";
             std::cerr.flush();
         }
     }
 }
-void display_progress_bar(const char * txt, int progress, int total)
+
+/*  End progress bar. */
+void display_close_progress_bar(const std::string &txt)
 {
-    display_progress_bar(std::string(txt), progress, total);
-}
-void display_progress_bar(const std::ostringstream &oss, int progress, int total)
-{
-    display_progress_bar(oss.str(), progress, total);
+    using namespace std::chrono;
+
+    if (Verbose)
+    {
+        auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
+        std::cerr << txt << ": [" << std::string(PROGBAR_WIDTH, C_DECOR) << "] "
+                  << std::fixed << std::setprecision(2) << 100.0 << " %"
+                  << " (" << format_elapsed_millisecs(time_elapsed) << ")"
+                  << std::string(20, ' ') << "\r";
+        std::cerr.flush();
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,7 +155,7 @@ void raise_warning_message(const std::string &txt, bool *is_raised_once)
         *is_raised_once = true;
     }
 }
-void raise_warning_message(const char * txt, bool *is_raised_once)
+void raise_warning_message(const char *txt, bool *is_raised_once)
 {
     raise_warning_message(std::string(txt), is_raised_once);
 }
@@ -106,7 +174,7 @@ void display_error_message(const std::string &txt)
     std::cerr << "\nERROR: " << txt << "\nExit...\n"
               << std::endl;
 }
-void display_error_message(const char * txt)
+void display_error_message(const char *txt)
 {
     display_error_message(std::string(txt));
 }
