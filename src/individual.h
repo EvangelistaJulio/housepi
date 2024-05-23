@@ -119,10 +119,10 @@ public:
 	std::vector<int> unknown_status_list = {};
 
 	//=====Diagnostics=====//
-	int dgn_ss = 0;							// sample size
-	long double dgn_sum_likelihood = 0.;	// sum of (house) likelihood
-	long double dgn_sum_loglike = 0.;		// sum of (house) log-likelihood
-	long double dgn_sum_sqr_loglike = 0.;	// sum of squared (house) log-likelihood
+	int dgn_sample_size = 0;		  // sample size
+	long double dgn_likelihood = 0.;  // mean (house) likelihood
+	long double dgn_loglike = 0.;	  // mean (house) log-likelihood
+	long double dgn_sqr_loglike = 0.; // mean squared (house) log-likelihood
 
 	//=====Constructors=====//
 	Household() {}
@@ -152,6 +152,7 @@ public:
 		loglike = new_loglike;
 	}
 	void refuse() { loglike = buffer; }
+	void init_diagnostics(int sample_size);
 	void update_diagnostics();
 
 	//=====Acceptation Rate=====//

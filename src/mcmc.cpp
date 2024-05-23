@@ -70,7 +70,7 @@ double MCMC::compute_global_loglike()
 }
 
 /* Set accept rates to zero. */
-void MCMC::reset_move_counts()
+void MCMC::init_move_counts()
 {
     // for parameters
     for (std::string parID : param_to_be_inferred)
@@ -209,9 +209,9 @@ double MCMC::single_household_augm_move(int h)
         for (std::string augmID : augm_to_be_inferred)
         {
             is_accepted = false;
-            old_value = househ[h].indiv[i].get_augm(augmID);       // store old value
-            old_house_loglike = househ[h].get_loglike(); // store old loglike
-            new_value = augm_var_propose(h, i, augmID);     // propose new value
+            old_value = househ[h].indiv[i].get_augm(augmID); // store old value
+            old_house_loglike = househ[h].get_loglike();     // store old loglike
+            new_value = augm_var_propose(h, i, augmID);      // propose new value
 
             // proceed only if the new value is consistent
             if (househ[h].indiv[i].augm_valid(augmID, new_value))
@@ -286,10 +286,6 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
 void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
 {
-    // use the thin number of iteration (euclidean division)
-    int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
-    int num_iter_thin = setup_num_iter / setup_thinning;
-
     //=====Initialization=====//
     display_decorator("INFERENCE");
     display_decorator("MCMC::initialization", 1, '-');
@@ -329,7 +325,8 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 
     if (setup_num_adapt_iter > 0)
     {
-        reset_move_counts();
+        int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
+        init_move_counts();
         display_decorator("MCMC::adaptive", 1, '-');
         display_progress_bar("adaptive", 0, 100);
         for (int i = 1; i <= num_adapt_iter_thin; i++)
@@ -350,12 +347,14 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //=====Monte Carlo Markov Chain execution=====//
     //============================================//
 
-    if (num_iter_thin > 0)
+    if (setup_num_prints > 0)
     {
-        reset_move_counts();
         display_decorator("MCMC::execution", 1 + (setup_num_adapt_iter > 0), '-');
         display_progress_bar("execution", 0, 100);
-        for (int i = 1; i <= num_iter_thin; i++)
+
+        init_move_counts();
+        init_model_diagnostics();
+        for (int i = 1; i <= setup_num_prints; i++)
         {
             for (int j = 1; j <= setup_thinning; j++)
             {
@@ -371,10 +370,10 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 #else
             print_parameters(i * setup_thinning);
 #endif
-            display_progress_bar("execution", i, num_iter_thin);
+            display_progress_bar("execution", i, setup_num_prints);
         }
     }
-    
+
     //==========================//
     //=====end of inference=====//
     //==========================//
@@ -387,11 +386,28 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 /////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Init Bayesian diagnostics. */
+void MCMC::init_model_diagnostics()
+{
+    // diagnostics for all parameters
+    init_param_diagnostics(setup_num_prints);
+
+// diagnostics over households
+#pragma omp parallel for default(shared)
+    for (int h = 0; h < num_househ; h++)
+    {
+        househ[h].init_diagnostics(setup_num_prints);
+    }
+
+    dgn_loglike = 0;     // (global) loglikelihood
+    dgn_sqr_loglike = 0; // mean squared (global) loglikelihood
+}
+
 /* Update Bayesian diagnostics */
 void MCMC::update_model_diagnostics()
 {
     // diagnostics for all parameters
-    update_diagnostics();
+    update_param_diagnostics();
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
@@ -400,12 +416,8 @@ void MCMC::update_model_diagnostics()
         househ[h].update_diagnostics();
     }
 
-    // update the mean of the global loglikelihood
-    dgn_sum_loglike += global_loglike;
-    // update the mean of the squared global loglikelihood
-    dgn_sum_sqr_loglike += std::pow(global_loglike, 2);
-    // update the diagnostics sample size
-    dgn_ss++;
+    dgn_loglike += global_loglike / setup_num_prints;                  // (global) loglikelihood
+    dgn_sqr_loglike += std::pow(global_loglike, 2) / setup_num_prints; // mean squared (global) loglikelihood
 }
 
 /* Display results as sampled during thin iterations.
@@ -415,6 +427,7 @@ void MCMC::display_thin_results()
 {
     if (setup_num_iter >= setup_thinning)
     {
+        double sample_var_correc = setup_num_prints / (setup_num_prints - 1.);
         double log_point_pred_dens = 0.;
         double effec_num_params_waic = 0.;
         std::ostringstream oss;
@@ -423,8 +436,8 @@ void MCMC::display_thin_results()
 #pragma omp parallel for reduction(+ : log_point_pred_dens, effec_num_params_waic)
         for (int h = 0; h < num_househ; h++)
         {
-            log_point_pred_dens += std::log(househ[h].dgn_sum_likelihood / househ[h].dgn_ss);
-            effec_num_params_waic += est_sample_variance(househ[h].dgn_sum_loglike, househ[h].dgn_sum_sqr_loglike, househ[h].dgn_ss);
+            log_point_pred_dens += std::log(househ[h].dgn_likelihood);
+            effec_num_params_waic += (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * sample_var_correc;
         }
 
         // parameters (sampled every thinning iterration)
@@ -433,8 +446,8 @@ void MCMC::display_thin_results()
 
         // diagnostics (sampled every thinning iterration)
         display_decorator("MCMC::diagnostics", 1, '-');
-        oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_sum_loglike / dgn_ss
-            << "\nloglikelihood_sd" << C_DELIM << est_sample_variance(dgn_sum_loglike, dgn_sum_sqr_loglike, dgn_ss)
+        oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
+            << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_var_correc
             << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
             << "\neffective_parameters" << C_DELIM << effec_num_params_waic
             << "\nWAIC" << C_DELIM << log_point_pred_dens - effec_num_params_waic;

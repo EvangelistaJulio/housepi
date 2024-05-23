@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
     //=====INITIALIZATION=====//
 
     display_decorator("Household Survey EPI Modeling");
-    display_decorator("Camaglia F., Institut Pasteur (2024)", '-', 0);
+    display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
 
     // Initialize Model object with user defined derived class
     Model user_model;

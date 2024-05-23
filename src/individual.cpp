@@ -264,12 +264,20 @@ void Household::update_augm_accept_rate(std::string augmID, bool is_accepted)
 }
 
 /* update the values for the Bayesian diagnostics */
+void Household::init_diagnostics(int sample_size)
+{
+	dgn_loglike = 0.;
+	dgn_sqr_loglike = 0.;
+	dgn_likelihood = 0.;
+	dgn_sample_size = sample_size;
+}
+
+/* update the values for the Bayesian diagnostics */
 void Household::update_diagnostics()
 {
-	dgn_sum_likelihood += std::exp(loglike);
-	dgn_sum_loglike += loglike;
-	dgn_sum_sqr_loglike += std::pow(loglike, 2);
-	dgn_ss++;
+	dgn_loglike += loglike / dgn_sample_size;
+	dgn_sqr_loglike += std::pow(loglike, 2) / dgn_sample_size;
+	dgn_likelihood += std::exp(loglike) / dgn_sample_size;
 }
 
 //------------------------------------------------------------------------------------------------------------//

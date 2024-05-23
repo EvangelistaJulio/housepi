@@ -36,9 +36,10 @@ class MCMC : public Monte_Carlo_Core
 protected:
 	//=====Setup=====//
 	int setup_seed = time(NULL);  // random seed
-	int setup_num_iter = 20000;	  // number of iterations
-	int setup_num_adapt_iter = 0; // number of (finite) adaptive steps
-	int setup_thinning = 20;	  // number of thinning iterations
+	int setup_num_iter = 20000;	  // n. iterations
+	int setup_num_adapt_iter = 0; // n. (finite) adaptive steps
+	int setup_thinning = 20;	  // n. thinning iterations
+	int setup_num_prints = 0;	  // n. prints
 
 	//=====Database=====//
 	std::vector<std::string> data_headers = {};
@@ -55,9 +56,8 @@ protected:
 	std::set<std::string> augm_rand_init_set = {};
 
 	//=====Diagnostics=====//
-	int dgn_ss = 0;						  // sample size
-	long double dgn_sum_loglike = 0.;	  // sum of the loglikelihood
-	long double dgn_sum_sqr_loglike = 0.; // sum of the squared loglikelihood
+	long double dgn_loglike = 0.;	  // sum of the loglikelihood
+	long double dgn_sqr_loglike = 0.; // sum of the squared loglikelihood
 
 	//=====Reports (Database, Model)=====//
 	std::map<std::string, int> report_data = {
@@ -96,13 +96,14 @@ public:
 	virtual double compute_global_loglike();
 
 	//=====Monte Carlo Markov Chain moves=====//
-	void reset_move_counts();
+	void init_move_counts();
 	void single_param_move(std::string parID);
 	void move_all_parameters();
 	double single_household_augm_move(int h);
 	double get_augm_accept_rate(std::string augmID);
 	void move_all_augm_variables();
 	void move_and_adapt_all_parameters(int step);
+	void init_model_diagnostics();
 	void update_model_diagnostics();
 	void display_thin_results();
 

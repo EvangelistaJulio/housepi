@@ -20,20 +20,19 @@ unsigned **Num_of_Combs_LUT; // look-up-table to store the number of combination
 /* Binomial coefficient of N elements in k positions*/
 unsigned binomial_coefficient(const usi N, const usi k)
 {
-	if ((N == 0) || (k == 0))
+	if ((N == 0) || (k == N))
 	{
 		return 1;
 	}
 	else
 	{
-		unsigned recur[k];
-		recur[0] = N - k + 1;
-
-		for (usi i = 1; i < k; ++i)
+		unsigned result = N;
+		usi stop = (k > N - k) ? k : N - k; // use symmetry
+		for (usi i = 1; i < stop; i++)
 		{
-			recur[i] = recur[i - 1] * (N - k + 1 + i) / (i + 1);
+			result = (result * (N - i)) / (i + 1);
 		}
-		return recur[k - 1];
+		return result;
 	}
 }
 
@@ -286,7 +285,7 @@ double Model::compute_single_house_loglike(int h)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
-void Model::simulate_single_house(int h)()
+void Model::simulate_single_house(int h)
 {
 	// FIXME
 
@@ -317,7 +316,7 @@ void Model::simulate_single_house(int h)()
 	store_old_list = househ[h].susceptibles_list;
 	for (int i : store_old_list)
 	{
-		if (uniform(rng) > commu_esc_proba)
+		if (uniform() > commu_esc_proba)
 		{
 			househ[h].change_status(i, INFECTIOUS);
 			num_new_infectious++;
@@ -333,7 +332,7 @@ void Model::simulate_single_house(int h)()
 		store_old_list = househ[h].susceptibles_list;
 		for (int i : store_old_list)
 		{
-			if (uniform(rng) > exp(num_old_infectious * log_p2p_esc_proba))
+			if (uniform() > exp(num_old_infectious * log_p2p_esc_proba))
 			{
 				househ[h].change_status(i, INFECTIOUS);
 				num_new_infectious++;
