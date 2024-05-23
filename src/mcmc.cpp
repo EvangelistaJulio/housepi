@@ -302,6 +302,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     //-----Initialize model-----//
     initialize_model();
     set_global_loglike(compute_global_loglike());
+    disable_assert_param(); // avoid asserting definitions of parameters
 
     //-----Assign inverse temperature-----//
     // UPDATE : is someone interested in the case inv_temp > 1?
@@ -326,9 +327,11 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     if (setup_num_adapt_iter > 0)
     {
         int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
-        init_move_counts();
+
         display_decorator("MCMC::adaptive", 1, '-');
-        display_progress_bar("adaptive", 0, 100);
+        display_init_progress_bar("adaptive");
+
+        init_move_counts();
         for (int i = 1; i <= num_adapt_iter_thin; i++)
         {
             for (int j = 1; j <= setup_thinning; j++)
@@ -341,6 +344,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 #endif
             display_progress_bar("adaptive", i, num_adapt_iter_thin);
         }
+        display_close_progress_bar("adaptive");
     }
 
     //============================================//
@@ -350,7 +354,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     if (setup_num_prints > 0)
     {
         display_decorator("MCMC::execution", 1 + (setup_num_adapt_iter > 0), '-');
-        display_progress_bar("execution", 0, 100);
+        display_init_progress_bar("execution");
 
         init_move_counts();
         init_model_diagnostics();
@@ -372,6 +376,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
 #endif
             display_progress_bar("execution", i, setup_num_prints);
         }
+        display_close_progress_bar("execution");
     }
 
     //==========================//

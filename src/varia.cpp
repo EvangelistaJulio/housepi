@@ -8,6 +8,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
+bool Disabled_OpenMP_Warning = false;        // warning for attempt to use openmp while disabled
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -113,7 +114,7 @@ void Base_Proposer::set_range(sdargs new_range)
         if (_range_min_ >= _range_max_)
         {
             std::ostringstream oss;
-            oss << "Provided an inconsistent range: {min:" << _range_min_ << ", max:" <<_range_max_ << "}.";
+            oss << "Provided an inconsistent range: {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
             display_error_message(oss);
             std::exit(EXIT_FAILURE);
         }
@@ -207,7 +208,7 @@ std::ostringstream Parameter::message_to_display_diagnostics()
 {
     std::ostringstream oss;
     oss << dgn_mean
-        << C_DELIM << std::sqrt(dgn_mean_sqr - std::pow(dgn_mean, 2) * (dgn_sample_size / (dgn_sample_size - 1.)))
+        << C_DELIM << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
         << C_DELIM << ((infer) ? "true" : "false");
     if (infer)
     {
@@ -224,6 +225,26 @@ std::ostringstream Parameter::message_to_display_diagnostics()
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Monte_Carlo_Core : methods (getter)  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Monte_Carlo_Core::disable_assert_param()
+{
+    _get_value_method_ = &Monte_Carlo_Core::_get_value_default_;
+}
+
+double Monte_Carlo_Core::_get_value_default_(const std::string k) const
+{
+    return params.at(k).get_value();
+}
+
+double Monte_Carlo_Core::_get_value_assert_(const std::string k) const
+{
+    assert_param(k);
+    return _get_value_default_(k);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
@@ -265,6 +286,7 @@ void Monte_Carlo_Core::assign_parameter(
 /* Set the number of threads for parrell computations (default is 1). */
 void Monte_Carlo_Core::set_num_threads(int n)
 {
+#ifdef OPENMP_CONTROL
     if (n < 1)
     {
         display_error_message("Number of threads must be equal or greater than 1.");
@@ -288,6 +310,14 @@ void Monte_Carlo_Core::set_num_threads(int n)
             _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
         }
     }
+#else
+    if (n != 1)
+    {
+        raise_warning_message("Parallelization with OpenMP is disabled.", &Disabled_OpenMP_Warning);
+    }
+    setup_num_omp_threads = 1;
+    _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
+#endif
 }
 
 /* Assign seed for random generators. */

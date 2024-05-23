@@ -1,6 +1,8 @@
 // varia.h //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
+#define OPENMP_CONTROL
+
 #ifndef VARIA__H
 #define VARIA__H
 
@@ -10,7 +12,10 @@
 #include <cmath>
 #include <random>
 #include <iostream>
+
+#ifdef OPENMP_CONTROL
 #include <omp.h>
+#endif
 
 #include "utils.h"
 
@@ -426,8 +431,9 @@ public:
 	virtual ~Monte_Carlo_Core(){};
 
 	//=====Getter=====//
+	void disable_assert_param();
 	void assert_param(const std::string k) const;
-	double get_value(const std::string k) const { return params.at(k).get_value(); }
+	double get_value(const std::string k) const { return (this->*_get_value_method_)(k); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
 	const double *get_reference() const { return &_Reference_Value_; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
@@ -474,6 +480,9 @@ private:
 	int setup_num_omp_threads = 1;							// number of OMP threads
 
 	//=====Getter (auxiliary methods)=====//
+	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;
+	double _get_value_assert_(const std::string k) const;
+	double _get_value_default_(const std::string k) const;
 
 	//=====Pseudo Random Number Generator (auxiliary methods)=====//
 	// FIXME : it should be checked in case it's 32bit
@@ -481,7 +490,9 @@ private:
 	std::vector<std::mt19937_64> prng_parallel = {}; // parallel generators (for multi-threading)
 	std::mt19937_64 &(Monte_Carlo_Core::*_prng_method_)();
 	std::mt19937_64 &_prng_unique_thread_() { return prng; }
+#ifdef OPENMP_CONTROL
 	std::mt19937_64 &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+#endif
 };
 
 //------------------------------------------------------------------------------------------------------------//

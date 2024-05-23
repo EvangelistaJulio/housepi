@@ -14,6 +14,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////  MACROS  /////////////////////////////////////////////
@@ -25,6 +26,8 @@
 #define C_DICT_DELIM '/'   // dictionary delimiter
 #define C_OPTION_DELIM ':' // option delimiter
 #define C_DECOR '='        // decorator for prints
+#define PROGBAR_WIDTH 50   // width of progress bar
+#define PROGBAR_THIN 250   // thinning of progress bar
 
 #define SUSCEPTIBLE 0 // status of susceptible
 #define INFECTIOUS 1  // status of infectious
@@ -65,9 +68,9 @@ void display_decorator(const char *txt, int skip = 2, char decor = C_DECOR);
 void display_decorator(const std::ostringstream &oss, int skip = 2, char decor = C_DECOR);
 
 // print progress bar to stdout
+void display_init_progress_bar(const std::string &txt);
 void display_progress_bar(const std::string &txt, int progress, int total);
-void display_progress_bar(const char *txt, int progress, int total);
-void display_progress_bar(const std::ostringstream &oss, int progress, int total);
+void display_close_progress_bar(const std::string &txt);
 
 // print warnings to stderr
 void raise_warning_message(const std::string &txt, bool *is_raised_once);

@@ -97,7 +97,12 @@ void MCMC::build_setup(std::string setup_pathtofile)
 
             // load seed for pseudo-random number generator (default is time)
             std::string seed_str = safe_load.at("seed");
-            if (seed_str != UNDEFINED)
+            if (seed_str == UNDEFINED)
+            {
+                auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
+                setup_seed = static_cast<unsigned int>(time_now);
+            }
+            else
             {
                 setup_seed = stoi(seed_str);
                 if (setup_seed < 1)
@@ -109,7 +114,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
         }
         else
         {
-            display_error_message("Impossible to read file: " + setup_pathtofile + ".");
+            display_error_message("Impossible to read file: " + setup_pathtofile);
             std::exit(EXIT_FAILURE);
         }
     }
@@ -159,7 +164,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
-                display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile);
+                display_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
                 std::exit(EXIT_FAILURE);
             }
         }
@@ -225,7 +230,7 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
             {
-                display_error_message("Missing column `" + req + "`. Please check file : " + data_pathtofile);
+                display_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
                 std::exit(EXIT_FAILURE);
             }
         }
