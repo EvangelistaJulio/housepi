@@ -1,5 +1,5 @@
 # If MODEL is not provided, set a default value
-MODEL ?= models/chain_binomial/chain_binomial.cpp
+MODEL ?= src/models/chain_binomial/chain_binomial.cpp
 
 # Trim the file extension
 NAME := $(notdir $(basename $(MODEL)))

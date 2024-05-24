@@ -34,9 +34,10 @@ int main(int argc, char *argv[])
 {
     int carg_i = 1;          // Command line argument iterator
     double inver_temp = 1.0; // Inverse temperature
-    bool is_infer = false, is_simulate = false;
     bool rand_init_params = false;
     int num_threads = 1;
+    bool is_infer = false;
+    bool is_simulate = false;
 
     // paths/to/files
     std::string setup_pathtofile = UNDEFINED;
@@ -155,6 +156,16 @@ int main(int argc, char *argv[])
 
         ++carg_i; // Move to the next command line argument
     }
+    
+    //=====OPTION VALIDITY=====//
+
+    // UPDATE : complete check for options validity
+
+    if (is_infer && is_simulate)
+    {
+        display_error_message("Incompatible commands: choose one between -infer and -simulate.");
+        std::exit(EXIT_FAILURE);
+    }
 
     //=====INITIALIZATION=====//
 
@@ -164,13 +175,7 @@ int main(int argc, char *argv[])
     // Initialize Model object with user defined derived class
     Model user_model;
 
-    // 0) Set number of threads (optional)
-    user_model.set_num_threads(num_threads);
-
-    // 1) Load Setup (optional)
-    user_model.build_setup(setup_pathtofile);
-
-    // 2) Load Parameters and Check (required)
+    // 0) Load Parameters and Check (required)
     if (parameters_pathtofile == UNDEFINED)
     {
         display_error_message("Required argument: parameter path/to/file not found.");
@@ -181,7 +186,7 @@ int main(int argc, char *argv[])
         user_model.build_parameters(parameters_pathtofile);
     }
 
-    // 3) Load Data and Check (required)
+    // 1) Load Data and Check (required)
     if (database_pathtofile == UNDEFINED)
     {
         display_error_message("Required argument: database path/to/file not found.");
@@ -192,27 +197,27 @@ int main(int argc, char *argv[])
         user_model.build_data(database_pathtofile);
     }
 
-    // Load Augmented Variables
+    // 2) Load Augmented Variables (optional)
     user_model.build_augmented(augmented_pathtofile);
 
+    // 3) Set number of threads (optional)
+    user_model.set_num_threads(num_threads);
+    
+    // 4) Load Setup (optional)
+    user_model.build_setup(setup_pathtofile, is_infer);
+
+    // 5) Load Extra File (optional, user defined)
     // UPDATE: there could be plenty extra files to be store somewhere
     user_model.build_extra(extra_pathtofile);
 
     //=====EXECUTION=====//
 
-    // UPDATE : complete check for options validity
-
-    if (is_infer && is_simulate)
-    {
-        display_error_message("Incompatible commands: choose one between -infer and -simulate.");
-        std::exit(EXIT_FAILURE);
-    }
-    else if (is_infer)
+    if (is_infer)
     { // Parameter Inference
         user_model.inference(output_pathtofile, rand_init_params, inver_temp);
         user_model.print_augm_variables(save_augm_pathtofile);
     }
-    else if (is_simulate)
+    else
     { // Simulation Study
         user_model.simulation();
         user_model.print_augm_variables(output_pathtofile);

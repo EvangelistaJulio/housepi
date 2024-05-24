@@ -244,7 +244,7 @@ double MCMC::single_household_augm_move(int h)
 /* Sweep over all households to move augmented variables. */
 void MCMC::move_all_augm_variables()
 {
-    if (is_data_augmentation)
+    if (setup_data_augm)
     {
         double variation = 0.;
 

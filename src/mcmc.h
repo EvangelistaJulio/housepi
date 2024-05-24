@@ -35,7 +35,7 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	int setup_num_iter = 0;		  // n. iterations
+	int setup_num_iter = 10000;	  // n. iterations
 	int setup_num_adapt_iter = 0; // n. (finite) adaptive steps
 	int setup_thinning = 1;		  // n. thinning iterations
 	int setup_num_prints = 0;	  // n. prints
@@ -49,7 +49,7 @@ protected:
 	int num_househ = 0;
 
 	//=====Augmented Variables=====//
-	bool is_data_augmentation = false;
+	bool setup_data_augm = false; // data augmentation mode
 	std::set<std::string> augm_full_set = {};
 	std::set<std::string> augm_to_be_inferred = {};
 	std::set<std::string> augm_with_model_set = {};
@@ -66,7 +66,7 @@ protected:
 
 public:
 	//=====Build data and parameters=====//
-	void build_setup(std::string data_pathtofile);
+	void build_setup(std::string data_pathtofile, bool is_infer);
 	void build_parameters(std::string data_pathtofile);
 	void build_augmented(std::string data_pathtofile);
 	void build_data(std::string data_pathtofile);

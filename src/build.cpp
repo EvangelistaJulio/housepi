@@ -31,18 +31,17 @@ void MCMC::build_extra(std::string data_pathtofile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-void MCMC::build_setup(std::string setup_pathtofile)
+void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
 {
     if (setup_pathtofile != UNDEFINED)
     {
-        char delim = ',';
         std::ifstream input(setup_pathtofile.c_str());
         ssargs safe_load = {};
 
         if (input.is_open())
         {
             display_decorator("SETUP");
-            display_stdout("Loaing setup from: " + setup_pathtofile);
+            display_stdout("Loading setup from: " + setup_pathtofile);
 
             // Create a std::stringstream of the current line
             for (std::string line; getline(input, line);)
@@ -51,7 +50,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
                 std::istringstream iss(line);
 
                 //=====NAME=====//
-                if (!getline(iss, name, delim))
+                if (!getline(iss, name, C_DELIM))
                 {
                     display_error_message("Unable to extract setup name.\nCheck file line: " + line);
                     std::exit(EXIT_FAILURE);
@@ -68,46 +67,53 @@ void MCMC::build_setup(std::string setup_pathtofile)
                 safe_load.emplace(string_cleaner(name), string_cleaner(choice));
             }
 
-            // load MCMC number of iterations
-            setup_num_iter = stoi(safe_load.at("num_iter"));
-            if (setup_num_iter < 1)
+            // UPDATE : rationalize
+
+            // load MCMC number of iterations if provided (otherwise default)
+            if (safe_load.find("num_iter") == safe_load.end())
             {
-                display_error_message("Setup value of `num_iter` must be greater than 0.");
-                std::exit(EXIT_FAILURE);
+                setup_num_iter = stoi(safe_load.at("num_iter"));
+                if ((setup_num_iter < 1) && (is_infer))
+                {
+                    display_error_message("Setup value of `num_iter` must be greater than 0.");
+                    std::exit(EXIT_FAILURE);
+                }
             }
 
-            // load MCMC number of finite adaptive iterations
-            setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
-            if (setup_num_adapt_iter < 1)
+            // load MCMC number of finite adaptive iterations if provided (otherwise default)
+            if (safe_load.find("num_adapt_iter") == safe_load.end())
             {
-                display_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
-                std::exit(EXIT_FAILURE);
+                setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
+                if ((setup_num_adapt_iter < 1) && (is_infer))
+                {
+                    display_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
+                    std::exit(EXIT_FAILURE);
+                }
             }
 
-            // load MCMC thinning factor
-            setup_thinning = stoi(safe_load.at("thinning"));
-            if (setup_num_adapt_iter < 1)
+            // load MCMC thinning factor if provided (otherwise default)
+            if (safe_load.find("thinning") == safe_load.end())
             {
-                display_error_message("Setup value of `thinning` must be greater than 0.");
-                std::exit(EXIT_FAILURE);
+                setup_thinning = stoi(safe_load.at("thinning"));
+                if ((setup_num_adapt_iter < 1) && (is_infer))
+                {
+                    display_error_message("Setup value of `thinning` must be greater than 0.");
+                    std::exit(EXIT_FAILURE);
+                }
             }
 
-            // define MCMC number of prints
-            setup_num_prints = setup_num_iter / setup_thinning;
-
-            // load seed for pseudo-random number generator (default is time)
-            std::string seed_str = safe_load.at("seed");
-            if (seed_str == UNDEFINED)
+            // load seed for pseudo-random number generator if provided (otherwise default is time)
+            if ((safe_load.find("seed") == safe_load.end()) || (safe_load.at("seed") == UNDEFINED))
             {
                 auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
                 setup_seed = static_cast<long long>(time_now);
             }
             else
             {
-                setup_seed = stoi(seed_str);
+                setup_seed = stoi(safe_load.at("seed"));
                 if (setup_seed < 1)
                 {
-                    display_error_message("Setup value of `seed` must be " + UNDEFINED + "(default) or greater than 0.");
+                    display_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
                     std::exit(EXIT_FAILURE);
                 }
             }
@@ -119,19 +125,26 @@ void MCMC::build_setup(std::string setup_pathtofile)
         }
     }
 
+    //=====Define MCMC Number of Prints=====//
+    setup_num_prints = setup_num_iter / setup_thinning;
+
     //=====Pseudo-Random Number Generator Seeding=====//
     set_prng_seed(setup_seed);
 
     //=====Display=====//
     display_decorator("SETUP::definitions", 1, '-');
     std::ostringstream oss;
-    oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_iter" << C_DELIM << setup_num_iter
-        << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
-        << "\nthinning" << C_DELIM << setup_thinning;
-    if (get_num_threads() > 1)
+    oss << "seed" << C_DELIM << setup_seed;
+
+    if (is_infer == true)
     {
-        oss << "\nnum_threads" << C_DELIM << get_num_threads();
+        oss << "\nnum_iter" << C_DELIM << setup_num_iter
+            << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
+            << "\nthinning" << C_DELIM << setup_thinning;
+        if (get_num_threads() > 1)
+        {
+            oss << "\nnum_threads" << C_DELIM << get_num_threads();
+        }
     }
     display_stdout(oss);
 }
@@ -642,7 +655,7 @@ void MCMC::assign_augmented_variables()
             }
         }
     }
-    is_data_augmentation = !augm_to_be_inferred.empty();
+    setup_data_augm = !augm_to_be_inferred.empty();
 
     // assign augmented variables to each individual
     for (int h = 0; h < num_househ; h++)
