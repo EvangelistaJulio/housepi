@@ -35,12 +35,10 @@ void display_decorator(const std::string &txt, int skip, char decor)
 {
     if (Verbose)
     {
-        size_t tot_bar_len = 75;
-        size_t half_bar_len = (tot_bar_len - txt.length()) / 2;
-        std::ostringstream oss;
-        oss << std::string(skip, '\n') << std::string(half_bar_len, decor)
-            << txt << std::string(tot_bar_len - txt.length() - half_bar_len, decor);
-        std::cout << oss.str() << std::endl;
+        int half_bar_sx = (DECOR_WIDTH - txt.length()) / 2;
+        int half_bar_dx = DECOR_WIDTH - txt.length() - half_bar_sx;
+        std::cout << std::string(skip, '\n') + std::string(half_bar_sx, decor) + txt + std::string(half_bar_dx, decor)
+                  << std::endl;
     }
 }
 void display_decorator(const char *txt, int skip, char decor)
@@ -57,7 +55,7 @@ void display_decorator(const std::ostringstream &oss, int skip, char decor)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Format the  */
-std::string format_elapsed_millisecs(long long elapsed)
+std::string format_millisecs(long long elapsed)
 {
     using namespace std::chrono;
 
@@ -94,7 +92,7 @@ void display_init_progress_bar(const std::string &txt)
 
     if (Verbose)
     {
-        std::cerr << txt << ": [" << std::string(PROGBAR_WIDTH, ' ') << "] "
+        std::cerr << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
                   << std::fixed << std::setprecision(2) << 0.0 << " %\r";
         std::cerr.flush();
         _Prog_Bar_Start_ = steady_clock::now();
@@ -115,12 +113,10 @@ void display_progress_bar(const std::string &txt, int progress, int total)
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
             double time_missing = static_cast<double>(time_elapsed) * (1. - percentage) / percentage;
 
-            std::cerr << txt << ": [" << std::string(where, C_DECOR)
-                      << std::string(std::max(0, PROGBAR_WIDTH - where), ' ') << "] "
+            std::cerr << txt + ": [" + std::string(where, C_DECOR) + std::string(PROGBAR_WIDTH - where, ' ') + "] "
                       << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
-                      << " (" << format_elapsed_millisecs(time_elapsed) 
-                      << "<" << format_elapsed_millisecs(time_missing) << ")"
-                      << std::string(20, ' ') << "\r";
+                      << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
+                      << std::string(20, ' ') + "\r";
             std::cerr.flush();
         }
     }
@@ -134,10 +130,10 @@ void display_close_progress_bar(const std::string &txt)
     if (Verbose)
     {
         auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
-        std::cerr << txt << ": [" << std::string(PROGBAR_WIDTH, C_DECOR) << "] "
+        std::cerr << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
                   << std::fixed << std::setprecision(2) << 100.0 << " %"
-                  << " (" << format_elapsed_millisecs(time_elapsed) << ")"
-                  << std::string(20, ' ') << "\r";
+                  << " (" + format_millisecs(time_elapsed) + ")"
+                  << std::string(20, ' ') + "\r";
         std::cerr.flush();
     }
 }
@@ -151,7 +147,7 @@ void raise_warning_message(const std::string &txt, bool *is_raised_once)
 {
     if (*is_raised_once == false)
     {
-        std::cerr << "\nWARNING: " << txt << std::endl;
+        std::cerr << "\nWARNING: " + txt << std::endl;
         *is_raised_once = true;
     }
 }
@@ -171,7 +167,7 @@ void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once)
 /* Display an error message. */
 void display_error_message(const std::string &txt)
 {
-    std::cerr << "\nERROR: " << txt << "\nExit...\n"
+    std::cerr << "\nERROR: " + txt + "\nExit...\n"
               << std::endl;
 }
 void display_error_message(const char *txt)

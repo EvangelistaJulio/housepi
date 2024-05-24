@@ -35,11 +35,11 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	int setup_seed = 0XFFFFFF;	  // random seed
 	int setup_num_iter = 0;		  // n. iterations
 	int setup_num_adapt_iter = 0; // n. (finite) adaptive steps
 	int setup_thinning = 1;		  // n. thinning iterations
 	int setup_num_prints = 0;	  // n. prints
+	long long setup_seed = 1;	  // random seed
 
 	//=====Database=====//
 	std::vector<std::string> data_headers = {};

@@ -100,7 +100,7 @@ void MCMC::build_setup(std::string setup_pathtofile)
             if (seed_str == UNDEFINED)
             {
                 auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-                setup_seed = static_cast<unsigned int>(time_now);
+                setup_seed = static_cast<long long>(time_now);
             }
             else
             {
