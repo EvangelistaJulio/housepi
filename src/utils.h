@@ -26,6 +26,7 @@
 #define C_DICT_DELIM '/'   // dictionary delimiter
 #define C_OPTION_DELIM ':' // option delimiter
 #define C_DECOR '='        // decorator for prints
+#define DECOR_WIDTH 80     // width of progress bar
 #define PROGBAR_WIDTH 50   // width of progress bar
 #define PROGBAR_THIN 250   // thinning of progress bar
 
