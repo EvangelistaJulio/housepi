@@ -117,7 +117,7 @@ void Model::initialize_model()
 
 	//=====Initialize look-up-table to largest possible value=====//
 	Generations_Lookup_Table.emplace(0, std::vector<gentype>());
-	for (size_t n = 1; n <= max_num; n++)
+	for (int n = 1; n <= max_num; n++)
 	{
 		Generations_Lookup_Table.emplace(n, generation_count_span(n));
 	}
@@ -175,13 +175,13 @@ double Model::compute_single_house_loglike(int h)
 			tmp += (n_positive - gen_counts[0]) * log_commu_esc_proba;
 
 			// GENERATION (i) : within house, i > 0
-			for (size_t i = 1; i < gen_counts.size(); i++)
+			for (int i = 1; i < gen_counts.size(); i++)
 			{
 				// GENERATION (i) : infected by previous generation i - 1
 				tmp += gen_counts[i] * log(1. - exp(gen_counts[i - 1] * log_p2p_esc_proba));
 
 				// GENERATION (i) : escaped from all others generation s.t. 0 <= generation < i - 1
-				for (size_t j = 0; j < i - 1; j++)
+				for (int j = 0; j < i - 1; j++)
 				{
 					tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
 				}
