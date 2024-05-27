@@ -17,7 +17,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # Common compilation flags
-CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -fopenmp 
+CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -fopenmp
 
 # Change options according to the operating system
 ifeq ($(shell uname -s),Linux)

@@ -131,26 +131,26 @@ void Base_Proposer::set_range(sdargs new_range)
 /* Switchboard to select the custom metropolis strategy. */
 Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_zero, sdargs value_range)
 {
-    if (name == UNDEFINED)
+    Base_Proposer *output = new Undefined_Proposer();
+
+    if (name == "uniform")
     {
-        return new Undefined_Proposer();
-    }
-    else if (name == "uniform")
-    {
-        return new Uniform_Proposer(args, strat_zero, value_range);
+        output = new Uniform_Proposer(args, strat_zero, value_range);
     }
     else if (name == "normal")
     {
-        return new Normal_Proposer(args, strat_zero, value_range);
+        output = new Normal_Proposer(args, strat_zero, value_range);
     }
     else if (name == "lognorm")
     {
-        return new Lognorm_Proposer(args, strat_zero, value_range);
+        output = new Lognorm_Proposer(args, strat_zero, value_range);
     }
-    else
+    else if (name != UNDEFINED)
     {
         raise_error_message("Unknown metropolis strategy `" + name + "`.");
     }
+
+    return output;
 }
 
 /* Display method for proposer (building on the distribution method). */

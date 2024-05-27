@@ -39,18 +39,18 @@ std::string MCMC::string_cleaner(std::string token)
 /* Convert string to boolean variable. */
 bool MCMC::stobool(std::string token)
 {
+    bool output = false;
+
     if (token == "TRUE" || token == "true" || token == "True" || token == "1")
     {
-        return true;
+        output = true;
     }
-    else if (token == "FALSE" || token == "false" || token == "False" || token == "0")
-    {
-        return false;
-    }
-    else
+    else if (token != "FALSE" || token != "false" || token != "False" || token != "0")
     {
         raise_error_message("Unrecognized boolean value for: " + token + ".");
     }
+
+    return output;
 }
 
 /* Parse the dictionary from the string. */
@@ -160,24 +160,23 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
 /* Convert a type-string to a double */
 double MCMC::type_to_double(std::string token, int h, int i)
 {
-    if (token == UNDEFINED)
-    {
-        // UPDATE : when does it make sense to have token == UNDEFINED ?
-        return INF_DOUBLE;
-    }
-    else
+    double output = INF_DOUBLE; // default value
+
+    // Note : when does it make sense to have token == UNDEFINED ?
+    if (token != UNDEFINED)
     {
         int pos = token.find(C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
+
         if (k == TYPE_SCALAR)
         {
-            return std::stod(v);
+            output = std::stod(v);
         }
         else if (k == TYPE_DATA)
         {
             househ[h].indiv[i].assert_data(v);
-            return househ[h].indiv[i].get_data(v);
+            output = househ[h].indiv[i].get_data(v);
         }
         else if (k == TYPE_PARAM)
         {
@@ -189,15 +188,11 @@ double MCMC::type_to_double(std::string token, int h, int i)
                     << "Eventual changes of the parameter will not affect the move.";
                 raise_warning_message(oss, &Param_Infer_Fixed_Move_Warning);
             }
-            return get_value(v);
+            output = get_value(v);
         }
         else if (k == TYPE_COMMAND)
         {
-            if (v == "default")
-            {
-                return INF_DOUBLE;
-            }
-            else
+            if (v != "default")
             {
                 raise_error_message("Unknown command `" + v + "`.");
             }
@@ -207,16 +202,16 @@ double MCMC::type_to_double(std::string token, int h, int i)
             raise_error_message("Unknown variable type specifier `" + k + "`.");
         }
     }
+
+    return output;
 }
 
 /* Convert a type-string to a double-pointer */
 const double *MCMC::type_to_doubleptr(std::string token)
 {
-    if (token == UNDEFINED)
-    {
-        return nullptr;
-    }
-    else
+    const double * output = nullptr;
+    
+    if (token != UNDEFINED)
     {
         int pos = token.find(C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
@@ -224,7 +219,7 @@ const double *MCMC::type_to_doubleptr(std::string token)
         if (k == TYPE_PARAM)
         {
             assert_param(v);
-            return get_address(v);
+            output = get_address(v);
         }
         else
         {
@@ -234,6 +229,8 @@ const double *MCMC::type_to_doubleptr(std::string token)
             raise_error_message(oss);
         }
     }
+
+    return output;
 }
 
 /* Convert a string with type-dictionary to string-to-double */

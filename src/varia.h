@@ -92,6 +92,7 @@ protected:
 	double undefined_call_error()
 	{
 		raise_error_message("Attempt to call a method of an undefined proposer.");
+		return INF_DOUBLE;
 	}
 
 	//=====propose : functional methods=====//

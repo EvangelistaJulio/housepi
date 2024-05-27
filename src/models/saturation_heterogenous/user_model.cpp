@@ -201,8 +201,7 @@ void Model::initialize_model()
 		if (househ[h].unknown_status_list.size() > 0)
 		{
 			std::string err_txt = "Missing status found for house " + std::to_string(h) + ". Case not modeled yet.";
-			display_error_message(err_txt);
-			std::exit(EXIT_FAILURE);
+			raise_error_message(err_txt);
 		}
 		// <<<< <<<< <<<< <<<<
 

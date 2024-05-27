@@ -64,7 +64,6 @@ void Model::build_extra(std::string extra_pathtofile)
 	else
 	{
 		raise_error_message("Impossible to read file: " + extra_pathtofile + ".");
-		std::exit(EXIT_FAILURE);
 	}
 }
 #endif

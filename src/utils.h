@@ -30,7 +30,7 @@
 #define C_DICT_DELIM '/'   // dictionary delimiter
 #define C_OPTION_DELIM ':' // option delimiter
 #define C_DECOR '='        // decorator for prints
-#define DECOR_WIDTH 80     // width of progress bar
+#define DECOR_WIDTH 90     // width of progress bar
 #define PROGBAR_WIDTH 50   // width of progress bar
 #define PROGBAR_THIN 250   // thinning of progress bar
 
@@ -402,63 +402,63 @@ public:
 template <typename sdargs_int_or_ext>
 Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_int_or_ext args = {})
 {
-    if (name == UNDEFINED)
+    Distribution_1D * output = new Undefined_Distr();
+
+    if (name == "uniform")
     {
-        return new Undefined_Distr();
-    }
-    else if (name == "uniform")
-    {
-        return new Uniform_Distr(args);
+        output = new Uniform_Distr(args);
     }
     else if (name == "normal")
     {
-        return new Normal_Distr(args);
+        output = new Normal_Distr(args);
     }
     else if (name == "normal_int")
     {
-        return new Normal_Distr_int(args);
+        output = new Normal_Distr_int(args);
     }
     else if (name == "lognorm")
     {
-        return new Lognorm_Distr(args);
+        output = new Lognorm_Distr(args);
     }
     else if (name == "lognorm_int")
     {
-        return new Lognorm_Distr_int(args);
+        output = new Lognorm_Distr_int(args);
     }
     else if (name == "gamma")
     {
-        return new Gamma_Distr(args);
+        output = new Gamma_Distr(args);
     }
     else if (name == "weibull")
     {
-        return new Weibull_Distr(args);
+        output = new Weibull_Distr(args);
     }
     else if (name == "weibull_int")
     {
-        return new Weibull_Distr_int(args);
+        output = new Weibull_Distr_int(args);
     }
     else if (name == "rayleigh")
     {
-        return new Rayleigh_Distr(args);
+        output = new Rayleigh_Distr(args);
     }
     else if (name == "rayleigh_int")
     {
-        return new Rayleigh_Distr_int(args);
+        output = new Rayleigh_Distr_int(args);
     }
     else if (name == "exp")
     {
-        return new Exponential_Distr(args);
+        output = new Exponential_Distr(args);
     }
     else if (name == "exp_int")
     {
-        return new Exponential_Distr_int(args);
+        output = new Exponential_Distr_int(args);
     }
-    else
+    else if (name != UNDEFINED)
     {
         raise_error_message("Unknown distribution `" + name + "`.");
         std::exit(EXIT_FAILURE);
     }
+
+    return output;
 }
 
 //------------------------------------------------------------------------------------------------------------//

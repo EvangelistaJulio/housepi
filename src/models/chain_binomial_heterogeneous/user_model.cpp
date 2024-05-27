@@ -201,8 +201,7 @@ void Model::initialize_model()
 	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)
 	{
-		display_error_message("A missing status was found : incompatible with the model.");
-		std::exit(EXIT_FAILURE);
+		raise_error_message("A missing status was found : incompatible with the model.");
 	}
 
 	//=====Find maximum possible number of sero-positives=====//

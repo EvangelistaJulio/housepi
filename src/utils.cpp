@@ -14,12 +14,36 @@ std::chrono::steady_clock::time_point _Prog_Bar_Start_;
 ////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Internal helper function to change stdout in case of RCPP. */
+void __helper__stdout__(const std::string &txt)
+{
+#ifdef RCPP_ACTIVE
+    Rcpp::Rcout << txt;
+    Rcpp::Rcout.flush();
+#else
+    std::cout << txt;
+    std::cout.flush();
+#endif
+}
+
+/* Internal helper function to change stderr in case of RCPP. */
+void __helper__stderr__(const std::string &txt)
+{
+#ifdef RCPP_ACTIVE
+    Rcpp::Rcerr << txt;
+    Rcpp::Rcerr.flush();
+#else
+    std::cerr << txt;
+    std::cerr.flush();
+#endif
+}
+
 /* Display a message to stdout (if Verbose). */
 void display_stdout(const std::string &txt)
 {
     if (Verbose)
     {
-        std::cout << txt << std::endl;
+        __helper__stdout__(txt + "\n");
     }
 }
 void display_stdout(const char *txt)
@@ -36,10 +60,9 @@ void display_decorator(const std::string &txt, int skip, char decor)
 {
     if (Verbose)
     {
-        int half_bar_sx = (DECOR_WIDTH - txt.length()) / 2;
-        int half_bar_dx = DECOR_WIDTH - txt.length() - half_bar_sx;
-        std::cout << std::string(skip, '\n') + std::string(half_bar_sx, decor) + txt + std::string(half_bar_dx, decor)
-                  << std::endl;
+        int sx = (DECOR_WIDTH - txt.length()) / 2; // left half bar
+        int dx = DECOR_WIDTH - txt.length() - sx; // right half bar
+        __helper__stdout__(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor) + "\n");
     }
 }
 void display_decorator(const char *txt, int skip, char decor)
@@ -50,6 +73,13 @@ void display_decorator(const std::ostringstream &oss, int skip, char decor)
 {
     display_decorator(oss.str(), skip, decor);
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
@@ -96,15 +126,7 @@ void display_init_progress_bar(const std::string &txt)
         std::ostringstream oss;
         oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
             << std::fixed << std::setprecision(2) << 0.0 << " %\r";
-
-#ifdef RCPP_ACTIVE
-        Rcpp::Rcerr << oss.str();
-        Rcpp::Rcerr.flush();
-#else
-        std::cerr << oss.str();
-        std::cerr.flush();
-#endif
-
+        __helper__stderr__(oss.str());
         _Prog_Bar_Start_ = steady_clock::now();
     }
 }
@@ -128,14 +150,7 @@ void display_progress_bar(const std::string &txt, int progress, int total)
                 << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
                 << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
                 << std::string(20, ' ') + "\r";
-
-#ifdef RCPP_ACTIVE
-            Rcpp::Rcerr << oss.str();
-            Rcpp::Rcerr.flush();
-#else
-            std::cerr << oss.str();
-            std::cerr.flush();
-#endif
+            __helper__stderr__(oss.str());
         }
     }
 }
@@ -153,16 +168,16 @@ void display_close_progress_bar(const std::string &txt)
             << std::fixed << std::setprecision(2) << 100.0 << " %"
             << " (" + format_millisecs(time_elapsed) + ")"
             << std::string(20, ' ') + "\r";
-
-#ifdef RCPP_ACTIVE
-        Rcpp::Rcerr << oss.str();
-        Rcpp::Rcerr.flush();
-#else
-        std::cerr << oss.str();
-        std::cerr.flush();
-#endif
+        __helper__stderr__(oss.str());
     }
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Warning Functions  //////////////////////////////////////
@@ -173,11 +188,7 @@ void raise_warning_message(const std::string &txt, bool *is_raised_once)
 {
     if (*is_raised_once == false)
     {
-#ifdef RCPP_ACTIVE
-        Rcpp::Rcerr << "\nWARNING: " + txt << std::endl;
-#else
-        std::cerr << "\nWARNING: " + txt << std::endl;
-#endif
+        __helper__stderr__("\nWARNING: " + txt + "\n");
         *is_raised_once = true;
     }
 }

@@ -40,8 +40,8 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
 
         if (input.is_open())
         {
-            display_decorator("SETUP");
-            display_stdout("Loading setup from: " + setup_pathtofile);
+            display_decorator("Setup");
+            display_stdout("import setup definition from:\n" + setup_pathtofile);
 
             // Create a std::stringstream of the current line
             for (std::string line; getline(input, line);)
@@ -125,7 +125,7 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
     set_prng_seed(setup_seed);
 
     //=====Display=====//
-    display_decorator("SETUP::definitions", 1, '-');
+    display_decorator("Setup::definitions", 1, '-');
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed;
 
@@ -161,8 +161,8 @@ void MCMC::build_parameters(std::string data_pathtofile)
 
     if (input.is_open())
     {
-        display_decorator("PARAMETERS");
-        display_stdout("Loading parameters definition from: " + data_pathtofile);
+        display_decorator("Parameters");
+        display_stdout("import parameters definition from:\n" + data_pathtofile);
 
         //=====Load column headers=====//
         std::vector<std::string> headers = read_column_headers(input);
@@ -197,7 +197,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         }
 
         //=====display a summary of the used parameters=====//
-        display_decorator("PARAMETERS::definitions", 1, '-');
+        display_decorator("Parameters::definition", 1, '-');
         display_parameters();
     }
     else
@@ -225,8 +225,8 @@ void MCMC::build_data(std::string data_pathtofile)
 
     if (input.is_open())
     {
-        display_decorator("DATABASE");
-        display_stdout("Loading data from: " + data_pathtofile);
+        display_decorator("Database");
+        display_stdout("import dataset from:\n" + data_pathtofile);
 
         //=====Load column headers=====//
         data_headers = read_column_headers(input);
@@ -467,17 +467,17 @@ void MCMC::display_report()
         //=====Display Database Report=====//
         //=================================//
 
-        display_decorator("DATABASE::summary", 1, '-');
+        display_decorator("Database::summary", 1, '-');
         std::ostringstream oss;
-        oss << "N. of individuals: " << report_data["n.indiv"]
-            << "\n    * N. of cases: " << report_data["n.cases"]
+        oss << "n. of individuals: " << report_data["n.indiv"]
+            << "\n    * n. of cases: " << report_data["n.cases"]
             << std::fixed << std::setprecision(2)
             << " (" << (100.0 * report_data["n.cases"] / report_data["n.indiv"]) << " %)";
         if (report_data["n.unk.stat"] > 0)
         {
-            oss << "\nN. of missing status : " << report_data["n.unk.stat"];
+            oss << "\nn. of missing status : " << report_data["n.unk.stat"];
         }
-        oss << "\nN. of households: " << num_househ;
+        oss << "\nn. of households: " << num_househ;
         if (report_data["no.HH.case"] > 0)
         {
             oss << "\n    * with no cases: " << report_data["no.HH.case"]
@@ -490,8 +490,8 @@ void MCMC::display_report()
             << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
             << std::fixed << std::setprecision(2)
             << " (" << (100.0 * report_data["lst.2.case"] / num_househ) << " %)"
-            << "\nMin n. house members: " << report_data["min.HH.size"]
-            << "\nMax n. house members: " << report_data["max.HH.size"];
+            << "\nmin n. house members: " << report_data["min.HH.size"]
+            << "\nmax n. house members: " << report_data["max.HH.size"];
         display_stdout(oss);
         oss.str("");
         oss.clear();
@@ -518,7 +518,7 @@ void MCMC::display_report()
         if (has_non_reference_groups)
         {
             std::ostringstream oss;
-            display_decorator("DATABASE::rates", 1, '-');
+            display_decorator("Database::rates", 1, '-');
 
             for (const auto &entry : report_model)
             {
@@ -568,8 +568,8 @@ void MCMC::build_augmented(std::string data_pathtofile)
 
         if (input.is_open())
         {
-            display_decorator("AUGMENTED");
-            display_stdout("Loading augmented definition from: " + data_pathtofile);
+            display_decorator("Augmented");
+            display_stdout("import augmented variables definition from:\n" + data_pathtofile);
 
             //=====Load column headers=====//
             std::vector<std::string> headers = read_column_headers(input);
@@ -697,7 +697,7 @@ void MCMC::init_param_file(std::string output_filename)
 
     if (param_ofstream.is_open())
     {
-        display_stdout("Saving MCMC iterations to: " + output_filename);
+        display_stdout("save MCMC iterations to:\n" + output_filename);
 
         param_ofstream << "iter" << C_DELIM << "loglike";
         for (std::string augmID : augm_to_be_inferred)
@@ -757,8 +757,8 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            display_decorator("OUTPUT::augmented database", 1, '-');
-            display_stdout("Saving augmented database to: " + save_augm_pathtofile);
+            display_decorator("Output::augmented database", 1, '-');
+            display_stdout("save augmented database to:\n" + save_augm_pathtofile);
 
             // change format of augmented data
             format_augmented_data();
