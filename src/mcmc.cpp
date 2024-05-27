@@ -308,8 +308,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     // UPDATE : is someone interested in the case inv_temp > 1?
     if ((inv_temper < 0.) || (inv_temper > 1.))
     {
-        display_error_message("Inverse temperature " + std::to_string(inv_temper) + " out of range.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Inverse temperature " + std::to_string(inv_temper) + " out of range.");
     }
     else
     {

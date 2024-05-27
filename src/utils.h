@@ -10,11 +10,15 @@
 #include <map>
 #include <cmath>
 #include <random>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 #include <chrono>
+
+#ifdef RCPP_ACTIVE
+#include <Rcpp.h>
+#else
+#include <iostream>
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////  MACROS  /////////////////////////////////////////////
@@ -79,9 +83,9 @@ void raise_warning_message(const char *txt, bool *is_raised_once);
 void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once);
 
 // print error message to stderr
-void display_error_message(const std::string &txt);
-void display_error_message(const char *txt);
-void display_error_message(const std::ostringstream &oss);
+void raise_error_message(const std::string &txt);
+void raise_error_message(const char *txt);
+void raise_error_message(const std::ostringstream &oss);
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -131,7 +135,7 @@ private:
     void _set_arg_ext_(int argID, double new_value)
     {
         UNUSED(new_value);
-        display_error_message("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
+        raise_error_message("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
     }
 };
 
@@ -192,7 +196,7 @@ public:
 private:
     double undefined_call_error()
     {
-        display_error_message("Attempt to call a method of an undefined distribution.");
+        raise_error_message("Attempt to call a method of an undefined distribution.");
         std::exit(EXIT_FAILURE);
     }
 };
@@ -452,7 +456,7 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     }
     else
     {
-        display_error_message("Unknown distribution `" + name + "`.");
+        raise_error_message("Unknown distribution `" + name + "`.");
         std::exit(EXIT_FAILURE);
     }
 }

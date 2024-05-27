@@ -91,8 +91,7 @@ private:
 protected:
 	double undefined_call_error()
 	{
-		display_error_message("Attempt to call a method of an undefined proposer.");
-		std::exit(EXIT_FAILURE);
+		raise_error_message("Attempt to call a method of an undefined proposer.");
 	}
 
 	//=====propose : functional methods=====//

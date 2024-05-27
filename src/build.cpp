@@ -52,15 +52,13 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
                 //=====NAME=====//
                 if (!getline(iss, name, C_DELIM))
                 {
-                    display_error_message("Unable to extract setup name.\nCheck file line: " + line);
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Unable to extract setup name.\nCheck file line: " + line);
                 }
 
                 //=====CHOICE=====//
                 if (!getline(iss, choice))
                 {
-                    display_error_message("Unable to extract setup choice.\nCheck file line: " + line);
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Unable to extract setup choice.\nCheck file line: " + line);
                 }
 
                 // add the new setup
@@ -75,8 +73,7 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
                 setup_num_iter = stoi(safe_load.at("num_iter"));
                 if ((setup_num_iter < 1) && (is_infer))
                 {
-                    display_error_message("Setup value of `num_iter` must be greater than 0.");
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Setup value of `num_iter` must be greater than 0.");
                 }
             }
 
@@ -86,8 +83,7 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
                 setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
                 if ((setup_num_adapt_iter < 1) && (is_infer))
                 {
-                    display_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
                 }
             }
 
@@ -97,8 +93,7 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
                 setup_thinning = stoi(safe_load.at("thinning"));
                 if ((setup_num_adapt_iter < 1) && (is_infer))
                 {
-                    display_error_message("Setup value of `thinning` must be greater than 0.");
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Setup value of `thinning` must be greater than 0.");
                 }
             }
 
@@ -113,15 +108,13 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
                 setup_seed = stoi(safe_load.at("seed"));
                 if (setup_seed < 1)
                 {
-                    display_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
                 }
             }
         }
         else
         {
-            display_error_message("Impossible to read file: " + setup_pathtofile);
-            std::exit(EXIT_FAILURE);
+            raise_error_message("Impossible to read file: " + setup_pathtofile);
         }
     }
 
@@ -146,6 +139,7 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
             oss << "\nnum_threads" << C_DELIM << get_num_threads();
         }
     }
+    
     display_stdout(oss);
 }
 
@@ -177,8 +171,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
-                display_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
-                std::exit(EXIT_FAILURE);
+                raise_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
             }
         }
 
@@ -209,8 +202,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
     }
     else
     {
-        display_error_message("Impossible to read file: " + data_pathtofile);
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Impossible to read file: " + data_pathtofile);
     }
 }
 
@@ -243,8 +235,7 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
             {
-                display_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
-                std::exit(EXIT_FAILURE);
+                raise_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
             }
         }
 
@@ -304,8 +295,7 @@ void MCMC::build_data(std::string data_pathtofile)
     }
     else
     {
-        display_error_message("Impossible to open file: " + data_pathtofile);
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Impossible to open file: " + data_pathtofile);
     }
 }
 
@@ -331,7 +321,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             std::ostringstream oss;
             oss << "The group rate name `" << CONTACT_RATE << "` is reserved."
                 << "Please choose a different one.";
-            display_error_message(oss);
+            raise_error_message(oss);
         }
 
         std::string parID = which.second;
@@ -348,8 +338,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             // all individuals must have the same set of rates of first individual
             if (report_model.find(rateID) == report_model.end())
             {
-                display_error_message("Group rate `" + rateID + "` has not been provided for all individuals.");
-                std::exit(EXIT_FAILURE);
+                raise_error_message("Group rate `" + rateID + "` has not been provided for all individuals.");
             }
         }
 
@@ -359,8 +348,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             // error : undefined rate
             std::ostringstream oss;
             oss << "Rate `" << rateID << "` is not provided for individual " << this_indiv.get_index() << ".";
-            display_error_message(oss);
-            std::exit(EXIT_FAILURE);
+            raise_error_message(oss);
         }
         else if (parID == REFERENCE)
         {
@@ -409,8 +397,7 @@ void MCMC::set_rate_per_contact(int h)
         // all household must have a contact rate
         if (report_model.find(rateID) == report_model.end())
         {
-            display_error_message("Contact rate has not been provided for all households.");
-            std::exit(EXIT_FAILURE);
+            raise_error_message("Contact rate has not been provided for all households.");
         }
     }
 
@@ -429,8 +416,7 @@ void MCMC::set_rate_per_contact(int h)
                     std::ostringstream oss;
                     oss << "Contact rate not provided for individuals " << househ[h].indiv[i].get_index()
                         << " and " << househ[h].indiv[k].get_index() << " within household " << househ[h].get_index() << ".";
-                    display_error_message(oss);
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message(oss);
                 }
                 else if (parID == REFERENCE)
                 {
@@ -592,8 +578,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
             {
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
                 {
-                    display_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
                 }
             }
 
@@ -608,8 +593,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
         }
         else
         {
-            display_error_message("Impossible to read file: " + data_pathtofile);
-            std::exit(EXIT_FAILURE);
+            raise_error_message("Impossible to read file: " + data_pathtofile);
         }
     }
 }
@@ -641,8 +625,7 @@ void MCMC::assign_augmented_variables()
         {
             if (stobool(loader.at("init_rand")) == true)
             {
-                display_error_message("Unknown random initialization without a model for `" + augmID + "`.");
-                std::exit(EXIT_FAILURE);
+                raise_error_message("Unknown random initialization without a model for `" + augmID + "`.");
             }
         }
         else
@@ -729,8 +712,7 @@ void MCMC::init_param_file(std::string output_filename)
     }
     else
     {
-        display_error_message("Unable to open file: " + output_filename);
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Unable to open file: " + output_filename);
     }
 }
 
@@ -757,8 +739,7 @@ void MCMC::print_parameters(int step)
     }
     else
     {
-        display_error_message("Output file closed unexpectedly.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Output file closed unexpectedly.");
     }
 }
 
@@ -831,8 +812,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         }
         else
         {
-            display_error_message("Unable to open file: " + save_augm_pathtofile);
-            std::exit(EXIT_FAILURE);
+            raise_error_message("Unable to open file: " + save_augm_pathtofile);
         }
     }
 }

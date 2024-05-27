@@ -115,8 +115,7 @@ void Base_Proposer::set_range(sdargs new_range)
         {
             std::ostringstream oss;
             oss << "Provided an inconsistent range: {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            display_error_message(oss);
-            std::exit(EXIT_FAILURE);
+            raise_error_message(oss);
         }
         else
         {
@@ -125,8 +124,7 @@ void Base_Proposer::set_range(sdargs new_range)
     }
     else
     {
-        display_error_message("Provided multiple definition for the range.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Provided multiple definition for the range.");
     }
 }
 
@@ -151,8 +149,7 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     }
     else
     {
-        display_error_message("Unknown metropolis strategy `" + name + "`.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Unknown metropolis strategy `" + name + "`.");
     }
 }
 
@@ -268,8 +265,7 @@ void Monte_Carlo_Core::assign_parameter(
     }
     else
     {
-        display_error_message("Parameter `" + parID + "` has multiple definitions.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Parameter `" + parID + "` has multiple definitions.");
     }
 
     // update the lists of parameters to be inferred, and these to be static
@@ -289,8 +285,7 @@ void Monte_Carlo_Core::set_num_threads(int n)
 #ifdef OPENMP_CONTROL
     if (n < 1)
     {
-        display_error_message("Number of threads must be equal or greater than 1.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Number of threads must be equal or greater than 1.");
     }
     else
     {
@@ -346,8 +341,7 @@ void Monte_Carlo_Core::assert_param(const std::string k) const
 {
     if (params.find(k) == params.end())
     {
-        display_error_message("Parameter `" + k + "` is not defined. Check your model and parameter file.");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Parameter `" + k + "` is not defined. Check your model and parameter file.");
     }
 }
 
@@ -366,8 +360,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
             {
                 if (num_attempts >= MAX_NUMBER_ATTEMPTS)
                 {
-                    display_error_message("Number of attempts exceeded in random initialization of `" + parID + "`.");
-                    std::exit(EXIT_FAILURE);
+                    raise_error_message("Number of attempts exceeded in random initialization of `" + parID + "`.");
                 }
                 num_attempts++;
                 new_value = params.at(parID).prior_rand(prng);

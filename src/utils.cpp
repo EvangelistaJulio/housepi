@@ -7,6 +7,7 @@
 //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool Verbose = false; // assign externally defined global variable
 std::chrono::steady_clock::time_point _Prog_Bar_Start_;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,9 +93,18 @@ void display_init_progress_bar(const std::string &txt)
 
     if (Verbose)
     {
-        std::cerr << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
-                  << std::fixed << std::setprecision(2) << 0.0 << " %\r";
+        std::ostringstream oss;
+        oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
+            << std::fixed << std::setprecision(2) << 0.0 << " %\r";
+
+#ifdef RCPP_ACTIVE
+        Rcpp::Rcerr << oss.str();
+        Rcpp::Rcerr.flush();
+#else
+        std::cerr << oss.str();
         std::cerr.flush();
+#endif
+
         _Prog_Bar_Start_ = steady_clock::now();
     }
 }
@@ -113,11 +123,19 @@ void display_progress_bar(const std::string &txt, int progress, int total)
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
             double time_missing = static_cast<double>(time_elapsed) * (1. - percentage) / percentage;
 
-            std::cerr << txt + ": [" + std::string(where, C_DECOR) + std::string(PROGBAR_WIDTH - where, ' ') + "] "
-                      << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
-                      << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
-                      << std::string(20, ' ') + "\r";
+            std::ostringstream oss;
+            oss << txt + ": [" + std::string(where, C_DECOR) + std::string(PROGBAR_WIDTH - where, ' ') + "] "
+                << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
+                << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
+                << std::string(20, ' ') + "\r";
+
+#ifdef RCPP_ACTIVE
+            Rcpp::Rcerr << oss.str();
+            Rcpp::Rcerr.flush();
+#else
+            std::cerr << oss.str();
             std::cerr.flush();
+#endif
         }
     }
 }
@@ -130,11 +148,19 @@ void display_close_progress_bar(const std::string &txt)
     if (Verbose)
     {
         auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
-        std::cerr << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
-                  << std::fixed << std::setprecision(2) << 100.0 << " %"
-                  << " (" + format_millisecs(time_elapsed) + ")"
-                  << std::string(20, ' ') + "\r";
+        std::ostringstream oss;
+        oss << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
+            << std::fixed << std::setprecision(2) << 100.0 << " %"
+            << " (" + format_millisecs(time_elapsed) + ")"
+            << std::string(20, ' ') + "\r";
+
+#ifdef RCPP_ACTIVE
+        Rcpp::Rcerr << oss.str();
+        Rcpp::Rcerr.flush();
+#else
+        std::cerr << oss.str();
         std::cerr.flush();
+#endif
     }
 }
 
@@ -147,7 +173,11 @@ void raise_warning_message(const std::string &txt, bool *is_raised_once)
 {
     if (*is_raised_once == false)
     {
+#ifdef RCPP_ACTIVE
+        Rcpp::Rcerr << "\nWARNING: " + txt << std::endl;
+#else
         std::cerr << "\nWARNING: " + txt << std::endl;
+#endif
         *is_raised_once = true;
     }
 }
@@ -165,18 +195,23 @@ void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Display an error message. */
-void display_error_message(const std::string &txt)
+void raise_error_message(const std::string &txt)
 {
+#ifdef RCPP_ACTIVE
+    Rcpp::stop("\nERROR: " + txt + "\nExit...")
+#else
     std::cerr << "\nERROR: " + txt + "\nExit...\n"
               << std::endl;
+    std::exit(EXIT_FAILURE);
+#endif
 }
-void display_error_message(const char *txt)
+void raise_error_message(const char *txt)
 {
-    display_error_message(std::string(txt));
+    raise_error_message(std::string(txt));
 }
-void display_error_message(const std::ostringstream &oss)
+void raise_error_message(const std::ostringstream &oss)
 {
-    display_error_message(oss.str());
+    raise_error_message(oss.str());
 }
 
 //------------------------------------------------------------------------------------------------------------//

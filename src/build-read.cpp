@@ -49,8 +49,7 @@ bool MCMC::stobool(std::string token)
     }
     else
     {
-        display_error_message("Unrecognized boolean value for: " + token + ".");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Unrecognized boolean value for: " + token + ".");
     }
 }
 
@@ -73,8 +72,7 @@ ssargs MCMC::parse_dict_string(std::string token)
     }
     else if (args_stock.size() % 2 == 1)
     {
-        display_error_message("Incomplete dictionary: " + token + ".");
-        std::exit(EXIT_FAILURE);
+        raise_error_message("Incomplete dictionary: " + token + ".");
     }
     else
     {
@@ -86,8 +84,7 @@ ssargs MCMC::parse_dict_string(std::string token)
             }
             catch (const std::exception &)
             {
-                display_error_message("Invalid entry of dictionary: " + token + ".");
-                std::exit(EXIT_FAILURE);
+                raise_error_message("Invalid entry of dictionary: " + token + ".");
             }
         }
     }
@@ -202,14 +199,12 @@ double MCMC::type_to_double(std::string token, int h, int i)
             }
             else
             {
-                display_error_message("Unknown command `" + v + "`.");
-                std::exit(EXIT_FAILURE);
+                raise_error_message("Unknown command `" + v + "`.");
             }
         }
         else
         {
-            display_error_message("Unknown variable type specifier `" + k + "`.");
-            std::exit(EXIT_FAILURE);
+            raise_error_message("Unknown variable type specifier `" + k + "`.");
         }
     }
 }
@@ -236,8 +231,7 @@ const double *MCMC::type_to_doubleptr(std::string token)
             std::ostringstream oss;
             oss << "Unsopported type specifier `" + k + "` found while loading `" << token << "`. "
                 << "Expected type specifier `" << TYPE_PARAM << "` instead.";
-            display_error_message(oss);
-            std::exit(EXIT_FAILURE);
+            raise_error_message(oss);
         }
     }
 }
