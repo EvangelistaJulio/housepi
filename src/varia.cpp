@@ -291,7 +291,7 @@ void Monte_Carlo_Core::set_num_threads(int n)
     {
         // declare the global number of omp threads
         omp_set_num_threads(n);
-        setup_num_omp_threads = n;
+        setup_num_threads = n;
 
         // create different generators for different parallel threads
         // UPDATE: they are used only to parallelize data augmentantion
@@ -310,7 +310,7 @@ void Monte_Carlo_Core::set_num_threads(int n)
     {
         raise_warning_message("Parallelization with OpenMP is disabled.", &Disabled_OpenMP_Warning);
     }
-    setup_num_omp_threads = 1;
+    setup_num_threads = 1;
     _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
 #endif
 }
@@ -322,10 +322,10 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
     prng.seed(seed);
 
     // seeds for the case of parallelization
-    if (setup_num_omp_threads > 1)
+    if (setup_num_threads > 1)
     {
         std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
-        for (int n = 0; n < setup_num_omp_threads; n++)
+        for (int n = 0; n < setup_num_threads; n++)
         {
             prng_parallel[n].seed(seed_generator(prng));
         }

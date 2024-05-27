@@ -7,7 +7,7 @@
 //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Verbose = false; // assign externally defined global variable
+bool Verbose = true; // assign externally defined global variable
 std::chrono::steady_clock::time_point _Prog_Bar_Start_;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +125,8 @@ void display_init_progress_bar(const std::string &txt)
     {
         std::ostringstream oss;
         oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
-            << std::fixed << std::setprecision(2) << 0.0 << " %\r";
+            << std::fixed << std::setprecision(2) << 0.0 << " %"
+            << " (00m00s<??m??s)\r";
         __helper__stderr__(oss.str());
         _Prog_Bar_Start_ = steady_clock::now();
     }
@@ -188,7 +189,7 @@ void raise_warning_message(const std::string &txt, bool *is_raised_once)
 {
     if (*is_raised_once == false)
     {
-        __helper__stderr__("\nWARNING: " + txt + "\n");
+        __helper__stderr__("\nWarning: " + txt + "\n");
         *is_raised_once = true;
     }
 }
@@ -209,9 +210,9 @@ void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once)
 void raise_error_message(const std::string &txt)
 {
 #ifdef RCPP_ACTIVE
-    Rcpp::stop("\nERROR: " + txt + "\nExit...")
+    Rcpp::stop("Error: " + txt + "\nExit...")
 #else
-    std::cerr << "\nERROR: " + txt + "\nExit...\n"
+    std::cerr << "\nError: " + txt + "\nExit...\n"
               << std::endl;
     std::exit(EXIT_FAILURE);
 #endif

@@ -284,7 +284,7 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
-void MCMC::inference(std::string output_file, bool is_rand_params, double inv_temper)
+void MCMC::inference(std::string output_file)
 {
     //=====Initialization=====//
     display_decorator("Inference");
@@ -294,7 +294,7 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     init_param_file(output_file);
 
     //-----Initialize parameter inference-----//
-    init_rand_params(is_rand_params);
+    init_rand_params(setup_rnd_init_params);
 
     //-----random initialization of augmented variables with model-----//
     init_augmented_variables();
@@ -303,21 +303,6 @@ void MCMC::inference(std::string output_file, bool is_rand_params, double inv_te
     initialize_model();
     set_global_loglike(compute_global_loglike());
     disable_assert_param(); // avoid asserting definitions of parameters
-
-    //-----Assign inverse temperature-----//
-    // UPDATE : is someone interested in the case inv_temp > 1?
-    if ((inv_temper < 0.) || (inv_temper > 1.))
-    {
-        raise_error_message("Inverse temperature " + std::to_string(inv_temper) + " out of range.");
-    }
-    else
-    {
-        inverse_temperature = inv_temper;
-        if (inv_temper != 1.)
-        {
-            display_stdout("Inverse temperature " + std::to_string(inv_temper));
-        }
-    }
 
     //=======================================//
     //=====Adaptative MCMC on parameters=====//

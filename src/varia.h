@@ -451,7 +451,7 @@ public:
 
 	//=====Parallelization=====//
 	void set_num_threads(int n = 1);
-	int get_num_threads() const { return setup_num_omp_threads; };
+	int get_num_threads() const { return setup_num_threads; };
 
 	//=====Metropolis-Hastings moves=====//
 	bool propose_valid_param_move(const std::string k);
@@ -477,7 +477,7 @@ private:
 	double buffer_value = 0.0;								// buffer value of the current parameter
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
-	int setup_num_omp_threads = 1;							// number of OMP threads
+	int setup_num_threads = 1;								// number of OMP threads
 
 	//=====Getter (auxiliary methods)=====//
 	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;

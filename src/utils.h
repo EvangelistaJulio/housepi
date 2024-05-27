@@ -31,7 +31,7 @@
 #define C_OPTION_DELIM ':' // option delimiter
 #define C_DECOR '='        // decorator for prints
 #define DECOR_WIDTH 90     // width of progress bar
-#define PROGBAR_WIDTH 50   // width of progress bar
+#define PROGBAR_WIDTH 55   // width of progress bar
 #define PROGBAR_THIN 250   // thinning of progress bar
 
 #define SUSCEPTIBLE 0 // status of susceptible

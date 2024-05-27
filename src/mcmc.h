@@ -35,14 +35,17 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	int setup_num_iter = 10000;	  // n. iterations
-	int setup_num_adapt_iter = 0; // n. (finite) adaptive steps
-	int setup_thinning = 1;		  // n. thinning iterations
-	int setup_num_prints = 0;	  // n. prints
-	long long setup_seed = 1;	  // random seed
+	int setup_num_iter = 10000;			// n. iterations
+	int setup_num_adapt_iter = 0;		// n. (finite) adaptive steps
+	int setup_thinning = 1;				// n. thinning iterations
+	int setup_num_prints = 0;			// n. prints
+	long long setup_seed = 1;			// random seed
+	double setup_inv_tmprt = 1.0;		// inverse temperature
+	bool setup_rnd_init_params = false; // random initialization of parameters
 
 	//=====Database=====//
-	std::vector<std::string> data_headers = {};
+	std::vector<std::string>
+		data_headers = {};
 
 	//=====List of Households=====//
 	std::vector<Household> househ = {};
@@ -65,12 +68,27 @@ protected:
 	std::map<std::string, std::map<std::string, int>> report_model = {};
 
 public:
+	MCMC()
+	{
+		display_decorator("Household Survey EPI Modeling");
+		display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
+	};
+	virtual ~MCMC()
+	{
+		display_decorator("END");
+		display_stdout("\n");
+	};
+
 	//=====Build data and parameters=====//
-	void build_setup(std::string data_pathtofile, bool is_infer);
-	void build_parameters(std::string data_pathtofile);
-	void build_augmented(std::string data_pathtofile);
-	void build_data(std::string data_pathtofile);
-	virtual void build_extra(std::string data_pathtofile); // load non standard file
+	void build_setup(std::string pathtofile, bool is_infer);
+	void build_parameters(std::string pathtofile);
+	void build_augmented(std::string pathtofile);
+	void build_data(std::string pathtofile);
+	virtual void build_extra(std::string pathtofile); // load non standard file
+	void build(bool is_infer = true, bool is_simulate = true,
+			   std::string params_file = UNDEFINED, std::string data_file = UNDEFINED,
+			   std::string augm_file = UNDEFINED, std::string setup_file = UNDEFINED,
+			   std::string extra_file = UNDEFINED);
 
 	//=====General Initialization=====//
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
@@ -108,10 +126,7 @@ public:
 	void display_thin_results();
 
 	//=====Infer=====//
-	void inference(
-		std::string output_filename,
-		bool is_rand_params = false,
-		double inv_temperature = 1.0);
+	void inference(std::string output_filename);
 
 	//=====Simulate=====//
 	virtual void simulate_single_house(int h);

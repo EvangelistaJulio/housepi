@@ -17,130 +17,53 @@ bool Unknown_Status_Warning = false; // Warning for unknown status
 //------------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : build extra  ////////////////////////////////////////
+////////////////////////////////////////  MCMC : build  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Read Extra File (default unused) */
-void MCMC::build_extra(std::string data_pathtofile)
+void MCMC::build(bool is_infer, bool is_simulate,
+                 std::string params_file, std::string data_file,
+                 std::string augm_file, std::string setup_file,
+                 std::string extra_file)
 {
-    UNUSED(data_pathtofile);
-}
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+    //=====OPTION VALIDITY=====//
 
-/* Read Setup file */
-void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
-{
-    if (setup_pathtofile != UNDEFINED)
+    // UPDATE : complete check for options validity
+
+    if (is_infer && is_simulate)
     {
-        std::ifstream input(setup_pathtofile.c_str());
-        ssargs safe_load = {};
-
-        if (input.is_open())
-        {
-            display_decorator("Setup");
-            display_stdout("import setup definition from:\n" + setup_pathtofile);
-
-            // Create a std::stringstream of the current line
-            for (std::string line; getline(input, line);)
-            {
-                std::string name, choice;
-                std::istringstream iss(line);
-
-                //=====NAME=====//
-                if (!getline(iss, name, C_DELIM))
-                {
-                    raise_error_message("Unable to extract setup name.\nCheck file line: " + line);
-                }
-
-                //=====CHOICE=====//
-                if (!getline(iss, choice))
-                {
-                    raise_error_message("Unable to extract setup choice.\nCheck file line: " + line);
-                }
-
-                // add the new setup
-                safe_load.emplace(string_cleaner(name), string_cleaner(choice));
-            }
-
-            // UPDATE : rationalize
-
-            // load MCMC number of iterations if provided (otherwise default)
-            if (safe_load.find("num_iter") == safe_load.end())
-            {
-                setup_num_iter = stoi(safe_load.at("num_iter"));
-                if ((setup_num_iter < 1) && (is_infer))
-                {
-                    raise_error_message("Setup value of `num_iter` must be greater than 0.");
-                }
-            }
-
-            // load MCMC number of finite adaptive iterations if provided (otherwise default)
-            if (safe_load.find("num_adapt_iter") == safe_load.end())
-            {
-                setup_num_adapt_iter = stoi(safe_load.at("num_adapt_iter"));
-                if ((setup_num_adapt_iter < 1) && (is_infer))
-                {
-                    raise_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
-                }
-            }
-
-            // load MCMC thinning factor if provided (otherwise default)
-            if (safe_load.find("thinning") == safe_load.end())
-            {
-                setup_thinning = stoi(safe_load.at("thinning"));
-                if ((setup_num_adapt_iter < 1) && (is_infer))
-                {
-                    raise_error_message("Setup value of `thinning` must be greater than 0.");
-                }
-            }
-
-            // load seed for pseudo-random number generator if provided (otherwise default is time)
-            if ((safe_load.find("seed") == safe_load.end()) || (safe_load.at("seed") == UNDEFINED))
-            {
-                auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-                setup_seed = static_cast<long long>(time_now);
-            }
-            else
-            {
-                setup_seed = stoi(safe_load.at("seed"));
-                if (setup_seed < 1)
-                {
-                    raise_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
-                }
-            }
-        }
-        else
-        {
-            raise_error_message("Impossible to read file: " + setup_pathtofile);
-        }
+        raise_error_message("Incompatible commands: choose one between -infer and -simulate.");
     }
 
-    //=====Define MCMC Number of Prints=====//
-    setup_num_prints = setup_num_iter / setup_thinning;
-
-    //=====Pseudo-Random Number Generator Seeding=====//
-    set_prng_seed(setup_seed);
-
-    //=====Display=====//
-    display_decorator("Setup::definitions", 1, '-');
-    std::ostringstream oss;
-    oss << "seed" << C_DELIM << setup_seed;
-
-    if (is_infer == true)
+    // 1) Load Parameters and Check (required)
+    if (params_file == UNDEFINED)
     {
-        oss << "\nnum_iter" << C_DELIM << setup_num_iter
-            << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
-            << "\nthinning" << C_DELIM << setup_thinning;
-        if (get_num_threads() > 1)
-        {
-            oss << "\nnum_threads" << C_DELIM << get_num_threads();
-        }
+        raise_error_message("Required argument: parameter path/to/file not found.");
     }
-    
-    display_stdout(oss);
+    else
+    {
+        build_parameters(params_file);
+    }
+
+    // 2) Load Data and Check (required)
+    if (data_file == UNDEFINED)
+    {
+        raise_error_message("Required argument: database path/to/file not found.");
+    }
+    else
+    {
+        build_data(data_file);
+    }
+
+    // 2) Load Augmented Variables (optional)
+    build_augmented(augm_file);
+
+    // 4) Load Setup (optional)
+    build_setup(setup_file, is_infer);
+
+    // 5) Load Extra File (optional, user defined)
+    // UPDATE: there could be plenty extra files to be store somewhere
+    build_extra(extra_file);
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -155,14 +78,14 @@ void MCMC::build_setup(std::string setup_pathtofile, bool is_infer)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read model parameter file and build paramerter dictionary. */
-void MCMC::build_parameters(std::string data_pathtofile)
+void MCMC::build_parameters(std::string pathtofile)
 {
-    std::ifstream input(data_pathtofile.c_str());
+    std::ifstream input(pathtofile.c_str());
 
     if (input.is_open())
     {
         display_decorator("Parameters");
-        display_stdout("import parameters definition from:\n" + data_pathtofile);
+        display_stdout("import parameters definition from:\n" + pathtofile);
 
         //=====Load column headers=====//
         std::vector<std::string> headers = read_column_headers(input);
@@ -171,7 +94,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
-                raise_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
+                raise_error_message("Missing column `" + req + "`. Please check file: " + pathtofile);
             }
         }
 
@@ -202,7 +125,7 @@ void MCMC::build_parameters(std::string data_pathtofile)
     }
     else
     {
-        raise_error_message("Impossible to read file: " + data_pathtofile);
+        raise_error_message("Impossible to read file: " + pathtofile);
     }
 }
 
@@ -218,15 +141,15 @@ void MCMC::build_parameters(std::string data_pathtofile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read data file and pre-process the data. */
-void MCMC::build_data(std::string data_pathtofile)
+void MCMC::build_data(std::string pathtofile)
 {
-    std::ifstream input(data_pathtofile.c_str());
+    std::ifstream input(pathtofile.c_str());
     std::vector<std::string> required_headers = {"index", "status", "house_index"};
 
     if (input.is_open())
     {
         display_decorator("Database");
-        display_stdout("import dataset from:\n" + data_pathtofile);
+        display_stdout("import dataset from:\n" + pathtofile);
 
         //=====Load column headers=====//
         data_headers = read_column_headers(input);
@@ -235,7 +158,7 @@ void MCMC::build_data(std::string data_pathtofile)
         {
             if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
             {
-                raise_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
+                raise_error_message("Missing column `" + req + "`. Please check file: " + pathtofile);
             }
         }
 
@@ -295,7 +218,7 @@ void MCMC::build_data(std::string data_pathtofile)
     }
     else
     {
-        raise_error_message("Impossible to open file: " + data_pathtofile);
+        raise_error_message("Impossible to open file: " + pathtofile);
     }
 }
 
@@ -558,18 +481,18 @@ void MCMC::display_report()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
-void MCMC::build_augmented(std::string data_pathtofile)
+void MCMC::build_augmented(std::string pathtofile)
 {
-    if (data_pathtofile != UNDEFINED)
+    if (pathtofile != UNDEFINED)
     {
-        std::ifstream input(data_pathtofile.c_str());
+        std::ifstream input(pathtofile.c_str());
         std::vector<std::string> required_headers = {
             "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range", "init_rand"};
 
         if (input.is_open())
         {
             display_decorator("Augmented");
-            display_stdout("import augmented variables definition from:\n" + data_pathtofile);
+            display_stdout("import augmented variables definition from:\n" + pathtofile);
 
             //=====Load column headers=====//
             std::vector<std::string> headers = read_column_headers(input);
@@ -578,7 +501,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
             {
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
                 {
-                    raise_error_message("Missing column `" + req + "`. Please check file: " + data_pathtofile);
+                    raise_error_message("Missing column `" + req + "`. Please check file: " + pathtofile);
                 }
             }
 
@@ -593,7 +516,7 @@ void MCMC::build_augmented(std::string data_pathtofile)
         }
         else
         {
-            raise_error_message("Impossible to read file: " + data_pathtofile);
+            raise_error_message("Impossible to read file: " + pathtofile);
         }
     }
 }
@@ -677,6 +600,176 @@ void MCMC::init_augmented_variables()
             }
         }
     }
+}
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Setup file */
+void MCMC::build_setup(std::string pathtofile, bool is_infer)
+{
+    int num_threads = 1;
+
+    if (pathtofile == UNDEFINED)
+    {
+        raise_error_message("Impossible to read file: " + pathtofile);
+    }
+    else
+    {
+        std::ifstream input(pathtofile.c_str());
+        ssargs safe_load = {};
+
+        if (input.is_open())
+        {
+            display_decorator("Setup");
+            display_stdout("import setup definition from:\n" + pathtofile);
+
+            // Create a std::stringstream of the current line
+            for (std::string line; getline(input, line);)
+            {
+                std::string name, choice;
+                std::istringstream iss(line);
+
+                //=====NAME=====//
+                if (!getline(iss, name, C_DELIM))
+                {
+                    raise_error_message("Unable to extract setup name.\nCheck file line: " + line);
+                }
+
+                //=====CHOICE=====//
+                if (!getline(iss, choice))
+                {
+                    raise_error_message("Unable to extract setup choice.\nCheck file line: " + line);
+                }
+
+                // add the new setup
+                safe_load.emplace(string_cleaner(name), string_cleaner(choice));
+            }
+
+            //-----verbose-----//
+            if (safe_load.find("verbose") != safe_load.end())
+            {
+                Verbose = stobool(safe_load.at("verbose"));
+            }
+
+            //-----number of threads-----//
+            if (safe_load.find("num_threads") != safe_load.end())
+            {
+                num_threads = stoi(safe_load.at("num_threads"));
+            }
+
+            //-----prng seed-----//
+            if ((safe_load.find("seed") == safe_load.end()) || (safe_load.at("seed") == UNDEFINED))
+            {
+                auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
+                setup_seed = static_cast<long long>(time_now);
+            }
+            else
+            {
+                setup_seed = stoi(safe_load.at("seed"));
+                if (setup_seed < 1)
+                {
+                    raise_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
+                }
+            }
+
+            if (is_infer)
+            {
+                //-----number of iterations-----//
+                if (safe_load.find("num_iter") != safe_load.end())
+                {
+                    setup_num_iter = stoi(safe_load.at("num_iter"));
+                    if (setup_num_iter < 1)
+                    {
+                        raise_error_message("Setup value of `num_iter` must be greater than 1.");
+                    }
+                }
+
+                //-----number of finite adaptive iterations-----//
+                if (safe_load.find("num_adapt_iter") != safe_load.end())
+                {
+                    setup_num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
+                    if (setup_num_adapt_iter < 0)
+                    {
+                        raise_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
+                    }
+                }
+
+                //-----thinning-----//
+                if (safe_load.find("thinning") != safe_load.end())
+                {
+                    setup_thinning = std::stoi(safe_load.at("thinning"));
+                    if (setup_thinning < 1)
+                    {
+                        raise_error_message("Setup value of `thinning` must be greater than 1.");
+                    }
+                }
+
+                //-----random init parameters-----//
+                if (safe_load.find("rnd_init_params") != safe_load.end())
+                {
+                    setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
+                }
+
+                //-----inverse temperature-----//
+                if (safe_load.find("inv_tmprt") != safe_load.end())
+                {
+                    setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
+                    if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
+                    {
+                        raise_error_message("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range.");
+                    }
+                }
+            }
+        }
+    }
+
+    //=====Define Number of Threads (Monte_Carlo_Core)=====//
+    set_num_threads(num_threads);
+
+    //=====Pseudo-Random Number Generator Seeding=====//
+    set_prng_seed(setup_seed);
+
+    //=====Define MCMC Number of Prints=====//
+    setup_num_prints = setup_num_iter / setup_thinning;
+
+    //=====Display=====//
+    display_decorator("Setup::definitions", 1, '-');
+    std::ostringstream oss;
+    oss << "seed" << C_DELIM << setup_seed
+        << "\nnum_threads" << C_DELIM << get_num_threads()
+        << "\nverbose" << C_DELIM << ((Verbose) ? "true" : "false");
+    if (is_infer == true)
+    {
+        oss << "\nnum_iter" << C_DELIM << setup_num_iter
+            << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
+            << "\nthinning" << C_DELIM << setup_thinning
+            << "\nrnd_init_params" << C_DELIM << ((setup_rnd_init_params) ? "true" : "false");
+        if (setup_inv_tmprt != 1.)
+        {
+            oss << "\ninv_tmprt" << C_DELIM << setup_inv_tmprt;
+        }
+    }
+
+    display_stdout(oss);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : build extra  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Extra File (default unused) */
+void MCMC::build_extra(std::string pathtofile)
+{
+    UNUSED(pathtofile);
 }
 
 //------------------------------------------------------------------------------------------------------------//
