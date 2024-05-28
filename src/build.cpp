@@ -618,11 +618,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
 {
     int num_threads = 1;
 
-    if (pathtofile == UNDEFINED)
-    {
-        raise_error_message("Impossible to read file: " + pathtofile);
-    }
-    else
+    if (pathtofile != UNDEFINED)
     {
         std::ifstream input(pathtofile.c_str());
         ssargs safe_load = {};
@@ -729,6 +725,10 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                     }
                 }
             }
+        }
+        else
+        {
+            raise_error_message("Impossible to read file: " + pathtofile);
         }
     }
 

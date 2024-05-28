@@ -17,20 +17,25 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # Common compilation flags
-CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11 -fopenmp
+CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11
 
-# Change options according to the operating system
+# Change openMP options according to the operating system
 ifeq ($(shell uname -s),Linux)
 	CXX := g++
+	CXXFLAGS += -fopenmp
 else ifeq ($(shell uname -s),Darwin)
 	ifeq ($(shell command -v brew),)
-		$(error Homebrew is not installed. Please install Homebrew.)
-	endif		
-	ifeq ($(shell brew list --versions llvm),)
-		$(error LLVM is not installed via Homebrew. Please install LLVM.)
-	endif
-	CXX := $(shell brew --prefix)/opt/llvm/bin/clang++
-	CXXFLAGS += -I$(shell brew --prefix)/opt/llvm/include
+		$(info Homebrew is not installed. Falling back to default.)
+		CXX := g++
+	else
+		ifeq ($(shell brew list --versions llvm),)
+			$(info LLVM is not installed via Homebrew. Falling back to default.)
+			CXX := g++
+		else
+			CXX := $(shell brew --prefix)/opt/llvm/bin/clang++
+			CXXFLAGS += -fopenmp -I$(shell brew --prefix)/opt/llvm/include
+		endif
+	endif	
 else
 	$(error Unsupported operating system.)
 endif

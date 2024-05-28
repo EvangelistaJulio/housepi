@@ -488,7 +488,7 @@ private:
 	std::vector<std::mt19937_64> prng_parallel = {}; // parallel generators (for multi-threading)
 	std::mt19937_64 &(Monte_Carlo_Core::*_prng_method_)();
 	std::mt19937_64 &_prng_unique_thread_() { return prng; }
-#ifdef OPENMP_CONTROL
+#ifdef _OPENMP
 	std::mt19937_64 &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
 };

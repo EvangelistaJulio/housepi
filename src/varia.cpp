@@ -282,7 +282,7 @@ void Monte_Carlo_Core::assign_parameter(
 /* Set the number of threads for parrell computations (default is 1). */
 void Monte_Carlo_Core::set_num_threads(int n)
 {
-#ifdef OPENMP_CONTROL
+#ifdef _OPENMP
     if (n < 1)
     {
         raise_error_message("Number of threads must be equal or greater than 1.");
