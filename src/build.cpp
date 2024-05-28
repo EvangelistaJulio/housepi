@@ -55,7 +55,7 @@ void MCMC::build(bool is_infer, bool is_simulate,
         build_data(data_file);
     }
 
-    // 2) Load Augmented Variables (optional)
+    // 3) Load Augmented Variables (optional)
     build_augmented(augm_file);
 
     // 4) Load Setup (optional)
@@ -663,7 +663,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
             //-----number of threads-----//
             if (safe_load.find("num_threads") != safe_load.end())
             {
-                num_threads = stoi(safe_load.at("num_threads"));
+                num_threads = std::stoi(safe_load.at("num_threads"));
             }
 
             //-----prng seed-----//
@@ -674,7 +674,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
             }
             else
             {
-                setup_seed = stoi(safe_load.at("seed"));
+                setup_seed = std::stoi(safe_load.at("seed"));
                 if (setup_seed < 1)
                 {
                     raise_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
@@ -686,7 +686,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                 //-----number of iterations-----//
                 if (safe_load.find("num_iter") != safe_load.end())
                 {
-                    setup_num_iter = stoi(safe_load.at("num_iter"));
+                    setup_num_iter = std::stoi(safe_load.at("num_iter"));
                     if (setup_num_iter < 1)
                     {
                         raise_error_message("Setup value of `num_iter` must be greater than 1.");

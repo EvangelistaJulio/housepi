@@ -45,9 +45,9 @@ bool MCMC::stobool(std::string token)
     {
         output = true;
     }
-    else if (token != "FALSE" || token != "false" || token != "False" || token != "0")
+    else if (token != "FALSE" && token != "false" && token != "False" && token != "0")
     {
-        raise_error_message("Unrecognized boolean value for: " + token + ".");
+        raise_error_message("Unrecognized boolean value for `" + token + "`.");
     }
 
     return output;

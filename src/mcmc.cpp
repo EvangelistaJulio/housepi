@@ -302,7 +302,7 @@ void MCMC::inference(std::string output_file)
     //-----Initialize model-----//
     initialize_model();
     set_global_loglike(compute_global_loglike());
-    disable_assert_param(); // avoid asserting definitions of parameters
+    disable_assert_param(); // avoid asserting parameters definitions after first call
 
     //=======================================//
     //=====Adaptative MCMC on parameters=====//
@@ -419,14 +419,13 @@ void MCMC::display_thin_results()
         double sample_var_correc = setup_num_prints / (setup_num_prints - 1.);
         double log_point_pred_dens = 0.;
         double effec_num_params_waic = 0.;
-        std::ostringstream oss;
 
         // Loop over households
 #pragma omp parallel for reduction(+ : log_point_pred_dens, effec_num_params_waic)
         for (int h = 0; h < num_househ; h++)
         {
             log_point_pred_dens += std::log(househ[h].dgn_likelihood);
-            effec_num_params_waic += (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * sample_var_correc;
+            effec_num_params_waic += (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2));
         }
 
         // parameters (sampled every thinning iterration)
@@ -435,11 +434,12 @@ void MCMC::display_thin_results()
 
         // diagnostics (sampled every thinning iterration)
         display_decorator("Inference::diagnostics", 1, '-');
+        std::ostringstream oss;
         oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
             << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_var_correc
             << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
-            << "\neffective_parameters" << C_DELIM << effec_num_params_waic
-            << "\nWAIC" << C_DELIM << log_point_pred_dens - effec_num_params_waic;
+            << "\neffective_parameters" << C_DELIM << effec_num_params_waic * sample_var_correc
+            << "\nWAIC" << C_DELIM << log_point_pred_dens - effec_num_params_waic * sample_var_correc;
         display_stdout(oss);
     }
 }

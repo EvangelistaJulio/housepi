@@ -1,8 +1,6 @@
 // varia.h //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
-#define OPENMP_CONTROL
-
 #ifndef VARIA__H
 #define VARIA__H
 
@@ -13,7 +11,7 @@
 #include <random>
 #include <iostream>
 
-#ifdef OPENMP_CONTROL
+#ifdef _OPENMP
 #include <omp.h>
 #endif
 
