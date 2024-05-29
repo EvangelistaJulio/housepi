@@ -42,7 +42,7 @@ Base_Proposer::Base_Proposer(
             oss << "Initial value " << strategy_from_zero << " and value range"
                 << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
                 << "\nIf it was intentional, ignore this message.";
-            raise_warning_message(oss, &Invalid_Proposer_Range_Warning);
+            raise_warning_message(oss, Invalid_Proposer_Range_Warning);
         }
         zero_start = true;
         set_strat_zero(strategy_from_zero);
@@ -308,7 +308,7 @@ void Monte_Carlo_Core::set_num_threads(int n)
 #else
     if (n != 1)
     {
-        raise_warning_message("Parallelization with OpenMP is disabled.", &Disabled_OpenMP_Warning);
+        raise_warning_message("Parallelization with OpenMP is disabled.", Disabled_OpenMP_Warning);
     }
     setup_num_threads = 1;
     _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
@@ -438,7 +438,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 /* display the user model parameters */
 void Monte_Carlo_Core::display_parameters()
 {
-    if (Verbose)
+    if (VERBOSE)
     {
         std::ostringstream oss;
         oss << param_file_required_headers[0];

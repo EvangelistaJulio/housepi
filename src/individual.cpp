@@ -69,7 +69,7 @@ void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init augmented variable within a random initial value */
-void Individual::init_augm(std::string augmID, std::mt19937_64 &rng)
+void Individual::init_augm(std::string augmID, sys_rnd_gen &rng)
 {
 	int num_attempts = 0;
 	double init_value = augm_model_rand(augmID, rng);
@@ -106,7 +106,7 @@ void Individual::assign_augm(std::string augmID, Augmented new_augm)
 }
 
 /* Propose a new value for the augmented variable. */
-double Individual::augm_propose(std::string augmID, std::mt19937_64 &prng)
+double Individual::augm_propose(std::string augmID, sys_rnd_gen &prng)
 {
 	return augm_var.at(augmID).propose(prng);
 }

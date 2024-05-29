@@ -16,15 +16,15 @@ bool Param_Infer_Fixed_Move_Warning = false;
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  MCMC : methods (auxiliary read functions)  ////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
 // declaration for type in data file
 const std::string TYPE_PARAM = "P";   // Parameter type declaration
 const std::string TYPE_DATA = "D";    // Data type declaration
 const std::string TYPE_SCALAR = "S";  // Scalar type declaration
 const std::string TYPE_COMMAND = "C"; // Command type declaration
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  MCMC : methods (auxiliary read functions)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Cleaner std::string from forbidden characters. */
 std::string MCMC::string_cleaner(std::string token)
@@ -186,7 +186,7 @@ double MCMC::type_to_double(std::string token, int h, int i)
                 std::ostringstream oss;
                 oss << "The parameter `" << v << "` is chosen for a fixed value move."
                     << "Eventual changes of the parameter will not affect the move.";
-                raise_warning_message(oss, &Param_Infer_Fixed_Move_Warning);
+                raise_warning_message(oss, Param_Infer_Fixed_Move_Warning);
             }
             output = get_value(v);
         }

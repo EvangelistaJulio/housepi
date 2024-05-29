@@ -4,20 +4,30 @@
 #ifndef UTILS__H
 #define UTILS__H
 
+#include <random>
 #include <algorithm>
 #include <string>
 #include <vector>
 #include <map>
 #include <cmath>
-#include <random>
 #include <iomanip>
 #include <sstream>
 #include <chrono>
 
-#ifdef RCPP_ACTIVE
+#ifdef USE_RCPP
 #include <Rcpp.h>
 #else
 #include <iostream>
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  32bit/64bit  ///////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
+using sys_rnd_gen = std::mt19937_64;
+#else
+using sys_rnd_gen = std::mt19937;
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,30 +36,32 @@
 
 #define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
 
-#define C_DELIM ','        // file delimiter
-#define C_DICT_DELIM '/'   // dictionary delimiter
-#define C_OPTION_DELIM ':' // option delimiter
-#define C_DECOR '='        // decorator for prints
-#define DECOR_WIDTH 90     // width of progress bar
-#define PROGBAR_WIDTH 55   // width of progress bar
-#define PROGBAR_THIN 250   // thinning of progress bar
-
-#define SUSCEPTIBLE 0 // status of susceptible
-#define INFECTIOUS 1  // status of infectious
-
-#define MAX_NUMBER_ATTEMPTS 20   // max n. of attempts for initialization
-#define TARGET_ACCEPT_RATE 0.234 // target acceptation rate for MCMC
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-const double INF_DOUBLE = 1e10;              // infinity value
+constexpr int SUSCEPTIBLE = 0; // status of susceptible
+constexpr int INFECTIOUS = 1;  // status of infectious
+
+constexpr char C_DELIM = ',';        // file delimiter
+constexpr char C_DICT_DELIM = '/';   // dictionary delimiter
+constexpr char C_OPTION_DELIM = ':'; // option delimiter
+constexpr char C_DECOR = '=';        // decorator for prints
+
+constexpr int DECOR_WIDTH = 90;   // width of progress bar
+constexpr int PROGBAR_WIDTH = 55; // width of progress bar
+constexpr int PROGBAR_THIN = 250; // thinning of progress bar
+
+constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
+constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
+constexpr double INF_DOUBLE = 1e10;          // infinity value
+
+constexpr double REFERENCE_VALUE = 1.0;      // auxiliary reference value for the parameters
 const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
 const std::string CONTACT_RATE = "Contact";  // name for Contact rate
-const double _Reference_Value_ = 1.0;        // auxiliary reference value for the parameters
-extern bool Verbose;                         // external declaration of verbose global state
+
+extern bool VERBOSE; // external declaration of verbose global state
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
@@ -60,7 +72,7 @@ typedef std::map<std::string, const double *> sdargs_ext; // string to pointer t
 typedef std::map<std::string, std::string> ssargs;        // string to string
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Auxiliary Functions  ////////////////////////////////////////
+/////////////////////////////////  Input/Output Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void display_stdout(const std::string &txt);        // base print stdout
@@ -78,9 +90,9 @@ void display_progress_bar(const std::string &txt, int progress, int total);
 void display_close_progress_bar(const std::string &txt);
 
 // print warnings to stderr
-void raise_warning_message(const std::string &txt, bool *is_raised_once);
-void raise_warning_message(const char *txt, bool *is_raised_once);
-void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once);
+void raise_warning_message(const std::string &txt, bool &is_raised_once);
+void raise_warning_message(const char *txt, bool &is_raised_once);
+void raise_warning_message(const std::ostringstream &oss, bool &is_raised_once);
 
 // print error message to stderr
 void raise_error_message(const std::string &txt);
@@ -152,7 +164,7 @@ public:
     virtual double pdf(double x) = 0;
     virtual double log_pdf(double x) = 0;
     virtual double logratio(double x, double y) = 0;
-    virtual double rand(std::mt19937_64 &rng) = 0;
+    virtual double rand(sys_rnd_gen &rng) = 0;
 };
 
 //------------------------------------------------------------------------------------------------------------//
@@ -187,7 +199,7 @@ public:
         UNUSED(y);
         return 0.0;
     }
-    double rand(std::mt19937_64 &rng) override
+    double rand(sys_rnd_gen &rng) override
     {
         UNUSED(rng);
         return undefined_call_error();
@@ -215,7 +227,7 @@ public:
     double pdf(double x) override;
     double log_pdf(double x) override;
     double logratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override;
+    double rand(sys_rnd_gen &rng) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,7 +244,7 @@ public:
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
     virtual double logratio(double x, double y) override;
-    virtual double rand(std::mt19937_64 &rng) override;
+    virtual double rand(sys_rnd_gen &rng) override;
 };
 
 class Normal_Distr_int : public Normal_Distr
@@ -245,7 +257,7 @@ public:
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(std::mt19937_64 &rng) override { return round(Normal_Distr::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override { return round(Normal_Distr::rand(rng)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -262,7 +274,7 @@ public:
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
     virtual double logratio(double x, double y) override;
-    virtual double rand(std::mt19937_64 &rng) override;
+    virtual double rand(sys_rnd_gen &rng) override;
 };
 
 class Lognorm_Distr_int : public Lognorm_Distr
@@ -275,7 +287,7 @@ public:
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(std::mt19937_64 &rng) override { return round(Lognorm_Distr::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override { return round(Lognorm_Distr::rand(rng)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -292,7 +304,7 @@ public:
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
     virtual double logratio(double x, double y) override;
-    virtual double rand(std::mt19937_64 &rng) override;
+    virtual double rand(sys_rnd_gen &rng) override;
 };
 
 // FIXME : the discretization requires boost (for incomplete gamma function)
@@ -311,7 +323,7 @@ public:
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
     virtual double logratio(double x, double y) override;
-    virtual double rand(std::mt19937_64 &rng) override;
+    virtual double rand(sys_rnd_gen &rng) override;
 };
 
 class Weibull_Distr_int : public Weibull_Distr
@@ -324,7 +336,7 @@ public:
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(std::mt19937_64 &rng) override { return round(Weibull_Distr::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override { return round(Weibull_Distr::rand(rng)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -341,7 +353,7 @@ public:
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
     virtual double logratio(double x, double y) override;
-    virtual double rand(std::mt19937_64 &rng) override;
+    virtual double rand(sys_rnd_gen &rng) override;
 };
 
 class Rayleigh_Distr_int : public Rayleigh_Distr
@@ -354,7 +366,7 @@ public:
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(std::mt19937_64 &rng) override { return round(Rayleigh_Distr::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override { return round(Rayleigh_Distr::rand(rng)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,7 +383,7 @@ public:
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
     virtual double logratio(double x, double y) override;
-    virtual double rand(std::mt19937_64 &rng) override;
+    virtual double rand(sys_rnd_gen &rng) override;
 };
 
 class Exponential_Distr_int : public Exponential_Distr
@@ -384,7 +396,7 @@ public:
     double pdf(double x) override;
     double log_pdf(double x) override;
     double logratio(double x, double y) override;
-    double rand(std::mt19937_64 &rng) override { return round(Exponential_Distr::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override { return round(Exponential_Distr::rand(rng)); }
 };
 
 //------------------------------------------------------------------------------------------------------------//
@@ -402,7 +414,7 @@ public:
 template <typename sdargs_int_or_ext>
 Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_int_or_ext args = {})
 {
-    Distribution_1D * output = new Undefined_Distr();
+    Distribution_1D *output = new Undefined_Distr();
 
     if (name == "uniform")
     {

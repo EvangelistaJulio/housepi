@@ -4,12 +4,11 @@
 #ifndef VARIA__H
 #define VARIA__H
 
+#include <random>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <cmath>
-#include <random>
-#include <iostream>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -58,10 +57,10 @@ public:
 	void set_strat_zero(double new_val) { strat_zero = new_val; }
 	void set_range(sdargs new_range);
 
-	double rand(std::mt19937_64 &prng) { return (distr_ptr->rand)(prng); }
+	double rand(sys_rnd_gen &prng) { return (distr_ptr->rand)(prng); }
 	bool valid(double new_val) { return (this->*_valid_func_)(new_val); }
 
-	virtual double propose(std::mt19937_64 &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
+	virtual double propose(sys_rnd_gen &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
 	virtual double logratio(double old_val, double new_val) { return (this->*_logratio_method_)(old_val, new_val); }
 
 	//=====Finite Adaptive=====//
@@ -94,17 +93,17 @@ protected:
 	}
 
 	//=====propose : functional methods=====//
-	double (Base_Proposer::*_propose_method_)(std::mt19937_64 &prng, double start);
+	double (Base_Proposer::*_propose_method_)(sys_rnd_gen &prng, double start);
 
-	double _undef_propose_(std::mt19937_64 &prng, double start)
+	double _undef_propose_(sys_rnd_gen &prng, double start)
 	{
 		UNUSED(prng);
 		UNUSED(start);
 		return undefined_call_error();
 	}
-	double _sum_to_previous_(std::mt19937_64 &prng, double start) { return start + rand(prng); }
-	double _times_previous_(std::mt19937_64 &prng, double start) { return start * rand(prng); }
-	double _draw_rand_(std::mt19937_64 &prng, double start)
+	double _sum_to_previous_(sys_rnd_gen &prng, double start) { return start + rand(prng); }
+	double _times_previous_(sys_rnd_gen &prng, double start) { return start * rand(prng); }
+	double _draw_rand_(sys_rnd_gen &prng, double start)
 	{
 		UNUSED(start);
 		return rand(prng);
@@ -304,12 +303,12 @@ public:
 	void set_value(double x) { value = x; }
 
 	//=====distr_ptr : methods=====//
-	double distr_rand(std::mt19937_64 &prng) { return distr_ptr->rand(prng); }
+	double distr_rand(sys_rnd_gen &prng) { return distr_ptr->rand(prng); }
 	double distr_log_pdf(double new_val) { return distr_ptr->log_pdf(new_val); }
 	double distr_logratio(double old_val, double new_val) { return distr_ptr->logratio(old_val, new_val); }
 
 	//=====prop_ptr : propose methods=====//
-	double propose(std::mt19937_64 &prng) { return (this->*_propose_method_)(prng); }
+	double propose(sys_rnd_gen &prng) { return (this->*_propose_method_)(prng); }
 	double propose_logratio(double old_val, double new_val) { return (prop_ptr->logratio)(old_val, new_val); }
 	bool valid(double new_val) { return prop_ptr->valid(new_val); }
 
@@ -334,10 +333,10 @@ public:
 
 private:
 	//=====Propose : functional methods=====//
-	double (Base_Parameter::*_propose_method_)(std::mt19937_64 &prng);
-	double _propose_from_prior_model_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, 0); }
-	double _propose_from_previous_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, get_value()); }
-	double _propose_from_zero_(std::mt19937_64 &prng) { return (prop_ptr->propose)(prng, get_strat_zero()); }
+	double (Base_Parameter::*_propose_method_)(sys_rnd_gen &prng);
+	double _propose_from_prior_model_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
+	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
+	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_strat_zero()); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -364,7 +363,7 @@ public:
 												  value_range){};
 
 	//=====Aliases=====//
-	double prior_rand(std::mt19937_64 &prng) { return distr_rand(prng); }
+	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
 	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
@@ -397,7 +396,7 @@ public:
 												  strat_zero,
 												  value_range){};
 	//=====Aliases=====//
-	double model_rand(std::mt19937_64 &prng) { return distr_rand(prng); }
+	double model_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
 	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double model_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 };
@@ -433,7 +432,7 @@ public:
 	void assert_param(const std::string k) const;
 	double get_value(const std::string k) const { return (this->*_get_value_method_)(k); }
 	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
-	const double *get_reference() const { return &_Reference_Value_; }
+	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
 
@@ -466,12 +465,13 @@ public:
 
 	//=====Pseudo-Random Number Generator=====//
 	void set_prng_seed(int seed);
-	std::mt19937_64 &get_prng() { return (this->*_prng_method_)(); }
+	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
 	double uniform() { return _aux_unif_dist_(get_prng()); }
 
 private:
 	//=====Auxiliary Attributes=====//
 	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
+	
 	double buffer_value = 0.0;								// buffer value of the current parameter
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
@@ -483,13 +483,15 @@ private:
 	double _get_value_default_(const std::string k) const;
 
 	//=====Pseudo Random Number Generator (auxiliary methods)=====//
-	// FIXME : it should be checked in case it's 32bit
-	std::mt19937_64 prng;							 //  Mersenne Twister 19937 (64bit) generator
-	std::vector<std::mt19937_64> prng_parallel = {}; // parallel generators (for multi-threading)
-	std::mt19937_64 &(Monte_Carlo_Core::*_prng_method_)();
-	std::mt19937_64 &_prng_unique_thread_() { return prng; }
+	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit) 
+	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
+	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
+	sys_rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
-	std::mt19937_64 &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+// FLAG
+#pragma message("|====> _OPENMP is defined")
+// END-of-FLAG
+	sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[get_num_threads()]; }
 #endif
 };
 

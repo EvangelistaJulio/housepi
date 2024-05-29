@@ -185,7 +185,7 @@ void MCMC::build_data(std::string pathtofile)
                 oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
                     << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
                     << "\nIf it was intentional, ignore this message.";
-                raise_warning_message(oss, &Unknown_Status_Warning);
+                raise_warning_message(oss, Unknown_Status_Warning);
             }
         }
 
@@ -307,7 +307,7 @@ void MCMC::set_rate_per_contact(int h)
     // allocate contact patterns
     int s = househ[h].house_size;
     househ[h].which_rate.resize(s, std::vector<std::string>(s, UNDEFINED));
-    househ[h].contact_rates.resize(s, std::vector<const double *>(s, &_Reference_Value_));
+    househ[h].contact_rates.resize(s, std::vector<const double *>(s, &REFERENCE_VALUE));
 
     if (h == 0)
     {
@@ -373,7 +373,7 @@ void MCMC::set_rate_per_contact(int h)
 /* Print the report of the database and of the model group rates. */
 void MCMC::display_report()
 {
-    if (Verbose)
+    if (VERBOSE)
     {
         //=====Perform Database Analysis=====//
         for (int h = 0; h < num_househ; h++)
@@ -653,7 +653,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
             //-----verbose-----//
             if (safe_load.find("verbose") != safe_load.end())
             {
-                Verbose = stobool(safe_load.at("verbose"));
+                VERBOSE = stobool(safe_load.at("verbose"));
             }
 
             //-----number of threads-----//
@@ -746,7 +746,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
         << "\nnum_threads" << C_DELIM << get_num_threads()
-        << "\nverbose" << C_DELIM << ((Verbose) ? "true" : "false");
+        << "\nverbose" << C_DELIM << ((VERBOSE) ? "true" : "false");
     if (is_infer == true)
     {
         oss << "\nnum_iter" << C_DELIM << setup_num_iter

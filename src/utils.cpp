@@ -4,20 +4,13 @@
 #include "utils.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Verbose = true; // assign externally defined global variable
-std::chrono::steady_clock::time_point _Prog_Bar_Start_;
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
+/////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Internal helper function to change stdout in case of RCPP. */
-void __helper__stdout__(const std::string &txt)
+void _helper_stdout_(const std::string &txt)
 {
-#ifdef RCPP_ACTIVE
+#ifdef USE_RCPP
     Rcpp::Rcout << txt;
     Rcpp::Rcout.flush();
 #else
@@ -27,9 +20,9 @@ void __helper__stdout__(const std::string &txt)
 }
 
 /* Internal helper function to change stderr in case of RCPP. */
-void __helper__stderr__(const std::string &txt)
+void _helper_stderr_(const std::string &txt)
 {
-#ifdef RCPP_ACTIVE
+#ifdef USE_RCPP
     Rcpp::Rcerr << txt;
     Rcpp::Rcerr.flush();
 #else
@@ -38,12 +31,23 @@ void __helper__stderr__(const std::string &txt)
 #endif
 }
 
-/* Display a message to stdout (if Verbose). */
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool VERBOSE = true; // assign externally defined global variable
+std::chrono::steady_clock::time_point _Prog_Bar_Start_;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Display a message to stdout (if VERBOSE). */
 void display_stdout(const std::string &txt)
 {
-    if (Verbose)
+    if (VERBOSE)
     {
-        __helper__stdout__(txt + "\n");
+        _helper_stdout_(txt + "\n");
     }
 }
 void display_stdout(const char *txt)
@@ -55,14 +59,14 @@ void display_stdout(const std::ostringstream &oss)
     display_stdout(oss.str());
 }
 
-/* Display a decorator for a section (if Verbose) */
+/* Display a decorator for a section (if VERBOSE) */
 void display_decorator(const std::string &txt, int skip, char decor)
 {
-    if (Verbose)
+    if (VERBOSE)
     {
         int sx = (DECOR_WIDTH - txt.length()) / 2; // left half bar
-        int dx = DECOR_WIDTH - txt.length() - sx; // right half bar
-        __helper__stdout__(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor) + "\n");
+        int dx = DECOR_WIDTH - txt.length() - sx;  // right half bar
+        _helper_stdout_(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor) + "\n");
     }
 }
 void display_decorator(const char *txt, int skip, char decor)
@@ -121,13 +125,13 @@ void display_init_progress_bar(const std::string &txt)
 {
     using namespace std::chrono;
 
-    if (Verbose)
+    if (VERBOSE)
     {
         std::ostringstream oss;
         oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
             << std::fixed << std::setprecision(2) << 0.0 << " %"
             << " (00m00s<??m??s)\r";
-        __helper__stderr__(oss.str());
+        _helper_stderr_(oss.str());
         _Prog_Bar_Start_ = steady_clock::now();
     }
 }
@@ -137,7 +141,7 @@ void display_progress_bar(const std::string &txt, int progress, int total)
 {
     using namespace std::chrono;
 
-    if (Verbose)
+    if (VERBOSE)
     {
         if ((total < PROGBAR_THIN) || (progress % (total / PROGBAR_THIN) == 0))
         {
@@ -151,7 +155,7 @@ void display_progress_bar(const std::string &txt, int progress, int total)
                 << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
                 << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
                 << std::string(20, ' ') + "\r";
-            __helper__stderr__(oss.str());
+            _helper_stderr_(oss.str());
         }
     }
 }
@@ -161,7 +165,7 @@ void display_close_progress_bar(const std::string &txt)
 {
     using namespace std::chrono;
 
-    if (Verbose)
+    if (VERBOSE)
     {
         auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
         std::ostringstream oss;
@@ -169,7 +173,7 @@ void display_close_progress_bar(const std::string &txt)
             << std::fixed << std::setprecision(2) << 100.0 << " %"
             << " (" + format_millisecs(time_elapsed) + ")"
             << std::string(20, ' ') + "\r";
-        __helper__stderr__(oss.str());
+        _helper_stderr_(oss.str());
     }
 }
 
@@ -185,19 +189,23 @@ void display_close_progress_bar(const std::string &txt)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Raise a warning if it wasn't raised before. */
-void raise_warning_message(const std::string &txt, bool *is_raised_once)
+void raise_warning_message(const std::string &txt, bool &is_raised_once)
 {
-    if (*is_raised_once == false)
+    if (is_raised_once == false)
     {
-        __helper__stderr__("\nWarning: " + txt + "\n");
-        *is_raised_once = true;
+#ifdef USE_RCPP
+        Rcpp::warning("Warning: " + txt);
+#else
+        std::cerr << "\nWarning: " + txt << std::endl;
+#endif
+        is_raised_once = true;
     }
 }
-void raise_warning_message(const char *txt, bool *is_raised_once)
+void raise_warning_message(const char *txt, bool &is_raised_once)
 {
     raise_warning_message(std::string(txt), is_raised_once);
 }
-void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once)
+void raise_warning_message(const std::ostringstream &oss, bool &is_raised_once)
 {
     raise_warning_message(oss.str(), is_raised_once);
 }
@@ -209,7 +217,7 @@ void raise_warning_message(const std::ostringstream &oss, bool *is_raised_once)
 /* Display an error message. */
 void raise_error_message(const std::string &txt)
 {
-#ifdef RCPP_ACTIVE
+#ifdef USE_RCPP
     Rcpp::stop("Error: " + txt + "\nExit...")
 #else
     std::cerr << "\nError: " + txt + "\nExit...\n"
@@ -315,7 +323,7 @@ double Uniform_Distr::logratio(double x, double y)
 }
 
 /* uniform random generator */
-double Uniform_Distr::rand(std::mt19937_64 &rng)
+double Uniform_Distr::rand(sys_rnd_gen &rng)
 {
     double low = get_arg(0);
     double up = get_arg(1);
@@ -352,7 +360,7 @@ double Normal_Distr::logratio(double x, double y)
 }
 
 /* normal random generator */
-double Normal_Distr::rand(std::mt19937_64 &rng)
+double Normal_Distr::rand(sys_rnd_gen &rng)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -401,7 +409,7 @@ double Lognorm_Distr::logratio(double x, double y)
 }
 
 /* lognormal random generator */
-double Lognorm_Distr::rand(std::mt19937_64 &rng)
+double Lognorm_Distr::rand(sys_rnd_gen &rng)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -451,7 +459,7 @@ double Gamma_Distr::logratio(double x, double y)
 }
 
 /* gamma random generator */
-double Gamma_Distr::rand(std::mt19937_64 &rng)
+double Gamma_Distr::rand(sys_rnd_gen &rng)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -488,7 +496,7 @@ double Weibull_Distr::logratio(double x, double y)
 }
 
 /* weibull random generator */
-double Weibull_Distr::rand(std::mt19937_64 &rng)
+double Weibull_Distr::rand(sys_rnd_gen &rng)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -534,7 +542,7 @@ double Rayleigh_Distr::logratio(double x, double y)
 }
 
 /* rayleigh random generator */
-double Rayleigh_Distr::rand(std::mt19937_64 &rng)
+double Rayleigh_Distr::rand(sys_rnd_gen &rng)
 {
     double scale = get_arg(0);
     std::uniform_real_distribution<double> unif_gen(0, 1);
@@ -578,7 +586,7 @@ double Exponential_Distr::logratio(double x, double y)
 }
 
 /* exponential random generator */
-double Exponential_Distr::rand(std::mt19937_64 &rng)
+double Exponential_Distr::rand(sys_rnd_gen &rng)
 {
     double rate = get_arg(0);
     std::exponential_distribution<double> distr_gen(rate);
