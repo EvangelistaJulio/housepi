@@ -181,7 +181,7 @@ public:
 class Undefined_Distr : public Distribution_1D
 {
 public:
-    Undefined_Distr() : Distribution_1D((sdargs){}, {}) {}
+    Undefined_Distr() : Distribution_1D() {}
 
     double pdf(double x) override
     {
