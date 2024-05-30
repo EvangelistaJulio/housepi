@@ -308,7 +308,7 @@ void Monte_Carlo_Core::set_num_threads(int n)
 #else
     if (n != 1)
     {
-        raise_warning_message("Parallelization with OpenMP is disabled.", Disabled_OpenMP_Warning);
+        raise_warning_message("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
     }
     setup_num_threads = 1;
     _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
