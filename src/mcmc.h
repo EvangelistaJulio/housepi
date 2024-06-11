@@ -16,9 +16,6 @@
 
 #include "individual.h"
 
-// to switch off this option, silent next line
-#define PRINT_ADAPT_ITER // print also adaptive iterations
-
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -134,7 +131,7 @@ public:
 
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
-	void print_parameters(int step);
+	void print_parameters();
 	void close_param_file() { param_ofstream.close(); }
 
 	//=====Save augmented variables=====//

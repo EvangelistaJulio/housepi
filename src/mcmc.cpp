@@ -323,9 +323,6 @@ void MCMC::inference(std::string output_file)
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(j + (i - 1) * setup_thinning);
             }
-#ifdef PRINT_ADAPT_ITER
-            print_parameters(i * setup_thinning);
-#endif
             display_progress_bar("adaptive", i, num_adapt_iter_thin);
         }
         display_close_progress_bar("adaptive");
@@ -353,11 +350,7 @@ void MCMC::inference(std::string output_file)
             // compute diagnostics for the previous iterations
             update_model_diagnostics();
 
-#ifdef PRINT_ADAPT_ITER
-            print_parameters(setup_num_adapt_iter + i * setup_thinning);
-#else
-            print_parameters(i * setup_thinning);
-#endif
+            print_parameters();
             display_progress_bar("execution", i, setup_num_prints);
         }
         display_close_progress_bar("execution");

@@ -792,14 +792,17 @@ void MCMC::init_param_file(std::string output_filename)
     {
         display_stdout("save MCMC iterations to:\n" + output_filename);
 
-        param_ofstream << "iter" << C_DELIM << "loglike";
+        //param_ofstream << "iter" << C_DELIM;
+        param_ofstream << "loglike";
+        /*
         for (std::string augmID : augm_to_be_inferred)
         {
             param_ofstream << C_DELIM << "augm_" << augmID << "__a%";
         }
+        */
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << C_DELIM << parID << C_DELIM << parID << "__a%";
+            param_ofstream << C_DELIM << parID; // << C_DELIM << parID << "__a%";
         }
         param_ofstream << std::endl;
     }
@@ -814,19 +817,22 @@ void MCMC::init_param_file(std::string output_filename)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the model parameters at the given iteration time */
-void MCMC::print_parameters(int step)
+void MCMC::print_parameters()
 {
     if (param_ofstream.is_open())
     {
-        param_ofstream << step << C_DELIM << std::setprecision(2) << std::fixed << get_global_loglike();
+        //param_ofstream << step << C_DELIM;
+        param_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
+        /*
         for (std::string augmID : augm_to_be_inferred)
         {
             param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
         }
+        */
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
-            param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
+            //param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
         param_ofstream << std::endl;
     }

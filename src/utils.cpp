@@ -65,7 +65,7 @@ void display_decorator(const std::string &txt, int skip, char decor)
     if (VERBOSE)
     {
         //int sx = (DECOR_WIDTH - txt.length()) / 2; // left half bar
-        int sx = 5;
+        int sx = 3;
         int dx = DECOR_WIDTH - txt.length() - sx;  // right half bar
         _helper_stdout_(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor) + "\n");
     }
