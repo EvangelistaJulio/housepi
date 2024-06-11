@@ -287,8 +287,8 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 void MCMC::inference(std::string output_file)
 {
     //=====Initialization=====//
-    //display_decorator("Inference");
-    display_decorator("Inference::initialization", 0, '-');
+    display_decorator("Inference");
+    //display_decorator("Inference::initialization", 0, '-');
 
     //-----Initialize output file-----//
     init_param_file(output_file);

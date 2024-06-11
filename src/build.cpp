@@ -120,7 +120,7 @@ void MCMC::build_parameters(std::string pathtofile)
         }
 
         //=====display a summary of the used parameters=====//
-        display_decorator("Parameters::definition", 1, '-');
+        display_decorator("Parameters::definitions", 0, '-');
         display_parameters();
     }
     else
@@ -390,7 +390,7 @@ void MCMC::display_report()
         //=====Display Database Report=====//
         //=================================//
 
-        display_decorator("Database::summary", 1, '-');
+        display_decorator("Database::summary", 0, '-');
         std::ostringstream oss;
         oss << "n. of individuals: " << report_data["n.indiv"]
             << "\n    * n. of cases: " << report_data["n.cases"]
@@ -441,7 +441,7 @@ void MCMC::display_report()
         if (has_non_reference_groups)
         {
             std::ostringstream oss;
-            display_decorator("Database::rates", 1, '-');
+            display_decorator("Database::rates", 0, '-');
 
             for (const auto &entry : report_model)
             {
@@ -742,7 +742,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
     setup_num_prints = setup_num_iter / setup_thinning;
 
     //=====Display=====//
-    display_decorator("Setup::definitions", 1, '-');
+    display_decorator("Setup::definitions", 0, '-');
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
         << "\nnum_threads" << C_DELIM << get_num_threads()
@@ -858,7 +858,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            display_decorator("Output::augmented database", 1, '-');
+            display_decorator("Output::augmented database", 0, '-');
             display_stdout("save augmented database to:\n" + save_augm_pathtofile);
 
             // change format of augmented data
