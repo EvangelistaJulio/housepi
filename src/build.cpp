@@ -85,7 +85,7 @@ void MCMC::build_parameters(std::string pathtofile)
     if (input.is_open())
     {
         display_decorator("Parameters");
-        display_stdout("import parameters definition from:\n" + pathtofile);
+        display_stdout("import: " + pathtofile);
 
         //=====Load column headers=====//
         std::vector<std::string> headers = read_column_headers(input);
@@ -149,7 +149,7 @@ void MCMC::build_data(std::string pathtofile)
     if (input.is_open())
     {
         display_decorator("Database");
-        display_stdout("import dataset from:\n" + pathtofile);
+        display_stdout("import: " + pathtofile);
 
         //=====Load column headers=====//
         data_headers = read_column_headers(input);
@@ -492,7 +492,7 @@ void MCMC::build_augmented(std::string pathtofile)
         if (input.is_open())
         {
             display_decorator("Augmented");
-            display_stdout("import augmented variables definition from:\n" + pathtofile);
+            display_stdout("import: " + pathtofile);
 
             //=====Load column headers=====//
             std::vector<std::string> headers = read_column_headers(input);
@@ -626,7 +626,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
         if (input.is_open())
         {
             display_decorator("Setup");
-            display_stdout("import setup definition from:\n" + pathtofile);
+            display_stdout("import: " + pathtofile);
 
             // Create a std::stringstream of the current line
             for (std::string line; getline(input, line);)
@@ -790,7 +790,9 @@ void MCMC::init_param_file(std::string output_filename)
 
     if (param_ofstream.is_open())
     {
-        display_stdout("save MCMC iterations to:\n" + output_filename);
+#ifndef USE_RCPP
+        display_stdout("save MCMC iterations to: " + output_filename);
+#endif
 
         //param_ofstream << "iter" << C_DELIM;
         param_ofstream << "loglike";

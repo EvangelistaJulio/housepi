@@ -80,9 +80,9 @@ void display_stdout(const char *txt);               // overload for char array
 void display_stdout(const std::ostringstream &oss); // overload for ostringstream
 
 // print decorator to stdout
-void display_decorator(const std::string &txt, int skip = 2, char decor = C_DECOR);
-void display_decorator(const char *txt, int skip = 2, char decor = C_DECOR);
-void display_decorator(const std::ostringstream &oss, int skip = 2, char decor = C_DECOR);
+void display_decorator(const std::string &txt, int skip = 0, char decor = C_DECOR);
+void display_decorator(const char *txt, int skip = 0, char decor = C_DECOR);
+void display_decorator(const std::ostringstream &oss, int skip = 0, char decor = C_DECOR);
 
 // print progress bar to stdout
 void display_init_progress_bar(const std::string &txt);
