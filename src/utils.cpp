@@ -47,7 +47,7 @@ void display_stdout(const std::string &txt)
 {
     if (VERBOSE)
     {
-        _helper_stdout_(txt + "\n");
+        _helper_stdout_("\n" + txt);
     }
 }
 void display_stdout(const char *txt)
@@ -67,7 +67,7 @@ void display_decorator(const std::string &txt, int skip, char decor)
         //int sx = (DECOR_WIDTH - txt.length()) / 2; // left half bar
         int sx = 3;
         int dx = DECOR_WIDTH - txt.length() - sx;  // right half bar
-        _helper_stdout_(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor) + "\n");
+        _helper_stdout_(std::string(skip + 1, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor));
     }
 }
 void display_decorator(const char *txt, int skip, char decor)
@@ -129,7 +129,7 @@ void display_init_progress_bar(const std::string &txt)
     if (VERBOSE)
     {
         std::ostringstream oss;
-        oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
+        oss << "\n" + txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
             << std::fixed << std::setprecision(2) << 0.0 << " %"
             << " (00m00s<??m??s)\r";
         _helper_stderr_(oss.str());
