@@ -108,9 +108,9 @@ void MCMC::build_parameters(std::string pathtofile)
                     this_row["name"],
                     std::stod(this_row["value"]),
                     this_row["prior"],
-                    parse_dict_args(this_row["prior_args"]),
+                    parse_dict_args(this_row["pargs"]),
                     this_row["strategy"],
-                    parse_dict_args(this_row["strategy_args"]),
+                    parse_dict_args(this_row["sargs"]),
                     parse_dict_args(this_row["range"]));
             }
             else

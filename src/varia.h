@@ -418,8 +418,8 @@ class Monte_Carlo_Core
 public:
 	std::vector<std::string> param_file_required_headers = {
 		"name", "value", "infer",
-		"prior", "prior_args",
-		"strategy", "strategy_args", "range"};
+		"prior", "pargs",
+		"strategy", "sargs", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_static = {};
 
