@@ -48,8 +48,8 @@ constexpr char C_DICT_DELIM = '/';   // dictionary delimiter
 constexpr char C_OPTION_DELIM = ':'; // option delimiter
 constexpr char C_DECOR = '=';        // decorator for prints
 
-constexpr int DECOR_WIDTH = 90;   // width of progress bar
-constexpr int PROGBAR_WIDTH = 55; // width of progress bar
+constexpr int DECOR_WIDTH = 78;   // width of progress bar
+constexpr int PROGBAR_WIDTH = 38; // width of progress bar
 constexpr int PROGBAR_THIN = 250; // thinning of progress bar
 
 constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization

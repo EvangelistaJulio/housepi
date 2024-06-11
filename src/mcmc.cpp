@@ -287,8 +287,8 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 void MCMC::inference(std::string output_file)
 {
     //=====Initialization=====//
-    display_decorator("Inference");
-    display_decorator("Inference::initialization", 1, '-');
+    //display_decorator("Inference");
+    display_decorator("Inference::initialization", 0, '-');
 
     //-----Initialize output file-----//
     init_param_file(output_file);
@@ -312,7 +312,7 @@ void MCMC::inference(std::string output_file)
     {
         int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
-        display_decorator("Inference::adaptive", 1, '-');
+        display_decorator("Inference::adaptive", 0, '-');
         display_init_progress_bar("adaptive");
 
         init_move_counts();
@@ -337,7 +337,7 @@ void MCMC::inference(std::string output_file)
 
     if (setup_num_prints > 0)
     {
-        display_decorator("Inference::execution", 1 + (setup_num_adapt_iter > 0), '-');
+        //display_decorator("Inference::execution", (setup_num_adapt_iter > 0), '-');
         display_init_progress_bar("execution");
 
         init_move_counts();
@@ -429,11 +429,11 @@ void MCMC::display_thin_results()
         }
 
         // parameters (sampled every thinning iterration)
-        display_decorator("Inference::results", 2, '-');
+        //display_decorator("Inference::results", 2, '-');
         display_param_diagnostics();
 
         // diagnostics (sampled every thinning iterration)
-        display_decorator("Inference::diagnostics", 1, '-');
+        display_decorator("Inference::diagnostics", 0, '-');
         std::ostringstream oss;
         oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
             << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_var_correc
@@ -464,7 +464,7 @@ void MCMC::simulate_single_house(int h)
 /* Perform simulation as provided by the user */
 void MCMC::simulation()
 {
-    display_decorator("Simulation");
+    //display_decorator("Simulation");
 
     //=====INITIALIZATION=====//
     init_augmented_variables();

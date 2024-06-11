@@ -69,13 +69,13 @@ protected:
 public:
 	MCMC()
 	{
-		display_decorator("Household Survey EPI Modeling");
-		display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
+		//display_decorator("Household Survey EPI Modeling");
+		//display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
 	};
 	virtual ~MCMC()
 	{
-		display_decorator("END");
-		display_stdout("\n");
+		//display_decorator("END");
+		//display_stdout("\n");
 	};
 
 	//=====Build data and parameters=====//
