@@ -219,7 +219,7 @@ void raise_warning_message(const std::ostringstream &oss, bool &is_raised_once)
 void raise_error_message(const std::string &txt)
 {
 #ifdef USE_RCPP
-    Rcpp::stop("Error: " + txt + "\nExit...");
+    Rcpp::stop("\n" + txt + "\nExit...");
 #else
     std::cerr << "\nError: " + txt + "\nExit...\n"
               << std::endl;

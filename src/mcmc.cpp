@@ -433,7 +433,7 @@ void MCMC::display_thin_results()
             << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_var_correc
             << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
             << "\neffective_parameters" << C_DELIM << effec_num_params_waic * sample_var_correc
-            << "\nWAIC" << C_DELIM << log_point_pred_dens - effec_num_params_waic * sample_var_correc;
+            << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic * sample_var_correc - log_point_pred_dens);
         display_stdout(oss);
     }
 }
