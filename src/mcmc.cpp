@@ -312,7 +312,7 @@ void MCMC::inference(std::string output_file)
     {
         int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
-        display_decorator("Inference::adaptive", 0, '-');
+        //display_decorator("Inference::adaptive", 0, '-');
         display_init_progress_bar("adaptive");
 
         init_move_counts();
@@ -421,10 +421,11 @@ void MCMC::display_thin_results()
             effec_num_params_waic += (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2));
         }
 
+#ifndef USE_RCPP
         // parameters (sampled every thinning iterration)
-        //display_decorator("Inference::results", 2, '-');
+        display_decorator("Inference::results", 0, '-');
         display_param_diagnostics();
-
+#endif
         // diagnostics (sampled every thinning iterration)
         display_decorator("Inference::diagnostics", 0, '-');
         std::ostringstream oss;

@@ -618,6 +618,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
 {
     int num_threads = 1;
 
+    display_decorator("Setup");
     if (pathtofile != UNDEFINED)
     {
         std::ifstream input(pathtofile.c_str());
@@ -625,7 +626,6 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
 
         if (input.is_open())
         {
-            display_decorator("Setup");
             display_stdout("import: " + pathtofile);
 
             // Create a std::stringstream of the current line
@@ -791,7 +791,7 @@ void MCMC::init_param_file(std::string output_filename)
     if (param_ofstream.is_open())
     {
 #ifndef USE_RCPP
-        display_stdout("save MCMC iterations to: " + output_filename);
+        display_stdout("save: " + output_filename);
 #endif
 
         //param_ofstream << "iter" << C_DELIM;

@@ -7,8 +7,8 @@ FLDR := $(shell dirname ${MODEL})
 MODEL_HEADER := $(NAME).h
 
 # List of source files as found in the software directory
-EXCL_FILES := export_bindings.cpp RcppExports.cpp
-SOURCES := $(filter-out ../src/$(EXCL_FILES), $(wildcard ../src/*.cpp) $(FLDR)/$(NAME).cpp main.cpp)
+EXCL_FILES := ../src/export_bindings.cpp ../src/RcppExports.cpp ../src/user_model.cpp
+SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ../src/*.cpp) $(FLDR)/$(NAME).cpp main.cpp)
 
 # Object files to build (automatically generated from SRCS)
 OBJECTS := $(SOURCES:.cpp=.o)

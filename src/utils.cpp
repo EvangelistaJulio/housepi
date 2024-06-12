@@ -173,7 +173,7 @@ void display_close_progress_bar(const std::string &txt)
         oss << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
             << std::fixed << std::setprecision(2) << 100.0 << " %"
             << " (" + format_millisecs(time_elapsed) + ")"
-            << std::string(20, ' ') + "\n";
+            << std::string(20, ' ');
         _helper_stderr_(oss.str());
     }
 }

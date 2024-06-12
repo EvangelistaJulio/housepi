@@ -463,7 +463,6 @@ void Monte_Carlo_Core::display_parameters()
 /* display the diagnostics */
 void Monte_Carlo_Core::display_param_diagnostics()
 {
-#ifndef USE_RCPP
     std::ostringstream oss;
     oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
     for (size_t k = 2; k < param_file_required_headers.size(); k++)
@@ -476,7 +475,6 @@ void Monte_Carlo_Core::display_param_diagnostics()
             << parID << C_DELIM << params.at(parID).message_to_display_diagnostics().str();
     }
     display_stdout(oss.str());
-#endif
 }
 
 //------------------------------------------------------------------------------------------------------------//

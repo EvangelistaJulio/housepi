@@ -72,7 +72,7 @@ public:
 	virtual ~MCMC()
 	{
 		//display_decorator("END");
-		//display_stdout("\n");
+		display_stdout("\n");
 	};
 
 	//=====Build data and parameters=====//
