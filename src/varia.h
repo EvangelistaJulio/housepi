@@ -445,6 +445,7 @@ public:
 		std::string prior_name = UNDEFINED, sdargs prior_args = {},
 		std::string strat_name = UNDEFINED, sdargs strat_args = {},
 		sdargs value_range = {});
+	void drop_all_params() { params.clear(); }
 
 	//=====Parallelization=====//
 	void set_num_threads(int n = 1);

@@ -26,7 +26,7 @@ void _helper_stderr_(const std::string &txt)
     Rcpp::Rcerr << txt;
     Rcpp::Rcerr.flush();
 #else
-    std::cerr << txt;
+    std::cerr << "\n" + txt;
     std::cerr.flush();
 #endif
 }
@@ -47,7 +47,7 @@ void display_stdout(const std::string &txt)
 {
     if (VERBOSE)
     {
-        _helper_stdout_("\n" + txt);
+        _helper_stdout_(txt + "\n");
     }
 }
 void display_stdout(const char *txt)
@@ -67,7 +67,7 @@ void display_decorator(const std::string &txt, int skip, char decor)
         //int sx = (DECOR_WIDTH - txt.length()) / 2; // left half bar
         int sx = 3;
         int dx = DECOR_WIDTH - txt.length() - sx;  // right half bar
-        _helper_stdout_(std::string(skip + 1, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor));
+        _helper_stdout_(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor)  + "\n");
     }
 }
 void display_decorator(const char *txt, int skip, char decor)
@@ -129,7 +129,7 @@ void display_init_progress_bar(const std::string &txt)
     if (VERBOSE)
     {
         std::ostringstream oss;
-        oss << "\n" + txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
+        oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
             << std::fixed << std::setprecision(2) << 0.0 << " %"
             << " (00m00s<??m??s)\r";
         _helper_stderr_(oss.str());
@@ -173,7 +173,7 @@ void display_close_progress_bar(const std::string &txt)
         oss << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
             << std::fixed << std::setprecision(2) << 100.0 << " %"
             << " (" + format_millisecs(time_elapsed) + ")"
-            << std::string(20, ' ');
+            << std::string(20, ' ') + "\n";
         _helper_stderr_(oss.str());
     }
 }

@@ -98,6 +98,9 @@ void MCMC::build_parameters(std::string pathtofile)
             }
         }
 
+        // clean original list of parameters
+        drop_all_params();
+
         //=====Load parameters from the row with options=====//
         for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
         {
@@ -786,31 +789,38 @@ void MCMC::build_extra(std::string pathtofile)
 /* Initialize the output file with inferred parameters with column names and initial values */
 void MCMC::init_param_file(std::string output_filename)
 {
-    param_ofstream.open(output_filename.c_str());
-
-    if (param_ofstream.is_open())
+    if (output_filename == UNDEFINED)
     {
-#ifndef USE_RCPP
-        display_stdout("save: " + output_filename);
-#endif
-
-        //param_ofstream << "iter" << C_DELIM;
-        param_ofstream << "loglike";
-        /*
-        for (std::string augmID : augm_to_be_inferred)
-        {
-            param_ofstream << C_DELIM << "augm_" << augmID << "__a%";
-        }
-        */
-        for (std::string parID : param_to_be_inferred)
-        {
-            param_ofstream << C_DELIM << parID; // << C_DELIM << parID << "__a%";
-        }
-        param_ofstream << std::endl;
+        raise_error_message("Undefined output file.");
     }
     else
     {
-        raise_error_message("Unable to open file: " + output_filename);
+        param_ofstream.open(output_filename.c_str());
+
+        if (param_ofstream.is_open())
+        {
+#ifndef USE_RCPP
+            display_stdout("save: " + output_filename);
+#endif
+
+            // param_ofstream << "iter" << C_DELIM;
+            param_ofstream << "loglike";
+            /*
+            for (std::string augmID : augm_to_be_inferred)
+            {
+                param_ofstream << C_DELIM << "augm_" << augmID << "__a%";
+            }
+            */
+            for (std::string parID : param_to_be_inferred)
+            {
+                param_ofstream << C_DELIM << parID; // << C_DELIM << parID << "__a%";
+            }
+            param_ofstream << std::endl;
+        }
+        else
+        {
+            raise_error_message("Unable to open file: " + output_filename);
+        }
     }
 }
 
@@ -823,7 +833,7 @@ void MCMC::print_parameters()
 {
     if (param_ofstream.is_open())
     {
-        //param_ofstream << step << C_DELIM;
+        // param_ofstream << step << C_DELIM;
         param_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
         /*
         for (std::string augmID : augm_to_be_inferred)
@@ -834,7 +844,7 @@ void MCMC::print_parameters()
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
-            //param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
+            // param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
         param_ofstream << std::endl;
     }
