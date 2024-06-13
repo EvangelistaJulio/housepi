@@ -59,8 +59,7 @@ protected:
 	long double dgn_sqr_loglike = 0.; // sum of the squared loglikelihood
 
 	//=====Reports (Database, Model)=====//
-	std::map<std::string, int> report_data = {
-		{"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, {"min.HH.size", 1000}, {"max.HH.size", 0}, {"_n.contacts_", 0}};
+	std::map<std::string, int> report_data;
 	std::map<std::string, std::map<std::string, int>> report_model = {};
 
 public:
@@ -72,7 +71,7 @@ public:
 	virtual ~MCMC()
 	{
 		//display_decorator("END");
-		display_stdout("\n");
+		//display_stdout("\n");
 	};
 
 	//=====Build data and parameters=====//

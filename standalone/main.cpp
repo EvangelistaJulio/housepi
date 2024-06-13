@@ -33,8 +33,8 @@ int main(int argc, char *argv[])
     int carg_i = 1;   // command line argument iterator
     std::string carg; // command line argument
 
-    bool is_infer = false;         // inference option
-    bool is_simulate = false;      // simulation option
+    bool is_infer = false;    // inference option
+    bool is_simulate = false; // simulation option
 
     // paths/to/files
     std::string params_file = UNDEFINED;
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         // Command line argument asking for help
         if (carg == std::string("-h") or carg == std::string("--help"))
         {
-            // Show the manual using man and installed manpages 
+            // Show the manual using man and installed manpages
             // UPDATE : produce a manual
             std::ostringstream oss;
             oss << "We apologize for the inconvenience, but the Software Manual is still missing.\n"
@@ -143,8 +143,15 @@ int main(int argc, char *argv[])
     }
     else
     { // Simulation Study
-        user_model.simulation();
-        user_model.print_augm_variables(output_pathtofile);
+        if (output_pathtofile == UNDEFINED)
+        {
+            raise_error_message("Undefined output file.");
+        }
+        else
+        {
+            user_model.simulation();
+            user_model.print_augm_variables(output_pathtofile);
+        }
     }
 
     return EXIT_SUCCESS;

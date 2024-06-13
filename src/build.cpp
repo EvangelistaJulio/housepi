@@ -165,6 +165,13 @@ void MCMC::build_data(std::string pathtofile)
             }
         }
 
+        //=====Drop all previous data=====//
+        househ.clear();
+        report_data = {
+            {"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, 
+            {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, 
+            {"min.HH.size", 1000}, {"max.HH.size", 0}, {"_n.contacts_", 0}};
+	
         //=====Load individuals from the row with values=====//
         std::vector<Individual> aux_individuals = {};
         for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
