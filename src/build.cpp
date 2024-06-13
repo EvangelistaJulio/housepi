@@ -53,6 +53,7 @@ void MCMC::build(bool is_infer, bool is_simulate,
     else
     {
         build_data(data_file);
+        build_data(data_file);
     }
 
     // 3) Load Augmented Variables (optional)
@@ -167,6 +168,7 @@ void MCMC::build_data(std::string pathtofile)
 
         //=====Drop all previous data=====//
         househ.clear();
+        num_househ = 0;
         report_data = {
             {"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, 
             {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, 

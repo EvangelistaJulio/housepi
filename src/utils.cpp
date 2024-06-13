@@ -26,7 +26,7 @@ void _helper_stderr_(const std::string &txt)
     Rcpp::Rcerr << txt;
     Rcpp::Rcerr.flush();
 #else
-    std::cerr << "\n" + txt;
+    std::cerr << txt;
     std::cerr.flush();
 #endif
 }
@@ -219,7 +219,7 @@ void raise_warning_message(const std::ostringstream &oss, bool &is_raised_once)
 void raise_error_message(const std::string &txt)
 {
 #ifdef USE_RCPP
-    Rcpp::stop("\n" + txt + "\nExit...");
+    Rcpp::stop(txt + "\nExit...");
 #else
     std::cerr << "\nError: " + txt + "\nExit...\n"
               << std::endl;

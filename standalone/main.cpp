@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     int carg_i = 1;   // command line argument iterator
     std::string carg; // command line argument
 
-    bool is_infer = false;    // inference option
+    bool is_infer = true;    // inference option
     bool is_simulate = false; // simulation option
 
     // paths/to/files
