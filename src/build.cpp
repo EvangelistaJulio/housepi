@@ -53,7 +53,6 @@ void MCMC::build(bool is_infer, bool is_simulate,
     else
     {
         build_data(data_file);
-        build_data(data_file);
     }
 
     // 3) Load Augmented Variables (optional)
@@ -170,10 +169,8 @@ void MCMC::build_data(std::string pathtofile)
         househ.clear();
         num_househ = 0;
         report_data = {
-            {"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, 
-            {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, 
-            {"min.HH.size", 1000}, {"max.HH.size", 0}, {"_n.contacts_", 0}};
-	
+            {"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, {"min.HH.size", 1000}, {"max.HH.size", 0}, {"_n.contacts_", 0}};
+
         //=====Load individuals from the row with values=====//
         std::vector<Individual> aux_individuals = {};
         for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
@@ -518,13 +515,15 @@ void MCMC::build_augmented(std::string pathtofile)
             }
 
             //=====Load augmented from the row with options=====//
+            load_augm_definition.clear();
+            augm_full_set.clear();
+            augm_to_be_inferred.clear();
+            augm_with_model_set.clear();
+            augm_rand_init_set.clear();
             for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
             {
                 load_augm_definition.push_back(this_row);
             }
-
-            //=====assign augmented variables to all individuals=====//
-            assign_augmented_variables();
         }
         else
         {
@@ -602,13 +601,20 @@ void MCMC::assign_augmented_variables()
 /* Initialize augmented variable for all individuals */
 void MCMC::init_augmented_variables()
 {
-    for (std::string augmID : augm_rand_init_set)
+    if (!load_augm_definition.empty())
     {
-        for (int h = 0; h < num_househ; h++)
+        //=====assign augmented variables to all individuals=====//
+        assign_augmented_variables();
+
+        //=====random initialization on demand=====//
+        for (std::string augmID : augm_rand_init_set)
         {
-            for (int i = 0; i < househ[h].house_size; i++)
+            for (int h = 0; h < num_househ; h++)
             {
-                househ[h].indiv[i].init_augm(augmID, get_prng());
+                for (int i = 0; i < househ[h].house_size; i++)
+                {
+                    househ[h].indiv[i].init_augm(augmID, get_prng());
+                }
             }
         }
     }

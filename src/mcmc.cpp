@@ -458,10 +458,12 @@ void MCMC::simulate_single_house(int h)
 /* Perform simulation as provided by the user */
 void MCMC::simulation()
 {
-    //display_decorator("Simulation");
+    display_decorator("Simulation");
 
     //=====INITIALIZATION=====//
     init_augmented_variables();
+
+    //-----Initialize model-----//
     initialize_model();
 
 #pragma omp parallel for default(shared)

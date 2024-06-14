@@ -159,6 +159,10 @@ void display_progress_bar(const std::string &txt, int progress, int total)
             _helper_stderr_(oss.str());
         }
     }
+    
+#ifdef USE_RCPP
+    Rcpp::checkUserInterrupt();
+#endif
 }
 
 /*  End progress bar. */

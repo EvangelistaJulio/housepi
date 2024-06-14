@@ -247,6 +247,14 @@ double Monte_Carlo_Core::_get_value_assert_(const std::string k) const
 //////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Drop all params dictionary. */
+void Monte_Carlo_Core::drop_all_params()
+{
+    params.clear();
+    param_static.clear();
+    param_to_be_inferred.clear();
+}
+
 /* Assign a new parameter to the dictionary. */
 void Monte_Carlo_Core::assign_parameter(
     const std::string parID, double new_val,
