@@ -1,0 +1,15 @@
+Package: hemirt
+Type: Package
+Title: Household Epidemiological Modeling and Inference Rcpp Toolkit
+Version: 0.1.0
+Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
+Maintainer: <francesco.camaglia@pasteur.fr>
+Description: A platform for household surveys epidemiological modeling.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Depends: methods, Rcpp (>= 1.0.0)
+Imports: coda
+LinkingTo: Rcpp
+RcppModules: user_model_module
+RoxygenNote: 7.3.1

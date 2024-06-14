@@ -7,8 +7,9 @@ FLDR := $(shell dirname ${MODEL})
 MODEL_HEADER := $(NAME).h
 
 # List of source files as found in the software directory
-EXCL_FILES := ../src/export_bindings.cpp ../src/RcppExports.cpp ../src/user_model.cpp
-SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ../src/*.cpp) $(FLDR)/$(NAME).cpp main.cpp)
+SRC := ../template/src
+EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/user_model.cpp
+SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp) $(FLDR)/$(NAME).cpp main.cpp)
 
 # Object files to build (automatically generated from SRCS)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -16,7 +17,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 # Executable name
 EXECUTABLE := $(FLDR)/$(NAME).exe
 
-# Common compilation flags
+# Compilation flags
 CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11
 
 # Change openMP options according to the operating system
@@ -50,11 +51,11 @@ $(EXECUTABLE): $(OBJECTS)
 	
 # For the model object
 $(FLDR)/$(NAME).o: $(FLDR)/$(NAME).cpp
-	$(CXX) $(CXXFLAGS) -I../src -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I${SRC} -c $< -o $@
 
 # For the main object
 main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -I../src -I$(FLDR) -DMODEL_HEADER=\"$(MODEL_HEADER)\" -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I${SRC} -I$(FLDR) -DMODEL_HEADER=\"$(MODEL_HEADER)\" -c $< -o $@
 
 # For all other objects
 %.o: %.cpp

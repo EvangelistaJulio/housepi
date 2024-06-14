@@ -1,4 +1,4 @@
-// user_model.h //
+// model.h //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -7,14 +7,10 @@
 
 /*
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
-Homogeneous Chain Binomial Model using the re-summation over transmission generations.
-
 ----
 Ref:
 ----
-Bi Q, Lessler J, Eckerle I, Lauer SA, Kaiser L, Vuilleumier N, et al. 
-Insights into household transmission of SARS-CoV-2 from a population-based serological survey. 
-Nat Commun. 2021;12: 3643. doi:10.1038/s41467-021-23733-5
+Missing Reference.
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 */
 
@@ -52,6 +48,10 @@ class Model : public MCMC
 	void initialize_model() override;
 	double compute_single_house_loglike(int h) override;	
 	void simulate_single_house(int h) override;
+
+	// Model dependent methods
+	double log_community_escape_probability();
+	double log_person_to_person_escape_probability();
 };
 
 //------------------------------------------------------------------------------------------------------------//

@@ -1,17 +1,107 @@
-// user_model.cpp //
+// model.h //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
-#include "user_model.h"
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  * *** * CHAIN BINOMIAL HETEROGENEOUS * *** *  /////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include "model.h"
+
+//------------------------------------------------------------------------------------------------------------//
+//---------------------------------------- - - - CHANGE-ME - - - ---------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- \/ -------------------------------------------------------//
+
+/* Assign the parameters controlling infectivity for each individual */
+void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
+{
+	//=====Susceptibility=====//
+	if (this_indiv.get_data("age") <= get_value("child_age"))
+	{ // child
+		this_indiv.assign_rate_per_group("Susceptibility", "sus_child");
+	}
+	else
+	{ // adult
+		if (this_indiv.get_data("sex") == 0)
+		{ // adult women
+			this_indiv.assign_rate_per_group("Susceptibility", "sus_women");
+		}
+		else
+		{ // adult men : Susceptibility [REFERENCE]
+			this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
+		}
+	}
+
+	//=====Infectivity=====//
+	if (this_indiv.get_data("age") > get_value("child_age"))
+	{ // adult : Susceptiblity [REFERENCE]
+		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
+	}
+	else
+	{ // child
+		this_indiv.assign_rate_per_group("Infectivity", "inf_child");
+	}
+}
+
+/* The house escape matrix is a flattern vector containing escape probability. */
+void Model::fill_house_escape_matrix(int h, std::vector<double> &escape_matrix)
+{
+	int hh_size = househ[h].house_size;
+	double roi;
+
+	// ordered members group rates : 1) infectious, 2) susceptibles
+	int count = 0;
+	std::vector<double> susc_rates(1., hh_size), infec_rates(1., hh_size);
+	for (int i : househ[h].infectious_list)
+	{
+		susc_rates[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
+		infec_rates[count] = househ[h].indiv[i].get_group_rate("Infectivity");
+		count++;
+	}
+	for (int i : househ[h].susceptibles_list)
+	{
+		susc_rates[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
+		infec_rates[count] = househ[h].indiv[i].get_group_rate("Infectivity");
+		count++;
+	}
+
+	// assign values to matrix
+	for (int i = 0; i < hh_size; i++)
+	{
+		// community terms
+		escape_matrix[i] = exp(-susc_rates[i] * get_value("alpha"));
+
+		// person-to-person terms
+		for (int k = 0; k < hh_size; k++)
+		{
+			if (k != i)
+			{
+				roi = get_value("beta") * susc_rates[i] * infec_rates[k];
+				escape_matrix[i + (k + 1) * hh_size] = exp(-roi);
+			}
+			// else is equal to 1 (by declaration outside)
+		}
+	}
+}
+
+//------------------------------------------------- /\ -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//---------------------------------------- - - - CHANGE-ME - - - ---------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
+// -----------------------------------------------------------------------------------------------------------//
 
 usi ****Combinations_LUT;	 // look-up-table to store combinations and complements
 unsigned **Num_of_Combs_LUT; // look-up-table to store the number of combinations
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // //////////////////////////////////// Auxiliary Functions //////////////////////////////////// //
@@ -227,36 +317,9 @@ double Model::compute_single_house_loglike(int h)
 	usi num_infec = househ[h].infectious_list.size();
 	double log_likelihood = 0;
 
-	// allocate memory for escape matrix
+	//=====Escape Matrix=====//
 	std::vector<double> escape_matrix((hh_size + 1) * hh_size, 1.);
-
-	// ---------->>---------->>---------->>---------->>
-	// ---------->>---------->>---------->>---------->>
-
-	// Assign the values of the escape probabilities HERE :
-
-	// community escape probability
-	double commu_esc_proba = exp(-get_value("alpha"));
-
-	for (usi i = 0; i < hh_size; i++)
-	{
-		escape_matrix[i] = commu_esc_proba;
-	}
-
-	// person-to-person escape log-probability
-	// NOTE : change if to distinguish between infectious, unknown, susceptibles...
-	double p2p_esc_proba = exp(-get_value("beta"));
-
-	for (usi k = 1; k <= hh_size; k++)
-	{
-		for (usi i = 0; i < hh_size; i++)
-		{
-			escape_matrix[i + k * hh_size] = p2p_esc_proba;
-		}
-	}
-
-	// <<----------<<----------<<----------<<----------
-	// <<----------<<----------<<----------<<----------
+	fill_house_escape_matrix(h, escape_matrix);
 
 	//=====compute the loglikelihood=====//
 	// initialize array of indexes to {1, ..., hh_size}
@@ -286,63 +349,54 @@ double Model::compute_single_house_loglike(int h)
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {
-	// FIXME
-
-	int num_new_infectious = 0, num_old_infectious = 0;
+	int hh_size = househ[h].house_size;
+	int num_new_infectious = 0;
 	std::vector<int> store_old_list = {};
+	std::vector<int> old_infectors_list = {}, new_infectors_list = {};
 
-	//-----community escape probability-----//
-	double commu_esc_proba = exp(-get_value("alpha"));
-
-	//-----person-to-person escape log-probability-----//
-	double log_p2p_esc_proba = -get_value("beta");
+	//=====Escape Matrix=====//
+	std::vector<double> escape_matrix((hh_size + 1) * hh_size, 1.);
+	fill_house_escape_matrix(h, escape_matrix);
 
 	//=====INITIALIZE=====//
-	// set all cases to healthy (change infectious and unknown to susceptibles)
+	// set all cases to healthy (change infectious to susceptibles)
 	store_old_list = househ[h].infectious_list;
 	for (int i : store_old_list)
 	{
 		househ[h].change_status(i, SUSCEPTIBLE);
 	}
-	store_old_list = househ[h].unknown_status_list;
-	for (int i : store_old_list)
-	{
-		househ[h].change_status(i, SUSCEPTIBLE);
-	}
-	num_new_infectious = 0;
 
 	//====GENERATION 0 : infection by community=====//
 	store_old_list = househ[h].susceptibles_list;
 	for (int i : store_old_list)
 	{
-		if (uniform() > commu_esc_proba)
+		if (uniform() > escape_matrix[i])
 		{
 			househ[h].change_status(i, INFECTIOUS);
-			num_new_infectious++;
+			new_infectors_list.push_back(i);
 		}
 	}
 
 	//====GENERATION >=1 : infection by previous generatioon=====//
-	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
+	while ((househ[h].susceptibles_list.size() > 0) && (new_infectors_list.size() > 0))
 	{
-		num_old_infectious = num_new_infectious;
-		num_new_infectious = 0;
+		old_infectors_list = new_infectors_list;
+		new_infectors_list.clear();
 
 		store_old_list = househ[h].susceptibles_list;
 		for (int i : store_old_list)
 		{
-			if (uniform() > exp(num_old_infectious * log_p2p_esc_proba))
+			for (int k : old_infectors_list)
 			{
-				househ[h].change_status(i, INFECTIOUS);
-				num_new_infectious++;
+				if (househ[h].indiv[i].get_status() == SUSCEPTIBLE)
+				{
+					if (uniform() > escape_matrix[i + (k + 1) * hh_size])
+					{
+						househ[h].change_status(i, INFECTIOUS);
+						new_infectors_list.push_back(i);
+					}
+				}
 			}
 		}
 	}
 }
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//

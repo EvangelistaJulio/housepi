@@ -1,14 +1,26 @@
-// user_model.h //
+// model.h //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////  * *** * CHAIN BINOMIAL with SINGLE INTRODUCTION * *** *  /////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+----
+Ref:
+----
+Missing Reference.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+*/
 
 #ifndef MODEL__H
 #define MODEL__H
 
 #include "mcmc.h"
 
-// auxiliary types to optimize memory usage
-typedef unsigned short usi;
-typedef std::vector<usi> vec_usi;
+// Define a type alias for a generation vector
+typedef std::vector<int> gentype;
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -21,21 +33,10 @@ typedef std::vector<usi> vec_usi;
 ////////////////////////////////////////  Auxiliary Functions  ///////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// combinations look up table
-unsigned binomial_coefficient(const usi N, const usi k);
-void recursive_combinations_span(usi N, usi k, vec_usi &current, usi start, usi loop, std::vector<vec_usi> &results);
-void store_combinations(const usi N, const usi k);
-
-// recursive likelihood formulation
-double recursive_function(usi N, std::vector<double> &scape_matrix);
-double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<double> &escape_matrix);
-
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
+// auxiliary functions for the generation look-up-table
+unsigned factorial(unsigned n);
+std::vector<gentype> generation_span(int n_infec);
+std::vector<gentype> generation_count_span(int n_infec);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////  Model : class  /////////////////////////////////////////////
@@ -43,9 +44,13 @@ double ll_chain_binomial_heterogeneous(usi N, usi k, usi *indidx, std::vector<do
 
 class Model : public MCMC
 {
+	// Override MCMC methods
 	void initialize_model() override;
 	double compute_single_house_loglike(int h) override;	
 	void simulate_single_house(int h) override;
+
+	// Model dependent methods
+	double log_person_to_person_escape_probability();
 };
 
 //------------------------------------------------------------------------------------------------------------//
