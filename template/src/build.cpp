@@ -20,20 +20,17 @@ bool Unknown_Status_Warning = false; // Warning for unknown status
 ////////////////////////////////////////  MCMC : build  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::build(bool is_infer, bool is_simulate,
+void MCMC::build(bool is_infer,
                  std::string params_file, std::string data_file,
                  std::string augm_file, std::string setup_file,
-                 std::string extra_file)
+                 std::string extra_file, bool verbose)
 {
+    //----- global verbose option -----//
+    VERBOSE = verbose;
 
     //=====OPTION VALIDITY=====//
 
     // UPDATE : complete check for options validity
-
-    if (is_infer && is_simulate)
-    {
-        raise_error_message("Incompatible commands: choose one between -infer and -simulate.");
-    }
 
     // 1) Load Parameters and Check (required)
     if (params_file == UNDEFINED)
@@ -168,8 +165,16 @@ void MCMC::build_data(std::string pathtofile)
         //=====Drop all previous data=====//
         househ.clear();
         num_househ = 0;
-        report_data = {
-            {"n.indiv", 0}, {"n.cases", 0}, {"n.unk.stat", 0}, {"no.HH.case", 0}, {"lst.1.case", 0}, {"lst.2.case", 0}, {"min.HH.size", 1000}, {"max.HH.size", 0}, {"_n.contacts_", 0}};
+        report_data = {{"n.indiv", 0},
+                       {"n.cases", 0},
+                       {"n.unk.stat", 0},
+                       {"no.HH.case", 0},
+                       {"lst.1.case", 0},
+                       {"lst.2.case", 0},
+                       {"max.n.HH.cases", 0},
+                       {"min.HH.size", 1000},
+                       {"max.HH.size", 0},
+                       {"_n.contacts_", 0}};
 
         //=====Load individuals from the row with values=====//
         std::vector<Individual> aux_individuals = {};
@@ -218,6 +223,14 @@ void MCMC::build_data(std::string pathtofile)
         for (int h = 0; h < num_househ; h++)
         {
             set_rate_per_contact(h);
+        }
+        
+        //=====Find maximum possible number of sero-positives=====//
+        int aux = 0;
+        for (int h = 0; h < num_househ; h++)
+        {
+            aux = househ[h].infectious_list.size();
+            report_data["max.n.HH.cases"] = std::max(aux, report_data["max.n.HH.cases"]);
         }
 
         //=====Produce Household List and Set Contact Rates=====//
@@ -291,6 +304,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         else
         {
             // rate associated to parameter
+            assert_param(parID);
             this_indiv.set_rate(rateID, get_address(parID));
             if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
             {
@@ -308,7 +322,9 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 /////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Set contact rate according to user assignement. */
+/* Set contact rate according to user assignement. 
+FIXME : is it necessary occupy this space even if all REFERENCE?
+*/
 void MCMC::set_rate_per_contact(int h)
 {
     std::string rateID = CONTACT_RATE;
@@ -357,6 +373,7 @@ void MCMC::set_rate_per_contact(int h)
                 }
                 else
                 {
+                    assert_param(parID);
                     househ[h].set_rate(i, k, get_address(parID)); // parameter rate
                     if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
                     {
@@ -668,12 +685,6 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                 safe_load.emplace(string_cleaner(name), string_cleaner(choice));
             }
 
-            //-----verbose-----//
-            if (safe_load.find("verbose") != safe_load.end())
-            {
-                VERBOSE = stobool(safe_load.at("verbose"));
-            }
-
             //-----number of threads-----//
             if (safe_load.find("num_threads") != safe_load.end())
             {
@@ -763,8 +774,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
     display_decorator("Setup::definitions", 0, '-');
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_threads" << C_DELIM << get_num_threads()
-        << "\nverbose" << C_DELIM << ((VERBOSE) ? "true" : "false");
+        << "\nnum_threads" << C_DELIM << get_num_threads();
     if (is_infer == true)
     {
         oss << "\nnum_iter" << C_DELIM << setup_num_iter

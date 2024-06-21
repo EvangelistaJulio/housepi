@@ -3,6 +3,12 @@
 
 #include "mcmc.h"
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Large_p_WAIC_Warning = false; // Warning for unreliable WAIC
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -288,7 +294,7 @@ void MCMC::inference(std::string output_file)
 {
     //=====Initialization=====//
     display_decorator("Inference");
-    //display_decorator("Inference::initialization", 0, '-');
+    // display_decorator("Inference::initialization", 0, '-');
 
     //-----Initialize output file-----//
     init_param_file(output_file);
@@ -312,7 +318,7 @@ void MCMC::inference(std::string output_file)
     {
         int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
-        //display_decorator("Inference::adaptive", 0, '-');
+        // display_decorator("Inference::adaptive", 0, '-');
         display_init_progress_bar("adaptive");
 
         init_move_counts();
@@ -334,7 +340,7 @@ void MCMC::inference(std::string output_file)
 
     if (setup_num_prints > 0)
     {
-        //display_decorator("Inference::execution", (setup_num_adapt_iter > 0), '-');
+        // display_decorator("Inference::execution", (setup_num_adapt_iter > 0), '-');
         display_init_progress_bar("execution");
 
         init_move_counts();
@@ -409,16 +415,37 @@ void MCMC::display_thin_results()
 {
     if (setup_num_iter >= setup_thinning)
     {
-        double sample_var_correc = setup_num_prints / (setup_num_prints - 1.);
-        double log_point_pred_dens = 0.;
-        double effec_num_params_waic = 0.;
+        // compute WAIC
+        double samp_var_corr = setup_num_prints / (setup_num_prints - 1.);
+        double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
+
+        // implement WAIC warning
+        // Ref: Vhetari et al. (2016) Stat Comput.
+        bool is_p_waic_large = false;
+        int p_waic_large_count = 0;
+        const double p_waic_limit = 0.4;
 
         // Loop over households
-#pragma omp parallel for reduction(+ : log_point_pred_dens, effec_num_params_waic)
         for (int h = 0; h < num_househ; h++)
         {
             log_point_pred_dens += std::log(househ[h].dgn_likelihood);
-            effec_num_params_waic += (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2));
+            p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * samp_var_corr;
+            if (p_waic > p_waic_limit)
+            {
+                is_p_waic_large = true;
+                p_waic_large_count++;
+            }
+            effec_num_params_waic += p_waic;
+        }
+
+        // practical WAIC warning
+        if (is_p_waic_large == true)
+        {
+            std::ostringstream oss;
+            oss << "(" << (static_cast<double>(p_waic_large_count) / num_househ)
+                << "%) p_waic estimates greater than " << p_waic_limit << "."
+                << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
+            raise_warning_message(oss, Large_p_WAIC_Warning);
         }
 
 #ifndef USE_RCPP
@@ -430,10 +457,10 @@ void MCMC::display_thin_results()
         display_decorator("Inference::diagnostics", 0, '-');
         std::ostringstream oss;
         oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
-            << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_var_correc
+            << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
             << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
-            << "\neffective_parameters" << C_DELIM << effec_num_params_waic * sample_var_correc
-            << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic * sample_var_correc - log_point_pred_dens);
+            << "\neffective_parameters" << C_DELIM << effec_num_params_waic
+            << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
         display_stdout(oss);
     }
 }
@@ -456,20 +483,30 @@ void MCMC::simulate_single_house(int h)
 }
 
 /* Perform simulation as provided by the user */
-void MCMC::simulation()
+void MCMC::simulation(std::string output_filename)
 {
     display_decorator("Simulation");
 
-    //=====INITIALIZATION=====//
-    init_augmented_variables();
+    if (output_filename == UNDEFINED)
+    {
+        raise_error_message("Undefined output file.");
+    }
+    else
+    {
+        //=====INITIALIZATION=====//
+        init_augmented_variables();
 
-    //-----Initialize model-----//
-    initialize_model();
+        //-----Initialize model-----//
+        initialize_model();
 
 #pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; h++)
-    {
-        simulate_single_house(h);
+        for (int h = 0; h < num_househ; h++)
+        {
+            simulate_single_house(h);
+        }
+
+        // print results as augmented variable file
+        print_augm_variables(output_filename);
     }
 }
 

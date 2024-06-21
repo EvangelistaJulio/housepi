@@ -80,10 +80,10 @@ public:
 	void build_augmented(std::string pathtofile);
 	void build_data(std::string pathtofile);
 	virtual void build_extra(std::string pathtofile); // load non standard file
-	void build(bool is_infer = true, bool is_simulate = true,
+	void build(bool is_infer = true,
 			   std::string params_file = UNDEFINED, std::string data_file = UNDEFINED,
 			   std::string augm_file = UNDEFINED, std::string setup_file = UNDEFINED,
-			   std::string extra_file = UNDEFINED);
+			   std::string extra_file = UNDEFINED, bool verbose = true);
 
 	//=====General Initialization=====//
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
@@ -126,7 +126,7 @@ public:
 	//=====Simulate=====//
 	virtual void simulate_single_house(int h);
 	virtual void format_augmented_data() {};
-	void simulation();
+	void simulation(std::string output_filename);
 
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);

@@ -1,6 +1,6 @@
-# Tutorial of the *hemirt* Rcpp Package
+# *hemirt* : Package Tutorial
 
-The purpose of this practical session is to present *hemirt* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study epidemiological data from household outbreaks.
+The purpose of this tutorial is to present *hemirt* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks.
 
 ![](images/pic.001-03.png)
 
@@ -21,7 +21,7 @@ The package requires three main input files to build the model:
 2.  **parameters.csv :** this file includes the initial parameters and priors needed for the Bayesian inference process.
 
     | name  | value | infer | prior   | pargs       | strategy | sargs             | range       |
-    |---------|---------|---------|---------|---------|---------|---------|---------|
+    |-------|-------|-------|---------|-------------|----------|-------------------|-------------|
     | alpha | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
     | ...   |       |       |         |             |          |                   |             |
 
@@ -48,7 +48,7 @@ model_file <- "models/chain_binomial/model.cpp"
 
 # Create a model object using the 'generate_model' function
 # this can take a few minutes...
-hemi <- generate_model(model_file)
+hemi <- generate_model(model_file, force = TRUE, quiet = TRUE)
 
 ```
 
@@ -63,7 +63,8 @@ build_model(
   hemi,
   data = "example/database.csv",
   params = "example/parameters.csv",
-  setup = "example/setup.csv"
+  setup = "example/setup.csv",
+  verbose = TRUE
 )
 
 ```
@@ -72,7 +73,21 @@ Try to change setup and parameter from the files.
 
 **Note:** openMP is unsupported on macOS without a custom compiler, thus the option `num_threads` could stay inactive.
 
-## Running Inference and Analyzing Results
+## Simulation
+
+To run the model and perform inference, we execute the function 'run_hemirt_infer'. This method will return a 'coda' object which can then be used to analyze the results.
+
+```{r}
+
+# Run inference on the model and obtain results as a coda mcmc object
+synth <- run_hemirt_simulate(hemi)
+head(synth)
+
+```
+
+The inference process returns the Watanabe-Akaike Information Criterion *WAIC*.
+
+## Inference
 
 To run the model and perform inference, we execute the function 'run_hemirt_infer'. This method will return a 'coda' object which can then be used to analyze the results.
 
@@ -86,7 +101,7 @@ mcmc <- window(mcmc, start=1000)
 
 ```
 
-The infecerence process returns the Watanabe-Akaike Information Criterion *WAIC*.
+The inference process returns the Watanabe-Akaike Information Criterion *WAIC*.
 
 ```{r}
 

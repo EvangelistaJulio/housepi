@@ -168,7 +168,7 @@ void recursive_combinations_span(usi N, usi k, vec_usi &current, usi start, usi 
 	}
 }
 
-/* Store in the Look Up Table all combinations of N elements in k positions. */
+/* Store all combinations + complement of N elements in k positions. */
 void store_combinations(const usi N, const usi k)
 {
 	// Generate combinations with the recurisve algorithm
@@ -176,12 +176,14 @@ void store_combinations(const usi N, const usi k)
 	vec_usi current(N, 0); // initialize to impossible value (not in [1, N])
 	recursive_combinations_span(N, k, current, 1, 1, results);
 
+	// Store all results inside the Lookup Table
 	unsigned c = 0;
 	for (vec_usi current : results)
 	{
-		// store the generated combination + complement
-		Combinations_LUT[N][k][c] = new unsigned short[N];
-		for (short i = 0; i < N; i++)
+		Combinations_LUT[N][k][c] = new usi[N];
+
+		// store current combination + complement
+		for (usi i = 0; i < N; i++)
 		{
 			Combinations_LUT[N][k][c][i] = current[i];
 		}

@@ -14,6 +14,9 @@
 //' @field inference Perform inference on the model \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
 //' }
+//' @field simulation Perform simulation on the model \itemize{
+//'   \item Parameter: output_file - The file path where the output will be saved
+//' }
 //' @export
  
 #include <Rcpp.h>
@@ -27,7 +30,8 @@ RCPP_MODULE(model_hemirt12345)
  class_<MCMC>("MCMC_hemirt12345")
    .constructor("Default constructor")
    .method("build", &MCMC::build, "Construct the model with various configuration files and flags.")
-   .method("inference", &MCMC::inference, "Perform inference on the model and save results to a specified file.");
+   .method("inference", &MCMC::inference, "Perform inference and save results to file.")
+   .method("simulation", &MCMC::simulation, "Perform simulation and save results to file.");
  
  class_<Model>("Model_hemirt12345")
    .constructor("Default constructor")

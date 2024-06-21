@@ -15,13 +15,13 @@
 //------------------------------------------------- \/ -------------------------------------------------------//
 
 /* The logarithm of the community escape probability. */
-double Model::log_community_escape_probability() 
+double Model::log_community_escape_probability()
 {
 	return -get_value("alpha");
 }
 
 /* The logarithm of the person-to-person escape probability. */
-double Model::log_person_to_person_escape_probability() 
+double Model::log_person_to_person_escape_probability()
 {
 	return -get_value("beta");
 }
@@ -40,115 +40,17 @@ double Model::log_person_to_person_escape_probability()
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 
-// auxiliary global variable
-std::map<int, std::vector<gentype>> Generations_Lookup_Table = {};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////// Auxiliary Functions ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Standard definition for the factorial. */
-unsigned factorial(unsigned n)
-{
-	unsigned result = 1;
-	for (unsigned i = 2; i <= n; i++)
-	{
-		result *= i;
-	}
-	return result;
-}
-
-/* All possible ranked offspring generations for a given number of infected individuals n > 0.
-
-	e.g.
-	----
-	n_infec = 3
-	return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
-*/
-std::vector<gentype> generation_span(int n)
-{
-	int root = n - 1;
-	std::vector<gentype> output(1, gentype(n, 0));
-
-	while (root > 0)
-	{
-		for (gentype g : generation_span(n - root))
-		{
-			gentype temp(root, 0);
-			for (int i = 0; i < n - root; i++)
-			{
-				g[i] += 1;
-			}
-			temp.insert(temp.end(), g.begin(), g.end());
-			output.push_back(temp);
-		}
-		root--;
-	}
-
-	return output;
-}
-
-/* Count-compression of all possible ranked offpsring generations. */
-std::vector<gentype> generation_count_span(int n)
-{
-	std::vector<gentype> output = {};
-	for (gentype g : generation_span(n))
-	{
-		// I take advantage of the order granted by the map
-		std::map<int, int> freq_map = {};
-		for (int val : g)
-		{
-			if (freq_map.find(val) != freq_map.end())
-			{
-				freq_map[val]++;
-			}
-			else
-			{
-				freq_map.emplace(val, 1);
-			}
-		}
-
-		gentype counts = {};
-		for (const auto &pair : freq_map)
-		{
-			counts.push_back(pair.second);
-		}
-		output.push_back(counts);
-	}
-
-	return output;
-}
-
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-
 /* Initialize the Lookup Table. */
 void Model::initialize_model()
 {
-	// Unknown status are not modeled 
+	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)
 	{
 		raise_error_message("A missing status was found : incompatible with the model.");
 	}
 
-	//=====Find maximum possible number of sero-positives=====//
-	int max_num = 0, aux = 0;
-	for (int h = 0; h < num_househ; h++)
-	{
-		aux = househ[h].infectious_list.size();
-		max_num = (aux > max_num) ? aux : max_num;
-	}
-
 	//=====Initialize look-up-table to largest possible value=====//
-	Generations_Lookup_Table.emplace(0, std::vector<gentype>());
-	for (int n = 1; n <= max_num; n++)
-	{
-		Generations_Lookup_Table.emplace(n, generation_count_span(n));
-	}
+	bax::init_generations_lookuptable(report_data["max.n.HH.cases"]);
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -170,9 +72,9 @@ double Model::compute_single_house_loglike(int h)
 	int hh_size = househ[h].house_size;
 	int n_positive = househ[h].infectious_list.size();
 
-	double log_commu_esc_proba = log_community_escape_probability();				   
-	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba)); 
-	double log_p2p_esc_proba = log_person_to_person_escape_probability();					   
+	double log_commu_esc_proba = log_community_escape_probability();
+	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
+	double log_p2p_esc_proba = log_person_to_person_escape_probability();
 
 	//==============================================//
 	//========Contribution of Sero-Negatives========//
@@ -184,19 +86,14 @@ double Model::compute_single_house_loglike(int h)
 	//========Contribution of Sero-Positives========//
 	//==============================================//
 
-	int multiplicity;
-	double tmp, sero_positive_term;
-
 	if (n_positive > 0)
 	{
-		sero_positive_term = 0.;
+		int counter = 0;
+		double tmp = 0., sero_positive_term = 0.;
 
 		// sum over all possible generations
-		for (gentype gen_counts : Generations_Lookup_Table.at(n_positive))
+		for (bax::gentype gen_counts : bax::Generations_LookupTable.at(n_positive))
 		{
-			// number of equivalent configurations returning the same kind of generation
-			multiplicity = factorial(n_positive) / factorial(gen_counts[0]); // euclidean division
-
 			// GENERATION (0) : infected by community
 			tmp = gen_counts[0] * log_commu_infec_proba;
 			// GENERATION (0) : escaped by community
@@ -208,16 +105,16 @@ double Model::compute_single_house_loglike(int h)
 				// GENERATION (i) : infected by previous generation i - 1
 				tmp += gen_counts[i] * log(1. - exp(gen_counts[i - 1] * log_p2p_esc_proba));
 
-				// GENERATION (i) : escaped from all others generation s.t. 0 <= generation < i - 1
+				// GENERATION (i) : escaped from other generations g, i. e. 0 <= g < i - 1
 				for (size_t j = 0; j < i - 1; j++)
 				{
 					tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
 				}
-
-				multiplicity /= factorial(gen_counts[i]);
 			}
 
-			sero_positive_term += multiplicity * exp(tmp);
+			// times n. of equivalent configurations returning the same kind of generation
+			sero_positive_term += bax::Num_Generations_LookupTable[n_positive][counter] * exp(tmp);
+			counter++;
 		}
 
 		log_likelihood += log(sero_positive_term);
