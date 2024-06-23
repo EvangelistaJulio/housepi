@@ -70,14 +70,14 @@ namespace bax
 		n_infec = 3
 		return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
 	*/
-	std::vector<gentype> generation_span(ushort n)
+	std::vector<gentype> recursive_span_generation(ushort n)
 	{
 		ushort root = n - 1;
 		std::vector<gentype> output(1, gentype(n, 0));
 
 		while (root > 0)
 		{
-			for (gentype g : generation_span(n - root))
+			for (gentype g : recursive_span_generation(n - root))
 			{
 				gentype temp(root, 0);
 				for (int i = 0; i < n - root; i++)
@@ -119,7 +119,7 @@ namespace bax
 			aux_num_lut.clear();
 			aux_gen_lut.clear();
 
-			for (gentype g : generation_span(n))
+			for (gentype g : recursive_span_generation(n))
 			{
 				std::map<ushort, ushort> freq_map = {};
 				gentype counts = {};
@@ -183,7 +183,7 @@ namespace bax
 	Daniel Angel Jimenez
 	https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
 	*/
-	void recursive_combinations_span(ushort N, ushort k, vec_ushort &current, ushort start, ushort loop, std::vector<vec_ushort> &results)
+	void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, ushort start, ushort loop, std::vector<vec_ushort> &results)
 	{
 		if (loop > k)
 		{
@@ -210,7 +210,7 @@ namespace bax
 			for (ushort i = start; i <= N; i++)
 			{
 				current[loop - 1] = i;
-				recursive_combinations_span(N, k, current, i + 1, loop + 1, results);
+				recursive_span_combinations(N, k, current, i + 1, loop + 1, results);
 			}
 		}
 	}
@@ -221,7 +221,7 @@ namespace bax
 		// Generate combinations with the recurisve algorithm
 		std::vector<vec_ushort> results;
 		vec_ushort current(N, 0); // initialize to impossible value (not in [1, N])
-		recursive_combinations_span(N, k, current, 1, 1, results);
+		recursive_span_combinations(N, k, current, 1, 1, results);
 
 		// Store all results inside the Lookup Table
 		unsigned c = 0;
@@ -248,19 +248,19 @@ namespace bax
 				  << "max_N=" << max_N << std::endl;
 		// FLAG-END
 
+		Num_Combin_LookupTable = new unsigned *[max_N + 1];
 		Combinations_LookupTable = new ushort ***[max_N + 1];
-		Num_Combin_LookupTable = new ushort ***[max_N + 1];
 
 		for (ushort N = 0; N <= max_N; N++)
 		{
+			Num_Combin_LookupTable[N] = new unsigned[N];
 			Combinations_LookupTable[N] = new ushort **[N];
-			Num_Combin_LookupTable[N] = new ushort **[N];
 
 			for (ushort k = 0; k < N; k++)
 			{
 				num_combin = binomial_coefficient(N, k);
-				Combinations_LookupTable[N][k] = new ushort *[num_combin];
 				Num_Combin_LookupTable[N][k] = num_combin;
+				Combinations_LookupTable[N][k] = new ushort *[num_combin];
 				store_combinations(N, k);
 			}
 		}

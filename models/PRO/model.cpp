@@ -134,15 +134,16 @@ double Model::compute_single_house_loglike(int h)
 
 	//=====compute the loglikelihood=====//
 	// initialize array of indexes to {1, ..., hh_size}
-	bax::vec_ushort indidx(hh_size);
-	for (ushort i = 1; i <= hh_size; i++)
+	ushort *indidx = new ushort[hh_size];
+	for (ushort i = 0; i < hh_size; i++)
 	{
-		indidx[i - 1] = i;
+		indidx[i] = i + 1;
 	}
 
 	double likelihood = bax::ll_chain_binomial_heterogeneous(
 		hh_size, num_infec, indidx, escape_matrix);
-
+	delete[] indidx;
+	
 	return log(likelihood);
 }
 

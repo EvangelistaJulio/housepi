@@ -27,17 +27,19 @@ namespace bax
     //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // lookup-table with generations
-    extern gentype **Generations_LookupTable;
-    // lookup-table with number of generations
-    extern unsigned *Num_Gener_LookupTable;
-    // lookup-table with n. of multiplicites per generation
-    extern unsigned **Multipl_Gener_LookupTable;
+	//===== Transmission Generations : Lookup Tables =====//
+	// numbers of generations
+	extern unsigned *Num_Gener_LookupTable;
+	// n. of multiplicites per generation
+	extern unsigned **Multipl_Gener_LookupTable;
+	// generation vectors
+	extern gentype **Generations_LookupTable;
 
-    // lookup-table with combinations and complements
-    extern std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
-    // lookup-table with the number of combinations
-    extern std::vector<std::vector<unsigned>> Num_Combinations_LookupTable;
+	//===== Combinations : Lookup Tables =====//
+	// lookup-table to store the number of combinations
+	extern unsigned **Num_Combin_LookupTable;
+	// lookup-table to store combinations and complements
+	extern ushort ****Combinations_LookupTable;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
@@ -47,11 +49,11 @@ namespace bax
     unsigned binomial_coefficient(const ushort N, const ushort k);
 
     // functions for the generations lookup table
-    std::vector<gentype> generation_span(ushort n_infec);
+    std::vector<gentype> recursive_span_generation(ushort n_infec);
     void init_generations_lookuptable(const ushort max_N);
 
     // functions for the combinations lookup table
-    void recursive_combinations_span(ushort N, ushort k, vec_ushort &current, ushort start, ushort loop, std::vector<vec_ushort> &results);
+    void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, ushort start, ushort loop, std::vector<vec_ushort> &results);
     void store_combinations(const ushort N, const ushort k);
     void init_combinations_lookuptable(const ushort max_N);
 
