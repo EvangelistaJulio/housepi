@@ -220,6 +220,8 @@ void MCMC::build_data(std::string pathtofile)
             }
             househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
         }
+        
+        //=====Set Contact Rates=====//
         for (int h = 0; h < num_househ; h++)
         {
             set_rate_per_contact(h);
@@ -232,8 +234,6 @@ void MCMC::build_data(std::string pathtofile)
             aux = househ[h].infectious_list.size();
             report_data["max.n.HH.cases"] = std::max(aux, report_data["max.n.HH.cases"]);
         }
-
-        //=====Produce Household List and Set Contact Rates=====//
 
         //=====Display Database and Model Reports=====//
         display_report();

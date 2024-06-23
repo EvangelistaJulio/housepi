@@ -241,6 +241,12 @@ namespace bax
 	*/
 	double ll_chain_binomial_heterogeneous(ushort N, ushort k, vec_ushort &indidx, std::vector<double> &escape_matrix)
 	{
+
+		// FLAG
+		std::cerr << "INSIDE ll_chain_binomial_heterogeneous "
+				  << "N" << N << " k" << k << std::endl;
+		// FLAG-END
+
 		// product over all infectious of escape matrix for the escaped individuals
 		double esc_product = 1.;
 		for (ushort i = k; i < N; i++)
@@ -290,5 +296,4 @@ namespace bax
 
 		return output;
 	}
-
 }

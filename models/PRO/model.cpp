@@ -113,15 +113,8 @@ void Model::initialize_model()
 		raise_error_message("A missing status was found : incompatible with the model.");
 	}
 
-	//=====Find maximum possible number of sero-positives=====//
-	int max_num = 0, aux = 0;
-	for (int h = 0; h < num_househ; h++)
-	{
-		aux = househ[h].infectious_list.size();
-		max_num = (aux > max_num) ? aux : max_num;
-	}
-
 	//=====Initialize look-up-table to largest possible value=====//
+	int max_num = report_data["max.n.HH.cases"];
 	bax::init_combinations_lookuptable(max_num);
 }
 

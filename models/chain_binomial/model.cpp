@@ -92,7 +92,7 @@ double Model::compute_single_house_loglike(int h)
 		double tmp = 0., sero_positive_term = 0.;
 
 		// sum over all possible generations
-		for (bax::gentype gen_counts : bax::Generations_LookupTable.at(n_positive))
+		for (bax::gentype gen_counts : bax::Generations_LookupTable[n_positive])
 		{
 			// GENERATION (0) : infected by community
 			tmp = gen_counts[0] * log_commu_infec_proba;
