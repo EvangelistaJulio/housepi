@@ -29,7 +29,6 @@ generate_model <- function(model, quiet=TRUE, force=FALSE) {
     
     for (fldr in c("src", "R")) {
       from_path <- file.path(src_dir, fldr)
-      dir.create(to_path, recursive=TRUE, showWarnings = FALSE)
       file.copy(from_path, new_dir, recursive=TRUE, overwrite = TRUE)
     }
     
@@ -100,7 +99,8 @@ build_model <- function (
     augm = "None", 
     setup = "None", 
     extra = "None",
-    is_infer = TRUE
+    is_infer = TRUE,
+    verbose = TRUE
 ) {
   
   if (params == "None") {
@@ -111,9 +111,9 @@ build_model <- function (
     stop("Paramter file can't be undefined.")
   }
   
-  x$build(is_infer, !is_infer,
+  x$build(is_infer, 
           params, data, augm,
-          setup, extra)
+          setup, extra, verbose)
 }
 
 #' Run the inference
@@ -128,4 +128,19 @@ run_hemirt_infer <- function(x) {
   unlink(temp_output_file)
   
   return(coda::as.mcmc(mcmc_data))
+}
+
+
+#' Run the simulation
+#'
+#' @param x user model object
+#' 
+#' @returns Return a data frame
+run_hemirt_simulate <- function(x) {
+  temp_output_file <- tempfile(fileext = "csv")
+  x$simulation(temp_output_file)
+  data <- read.csv(temp_output_file, header = TRUE)
+  unlink(temp_output_file)
+  
+  return(data)
 }

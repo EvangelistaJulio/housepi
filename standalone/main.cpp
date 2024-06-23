@@ -33,7 +33,8 @@ int main(int argc, char *argv[])
     int carg_i = 1;   // command line argument iterator
     std::string carg; // command line argument
 
-    bool is_infer = true;    // inference option
+    bool verbose = false;     // print relavent information to stdout
+    bool is_infer = true;     // inference option
     bool is_simulate = false; // simulation option
 
     // paths/to/files
@@ -68,6 +69,11 @@ int main(int argc, char *argv[])
             oss << "We apologize for the inconvenience, but the Software Manual is still missing.\n"
                 << "Please, contact the developer.";
             raise_error_message(oss);
+        }
+
+        else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
+        {
+            verbose = true;
         }
 
         else if (carg == std::string("-infer"))
@@ -128,11 +134,15 @@ int main(int argc, char *argv[])
     // Initialize Model object with user defined derived class
     Model user_model;
 
+    if (is_infer && is_simulate)
+    {
+        raise_error_message("Incompatible commands: choose one between -infer and -simulate.");
+    }
     user_model.build(
-        is_infer, is_simulate,
+        is_infer,
         params_file, data_file,
         augm_file, setup_file,
-        extra_file);
+        extra_file, verbose);
 
     //=====EXECUTION=====//
 
@@ -143,15 +153,7 @@ int main(int argc, char *argv[])
     }
     else
     { // Simulation Study
-        if (output_pathtofile == UNDEFINED)
-        {
-            raise_error_message("Undefined output file.");
-        }
-        else
-        {
-            user_model.simulation();
-            user_model.print_augm_variables(output_pathtofile);
-        }
+        user_model.simulation(output_pathtofile);
     }
 
     return EXIT_SUCCESS;
