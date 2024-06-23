@@ -88,12 +88,13 @@ double Model::compute_single_house_loglike(int h)
 
 	if (n_positive > 0)
 	{
-		int counter = 0;
-		double tmp = 0., sero_positive_term = 0.;
-
 		// sum over all possible generations
-		for (bax::gentype gen_counts : bax::Generations_LookupTable[n_positive])
+		double  sero_positive_term = 0., tmp = 0.;
+		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive]; c++)
 		{
+			// reference to the LUT
+			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive][c];
+
 			// GENERATION (0) : infected by community
 			tmp = gen_counts[0] * log_commu_infec_proba;
 			// GENERATION (0) : escaped by community
@@ -113,8 +114,7 @@ double Model::compute_single_house_loglike(int h)
 			}
 
 			// times n. of equivalent configurations returning the same kind of generation
-			sero_positive_term += bax::Num_Generations_LookupTable[n_positive][counter] * exp(tmp);
-			counter++;
+			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive][c] * exp(tmp);
 		}
 
 		log_likelihood += log(sero_positive_term);

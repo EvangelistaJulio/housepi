@@ -11,15 +11,23 @@ namespace bax
 	//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// lookup-table with generations
-	std::vector<std::vector<gentype>> Generations_LookupTable;
-	// lookup-table with number of generations
-	std::vector<std::vector<unsigned>> Num_Generations_LookupTable;
+	//===== Transmission Generations : Lookup Tables =====//
+	// numbers of generations
+	unsigned *Num_Gener_LookupTable;
+	// n. of multiplicites per generation
+	unsigned **Multipl_Gener_LookupTable;
+	// generation vectors
+	gentype **Generations_LookupTable;
 
-	// lookup-table to store combinations and complements
-	std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable = {};
+	//===== Combinations : Lookup Tables =====//
 	// lookup-table to store the number of combinations
-	std::vector<std::vector<unsigned>> Num_Combinations_LookupTable;
+	unsigned **Num_Combin_LookupTable;
+	// lookup-table to store combinations and complements
+	ushort ****Combinations_LookupTable;
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/* Standard definition for the factorial. */
 	unsigned factorial(unsigned n)
@@ -50,6 +58,10 @@ namespace bax
 			return result;
 		}
 	}
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////  TRANSMISSION GENERATIONS  ///////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/* All possible ranked offspring generations for a given number of infected individuals n > 0.
 
@@ -84,16 +96,29 @@ namespace bax
 	/* Initialize the Look Up Table of count-compressed generations */
 	void init_generations_lookuptable(const ushort max_N)
 	{
-		Num_Generations_LookupTable.resize(max_N + 1);
-		Generations_LookupTable.resize(max_N + 1);
+		// Allocate LUT memory
+		Num_Gener_LookupTable = new unsigned[max_N + 1];
+		Multipl_Gener_LookupTable = new unsigned *[max_N + 1];
+		Generations_LookupTable = new gentype *[max_N + 1];
 
-		// Empty generation
-		Num_Generations_LookupTable[0] = {0};
-		Generations_LookupTable[0] = std::vector<gentype>();
+		// Empty generation n = 0
+		// note : just for access clarity
+		Num_Gener_LookupTable[0] = 0;
+		Multipl_Gener_LookupTable[0] = new unsigned[1];
+		Multipl_Gener_LookupTable[0][0] = 0;
+		Generations_LookupTable[0] = new gentype[1];
+		Generations_LookupTable[0][0] = {};
 
 		// Count-compression of all possible ranked offpsring generations.
+		size_t tot_num_gen = 0;
+		std::vector<unsigned> aux_num_lut;
+		std::vector<gentype> aux_gen_lut;
+
 		for (int n = 1; n <= max_N; n++)
 		{
+			aux_num_lut.clear();
+			aux_gen_lut.clear();
+
 			for (gentype g : generation_span(n))
 			{
 				std::map<ushort, ushort> freq_map = {};
@@ -121,8 +146,22 @@ namespace bax
 				}
 
 				// add to the list
-				Generations_LookupTable[n].push_back(counts);
-				Num_Generations_LookupTable[n].push_back(multiplicities);
+				aux_num_lut.push_back(multiplicities);
+				aux_gen_lut.push_back(counts);
+			}
+
+			// allocate lookup table
+			// note : how to obtain tot_num_gen a priori
+			tot_num_gen = aux_gen_lut.size();
+			Num_Gener_LookupTable[n] = tot_num_gen;
+			Multipl_Gener_LookupTable[n] = new unsigned[tot_num_gen];
+			Generations_LookupTable[n] = new gentype[tot_num_gen];
+
+			// copy from auxiliary vectors
+			for (size_t c = 0; c < tot_num_gen; c++)
+			{
+				Multipl_Gener_LookupTable[n][c] = aux_num_lut[c];
+				Generations_LookupTable[n][c] = aux_gen_lut[c];
 			}
 		}
 	}
@@ -188,7 +227,7 @@ namespace bax
 		unsigned c = 0;
 		for (vec_ushort current : results)
 		{
-			Combinations_LookupTable[N][k][c].resize(N);
+			Combinations_LookupTable[N][k][c] = new ushort[N];
 
 			// store current combination + complement
 			for (ushort i = 0; i < N; i++)
@@ -204,20 +243,24 @@ namespace bax
 	{
 		unsigned num_combin;
 
-		Combinations_LookupTable.resize(max_N + 1);
-		Num_Combinations_LookupTable.resize(max_N + 1);
+		// FLAG
+		std::cerr << "INSIDE init_combinations_lookuptable "
+				  << "max_N=" << max_N << std::endl;
+		// FLAG-END
+
+		Combinations_LookupTable = new ushort ***[max_N + 1];
+		Num_Combin_LookupTable = new ushort ***[max_N + 1];
 
 		for (ushort N = 0; N <= max_N; N++)
 		{
-			Combinations_LookupTable[N].resize(N);
-			Num_Combinations_LookupTable[N].resize(N);
+			Combinations_LookupTable[N] = new ushort **[N];
+			Num_Combin_LookupTable[N] = new ushort **[N];
 
 			for (ushort k = 0; k < N; k++)
 			{
 				num_combin = binomial_coefficient(N, k);
-				Combinations_LookupTable[N][k].resize(num_combin);
-				Num_Combinations_LookupTable[N][k] = num_combin;
-
+				Combinations_LookupTable[N][k] = new ushort *[num_combin];
+				Num_Combin_LookupTable[N][k] = num_combin;
 				store_combinations(N, k);
 			}
 		}
@@ -239,9 +282,8 @@ namespace bax
 		indidx : [0 - k) seropositive indexes, [k - N) seronegative indexes. Indexes are [1, N]
 		escape_matrix : probability 'col' escaped from 'row' (including community as index 0)
 	*/
-	double ll_chain_binomial_heterogeneous(ushort N, ushort k, vec_ushort &indidx, std::vector<double> &escape_matrix)
+	double ll_chain_binomial_heterogeneous(ushort N, ushort k, ushort *indidx, std::vector<double> &escape_matrix)
 	{
-
 		// FLAG
 		std::cerr << "INSIDE ll_chain_binomial_heterogeneous "
 				  << "N" << N << " k" << k << std::endl;
@@ -287,7 +329,7 @@ namespace bax
 
 		for (ushort k = 0; k < N; k++)
 		{
-			for (unsigned c = 0; c < Num_Combinations_LookupTable[N][k]; c++)
+			for (unsigned c = 0; c < Num_Combin_LookupTable[N][k]; c++)
 			{
 				output -= ll_chain_binomial_heterogeneous(
 					N, k, Combinations_LookupTable[N][k][c], escape_matrix);

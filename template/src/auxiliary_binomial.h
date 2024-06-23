@@ -28,9 +28,12 @@ namespace bax
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     // lookup-table with generations
-    extern std::vector<std::vector<gentype>> Generations_LookupTable;
+    extern gentype **Generations_LookupTable;
     // lookup-table with number of generations
-    extern std::vector<std::vector<unsigned>> Num_Generations_LookupTable;
+    extern unsigned *Num_Gener_LookupTable;
+    // lookup-table with n. of multiplicites per generation
+    extern unsigned **Multipl_Gener_LookupTable;
+
     // lookup-table with combinations and complements
     extern std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
     // lookup-table with the number of combinations
@@ -42,7 +45,7 @@ namespace bax
 
     unsigned factorial(unsigned n);
     unsigned binomial_coefficient(const ushort N, const ushort k);
-    
+
     // functions for the generations lookup table
     std::vector<gentype> generation_span(ushort n_infec);
     void init_generations_lookuptable(const ushort max_N);
@@ -54,7 +57,7 @@ namespace bax
 
     // recursive likelihood formulation
     double recursive_function(ushort N, std::vector<double> &scape_matrix);
-    double ll_chain_binomial_heterogeneous(ushort N, ushort k, vec_ushort &indidx, std::vector<double> &escape_matrix);
+    double ll_chain_binomial_heterogeneous(ushort N, ushort k, ushort *indidx, std::vector<double> &escape_matrix);
 
 }
 #endif // AUXILIARY_BINOMIAL__H

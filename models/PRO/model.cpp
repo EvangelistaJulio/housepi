@@ -133,11 +133,15 @@ double Model::compute_single_house_loglike(int h)
 	fill_house_escape_matrix(h, escape_matrix);
 
 	//=====compute the loglikelihood=====//
-	// initialize array of indexes to {1, ..., hh_size} // FIXME
-	// bax::vec_ushort indidx = bax::Combinations_LookupTable[hh_size][0][0];
-	double likelihood = bax::ll_chain_binomial_heterogeneous(hh_size, num_infec,
-															 bax::Combinations_LookupTable[hh_size][0][0],
-															 escape_matrix);
+	// initialize array of indexes to {1, ..., hh_size}
+	bax::vec_ushort indidx(hh_size);
+	for (ushort i = 1; i <= hh_size; i++)
+	{
+		indidx[i - 1] = i;
+	}
+
+	double likelihood = bax::ll_chain_binomial_heterogeneous(
+		hh_size, num_infec, indidx, escape_matrix);
 
 	return log(likelihood);
 }
