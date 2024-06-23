@@ -1,44 +1,53 @@
+# Standalone Makefile
+
+# temporay : added a DEBUG mode
+DEBUG ?= 0
+
 # If MODEL is not provided, set a default value
-MODEL ?= ../models/chain_binomial/user_model.cpp
+MODEL ?= ../models/chain_binomial/model.cpp
 
 # Trim the file extension
 NAME := $(notdir $(basename $(MODEL)))
 FLDR := $(shell dirname ${MODEL})
 MODEL_HEADER := $(NAME).h
 
-# List of source files as found in the software directory
+# Lost of source files with exclusions
 SRC := ../template/src
 EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/user_model.cpp
 SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp) $(FLDR)/$(NAME).cpp main.cpp)
 
-# Object files to build (automatically generated from SRCS)
+# Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
 
 # Executable name
 EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # Compilation flags
-CXXFLAGS := -Ofast -Wall -Wextra -std=gnu++11
-
-# Change openMP options according to the operating system
-ifeq ($(shell uname -s),Linux)
-	CXX := g++
-	CXXFLAGS += -fopenmp
-else ifeq ($(shell uname -s),Darwin)
-	ifeq ($(shell command -v brew),)
-		$(info Homebrew is not installed. Falling back to default.)
-		CXX := g++
-	else
-		ifeq ($(shell brew list --versions llvm),)
-			$(info LLVM is not installed via Homebrew. Falling back to default.)
-			CXX := g++
-		else
-			CXX := $(shell brew --prefix)/opt/llvm/bin/clang++
-			CXXFLAGS += -fopenmp -I$(shell brew --prefix)/opt/llvm/include
-		endif
-	endif	
+CXXFLAGS := -Wall -Wextra -std=gnu++11
+ifeq ($(DEBUG), 1)
+CXXFLAGS += -g -O2
 else
-	$(error Unsupported operating system.)
+CXXFLAGS += -Ofast 
+# Change openMP flags according to OS
+ifeq ($(shell uname -s),Linux)
+CXX := g++
+CXXFLAGS += -fopenmp
+else ifeq ($(shell uname -s),Darwin)
+ifeq ($(shell command -v brew),)
+$(info Homebrew is not installed. Falling back to default.)
+CXX := g++
+else
+ifeq ($(shell brew list --versions llvm),)
+$(info LLVM is not installed via Homebrew. Falling back to default.)
+CXX := g++
+else
+CXX := $(shell brew --prefix)/opt/llvm/bin/clang++
+CXXFLAGS += -fopenmp -I$(shell brew --prefix)/opt/llvm/include
+endif
+endif	
+else
+$(error Unsupported operating system.)
+endif
 endif
 
 # Make rules
