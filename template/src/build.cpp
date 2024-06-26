@@ -220,13 +220,13 @@ void MCMC::build_data(std::string pathtofile)
             }
             househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
         }
-        
+
         //=====Set Contact Rates=====//
         for (int h = 0; h < num_househ; h++)
         {
             set_rate_per_contact(h);
         }
-        
+
         //=====Find maximum possible number of sero-positives=====//
         int aux = 0;
         for (int h = 0; h < num_househ; h++)
@@ -322,7 +322,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 /////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Set contact rate according to user assignement. 
+/* Set contact rate according to user assignement.
 FIXME : is it necessary occupy this space even if all REFERENCE?
 */
 void MCMC::set_rate_per_contact(int h)
@@ -651,7 +651,7 @@ void MCMC::init_augmented_variables()
 /* Read Setup file */
 void MCMC::build_setup(std::string pathtofile, bool is_infer)
 {
-    int num_threads = 1;
+    unsigned num_threads = 1;
 
     display_decorator("Setup");
     if (pathtofile != UNDEFINED)
@@ -672,7 +672,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                 //=====NAME=====//
                 if (!getline(iss, name, C_DELIM))
                 {
-                    raise_error_message("Unable to extract setup name.\nCheck file line: " + line);
+                    raise_error_message("Unable to extract setup entry.\nCheck file line: " + line);
                 }
 
                 //=====CHOICE=====//
@@ -695,15 +695,11 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
             if ((safe_load.find("seed") == safe_load.end()) || (safe_load.at("seed") == UNDEFINED))
             {
                 auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-                setup_seed = static_cast<long long>(time_now);
+                setup_seed = static_cast<unsigned long long>(time_now);
             }
             else
             {
-                setup_seed = std::stoi(safe_load.at("seed"));
-                if (setup_seed < 1)
-                {
-                    raise_error_message("Setup value of `seed` must be " + UNDEFINED + " (default) or greater than 0.");
-                }
+                setup_seed = std::stoull(safe_load.at("seed"));
             }
 
             if (is_infer)
@@ -711,31 +707,19 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                 //-----number of iterations-----//
                 if (safe_load.find("num_iter") != safe_load.end())
                 {
-                    setup_num_iter = std::stoi(safe_load.at("num_iter"));
-                    if (setup_num_iter < 1)
-                    {
-                        raise_error_message("Setup value of `num_iter` must be greater than 1.");
-                    }
+                    setup_num_iter = std::stoul(safe_load.at("num_iter"));
                 }
 
                 //-----number of finite adaptive iterations-----//
                 if (safe_load.find("num_adapt_iter") != safe_load.end())
                 {
-                    setup_num_adapt_iter = std::stoi(safe_load.at("num_adapt_iter"));
-                    if (setup_num_adapt_iter < 0)
-                    {
-                        raise_error_message("Setup value of `num_adapt_iter` must be greater than 0.");
-                    }
+                    setup_num_adapt_iter = std::stoul(safe_load.at("num_adapt_iter"));
                 }
 
                 //-----thinning-----//
                 if (safe_load.find("thinning") != safe_load.end())
                 {
-                    setup_thinning = std::stoi(safe_load.at("thinning"));
-                    if (setup_thinning < 1)
-                    {
-                        raise_error_message("Setup value of `thinning` must be greater than 1.");
-                    }
+                    setup_thinning = std::stoul(safe_load.at("thinning"));
                 }
 
                 //-----random init parameters-----//
@@ -893,8 +877,8 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            display_decorator("Output::augmented database", 0, '-');
-            display_stdout("save augmented database to:\n" + save_augm_pathtofile);
+            display_decorator("Output::database", 0, '-');
+            display_stdout("save: " + save_augm_pathtofile);
 
             // change format of augmented data
             format_augmented_data();

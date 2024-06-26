@@ -39,7 +39,7 @@ double Model::log_person_to_person_escape_probability()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Single_Introduction_Warning = false;
-bool Single_Member_House_Warning = false;
+bool Single_House_Member_Warning = false;
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -61,7 +61,7 @@ void Model::initialize_model()
 	if (report_data["no.HH.case"] == 0)
 	{
 		raise_warning_message(
-			"Hoseholds without cases are not modeled and will be ignored. Discard them to increase computation time.",
+			"Hoseholds without cases are not modeled and will be ignored. Discard them to improve computation time.",
 			Single_Introduction_Warning);
 	}
 
@@ -69,20 +69,12 @@ void Model::initialize_model()
 	if (report_data["min.HH.size"] == 1)
 	{
 		raise_warning_message(
-			"Hoseholds with one single member are not modeled and will be ignored. Discard them to increase computation time.", 
-			Single_Member_House_Warning);
-	}
-
-	//=====Find maximum possible number of sero-positives=====//
-	int max_num = 0, aux = 0;
-	for (int h = 0; h < num_househ; h++)
-	{
-		aux = househ[h].infectious_list.size();
-		max_num = (aux > max_num) ? aux : max_num;
+			"Hoseholds with one single member are not modeled and will be ignored. Discard them to improve computation time.", 
+			Single_House_Member_Warning);
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_generations_lookuptable(max_num);
+	bax::init_generations_lookuptable(report_data["max.n.HH.cases"]);
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -119,14 +111,12 @@ double Model::compute_single_house_loglike(int h)
 
 	if (n_positive > 1) // single introduction
 	{
-		int multiplicity;
-		double tmp = 0., sero_positive_term = 0.;
-
 		// sum over all possible generations
-		for (bax::gentype gen_counts : bax::Generations_LookupTable.at(n_positive - 1))
+		double  sero_positive_term = 0., tmp = 0.;
+		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive]; c++)
 		{
-			// number of equivalent configurations returning the same kind of generation
-			multiplicity = bax::factorial(n_positive) / bax::factorial(gen_counts[0]); // euclidean division
+			// reference to the LUT
+			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive][c];
 
 			// GENERATION (0) : infected by case zero
 			tmp = gen_counts[0] * log_p2p_infec_proba;
@@ -145,11 +135,10 @@ double Model::compute_single_house_loglike(int h)
 				{
 					tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
 				}
-
-				multiplicity /= bax::factorial(gen_counts[i]);
 			}
 
-			sero_positive_term += multiplicity * exp(tmp);
+			// times n. of equivalent configurations returning the same kind of generation
+			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive][c] * exp(tmp);
 		}
 
 		log_likelihood += log(sero_positive_term);

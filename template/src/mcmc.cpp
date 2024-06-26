@@ -168,9 +168,9 @@ void MCMC::move_all_parameters()
 }
 
 /* Sweep over all model parameters plus adaptive step. */
-void MCMC::move_and_adapt_all_parameters(int step)
+void MCMC::move_and_adapt_all_parameters(unsigned long step)
 {
-    double adapt_ratio = (double)step / setup_num_adapt_iter;
+    double adapt_ratio = static_cast<double>(step) / setup_num_adapt_iter;
 
     for (std::string parID : param_to_be_inferred)
     {
@@ -316,15 +316,15 @@ void MCMC::inference(std::string output_file)
 
     if (setup_num_adapt_iter > 0)
     {
-        int num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
+        unsigned long num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
         // display_decorator("Inference::adaptive", 0, '-');
         display_init_progress_bar("adaptive");
 
         init_move_counts();
-        for (int i = 1; i <= num_adapt_iter_thin; i++)
+        for (unsigned long i = 1; i <= num_adapt_iter_thin; i++)
         {
-            for (int j = 1; j <= setup_thinning; j++)
+            for (unsigned long j = 1; j <= setup_thinning; j++)
             {
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(j + (i - 1) * setup_thinning);
@@ -345,9 +345,9 @@ void MCMC::inference(std::string output_file)
 
         init_move_counts();
         init_model_diagnostics();
-        for (int i = 1; i <= setup_num_prints; i++)
+        for (unsigned long i = 1; i <= setup_num_prints; i++)
         {
-            for (int j = 1; j <= setup_thinning; j++)
+            for (unsigned long j = 1; j <= setup_thinning; j++)
             {
                 move_all_augm_variables();
                 move_all_parameters();
@@ -416,7 +416,7 @@ void MCMC::display_thin_results()
     if (setup_num_iter >= setup_thinning)
     {
         // compute WAIC
-        double samp_var_corr = setup_num_prints / (setup_num_prints - 1.);
+        double samp_var_corr = static_cast<double>(setup_num_prints) / (setup_num_prints - 1.);
         double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
 
         // implement WAIC warning

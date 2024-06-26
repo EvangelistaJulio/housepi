@@ -9,6 +9,7 @@
 
 bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
 bool Disabled_OpenMP_Warning = false;        // warning for attempt to use openmp while disabled
+bool Above_Max_Threads_Warning = false;      // warning for over the threshold n. of threads
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -288,30 +289,38 @@ void Monte_Carlo_Core::assign_parameter(
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
-void Monte_Carlo_Core::set_num_threads(int n)
+void Monte_Carlo_Core::set_num_threads(unsigned n)
 {
-#ifdef _OPENMP
-    if (n < 1)
+    if (n == 0)
     {
         raise_error_message("Number of threads must be equal or greater than 1.");
     }
+
+
+#ifdef _OPENMP
+    unsigned max_detected_threads = omp_get_max_threads();
+    if (n > max_detected_threads)
+    {
+        std::ostringstream oss;
+        oss << "Number of threads " << n << " changed to max amount of detected threads (" << max_detected_threads << ").";
+        raise_warning_message(oss, Above_Max_Threads_Warning);
+        n = max_detected_threads;
+    }
+
+    // declare the global number of omp threads
+    omp_set_num_threads(n);
+    setup_num_threads = n;
+
+    // create different generators for different parallel threads
+    // UPDATE: they are used only to parallelize data augmentantion
+    if (n > 1)
+    {
+        prng_parallel.reserve(n);
+        _prng_method_ = &Monte_Carlo_Core::_prng_parallel_threads_;
+    }
     else
     {
-        // declare the global number of omp threads
-        omp_set_num_threads(n);
-        setup_num_threads = n;
-
-        // create different generators for different parallel threads
-        // UPDATE: they are used only to parallelize data augmentantion
-        if (n > 1)
-        {
-            prng_parallel.reserve(n);
-            _prng_method_ = &Monte_Carlo_Core::_prng_parallel_threads_;
-        }
-        else
-        {
-            _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
-        }
+        _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
     }
 #else
     if (n != 1)
@@ -333,7 +342,7 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
     if (setup_num_threads > 1)
     {
         std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
-        for (int n = 0; n < setup_num_threads; n++)
+        for (unsigned n = 0; n < setup_num_threads; n++)
         {
             prng_parallel[n].seed(seed_generator(prng));
         }

@@ -31,11 +31,11 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	int setup_num_iter = 10000;			// n. iterations
-	int setup_num_adapt_iter = 0;		// n. (finite) adaptive steps
-	int setup_thinning = 1;				// n. thinning iterations
-	int setup_num_prints = 0;			// n. prints
-	long long setup_seed = 1;			// random seed
+	ulong setup_num_iter = 10000;		// n. iterations
+	ulong setup_num_adapt_iter = 0;		// n. (finite) adaptive steps
+	ulong setup_thinning = 1;			// n. thinning iterations
+	ulong setup_num_prints = 0;			// n. prints (just internal)
+	unsigned long long setup_seed = 1;	// random seed
 	double setup_inv_tmprt = 1.0;		// inverse temperature
 	bool setup_rnd_init_params = false; // random initialization of parameters
 
@@ -63,15 +63,13 @@ protected:
 	std::map<std::string, std::map<std::string, int>> report_model = {};
 
 public:
-	MCMC()
-	{
-		//display_decorator("Household Survey EPI Modeling");
-		//display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
+	MCMC(){
+		// display_decorator("Household Survey EPI Modeling");
+		// display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
 	};
-	virtual ~MCMC()
-	{
-		//display_decorator("END");
-		//display_stdout("\n");
+	virtual ~MCMC(){
+		// display_decorator("END");
+		// display_stdout("\n");
 	};
 
 	//=====Build data and parameters=====//
@@ -115,7 +113,7 @@ public:
 	double single_household_augm_move(int h);
 	double get_augm_accept_rate(std::string augmID);
 	void move_all_augm_variables();
-	void move_and_adapt_all_parameters(int step);
+	void move_and_adapt_all_parameters(ulong step);
 	void init_model_diagnostics();
 	void update_model_diagnostics();
 	void display_thin_results();

@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     std::string carg; // command line argument
 
     bool verbose = false;     // print relavent information to stdout
-    bool is_infer = true;     // inference option
+    bool is_infer = false;     // inference option
     bool is_simulate = false; // simulation option
 
     // paths/to/files
