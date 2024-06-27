@@ -8,6 +8,8 @@
 #include <map>
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 
 // Binomial Auxiliary Namespace
 namespace bax
@@ -34,8 +36,8 @@ namespace bax
 
         EscapePattern(ushort N_star_) : N_star(N_star_) {}
 
-        double esc_prod(std::vector<double> &esc_mtx);
-        std::string show(bool latex = false);
+        double likelihood(std::vector<double> &esc_mtx);
+        std::string show();
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,9 +60,9 @@ namespace bax
 
     //===== EscapePatterns : Lookup Tables =====//
     // lookup-table to store the number of combinations
-    extern std::vector<EscapePattern> Chain_Binomial_Heter_LookupTable;
+    extern std::vector<EscapePattern> ChainBinomial_LookupTable;
     // lookup-table to store combinations and complements
-    extern std::vector<std::vector<EscapePattern>> Store_Escape_Patterns_LookupTable;
+    extern std::vector<std::vector<EscapePattern>> EscapePatterns_LookupTable;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
@@ -82,6 +84,6 @@ namespace bax
     // recursive likelihood formulation
     void recursive_escape_patterns_function(ushort N_star, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results);
     void init_escape_patterns_lookuptable(const ushort max_N);
-    double chain_binomial_heter_likelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
+    double chain_binomial_heter_loglikelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
 }
 #endif // AUXILIARY_BINOMIAL__H

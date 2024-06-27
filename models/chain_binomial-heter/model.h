@@ -25,12 +25,14 @@ class Model : public MCMC
 {
 	// Override MCMC methods
 	void initialize_model() override;
-	double compute_single_house_loglike(int h) override;	
+	double compute_single_house_loglike(int h) override;
 	void simulate_single_house(int h) override;
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;
 
 	// Model dependent methods
-	void fill_house_escape_matrix(int h, std::vector<double> &escape_matrix);
+	void fill_house_escape_matrix(int h,
+								  std::vector<double> &commu_esc_proba,
+								  std::vector<std::vector<double>> &p2p_esc_proba);
 };
 
 #endif // MODEL__H

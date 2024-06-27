@@ -45,21 +45,29 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 	}
 }
 
-/* The house escape matrix is a flattern vector containing escape probability. */
-void Model::fill_house_escape_matrix(int h, std::vector<double> &escape_matrix)
+/* The person-to-person escape probabilities stored inside a matrix.
+	Important: it must be re-ordered to have seroposatives first. */
+void Model::fill_house_escape_matrix(int h,
+									 std::vector<double> &commu_esc_proba,
+									 std::vector<std::vector<double>> &p2p_esc_proba)
 {
 	int hh_size = househ[h].house_size;
 	double roi;
 
-	// ordered members group rates : 1) infectious, 2) susceptibles
+	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
+	std::vector<double> susc_rates(1., hh_size);
+	std::vector<double> infec_rates(1., hh_size);
 	int count = 0;
-	std::vector<double> susc_rates(1., hh_size), infec_rates(1., hh_size);
+	
+	// 1) ordered members group rates : infectious
 	for (int i : househ[h].infectious_list)
 	{
 		susc_rates[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
 		infec_rates[count] = househ[h].indiv[i].get_group_rate("Infectivity");
 		count++;
 	}
+
+	// 2) ordered members group rates : susceptibles
 	for (int i : househ[h].susceptibles_list)
 	{
 		susc_rates[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
@@ -67,21 +75,21 @@ void Model::fill_house_escape_matrix(int h, std::vector<double> &escape_matrix)
 		count++;
 	}
 
-	// assign values to matrix
+	//----- assign values to matrix -----//
 	for (int i = 0; i < hh_size; i++)
 	{
-		// community terms
-		escape_matrix[i] = exp(-susc_rates[i] * get_value("alpha"));
+		// community : i escaped from community
+		commu_esc_proba[i] = exp(-susc_rates[i] * get_value("alpha"));
 
-		// person-to-person terms
+		// person-to-person : i escaped from k
 		for (int k = 0; k < hh_size; k++)
 		{
 			if (k != i)
 			{
 				roi = get_value("beta") * susc_rates[i] * infec_rates[k];
-				escape_matrix[i + (k + 1) * hh_size] = exp(-roi);
+				p2p_esc_proba[k][i] = exp(-roi);
 			}
-			// else is equal to 1 (by declaration outside)
+			// else is equal to 1 (declared outside, not relevant)
 		}
 	}
 }
@@ -114,8 +122,7 @@ void Model::initialize_model()
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//
-	int max_num = report_data["max.n.HH.cases"];
-	bax::init_combinations_lookuptable(max_num);
+	bax::init_escape_patterns_lookuptable(report_data["max.n.HH.cases"]);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,22 +136,12 @@ double Model::compute_single_house_loglike(int h)
 	int num_infec = househ[h].infectious_list.size();
 
 	//=====Escape Matrix=====//
-	std::vector<double> escape_matrix((hh_size + 1) * hh_size, 1.);
-	fill_house_escape_matrix(h, escape_matrix);
+	std::vector<double> commu_esc_proba(hh_size, 1.);
+	std::vector<std::vector<double>> p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
+	fill_house_escape_matrix(h, commu_esc_proba, p2p_esc_proba);
 
 	//=====compute the loglikelihood=====//
-	// initialize array of indexes to {1, ..., hh_size}
-	ushort *indidx = new ushort[hh_size];
-	for (ushort i = 0; i < hh_size; i++)
-	{
-		indidx[i] = i + 1;
-	}
-
-	double likelihood = bax::ll_chain_binomial_heterogeneous(
-		hh_size, num_infec, indidx, escape_matrix);
-	delete[] indidx;
-	
-	return log(likelihood);
+	return bax::chain_binomial_heter_loglikelihood(num_infec, commu_esc_proba, p2p_esc_proba);
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -166,8 +163,9 @@ void Model::simulate_single_house(int h)
 	std::vector<int> old_infectors_list = {}, new_infectors_list = {};
 
 	//=====Escape Matrix=====//
-	std::vector<double> escape_matrix((hh_size + 1) * hh_size, 1.);
-	fill_house_escape_matrix(h, escape_matrix);
+	std::vector<double> commu_esc_proba(hh_size, 1.);
+	std::vector<std::vector<double>> p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
+	fill_house_escape_matrix(h, commu_esc_proba, p2p_esc_proba);
 
 	//=====INITIALIZE=====//
 	// set all cases to healthy (change infectious to susceptibles)
@@ -181,7 +179,7 @@ void Model::simulate_single_house(int h)
 	store_old_list = househ[h].susceptibles_list;
 	for (int i : store_old_list)
 	{
-		if (uniform() > escape_matrix[i])
+		if (uniform() > commu_esc_proba[i])
 		{
 			househ[h].change_status(i, INFECTIOUS);
 			new_infectors_list.push_back(i);
@@ -201,7 +199,7 @@ void Model::simulate_single_house(int h)
 			{
 				if (househ[h].indiv[i].get_status() == SUSCEPTIBLE)
 				{
-					if (uniform() > escape_matrix[i + (k + 1) * hh_size])
+					if (uniform() > p2p_esc_proba[k][i])
 					{
 						househ[h].change_status(i, INFECTIOUS);
 						new_infectors_list.push_back(i);

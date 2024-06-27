@@ -227,14 +227,6 @@ void MCMC::build_data(std::string pathtofile)
             set_rate_per_contact(h);
         }
 
-        //=====Find maximum possible number of sero-positives=====//
-        int aux = 0;
-        for (int h = 0; h < num_househ; h++)
-        {
-            aux = househ[h].infectious_list.size();
-            report_data["max.n.HH.cases"] = std::max(aux, report_data["max.n.HH.cases"]);
-        }
-
         //=====Display Database and Model Reports=====//
         display_report();
     }
@@ -402,11 +394,13 @@ void MCMC::display_report()
     if (VERBOSE)
     {
         //=====Perform Database Analysis=====//
+        int aux;
         for (int h = 0; h < num_househ; h++)
         {
+            aux = househ[h].infectious_list.size();
             report_data["min.HH.size"] = std::min(househ[h].house_size, report_data["min.HH.size"]);
             report_data["max.HH.size"] = std::max(househ[h].house_size, report_data["max.HH.size"]);
-            int aux = househ[h].infectious_list.size();
+            report_data["max.n.HH.cases"] = std::max(aux, report_data["max.n.HH.cases"]);
             report_data["no.HH.case"] += (aux == 0);
             report_data["lst.1.case"] += (aux > 0);
             report_data["lst.2.case"] += (aux > 1);
@@ -439,6 +433,7 @@ void MCMC::display_report()
             << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
             << std::fixed << std::setprecision(2)
             << " (" << (100.0 * report_data["lst.2.case"] / num_househ) << " %)"
+            << "\n    * max n. cases: " << report_data["max.n.HH.cases"]
             << "\nmin n. house members: " << report_data["min.HH.size"]
             << "\nmax n. house members: " << report_data["max.HH.size"];
         display_stdout(oss);
