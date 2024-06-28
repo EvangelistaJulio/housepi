@@ -161,10 +161,6 @@ int main(int argc, char *argv[])
         user_model.only_compute_loglikelihood();
     }
 
-    // FLAG
-    std::cerr << "\nBEFORE EXIT SUCCESS " << std::endl;
-    // FLAG-END
-
     return EXIT_SUCCESS;
 }
 

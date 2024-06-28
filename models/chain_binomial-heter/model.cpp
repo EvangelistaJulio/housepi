@@ -53,40 +53,38 @@ void Model::fill_house_escape_matrix(int h,
 {
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
 	int hh_size = househ[h].house_size;
-	std::vector<double> susc_rates(1., hh_size);
-	std::vector<double> infec_rates(1., hh_size);
+	std::vector<double> susc_rate(hh_size, 1.);
+	std::vector<double> infec_rate(hh_size, 1.);
 	int count = 0;
 
 	// 1) ordered members group rates : infectious
 	for (int i : househ[h].infectious_list)
 	{
-		susc_rates[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
-		infec_rates[count] = househ[h].indiv[i].get_group_rate("Infectivity");
+		susc_rate[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
+		infec_rate[count] = househ[h].indiv[i].get_group_rate("Infectivity");
 		count++;
 	}
 
 	// 2) ordered members group rates : susceptibles
 	for (int i : househ[h].susceptibles_list)
 	{
-		susc_rates[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
-		infec_rates[count] = househ[h].indiv[i].get_group_rate("Infectivity");
+		susc_rate[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
+		infec_rate[count] = househ[h].indiv[i].get_group_rate("Infectivity");
 		count++;
 	}
 
 	//----- assign values to matrix -----//
-	double roi;
 	for (int i = 0; i < hh_size; i++)
 	{
 		// community : i escaped from community
-		commu_esc_proba[i] = exp(-susc_rates[i] * get_value("alpha"));
+		commu_esc_proba[i] = exp(-susc_rate[i] * get_value("alpha"));
 
 		// person-to-person : i escaped from k
 		for (int k = 0; k < hh_size; k++)
 		{
 			if (k != i)
 			{
-				roi = get_value("beta") * susc_rates[i] * infec_rates[k];
-				p2p_esc_proba[k][i] = exp(-roi);
+				p2p_esc_proba[k][i] = exp(-susc_rate[i] * infec_rate[k] * get_value("beta"));
 			}
 			// else is equal to 1 (declared outside, not relevant)
 		}
@@ -120,19 +118,8 @@ void Model::initialize_model()
 		raise_error_message("A missing status was found : incompatible with the model.");
 	}
 
-
-
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(report_data["max.n.HH.cases"]);
-
-	// FLAG
-	/*
-	int num_infec = report_data["max.n.HH.cases"];
-	std::vector<double> escape_matrix((num_infec + 1) * num_infec, 1.);
-	std::cerr << "sanity check likelihood = " << bax::ChainBinomial_LookupTable[num_infec].likelihood(escape_matrix) << std::endl;
-	std::cerr << "BEFORE chain_binomial_heter_loglikelihood" << std::endl;
-	*/
-	// FLAG-END
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -151,11 +138,6 @@ double Model::compute_single_house_loglike(int h)
 	fill_house_escape_matrix(h, commu_esc_proba, p2p_esc_proba);
 
 	//=====compute the loglikelihood=====//
-	// FLAG
-	std::cerr << "\nINSIDE compute_single_house_loglike " << h << " (id=" << househ[h].get_index() << ")"
-			  << " [" << num_infec << "/" << hh_size << "]" << std::endl;
-	// FLAG-END
-
 	return bax::chain_binomial_heter_loglikelihood(num_infec, commu_esc_proba, p2p_esc_proba);
 }
 

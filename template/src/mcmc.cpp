@@ -344,7 +344,6 @@ void MCMC::inference(std::string output_file)
     {
         unsigned long num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
-        // display_decorator("Inference::adaptive", 0, '-');
         display_init_progress_bar("adaptive");
 
         init_move_counts();
@@ -364,29 +363,25 @@ void MCMC::inference(std::string output_file)
     //=====Monte Carlo Markov Chain execution=====//
     //============================================//
 
-    if (setup_num_prints > 0)
+    display_init_progress_bar("execution");
+
+    init_move_counts();
+    init_model_diagnostics();
+    for (unsigned long i = 1; i <= setup_num_prints; i++)
     {
-        // display_decorator("Inference::execution", (setup_num_adapt_iter > 0), '-');
-        display_init_progress_bar("execution");
-
-        init_move_counts();
-        init_model_diagnostics();
-        for (unsigned long i = 1; i <= setup_num_prints; i++)
+        for (unsigned long j = 1; j <= setup_thinning; j++)
         {
-            for (unsigned long j = 1; j <= setup_thinning; j++)
-            {
-                move_all_augm_variables();
-                move_all_parameters();
-            }
-
-            // compute diagnostics for the previous iterations
-            update_model_diagnostics();
-
-            print_parameters();
-            display_progress_bar("execution", i, setup_num_prints);
+            move_all_augm_variables();
+            move_all_parameters();
         }
-        display_close_progress_bar("execution");
+
+        // compute diagnostics for the previous iterations
+        update_model_diagnostics();
+
+        print_parameters();
+        display_progress_bar("execution", i, setup_num_prints);
     }
+    display_close_progress_bar("execution");
 
     //==========================//
     //=====end of inference=====//
@@ -462,16 +457,6 @@ void MCMC::display_thin_results()
         effec_num_params_waic += p_waic;
     }
 
-    // practical WAIC warning
-    if (is_p_waic_large == true)
-    {
-        std::ostringstream oss;
-        oss << "(" << (static_cast<double>(p_waic_large_count) / num_househ)
-            << "%) p_waic estimates greater than " << p_waic_limit << "."
-            << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
-        raise_warning_message(oss, Large_p_WAIC_Warning);
-    }
-
 #ifndef USE_RCPP
     // parameters (sampled every thinning iterration)
     display_decorator("Inference::results", 0, '-');
@@ -486,6 +471,17 @@ void MCMC::display_thin_results()
         << "\neffective_parameters" << C_DELIM << effec_num_params_waic
         << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
     display_stdout(oss);
+
+    // practical WAIC warning
+    if (is_p_waic_large == true)
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(2) << std::fixed
+            << "(" << (static_cast<double>(p_waic_large_count) / num_househ)
+            << "%) p_waic estimates greater than " << p_waic_limit << "."
+            << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
+        raise_warning_message(oss, Large_p_WAIC_Warning);
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------//

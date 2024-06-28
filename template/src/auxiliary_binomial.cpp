@@ -443,10 +443,8 @@ namespace bax
 											   EscapePatterns_LookupTable[N_star]);
 		}
 
-		// FLAG
-		// deallocate memory of combinations lookup table
-		// clear_combinations_lookuptable();
-		// FLAG-END
+		//----- deallocate memory of combinations lookup table -----//
+		clear_combinations_lookuptable();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------//
@@ -495,10 +493,6 @@ namespace bax
 			// flatten sub-matrix with only seropositives
 			std::vector<double> escape_matrix((N_star + 1) * N_star, 1.);
 
-			// FLAG
-			std::cerr << "sanity check likelihood = " << ChainBinomial_LookupTable[N_star].likelihood(escape_matrix) << std::endl;
-			// FLAG-END
-
 			for (ushort i = 0; i < N_star; i++)
 			{
 				// community : i escaped from community
@@ -514,10 +508,6 @@ namespace bax
 			loglikelihood += std::log(ChainBinomial_LookupTable[N_star].likelihood(escape_matrix));
 		}
 
-		// FLAG
-		std::cerr << "exit check likelihood = " << std::exp(loglikelihood) << std::endl;
-		// FLAG-END
-
 		return loglikelihood;
 	}
 
@@ -531,10 +521,6 @@ namespace bax
 	/* Auxiliary (temporary?) function to perform debugs. */
 	void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 	{
-		// FLAG
-		std::cerr << "INSIDE auxiliary_chain_binomial_debugger " << max_num << std::endl;
-		// FLAG-END
-
 		for (ushort N_star = 0; N_star <= max_num; N_star++)
 		{
 			size_t num_patterns = EscapePatterns_LookupTable[N_star].size();
