@@ -67,8 +67,6 @@ extern bool VERBOSE; // external declaration of verbose global state
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef unsigned short int ushort;
-typedef size_t ulong;                                     // alias for typedef unsigned long int ulong;
 typedef std::map<std::string, double> sdargs;             // string to double arguments (internal)
 typedef std::map<std::string, const double *> sdargs_ext; // string to pointer to double arguments (external)
 typedef std::map<std::string, std::string> ssargs;        // string to string
