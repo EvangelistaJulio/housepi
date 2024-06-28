@@ -277,6 +277,32 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 
     return static_cast<double>(accept_count) / propos_count;
 }
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : display likelihood  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Default method to only compute the loglikelihood and display it. */
+void MCMC::only_compute_loglikelihood()
+{
+    //=====Initialization=====//
+    display_decorator("Loglikelihood");
+
+    //-----random initialization of augmented variables with model-----//
+    init_augmented_variables();
+
+    //-----Initialize model-----//
+    initialize_model();
+    set_global_loglike(compute_global_loglike());
+
+    display_stdout("Loglikelihood = " + std::to_string(get_global_loglike()));
+}
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -286,7 +312,7 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 //------------------------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : methods (inference)  ////////////////////////////////////
+////////////////////////////////////////  MCMC : inference  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
@@ -413,56 +439,53 @@ void MCMC::update_model_diagnostics()
 */
 void MCMC::display_thin_results()
 {
-    if (setup_num_iter >= setup_thinning)
+    // compute WAIC
+    double samp_var_corr = static_cast<double>(setup_num_prints) / (setup_num_prints - 1.);
+    double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
+
+    // implement WAIC warning
+    // Ref: Vhetari et al. (2016) Stat Comput.
+    bool is_p_waic_large = false;
+    int p_waic_large_count = 0;
+    const double p_waic_limit = 0.4;
+
+    // Loop over households
+    for (int h = 0; h < num_househ; h++)
     {
-        // compute WAIC
-        double samp_var_corr = static_cast<double>(setup_num_prints) / (setup_num_prints - 1.);
-        double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
-
-        // implement WAIC warning
-        // Ref: Vhetari et al. (2016) Stat Comput.
-        bool is_p_waic_large = false;
-        int p_waic_large_count = 0;
-        const double p_waic_limit = 0.4;
-
-        // Loop over households
-        for (int h = 0; h < num_househ; h++)
+        log_point_pred_dens += std::log(househ[h].dgn_likelihood);
+        p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * samp_var_corr;
+        if (p_waic > p_waic_limit)
         {
-            log_point_pred_dens += std::log(househ[h].dgn_likelihood);
-            p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * samp_var_corr;
-            if (p_waic > p_waic_limit)
-            {
-                is_p_waic_large = true;
-                p_waic_large_count++;
-            }
-            effec_num_params_waic += p_waic;
+            is_p_waic_large = true;
+            p_waic_large_count++;
         }
+        effec_num_params_waic += p_waic;
+    }
 
-        // practical WAIC warning
-        if (is_p_waic_large == true)
-        {
-            std::ostringstream oss;
-            oss << "(" << (static_cast<double>(p_waic_large_count) / num_househ)
-                << "%) p_waic estimates greater than " << p_waic_limit << "."
-                << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
-            raise_warning_message(oss, Large_p_WAIC_Warning);
-        }
+    // practical WAIC warning
+    if (is_p_waic_large == true)
+    {
+        std::ostringstream oss;
+        oss << "(" << (static_cast<double>(p_waic_large_count) / num_househ)
+            << "%) p_waic estimates greater than " << p_waic_limit << "."
+            << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
+        raise_warning_message(oss, Large_p_WAIC_Warning);
+    }
 
 #ifndef USE_RCPP
-        // parameters (sampled every thinning iterration)
-        display_decorator("Inference::results", 0, '-');
-        display_param_diagnostics();
+    // parameters (sampled every thinning iterration)
+    display_decorator("Inference::results", 0, '-');
+    display_param_diagnostics();
 #endif
-        // diagnostics (sampled every thinning iterration)
-        display_decorator("Inference::diagnostics", 0, '-');
-        std::ostringstream oss;
-        oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
-            << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
-            << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
-            << "\neffective_parameters" << C_DELIM << effec_num_params_waic
-            << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
-        display_stdout(oss);
-    }
+    // diagnostics (sampled every thinning iterration)
+    display_decorator("Inference::diagnostics", 0, '-');
+    std::ostringstream oss;
+    oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
+        << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
+        << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
+        << "\neffective_parameters" << C_DELIM << effec_num_params_waic
+        << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
+    display_stdout(oss);
 }
 
 //------------------------------------------------------------------------------------------------------------//

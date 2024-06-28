@@ -172,6 +172,7 @@ void MCMC::build_data(std::string pathtofile)
                        {"lst.1.case", 0},
                        {"lst.2.case", 0},
                        {"max.n.HH.cases", 0},
+                       {"n.HH.with.max.cases", 0},
                        {"min.HH.size", 1000},
                        {"max.HH.size", 0},
                        {"_n.contacts_", 0}};
@@ -221,10 +222,30 @@ void MCMC::build_data(std::string pathtofile)
             househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
         }
 
-        //=====Set Contact Rates=====//
+        //===== Set Contact Rates and Perform Database Analysis =====//
+        int aux;
         for (int h = 0; h < num_househ; h++)
         {
             set_rate_per_contact(h);
+
+            aux = househ[h].infectious_list.size();
+
+            report_data["min.HH.size"] = std::min(househ[h].house_size, report_data["min.HH.size"]);
+            report_data["max.HH.size"] = std::max(househ[h].house_size, report_data["max.HH.size"]);
+
+            report_data["no.HH.case"] += (aux == 0);
+            report_data["lst.1.case"] += (aux > 0);
+            report_data["lst.2.case"] += (aux > 1);
+
+            if (report_data["max.n.HH.cases"] < aux)
+            {
+                report_data["n.HH.with.max.cases"] = 1;
+                report_data["max.n.HH.cases"] = aux;
+            }
+            else if (report_data["max.n.HH.cases"] == aux)
+            {
+                report_data["n.HH.with.max.cases"] += 1;
+            }
         }
 
         //=====Display Database and Model Reports=====//
@@ -341,32 +362,32 @@ void MCMC::set_rate_per_contact(int h)
         }
     }
 
-    for (int i = 0; i < househ[h].house_size; i++)
+    for (int k = 0; k < househ[h].house_size; k++)
     {
-        for (int k = 0; k < househ[h].house_size; k++)
+        for (int i = 0; i < househ[h].house_size; i++)
         {
-            // note : from `i` --> to `k`
-            if (i != k)
+            // note : from `k` --> to `i`
+            if (k != i)
             {
-                assign_rate_per_contact_to_household(h, i, k);
-                std::string parID = househ[h].which_rate[i][k];
+                assign_rate_per_contact_to_household(h, k, i);
+                std::string parID = househ[h].which_rate[k][i];
 
                 if (parID == UNDEFINED)
                 {
                     std::ostringstream oss;
-                    oss << "Contact rate not provided for individuals " << househ[h].indiv[i].get_index()
-                        << " and " << househ[h].indiv[k].get_index() << " within household " << househ[h].get_index() << ".";
+                    oss << "Contact rate not provided for individuals " << househ[h].indiv[k].get_index()
+                        << " and " << househ[h].indiv[i].get_index() << " within household " << househ[h].get_index() << ".";
                     raise_error_message(oss);
                 }
                 else if (parID == REFERENCE)
                 {
-                    househ[h].set_rate(i, k, get_reference()); // reference rate
+                    househ[h].set_rate(k, i, get_reference()); // reference rate
                     report_model.at(rateID).at("[reference]") += 1;
                 }
                 else
                 {
                     assert_param(parID);
-                    househ[h].set_rate(i, k, get_address(parID)); // parameter rate
+                    househ[h].set_rate(k, i, get_address(parID)); // parameter rate
                     if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
                     {
                         report_model.at(rateID).emplace(parID, 1);
@@ -393,19 +414,6 @@ void MCMC::display_report()
 {
     if (VERBOSE)
     {
-        //=====Perform Database Analysis=====//
-        int aux;
-        for (int h = 0; h < num_househ; h++)
-        {
-            aux = househ[h].infectious_list.size();
-            report_data["min.HH.size"] = std::min(househ[h].house_size, report_data["min.HH.size"]);
-            report_data["max.HH.size"] = std::max(househ[h].house_size, report_data["max.HH.size"]);
-            report_data["max.n.HH.cases"] = std::max(aux, report_data["max.n.HH.cases"]);
-            report_data["no.HH.case"] += (aux == 0);
-            report_data["lst.1.case"] += (aux > 0);
-            report_data["lst.2.case"] += (aux > 1);
-        }
-
         //=================================//
         //=====Display Database Report=====//
         //=================================//
@@ -434,6 +442,8 @@ void MCMC::display_report()
             << std::fixed << std::setprecision(2)
             << " (" << (100.0 * report_data["lst.2.case"] / num_househ) << " %)"
             << "\n    * max n. cases: " << report_data["max.n.HH.cases"]
+            << std::fixed << std::setprecision(2)
+            << " (" << (100.0 * report_data["n.HH.with.max.cases"] / num_househ) << " %)"
             << "\nmin n. house members: " << report_data["min.HH.size"]
             << "\nmax n. house members: " << report_data["max.HH.size"];
         display_stdout(oss);
@@ -703,6 +713,10 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                 if (safe_load.find("num_iter") != safe_load.end())
                 {
                     setup_num_iter = std::stoul(safe_load.at("num_iter"));
+                    if (setup_num_iter < 2)
+                    {
+                        raise_error_message("n. of iterations `num_iter` must be greater than 1. Check your setup file.");
+                    }
                 }
 
                 //-----number of finite adaptive iterations-----//
@@ -715,6 +729,10 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                 if (safe_load.find("thinning") != safe_load.end())
                 {
                     setup_thinning = std::stoul(safe_load.at("thinning"));
+                    if (setup_num_iter < setup_thinning)
+                    {
+                        raise_error_message("n. of iterations `num_iter` must be greater (or equal) to `thinning`. Check yout setup file.");
+                    }
                 }
 
                 //-----random init parameters-----//
@@ -729,7 +747,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                     setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
                     if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
                     {
-                        raise_error_message("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range.");
+                        raise_error_message("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
                     }
                 }
             }

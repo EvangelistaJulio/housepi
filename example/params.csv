@@ -1,9 +1,9 @@
 name,value,infer,prior,pargs,strategy,sargs,range
-alpha,0.5,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-beta,0.5,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-gamma,0.5,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-sus_child,0.5,TRUE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-sus_women,0.5,TRUE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-inf_child,0.5,TRUE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+alpha,0.2,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+beta,0.3,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+gamma,0.85,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+sus_child,0.8,TRUE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+sus_women,1.2,TRUE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+inf_child,1.3,TRUE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
 child_age,12.000,FALSE,,,,,
 typic_size,4.000,FALSE,,,,,

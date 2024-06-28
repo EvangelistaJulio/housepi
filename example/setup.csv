@@ -1,3 +1,4 @@
 seed,576125013
-rnd_init_params,TRUE
-num_adapt_iter,5000
+rnd_init_params,FALSE
+num_adapt_iter,0
+num_iter,0

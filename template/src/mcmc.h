@@ -105,6 +105,7 @@ public:
 	double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
 	virtual double compute_global_loglike();
+	void only_compute_loglikelihood();
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void init_move_counts();

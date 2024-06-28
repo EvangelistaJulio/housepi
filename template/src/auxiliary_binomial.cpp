@@ -3,7 +3,6 @@
 
 #include "auxiliary_binomial.h"
 
-// Binomial Auxiliary Namespace
 namespace bax
 {
 	/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +45,7 @@ namespace bax
 	}
 
 	/* Binomial coefficient of N elements in k positions*/
-	unsigned binomial_coefficient(const ushort N, const ushort k)
+	unsigned binomial_coefficient(ushort N, ushort k)
 	{
 		if ((N == 0) || (k == N))
 		{
@@ -68,20 +67,34 @@ namespace bax
 	///////////////////////////////////  Escape Pattern : Class   ///////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
+	/* Add a new entry for the escape matrix. */
+	void EscapePattern::add_entry(ushort new_entry)
+	{
+		entries.push_back(new_entry);
+		num_entries++;
+	}
+
+	/* Add a new pattern index. */
+	void EscapePattern::add_pattern(ulong new_pattern_idx)
+	{
+		pattern_idxs.push_back(new_pattern_idx);
+		num_patterns++;
+	}
+
 	/* Compute the loglikelihood starting from the current escape pattern.
 		Important : it requires initialization of the lookup table. */
 	double EscapePattern::likelihood(std::vector<double> &esc_mtx)
 	{
 		double output = 1.;
 
-		for (int p : pattern_idxs)
+		for (size_t c = 0; c < num_patterns; c++)
 		{
-			output -= EscapePatterns_LookupTable[N_star][p].likelihood(esc_mtx);
+			output -= EscapePatterns_LookupTable[N_star][pattern_idxs[c]].likelihood(esc_mtx);
 		}
 
-		for (ushort i : entries)
+		for (size_t c = 0; c < num_entries; c++)
 		{
-			output *= esc_mtx[i];
+			output *= esc_mtx[entries[c]];
 		}
 
 		return output;
@@ -92,7 +105,7 @@ namespace bax
 	{
 		std::ostringstream oss;
 
-		for (size_t c = 0; c < entries.size(); c++)
+		for (size_t c = 0; c < num_entries; c++)
 		{
 			ushort u = entries[c];
 			if (u < N_star)
@@ -104,26 +117,26 @@ namespace bax
 				oss << "Q" << u / N_star << "_" << u % N_star + 1;
 			}
 
-			if (c < entries.size() - 1)
+			if (c < num_entries - 1)
 			{
 				oss << "*";
 			}
 		}
 
-		if (!pattern_idxs.empty())
+		if (num_patterns > 0)
 		{
-			if (!entries.empty())
+			if (num_entries > 0)
 			{
 				oss << "*(";
 			}
 
 			oss << "1";
-			for (int p : pattern_idxs)
+			for (size_t c = 0; c < num_patterns; c++)
 			{
-				oss << " - " << EscapePatterns_LookupTable[N_star][p].show();
+				oss << " - " << EscapePatterns_LookupTable[N_star][pattern_idxs[c]].show();
 			}
 
-			if (!entries.empty())
+			if (num_entries > 0)
 			{
 				oss << ")";
 			}
@@ -167,7 +180,7 @@ namespace bax
 	}
 
 	/* Initialize the Look Up Table of count-compressed generations */
-	void init_generations_lookuptable(const ushort max_N)
+	void init_generations_lookuptable(ushort max_N)
 	{
 		// Allocate LUT memory
 		Num_Gener_LookupTable.resize(max_N + 1);
@@ -289,7 +302,7 @@ namespace bax
 	}
 
 	/* Store all combinations + complement of N elements in k positions. */
-	void store_combinations(const ushort N, const ushort k)
+	void store_combinations(ushort N, ushort k)
 	{
 		// Generate combinations with the recurisve algorithm
 		std::vector<vec_ushort> results;
@@ -312,7 +325,7 @@ namespace bax
 	}
 
 	/* Initialize the Look Up Table of combinations and their counts */
-	void init_combinations_lookuptable(const ushort max_N)
+	void init_combinations_lookuptable(ushort max_N)
 	{
 		unsigned num_combin;
 
@@ -351,10 +364,8 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 
 	/*  */
-	void recursive_escape_patterns_function(ushort N_star, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
+	void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
 	{
-		ushort N = (std::sqrt(4 * access_matrix.size() + 1) - 1) / 2;
-
 		for (ushort k = 0; k < N; k++)
 		{
 			for (unsigned c = 0; c < Num_Combin_LookupTable[N][k]; c++)
@@ -366,12 +377,12 @@ namespace bax
 				for (ushort i = k; i < N; i++)
 				{
 					//  community
-					new_child.entries.push_back(access_matrix[indidx[i]]);
+					new_child.add_entry(access_matrix[indidx[i]]);
 
 					// person-to-person
 					for (ushort j = 0; j < k; j++)
 					{
-						new_child.entries.push_back(access_matrix[indidx[i] + N * (indidx[j] + 1)]);
+						new_child.add_entry(access_matrix[indidx[i] + N * (indidx[j] + 1)]);
 					}
 				}
 
@@ -391,12 +402,12 @@ namespace bax
 						inf = indidx[row] + 1; // next infector
 					}
 
-					recursive_escape_patterns_function(N_star, sub_access_matrix, new_child, results);
+					recursive_escape_patterns_function(N_star, k, sub_access_matrix, new_child, results);
 					sub_access_matrix.clear();
 				}
 
 				// attach pattern index
-				father.pattern_idxs.push_back(results.size());
+				father.add_pattern(results.size());
 				// store pattern
 				results.push_back(new_child);
 			}
@@ -404,7 +415,7 @@ namespace bax
 	}
 
 	/* Initialize the Look Up Table of escape patterns and the access object. */
-	void init_escape_patterns_lookuptable(const ushort max_N)
+	void init_escape_patterns_lookuptable(ushort max_N)
 	{
 		//----- lookuptable with all combinations + complements -----//
 		init_combinations_lookuptable(max_N);
@@ -415,24 +426,27 @@ namespace bax
 		EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
 
 		// case N_star > 0
-		for (int N_star = 1; N_star <= max_N; N_star++)
+		for (ushort N_star = 1; N_star <= max_N; N_star++)
 		{
 			vec_ushort access_matrix((N_star + 1) * N_star);
-			for (int i = 0; i < (N_star + 1) * N_star; i++)
+			for (ushort i = 0; i < (N_star + 1) * N_star; i++)
 			{
 				access_matrix[i] = i;
 			}
 
 			// store to lookup table
 			ChainBinomial_LookupTable.emplace_back(N_star);
-			EscapePatterns_LookupTable.push_back({});
-			recursive_escape_patterns_function(N_star, access_matrix,
+			EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
+
+			recursive_escape_patterns_function(N_star, N_star, access_matrix,
 											   ChainBinomial_LookupTable[N_star],
 											   EscapePatterns_LookupTable[N_star]);
 		}
 
+		// FLAG
 		// deallocate memory of combinations lookup table
-		clear_combinations_lookuptable();
+		// clear_combinations_lookuptable();
+		// FLAG-END
 	}
 
 	// -----------------------------------------------------------------------------------------------------------//
@@ -447,12 +461,13 @@ namespace bax
 		Arguments
 		---
 		N_star : n. of seropositves
-		commu_esc_proba : ordered community escape probabilities 
-		p2p_esc_proba : ordered person-to-person escape probabilities 
+		commu_esc_proba : ordered community escape probabilities
+		p2p_esc_proba : ordered person-to-person escape probabilities
 	*/
 	double chain_binomial_heter_loglikelihood(ushort N_star,
 											  std::vector<double> &commu_esc_proba,
 											  std::vector<std::vector<double>> &p2p_esc_proba)
+
 	{
 		ushort hh_size = commu_esc_proba.size();
 		double loglikelihood = 0.;
@@ -478,7 +493,12 @@ namespace bax
 		{ //----- seropositives contribution -----//
 
 			// flatten sub-matrix with only seropositives
-			std::vector<double> escape_matrix((N_star + 1) * N_star, 1);
+			std::vector<double> escape_matrix((N_star + 1) * N_star, 1.);
+
+			// FLAG
+			std::cerr << "sanity check likelihood = " << ChainBinomial_LookupTable[N_star].likelihood(escape_matrix) << std::endl;
+			// FLAG-END
+
 			for (ushort i = 0; i < N_star; i++)
 			{
 				// community : i escaped from community
@@ -494,52 +514,95 @@ namespace bax
 			loglikelihood += std::log(ChainBinomial_LookupTable[N_star].likelihood(escape_matrix));
 		}
 
+		// FLAG
+		std::cerr << "exit check likelihood = " << std::exp(loglikelihood) << std::endl;
+		// FLAG-END
+
 		return loglikelihood;
 	}
+
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+
+	/* Auxiliary (temporary?) function to perform debugs. */
+	void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
+	{
+		// FLAG
+		std::cerr << "INSIDE auxiliary_chain_binomial_debugger " << max_num << std::endl;
+		// FLAG-END
+
+		for (ushort N_star = 0; N_star <= max_num; N_star++)
+		{
+			size_t num_patterns = EscapePatterns_LookupTable[N_star].size();
+			std::cerr << "\n<<" << N_star << ">>"
+					  << " n.terms = " << ((num_patterns == 0) ? 0 : 1 + (num_patterns - 1) / 2) << std::endl;
+
+			//----- elements for the escape matrix -----//
+			std::vector<double> commu_esc_proba(N_star);
+			for (ushort i = 0; i < N_star; i++)
+			{
+				commu_esc_proba[i] = 0.15 + 0.025 * i;
+				if (N_star < limit)
+				{
+					std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
+				}
+			}
+			std::vector<std::vector<double>> p2p_esc_proba(N_star);
+			for (ushort row = 0; row < N_star; row++)
+			{
+				p2p_esc_proba[row].resize(N_star);
+				for (ushort col = 0; col < N_star; col++)
+				{
+					p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
+					if (N_star < limit)
+					{
+						std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
+					}
+				}
+			}
+
+			if (N_star < limit)
+			{
+				std::cerr << ChainBinomial_LookupTable[N_star].show() << std::endl;
+			}
+			auto start = std::chrono::high_resolution_clock::now();
+			std::cerr << "likelihood: " << std::exp(chain_binomial_heter_loglikelihood(N_star, commu_esc_proba, p2p_esc_proba));
+			auto end = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> elapsed = end - start;
+			std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;
+		}
+
+		std::cerr << std::endl;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
+	// -----------------------------------------------------------------------------------------------------------//
 }
 
 /* Debug mode, to check values of the likelihood and print formulation.
 	g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp
-
-#include <chrono>
+	./auxiliary_binomial.o 7
+*/
+/*
 int main(int argc, char *argv[])
 {
-	int max_num = std::stoi(argv[1]);
-	init_escape_patterns_lookuptable(max_num);
+	using namespace bax;
 
-	for (int N_star = 0; N_star <= max_num; N_star++)
+	int max_num = 4;
+	if (argc > 1)
 	{
-		std::cout << "\n<<" << N_star << ">>";
-		std::cout << " n.terms = " << 1 + (EscapePatterns_LookupTable[N_star].size() - 1) / 2 << std::endl;
-
-		//----- elements for the escape matrix -----//
-		std::vector<double> commu_esc_proba(N_star);
-		for (ushort i = 0; i < N_star; i++)
-		{
-			commu_esc_proba[i] = 0.15 + 0.025 * i;
-			std::cout << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
-		}
-
-		std::vector<std::vector<double>> p2p_esc_proba(N_star);
-		for (ushort row = 0; row < N_star; row++)
-		{
-			p2p_esc_proba[row].resize(N_star);
-			for (ushort col = 0; col < N_star; col++)
-			{
-				p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
-				std::cout << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
-			}
-		}
-
-		if (N_star < 5)
-		{
-			std::cerr << ChainBinomial_LookupTable[N_star].show() << std::endl;
-		}
-		auto start = std::chrono::high_resolution_clock::now();
-		std::cerr << chain_binomial_heter_loglikelihood(N_star, commu_esc_proba, p2p_esc_proba);
-		auto end = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed = end - start;
-		std::cout << " | time: " << elapsed.count() << " seconds" << std::endl;
+		max_num = std::stoi(argv[1]);
 	}
+
+	init_escape_patterns_lookuptable(max_num);
+	auxiliary_chain_binomial_debugger(max_num);
 }
 */

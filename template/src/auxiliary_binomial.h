@@ -10,8 +10,8 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 
-// Binomial Auxiliary Namespace
 namespace bax
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,14 +30,21 @@ namespace bax
     class EscapePattern
     {
     public:
-        const ushort N_star;
-        vec_ushort entries = {};
-        std::vector<int> pattern_idxs = {};
-
         EscapePattern(ushort N_star_) : N_star(N_star_) {}
+        ~EscapePattern() {}
 
         double likelihood(std::vector<double> &esc_mtx);
         std::string show();
+        void add_entry(ushort new_entry);
+        void add_pattern(ulong new_pattern_idx);
+
+    private:
+        const ushort N_star;
+        size_t num_entries = 0;
+        size_t num_patterns = 0;
+
+        vec_ushort entries = {};
+        std::vector<ulong> pattern_idxs = {};
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,21 +76,24 @@ namespace bax
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     unsigned factorial(unsigned n);
-    unsigned binomial_coefficient(const ushort N, const ushort k);
+    unsigned binomial_coefficient(ushort N, ushort k);
 
     // functions for the generations lookup table
     std::vector<gentype> recursive_span_generation(ushort n_infec);
-    void init_generations_lookuptable(const ushort max_N);
+    void init_generations_lookuptable(ushort max_N);
 
     // functions for the combinations lookup table
     void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, std::vector<vec_ushort> &results, ushort start, ushort loop);
-    void store_combinations(const ushort N, const ushort k);
-    void init_combinations_lookuptable(const ushort max_N);
+    void store_combinations(ushort N, ushort k);
+    void init_combinations_lookuptable(ushort max_N);
     void clear_combinations_lookuptable();
 
     // recursive likelihood formulation
-    void recursive_escape_patterns_function(ushort N_star, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results);
-    void init_escape_patterns_lookuptable(const ushort max_N);
+    void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results);
+    void init_escape_patterns_lookuptable(ushort max_N);
+
     double chain_binomial_heter_loglikelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
+    void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit = 4);
 }
+
 #endif // AUXILIARY_BINOMIAL__H

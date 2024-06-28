@@ -1,8 +1,5 @@
 # Standalone Makefile
 
-# temporay : added a DEBUG mode
-DEBUG ?= 0
-
 # If MODEL is not provided, set a default value
 MODEL ?= ../models/chain_binomial/model.cpp
 
@@ -24,10 +21,10 @@ EXECUTABLE := $(FLDR)/$(NAME).exe
 
 # Compilation flags
 CXXFLAGS := -Wall -Wextra -std=gnu++11
-ifeq ($(DEBUG), 1)
-CXXFLAGS += -g -O2
+ifdef DEBUG
+CXXFLAGS += -g -O2 -Wno-unknown-pragmas
 else
-CXXFLAGS += -Ofast 
+CXXFLAGS += -Ofast
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)
 CXX := g++
@@ -74,3 +71,9 @@ main.o: main.cpp
 .PHONY: clean
 clean:
 	$(RM) $(OBJECTS)
+
+
+# To run make in a debug mode
+.PHONY: debug
+debug:
+	$(MAKE) DEBUG=1

@@ -21,7 +21,7 @@ The package requires three main input files to build the model:
 2.  **parameters.csv :** this file includes the initial parameters and priors needed for the Bayesian inference process.
 
     | name  | value | infer | prior   | pargs       | strategy | sargs             | range       |
-    |-------|-------|-------|---------|-------------|----------|-------------------|-------------|
+    |---------|---------|---------|---------|---------|---------|---------|---------|
     | alpha | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
     | ...   |       |       |         |             |          |                   |             |
 
@@ -44,7 +44,7 @@ Next, we create an object using the function `generate_model` to initialize the 
 
 ```{r}
 
-model_file <- "models/chain_binomial/model.cpp"
+model_file <- "models/chain_binomial-heter/model.cpp"
 
 # Create a model object using the 'generate_model' function
 # this can take a few minutes...

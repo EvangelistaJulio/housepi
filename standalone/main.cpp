@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     std::string carg; // command line argument
 
     bool verbose = false;     // print relavent information to stdout
-    bool is_infer = false;     // inference option
+    bool is_infer = false;    // inference option
     bool is_simulate = false; // simulation option
 
     // paths/to/files
@@ -138,6 +138,7 @@ int main(int argc, char *argv[])
     {
         raise_error_message("Incompatible commands: choose one between -infer and -simulate.");
     }
+
     user_model.build(
         is_infer,
         params_file, data_file,
@@ -151,10 +152,18 @@ int main(int argc, char *argv[])
         user_model.inference(output_pathtofile);
         user_model.print_augm_variables(save_augm_pathtofile);
     }
-    else
+    else if (is_simulate)
     { // Simulation Study
         user_model.simulation(output_pathtofile);
     }
+    else 
+    { // Compute likelihood
+        user_model.only_compute_loglikelihood();
+    }
+
+    // FLAG
+    std::cerr << "\nBEFORE EXIT SUCCESS " << std::endl;
+    // FLAG-END
 
     return EXIT_SUCCESS;
 }
