@@ -18,8 +18,6 @@ namespace bax
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    typedef size_t ulong;
-    typedef unsigned short int ushort;
     typedef std::vector<ushort> vec_ushort; // alias for a vector of ushort
     typedef std::vector<ushort> gentype; // alias for a generation vector
 
