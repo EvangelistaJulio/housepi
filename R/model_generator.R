@@ -13,8 +13,15 @@ generate_model <- function(model, quiet=TRUE, force=FALSE) {
   
   new_dir <- file.path(tempdir(), basename(dirname(model)), new_name)
   
+  # executable name
   executable <- file.path(new_dir, "src", paste0(new_name, ".so"))
-  if ((force == TRUE) | (!file.exists(executable))) {
+
+  # option to force the removal pf the directory
+  if ((force == TRUE) | (file.exists(executable))) {
+    unlink(new_dir, recursive = TRUE)
+  }
+
+  if (!file.exists(executable)) {
     dir.create(new_dir, recursive=TRUE, showWarnings = FALSE)
     
     # copy the package to the new directory
@@ -92,6 +99,7 @@ generate_model <- function(model, quiet=TRUE, force=FALSE) {
 #' @param setup file path for the setup configurations
 #' @param extra file path for any extra configurations
 #' @param is_infer boolean flag to indicate whether to perform inference
+#' @param verbose boolean flag to suppress automatic prints
 build_model <- function (
     x,
     params = "None",
@@ -102,43 +110,36 @@ build_model <- function (
     is_infer = TRUE,
     verbose = TRUE
 ) {
-  
-  if (params == "None") {
-    stop("Paramter file can't be undefined.")
-  }
-  
-  if (data == "None") {
-    stop("Paramter file can't be undefined.")
-  }
-  
-  x$build(is_infer, 
-          params, data, augm,
-          setup, extra, verbose)
+    
+  x$build(params, data, augm,
+          setup, extra, 
+          is_infer, verbose)
 }
 
 #' Run the inference
 #'
 #' @param x user model object
+#' @param verbose boolean flag to suppress automatic prints
 #' 
 #' @returns Return a coda mcmc.
-run_hemirt_infer <- function(x) {
+run_hemirt_infer <- function(x, verbose = TRUE) {
   temp_output_file <- tempfile(fileext = "csv")
-  x$inference(temp_output_file)
+  x$inference(temp_output_file, verbose)
   mcmc_data <- read.csv(temp_output_file, header = TRUE)
   unlink(temp_output_file)
   
   return(coda::as.mcmc(mcmc_data))
 }
 
-
 #' Run the simulation
 #'
 #' @param x user model object
+#' @param verbose boolean flag to suppress automatic prints
 #' 
 #' @returns Return a data frame
-run_hemirt_simulate <- function(x) {
+run_hemirt_simulate <- function(x, verbose) {
   temp_output_file <- tempfile(fileext = "csv")
-  x$simulation(temp_output_file)
+  x$simulation(temp_output_file, verbose)
   data <- read.csv(temp_output_file, header = TRUE)
   unlink(temp_output_file)
   

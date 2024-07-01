@@ -3,240 +3,208 @@
 
 #include "utils.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Internal helper function to change stdout in case of RCPP. */
-void _helper_stdout_(const std::string &txt)
+// auxiliary namespace for I/O custom functions
+namespace screen
 {
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    std::chrono::steady_clock::time_point _Prog_Bar_Start_;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /* Function to change stdout in case of RCPP. */
+    void print_stdout(const std::string txt)
+    {
 #ifdef USE_RCPP
-    Rcpp::Rcout << txt;
-    Rcpp::Rcout.flush();
+            Rcpp::Rcout << txt;
+            Rcpp::Rcout.flush();
 #else
-    std::cout << txt;
-    std::cout.flush();
+            std::cout << txt;
+            std::cout.flush();
 #endif
-}
+    }
 
-/* Internal helper function to change stderr in case of RCPP. */
-void _helper_stderr_(const std::string &txt)
-{
+    /* Internal helper function to change stderr in case of RCPP. */
+    void _helper_stderr_(const std::string txt)
+    {
 #ifdef USE_RCPP
-    Rcpp::Rcerr << txt;
-    Rcpp::Rcerr.flush();
+        Rcpp::Rcerr << txt;
+        Rcpp::Rcerr.flush();
 #else
-    std::cerr << txt;
-    std::cerr.flush();
+        std::cerr << txt;
+        std::cerr.flush();
 #endif
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool VERBOSE = true; // assign externally defined global variable
-std::chrono::steady_clock::time_point _Prog_Bar_Start_;
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Display a message to stdout (if VERBOSE). */
-void display_stdout(const std::string &txt)
-{
-    if (VERBOSE)
-    {
-        _helper_stdout_(txt + "\n");
     }
-}
-void display_stdout(const char *txt)
-{
-    display_stdout(std::string(txt));
-}
-void display_stdout(const std::ostringstream &oss)
-{
-    display_stdout(oss.str());
-}
 
-/* Display a decorator for a section (if VERBOSE) */
-void display_decorator(const std::string &txt, int skip, char decor)
-{
-    if (VERBOSE)
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /* Display a decorator for a section (if VERBOSE) */
+    void display_decorator(const std::string title, char decor, const std::string txt, bool verbose)
     {
-        //int sx = (DECOR_WIDTH - txt.length()) / 2; // left half bar
-        int sx = 3;
-        int dx = DECOR_WIDTH - txt.length() - sx;  // right half bar
-        _helper_stdout_(std::string(skip, '\n') + std::string(sx, decor) + " " + txt + " " + std::string(dx, decor)  + "\n");
-    }
-}
-void display_decorator(const char *txt, int skip, char decor)
-{
-    display_decorator(std::string(txt), skip, decor);
-}
-void display_decorator(const std::ostringstream &oss, int skip, char decor)
-{
-    display_decorator(oss.str(), skip, decor);
-}
-
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Format the  */
-std::string format_millisecs(long long elapsed)
-{
-    using namespace std::chrono;
-
-    auto dys = duration_cast<duration<int, std::ratio<86400>>>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(dys).count();
-
-    auto hrs = duration_cast<hours>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(hrs).count();
-
-    auto mns = duration_cast<minutes>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(mns).count();
-
-    auto scs = duration_cast<seconds>(milliseconds(elapsed));
-
-    std::ostringstream oss;
-    if (dys.count() > 1)
-    {
-        oss << dys.count() << "d";
-    }
-    if (hrs.count() > 1)
-    {
-        oss << std::setfill('0') << std::setw(2) << hrs.count() << "h";
-    }
-    oss << std::setfill('0') << std::setw(2) << mns.count() << "m"
-        << std::setfill('0') << std::setw(2) << scs.count() << "s";
-
-    return oss.str();
-}
-
-/*  Initialize progress bar. */
-void display_init_progress_bar(const std::string &txt)
-{
-    using namespace std::chrono;
-
-    if (VERBOSE)
-    {
-        std::ostringstream oss;
-        oss << txt + ": [" + std::string(PROGBAR_WIDTH, ' ') + "] "
-            << std::fixed << std::setprecision(2) << 0.0 << " %"
-            << " (00m00s<??m??s)\r";
-        _helper_stderr_(oss.str());
-        _Prog_Bar_Start_ = steady_clock::now();
-    }
-}
-
-/* Display a percentual progress bar (progress/total). */
-void display_progress_bar(const std::string &txt, int progress, int total)
-{
-    using namespace std::chrono;
-
-    if (VERBOSE)
-    {
-        if ((total < PROGBAR_THIN) || (progress % (total / PROGBAR_THIN) == 0))
+        if (verbose)
         {
-            double percentage = static_cast<double>(progress) / total;
-            int where = percentage * PROGBAR_WIDTH;
-            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
-            double time_missing = static_cast<double>(time_elapsed) * (1. - percentage) / percentage;
-
+            int sx = 3;
+            int dx = DECOR_WIDTH - title.length() - sx; // right half bar
             std::ostringstream oss;
-            oss << txt + ": [" + std::string(where, C_DECOR) + std::string(PROGBAR_WIDTH - where, ' ') + "] "
-                << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
-                << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
-                << std::string(20, ' ') + "\r";
+            oss << std::string(sx, decor) << " " << title << " "
+                << std::string(dx, decor) + "\n";
+            if (txt != UNDEFINED)
+            {
+                oss << txt << "\n";
+            }
+            print_stdout(oss.str());
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /* Format the  */
+    std::string format_millisecs(long long elapsed)
+    {
+        using namespace std::chrono;
+
+        auto dys = duration_cast<duration<int, std::ratio<86400>>>(milliseconds(elapsed));
+        elapsed -= duration_cast<milliseconds>(dys).count();
+
+        auto hrs = duration_cast<hours>(milliseconds(elapsed));
+        elapsed -= duration_cast<milliseconds>(hrs).count();
+
+        auto mns = duration_cast<minutes>(milliseconds(elapsed));
+        elapsed -= duration_cast<milliseconds>(mns).count();
+
+        auto scs = duration_cast<seconds>(milliseconds(elapsed));
+
+        std::ostringstream oss;
+        if (dys.count() > 1)
+        {
+            oss << dys.count() << "d";
+        }
+        if (hrs.count() > 1)
+        {
+            oss << std::setfill('0') << std::setw(2) << hrs.count() << "h";
+        }
+        oss << std::setfill('0') << std::setw(2) << mns.count() << "m"
+            << std::setfill('0') << std::setw(2) << scs.count() << "s";
+
+        return oss.str();
+    }
+
+    /* Start progress bar. */
+    void display_progress_bar_start(const std::string &txt, bool verbose)
+    {
+        using namespace std::chrono;
+
+        if (verbose)
+        {
+            std::ostringstream oss;
+            oss << txt + ": [" + std::string(PROGBAR_WIDTH, '.') + "] "
+                << std::fixed << std::setprecision(2) << 0.0 << " %"
+                << " (00m00s<??m??s)\r";
+            _helper_stderr_(oss.str());
+            _Prog_Bar_Start_ = steady_clock::now();
+        }
+    }
+
+    /* Display a percentual progress bar (progress/total). */
+    void display_progress_bar(const std::string &txt, int progress, int total, bool verbose)
+    {
+        using namespace std::chrono;
+
+        if (verbose)
+        {
+            if ((total < PROGBAR_THIN) || (progress % (total / PROGBAR_THIN) == 0))
+            {
+                double percentage = static_cast<double>(progress) / total;
+                int where = percentage * PROGBAR_WIDTH;
+                auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
+                double time_missing = static_cast<double>(time_elapsed) * (1. - percentage) / percentage;
+
+                std::ostringstream oss;
+                oss << txt + ": [" + std::string(where, C_DECOR) + std::string(PROGBAR_WIDTH - where, '.') + "] "
+                    << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
+                    << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
+                    << std::string(20, ' ');
+                _helper_stderr_(oss.str() + "\r");
+            }
+        }
+
+#ifdef USE_RCPP
+        Rcpp::checkUserInterrupt();
+#endif
+    }
+
+    /*  End progress bar. */
+    void display_progress_bar_end(const std::string &txt, bool verbose)
+    {
+        using namespace std::chrono;
+
+        if (verbose)
+        {
+            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
+            std::ostringstream oss;
+            oss << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
+                << std::fixed << std::setprecision(2) << 100.0 << " %"
+                << " (" + format_millisecs(time_elapsed) + ")"
+                << std::string(20, ' ') + "\n";
             _helper_stderr_(oss.str());
         }
     }
-    
-#ifdef USE_RCPP
-    Rcpp::checkUserInterrupt();
-#endif
-}
 
-/*  End progress bar. */
-void display_close_progress_bar(const std::string &txt)
-{
-    using namespace std::chrono;
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------------------------------------------------//
 
-    if (VERBOSE)
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Warning Functions  //////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /* Raise a warning if it wasn't raised before. */
+    void raise_warning(const std::string &txt, bool &is_raised_once)
     {
-        auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
-        std::ostringstream oss;
-        oss << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
-            << std::fixed << std::setprecision(2) << 100.0 << " %"
-            << " (" + format_millisecs(time_elapsed) + ")"
-            << std::string(20, ' ') + "\n";
-        _helper_stderr_(oss.str());
+        if (is_raised_once == false)
+        {
+#ifdef USE_RCPP
+            Rcpp::warning("Warning: " + txt);
+#else
+            std::cerr << "\nWarning: " + txt << std::endl;
+#endif
+            is_raised_once = true;
+        }
     }
-}
 
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Error Functions  ////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Warning Functions  //////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Raise a warning if it wasn't raised before. */
-void raise_warning_message(const std::string &txt, bool &is_raised_once)
-{
-    if (is_raised_once == false)
+    /* Display an error message. */
+    void raise_error(const std::string &txt)
     {
 #ifdef USE_RCPP
-        Rcpp::warning("Warning: " + txt);
+        Rcpp::stop(txt + "\nExit...");
 #else
-        std::cerr << "\nWarning: " + txt << std::endl;
+        std::cerr << "\nError: " + txt + "\nExit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
 #endif
-        is_raised_once = true;
     }
-}
-void raise_warning_message(const char *txt, bool &is_raised_once)
-{
-    raise_warning_message(std::string(txt), is_raised_once);
-}
-void raise_warning_message(const std::ostringstream &oss, bool &is_raised_once)
-{
-    raise_warning_message(oss.str(), is_raised_once);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Error Functions  ////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Display an error message. */
-void raise_error_message(const std::string &txt)
-{
-#ifdef USE_RCPP
-    Rcpp::stop(txt + "\nExit...");
-#else
-    std::cerr << "\nError: " + txt + "\nExit...\n"
-              << std::endl;
-    std::exit(EXIT_FAILURE);
-#endif
-}
-void raise_error_message(const char *txt)
-{
-    raise_error_message(std::string(txt));
-}
-void raise_error_message(const std::ostringstream &oss)
-{
-    raise_error_message(oss.str());
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -280,13 +248,13 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 std::ostringstream Base_Function::message_to_display()
 {
     std::ostringstream oss;
-    oss << get_name() << C_DELIM;
+    oss << get_name() << screen::C_DELIM;
     for (std::size_t i = 0; i < args_name.size() - 1; i++)
     {
-        oss << args_name[i] << C_DICT_DELIM << get_arg(i) << C_DICT_DELIM;
+        oss << args_name[i] << screen::C_DICT_DELIM << get_arg(i) << screen::C_DICT_DELIM;
     }
     int i = args_name.size() - 1;
-    oss << args_name[i] << C_DICT_DELIM << get_arg(i);
+    oss << args_name[i] << screen::C_DICT_DELIM << get_arg(i);
     return oss;
 }
 

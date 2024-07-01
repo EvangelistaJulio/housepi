@@ -43,25 +43,14 @@ using sys_rnd_gen = std::mt19937;
 constexpr int SUSCEPTIBLE = 0; // status of susceptible
 constexpr int INFECTIOUS = 1;  // status of infectious
 
-constexpr char C_DELIM = ',';        // file delimiter
-constexpr char C_DICT_DELIM = '/';   // dictionary delimiter
-constexpr char C_OPTION_DELIM = ':'; // option delimiter
-constexpr char C_DECOR = '=';        // decorator for prints
-
-constexpr int DECOR_WIDTH = 65;   // width of progress bar
-constexpr int PROGBAR_WIDTH = 30; // width of progress bar
-constexpr int PROGBAR_THIN = 241; // thinning of progress bar
-
 constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 constexpr double INF_DOUBLE = 1e10;          // infinity value
 
 constexpr double REFERENCE_VALUE = 1.0;      // auxiliary reference value for the parameters
-const std::string UNDEFINED = "None";        // name for undefined choice
 const std::string REFERENCE = "_reference_"; // name for reference choice
 const std::string CONTACT_RATE = "Contact";  // name for Contact rate
-
-extern bool VERBOSE; // external declaration of verbose global state
+const std::string UNDEFINED = "None";        // name for undefined choice
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
@@ -73,33 +62,47 @@ typedef std::map<std::string, double> sdargs;             // string to double ar
 typedef std::map<std::string, const double *> sdargs_ext; // string to pointer to double arguments (external)
 typedef std::map<std::string, std::string> ssargs;        // string to string
 
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Input/Output Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void display_stdout(const std::string &txt);        // base print stdout
-void display_stdout(const char *txt);               // overload for char array
-void display_stdout(const std::ostringstream &oss); // overload for ostringstream
+namespace screen
+{
+    constexpr char C_DELIM = ',';        // file delimiter
+    constexpr char C_DICT_DELIM = '/';   // dictionary delimiter
+    constexpr char C_OPTION_DELIM = ':'; // option delimiter
+    constexpr char C_DECOR = '=';        // decorator for prints
 
-// print decorator to stdout
-void display_decorator(const std::string &txt, int skip = 0, char decor = C_DECOR);
-void display_decorator(const char *txt, int skip = 0, char decor = C_DECOR);
-void display_decorator(const std::ostringstream &oss, int skip = 0, char decor = C_DECOR);
+    constexpr int DECOR_WIDTH = 65;   // width of progress bar
+    constexpr int PROGBAR_WIDTH = 30; // width of progress bar
+    constexpr int PROGBAR_THIN = 241; // thinning of progress bar
 
-// print progress bar to stdout
-void display_init_progress_bar(const std::string &txt);
-void display_progress_bar(const std::string &txt, int progress, int total);
-void display_close_progress_bar(const std::string &txt);
+    void print_stdout(const std::string txt);
+    void display_decorator(const std::string title,
+                           char decor,
+                           const std::string txt = UNDEFINED,
+                           bool verbose = true);
 
-// print warnings to stderr
-void raise_warning_message(const std::string &txt, bool &is_raised_once);
-void raise_warning_message(const char *txt, bool &is_raised_once);
-void raise_warning_message(const std::ostringstream &oss, bool &is_raised_once);
+    // print progress bar to stdout
+    void display_progress_bar_start(const std::string &txt, bool verbose = true);
+    void display_progress_bar(const std::string &txt, int progress, int total, bool verbose = true);
+    void display_progress_bar_end(const std::string &txt, bool verbose = true);
 
-// print error message to stderr
-void raise_error_message(const std::string &txt);
-void raise_error_message(const char *txt);
-void raise_error_message(const std::ostringstream &oss);
+    // print warnings to stderr
+    void raise_warning(const std::string &txt, bool &is_raised_once);
+
+    // print error message to stderr
+    void raise_error(const std::string &txt);
+
+    std::string percent(int num, int denom);
+}
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -149,7 +152,7 @@ private:
     void _set_arg_ext_(int argID, double new_value)
     {
         UNUSED(new_value);
-        raise_error_message("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
+        screen::raise_error("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
     }
 };
 
@@ -210,7 +213,7 @@ public:
 private:
     double undefined_call_error()
     {
-        raise_error_message("Attempt to call a method of an undefined distribution.");
+        screen::raise_error("Attempt to call a method of an undefined distribution.");
         std::exit(EXIT_FAILURE);
     }
 };
@@ -468,7 +471,7 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     }
     else if (name != UNDEFINED)
     {
-        raise_error_message("Unknown distribution `" + name + "`.");
+        screen::raise_error("Unknown distribution `" + name + "`.");
         std::exit(EXIT_FAILURE);
     }
 

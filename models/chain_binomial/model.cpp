@@ -46,7 +46,7 @@ void Model::initialize_model()
 	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)
 	{
-		raise_error_message("A missing status was found : incompatible with the model.");
+		screen::raise_error("A missing status was found : incompatible with the model.");
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//

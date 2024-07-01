@@ -7,7 +7,8 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Large_p_WAIC_Warning = false; // Warning for unreliable WAIC
+bool Inconmplete_Infer_Diagnostics_Warning = false; // Warning for unreliable WAIC
+bool Large_p_WAIC_Warning = false;                  // Warning for unreliable WAIC
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
@@ -168,7 +169,7 @@ void MCMC::move_all_parameters()
 }
 
 /* Sweep over all model parameters plus adaptive step. */
-void MCMC::move_and_adapt_all_parameters(unsigned long step)
+void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / setup_num_adapt_iter;
 
@@ -289,10 +290,10 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-void MCMC::only_compute_loglikelihood()
+void MCMC::only_compute_loglikelihood(bool verbose)
 {
     //=====Initialization=====//
-    display_decorator("Loglikelihood");
+    screen::display_decorator("Loglikelihood", screen::C_DECOR, UNDEFINED, verbose);
 
     //-----random initialization of augmented variables with model-----//
     init_augmented_variables();
@@ -301,7 +302,11 @@ void MCMC::only_compute_loglikelihood()
     initialize_model();
     set_global_loglike(compute_global_loglike());
 
-    display_stdout("Loglikelihood = " + std::to_string(get_global_loglike()));
+    std::ostringstream oss;
+    oss << "Loglikelihood" << screen::C_DELIM << " "
+        << get_global_loglike() << "\n";
+
+    screen::print_stdout(oss.str());
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -316,11 +321,11 @@ void MCMC::only_compute_loglikelihood()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
-void MCMC::inference(std::string output_file)
+void MCMC::inference(std::string output_file, bool verbose)
 {
     //=====Initialization=====//
-    display_decorator("Inference");
-    // display_decorator("Inference::initialization", 0, '-');
+    screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
+    intern_is_infer_complete = false;
 
     //-----Initialize output file-----//
     init_param_file(output_file);
@@ -344,7 +349,7 @@ void MCMC::inference(std::string output_file)
     {
         unsigned long num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
-        display_init_progress_bar("adaptive");
+        screen::display_progress_bar_start("adaptive", verbose);
 
         init_move_counts();
         for (unsigned long i = 1; i <= num_adapt_iter_thin; i++)
@@ -354,16 +359,16 @@ void MCMC::inference(std::string output_file)
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(j + (i - 1) * setup_thinning);
             }
-            display_progress_bar("adaptive", i, num_adapt_iter_thin);
+            screen::display_progress_bar("adaptive", i, num_adapt_iter_thin, verbose);
         }
-        display_close_progress_bar("adaptive");
+        screen::display_progress_bar_end("adaptive", verbose);
     }
 
     //============================================//
     //=====Monte Carlo Markov Chain execution=====//
     //============================================//
 
-    display_init_progress_bar("execution");
+    screen::display_progress_bar_start("execution", verbose);
 
     init_move_counts();
     init_model_diagnostics();
@@ -379,16 +384,24 @@ void MCMC::inference(std::string output_file)
         update_model_diagnostics();
 
         print_parameters();
-        display_progress_bar("execution", i, setup_num_prints);
+        screen::display_progress_bar("execution", i, setup_num_prints, verbose);
     }
-    display_close_progress_bar("execution");
+    screen::display_progress_bar_end("execution", verbose);
 
     //==========================//
     //=====end of inference=====//
     //==========================//
 
+    intern_is_infer_complete = true;
     close_param_file();
-    display_thin_results();
+
+    if (verbose)
+    {
+        screen::display_decorator("Inference::results", '-', UNDEFINED);
+        display_param_diagnostics();
+        screen::display_decorator("Inference::diagnostics", '-', UNDEFINED);
+        display_thin_results();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -434,53 +447,57 @@ void MCMC::update_model_diagnostics()
 */
 void MCMC::display_thin_results()
 {
-    // compute WAIC
-    double samp_var_corr = static_cast<double>(setup_num_prints) / (setup_num_prints - 1.);
-    double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
-
-    // implement WAIC warning
-    // Ref: Vhetari et al. (2016) Stat Comput.
-    bool is_p_waic_large = false;
-    int p_waic_large_count = 0;
-    const double p_waic_limit = 0.4;
-
-    // Loop over households
-    for (int h = 0; h < num_househ; h++)
+    if (!intern_is_infer_complete)
     {
-        log_point_pred_dens += std::log(househ[h].dgn_likelihood);
-        p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * samp_var_corr;
-        if (p_waic > p_waic_limit)
-        {
-            is_p_waic_large = true;
-            p_waic_large_count++;
-        }
-        effec_num_params_waic += p_waic;
+        screen::raise_warning("Ignored attempt to show results before inference.", Inconmplete_Infer_Diagnostics_Warning);
     }
-
-#ifndef USE_RCPP
-    // parameters (sampled every thinning iterration)
-    display_decorator("Inference::results", 0, '-');
-    display_param_diagnostics();
-#endif
-    // diagnostics (sampled every thinning iterration)
-    display_decorator("Inference::diagnostics", 0, '-');
-    std::ostringstream oss;
-    oss << "loglikelihood_mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
-        << "\nloglikelihood_sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
-        << "\nlogpoint_predict_dens" << C_DELIM << log_point_pred_dens
-        << "\neffective_parameters" << C_DELIM << effec_num_params_waic
-        << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
-    display_stdout(oss);
-
-    // practical WAIC warning
-    if (is_p_waic_large == true)
+    else
     {
+        //===========================//
+        //===== Compute Results =====//
+        //===========================//
+
+        // compute WAIC
+        double samp_var_corr = static_cast<double>(setup_num_prints) / (setup_num_prints - 1.);
+        double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
+
+        // implement WAIC warning
+        // Ref: Vhetari et al. (2016) Stat Comput.
+        Large_p_WAIC_Warning = false; // print warning at every call
+        bool is_p_waic_large = false;
+        int p_waic_large_count = 0;
+        const double p_waic_limit = 0.4;
+
+        // Loop over households
+        for (int h = 0; h < num_househ; h++)
+        {
+            log_point_pred_dens += std::log(househ[h].dgn_likelihood);
+            p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * samp_var_corr;
+            if (p_waic > p_waic_limit)
+            {
+                is_p_waic_large = true;
+                p_waic_large_count++;
+            }
+            effec_num_params_waic += p_waic;
+        }
+        // diagnostics (sampled every thinning iterration)
         std::ostringstream oss;
-        oss << std::setprecision(2) << std::fixed
-            << "(" << (static_cast<double>(p_waic_large_count) / num_househ)
-            << "%) p_waic estimates greater than " << p_waic_limit << "."
-            << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
-        raise_warning_message(oss, Large_p_WAIC_Warning);
+        oss << "loglikelihood_mean" << screen::C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
+            << "\nloglikelihood_sd" << screen::C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
+            << "\nlogpoint_predict_dens" << screen::C_DELIM << log_point_pred_dens
+            << "\neffective_parameters" << screen::C_DELIM << effec_num_params_waic
+            << "\nWAIC" << screen::C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
+        screen::print_stdout(oss.str() + "\n");
+
+        // practical WAIC warning
+        if (is_p_waic_large == true)
+        {
+            std::ostringstream oss;
+            oss << percent(p_waic_large_count, num_househ)
+                << "p_waic estimates greater than " << p_waic_limit << "."
+                << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
+            screen::raise_warning(oss.str(), Large_p_WAIC_Warning);
+        }
     }
 }
 
@@ -502,20 +519,18 @@ void MCMC::simulate_single_house(int h)
 }
 
 /* Perform simulation as provided by the user */
-void MCMC::simulation(std::string output_filename)
+void MCMC::simulation(std::string output_filename, bool verbose)
 {
-    display_decorator("Simulation");
-
     if (output_filename == UNDEFINED)
     {
-        raise_error_message("Undefined output file.");
+        screen::raise_error("Missing output file for simulation.");
     }
     else
     {
         //=====INITIALIZATION=====//
-        init_augmented_variables();
+        screen::display_decorator("Simulation", screen::C_DECOR, UNDEFINED, verbose);
 
-        //-----Initialize model-----//
+        init_augmented_variables();
         initialize_model();
 
 #pragma omp parallel for default(shared)
@@ -535,3 +550,46 @@ void MCMC::simulation(std::string output_filename)
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  MCMC : methods (display) ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* display the user model parameters */
+void MCMC::display_parameters()
+{
+    std::ostringstream oss;
+    oss << param_file_required_headers[0];
+    for (size_t k = 1; k < param_file_required_headers.size(); k++)
+    {
+        oss << screen::C_DELIM << param_file_required_headers[k];
+    }
+    for (std::string parID : param_to_be_inferred)
+    {
+        oss << "\n"
+            << parID << screen::C_DELIM << get_message_to_display(parID);
+    }
+    for (std::string parID : param_static)
+    {
+        oss << "\n"
+            << parID << screen::C_DELIM << get_message_to_display(parID);
+    }
+    screen::print_stdout(oss.str() + "\n");
+}
+
+/* display the diagnostics */
+void MCMC::display_param_diagnostics()
+{
+    std::ostringstream oss;
+    oss << "name" << screen::C_DELIM << "value" << screen::C_DELIM << "value_sd";
+    for (size_t k = 2; k < param_file_required_headers.size(); k++)
+    {
+        oss << screen::C_DELIM << param_file_required_headers[k];
+    }
+    for (std::string parID : param_to_be_inferred)
+    {
+        oss << "\n"
+            << parID << screen::C_DELIM << get_message_to_diagnostics(parID);
+    }
+    screen::print_stdout(oss.str() + "\n");
+}

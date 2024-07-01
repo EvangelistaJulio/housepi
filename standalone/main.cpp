@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
         std::ostringstream oss;
         oss << "No argument or command found. Check the usage through:\n"
             << argv[0] << " -h";
-        raise_error_message(oss);
+        screen::raise_error(oss.str());
     }
 
     //=====Parse commands and options=====//
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
             std::ostringstream oss;
             oss << "We apologize for the inconvenience, but the Software Manual is still missing.\n"
                 << "Please, contact the developer.";
-            raise_error_message(oss);
+            screen::raise_error(oss.str());
         }
 
         else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 
         else
         {
-            raise_error_message("Unrecognized option `" + carg + "`.");
+            screen::raise_error("Unrecognized option `" + carg + "`.");
         }
 
         carg_i++; // Move to the next command line argument
@@ -136,29 +136,27 @@ int main(int argc, char *argv[])
 
     if (is_infer && is_simulate)
     {
-        raise_error_message("Incompatible commands: choose one between -infer and -simulate.");
+        screen::raise_error("Incompatible commands: choose one between -infer and -simulate.");
     }
 
-    user_model.build(
-        is_infer,
-        params_file, data_file,
-        augm_file, setup_file,
-        extra_file, verbose);
+    user_model.build(params_file, data_file,
+                     augm_file, setup_file,
+                     extra_file, is_infer, verbose);
 
     //=====EXECUTION=====//
 
     if (is_infer)
     { // Parameter Inference
-        user_model.inference(output_pathtofile);
+        user_model.inference(output_pathtofile, verbose);
         user_model.print_augm_variables(save_augm_pathtofile);
     }
     else if (is_simulate)
     { // Simulation Study
-        user_model.simulation(output_pathtofile);
+        user_model.simulation(output_pathtofile, verbose);
     }
-    else 
+    else
     { // Compute likelihood
-        user_model.only_compute_loglikelihood();
+        user_model.only_compute_loglikelihood(verbose);
     }
 
     return EXIT_SUCCESS;

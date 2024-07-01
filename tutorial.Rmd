@@ -46,6 +46,7 @@ Next, we create an object using the function `generate_model` to initialize the 
 
 model_file <- "models/chain_binomial-heter/model.cpp"
 
+
 # Create a model object using the 'generate_model' function
 # this can take a few minutes...
 hemi <- generate_model(model_file, force = TRUE, quiet = TRUE)
@@ -62,9 +63,8 @@ We associate necessary files to our model object using the `build_model` functio
 build_model(
   hemi,
   data = "example/database.csv",
-  params = "example/parameters.csv",
-  setup = "example/setup.csv",
-  verbose = TRUE
+  params = "example/params.csv",
+  setup = "example/setup.csv"
 )
 
 ```
@@ -79,14 +79,15 @@ To run the model and perform inference, we execute the function 'run_hemirt_infe
 
 ```{r}
 
-# Run inference on the model and obtain results as a coda mcmc object
-synth <- run_hemirt_simulate(hemi)
-head(synth)
+# Run simulation to produce a synthetic dataset
+simulated <- run_hemirt_simulate(hemi)
+head(simulated)
+
+# use
+write.csv(simulated, "example/simulated.csv")
+build_model(hemi, data = "example/simulated.csv")
 
 ```
-
-The inference process returns the Watanabe-Akaike Information Criterion *WAIC*.
-
 ## Inference
 
 To run the model and perform inference, we execute the function 'run_hemirt_infer'. This method will return a 'coda' object which can then be used to analyze the results.

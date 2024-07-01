@@ -88,7 +88,7 @@ private:
 protected:
 	double undefined_call_error()
 	{
-		raise_error_message("Attempt to call a method of an undefined proposer.");
+		screen::raise_error("Attempt to call a method of an undefined proposer.");
 		return INF_DOUBLE;
 	}
 
@@ -322,11 +322,11 @@ public:
 	std::string message_to_display()
 	{
 		std::ostringstream oss;
-		oss << get_value() << C_DELIM << ((infer) ? "true" : "false");
+		oss << get_value() << screen::C_DELIM << ((infer) ? "true" : "false");
 		if (infer)
 		{
-			oss << C_DELIM << distr_ptr->message_to_display().str()
-				<< C_DELIM << prop_ptr->message_to_display().str();
+			oss << screen::C_DELIM << distr_ptr->message_to_display().str()
+				<< screen::C_DELIM << prop_ptr->message_to_display().str();
 		}
 		return oss.str();
 	}
@@ -370,7 +370,7 @@ public:
 	//=====Diagnostic : methods=====//
 	void init_diagnostics(int sample_size);
 	void update_diagnostics();
-	std::ostringstream message_to_display_diagnostics();
+	std::string message_to_diagnostics();
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -435,6 +435,8 @@ public:
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
+	std::string get_message_to_display(const std::string k) { return params.at(k).message_to_display(); }
+	std::string get_message_to_diagnostics(const std::string k) { return params.at(k).message_to_diagnostics(); }
 
 	//=====Setter=====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
@@ -460,10 +462,6 @@ public:
 	void init_param_diagnostics(int sample_size);
 	void update_param_diagnostics();
 
-	//=====Display=====//
-	void display_parameters();
-	void display_param_diagnostics();
-
 	//=====Pseudo-Random Number Generator=====//
 	void set_prng_seed(int seed);
 	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
@@ -472,11 +470,11 @@ public:
 private:
 	//=====Auxiliary Attributes=====//
 	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
-	
+
 	double buffer_value = 0.0;								// buffer value of the current parameter
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
-	unsigned setup_num_threads = 1;								// number of OMP threads
+	unsigned setup_num_threads = 1;							// number of OMP threads
 
 	//=====Getter (auxiliary methods)=====//
 	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;
@@ -484,7 +482,7 @@ private:
 	double _get_value_default_(const std::string k) const;
 
 	//=====Pseudo Random Number Generator (auxiliary methods)=====//
-	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit) 
+	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit)
 	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
 	sys_rnd_gen &_prng_unique_thread_() { return prng; }

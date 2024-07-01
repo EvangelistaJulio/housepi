@@ -24,6 +24,19 @@
 //------------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Auxiliary Functions  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::string percent(int num, int denom);
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  MCMC : class  ////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -38,6 +51,11 @@ protected:
 	unsigned long long setup_seed = 1;	// random seed
 	double setup_inv_tmprt = 1.0;		// inverse temperature
 	bool setup_rnd_init_params = false; // random initialization of parameters
+
+	//=====Internal=====//
+
+	bool intern_is_infer_complete = false;
+	bool intern_has_non_reference_groups = false;
 
 	//=====Database=====//
 	std::vector<std::string>
@@ -63,25 +81,27 @@ protected:
 	std::map<std::string, std::map<std::string, int>> report_model = {};
 
 public:
-	MCMC(){
-		// display_decorator("Household Survey EPI Modeling");
-		// display_decorator("Camaglia F., Institut Pasteur (2024)", 0, '-');
-	};
-	virtual ~MCMC(){
-		// display_decorator("END");
-		// display_stdout("\n");
-	};
+	MCMC(){};
+	virtual ~MCMC(){};
 
 	//=====Build data and parameters=====//
-	void build_setup(std::string pathtofile, bool is_infer);
-	void build_parameters(std::string pathtofile);
-	void build_augmented(std::string pathtofile);
-	void build_data(std::string pathtofile);
-	virtual void build_extra(std::string pathtofile); // load non standard file
-	void build(bool is_infer = true,
-			   std::string params_file = UNDEFINED, std::string data_file = UNDEFINED,
+	void build_parameters(std::string pathtofile, bool verbose = true);
+	void build_data(std::string pathtofile, bool verbose = true);
+	void build_setup(std::string pathtofile, bool is_infer, bool verbose = true);
+	void build_augmented(std::string pathtofile, bool verbose = true);
+	virtual void build_extra(std::string pathtofile, bool verbose = true); 
+	void build(std::string params_file = UNDEFINED, std::string data_file = UNDEFINED,
 			   std::string augm_file = UNDEFINED, std::string setup_file = UNDEFINED,
-			   std::string extra_file = UNDEFINED, bool verbose = true);
+			   std::string extra_file = UNDEFINED,
+			   bool is_infer = true, bool verbose = true);
+
+	//===== Display Internal Information=====//
+	void display_setup();
+	void display_summary();
+	void display_report();
+	void display_parameters();
+	void display_param_diagnostics();
+	void display_thin_results();
 
 	//=====General Initialization=====//
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
@@ -89,7 +109,6 @@ public:
 	virtual void initialize_model() {};
 	void set_rate_per_group(Individual &this_indiv);
 	void set_rate_per_contact(int h);
-	void display_report();
 
 	//=====Augmented Variables=====//
 	void assign_augmented_variables();
@@ -105,7 +124,7 @@ public:
 	double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
 	virtual double compute_global_loglike();
-	void only_compute_loglikelihood();
+	void only_compute_loglikelihood(bool verbose = true);
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void init_move_counts();
@@ -117,15 +136,14 @@ public:
 	void move_and_adapt_all_parameters(ulong step);
 	void init_model_diagnostics();
 	void update_model_diagnostics();
-	void display_thin_results();
 
 	//=====Infer=====//
-	void inference(std::string output_filename);
+	void inference(std::string output_filename, bool verbose = true);
 
 	//=====Simulate=====//
 	virtual void simulate_single_house(int h);
 	virtual void format_augmented_data() {};
-	void simulation(std::string output_filename);
+	void simulation(std::string output_filename, bool verbose = true);
 
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
@@ -150,7 +168,9 @@ private:
 	bool stobool(std::string token);
 	ssargs parse_dict_string(std::string token);
 	sdargs parse_dict_args(std::string token);
-	std::vector<std::string> read_column_headers(std::ifstream &input);
+	std::vector<std::string> read_column_headers(std::ifstream &input,
+												 std::vector<std::string> required_headers = {},
+												 std::string pathtofile = UNDEFINED);
 	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row);
 	sdargs row_to_sdargs(ssargs &this_row);
 

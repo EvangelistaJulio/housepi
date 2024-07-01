@@ -23,13 +23,22 @@ const std::string TYPE_SCALAR = "S";  // Scalar type declaration
 const std::string TYPE_COMMAND = "C"; // Command type declaration
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  MCMC : methods (auxiliary read functions)  ////////////////////////////
+/////////////////////////////  MCMC : methods (auxiliary functions)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* A formatted string for percent of num/denom */
+std::string percent(int num, int den)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2)
+        << " (" << (100.0 * num / den) << " %)";
+    return oss.str();
+}
 
 /* Cleaner std::string from forbidden characters. */
 std::string MCMC::string_cleaner(std::string token)
 {
-    for (char r : {'\r', '\n'})
+    for (char r : {'"', '\r', '\n'})
     {
         token.erase(remove(token.begin(), token.end(), r), token.end());
     }
@@ -47,7 +56,7 @@ bool MCMC::stobool(std::string token)
     }
     else if (token != "FALSE" && token != "false" && token != "False" && token != "0")
     {
-        raise_error_message("Unrecognized boolean value for `" + token + "`.");
+        screen::raise_error("Unrecognized boolean value for `" + token + "`.");
     }
 
     return output;
@@ -62,7 +71,7 @@ ssargs MCMC::parse_dict_string(std::string token)
     std::string tmp;
 
     // rea the entryes of the dictionary
-    while (getline(args_ss, tmp, C_DICT_DELIM))
+    while (getline(args_ss, tmp, screen::C_DICT_DELIM))
     {
         args_stock.push_back(tmp);
     }
@@ -72,7 +81,7 @@ ssargs MCMC::parse_dict_string(std::string token)
     }
     else if (args_stock.size() % 2 == 1)
     {
-        raise_error_message("Incomplete dictionary: " + token + ".");
+        screen::raise_error("Incomplete dictionary: " + token + ".");
     }
     else
     {
@@ -84,7 +93,7 @@ ssargs MCMC::parse_dict_string(std::string token)
             }
             catch (const std::exception &)
             {
-                raise_error_message("Invalid entry of dictionary: " + token + ".");
+                screen::raise_error("Invalid entry of dictionary: " + token + ".");
             }
         }
     }
@@ -105,16 +114,54 @@ sdargs MCMC::parse_dict_args(std::string token)
 }
 
 /* Read column headers */
-std::vector<std::string> MCMC::read_column_headers(std::ifstream &input)
+std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
+                                                   std::vector<std::string> required_headers,
+                                                   std::string pathtofile)
 {
     std::string line, token;
     getline(input, line);
     std::istringstream iss(line);
     std::vector<std::string> headers = {};
 
-    while (getline(iss, token, C_DELIM))
+    while (getline(iss, token, screen::C_DELIM))
     {
         headers.push_back(string_cleaner(token));
+    }
+
+    // check that all required headers are present
+    if (!required_headers.empty())
+    {
+        bool is_missing = false;
+        std::ostringstream oss;
+
+        // check the validity of the headers
+        for (std::string req : required_headers)
+        {
+            if (std::find(headers.begin(), headers.end(), req) == headers.end())
+            {
+                if (!is_missing)
+                {
+                    oss << "Missing column(s): `" + req + "`";
+                }
+                else
+                {
+                    screen::raise_error(", `" + req + "`");
+                }
+                is_missing = true;
+            }
+        }
+
+        if (is_missing)
+        {
+            // point to the faulty file
+            if (pathtofile != UNDEFINED)
+            {
+                oss << "\nPlease check file: " << pathtofile;
+            }
+
+            // raise the error
+            screen::raise_error(oss.str());
+        }
     }
 
     return headers;
@@ -129,7 +176,7 @@ bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> he
         std::istringstream iss(line);
         int num_cols = 0;
 
-        while (getline(iss, token, C_DELIM))
+        while (getline(iss, token, screen::C_DELIM))
         {
             this_row.emplace(headers[num_cols], string_cleaner(token));
             num_cols++;
@@ -165,7 +212,7 @@ double MCMC::type_to_double(std::string token, int h, int i)
     // Note : when does it make sense to have token == UNDEFINED ?
     if (token != UNDEFINED)
     {
-        int pos = token.find(C_OPTION_DELIM);
+        int pos = token.find(screen::C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
 
@@ -186,7 +233,7 @@ double MCMC::type_to_double(std::string token, int h, int i)
                 std::ostringstream oss;
                 oss << "The parameter `" << v << "` is chosen for a fixed value move."
                     << "Eventual changes of the parameter will not affect the move.";
-                raise_warning_message(oss, Param_Infer_Fixed_Move_Warning);
+                screen::raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
             }
             output = get_value(v);
         }
@@ -194,12 +241,12 @@ double MCMC::type_to_double(std::string token, int h, int i)
         {
             if (v != "default")
             {
-                raise_error_message("Unknown command `" + v + "`.");
+                screen::raise_error("Unknown command `" + v + "`.");
             }
         }
         else
         {
-            raise_error_message("Unknown variable type specifier `" + k + "`.");
+            screen::raise_error("Unknown variable type specifier `" + k + "`.");
         }
     }
 
@@ -209,11 +256,11 @@ double MCMC::type_to_double(std::string token, int h, int i)
 /* Convert a type-string to a double-pointer */
 const double *MCMC::type_to_doubleptr(std::string token)
 {
-    const double * output = nullptr;
-    
+    const double *output = nullptr;
+
     if (token != UNDEFINED)
     {
-        int pos = token.find(C_OPTION_DELIM);
+        int pos = token.find(screen::C_OPTION_DELIM);
         std::string k = token.substr(0, pos);
         std::string v = token.substr(pos + 1);
         if (k == TYPE_PARAM)
@@ -226,7 +273,7 @@ const double *MCMC::type_to_doubleptr(std::string token)
             std::ostringstream oss;
             oss << "Unsopported type specifier `" + k + "` found while loading `" << token << "`. "
                 << "Expected type specifier `" << TYPE_PARAM << "` instead.";
-            raise_error_message(oss);
+            screen::raise_error(oss.str());
         }
     }
 

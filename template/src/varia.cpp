@@ -43,7 +43,7 @@ Base_Proposer::Base_Proposer(
             oss << "Initial value " << strategy_from_zero << " and value range"
                 << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
                 << "\nIf it was intentional, ignore this message.";
-            raise_warning_message(oss, Invalid_Proposer_Range_Warning);
+            screen::raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
         }
         zero_start = true;
         set_strat_zero(strategy_from_zero);
@@ -116,7 +116,7 @@ void Base_Proposer::set_range(sdargs new_range)
         {
             std::ostringstream oss;
             oss << "Provided an inconsistent range: {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            raise_error_message(oss);
+            screen::raise_error(oss.str());
         }
         else
         {
@@ -125,7 +125,7 @@ void Base_Proposer::set_range(sdargs new_range)
     }
     else
     {
-        raise_error_message("Provided multiple definition for the range.");
+        screen::raise_error("Provided multiple definition for the range.");
     }
 }
 
@@ -148,7 +148,7 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     }
     else if (name != UNDEFINED)
     {
-        raise_error_message("Unknown metropolis strategy `" + name + "`.");
+        screen::raise_error("Unknown metropolis strategy `" + name + "`.");
     }
 
     return output;
@@ -158,18 +158,18 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
 std::ostringstream Base_Proposer::message_to_display()
 {
     std::ostringstream oss;
-    oss << distr_ptr->message_to_display().str() << C_DELIM;
+    oss << distr_ptr->message_to_display().str() << screen::C_DELIM;
     if (_range_min_ > -INF_DOUBLE)
     {
-        oss << "min" << C_DICT_DELIM << _range_min_;
+        oss << "min" << screen::C_DICT_DELIM << _range_min_;
         if (_range_max_ < INF_DOUBLE)
         {
-            oss << C_DICT_DELIM;
+            oss << screen::C_DICT_DELIM;
         }
     }
     if (_range_max_ < INF_DOUBLE)
     {
-        oss << "max" << C_DICT_DELIM << _range_max_;
+        oss << "max" << screen::C_DICT_DELIM << _range_max_;
     }
 
     return oss;
@@ -202,19 +202,19 @@ void Parameter::update_diagnostics()
 }
 
 /* Message to be used at the moment of display diagnostics. */
-std::ostringstream Parameter::message_to_display_diagnostics()
+std::string Parameter::message_to_diagnostics()
 {
     std::ostringstream oss;
-    oss << dgn_mean
-        << C_DELIM << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
-        << C_DELIM << ((infer) ? "true" : "false");
+    oss << dgn_mean << screen::C_DELIM
+        << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
+        << screen::C_DELIM << ((infer) ? "true" : "false");
     if (infer)
     {
-        oss << C_DELIM << distr_ptr->message_to_display().str()
-            << C_DELIM << prop_ptr->message_to_display().str();
+        oss << screen::C_DELIM << distr_ptr->message_to_display().str()
+            << screen::C_DELIM << prop_ptr->message_to_display().str();
     }
 
-    return oss;
+    return oss.str();
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -274,7 +274,7 @@ void Monte_Carlo_Core::assign_parameter(
     }
     else
     {
-        raise_error_message("Parameter `" + parID + "` has multiple definitions.");
+        screen::raise_error("Parameter `" + parID + "` has multiple definitions.");
     }
 
     // update the lists of parameters to be inferred, and these to be static
@@ -293,9 +293,8 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
 {
     if (n == 0)
     {
-        raise_error_message("Number of threads must be equal or greater than 1.");
+        screen::raise_error("Number of threads must be equal or greater than 1.");
     }
-
 
 #ifdef _OPENMP
     unsigned max_detected_threads = omp_get_max_threads();
@@ -303,7 +302,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     {
         std::ostringstream oss;
         oss << "Number of threads " << n << " changed to max amount of detected threads (" << max_detected_threads << ").";
-        raise_warning_message(oss, Above_Max_Threads_Warning);
+        screen::raise_warning(oss.str(), Above_Max_Threads_Warning);
         n = max_detected_threads;
     }
 
@@ -325,7 +324,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
 #else
     if (n != 1)
     {
-        raise_warning_message("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
+        screen::raise_warning("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
     }
     setup_num_threads = 1;
     _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
@@ -358,7 +357,7 @@ void Monte_Carlo_Core::assert_param(const std::string k) const
 {
     if (params.find(k) == params.end())
     {
-        raise_error_message("Parameter `" + k + "` is not defined. Check your model and parameter file.");
+        screen::raise_error("Parameter `" + k + "` is not defined. Check your model and parameter file.");
     }
 }
 
@@ -377,7 +376,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
             {
                 if (num_attempts >= MAX_NUMBER_ATTEMPTS)
                 {
-                    raise_error_message("Number of attempts exceeded in random initialization of `" + parID + "`.");
+                    screen::raise_error("Number of attempts exceeded in random initialization of `" + parID + "`.");
                 }
                 num_attempts++;
                 new_value = params.at(parID).prior_rand(prng);
@@ -446,52 +445,6 @@ void Monte_Carlo_Core::update_param_diagnostics()
     {
         params.at(parID).update_diagnostics();
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Monte_Carlo_Core : methods (display) ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* display the user model parameters */
-void Monte_Carlo_Core::display_parameters()
-{
-    if (VERBOSE)
-    {
-        std::ostringstream oss;
-        oss << param_file_required_headers[0];
-        for (size_t k = 1; k < param_file_required_headers.size(); k++)
-        {
-            oss << C_DELIM << param_file_required_headers[k];
-        }
-        for (std::string parID : param_to_be_inferred)
-        {
-            oss << "\n"
-                << parID << C_DELIM << params.at(parID).message_to_display();
-        }
-        for (std::string parID : param_static)
-        {
-            oss << "\n"
-                << parID << C_DELIM << params.at(parID).message_to_display();
-        }
-        display_stdout(oss.str());
-    }
-}
-
-/* display the diagnostics */
-void Monte_Carlo_Core::display_param_diagnostics()
-{
-    std::ostringstream oss;
-    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
-    for (size_t k = 2; k < param_file_required_headers.size(); k++)
-    {
-        oss << C_DELIM << param_file_required_headers[k];
-    }
-    for (std::string parID : param_to_be_inferred)
-    {
-        oss << "\n"
-            << parID << C_DELIM << params.at(parID).message_to_display_diagnostics().str();
-    }
-    display_stdout(oss.str());
 }
 
 //------------------------------------------------------------------------------------------------------------//

@@ -39,7 +39,7 @@ void Individual::assert_data(std::string dataID)
 	{
 		std::ostringstream oss;
 		oss << "Unknown data `" << dataID << "` for individual " << get_index() << ".";
-		raise_error_message(oss);
+		screen::raise_error(oss.str());
 	}
 }
 
@@ -60,7 +60,7 @@ void Individual::assign_rate_per_group(std::string rateID, std::string parID)
 		// rateID was previously declared
 		std::ostringstream oss;
 		oss << "Individual " << get_index() << " has multiple definitions for group rate `" << rateID << "`.";
-		raise_error_message(oss);
+		screen::raise_error(oss.str());
 	}
 }
 
@@ -82,7 +82,7 @@ void Individual::init_augm(std::string augmID, sys_rnd_gen &rng)
 			oss << "Number of attempts exceeded (" << ">=" << MAX_NUMBER_ATTEMPTS << ")"
 				<< " in random initialization of `" << augmID << "`"
 				<< " for individual " << get_index();
-			raise_error_message(oss);
+			screen::raise_error(oss.str());
 		}
 		init_value = augm_model_rand(augmID, rng);
 		num_attempts++;
@@ -101,7 +101,7 @@ void Individual::assign_augm(std::string augmID, Augmented new_augm)
 	{
 		std::ostringstream oss;
 		oss << "Individual " << get_index() << " has multiple definitions for augmented variable `" << augmID << "`.";
-		raise_error_message(oss);
+		screen::raise_error(oss.str());
 	}
 }
 
@@ -147,7 +147,7 @@ void Household::assign_data(std::string dataID, double value)
 		// rateID was previously declared
 		std::ostringstream oss;
 		oss << "Household " << get_index() << " has multiple definitions for data `" << dataID << "`.";
-		raise_error_message(oss);
+		screen::raise_error(oss.str());
 	}
 }
 

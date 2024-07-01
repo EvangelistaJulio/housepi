@@ -20,47 +20,28 @@ bool Unknown_Status_Warning = false; // Warning for unknown status
 ////////////////////////////////////////  MCMC : build  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::build(bool is_infer,
-                 std::string params_file, std::string data_file,
+void MCMC::build(std::string params_file, std::string data_file,
                  std::string augm_file, std::string setup_file,
-                 std::string extra_file, bool verbose)
+                 std::string extra_file, bool is_infer, bool verbose)
 {
-    //----- global verbose option -----//
-    VERBOSE = verbose;
-
-    //=====OPTION VALIDITY=====//
-
-    // UPDATE : complete check for options validity
+    //===== reset internal status =====//
+    intern_is_infer_complete = false;
 
     // 1) Load Parameters and Check (required)
-    if (params_file == UNDEFINED)
-    {
-        raise_error_message("Required argument: parameter path/to/file not found.");
-    }
-    else
-    {
-        build_parameters(params_file);
-    }
+    build_parameters(params_file, verbose);
 
     // 2) Load Data and Check (required)
-    if (data_file == UNDEFINED)
-    {
-        raise_error_message("Required argument: database path/to/file not found.");
-    }
-    else
-    {
-        build_data(data_file);
-    }
+    build_data(data_file, verbose);
 
     // 3) Load Augmented Variables (optional)
-    build_augmented(augm_file);
+    build_augmented(augm_file, verbose);
 
     // 4) Load Setup (optional)
-    build_setup(setup_file, is_infer);
+    build_setup(setup_file, is_infer, verbose);
 
     // 5) Load Extra File (optional, user defined)
     // UPDATE: there could be plenty extra files to be store somewhere
-    build_extra(extra_file);
+    build_extra(extra_file, verbose);
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -75,57 +56,63 @@ void MCMC::build(bool is_infer,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read model parameter file and build paramerter dictionary. */
-void MCMC::build_parameters(std::string pathtofile)
+void MCMC::build_parameters(std::string pathtofile, bool verbose)
 {
-    std::ifstream input(pathtofile.c_str());
-
-    if (input.is_open())
+    if (pathtofile == UNDEFINED)
     {
-        display_decorator("Parameters");
-        display_stdout("import: " + pathtofile);
-
-        //=====Load column headers=====//
-        std::vector<std::string> headers = read_column_headers(input);
-        // check the validity of the headers
-        for (std::string req : param_file_required_headers)
+        // error if nothing was previously defined
+        if (param_static.empty() && param_to_be_inferred.empty())
         {
-            if (std::find(headers.begin(), headers.end(), req) == headers.end())
-            {
-                raise_error_message("Missing column `" + req + "`. Please check file: " + pathtofile);
-            }
+            screen::raise_error("Undefined parameter path/to/file.");
         }
-
-        // clean original list of parameters
-        drop_all_params();
-
-        //=====Load parameters from the row with options=====//
-        for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
-        {
-            // add entry to shared parameter dictionary
-            if (stobool(this_row.at("infer")))
-            {
-                assign_parameter(
-                    this_row["name"],
-                    std::stod(this_row["value"]),
-                    this_row["prior"],
-                    parse_dict_args(this_row["pargs"]),
-                    this_row["strategy"],
-                    parse_dict_args(this_row["sargs"]),
-                    parse_dict_args(this_row["range"]));
-            }
-            else
-            {
-                assign_parameter(this_row.at("name"), stod(this_row.at("value")));
-            }
-        }
-
-        //=====display a summary of the used parameters=====//
-        display_decorator("Parameters::definitions", 0, '-');
-        display_parameters();
     }
     else
     {
-        raise_error_message("Impossible to read file: " + pathtofile);
+        // open input file stream
+        std::ifstream input(pathtofile.c_str());
+
+        if (!input.is_open())
+        {
+            screen::raise_error("Impossible to read file: " + pathtofile);
+        }
+        else
+        {
+            screen::display_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
+
+            //===== Load column headers =====//
+            std::vector<std::string> headers = read_column_headers(input, param_file_required_headers, pathtofile);
+
+            //===== Clean original list of parameters =====//
+            drop_all_params();
+
+            //===== Load parameters from the row with options =====//
+            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
+            {
+                // add entry to shared parameter dictionary
+                if (stobool(this_row.at("infer")))
+                {
+                    assign_parameter(
+                        this_row["name"],
+                        std::stod(this_row["value"]),
+                        this_row["prior"],
+                        parse_dict_args(this_row["pargs"]),
+                        this_row["strategy"],
+                        parse_dict_args(this_row["sargs"]),
+                        parse_dict_args(this_row["range"]));
+                }
+                else
+                {
+                    assign_parameter(this_row.at("name"), stod(this_row.at("value")));
+                }
+            }
+
+            //===== Display a summary of the used parameters =====//
+            if (verbose)
+            {
+                screen::display_decorator("Parameters::definitions", '-');
+                display_parameters();
+            }
+        }
     }
 }
 
@@ -141,119 +128,169 @@ void MCMC::build_parameters(std::string pathtofile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read data file and pre-process the data. */
-void MCMC::build_data(std::string pathtofile)
+void MCMC::build_data(std::string pathtofile, bool verbose)
 {
-    std::ifstream input(pathtofile.c_str());
-    std::vector<std::string> required_headers = {"index", "status", "house_index"};
-
-    if (input.is_open())
+    if (pathtofile == UNDEFINED)
     {
-        display_decorator("Database");
-        display_stdout("import: " + pathtofile);
-
-        //=====Load column headers=====//
-        data_headers = read_column_headers(input);
-        // check the validity of the headers
-        for (std::string req : required_headers)
+        // error if nothing was previously defined
+        if (househ.empty())
         {
-            if (std::find(data_headers.begin(), data_headers.end(), req) == data_headers.end())
-            {
-                raise_error_message("Missing column `" + req + "`. Please check file: " + pathtofile);
-            }
+            screen::raise_error("undefined database path/to/file.");
         }
-
-        //=====Drop all previous data=====//
-        househ.clear();
-        num_househ = 0;
-        report_data = {{"n.indiv", 0},
-                       {"n.cases", 0},
-                       {"n.unk.stat", 0},
-                       {"no.HH.case", 0},
-                       {"lst.1.case", 0},
-                       {"lst.2.case", 0},
-                       {"max.n.HH.cases", 0},
-                       {"n.HH.with.max.cases", 0},
-                       {"min.HH.size", 1000},
-                       {"max.HH.size", 0},
-                       {"_n.contacts_", 0}};
-
-        //=====Load individuals from the row with values=====//
-        std::vector<Individual> aux_individuals = {};
-        for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
-        {
-            Individual this_indiv(row_to_sdargs(this_row));
-            assign_rate_per_group_to_individual(this_indiv);
-            set_rate_per_group(this_indiv);
-            aux_individuals.push_back(this_indiv);
-            report_data["n.indiv"]++;
-
-            //=====check for the validity of the status=====//
-            if (this_indiv.get_status() == INFECTIOUS)
-            {
-                report_data["n.cases"]++;
-            }
-            else if (this_indiv.get_status() != SUSCEPTIBLE)
-            {
-                report_data["n.unk.stat"]++;
-
-                std::ostringstream oss;
-                oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
-                    << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
-                    << "\nIf it was intentional, ignore this message.";
-                raise_warning_message(oss, Unknown_Status_Warning);
-            }
-        }
-
-        //=====safe load households=====//
-        int hh_idx;
-        std::unordered_map<int, int> aux_house_idx = {};
-        for (Individual this_indiv : aux_individuals)
-        {
-            hh_idx = this_indiv.get_data("house_index");
-
-            // if household index doesn't exist, add new household
-            if (aux_house_idx.find(hh_idx) == aux_house_idx.end())
-            {
-                aux_house_idx.emplace(hh_idx, num_househ);
-                househ.emplace_back();
-                househ[num_househ].set_index(hh_idx);
-                num_househ++;
-            }
-            househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
-        }
-
-        //===== Set Contact Rates and Perform Database Analysis =====//
-        int aux;
-        for (int h = 0; h < num_househ; h++)
-        {
-            set_rate_per_contact(h);
-
-            aux = househ[h].infectious_list.size();
-
-            report_data["min.HH.size"] = std::min(househ[h].house_size, report_data["min.HH.size"]);
-            report_data["max.HH.size"] = std::max(househ[h].house_size, report_data["max.HH.size"]);
-
-            report_data["no.HH.case"] += (aux == 0);
-            report_data["lst.1.case"] += (aux > 0);
-            report_data["lst.2.case"] += (aux > 1);
-
-            if (report_data["max.n.HH.cases"] < aux)
-            {
-                report_data["n.HH.with.max.cases"] = 1;
-                report_data["max.n.HH.cases"] = aux;
-            }
-            else if (report_data["max.n.HH.cases"] == aux)
-            {
-                report_data["n.HH.with.max.cases"] += 1;
-            }
-        }
-
-        //=====Display Database and Model Reports=====//
-        display_report();
     }
     else
     {
-        raise_error_message("Impossible to open file: " + pathtofile);
+        // open input file stream
+        std::ifstream input(pathtofile.c_str());
+        std::vector<std::string> required_headers = {"index", "status", "house_index"};
+
+        if (!input.is_open())
+        {
+            screen::raise_error("Impossible to open file: " + pathtofile);
+        }
+        else
+        {
+            screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
+
+            //=====Load column headers=====//
+            data_headers = read_column_headers(input, required_headers, pathtofile);
+
+            //=====Drop all previous data=====//
+            househ.clear();
+            num_househ = 0;
+            report_data = {{"n.indiv", 0},
+                           {"n.cases", 0},
+                           {"n.unk.stat", 0},
+                           {"no.HH.case", 0},
+                           {"lst.1.case", 0},
+                           {"lst.2.case", 0},
+                           {"max.n.HH.cases", 0},
+                           {"n.HH.with.max.cases", 0},
+                           {"min.HH.size", 1000},
+                           {"n.HH.with.min.size", 0},
+                           {"max.HH.size", 0},
+                           {"n.HH.with.max.size", 0},
+                           {"_n.contacts_", 0}};
+            report_model.clear();
+
+            //=====Load individuals from the row with values=====//
+            std::vector<Individual> aux_individuals = {};
+            for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
+            {
+                Individual this_indiv(row_to_sdargs(this_row));
+                assign_rate_per_group_to_individual(this_indiv);
+                set_rate_per_group(this_indiv);
+                aux_individuals.push_back(this_indiv);
+                report_data["n.indiv"]++;
+
+                //=====check for the validity of the status=====//
+                if (this_indiv.get_status() == INFECTIOUS)
+                {
+                    report_data["n.cases"]++;
+                }
+                else if (this_indiv.get_status() != SUSCEPTIBLE)
+                {
+                    report_data["n.unk.stat"]++;
+
+                    std::ostringstream oss;
+                    oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
+                        << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
+                        << "\nIf it was intentional, ignore this message.";
+                    screen::raise_warning(oss.str(), Unknown_Status_Warning);
+                }
+            }
+
+            //=====safe load households=====//
+            int hh_idx;
+            std::unordered_map<int, int> aux_house_idx = {};
+            for (Individual this_indiv : aux_individuals)
+            {
+                hh_idx = this_indiv.get_data("house_index");
+
+                // if household index doesn't exist, add new household
+                if (aux_house_idx.find(hh_idx) == aux_house_idx.end())
+                {
+                    aux_house_idx.emplace(hh_idx, num_househ);
+                    househ.emplace_back();
+                    househ[num_househ].set_index(hh_idx);
+                    num_househ++;
+                }
+                househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
+            }
+
+            //===== Set Contact Rates and Perform Database Analysis =====//
+            int aux;
+            for (int h = 0; h < num_househ; h++)
+            {
+                set_rate_per_contact(h);
+
+                aux = househ[h].infectious_list.size();
+
+                report_data["no.HH.case"] += (aux == 0);
+                report_data["lst.1.case"] += (aux > 0);
+                report_data["lst.2.case"] += (aux > 1);
+
+                // max number of house cases
+                if (report_data["max.n.HH.cases"] < aux)
+                {
+                    report_data["n.HH.with.max.cases"] = 1;
+                    report_data["max.n.HH.cases"] = aux;
+                }
+                else if (report_data["max.n.HH.cases"] == aux)
+                {
+                    report_data["n.HH.with.max.cases"] += 1;
+                }
+
+                // minimum house number of members
+                if (report_data["min.HH.size"] > househ[h].house_size)
+                {
+                    report_data["n.HH.with.min.size"] = 1;
+                    report_data["min.HH.size"] = househ[h].house_size;
+                }
+                else if (report_data["min.HH.size"] == househ[h].house_size)
+                {
+                    report_data["n.HH.with.min.size"] += 1;
+                }
+
+                // maximum house number of members
+                if (report_data["max.HH.size"] < househ[h].house_size)
+                {
+                    report_data["n.HH.with.max.size"] = 1;
+                    report_data["max.HH.size"] = househ[h].house_size;
+                }
+                else if (report_data["max.HH.size"] == househ[h].house_size)
+                {
+                    report_data["n.HH.with.max.size"] += 1;
+                }
+            }
+
+            //===== Check if user defined groups other than reference =====//
+            intern_has_non_reference_groups = false;
+            if (!report_model.empty())
+            {
+                for (const auto &entry : report_model)
+                {
+                    if (entry.second.size() > 1)
+                    {
+                        intern_has_non_reference_groups = true;
+                        break;
+                    }
+                }
+            }
+
+            //=====Display Database and Model Reports=====//
+            if (verbose)
+            {
+                screen::display_decorator("Database::summary", '-');
+                display_summary();
+                
+                if (intern_has_non_reference_groups)
+                {
+                    screen::display_decorator("Database::rates", '-');
+                    display_report();
+                }
+            }
+        }
     }
 }
 
@@ -279,7 +316,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             std::ostringstream oss;
             oss << "The group rate name `" << CONTACT_RATE << "` is reserved."
                 << "Please choose a different one.";
-            raise_error_message(oss);
+            screen::raise_error(oss.str());
         }
 
         std::string parID = which.second;
@@ -296,7 +333,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             // all individuals must have the same set of rates of first individual
             if (report_model.find(rateID) == report_model.end())
             {
-                raise_error_message("Group rate `" + rateID + "` has not been provided for all individuals.");
+                screen::raise_error("Group rate `" + rateID + "` has not been provided for all individuals.");
             }
         }
 
@@ -306,7 +343,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             // error : undefined rate
             std::ostringstream oss;
             oss << "Rate `" << rateID << "` is not provided for individual " << this_indiv.get_index() << ".";
-            raise_error_message(oss);
+            screen::raise_error(oss.str());
         }
         else if (parID == REFERENCE)
         {
@@ -358,7 +395,7 @@ void MCMC::set_rate_per_contact(int h)
         // all household must have a contact rate
         if (report_model.find(rateID) == report_model.end())
         {
-            raise_error_message("Contact rate has not been provided for all households.");
+            screen::raise_error("Contact rate has not been provided for all households.");
         }
     }
 
@@ -377,7 +414,7 @@ void MCMC::set_rate_per_contact(int h)
                     std::ostringstream oss;
                     oss << "Contact rate not provided for individuals " << househ[h].indiv[k].get_index()
                         << " and " << househ[h].indiv[i].get_index() << " within household " << househ[h].get_index() << ".";
-                    raise_error_message(oss);
+                    screen::raise_error(oss.str());
                 }
                 else if (parID == REFERENCE)
                 {
@@ -406,97 +443,72 @@ void MCMC::set_rate_per_contact(int h)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : display report  ////////////////////////////////////////
+//////////////////////////////////  MCMC : display summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the report of the database and of the model group rates. */
+void MCMC::display_summary()
+{
+    std::ostringstream oss;
+    oss << "n. of individuals: " << report_data["n.indiv"]
+        << "\n    * n. of cases: " << report_data["n.cases"]
+        << percent(report_data["n.cases"], report_data["n.indiv"]);
+    if (report_data["n.unk.stat"] > 0)
+    {
+        oss << "\nn. of missing status : " << report_data["n.unk.stat"];
+    }
+    oss << "\nn. of households: " << num_househ;
+    if (report_data["no.HH.case"] > 0)
+    {
+        oss << "\n    * with no cases: " << report_data["no.HH.case"]
+            << percent(report_data["no.HH.case"], num_househ);
+    }
+    oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
+        << percent(report_data["lst.1.case"], num_househ)
+        << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
+        << percent(report_data["lst.2.case"], num_househ)
+        << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
+        << percent(report_data["n.HH.with.max.cases"], num_househ)
+        << "\nmin n. house members: " << report_data["min.HH.size"]
+        << percent(report_data["n.HH.with.min.size"], num_househ)
+        << "\nmax n. house members: " << report_data["max.HH.size"]
+        << percent(report_data["n.HH.with.max.size"], num_househ);
+
+    screen::print_stdout(oss.str() + "\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : display report  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Display model report. */
 void MCMC::display_report()
 {
-    if (VERBOSE)
+    // if there are non reference groups defined
+    if (intern_has_non_reference_groups)
     {
-        //=================================//
-        //=====Display Database Report=====//
-        //=================================//
-
-        display_decorator("Database::summary", 0, '-');
         std::ostringstream oss;
-        oss << "n. of individuals: " << report_data["n.indiv"]
-            << "\n    * n. of cases: " << report_data["n.cases"]
-            << std::fixed << std::setprecision(2)
-            << " (" << (100.0 * report_data["n.cases"] / report_data["n.indiv"]) << " %)";
-        if (report_data["n.unk.stat"] > 0)
-        {
-            oss << "\nn. of missing status : " << report_data["n.unk.stat"];
-        }
-        oss << "\nn. of households: " << num_househ;
-        if (report_data["no.HH.case"] > 0)
-        {
-            oss << "\n    * with no cases: " << report_data["no.HH.case"]
-                << std::fixed << std::setprecision(2)
-                << " (" << (100.0 * report_data["no.HH.case"] / num_househ) << " %)";
-        }
-        oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
-            << std::fixed << std::setprecision(2)
-            << " (" << (100.0 * report_data["lst.1.case"] / num_househ) << " %)"
-            << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
-            << std::fixed << std::setprecision(2)
-            << " (" << (100.0 * report_data["lst.2.case"] / num_househ) << " %)"
-            << "\n    * max n. cases: " << report_data["max.n.HH.cases"]
-            << std::fixed << std::setprecision(2)
-            << " (" << (100.0 * report_data["n.HH.with.max.cases"] / num_househ) << " %)"
-            << "\nmin n. house members: " << report_data["min.HH.size"]
-            << "\nmax n. house members: " << report_data["max.HH.size"];
-        display_stdout(oss);
-        oss.str("");
-        oss.clear();
 
-        //==============================//
-        //=====Display Model Report=====//
-        //==============================//
-
-        // check if user defined groups other than reference
-        bool has_non_reference_groups = false;
-        if (!report_model.empty())
+        for (const auto &entry : report_model)
         {
-            for (const auto &entry : report_model)
+            if (entry.first != CONTACT_RATE)
             {
-                if (entry.second.size() > 1)
+                oss << entry.first << ":";
+                for (auto const &x : entry.second)
                 {
-                    has_non_reference_groups = true;
-                    break;
+                    oss << "\n    * " << x.first << ": " << x.second
+                        << percent(x.second, report_data["n.indiv"]);
                 }
+                oss << "\n";
             }
         }
-
-        // in such case display the model report
-        if (has_non_reference_groups)
+        oss << CONTACT_RATE << ":";
+        for (auto const &x : report_model.at(CONTACT_RATE))
         {
-            std::ostringstream oss;
-            display_decorator("Database::rates", 0, '-');
-
-            for (const auto &entry : report_model)
-            {
-                if (entry.first != CONTACT_RATE)
-                {
-                    oss << entry.first << ":";
-                    for (auto const &x : entry.second)
-                    {
-                        oss << "\n    * " << x.first << ": " << x.second
-                            << std::fixed << std::setprecision(2)
-                            << " (" << (100.0 * x.second / report_data["n.indiv"]) << " %)";
-                    }
-                    oss << "\n";
-                }
-            }
-            oss << CONTACT_RATE << ":";
-            for (auto const &x : report_model.at(CONTACT_RATE))
-            {
-                oss << "\n    * " << x.first << ": " << x.second
-                    << std::fixed << std::setprecision(2)
-                    << " (" << (100.0 * x.second / report_data["_n.contacts_"]) << " %)";
-            }
-            display_stdout(oss);
+            oss << "\n    * " << x.first << ": " << x.second
+                << percent(x.second, report_data["_n.contacts_"]);
         }
+        screen::print_stdout(oss.str() + "\n");
     }
 }
 
@@ -512,7 +524,7 @@ void MCMC::display_report()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
-void MCMC::build_augmented(std::string pathtofile)
+void MCMC::build_augmented(std::string pathtofile, bool verbose)
 {
     if (pathtofile != UNDEFINED)
     {
@@ -522,19 +534,10 @@ void MCMC::build_augmented(std::string pathtofile)
 
         if (input.is_open())
         {
-            display_decorator("Augmented");
-            display_stdout("import: " + pathtofile);
+            screen::display_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //=====Load column headers=====//
-            std::vector<std::string> headers = read_column_headers(input);
-            // check the validity of the headers
-            for (std::string req : required_headers)
-            {
-                if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                {
-                    raise_error_message("Missing column `" + req + "`. Please check file: " + pathtofile);
-                }
-            }
+            std::vector<std::string> headers = read_column_headers(input, required_headers, pathtofile);
 
             //=====Load augmented from the row with options=====//
             load_augm_definition.clear();
@@ -549,7 +552,7 @@ void MCMC::build_augmented(std::string pathtofile)
         }
         else
         {
-            raise_error_message("Impossible to read file: " + pathtofile);
+            screen::raise_error("Impossible to read file: " + pathtofile);
         }
     }
 }
@@ -581,7 +584,7 @@ void MCMC::assign_augmented_variables()
         {
             if (stobool(loader.at("init_rand")) == true)
             {
-                raise_error_message("Unknown random initialization without a model for `" + augmID + "`.");
+                screen::raise_error("Unknown random initialization without a model for `" + augmID + "`.");
             }
         }
         else
@@ -654,36 +657,48 @@ void MCMC::init_augmented_variables()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-void MCMC::build_setup(std::string pathtofile, bool is_infer)
+void MCMC::build_setup(std::string pathtofile, bool is_infer, bool verbose)
 {
+    // default number of threads
     unsigned num_threads = 1;
 
-    display_decorator("Setup");
-    if (pathtofile != UNDEFINED)
+    // default prng seed
+    auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
+    setup_seed = static_cast<unsigned long long>(time_now);
+
+    if (pathtofile == UNDEFINED)
+    {
+        screen::display_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
+    }
+    else
     {
         std::ifstream input(pathtofile.c_str());
-        ssargs safe_load = {};
 
-        if (input.is_open())
+        if (!input.is_open())
         {
-            display_stdout("import: " + pathtofile);
+            screen::raise_error("Impossible to read setup file: " + pathtofile);
+        }
+        else
+        {
+            screen::display_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             // Create a std::stringstream of the current line
+            ssargs safe_load = {};
             for (std::string line; getline(input, line);)
             {
                 std::string name, choice;
                 std::istringstream iss(line);
 
                 //=====NAME=====//
-                if (!getline(iss, name, C_DELIM))
+                if (!getline(iss, name, screen::C_DELIM))
                 {
-                    raise_error_message("Unable to extract setup entry.\nCheck file line: " + line);
+                    screen::raise_error("Unable to extract setup entry.\nCheck file line: " + line);
                 }
 
                 //=====CHOICE=====//
                 if (!getline(iss, choice))
                 {
-                    raise_error_message("Unable to extract setup choice.\nCheck file line: " + line);
+                    screen::raise_error("Unable to extract setup choice.\nCheck file line: " + line);
                 }
 
                 // add the new setup
@@ -697,12 +712,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
             }
 
             //-----prng seed-----//
-            if ((safe_load.find("seed") == safe_load.end()) || (safe_load.at("seed") == UNDEFINED))
-            {
-                auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-                setup_seed = static_cast<unsigned long long>(time_now);
-            }
-            else
+            if ((safe_load.find("seed") != safe_load.end()) && (safe_load.at("seed") != UNDEFINED))
             {
                 setup_seed = std::stoull(safe_load.at("seed"));
             }
@@ -715,7 +725,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                     setup_num_iter = std::stoul(safe_load.at("num_iter"));
                     if (setup_num_iter < 2)
                     {
-                        raise_error_message("n. of iterations `num_iter` must be greater than 1. Check your setup file.");
+                        screen::raise_error("n. of iterations `num_iter` must be greater than 1. Check your setup file.");
                     }
                 }
 
@@ -731,7 +741,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                     setup_thinning = std::stoul(safe_load.at("thinning"));
                     if (setup_num_iter < setup_thinning)
                     {
-                        raise_error_message("n. of iterations `num_iter` must be greater (or equal) to `thinning`. Check yout setup file.");
+                        screen::raise_error("n. of iterations `num_iter` must be greater (or equal) to `thinning`. Check yout setup file.");
                     }
                 }
 
@@ -747,14 +757,10 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
                     setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
                     if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
                     {
-                        raise_error_message("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
+                        screen::raise_error("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
                     }
                 }
             }
-        }
-        else
-        {
-            raise_error_message("Impossible to read file: " + pathtofile);
         }
     }
 
@@ -768,23 +774,31 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
     setup_num_prints = setup_num_iter / setup_thinning;
 
     //=====Display=====//
-    display_decorator("Setup::definitions", 0, '-');
-    std::ostringstream oss;
-    oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_threads" << C_DELIM << get_num_threads();
-    if (is_infer == true)
+    if (verbose)
     {
-        oss << "\nnum_iter" << C_DELIM << setup_num_iter
-            << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
-            << "\nthinning" << C_DELIM << setup_thinning
-            << "\nrnd_init_params" << C_DELIM << ((setup_rnd_init_params) ? "true" : "false");
-        if (setup_inv_tmprt != 1.)
-        {
-            oss << "\ninv_tmprt" << C_DELIM << setup_inv_tmprt;
-        }
+        screen::display_decorator("Setup::definitions", '-');
+        display_setup();
     }
+}
 
-    display_stdout(oss);
+void MCMC::display_setup()
+{
+    std::ostringstream oss;
+    oss << "seed" << screen::C_DELIM << setup_seed
+        << "\nnum_threads" << screen::C_DELIM << get_num_threads();
+
+    // setup variables only relevant to inference
+    oss << "\nnum_iter" << screen::C_DELIM << setup_num_iter
+        << "\nnum_adapt_iter" << screen::C_DELIM << setup_num_adapt_iter
+        << "\nthinning" << screen::C_DELIM << setup_thinning
+        << "\nrnd_init_params" << screen::C_DELIM << ((setup_rnd_init_params) ? "true" : "false");
+    if (setup_inv_tmprt != 1.)
+    {
+        oss << "\ninv_tmprt" << screen::C_DELIM << setup_inv_tmprt;
+    }
+    oss << "\n";
+
+    screen::print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -792,9 +806,10 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Extra File (default unused) */
-void MCMC::build_extra(std::string pathtofile)
+void MCMC::build_extra(std::string pathtofile, bool verbose)
 {
     UNUSED(pathtofile);
+    UNUSED(verbose);
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -813,7 +828,7 @@ void MCMC::init_param_file(std::string output_filename)
 {
     if (output_filename == UNDEFINED)
     {
-        raise_error_message("Undefined output file.");
+        screen::raise_error("Undefined output file.");
     }
     else
     {
@@ -822,7 +837,7 @@ void MCMC::init_param_file(std::string output_filename)
         if (param_ofstream.is_open())
         {
 #ifndef USE_RCPP
-            display_stdout("save: " + output_filename);
+            screen::print_stdout("save: " + output_filename + "\n");
 #endif
 
             // param_ofstream << "iter" << C_DELIM;
@@ -835,13 +850,13 @@ void MCMC::init_param_file(std::string output_filename)
             */
             for (std::string parID : param_to_be_inferred)
             {
-                param_ofstream << C_DELIM << parID; // << C_DELIM << parID << "__a%";
+                param_ofstream << screen::C_DELIM << parID; // << C_DELIM << parID << "__a%";
             }
             param_ofstream << std::endl;
         }
         else
         {
-            raise_error_message("Unable to open file: " + output_filename);
+            screen::raise_error("Unable to open file: " + output_filename);
         }
     }
 }
@@ -865,14 +880,14 @@ void MCMC::print_parameters()
         */
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
+            param_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
             // param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
         param_ofstream << std::endl;
     }
     else
     {
-        raise_error_message("Output file closed unexpectedly.");
+        screen::raise_error("Output file closed unexpectedly.");
     }
 }
 
@@ -890,8 +905,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            display_decorator("Output::database", 0, '-');
-            display_stdout("save: " + save_augm_pathtofile);
+            screen::display_decorator("Output::database", '-', "save: " + save_augm_pathtofile);
 
             // change format of augmented data
             format_augmented_data();
@@ -910,14 +924,14 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             }
 
             //=====Print column headers=====//
-            augm_ofstream << "index" << C_DELIM << "status" << C_DELIM << "house_index";
+            augm_ofstream << "index" << screen::C_DELIM << "status" << screen::C_DELIM << "house_index";
             for (std::string dataID : data_headers)
             {
-                augm_ofstream << C_DELIM << dataID;
+                augm_ofstream << screen::C_DELIM << dataID;
             }
             for (std::string augmID : augm_full_set)
             {
-                augm_ofstream << C_DELIM << augmID;
+                augm_ofstream << screen::C_DELIM << augmID;
             }
             augm_ofstream << std::endl;
 
@@ -927,15 +941,15 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
                 for (int i = 0; i < househ[h].house_size; i++)
                 {
                     augm_ofstream << househ[h].indiv[i].get_index()
-                                  << C_DELIM << househ[h].indiv[i].get_status()
-                                  << C_DELIM << househ[h].get_index();
+                                  << screen::C_DELIM << househ[h].indiv[i].get_status()
+                                  << screen::C_DELIM << househ[h].get_index();
                     for (std::string dataID : data_headers)
                     {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
+                        augm_ofstream << screen::C_DELIM << househ[h].indiv[i].get_data(dataID);
                     }
                     for (std::string augmID : augm_full_set)
                     {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
+                        augm_ofstream << screen::C_DELIM << househ[h].indiv[i].get_augm(augmID);
                     }
                     augm_ofstream << std::endl;
                 }
@@ -945,7 +959,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         }
         else
         {
-            raise_error_message("Unable to open file: " + save_augm_pathtofile);
+            screen::raise_error("Unable to open file: " + save_augm_pathtofile);
         }
     }
 }

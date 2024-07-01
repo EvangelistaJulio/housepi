@@ -182,6 +182,11 @@ namespace bax
 	/* Initialize the Look Up Table of count-compressed generations */
 	void init_generations_lookuptable(ushort max_N)
 	{
+		// Assure that LUT are empty before initializing
+		Num_Gener_LookupTable.clear();
+		Multipl_Gener_LookupTable.clear();
+		Generations_LookupTable.clear();
+
 		// Allocate LUT memory
 		Num_Gener_LookupTable.resize(max_N + 1);
 		Multipl_Gener_LookupTable.resize(max_N + 1);
@@ -329,6 +334,10 @@ namespace bax
 	{
 		unsigned num_combin;
 
+		// Assure that LUT are empty before initializing 
+		Num_Combin_LookupTable.clear();
+		Combinations_LookupTable.clear();
+
 		Num_Combin_LookupTable.resize(max_N + 1);
 		Combinations_LookupTable.resize(max_N + 1);
 
@@ -419,6 +428,10 @@ namespace bax
 	{
 		//----- lookuptable with all combinations + complements -----//
 		init_combinations_lookuptable(max_N);
+
+		//----- Assure that LUT are empty before initializing -----//
+		ChainBinomial_LookupTable.clear();
+		EscapePatterns_LookupTable.clear();
 
 		//----- lookuptable with escape patterns linked to chain-binomial -----//
 		// case N_star == 0, for consistency

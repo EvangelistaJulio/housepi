@@ -74,6 +74,7 @@ void Model::fill_house_escape_matrix(int h,
 	}
 
 	//----- assign values to matrix -----//
+	double aux;
 	for (int i = 0; i < hh_size; i++)
 	{
 		// community : i escaped from community
@@ -84,7 +85,8 @@ void Model::fill_house_escape_matrix(int h,
 		{
 			if (k != i)
 			{
-				p2p_esc_proba[k][i] = exp(-susc_rate[i] * infec_rate[k] * get_value("beta"));
+				aux = get_value("beta") * std::pow(get_value("typic_size") / hh_size, get_value("gamma"));
+				p2p_esc_proba[k][i] = exp(-susc_rate[i] * infec_rate[k] * aux);
 			}
 			// else is equal to 1 (declared outside, not relevant)
 		}
@@ -115,7 +117,7 @@ void Model::initialize_model()
 	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)
 	{
-		raise_error_message("A missing status was found : incompatible with the model.");
+		screen::raise_error("A missing status was found : incompatible with the model.");
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//
