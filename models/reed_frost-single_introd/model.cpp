@@ -54,13 +54,13 @@ void Model::initialize_model()
 	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)
 	{
-		raise_error_message("A missing status was found : incompatible with the model.");
+		screen::raise_error("A missing status was found : incompatible with the model.");
 	}
 
 	// households without case don't have a contribution
 	if (report_data["no.HH.case"] == 0)
 	{
-		raise_warning_message(
+		screen::raise_warning(
 			"Hoseholds without cases are not modeled and will be ignored. Discard them to improve computation time.",
 			Single_Introduction_Warning);
 	}
@@ -68,7 +68,7 @@ void Model::initialize_model()
 	// households of size 1 don't have a contribution
 	if (report_data["min.HH.size"] == 1)
 	{
-		raise_warning_message(
+		screen::raise_warning(
 			"Hoseholds with one single member are not modeled and will be ignored. Discard them to improve computation time.", 
 			Single_House_Member_Warning);
 	}
@@ -113,10 +113,10 @@ double Model::compute_single_house_loglike(int h)
 	{
 		// sum over all possible generations
 		double  sero_positive_term = 0., tmp = 0.;
-		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive]; c++)
+		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive-1]; c++)
 		{
 			// reference to the LUT
-			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive][c];
+			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive-1][c];
 
 			// GENERATION (0) : infected by case zero
 			tmp = gen_counts[0] * log_p2p_infec_proba;
@@ -137,10 +137,10 @@ double Model::compute_single_house_loglike(int h)
 			}
 
 			// times n. of equivalent configurations returning the same kind of generation
-			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive][c] * exp(tmp);
+			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive-1][c] * exp(tmp);
 		}
 
-		log_likelihood += log(sero_positive_term);
+		log_likelihood += log(sero_positive_term * bax::binomial_coefficient(hh_size - 1, n_positive-1));
 	}
 
 	return log_likelihood;

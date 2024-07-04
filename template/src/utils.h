@@ -191,12 +191,14 @@ public:
     double pdf(double x) override
     {
         UNUSED(x);
-        return undefined_call_error();
+        screen::raise_error("Attempt to call a method of an undefined distribution.");
+        return INF_DOUBLE;
     }
     double log_pdf(double x) override
     {
         UNUSED(x);
-        return undefined_call_error();
+        screen::raise_error("Attempt to call a method of an undefined distribution.");
+        return INF_DOUBLE;
     }
     double logratio(double x, double y) override
     {
@@ -207,14 +209,8 @@ public:
     double rand(sys_rnd_gen &rng) override
     {
         UNUSED(rng);
-        return undefined_call_error();
-    }
-
-private:
-    double undefined_call_error()
-    {
         screen::raise_error("Attempt to call a method of an undefined distribution.");
-        std::exit(EXIT_FAILURE);
+        return INF_DOUBLE;
     }
 };
 
@@ -472,7 +468,6 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
     else if (name != UNDEFINED)
     {
         screen::raise_error("Unknown distribution `" + name + "`.");
-        std::exit(EXIT_FAILURE);
     }
 
     return output;

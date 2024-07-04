@@ -352,12 +352,12 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
 //////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Check if the given parameter is defined, otherwise exits. */
+/* Check if the given parameter is defined, otherwise raise error. */
 void Monte_Carlo_Core::assert_param(const std::string k) const
 {
     if (params.find(k) == params.end())
     {
-        screen::raise_error("Parameter `" + k + "` is not defined. Check your model and parameter file.");
+        screen::raise_error("Parameter `" + k + "` not found. Check your model and/or parameter definition.");
     }
 }
 

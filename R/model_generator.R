@@ -108,7 +108,7 @@ build_model <- function (
     setup = "None", 
     extra = "None",
     is_infer = TRUE,
-    verbose = TRUE
+    verbose = FALSE
 ) {
     
   x$build(params, data, augm,
@@ -137,7 +137,7 @@ run_hemirt_infer <- function(x, verbose = TRUE) {
 #' @param verbose boolean flag to suppress automatic prints
 #' 
 #' @returns Return a data frame
-run_hemirt_simulate <- function(x, verbose) {
+run_hemirt_simulate <- function(x, verbose = TRUE) {
   temp_output_file <- tempfile(fileext = "csv")
   x$simulation(temp_output_file, verbose)
   data <- read.csv(temp_output_file, header = TRUE)

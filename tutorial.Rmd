@@ -64,7 +64,8 @@ build_model(
   hemi,
   data = "example/database.csv",
   params = "example/params.csv",
-  setup = "example/setup.csv"
+  setup = "example/setup.csv",
+  verbose = TRUE
 )
 
 ```
