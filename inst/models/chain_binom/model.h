@@ -32,8 +32,8 @@ class Model : public MCMC
 	void simulate_single_house(int h) override;
 
 	// Model dependent methods
-	double log_community_escape_probability();
-	double log_person_to_person_escape_probability();
+	double community_risk_of_infection();
+	double hazard_of_infection();
 };
 
 //------------------------------------------------------------------------------------------------------------//

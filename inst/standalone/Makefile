@@ -1,23 +1,18 @@
 # Standalone Makefile
 
 # If MODEL is not provided, set a default value
-MODEL ?= ../models/chain_binom/model.cpp
-
-# Trim the file extension
-NAME := $(notdir $(basename $(MODEL)))
-FLDR := $(shell dirname ${MODEL})
-MODEL_HEADER := $(NAME).h
+MODEL ?= ../models/chain_binom
 
 # Lost of source files with exclusions
 SRC := ../template/src
 EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/user_model.cpp
-SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp) $(FLDR)/$(NAME).cpp main.cpp)
+SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp) $(MODEL)/model.cpp main.cpp)
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
 
 # Executable name
-EXECUTABLE := $(FLDR)/$(NAME).exe
+EXECUTABLE := $(MODEL)/model.exe
 
 # Compilation flags
 CXXFLAGS := -Wall -Wextra -std=gnu++11
@@ -56,12 +51,12 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(EXECUTABLE)
 	
 # For the model object
-$(FLDR)/$(NAME).o: $(FLDR)/$(NAME).cpp
+$(MODEL)/model.o: $(MODEL)/model.cpp
 	$(CXX) $(CXXFLAGS) -I${SRC} -c $< -o $@
 
 # For the main object
 main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -I${SRC} -I$(FLDR) -DMODEL_HEADER=\"$(MODEL_HEADER)\" -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I${SRC} -I$(MODEL) -c $< -o $@
 
 # For all other objects
 %.o: %.cpp

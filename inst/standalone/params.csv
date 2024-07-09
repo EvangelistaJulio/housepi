@@ -1,0 +1,9 @@
+name,value,infer,prior,pargs,strategy,sargs,range
+alpha,0.25,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+beta,0.20,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+gamma,1.0,FALSE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+sus_child,1.0,FALSE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+sus_women,1.0,FALSE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+inf_child,1.0,FALSE,lognorm,meanlog/0.0/sdlog/1.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+child_age,12.000,FALSE,,,,,
+typic_size,4.000,FALSE,,,,,

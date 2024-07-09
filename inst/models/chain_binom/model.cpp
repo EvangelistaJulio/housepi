@@ -14,16 +14,16 @@
 //------------------------------------------------- || -------------------------------------------------------//
 //------------------------------------------------- \/ -------------------------------------------------------//
 
-/* The logarithm of the community escape probability. */
-double Model::log_community_escape_probability()
+/* Community risk of infection (-logarithm of community escape probability). */
+double Model::community_risk_of_infection()
 {
-	return -get_value("alpha");
+	return get_value("alpha");
 }
 
-/* The logarithm of the person-to-person escape probability. */
-double Model::log_person_to_person_escape_probability()
+/* Hazard of infection (-logarithm of person-to-person escape probability). */
+double Model::hazard_of_infection()
 {
-	return -get_value("beta");
+	return get_value("beta");
 }
 
 //------------------------------------------------- /\ -------------------------------------------------------//
@@ -72,19 +72,19 @@ double Model::compute_single_house_loglike(int h)
 	int hh_size = househ[h].house_size;
 	int n_positive = househ[h].infectious_list.size();
 
-	double log_commu_esc_proba = log_community_escape_probability();
+	double log_commu_esc_proba = -community_risk_of_infection();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
-	double log_p2p_esc_proba = log_person_to_person_escape_probability();
+	double log_p2p_esc_proba = -hazard_of_infection();
 
-	//==============================================//
-	//========Contribution of Sero-Negatives========//
-	//==============================================//
+	//================================================//
+	//======== Contribution of Sero-Negatives ========//
+	//================================================//
 
 	log_likelihood += (hh_size - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
 
-	//==============================================//
-	//========Contribution of Sero-Positives========//
-	//==============================================//
+	//================================================//
+	//======== Contribution of Sero-Positives ========//
+	//================================================//
 
 	if (n_positive > 0)
 	{
@@ -141,23 +141,23 @@ void Model::simulate_single_house(int h)
 	int num_old_infectious = 0;
 	std::vector<int> store_old_list = {};
 
-	double commu_esc_proba = exp(log_community_escape_probability());
-	double log_p2p_esc_proba = log_person_to_person_escape_probability();
+	double commu_esc_proba = exp(-community_risk_of_infection());
+	double log_p2p_esc_proba = -hazard_of_infection();
 
-	//====================//
-	//=====INITIALIZE=====//
-	//====================//
+	//======================//
+	//===== INITIALIZE =====//
+	//======================//
 
-	// set all cases to healthy (change infectious and unknown to susceptibles)
+	// set all cases to healthy (change infectious to susceptibles)
 	store_old_list = househ[h].infectious_list;
 	for (int i : store_old_list)
 	{
 		househ[h].change_status(i, SUSCEPTIBLE);
 	}
 
-	//==============================================//
-	//====GENERATION 0 : infection by community=====//
-	//==============================================//
+	//================================================//
+	//==== GENERATION 0 : infection by community =====//
+	//================================================//
 
 	store_old_list = househ[h].susceptibles_list;
 	for (int i : store_old_list)
@@ -168,11 +168,10 @@ void Model::simulate_single_house(int h)
 			num_new_infectious++;
 		}
 	}
-	num_new_infectious = 0;
 
-	//==========================================================//
-	//====GENERATION >=1 : infection by previous generation=====//
-	//==========================================================//
+	//============================================================//
+	//==== GENERATION >=1 : infection by previous generation =====//
+	//============================================================//
 
 	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
 	{

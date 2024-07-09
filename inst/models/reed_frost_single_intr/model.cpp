@@ -14,10 +14,10 @@
 //------------------------------------------------- || -------------------------------------------------------//
 //------------------------------------------------- \/ -------------------------------------------------------//
 
-/* The logarithm of the person-to-person escape probability. */
-double Model::log_person_to_person_escape_probability()
+/* Hazard of infection (-logarithm of the person-to-person escape probability). */
+double Model::hazard_of_infection()
 {
-	return -get_value("beta");
+	return get_value("beta");
 }
 
 //------------------------------------------------- /\ -------------------------------------------------------//
@@ -96,7 +96,7 @@ double Model::compute_single_house_loglike(int h)
 	int hh_size = househ[h].house_size;
 	int n_positive = househ[h].infectious_list.size();
 
-	double log_p2p_esc_proba = log_person_to_person_escape_probability();
+	double log_p2p_esc_proba = -hazard_of_infection();
 	double log_p2p_infec_proba = log(1. - exp(log_p2p_esc_proba));
 
 	//==============================================//
@@ -165,7 +165,7 @@ void Model::simulate_single_house(int h)
 	std::vector<int> store_old_list = {};
 	int hh_size = househ[h].house_size;
 
-	double log_p2p_esc_proba = log_person_to_person_escape_probability();
+	double log_p2p_esc_proba = -hazard_of_infection();
 
 	//====================//
 	//=====INITIALIZE=====//
