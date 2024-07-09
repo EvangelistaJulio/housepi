@@ -1,4 +1,4 @@
-//' @name Model_hemirt12345
+//' @name Modelhousepi12345
 //' @title Custom model
 //' @description Type 'Model' to see its methods
 //' @field new Constructor to initialize a Model object
@@ -30,11 +30,11 @@
 #include "model.h"
  
 // Expose the Model and MCMC classes to R using Rcpp
-RCPP_MODULE(model_hemirt12345)
+RCPP_MODULE(modelhousepi12345)
 {
  using namespace Rcpp;
  
- class_<MCMC>("MCMC_hemirt12345")
+ class_<MCMC>("MCMChousepi12345")
    .constructor("Default constructor")
    .method("build", &MCMC::build, "Construct the model with various configuration files and flags.")
    .method("inference", &MCMC::run_inference, "Perform inference and save results to file.")
@@ -46,8 +46,8 @@ RCPP_MODULE(model_hemirt12345)
    .method("params", &MCMC::display_parameters, "Display parameters.")
    .method("results", &MCMC::display_thin_results, "Results of the inference.");
  
- class_<Model>("Model_hemirt12345")
+ class_<Model>("Modelhousepi12345")
    .constructor("Default constructor")
-   .derives<MCMC>("MCMC_hemirt12345");
+   .derives<MCMC>("MCMChousepi12345");
 }
  

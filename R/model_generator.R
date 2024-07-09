@@ -7,8 +7,8 @@
 #' @returns Return the user model object.
 #' @export
 generate <- function(modelpath, quiet=TRUE, force=FALSE) {
-  # system path to hemirt
-  hemirt_dir <- system.file(package = "hemirt")
+  # system path to housepi
+  housepi_dir <- system.file(package = "housepi")
 
   # ----- Check that files exist ----- #
 
@@ -27,19 +27,19 @@ generate <- function(modelpath, quiet=TRUE, force=FALSE) {
     }
 
     # temporary folder
-    new_name <- sprintf("hemirt%x", as.integer(file.info(cpp_file)$mtime))
+    new_name <- sprintf("housepi%x", as.integer(file.info(cpp_file)$mtime))
     new_dir <- file.path(tempdir(), basename(modelpath), new_name)
   }
-  else if(modelpath %in% list.files(file.path(hemirt_dir, "models"))){
+  else if(modelpath %in% list.files(file.path(housepi_dir, "models"))){
 
     # implementation file
-    cpp_file <- file.path(hemirt_dir, "models", modelpath, "model.cpp")
+    cpp_file <- file.path(housepi_dir, "models", modelpath, "model.cpp")
 
     # header file
-    hpp_file <- file.path(hemirt_dir, "models", modelpath, "model.h")
+    hpp_file <- file.path(housepi_dir, "models", modelpath, "model.h")
 
     # temporary folder
-    new_name <- paste0("hemirt", gsub("_", "", modelpath))
+    new_name <- paste0("housepi", gsub("_", "", modelpath))
     new_dir <- file.path(tempdir(), new_name)
 
   }
@@ -68,14 +68,14 @@ generate <- function(modelpath, quiet=TRUE, force=FALSE) {
     
     # copy files
     for (f in c("NAMESPACE", "DESCRIPTION")) {
-      from_file <- file.path(hemirt_dir, "template", f)
+      from_file <- file.path(housepi_dir, "template", f)
       to_file <- file.path(new_dir, f)
       file.copy(from_file, to_file, overwrite = TRUE)
     }
     
     # copy folders
     for (fldr in c("src", "R")) {
-      from_path <- file.path(hemirt_dir, "template", fldr)
+      from_path <- file.path(housepi_dir, "template", fldr)
       file.copy(from_path, new_dir, recursive=TRUE, overwrite = TRUE)
     }
     
@@ -84,7 +84,7 @@ generate <- function(modelpath, quiet=TRUE, force=FALSE) {
                    "src/export_bindings.cpp", "R/zzz.R") 
     for (f in src_files) {
       content <- readLines(file.path(new_dir, f), warn = FALSE)
-      modified <- gsub("hemirt12345", new_name, content)
+      modified <- gsub("housepi12345", new_name, content)
       writeLines(modified, file.path(new_dir, f))
     }
         
@@ -108,7 +108,7 @@ generate <- function(modelpath, quiet=TRUE, force=FALSE) {
   devtools::load_all(new_dir)
   
   # extract the class definition and provide new object
-  return(methods::new(get(paste0("Model_", new_name))))
+  return(methods::new(get(paste0("Model", new_name))))
 }
 
 #------------------------------------------------------------------------------#

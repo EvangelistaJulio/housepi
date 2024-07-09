@@ -1,4 +1,4 @@
-Package: hemirt
+Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Inference Rcpp Toolkit
 Version: 0.1.0

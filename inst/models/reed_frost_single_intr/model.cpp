@@ -140,7 +140,8 @@ double Model::compute_single_house_loglike(int h)
 			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive-1][c] * exp(tmp);
 		}
 
-		log_likelihood += log(sero_positive_term * bax::binomial_coefficient(hh_size - 1, n_positive-1));
+		//log_likelihood += log(sero_positive_term * bax::binomial_coefficient(hh_size - 1, n_positive-1));
+		log_likelihood += log(sero_positive_term);
 	}
 
 	return log_likelihood;

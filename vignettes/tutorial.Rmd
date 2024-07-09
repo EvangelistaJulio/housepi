@@ -1,16 +1,16 @@
 ---
-title: "hemirt"
+title: "housepi"
 author: "Francesco Camaglia"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{hemirt}
+  %\VignetteIndexEntry{housepi}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-# *hemirt* : Package Tutorial
+# *housepi* : Package Tutorial
 
-The purpose of this tutorial is to present *hemirt* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks. 
+The purpose of this tutorial is to present *housepi* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks. 
 We'll walk through the process of loading the model, building it with necessary data and running inference. 
 
 ```{r, echo=FALSE, out.width = "100%"}
@@ -65,7 +65,7 @@ We can now create an object using the function `generate` to initialize the core
 
 # Generate a model
 # this can take a few minutes...
-hemi <- hemirt::generate("chain_binom", 
+hemi <- housepi::generate("chain_binom", 
                          force = TRUE, 
                          quiet = TRUE)
 
@@ -78,7 +78,7 @@ We associate necessary files to our model object using the `build` function:
 ```{r}
 
 # Build the model by associating it with necessary input files
-hemirt::build(
+housepi::build(
   hemi,
   data = "data/database.csv",
   params = "data/params.csv",
@@ -100,13 +100,13 @@ To simulate a dataset according to the model we execute the function `simulate`.
 ```{r}
 
 # Run simulation to produce a synthetic dataset
-simulated <- hemirt::simulate(hemi)
+simulated <- housepi::simulate(hemi)
 
 # save the simulated dataset 
 write.csv(simulated, "simulated.csv")
 
 # associate the simulated dataset to the model 
-hemirt::build(hemi, data = "simulated.csv")
+housepi::build(hemi, data = "simulated.csv")
 
 # show a summary of the new dataset
 hemi$summary()
@@ -120,7 +120,7 @@ Sometimes it can be useful to just compute the log-likelihood before trying to r
 ```{r}
 
 # compute the log-likelihood
-hemirt::compute_loglike(hemi)
+housepi::compute_loglike(hemi)
 
 ```
 
@@ -132,7 +132,7 @@ This method will return a 'coda' object which can then be used to analyze the re
 ```{r}
 
 # Run inference on the model and obtain results as a coda mcmc object
-mcmc <- hemirt::infer(hemi, progbar = FALSE)
+mcmc <- housepi::infer(hemi, progbar = FALSE)
 
 # Set a burnin
 mcmc <- window(mcmc, start=1000)

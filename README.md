@@ -1,5 +1,5 @@
-# Epidemic Modeling of Longitudinal Surveys
-Epidemics mathematical modeling of houselhold surveys.
+# housepi
+Epidemiological modeling and inference of household surveys.
 
 [[INCOMPLETE]]
 
@@ -22,13 +22,12 @@ In order to run your MCMC job, you while need to provide the following files:
 
 * **Database** (e. g.):
 ```{csv}
-index,status,house_index,timeonset,vaccine,age,sex
-1,0,1,117,2,55,1
-2,1,1,28,0,60,1
+index,status,house_index,age,sex
+1,0,1,2,55,1
+2,1,1,0,60,1
 ...
 ```
-where the only mandatory columns are **index**, **status** and **house_index**, all other are 
-The names and order of the others are not. The order of columns is irrelevant. 
+where the only mandatory columns are **index**, **status** and **house_index**. The order of the columns is irrelevant. 
 
 * **Parameters** (e. g.):
 ```{csv}

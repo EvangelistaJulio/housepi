@@ -1,4 +1,4 @@
-#' hemirt
+#' housepi
 #'
 #' Household Epidemiological Modeling and Inference Rcpp Toolkit
 #'
