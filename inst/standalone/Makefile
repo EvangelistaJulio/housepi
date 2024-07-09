@@ -1,7 +1,7 @@
 # Standalone Makefile
 
 # If MODEL is not provided, set a default value
-MODEL ?= ../models/chain_binomial/model.cpp
+MODEL ?= ../models/chain_binom/model.cpp
 
 # Trim the file extension
 NAME := $(notdir $(basename $(MODEL)))
@@ -70,8 +70,7 @@ main.o: main.cpp
 # To clean objects
 .PHONY: clean
 clean:
-	$(RM) $(OBJECTS)
-
+	$(RM) $(OBJECTS) $(EXECUTABLE)
 
 # To run make in a debug mode
 .PHONY: debug

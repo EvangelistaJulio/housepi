@@ -290,23 +290,34 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-void MCMC::only_compute_loglikelihood(bool verbose)
+double MCMC::run_compute_loglikelihood(bool verbose)
 {
-    //=====Initialization=====//
-    screen::display_decorator("Loglikelihood", screen::C_DECOR, UNDEFINED, verbose);
+    //===== Initialization =====//
 
     //-----random initialization of augmented variables with model-----//
     init_augmented_variables();
 
-    //-----Initialize model-----//
+    //----- Initialize model -----//
     initialize_model();
-    set_global_loglike(compute_global_loglike());
 
-    std::ostringstream oss;
-    oss << "Loglikelihood" << screen::C_DELIM << " "
-        << get_global_loglike() << "\n";
+    //===== Execution =====//
+    double ll = compute_global_loglike();
 
-    screen::print_stdout(oss.str());
+    //----- Print output -----//
+    if (verbose)
+    {
+        std::ostringstream oss;
+        oss << "Loglikelihood" << screen::C_DELIM << " " << ll << "\n";
+        screen::print_stdout(oss.str());
+    }
+#ifndef USE_RCPP
+    else
+    {
+        screen::print_stdout(std::to_string(ll) + "\n");
+    }
+#endif
+
+    return ll;
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -321,7 +332,7 @@ void MCMC::only_compute_loglikelihood(bool verbose)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
-void MCMC::inference(std::string output_file, bool verbose)
+void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 {
     //=====Initialization=====//
     screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
@@ -349,7 +360,7 @@ void MCMC::inference(std::string output_file, bool verbose)
     {
         unsigned long num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
 
-        screen::display_progress_bar_start("adaptive", verbose);
+        screen::display_progress_bar_start("adaptive", progbar);
 
         init_move_counts();
         for (unsigned long i = 1; i <= num_adapt_iter_thin; i++)
@@ -359,16 +370,16 @@ void MCMC::inference(std::string output_file, bool verbose)
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(j + (i - 1) * setup_thinning);
             }
-            screen::display_progress_bar("adaptive", i, num_adapt_iter_thin, verbose);
+            screen::display_progress_bar("adaptive", i, num_adapt_iter_thin, progbar);
         }
-        screen::display_progress_bar_end("adaptive", verbose);
+        screen::display_progress_bar_end("adaptive", progbar);
     }
 
     //============================================//
     //=====Monte Carlo Markov Chain execution=====//
     //============================================//
 
-    screen::display_progress_bar_start("execution", verbose);
+    screen::display_progress_bar_start("execution", progbar);
 
     init_move_counts();
     init_model_diagnostics();
@@ -384,9 +395,9 @@ void MCMC::inference(std::string output_file, bool verbose)
         update_model_diagnostics();
 
         print_parameters();
-        screen::display_progress_bar("execution", i, setup_num_prints, verbose);
+        screen::display_progress_bar("execution", i, setup_num_prints, progbar);
     }
-    screen::display_progress_bar_end("execution", verbose);
+    screen::display_progress_bar_end("execution", progbar);
 
     //==========================//
     //=====end of inference=====//
@@ -519,7 +530,7 @@ void MCMC::simulate_single_house(int h)
 }
 
 /* Perform simulation as provided by the user */
-void MCMC::simulation(std::string output_filename, bool verbose)
+void MCMC::run_simulation(std::string output_filename, bool verbose)
 {
     if (output_filename == UNDEFINED)
     {
@@ -540,7 +551,7 @@ void MCMC::simulation(std::string output_filename, bool verbose)
         }
 
         // print results as augmented variable file
-        print_augm_variables(output_filename);
+        print_augm_variables(output_filename, verbose);
     }
 }
 

@@ -54,3 +54,5 @@ Thumbs.db
 .Rout.save
 *.Rout.save
 
+/doc/
+/Meta/

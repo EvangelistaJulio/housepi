@@ -124,7 +124,7 @@ public:
 	double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
 	virtual double compute_global_loglike();
-	void only_compute_loglikelihood(bool verbose = true);
+	double run_compute_loglikelihood(bool verbose = true);
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void init_move_counts();
@@ -138,12 +138,12 @@ public:
 	void update_model_diagnostics();
 
 	//=====Infer=====//
-	void inference(std::string output_filename, bool verbose = true);
+	void run_inference(std::string output_filename, bool verbose = true, bool progbar = true);
 
 	//=====Simulate=====//
 	virtual void simulate_single_house(int h);
 	virtual void format_augmented_data() {};
-	void simulation(std::string output_filename, bool verbose = true);
+	void run_simulation(std::string output_filename, bool verbose = true);
 
 	//=====Save parameters=====//
 	void init_param_file(std::string output_filename);
@@ -151,7 +151,7 @@ public:
 	void close_param_file() { param_ofstream.close(); }
 
 	//=====Save augmented variables=====//
-	void print_augm_variables(std::string output_filename);
+	void print_augm_variables(std::string output_filename, bool verbose = true);
 
 private:
 	double global_loglike = 0.0;

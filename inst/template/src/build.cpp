@@ -283,7 +283,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             {
                 screen::display_decorator("Database::summary", '-');
                 display_summary();
-                
+
                 if (intern_has_non_reference_groups)
                 {
                     screen::display_decorator("Database::rates", '-');
@@ -896,7 +896,7 @@ void MCMC::print_parameters()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(std::string save_augm_pathtofile)
+void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
 {
     if (save_augm_pathtofile != UNDEFINED)
     {
@@ -905,7 +905,12 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            screen::display_decorator("Output::database", '-', "save: " + save_augm_pathtofile);
+#ifndef USE_RCPP
+            if (verbose)
+            {
+                screen::display_decorator("Output::database", '-', "save: " + save_augm_pathtofile);
+            }
+#endif
 
             // change format of augmented data
             format_augmented_data();

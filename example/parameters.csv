@@ -1,4 +1,0 @@
-name,value,infer,prior,pargs,strategy,sargs,range
-alpha,0.5,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-beta,0.5,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
-child_age,12,FALSE,,,,,,

@@ -13,9 +13,14 @@
 //' }
 //' @field inference Perform inference on the model \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
+//'   \item Parameter: verbose - boolean flag to suppress automatic prints
 //' }
 //' @field simulation Perform simulation on the model \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
+//'   \item Parameter: verbose - boolean flag to suppress automatic prints
+//' }
+//' @field loglikelihood Compute model loglikelihood \itemize{
+//'   \item Parameter: verbose - boolean flag to suppress automatic prints
 //' }
 //' @field display.data Summary of data and model group rates.
 //' @field display.results Results of the inference.
@@ -32,9 +37,13 @@ RCPP_MODULE(model_hemirt12345)
  class_<MCMC>("MCMC_hemirt12345")
    .constructor("Default constructor")
    .method("build", &MCMC::build, "Construct the model with various configuration files and flags.")
-   .method("inference", &MCMC::inference, "Perform inference and save results to file.")
-   .method("simulation", &MCMC::simulation, "Perform simulation and save results to file.")
-   .method("summary", &MCMC::display_report, "Summary of data and model group rates.")
+   .method("inference", &MCMC::run_inference, "Perform inference and save results to file.")
+   .method("simulation", &MCMC::run_simulation, "Perform simulation and save results to file.")
+   .method("loglikelihood", &MCMC::run_compute_loglikelihood, "Perform simulation and save results to file.")
+   .method("setup", &MCMC::display_setup, "Display setup.")
+   .method("summary", &MCMC::display_summary, "Display summary of the dataset.")
+   .method("report", &MCMC::display_report, "Report of model group rates.")
+   .method("params", &MCMC::display_parameters, "Display parameters.")
    .method("results", &MCMC::display_thin_results, "Results of the inference.");
  
  class_<Model>("Model_hemirt12345")

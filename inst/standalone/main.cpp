@@ -143,20 +143,23 @@ int main(int argc, char *argv[])
                      augm_file, setup_file,
                      extra_file, is_infer, verbose);
 
-    //=====EXECUTION=====//
+    //=====================//
+    //===== EXECUTION =====//
+    //=====================//
 
     if (is_infer)
-    { // Parameter Inference
-        user_model.inference(output_pathtofile, verbose);
+    { //===== Inference =====//
+        user_model.run_inference(output_pathtofile, verbose);
         user_model.print_augm_variables(save_augm_pathtofile);
     }
     else if (is_simulate)
-    { // Simulation Study
-        user_model.simulation(output_pathtofile, verbose);
+    { //===== Simulation Study =====//
+        user_model.run_simulation(output_pathtofile, verbose);
     }
     else
-    { // Compute likelihood
-        user_model.only_compute_loglikelihood(verbose);
+    { //===== Compute Loglikelihood =====//
+        screen::display_decorator("Loglikelihood", screen::C_DECOR, UNDEFINED, verbose);
+        UNUSED(user_model.run_compute_loglikelihood(verbose));
     }
 
     return EXIT_SUCCESS;
