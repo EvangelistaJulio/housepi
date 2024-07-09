@@ -43,15 +43,15 @@ Thumbs.db
 
 # R files #
 ###########
-.Rhistory
-.Rapp.history
-.RData
-.Rproj.user/
-.Rbuildignore
-.Rproj.user/
-.Rproj.user/**
-.Rout
-.Rout.save
+*.Rhistory
+*.Rapp.history
+*.RData
+*.Rproj.user/
+*.Rbuildignore
+*.Rproj.user/
+*.Rproj.user/**
+*.Rout
+*.Rout.save
 *.Rout.save
 
 /doc/

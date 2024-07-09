@@ -8,7 +8,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-# *housepi* : Package Tutorial
+# Package Tutorial
 
 The purpose of this tutorial is to present *housepi* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks. 
 We'll walk through the process of loading the model, building it with necessary data and running inference. 
@@ -59,25 +59,19 @@ First, install the package.
 
 ## Model Generation
 
-We can now create an object using the function `generate` to initialize the core model used for the inference. We use the default model *chain_binom*.
+We can now create an object using the command `generate` to initialize the model used for the inference. We use the default model *chain_binom*.
 
 ```{r}
-
-# Generate a model
-# this can take a few minutes...
-hemi <- housepi::generate("chain_binom", 
-                         force = TRUE, 
-                         quiet = TRUE)
-
+hemi <- housepi::generate("chain_binom",
+                          force = TRUE) # flag to overwrite cached model
 ```
 
-**Note:** the generation is taking so long because it's recompiling all files. I am looking for a way to compile these files just at the installation.
+**Fix Me:** this can take a few minutes because it's recompiling all files. 
+I am looking for a clean way to compile these files just at the installation.
 
-We associate necessary files to our model object using the `build` function:
+We associate all definitions to our model using the `build` command:
 
 ```{r}
-
-# Build the model by associating it with necessary input files
 housepi::build(
   hemi,
   data = "data/database.csv",
@@ -88,63 +82,51 @@ housepi::build(
 
 # show the selected parameter options 
 hemi$params()
-
 ```
 
-You can control the setup and parameter definitions from the files.
+At the moment, to change the setup and parameter definitions one must change the corresponding files.
 
 ## Simulation
 
-To simulate a dataset according to the model we execute the function `simulate`.
+To produce a simulated dataset according to the model, we execute the command `simulate`:
 
 ```{r}
-
-# Run simulation to produce a synthetic dataset
 simulated <- housepi::simulate(hemi)
 
-# save the simulated dataset 
-write.csv(simulated, "simulated.csv")
-
-# associate the simulated dataset to the model 
-housepi::build(hemi, data = "simulated.csv")
+# override data of the model with the simulated dataset 
+housepi::build(hemi, data = simulated)
 
 # show a summary of the new dataset
 hemi$summary()
-
 ```
 
 ## Compute log-likelihood
 
-Sometimes it can be useful to just compute the log-likelihood before trying to run the inference. You can do so by running the following:
+It can be useful to just compute the log-likelihood before trying to run the inference. 
+We can do it by running the command `compute_loglike`:
 
 ```{r}
-
-# compute the log-likelihood
 housepi::compute_loglike(hemi)
-
 ```
 
 ## Inference
 
-To run the model and perform inference, we execute the function `infer`. 
-This method will return a 'coda' object which can then be used to analyze the results.
+To perform inference, we execute the command `infer`. 
 
 ```{r}
-
-# Run inference on the model and obtain results as a coda mcmc object
 mcmc <- housepi::infer(hemi, progbar = FALSE)
-
-# Set a burnin
-mcmc <- window(mcmc, start=1000)
-
 ```
 
-The inference process returns the Watanabe-Akaike Information Criterion *WAIC*.
+This method returns a 'coda' object which can then be used to analyze the results, for example :
 
 ```{r}
+# Set a burnin
+mcmc <- window(mcmc, start=1000) 
+
+# Trace plots for visualizing the MCMC chains
+coda::traceplot(mcmc)
 
 # Print summary of the posterior estimates
-# Obtain the summary of the MCMC object
 mcmc_summary <- summary(mcmc)
 
 # Extract results from summary statistics
@@ -155,12 +137,12 @@ quant$name <- rownames(quant)
 results <- merge(stats, quant, by = "name")
 results <- results[, c("name", "Mean", "SD", "2.5%", "97.5%")]
 results
+```
 
-# Trace plots for visualizing the MCMC chains
-coda::traceplot(mcmc)
+The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. These results can be accessed as follows:
 
+```{r}
 hemi$results()
-
 ```
 
 ## Custom models

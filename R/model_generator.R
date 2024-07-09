@@ -1,3 +1,29 @@
+
+# ----- Auxiliary Functions ----- #
+
+# create a temporary csv file if the input is a table
+cpp_csv_commuter <- function(x, input, name = "None") {
+  if (is.character(input)) {
+    output <- input
+    
+  } else if (is.data.frame(input) || is.matrix(input) || is.list(input)) {
+    usrmod_dir <- system.file(package = attr(class(x), "package"))
+    output <- file.path(usrmod_dir, "tmp", paste0(name, ".csv"))
+    
+    dir.create(dirname(output), recursive=TRUE, showWarnings = FALSE)
+    write.csv(input, file = output, row.names = FALSE, quote=FALSE)
+  
+  } else {
+    stop(paste0("Unrecognized input for ", name))
+  }
+  
+  return(output)
+}
+
+#------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
+
 #' Generate a model from a cpp script.
 #' 
 #' @param modelpath folder with implementation model.cpp and header model.h.
@@ -137,8 +163,11 @@ build <- function (
     verbose = FALSE
 ) {
     
-  x$build(params, data, augm,
-          setup, extra, 
+  x$build(cpp_csv_commuter(x, params, name = "params"), 
+          cpp_csv_commuter(x, data, name = "data"), 
+          cpp_csv_commuter(x, augm, name = "augm"), 
+          cpp_csv_commuter(x, setup, name = "setup"), 
+          cpp_csv_commuter(x, extra, name = "extra"), 
           is_infer, verbose)
 }
 

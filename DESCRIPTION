@@ -2,7 +2,7 @@ Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Inference Rcpp Toolkit
 Version: 0.1.0
-Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
+Author: person("Francesco", "Camaglia", role = c("aut", "cre"), email = "francesco.camaglia@pasteur.fr")
 Maintainer: <francesco.camaglia@pasteur.fr>
 Description: A platform for household surveys epidemiological modeling.
 License: GPL-3
