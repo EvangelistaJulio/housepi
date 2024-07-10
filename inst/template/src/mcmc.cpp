@@ -337,7 +337,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     //=====Initialization=====//
     screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
     intern_is_infer_complete = false;
-
+    
     //-----Initialize output file-----//
     init_param_file(output_file);
 

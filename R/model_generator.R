@@ -1,17 +1,24 @@
 
 # ----- Auxiliary Functions ----- #
 
-# create a temporary csv file if the input is a table
+# get the system directory of a user model
+get_usr_tmp_file <- function(x, name) {
+  usr_dir <- system.file(package = attr(class(x), "package"))
+  output <- file.path(usr_dir, "tmp", paste0(name, ".csv"))
+  dir.create(dirname(output), recursive=TRUE, showWarnings = FALSE)
+  return(output)
+}
+
+# create temporary csv file if input is a table (wrapper)
+# note : can this be improved allowing dataframe I/O within Rcpp ?
 cpp_csv_commuter <- function(x, input, name = "None") {
   if (is.character(input)) {
     output <- input
     
   } else if (is.data.frame(input) || is.matrix(input) || is.list(input)) {
-    usrmod_dir <- system.file(package = attr(class(x), "package"))
-    output <- file.path(usrmod_dir, "tmp", paste0(name, ".csv"))
-    
-    dir.create(dirname(output), recursive=TRUE, showWarnings = FALSE)
-    write.csv(input, file = output, row.names = FALSE, quote=FALSE)
+    output <- get_usr_tmp_file(x, name)
+    write.csv(input,  file = output, 
+              row.names = FALSE, quote=FALSE)
   
   } else {
     stop(paste0("Unrecognized input for ", name))
@@ -24,11 +31,59 @@ cpp_csv_commuter <- function(x, input, name = "None") {
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
+#' Copy the skeleton of a default model to a given directory.
+#' 
+#' @param which default model name.
+#' @param path user path where to copy implementation and header.
+#' 
+#' @export
+skeleton <- function(which, path="None") {
+  # system path to housepi
+  models_dir <- file.path(system.file(package = "housepi"), "models")
+
+  # check if default exists
+  if(which %in% list.files(models_dir)){
+
+    # create directory
+    if (is.character(path)) {        
+      if (path == "None") {
+        new_dir <- file.path(getwd(), paste0("user_",which))
+
+      } else {
+        new_dir <- path
+      }
+
+      dir.create(new_dir, recursive=TRUE, showWarnings = FALSE)
+
+    } else {
+      stop("The provided path is not valuable.")
+    }
+    
+    # copy files
+    for (f in c("model.cpp", "model.h")) {
+      from_file <- file.path(models_dir, which, f)
+      to_file <- file.path(new_dir, f)
+      file.copy(from_file, to_file, overwrite = TRUE)
+    }
+
+  } else {
+    oss <- paste0("Unknown default model `", which, "`.\nChoose between:")
+    for (name in list.files(models_dir)) {
+      oss <- paste0(oss, "\n* ", name)
+    }
+    stop(oss)
+  }
+}
+
+#------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
+
 #' Generate a model from a cpp script.
 #' 
 #' @param modelpath folder with implementation model.cpp and header model.h.
 #' @param quiet quiet the compilation messages (default).
-#' @param force generate a model even if a cached model already exist
+#' @param force generate a model even if a cached model already exist.
 #' 
 #' @returns Return the user model object.
 #' @export
@@ -90,7 +145,6 @@ generate <- function(modelpath, quiet=TRUE, force=FALSE) {
   } else {
     # copy the package to the new directory
     dir.create(new_dir, recursive=TRUE, showWarnings = FALSE)
-    src_files <- c("NAMESPACE", "DESCRIPTION", "src", "R")
     
     # copy files
     for (f in c("NAMESPACE", "DESCRIPTION")) {
@@ -141,16 +195,15 @@ generate <- function(modelpath, quiet=TRUE, force=FALSE) {
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-#' Build user model to run inference or simulation
+#' Build user model to run inference or simulation.
 #'
-#' @param x user model object
-#' @param params file path for the model parameters
-#' @param data file path for the input data
-#' @param augm file path for augmented data
-#' @param setup file path for the setup configurations
-#' @param extra file path for any extra configurations
-#' @param is_infer boolean flag to indicate whether to perform inference
-#' @param verbose boolean flag to suppress automatic prints
+#' @param x user model object.
+#' @param params file path for the model parameters.
+#' @param data file path for the input data.
+#' @param augm file path for augmented data.
+#' @param setup file path for the setup configurations.
+#' @param extra file path for any extra configurations.
+#' @param verbose boolean flag to suppress automatic prints.
 #' @export
 build <- function (
     x,
@@ -159,7 +212,6 @@ build <- function (
     augm = "None", 
     setup = "None", 
     extra = "None",
-    is_infer = TRUE,
     verbose = FALSE
 ) {
     
@@ -168,47 +220,47 @@ build <- function (
           cpp_csv_commuter(x, augm, name = "augm"), 
           cpp_csv_commuter(x, setup, name = "setup"), 
           cpp_csv_commuter(x, extra, name = "extra"), 
-          is_infer, verbose)
+          verbose)
 }
 
-#' Run the inference
+#' Run the inference.
 #'
-#' @param x user model object
-#' @param verbose boolean flag to suppress automatic prints
-#' @param progbar boolean flag to suppress progress bar
+#' @param x user model object.
+#' @param verbose boolean flag to suppress automatic prints.
+#' @param progbar boolean flag to suppress progress bar.
 #' 
 #' @returns Return a coda mcmc.
 #' @export
 infer <- function(x, verbose = FALSE, progbar = TRUE) {
-  temp_output_file <- tempfile(fileext = "csv")
-  x$inference(temp_output_file, verbose, progbar)
-  mcmc_data <- utils::read.csv(temp_output_file, header = TRUE)
-  unlink(temp_output_file)
+  tmp_out_file <- get_usr_tmp_file(x, "infer")
+  x$inference(tmp_out_file, verbose, progbar)
+  mcmc_data <- utils::read.csv(tmp_out_file, header = TRUE)
+  unlink(tmp_out_file)
   
   return(coda::as.mcmc(mcmc_data))
 }
 
-#' Run the simulation
+#' Run the simulation.
 #'
-#' @param x user model object
+#' @param x user model object.
 #' 
-#' @returns Return a data frame
+#' @returns Return a data frame.
 #' @export
 simulate <- function(x) {
-  temp_output_file <- tempfile(fileext = "csv")
-  x$simulation(temp_output_file, FALSE)
-  data <- utils::read.csv(temp_output_file, header = TRUE)
-  unlink(temp_output_file)
+  tmp_out_file <- get_usr_tmp_file(x, "simulate")
+  x$simulation(tmp_out_file, FALSE)
+  data <- utils::read.csv(tmp_out_file, header = TRUE)
+  unlink(tmp_out_file)
   
   return(data)
 }
 
-#' Compute the model loglikelihood
+#' Compute the model loglikelihood.
 #'
-#' @param x user model object
-#' @param verbose boolean flag to suppress automatic prints
+#' @param x user model object.
+#' @param verbose boolean flag to suppress automatic prints.
 #' 
-#' @returns Return a double
+#' @returns Return a double.
 #' @export
 compute_loglike <- function(x, verbose = FALSE) {
   return(x$loglikelihood(verbose))

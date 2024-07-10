@@ -87,13 +87,12 @@ public:
 	//=====Build data and parameters=====//
 	void build_parameters(std::string pathtofile, bool verbose = true);
 	void build_data(std::string pathtofile, bool verbose = true);
-	void build_setup(std::string pathtofile, bool is_infer, bool verbose = true);
+	void build_setup(std::string pathtofile, bool verbose = true);
 	void build_augmented(std::string pathtofile, bool verbose = true);
 	virtual void build_extra(std::string pathtofile, bool verbose = true); 
 	void build(std::string params_file = UNDEFINED, std::string data_file = UNDEFINED,
 			   std::string augm_file = UNDEFINED, std::string setup_file = UNDEFINED,
-			   std::string extra_file = UNDEFINED,
-			   bool is_infer = true, bool verbose = true);
+			   std::string extra_file = UNDEFINED, bool verbose = true);
 
 	//===== Display Internal Information=====//
 	void display_setup();

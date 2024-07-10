@@ -22,7 +22,7 @@ bool Unknown_Status_Warning = false; // Warning for unknown status
 
 void MCMC::build(std::string params_file, std::string data_file,
                  std::string augm_file, std::string setup_file,
-                 std::string extra_file, bool is_infer, bool verbose)
+                 std::string extra_file, bool verbose)
 {
     //===== reset internal status =====//
     intern_is_infer_complete = false;
@@ -37,7 +37,7 @@ void MCMC::build(std::string params_file, std::string data_file,
     build_augmented(augm_file, verbose);
 
     // 4) Load Setup (optional)
-    build_setup(setup_file, is_infer, verbose);
+    build_setup(setup_file, verbose);
 
     // 5) Load Extra File (optional, user defined)
     // UPDATE: there could be plenty extra files to be store somewhere
@@ -657,7 +657,7 @@ void MCMC::init_augmented_variables()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-void MCMC::build_setup(std::string pathtofile, bool is_infer, bool verbose)
+void MCMC::build_setup(std::string pathtofile, bool verbose)
 {
     // default number of threads
     unsigned num_threads = 1;
@@ -717,48 +717,45 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer, bool verbose)
                 setup_seed = std::stoull(safe_load.at("seed"));
             }
 
-            if (is_infer)
+            //-----number of iterations-----//
+            if (safe_load.find("num_iter") != safe_load.end())
             {
-                //-----number of iterations-----//
-                if (safe_load.find("num_iter") != safe_load.end())
+                setup_num_iter = std::stoul(safe_load.at("num_iter"));
+                if (setup_num_iter < 2)
                 {
-                    setup_num_iter = std::stoul(safe_load.at("num_iter"));
-                    if (setup_num_iter < 2)
-                    {
-                        screen::raise_error("n. of iterations `num_iter` must be greater than 1. Check your setup file.");
-                    }
+                    screen::raise_error("n. of iterations `num_iter` must be greater than 1. Check your setup file.");
                 }
+            }
 
-                //-----number of finite adaptive iterations-----//
-                if (safe_load.find("num_adapt_iter") != safe_load.end())
+            //-----number of finite adaptive iterations-----//
+            if (safe_load.find("num_adapt_iter") != safe_load.end())
+            {
+                setup_num_adapt_iter = std::stoul(safe_load.at("num_adapt_iter"));
+            }
+
+            //-----thinning-----//
+            if (safe_load.find("thinning") != safe_load.end())
+            {
+                setup_thinning = std::stoul(safe_load.at("thinning"));
+                if (setup_num_iter < setup_thinning)
                 {
-                    setup_num_adapt_iter = std::stoul(safe_load.at("num_adapt_iter"));
+                    screen::raise_error("n. of iterations `num_iter` must be greater (or equal) to `thinning`. Check yout setup file.");
                 }
+            }
 
-                //-----thinning-----//
-                if (safe_load.find("thinning") != safe_load.end())
-                {
-                    setup_thinning = std::stoul(safe_load.at("thinning"));
-                    if (setup_num_iter < setup_thinning)
-                    {
-                        screen::raise_error("n. of iterations `num_iter` must be greater (or equal) to `thinning`. Check yout setup file.");
-                    }
-                }
+            //-----random init parameters-----//
+            if (safe_load.find("rnd_init_params") != safe_load.end())
+            {
+                setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
+            }
 
-                //-----random init parameters-----//
-                if (safe_load.find("rnd_init_params") != safe_load.end())
+            //-----inverse temperature-----//
+            if (safe_load.find("inv_tmprt") != safe_load.end())
+            {
+                setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
+                if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
                 {
-                    setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
-                }
-
-                //-----inverse temperature-----//
-                if (safe_load.find("inv_tmprt") != safe_load.end())
-                {
-                    setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
-                    if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
-                    {
-                        screen::raise_error("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
-                    }
+                    screen::raise_error("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
                 }
             }
         }
@@ -781,6 +778,7 @@ void MCMC::build_setup(std::string pathtofile, bool is_infer, bool verbose)
     }
 }
 
+/* Display the complete choices for the setup. */
 void MCMC::display_setup()
 {
     std::ostringstream oss;

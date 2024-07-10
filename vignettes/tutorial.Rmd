@@ -1,6 +1,5 @@
 ---
 title: "housepi"
-author: "Francesco Camaglia"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{housepi}
@@ -10,8 +9,7 @@ vignette: >
 
 # Package Tutorial
 
-The purpose of this tutorial is to present *housepi* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks. 
-We'll walk through the process of loading the model, building it with necessary data and running inference. 
+The purpose of this tutorial is to present *housepi* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
 
 ```{r, echo=FALSE, out.width = "100%"}
 knitr::include_graphics("images/cover-light.png")
@@ -41,18 +39,17 @@ The package requires three main input files to build the model:
 
 3.  **setup.csv :** this file holds the model setup configurations such as the number of iterations, thinning, seed, etc.
 
-    |                      |            |
-    |----------------------|------------|
-    | **seed**             | 576125013  |
-    | **num_iter**         | 10000      |
-    | **num_adapt_iter**   | 1000       |
-    | **rnd_init_params**  | TRUE       |
-    | **num_threads**      | 4          |
-    | ...                  |            |
-    
-    
+    |                     |           |
+    |---------------------|-----------|
+    | **seed**            | 576125013 |
+    | **num_iter**        | 10000     |
+    | **num_adapt_iter**  | 1000      |
+    | **rnd_init_params** | TRUE      |
+    | **num_threads**     | 4         |
+    | ...                 |           |
+
 **Note:** openMP is unsupported on macOS without a custom compiler, thus the option `num_threads` is temporary inactive because of portability issues.
-    
+
 ## Installation
 
 First, install the package.
@@ -66,8 +63,7 @@ hemi <- housepi::generate("chain_binom",
                           force = TRUE) # flag to overwrite cached model
 ```
 
-**Fix Me:** this can take a few minutes because it's recompiling all files. 
-I am looking for a clean way to compile these files just at the installation.
+**Fix Me:** this can take a few minutes because it's recompiling all files. I am looking for a clean way to compile these files just at the installation.
 
 We associate all definitions to our model using the `build` command:
 
@@ -102,8 +98,7 @@ hemi$summary()
 
 ## Compute log-likelihood
 
-It can be useful to just compute the log-likelihood before trying to run the inference. 
-We can do it by running the command `compute_loglike`:
+It can be useful to just compute the log-likelihood before trying to run the inference. We can do it by running the command `compute_loglike`:
 
 ```{r}
 housepi::compute_loglike(hemi)
@@ -111,7 +106,7 @@ housepi::compute_loglike(hemi)
 
 ## Inference
 
-To perform inference, we execute the command `infer`. 
+To perform inference, we execute the command `infer`.
 
 ```{r}
 mcmc <- housepi::infer(hemi, progbar = FALSE)
@@ -147,6 +142,19 @@ hemi$results()
 
 ## Custom models
 
-To test a custom model you can start by copying a subfolder within *models* to a custom path. Modify all relevant parts of the C++ implementation file *user_model.cpp* and of the header file *user_model.h* which are meant to remain in the same path. You can re-run this tutorial simply changing `model_file`.
+To create a custom model you can start by copying a default models to a custom path. You can do so with the command `skeleton`, e. g.:
 
-**Note:** to avoid errors you should change only the chunks of code indicated with *CHANGE-ME*.
+```{r, eval=FALSE}
+# where you want to store "your_model"
+model_path <- "path/to/your_model"
+housepi::skeleton("chain_binom_heter", where=model_path)
+```
+
+Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within your model directory. 
+**Note:** to avoid errors you should change only the chunks of code indicated with "CHANGE-ME".
+
+You can now re-run this tutorial changing the model generation with the following:
+
+```{r, eval=FALSE}
+hemi <- housepi::generate(model_path)
+```
