@@ -322,7 +322,7 @@ public:
 	std::string message_to_display()
 	{
 		std::ostringstream oss;
-		oss << get_value() << screen::C_DELIM << ((infer) ? "true" : "false");
+		oss << get_value() << screen::C_DELIM << ((infer) ? "TRUE" : "FALSE");
 		if (infer)
 		{
 			oss << screen::C_DELIM << distr_ptr->message_to_display().str()

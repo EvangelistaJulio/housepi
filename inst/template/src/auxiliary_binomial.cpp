@@ -482,7 +482,7 @@ namespace bax
 	{
 		ushort hh_size = commu_esc_proba.size();
 		double loglikelihood = 0.;
-
+	
 		//----- seronegatives contribution -----//
 		for (ushort i = N_star; i < hh_size; i++)
 		{

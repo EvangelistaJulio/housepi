@@ -13,6 +13,19 @@ namespace screen
     std::chrono::steady_clock::time_point _Prog_Bar_Start_;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /* A formatted string for percent of num/denom */
+    std::string percent(int num, int den)
+    {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(2)
+            << "(" << (100.0 * num / den) << "%)";
+        return oss.str();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -114,7 +127,7 @@ namespace screen
             std::ostringstream oss;
             oss << txt + ": [" + std::string(PROGBAR_WIDTH, '.') + "] "
                 << std::fixed << std::setprecision(2) << 0.0 << " %"
-                << " (00m00s<??m??s)\r";
+                << " 00m00s<??m??s" << "\r";
             _helper_stderr_(oss.str());
             _Prog_Bar_Start_ = steady_clock::now();
         }
@@ -129,17 +142,16 @@ namespace screen
         {
             if ((total < PROGBAR_THIN) || (progress % (total / PROGBAR_THIN) == 0))
             {
-                double percentage = static_cast<double>(progress) / total;
-                int where = percentage * PROGBAR_WIDTH;
+                int where = static_cast<double>(progress) * PROGBAR_WIDTH / total;
                 auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
-                double time_missing = static_cast<double>(time_elapsed) * (1. - percentage) / percentage;
+                double time_missing = static_cast<double>(time_elapsed) * (static_cast<double>(total) / progress - 1.);
 
                 std::ostringstream oss;
                 oss << txt + ": [" + std::string(where, C_DECOR) + std::string(PROGBAR_WIDTH - where, '.') + "] "
-                    << std::fixed << std::setprecision(2) << 100.0 * percentage << " %"
-                    << " (" + format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing) + ")"
-                    << std::string(20, ' ');
-                _helper_stderr_(oss.str() + "\r");
+                    << percent(progress, total)
+                    << " " << format_millisecs(time_elapsed) + "<" + format_millisecs(time_missing)
+                    << std::string(20, ' ') << "\r";
+                _helper_stderr_(oss.str());
             }
         }
 
@@ -158,9 +170,9 @@ namespace screen
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
             std::ostringstream oss;
             oss << txt + ": [" + std::string(PROGBAR_WIDTH, C_DECOR) + "] "
-                << std::fixed << std::setprecision(2) << 100.0 << " %"
-                << " (" + format_millisecs(time_elapsed) + ")"
-                << std::string(20, ' ') + "\n";
+                << percent(100, 100)
+                << " " << format_millisecs(time_elapsed)
+                << std::string(20, ' ') << "\n";
             _helper_stderr_(oss.str());
         }
     }

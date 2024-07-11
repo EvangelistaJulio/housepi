@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 
     user_model.build(params_file, data_file,
                      augm_file, setup_file,
-                     extra_file, is_infer, verbose);
+                     extra_file, verbose);
 
     //=====================//
     //===== EXECUTION =====//

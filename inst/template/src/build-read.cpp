@@ -26,15 +26,6 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 /////////////////////////////  MCMC : methods (auxiliary functions)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* A formatted string for percent of num/denom */
-std::string percent(int num, int den)
-{
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2)
-        << " (" << (100.0 * num / den) << " %)";
-    return oss.str();
-}
-
 /* Cleaner std::string from forbidden characters. */
 std::string MCMC::string_cleaner(std::string token)
 {

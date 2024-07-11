@@ -24,19 +24,6 @@
 //------------------------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Auxiliary Functions  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::string percent(int num, int denom);
-
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  MCMC : class  ////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -44,18 +31,22 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
+	ulong setup_num_chains = 1;			// n. chains
 	ulong setup_num_iter = 10000;		// n. iterations
 	ulong setup_num_adapt_iter = 0;		// n. (finite) adaptive steps
 	ulong setup_thinning = 1;			// n. thinning iterations
+	ulong setup_burnin = 0;				// n. burnin iterations
 	ulong setup_num_prints = 0;			// n. prints (just internal)
+
 	unsigned long long setup_seed = 1;	// random seed
 	double setup_inv_tmprt = 1.0;		// inverse temperature
 	bool setup_rnd_init_params = false; // random initialization of parameters
 
 	//=====Internal=====//
-
+	ulong intern_chain = 0;
 	bool intern_is_infer_complete = false;
 	bool intern_has_non_reference_groups = false;
+	bool intern_is_diagnostics = false;
 
 	//=====Database=====//
 	std::vector<std::string>
@@ -89,7 +80,7 @@ public:
 	void build_data(std::string pathtofile, bool verbose = true);
 	void build_setup(std::string pathtofile, bool verbose = true);
 	void build_augmented(std::string pathtofile, bool verbose = true);
-	virtual void build_extra(std::string pathtofile, bool verbose = true); 
+	virtual void build_extra(std::string pathtofile, bool verbose = true);
 	void build(std::string params_file = UNDEFINED, std::string data_file = UNDEFINED,
 			   std::string augm_file = UNDEFINED, std::string setup_file = UNDEFINED,
 			   std::string extra_file = UNDEFINED, bool verbose = true);
@@ -103,11 +94,12 @@ public:
 	void display_thin_results();
 
 	//=====General Initialization=====//
+	void set_rate_per_group(Individual &this_indiv);
+	void set_rate_per_contact(int h);
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
 	virtual void initialize_model() {};
-	void set_rate_per_group(Individual &this_indiv);
-	void set_rate_per_contact(int h);
+	virtual void initialize_chain() {};
 
 	//=====Augmented Variables=====//
 	void assign_augmented_variables();

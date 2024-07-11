@@ -74,7 +74,6 @@ void Model::fill_house_escape_matrix(int h,
 	}
 
 	//----- assign values to matrix -----//
-	double aux;
 	for (int i = 0; i < hh_size; i++)
 	{
 		// community : i escaped from community
@@ -85,8 +84,7 @@ void Model::fill_house_escape_matrix(int h,
 		{
 			if (k != i)
 			{
-				aux = get_value("beta") * std::pow(get_value("typic_size") / hh_size, get_value("gamma"));
-				p2p_esc_proba[k][i] = exp(-susc_rate[i] * infec_rate[k] * aux);
+				p2p_esc_proba[k][i] = exp(-susc_rate[i] * infec_rate[k] * get_value("beta"));
 			}
 			// else is equal to 1 (declared outside, not relevant)
 		}

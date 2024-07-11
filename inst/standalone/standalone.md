@@ -2,7 +2,6 @@
 
 ```
 MODEL=../models/chain_binom
-EXE=${MODEL}/model.exe
 make MODEL=$MODEL
 make clean MODEL=$MODEL
 ```
@@ -14,7 +13,7 @@ If you want to compile with debug flags (same used by R package compiler), use `
 PARAMS=../example/params.csv
 DATABASE=../example/database.csv
 SETUP=../example/setup.csv
-${EXE} -simulate -v -p ${PARAMS} -d ${DATABASE} -s ${SETUP} -o simulated.csv
+${MODEL}/model.exe -simulate -v -p ${PARAMS} -d ${DATABASE} -s ${SETUP} -o simulated.csv
 ```
 
 ## Run Inference 
@@ -22,6 +21,6 @@ ${EXE} -simulate -v -p ${PARAMS} -d ${DATABASE} -s ${SETUP} -o simulated.csv
 ```
 PARAMS=../example/params.csv
 SETUP=../example/setup.csv
-${EXE} -infer -v -p ${PARAMS} -d simulated.csv -s ${SETUP} -o delete-me.csv
+${MODEL}/model.exe -infer -v -p ${PARAMS} -d simulated.csv -s ${SETUP} -o delete-me.csv
 ```
 

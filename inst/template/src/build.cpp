@@ -7,7 +7,8 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Unknown_Status_Warning = false; // Warning for unknown status
+bool Unknown_Status_Warning = false;       // Warning for unknown status
+bool Fix_Init_Mult_Chains_Warning = false; // Warning for fixed paramter values when multiple chains
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -449,10 +450,12 @@ void MCMC::set_rate_per_contact(int h)
 /* Print the report of the database and of the model group rates. */
 void MCMC::display_summary()
 {
+    using namespace screen;
+    
     std::ostringstream oss;
     oss << "n. of individuals: " << report_data["n.indiv"]
         << "\n    * n. of cases: " << report_data["n.cases"]
-        << percent(report_data["n.cases"], report_data["n.indiv"]);
+        << " " << percent(report_data["n.cases"], report_data["n.indiv"]);
     if (report_data["n.unk.stat"] > 0)
     {
         oss << "\nn. of missing status : " << report_data["n.unk.stat"];
@@ -461,20 +464,20 @@ void MCMC::display_summary()
     if (report_data["no.HH.case"] > 0)
     {
         oss << "\n    * with no cases: " << report_data["no.HH.case"]
-            << percent(report_data["no.HH.case"], num_househ);
+            << " " << percent(report_data["no.HH.case"], num_househ);
     }
     oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
-        << percent(report_data["lst.1.case"], num_househ)
+        << " " << percent(report_data["lst.1.case"], num_househ)
         << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
-        << percent(report_data["lst.2.case"], num_househ)
+        << " " << percent(report_data["lst.2.case"], num_househ)
         << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
-        << percent(report_data["n.HH.with.max.cases"], num_househ)
+        << " " << percent(report_data["n.HH.with.max.cases"], num_househ)
         << "\nmin n. house members: " << report_data["min.HH.size"]
-        << percent(report_data["n.HH.with.min.size"], num_househ)
+        << " " << percent(report_data["n.HH.with.min.size"], num_househ)
         << "\nmax n. house members: " << report_data["max.HH.size"]
-        << percent(report_data["n.HH.with.max.size"], num_househ);
+        << " " << percent(report_data["n.HH.with.max.size"], num_househ);
 
-    screen::print_stdout(oss.str() + "\n");
+    print_stdout(oss.str() + "\n");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,6 +487,8 @@ void MCMC::display_summary()
 /* Display model report. */
 void MCMC::display_report()
 {
+    using namespace screen;
+
     // if there are non reference groups defined
     if (intern_has_non_reference_groups)
     {
@@ -497,7 +502,7 @@ void MCMC::display_report()
                 for (auto const &x : entry.second)
                 {
                     oss << "\n    * " << x.first << ": " << x.second
-                        << percent(x.second, report_data["n.indiv"]);
+                        << " " << percent(x.second, report_data["n.indiv"]);
                 }
                 oss << "\n";
             }
@@ -506,9 +511,10 @@ void MCMC::display_report()
         for (auto const &x : report_model.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
-                << percent(x.second, report_data["_n.contacts_"]);
+                << " " << percent(x.second, report_data["_n.contacts_"]);
         }
-        screen::print_stdout(oss.str() + "\n");
+        
+        print_stdout(oss.str() + "\n");
     }
 }
 
@@ -717,13 +723,25 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 setup_seed = std::stoull(safe_load.at("seed"));
             }
 
+            //-----number of chains-----//
+            if (safe_load.find("num_chains") != safe_load.end())
+            {
+                setup_num_chains = std::stoul(safe_load.at("num_chains"));
+                if (setup_num_iter < 1)
+                {
+                    screen::raise_error(
+                        "n. of chains must be greater than 0. Check your setup.");
+                }
+            }
+
             //-----number of iterations-----//
             if (safe_load.find("num_iter") != safe_load.end())
             {
                 setup_num_iter = std::stoul(safe_load.at("num_iter"));
                 if (setup_num_iter < 2)
                 {
-                    screen::raise_error("n. of iterations `num_iter` must be greater than 1. Check your setup file.");
+                    screen::raise_error(
+                        "n. of iterations must be greater than 1. Check your setup.");
                 }
             }
 
@@ -737,9 +755,26 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             if (safe_load.find("thinning") != safe_load.end())
             {
                 setup_thinning = std::stoul(safe_load.at("thinning"));
-                if (setup_num_iter < setup_thinning)
+                if (setup_thinning >= setup_num_iter)
                 {
-                    screen::raise_error("n. of iterations `num_iter` must be greater (or equal) to `thinning`. Check yout setup file.");
+                    screen::raise_error(
+                        "thinning must be smaller than n. of iterations. Check your setup.");
+                }
+                else if (setup_thinning == 0)
+                {
+                    screen::raise_error(
+                        "thinning must be greater than 0. Check your setup.");
+                }
+            }
+
+            //-----burn-in-----//
+            if (safe_load.find("burnin") != safe_load.end())
+            {
+                setup_burnin = std::stoul(safe_load.at("burnin"));
+                if (setup_burnin >= setup_num_iter)
+                {
+                    screen::raise_error(
+                        "burnin must be smaller than n. of iterations. Check your setup.");
                 }
             }
 
@@ -747,6 +782,12 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             if (safe_load.find("rnd_init_params") != safe_load.end())
             {
                 setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
+                if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
+                {
+                    screen::raise_warning("Unable to fix initial parameters when running multiple chains.",
+                                          Fix_Init_Mult_Chains_Warning);
+                    setup_rnd_init_params = true;
+                }
             }
 
             //-----inverse temperature-----//
@@ -755,7 +796,8 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
                 if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
                 {
-                    screen::raise_error("Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
+                    screen::raise_error(
+                        "Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
                 }
             }
         }
@@ -781,22 +823,27 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 /* Display the complete choices for the setup. */
 void MCMC::display_setup()
 {
+    using namespace screen;
+
+    // common setup variables
     std::ostringstream oss;
-    oss << "seed" << screen::C_DELIM << setup_seed
-        << "\nnum_threads" << screen::C_DELIM << get_num_threads();
+    oss << "seed" << C_DELIM << setup_seed
+        << "\nnum_threads" << C_DELIM << get_num_threads();
 
     // setup variables only relevant to inference
-    oss << "\nnum_iter" << screen::C_DELIM << setup_num_iter
-        << "\nnum_adapt_iter" << screen::C_DELIM << setup_num_adapt_iter
-        << "\nthinning" << screen::C_DELIM << setup_thinning
-        << "\nrnd_init_params" << screen::C_DELIM << ((setup_rnd_init_params) ? "true" : "false");
+    oss << "\nnum_chains" << C_DELIM << setup_num_chains
+        << "\nnum_iter" << C_DELIM << setup_num_iter
+        << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
+        << "\nthinning" << C_DELIM << setup_thinning
+        << "\nburnin" << C_DELIM << setup_burnin
+        << "\nrnd_init_params" << C_DELIM << ((setup_rnd_init_params) ? "TRUE" : "FALSE");
     if (setup_inv_tmprt != 1.)
     {
-        oss << "\ninv_tmprt" << screen::C_DELIM << setup_inv_tmprt;
+        oss << "\ninv_tmprt" << C_DELIM << setup_inv_tmprt;
     }
     oss << "\n";
 
-    screen::print_stdout(oss.str());
+    print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -837,19 +884,30 @@ void MCMC::init_param_file(std::string output_filename)
 #ifndef USE_RCPP
             screen::print_stdout("save: " + output_filename + "\n");
 #endif
-
-            // param_ofstream << "iter" << C_DELIM;
+            // print loglikelihood
             param_ofstream << "loglike";
+
             /*
+            // augmented variable acceptance rate
             for (std::string augmID : augm_to_be_inferred)
             {
                 param_ofstream << C_DELIM << "augm_" << augmID << "__a%";
             }
             */
+
             for (std::string parID : param_to_be_inferred)
             {
-                param_ofstream << screen::C_DELIM << parID; // << C_DELIM << parID << "__a%";
+                param_ofstream << screen::C_DELIM << parID;
+                // variable acceptance rate
+                // << C_DELIM << parID << "__a%";
             }
+
+            // which chain
+            if (setup_num_chains > 1)
+            {
+                param_ofstream << screen::C_DELIM << "__CHAIN__";
+            }
+
             param_ofstream << std::endl;
         }
         else
@@ -868,19 +926,29 @@ void MCMC::print_parameters()
 {
     if (param_ofstream.is_open())
     {
-        // param_ofstream << step << C_DELIM;
+        // print loglikelihood
         param_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
+
         /*
         for (std::string augmID : augm_to_be_inferred)
         {
             param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
         }
         */
+
+        // print parameter values
         for (std::string parID : param_to_be_inferred)
         {
             param_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
             // param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
+
+        // print which chain
+        if (setup_num_chains > 1)
+        {
+            param_ofstream << screen::C_DELIM << intern_chain;
+        }
+
         param_ofstream << std::endl;
     }
     else

@@ -307,7 +307,7 @@ double MCMC::run_compute_loglikelihood(bool verbose)
     if (verbose)
     {
         std::ostringstream oss;
-        oss << "Loglikelihood" << screen::C_DELIM << " " << ll << "\n";
+        oss << "Loglikelihood" << screen::C_DELIM << ll << "\n";
         screen::print_stdout(oss.str());
     }
 #ifndef USE_RCPP
@@ -334,70 +334,119 @@ double MCMC::run_compute_loglikelihood(bool verbose)
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
 void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 {
-    //=====Initialization=====//
+    std::string adap_prog_txt, burn_prog_txt, exec_prog_txt;
+
+    //==========================//
+    //===== Initialization =====//
+    //==========================//
+
     screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
     intern_is_infer_complete = false;
-    
-    //-----Initialize output file-----//
-    init_param_file(output_file);
-
-    //-----Initialize parameter inference-----//
-    init_rand_params(setup_rnd_init_params);
-
-    //-----random initialization of augmented variables with model-----//
-    init_augmented_variables();
 
     //-----Initialize model-----//
     initialize_model();
-    set_global_loglike(compute_global_loglike());
-    disable_assert_param(); // avoid asserting parameters definitions after first call
 
-    //=======================================//
-    //=====Adaptative MCMC on parameters=====//
-    //=======================================//
+    //-----Initialize output file-----//
+    init_param_file(output_file);
 
-    if (setup_num_adapt_iter > 0)
+    //-----Initialize diagnostics-----//
+    init_model_diagnostics();
+
+    //-----Multiple Chains-----//
+    for (intern_chain = 1; intern_chain <= setup_num_chains; intern_chain++)
     {
-        unsigned long num_adapt_iter_thin = setup_num_adapt_iter / setup_thinning;
-
-        screen::display_progress_bar_start("adaptive", progbar);
-
-        init_move_counts();
-        for (unsigned long i = 1; i <= num_adapt_iter_thin; i++)
+        // Set progress bars text
+        if (setup_num_chains == 1)
         {
-            for (unsigned long j = 1; j <= setup_thinning; j++)
+            adap_prog_txt = "adaptive";
+            burn_prog_txt = "burn-in";
+            exec_prog_txt = "execution";
+        }
+        else 
+        {
+            adap_prog_txt = "adap " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
+            burn_prog_txt = "burn " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
+            exec_prog_txt = "exec " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
+        }
+
+        //-----Initialize parameter inference-----//
+        init_rand_params(setup_rnd_init_params);
+
+        //-----Initialize augmented variables with model-----//
+        init_augmented_variables();
+
+        //-----Initialize chain-----//
+        initialize_chain();
+
+        // set the value of the global loglikelihood
+        set_global_loglike(compute_global_loglike());
+
+        // avoid asserting parameters definitions after first call
+        disable_assert_param();
+
+        // reset the acceptance counts
+        init_move_counts();
+
+        //=======================================//
+        //=====Adaptative MCMC on parameters=====//
+        //=======================================//
+
+        if (setup_num_adapt_iter > 0)
+        {
+            screen::display_progress_bar_start(adap_prog_txt, progbar);
+            for (ulong i = 1; i <= setup_num_adapt_iter; i++)
             {
                 move_all_augm_variables();
-                move_and_adapt_all_parameters(j + (i - 1) * setup_thinning);
+                move_and_adapt_all_parameters(i);
+                screen::display_progress_bar(adap_prog_txt, i, setup_num_adapt_iter, progbar);
             }
-            screen::display_progress_bar("adaptive", i, num_adapt_iter_thin, progbar);
+            screen::display_progress_bar_end(adap_prog_txt, progbar);
+
+            // reset the acceptance counts
+            init_move_counts();
         }
-        screen::display_progress_bar_end("adaptive", progbar);
-    }
 
-    //============================================//
-    //=====Monte Carlo Markov Chain execution=====//
-    //============================================//
+        //============================================//
+        //========= MCMC Burn-in Iterations ==========//
+        //============================================//
 
-    screen::display_progress_bar_start("execution", progbar);
-
-    init_move_counts();
-    init_model_diagnostics();
-    for (unsigned long i = 1; i <= setup_num_prints; i++)
-    {
-        for (unsigned long j = 1; j <= setup_thinning; j++)
+        if (setup_burnin > 0)
         {
-            move_all_augm_variables();
-            move_all_parameters();
+            screen::display_progress_bar_start(burn_prog_txt, progbar);
+            for (ulong i = 1; i <= setup_burnin; i++)
+            {
+                move_all_augm_variables();
+                move_all_parameters();
+                screen::display_progress_bar(burn_prog_txt, i, setup_num_prints, progbar);
+            }
+            screen::display_progress_bar_end(burn_prog_txt, progbar);
         }
 
-        // compute diagnostics for the previous iterations
-        update_model_diagnostics();
+        //============================================//
+        //========= MCMC Posterior Sampling ==========//
+        //============================================//
 
-        print_parameters();
-        screen::display_progress_bar("execution", i, setup_num_prints, progbar);
+        screen::display_progress_bar_start(exec_prog_txt, progbar);
+        for (ulong i = 1; i <= setup_num_prints; i++)
+        {
+            for (ulong j = 1; j <= setup_thinning; j++)
+            {
+                move_all_augm_variables();
+                move_all_parameters();
+            }
+
+            // compute diagnostics for the previous iterations
+            update_model_diagnostics();
+
+            print_parameters();
+            screen::display_progress_bar(exec_prog_txt, i, setup_num_prints, progbar);
+        }
+        screen::display_progress_bar_end(exec_prog_txt, progbar);
+
+        // FIXME : 
+        // missing a storing diagnostics : everything is canceled for each chain
+        // a Gelman Rubin could be integrated then
     }
-    screen::display_progress_bar_end("execution", progbar);
 
     //==========================//
     //=====end of inference=====//
@@ -422,14 +471,16 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 /* Init Bayesian diagnostics. */
 void MCMC::init_model_diagnostics()
 {
+    ulong sample_size = setup_num_chains * setup_num_prints; 
+
     // diagnostics for all parameters
-    init_param_diagnostics(setup_num_prints);
+    init_param_diagnostics(sample_size);
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_househ; h++)
     {
-        househ[h].init_diagnostics(setup_num_prints);
+        househ[h].init_diagnostics(sample_size);
     }
 
     dgn_loglike = 0;     // (global) loglikelihood
@@ -449,8 +500,11 @@ void MCMC::update_model_diagnostics()
         househ[h].update_diagnostics();
     }
 
-    dgn_loglike += global_loglike / setup_num_prints;                  // (global) loglikelihood
-    dgn_sqr_loglike += std::pow(global_loglike, 2) / setup_num_prints; // mean squared (global) loglikelihood
+    // (global) loglikelihood
+    dgn_loglike += global_loglike / (setup_num_chains * setup_num_prints);    
+    
+    // mean squared (global) loglikelihood
+    dgn_sqr_loglike += std::pow(global_loglike, 2) / (setup_num_chains * setup_num_prints);
 }
 
 /* Display results as sampled during thin iterations.
@@ -458,9 +512,11 @@ void MCMC::update_model_diagnostics()
 */
 void MCMC::display_thin_results()
 {
+    using namespace screen; 
+
     if (!intern_is_infer_complete)
     {
-        screen::raise_warning("Ignored attempt to show results before inference.", Inconmplete_Infer_Diagnostics_Warning);
+        raise_warning("Ignored attempt to show results before inference.", Inconmplete_Infer_Diagnostics_Warning);
     }
     else
     {
@@ -469,7 +525,8 @@ void MCMC::display_thin_results()
         //===========================//
 
         // compute WAIC
-        double samp_var_corr = static_cast<double>(setup_num_prints) / (setup_num_prints - 1.);
+        double sample_size = setup_num_chains * setup_num_prints;
+        double samp_var_corr = (sample_size) / (sample_size - 1.);
         double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
 
         // implement WAIC warning
@@ -493,21 +550,21 @@ void MCMC::display_thin_results()
         }
         // diagnostics (sampled every thinning iterration)
         std::ostringstream oss;
-        oss << "loglikelihood_mean" << screen::C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
-            << "\nloglikelihood_sd" << screen::C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
-            << "\nlogpoint_predict_dens" << screen::C_DELIM << log_point_pred_dens
-            << "\neffective_parameters" << screen::C_DELIM << effec_num_params_waic
-            << "\nWAIC" << screen::C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
-        screen::print_stdout(oss.str() + "\n");
+        oss << "loglikelihood.mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
+            << "\nloglikelihood.sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
+            << "\nlogpoint.predictive.density" << C_DELIM << log_point_pred_dens
+            << "\neffective.parameters" << C_DELIM << effec_num_params_waic
+            << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
+        print_stdout(oss.str() + "\n");
 
         // practical WAIC warning
         if (is_p_waic_large == true)
         {
             std::ostringstream oss;
             oss << percent(p_waic_large_count, num_househ)
-                << "p_waic estimates greater than " << p_waic_limit << "."
+                << " p_waic estimates greater than " << p_waic_limit << "."
                 << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
-            screen::raise_warning(oss.str(), Large_p_WAIC_Warning);
+            raise_warning(oss.str(), Large_p_WAIC_Warning);
         }
     }
 }
@@ -569,38 +626,44 @@ void MCMC::run_simulation(std::string output_filename, bool verbose)
 /* display the user model parameters */
 void MCMC::display_parameters()
 {
+    using namespace screen;
+
     std::ostringstream oss;
     oss << param_file_required_headers[0];
     for (size_t k = 1; k < param_file_required_headers.size(); k++)
     {
-        oss << screen::C_DELIM << param_file_required_headers[k];
+        oss << C_DELIM << param_file_required_headers[k];
     }
     for (std::string parID : param_to_be_inferred)
     {
         oss << "\n"
-            << parID << screen::C_DELIM << get_message_to_display(parID);
+            << parID << C_DELIM << get_message_to_display(parID);
     }
     for (std::string parID : param_static)
     {
         oss << "\n"
-            << parID << screen::C_DELIM << get_message_to_display(parID);
+            << parID << C_DELIM << get_message_to_display(parID);
     }
-    screen::print_stdout(oss.str() + "\n");
+    
+    print_stdout(oss.str() + "\n");
 }
 
 /* display the diagnostics */
 void MCMC::display_param_diagnostics()
 {
+    using namespace screen;
+
     std::ostringstream oss;
-    oss << "name" << screen::C_DELIM << "value" << screen::C_DELIM << "value_sd";
+    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
     for (size_t k = 2; k < param_file_required_headers.size(); k++)
     {
-        oss << screen::C_DELIM << param_file_required_headers[k];
+        oss << C_DELIM << param_file_required_headers[k];
     }
     for (std::string parID : param_to_be_inferred)
     {
         oss << "\n"
-            << parID << screen::C_DELIM << get_message_to_diagnostics(parID);
+            << parID << C_DELIM << get_message_to_diagnostics(parID);
     }
-    screen::print_stdout(oss.str() + "\n");
+    
+    print_stdout(oss.str() + "\n");
 }

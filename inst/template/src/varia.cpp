@@ -207,7 +207,7 @@ std::string Parameter::message_to_diagnostics()
     std::ostringstream oss;
     oss << dgn_mean << screen::C_DELIM
         << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
-        << screen::C_DELIM << ((infer) ? "true" : "false");
+        << screen::C_DELIM << ((infer) ? "TRUE" : "FALSE");
     if (infer)
     {
         oss << screen::C_DELIM << distr_ptr->message_to_display().str()
@@ -301,7 +301,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     if (n > max_detected_threads)
     {
         std::ostringstream oss;
-        oss << "Number of threads " << n << " changed to max amount of detected threads (" << max_detected_threads << ").";
+        oss << "Number of threads (" << n << ") changed to max amount of detected threads (" << max_detected_threads << ").";
         screen::raise_warning(oss.str(), Above_Max_Threads_Warning);
         n = max_detected_threads;
     }

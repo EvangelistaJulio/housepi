@@ -1,0 +1,7 @@
+seed,3340317188386032
+rnd_init_params,TRUE
+num_adapt_iter,250
+num_iter,2500
+num_chains,5
+thinning,5
+num_threads,1
