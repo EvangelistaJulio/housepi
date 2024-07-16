@@ -17,14 +17,14 @@ bool Large_p_WAIC_Warning = false;                  // Warning for unreliable WA
 /* Assign group rate to an individual  */
 void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
-    this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
-    this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
+    //this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
+    UNUSED(this_indiv);
 }
 
 /* Assign the contact patterns between a couple of individuals. */
 void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
 {
-    househ[h].assign_rate_per_contact(from, to, REFERENCE);
+    househ[h].assign_rate_per_contact(from, to, EMPTY_RATE);
 }
 
 /* Return the time of infection of a patient. */
@@ -171,7 +171,7 @@ void MCMC::move_all_parameters()
 /* Sweep over all model parameters plus adaptive step. */
 void MCMC::move_and_adapt_all_parameters(ulong step)
 {
-    double adapt_ratio = static_cast<double>(step) / setup_num_adapt_iter;
+    double adapt_ratio = static_cast<double>(step) / setup_num_adapt;
 
     for (std::string parID : param_to_be_inferred)
     {
@@ -335,7 +335,7 @@ double MCMC::run_compute_loglikelihood(bool verbose)
 void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 {
     std::string adap_prog_txt, burn_prog_txt, exec_prog_txt;
-    ulong tot_num_sweeps = setup_num_adapt_iter + setup_burn_in + setup_num_iter;
+    ulong tot_num_sweeps = setup_num_adapt + setup_num_iter;
 
     //==========================//
     //===== Initialization =====//
@@ -389,7 +389,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         }
 
         // open this progress bar
-        if (setup_num_adapt_iter > 0)
+        if (setup_num_adapt > 0)
         {
             screen::display_progress_bar_start(adap_prog_txt, progbar);
         }
@@ -406,9 +406,9 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
 
-        if (setup_num_adapt_iter > 0)
+        if (setup_num_adapt > 0)
         {
-            for (ulong i = 1; i <= setup_num_adapt_iter; i++)
+            for (ulong i = 1; i <= setup_num_adapt; i++)
             {
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(i);
@@ -429,7 +429,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
             {
                 move_all_augm_variables();
                 move_all_parameters();
-                screen::display_progress_bar(burn_prog_txt, setup_num_adapt_iter + i, tot_num_sweeps, progbar);
+                screen::display_progress_bar(burn_prog_txt, setup_num_adapt + i, tot_num_sweeps, progbar);
             }
         }
 
@@ -437,7 +437,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         //========= MCMC Posterior Sampling ==========//
         //============================================//
 
-        for (ulong i = setup_thinning; i <= setup_num_iter; i += setup_thinning)
+        for (ulong i = setup_burn_in; i <= setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves
             for (ulong j = 1; j <= setup_thinning; j++)
@@ -451,7 +451,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
             // print inference state
             print_inferstate();
 
-            screen::display_progress_bar(exec_prog_txt, setup_num_adapt_iter + setup_burn_in + i, tot_num_sweeps, progbar);
+            screen::display_progress_bar(exec_prog_txt, setup_num_adapt + i + setup_thinning, tot_num_sweeps, progbar);
         }
 
         //----- Close this chain progress bar -----//

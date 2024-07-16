@@ -33,7 +33,7 @@ protected:
 	//=====Setup=====//
 	ulong setup_num_chains = 1;		// n. chains
 	ulong setup_num_iter = 10000;	// n. iterations
-	ulong setup_num_adapt_iter = 0; // n. (finite) adaptive steps
+	ulong setup_num_adapt = 0; // n. (finite) adaptive steps
 	ulong setup_thinning = 1;		// n. thinning iterations
 	ulong setup_burn_in = 0;			// n. burnin iterations
 	ulong setup_sample_size = 0;		// n. prints (just internal)
@@ -45,7 +45,6 @@ protected:
 	//=====Internal=====//
 	ulong intern_chain = 0;
 	bool intern_is_infer_complete = false;
-	bool intern_has_non_reference_groups = false;
 	bool intern_is_diagnostics = false;
 
 	//=====Database=====//

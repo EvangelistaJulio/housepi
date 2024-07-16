@@ -266,31 +266,11 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 }
             }
 
-            //===== Check if user defined groups other than reference =====//
-            intern_has_non_reference_groups = false;
-            if (!report_model.empty())
-            {
-                for (const auto &entry : report_model)
-                {
-                    if (entry.second.size() > 1)
-                    {
-                        intern_has_non_reference_groups = true;
-                        break;
-                    }
-                }
-            }
-
             //=====Display Database and Model Reports=====//
             if (verbose)
             {
-                screen::display_decorator("Database::summary", '-');
                 display_summary();
-
-                if (intern_has_non_reference_groups)
-                {
-                    screen::display_decorator("Database::rates", '-');
-                    display_report();
-                }
+                display_report();
             }
         }
     }
@@ -353,7 +333,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             this_indiv.set_rate(rateID, get_reference());
             report_model.at(rateID).at("[reference]") += 1;
         }
-        else
+        else if (parID != REFERENCE)
         {
             // rate associated to parameter
             assert_param(parID);
@@ -379,8 +359,6 @@ FIXME : is it necessary occupy this space even if all REFERENCE?
 */
 void MCMC::set_rate_per_contact(int h)
 {
-    std::string rateID = CONTACT_RATE;
-
     // allocate contact patterns
     int s = househ[h].house_size;
     househ[h].which_rate.resize(s, std::vector<std::string>(s, UNDEFINED));
@@ -389,13 +367,13 @@ void MCMC::set_rate_per_contact(int h)
     if (h == 0)
     {
         // if first household, initialize contact rate report
-        report_model.emplace(rateID, std::map<std::string, int>());
-        report_model.at(rateID).emplace("[reference]", 0);
+        report_model.emplace(CONTACT_RATE, std::map<std::string, int>());
+        report_model.at(CONTACT_RATE).emplace("[reference]", 0);
     }
     else
     {
         // all household must have a contact rate
-        if (report_model.find(rateID) == report_model.end())
+        if (report_model.find(CONTACT_RATE) == report_model.end())
         {
             screen::raise_error("Contact rate has not been provided for all households.");
         }
@@ -421,19 +399,19 @@ void MCMC::set_rate_per_contact(int h)
                 else if (parID == REFERENCE)
                 {
                     househ[h].set_rate(k, i, get_reference()); // reference rate
-                    report_model.at(rateID).at("[reference]") += 1;
+                    report_model.at(CONTACT_RATE).at("[reference]") += 1;
                 }
-                else
+                else if (parID != EMPTY_RATE)
                 {
                     assert_param(parID);
                     househ[h].set_rate(k, i, get_address(parID)); // parameter rate
-                    if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
+                    if (report_model.at(CONTACT_RATE).find(parID) == report_model.at(CONTACT_RATE).end())
                     {
-                        report_model.at(rateID).emplace(parID, 1);
+                        report_model.at(CONTACT_RATE).emplace(parID, 1);
                     }
                     else
                     {
-                        report_model.at(rateID).at(parID) += 1;
+                        report_model.at(CONTACT_RATE).at(parID) += 1;
                     }
                 }
 
@@ -452,6 +430,10 @@ void MCMC::set_rate_per_contact(int h)
 void MCMC::display_summary()
 {
     using namespace screen;
+
+#ifndef USE_RCPP
+    display_decorator("Database::summary", '-');
+#endif
 
     std::ostringstream oss;
     oss << "n. of individuals: " << report_data["n.indiv"]
@@ -490,32 +472,39 @@ void MCMC::display_report()
 {
     using namespace screen;
 
-    // if there are non reference groups defined
-    if (intern_has_non_reference_groups)
-    {
-        std::ostringstream oss;
+#ifndef USE_RCPP
+    screen::display_decorator("Database::rates", '-');
+#endif
 
-        for (const auto &entry : report_model)
+    std::ostringstream oss;
+    for (const auto &entry : report_model)
+    {
+        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
         {
-            if (entry.first != CONTACT_RATE)
+            oss << entry.first << ":";
+            for (auto const &x : entry.second)
             {
-                oss << entry.first << ":";
-                for (auto const &x : entry.second)
-                {
-                    oss << "\n    * " << x.first << ": " << x.second
-                        << " " << percent(x.second, report_data["n.indiv"]);
-                }
-                oss << "\n";
+                oss << "\n    * " << x.first << ": " << x.second
+                    << " " << percent(x.second, report_data["n.indiv"]);
             }
+            oss << "\n";
         }
+    }
+
+    if (report_model.at(CONTACT_RATE).find(EMPTY_RATE) != report_model.at(CONTACT_RATE).end())
+    {
         oss << CONTACT_RATE << ":";
         for (auto const &x : report_model.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
                 << " " << percent(x.second, report_data["_n.contacts_"]);
         }
+        oss << "\n";
+    }
 
-        print_stdout(oss.str() + "\n");
+    if (oss.str().size() > 0)
+    {
+        print_stdout(oss.str());
     }
 }
 
@@ -715,7 +704,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             //---- Check that all provided setups are correct -----//
             std::vector<std::string> file_entries = {
                 "num_threads", "seed", "num_chains",
-                "num_iter", "num_adapt_iter", "thinning",
+                "num_iter", "num_adapt", "thinning",
                 "burn_in", "rnd_init_params", "inv_temper"};
 
             std::vector<std::string> wrong_entries = {};
@@ -777,9 +766,9 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             }
 
             //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-            if (safe_load.find("num_adapt_iter") != safe_load.end())
+            if (safe_load.find("num_adapt") != safe_load.end())
             {
-                setup_num_adapt_iter = std::stoul(safe_load.at("num_adapt_iter"));
+                setup_num_adapt = std::stoul(safe_load.at("num_adapt"));
             }
 
             //===== THINNING =====//
@@ -841,8 +830,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     set_prng_seed(setup_seed);
 
     //===== Define MCMC Sample Size =====//
-    setup_num_iter -= setup_burn_in;
-    setup_sample_size = setup_num_chains * setup_num_iter / setup_thinning;
+    setup_sample_size = setup_num_chains * (setup_num_iter - setup_burn_in) / setup_thinning;
 
     //===== Display =====//
     if (verbose)
@@ -864,10 +852,10 @@ void MCMC::display_setup()
 
     // setup variables only relevant to inference
     oss << "\nnum_chains" << C_DELIM << setup_num_chains
-        << "\nnum_iter" << C_DELIM << setup_num_iter + setup_burn_in
-        << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
-        << "\nthinning" << C_DELIM << setup_thinning
+        << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt
         << "\nburn_in" << C_DELIM << setup_burn_in
+        << "\nnum_iter" << C_DELIM << setup_num_iter
+        << "\nthinning" << C_DELIM << setup_thinning
         << "\nrnd_init_params" << C_DELIM << ((setup_rnd_init_params) ? "TRUE" : "FALSE");
     if (setup_inv_temper != 1.)
     {
@@ -903,9 +891,11 @@ void MCMC::build_extra(std::string pathtofile, bool verbose)
 /* Initialize the output file with inferred parameters with column names and initial values */
 void MCMC::init_inferstate_file(std::string output_filename)
 {
+    using namespace screen;
+
     if (output_filename == UNDEFINED)
     {
-        screen::raise_error("Undefined output file.");
+        raise_error("Undefined output file.");
     }
     else
     {
@@ -914,7 +904,7 @@ void MCMC::init_inferstate_file(std::string output_filename)
         if (inferstate_ofstream.is_open())
         {
 #ifndef USE_RCPP
-            screen::print_stdout("save: " + output_filename + "\n");
+            print_stdout("save: " + output_filename + "\n");
 #endif
             // print loglikelihood
             inferstate_ofstream << "loglike";
@@ -929,7 +919,7 @@ void MCMC::init_inferstate_file(std::string output_filename)
 
             for (std::string parID : param_to_be_inferred)
             {
-                inferstate_ofstream << screen::C_DELIM << parID;
+                inferstate_ofstream << C_DELIM << parID;
                 // variable acceptance rate
                 // << C_DELIM << parID << "__a%";
             }
@@ -937,14 +927,14 @@ void MCMC::init_inferstate_file(std::string output_filename)
             // which chain
             if (setup_num_chains > 1)
             {
-                inferstate_ofstream << screen::C_DELIM << "CHAIN__";
+                inferstate_ofstream << C_DELIM << "CHAIN__";
             }
 
             inferstate_ofstream << std::endl;
         }
         else
         {
-            screen::raise_error("Unable to open file: " + output_filename);
+            raise_error("Unable to open file: " + output_filename);
         }
     }
 }

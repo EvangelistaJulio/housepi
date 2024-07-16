@@ -47,10 +47,11 @@ constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initializ
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 constexpr double INF_DOUBLE = 1e10;          // infinity value
 
-constexpr double REFERENCE_VALUE = 1.0;      // auxiliary reference value for the parameters
-const std::string REFERENCE = "_reference_"; // name for reference choice
-const std::string CONTACT_RATE = "Contact";  // name for Contact rate
-const std::string UNDEFINED = "None";        // name for undefined choice
+const std::string UNDEFINED = "None";          // name for undefined choice
+constexpr double REFERENCE_VALUE = 1.0;        // auxiliary reference value for the parameters
+const std::string REFERENCE = "__reference__"; // name for reference choice
+const std::string CONTACT_RATE = "Contact";    // name for Contact rate
+const std::string EMPTY_RATE = "__empty__";    // name for Contact rate
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
