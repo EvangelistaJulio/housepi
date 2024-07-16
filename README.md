@@ -1,62 +1,89 @@
 # housepi
-Epidemiological modeling and inference of household surveys.
 
-[[INCOMPLETE]]
+**housepi** is an R package designed for the statistical analysis and modeling of epidemiological data from household outbreaks.
+By combining ease-of-use with customizability, housepi supports both novice users and advanced researchers in their epidemiological investigations of disease transmission within households.
+The package is a toolkit to perform Bayesian inference and modeling using the implemented classical models or user defined models.
 
-## Standalone C++ Compilation
+## Key Features
 
-In order to compile, move to the standalone folder and run the following:
+- **Ease of Use**: Load data, model configuration, and run inference with straightforward commands.
+- **Customizability**: Create custom models starting from scratch or modifying default templates.
+- **Model Validation**: The support for both inference and simulations estimation and model validation.
+- **Rcpp Integration**: The package uses Rcpp for efficient computation, making it suitable for handling large and complex datasets.
 
-```
-MY_MODEL="<path/to/model>"
-make MODEL=${MY_MODEL}
-make clean MODEL=${MY_MODEL}
-```
+## Installation
 
-where `<path/to/model>` is the path to the implementation **.cpp** file, or header to the header **.h** file. Both need to be in the same folder. 
-The command will produce an executable file `<model>.exe` in the same folder of the model.
+To install **housepi**, use the following command in R:
 
-## Definition files
-
-In order to run your MCMC job, you while need to provide the following files:
-
-* **Database** (e. g.):
-```{csv}
-index,status,house_index,age,sex
-1,0,1,2,55,1
-2,1,1,0,60,1
-...
-```
-where the only mandatory columns are **index**, **status** and **house_index**. The order of the columns is irrelevant. 
-
-* **Parameters** (e. g.):
-```{csv}
-alpha,0.3,TRUE,uniform,low/0/up/1,lognorm,sdlog/2,low/0/up/1
-incub_shape,3.5,FALSE,,,,,
-incub_scale,1.1,FALSE,,,,,
-...
+```{r}
+# Missing a non private repository.
 ```
 
-Optionally a setup file
+## Getting started
 
-* **Setup** (e. g.):
-```{csv}
-seed,None
-delta_t,0.01
-num_iter,40000
-num_adapt_iter,5000
-thinning,25
+Here is a quick guide to get started. For a more comprehensive tutorial, please refer to the package vignettes and help files.
+
+Start by loading the library:
+
+```{r}
+library(housepi)
 ```
 
-## Run
+### Generating a Model
 
-To launch the **inference**, supposing the executable to be in the same folder as the control files, use the following command from terminal:
-```
-<model>.exe -infer -s <setup.csv> -d <database.csv> -p <parameters.csv> -o <infer.csv> 
-```
-In order to print a summary of the execution use the verbose flag `-v`, for other available options use the flag `--help`.
+To generate default epidemiological model (e. g. chain binomial model), run the following:
 
-To launch a **simulation** use the flag `simulate`:
+```{r}
+hemi <- generate("chain_binom")
 ```
-<model>.exe -simulate -d <database.csv> -p <parameters.csv. -o <simulation.csv>
+
+Alternatively, to customize an epidemiological model from a default one:
+
+```{r}
+# Define your model path
+model_path <- "path/to/your_model"
+
+# Use the template of heterogeneous chain binomial
+skeleton("chain_binom_heter", where=model_path)
 ```
+
+Edit the implementation "model.cpp" and/or "model.h" and generate:
+
+```{r}
+hemi <- generate(model_path)
+```
+
+### Building the Model
+
+At any moment you can load the necessary definitions (e.g., database, parameters, setup) and build the model:
+
+```{r}
+build(hemi, 
+      data = "data.csv", 
+      params = "params.csv", 
+      setup = "setup.csv")
+```
+
+The definitions can be loaded from both a data frame or a file.
+
+### Running Inferece
+
+The package uses the Metropolis-Hastings algorithm to infer the model parameters. Run the Monte Carlo Markov Chain with the following command:
+
+```{r}
+mcmc <- infer(hemi)
+```
+
+This generate a coda mcmc object to be used for extract the inference results (see [documentation](https://rdrr.io/cran/coda/man/mcmc.html)).
+
+### Simulating Data
+
+Produce a simulated dataset according to the model by runnning:
+
+```{r}
+df <- simulate(hemi)
+```
+
+## License
+
+[[MISSING]]

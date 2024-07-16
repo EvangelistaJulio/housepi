@@ -347,7 +347,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     initialize_model();
 
     //-----Initialize output file-----//
-    init_param_file(output_file);
+    init_inferstate_file(output_file);
 
     //-----Initialize diagnostics-----//
     init_model_diagnostics();
@@ -438,7 +438,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
             // compute diagnostics for the previous iterations
             update_model_diagnostics();
 
-            print_parameters();
+            print_inferstate();
             screen::display_progress_bar(exec_prog_txt, i, setup_num_prints, progbar);
         }
         screen::display_progress_bar_end(exec_prog_txt, progbar);
@@ -453,7 +453,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     //==========================//
 
     intern_is_infer_complete = true;
-    close_param_file();
+    close_inferstate_file();
 
     if (verbose)
     {

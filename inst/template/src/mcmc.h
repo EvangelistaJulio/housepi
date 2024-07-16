@@ -31,12 +31,12 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	ulong setup_num_chains = 1;			// n. chains
-	ulong setup_num_iter = 10000;		// n. iterations
-	ulong setup_num_adapt_iter = 0;		// n. (finite) adaptive steps
-	ulong setup_thinning = 1;			// n. thinning iterations
-	ulong setup_burnin = 0;				// n. burnin iterations
-	ulong setup_num_prints = 0;			// n. prints (just internal)
+	ulong setup_num_chains = 1;		// n. chains
+	ulong setup_num_iter = 10000;	// n. iterations
+	ulong setup_num_adapt_iter = 0; // n. (finite) adaptive steps
+	ulong setup_thinning = 1;		// n. thinning iterations
+	ulong setup_burnin = 0;			// n. burnin iterations
+	ulong setup_num_prints = 0;		// n. prints (just internal)
 
 	unsigned long long setup_seed = 1;	// random seed
 	double setup_inv_tmprt = 1.0;		// inverse temperature
@@ -49,8 +49,7 @@ protected:
 	bool intern_is_diagnostics = false;
 
 	//=====Database=====//
-	std::vector<std::string>
-		data_headers = {};
+	std::vector<std::string> data_headers = {};
 
 	//=====List of Households=====//
 	std::vector<Household> househ = {};
@@ -136,10 +135,10 @@ public:
 	virtual void format_augmented_data() {};
 	void run_simulation(std::string output_filename, bool verbose = true);
 
-	//=====Save parameters=====//
-	void init_param_file(std::string output_filename);
-	void print_parameters();
-	void close_param_file() { param_ofstream.close(); }
+	//=====Save Inference State=====//
+	void init_inferstate_file(std::string output_filename);
+	void print_inferstate();
+	void close_inferstate_file() { inferstate_ofstream.close(); }
 
 	//=====Save augmented variables=====//
 	void print_augm_variables(std::string output_filename, bool verbose = true);
@@ -151,7 +150,7 @@ private:
 	//=====BUILD=====//
 
 	//-----build : auxiliary attributes-----//
-	std::ofstream param_ofstream;				   // outoput parameter file
+	std::ofstream inferstate_ofstream;			   // outoput inference state file
 	std::vector<ssargs> load_augm_definition = {}; // temporary loader for augmented variable definition
 
 	//----build : auxiliary functions-----//

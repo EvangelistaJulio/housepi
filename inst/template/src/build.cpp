@@ -869,7 +869,7 @@ void MCMC::build_extra(std::string pathtofile, bool verbose)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the output file with inferred parameters with column names and initial values */
-void MCMC::init_param_file(std::string output_filename)
+void MCMC::init_inferstate_file(std::string output_filename)
 {
     if (output_filename == UNDEFINED)
     {
@@ -877,27 +877,27 @@ void MCMC::init_param_file(std::string output_filename)
     }
     else
     {
-        param_ofstream.open(output_filename.c_str());
+        inferstate_ofstream.open(output_filename.c_str());
 
-        if (param_ofstream.is_open())
+        if (inferstate_ofstream.is_open())
         {
 #ifndef USE_RCPP
             screen::print_stdout("save: " + output_filename + "\n");
 #endif
             // print loglikelihood
-            param_ofstream << "loglike";
+            inferstate_ofstream << "loglike";
 
             /*
             // augmented variable acceptance rate
             for (std::string augmID : augm_to_be_inferred)
             {
-                param_ofstream << C_DELIM << "augm_" << augmID << "__a%";
+                inferstate_ofstream << C_DELIM << "augm_" << augmID << "__a%";
             }
             */
 
             for (std::string parID : param_to_be_inferred)
             {
-                param_ofstream << screen::C_DELIM << parID;
+                inferstate_ofstream << screen::C_DELIM << parID;
                 // variable acceptance rate
                 // << C_DELIM << parID << "__a%";
             }
@@ -905,10 +905,10 @@ void MCMC::init_param_file(std::string output_filename)
             // which chain
             if (setup_num_chains > 1)
             {
-                param_ofstream << screen::C_DELIM << "__CHAIN__";
+                inferstate_ofstream << screen::C_DELIM << "CHAIN__";
             }
 
-            param_ofstream << std::endl;
+            inferstate_ofstream << std::endl;
         }
         else
         {
@@ -922,34 +922,34 @@ void MCMC::init_param_file(std::string output_filename)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the model parameters at the given iteration time */
-void MCMC::print_parameters()
+void MCMC::print_inferstate()
 {
-    if (param_ofstream.is_open())
+    if (inferstate_ofstream.is_open())
     {
         // print loglikelihood
-        param_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
+        inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
 
         /*
         for (std::string augmID : augm_to_be_inferred)
         {
-            param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
+            inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
         }
         */
 
         // print parameter values
         for (std::string parID : param_to_be_inferred)
         {
-            param_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
-            // param_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
+            inferstate_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
+            // inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
         }
 
         // print which chain
         if (setup_num_chains > 1)
         {
-            param_ofstream << screen::C_DELIM << intern_chain;
+            inferstate_ofstream << screen::C_DELIM << intern_chain;
         }
 
-        param_ofstream << std::endl;
+        inferstate_ofstream << std::endl;
     }
     else
     {
@@ -982,24 +982,32 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
             format_augmented_data();
 
             //=====Clean up list of headers for output files=====//
-            data_headers.erase(find(data_headers.begin(), data_headers.end(), "index"));
-            data_headers.erase(find(data_headers.begin(), data_headers.end(), "status"));
-            data_headers.erase(find(data_headers.begin(), data_headers.end(), "house_index"));
+            std::vector<std::string> headers = data_headers;
+
+            // remove default headers 
+            headers.erase(find(headers.begin(), headers.end(), "index"));
+            headers.erase(find(headers.begin(), headers.end(), "status"));
+            headers.erase(find(headers.begin(), headers.end(), "house_index"));
+
+            // remove eventual variable with the same name of augmented variables
             for (std::string augmID : augm_full_set)
             {
-                auto it = find(data_headers.begin(), data_headers.end(), augmID);
-                if (it != data_headers.end())
+                auto it = find(headers.begin(), headers.end(), augmID);
+                if (it != headers.end())
                 {
-                    data_headers.erase(it);
+                    headers.erase(it);
                 }
             }
 
             //=====Print column headers=====//
+            // defaults
             augm_ofstream << "index" << screen::C_DELIM << "status" << screen::C_DELIM << "house_index";
-            for (std::string dataID : data_headers)
+            // data
+            for (std::string dataID : headers)
             {
                 augm_ofstream << screen::C_DELIM << dataID;
             }
+            // augmented variables
             for (std::string augmID : augm_full_set)
             {
                 augm_ofstream << screen::C_DELIM << augmID;
@@ -1014,7 +1022,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
                     augm_ofstream << househ[h].indiv[i].get_index()
                                   << screen::C_DELIM << househ[h].indiv[i].get_status()
                                   << screen::C_DELIM << househ[h].get_index();
-                    for (std::string dataID : data_headers)
+                    for (std::string dataID : headers)
                     {
                         augm_ofstream << screen::C_DELIM << househ[h].indiv[i].get_data(dataID);
                     }

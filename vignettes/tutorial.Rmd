@@ -9,7 +9,7 @@ vignette: >
 
 # Package Tutorial
 
-The purpose of this tutorial is to present *housepi* ("Household Epidemiological Modeling for Inference Rcpp Toolkit") for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
+The purpose of this tutorial is to present *housepi*, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
 
 ```{r, echo=FALSE, out.width = "100%"}
 knitr::include_graphics("images/cover-light.png")
@@ -59,11 +59,29 @@ First, install the package.
 We can now create an object using the command `generate` to initialize the model used for the inference. We use the default model *chain_binom*.
 
 ```{r}
-hemi <- housepi::generate("chain_binom",
-                          force = TRUE) # flag to overwrite cached model
+hemi <- housepi::generate("chain_binom")
 ```
 
 **Fix Me:** this can take a few minutes because it's recompiling all files. I am looking for a clean way to compile these files just at the installation.
+
+### Custom models
+
+To create a custom model you can start by copying a default models to a custom path. You can do so with the command `skeleton`, e. g.:
+
+```{r, eval=FALSE}
+housepi::skeleton("chain_binom", where="path/to/your_model")
+```
+
+Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within your model directory. 
+**Note:** to avoid errors you should change only the chunks of code indicated with "CHANGE-ME".
+
+After changing the model generation, all relevant commands remain the same.
+
+```{r, eval=FALSE}
+hemi <- housepi::generate("path/to/your_model")
+```
+
+### Building the Model
 
 We associate all definitions to our model using the `build` command:
 
@@ -72,36 +90,40 @@ housepi::build(
   hemi,
   data = "data/database.csv",
   params = "data/params.csv",
-  setup = "data/setup.csv",
-  verbose = FALSE
+  setup = "data/setup.csv"
 )
 
-# show the selected parameter options 
+# show the parameter definitions 
 hemi$params()
+
+# show the setup definitions 
+hemi$setup()
 ```
 
-At the moment, to change the setup and parameter definitions one must change the corresponding files.
-
-## Simulation
-
-To produce a simulated dataset according to the model, we execute the command `simulate`:
-
-```{r}
-simulated <- housepi::simulate(hemi)
-
-# override data of the model with the simulated dataset 
-housepi::build(hemi, data = simulated)
-
-# show a summary of the new dataset
-hemi$summary()
-```
+To change the setup and parameter definitions change the corresponding files.
 
 ## Compute log-likelihood
 
-It can be useful to just compute the log-likelihood before trying to run the inference. We can do it by running the command `compute_loglike`:
+Sometimes it can be useful to just compute the log-likelihood before trying to run anything else.
+We can do it by running the command `compute_loglike`:
 
 ```{r}
 housepi::compute_loglike(hemi)
+```
+
+## Simulation
+
+To produce a simulated dataset according to the model, we execute the command `simulate`. 
+This requires to have a dataset already loaded to provide the different household compositions.
+
+```{r}
+df <- housepi::simulate(hemi)
+
+# override data of the model with the simulated dataset 
+housepi::build(hemi, data = df)
+
+# show a summary of the new dataset
+hemi$summary()
 ```
 
 ## Inference
@@ -109,14 +131,12 @@ housepi::compute_loglike(hemi)
 To perform inference, we execute the command `infer`.
 
 ```{r}
-mcmc <- housepi::infer(hemi, progbar = FALSE)
+mcmc <- housepi::infer(hemi)
 ```
 
 This method returns a 'coda' object which can then be used to analyze the results, for example :
 
 ```{r}
-# Set a burnin
-mcmc <- window(mcmc, start=1000) 
 
 # Trace plots for visualizing the MCMC chains
 coda::traceplot(mcmc)
@@ -125,6 +145,7 @@ coda::traceplot(mcmc)
 mcmc_summary <- summary(mcmc)
 
 # Extract results from summary statistics
+# FixMe : temporary
 stats <- as.data.frame(mcmc_summary$statistics)[, c("Mean", "SD")]
 stats$name <- rownames(stats)
 quant <- as.data.frame(mcmc_summary$quantiles)[, c("2.5%", "97.5%")]
@@ -138,23 +159,4 @@ The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. 
 
 ```{r}
 hemi$results()
-```
-
-## Custom models
-
-To create a custom model you can start by copying a default models to a custom path. You can do so with the command `skeleton`, e. g.:
-
-```{r, eval=FALSE}
-# where you want to store "your_model"
-model_path <- "path/to/your_model"
-housepi::skeleton("chain_binom_heter", where=model_path)
-```
-
-Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within your model directory. 
-**Note:** to avoid errors you should change only the chunks of code indicated with "CHANGE-ME".
-
-You can now re-run this tutorial changing the model generation with the following:
-
-```{r, eval=FALSE}
-hemi <- housepi::generate(model_path)
 ```
