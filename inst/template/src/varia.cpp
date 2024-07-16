@@ -252,7 +252,7 @@ double Monte_Carlo_Core::_get_value_assert_(const std::string k) const
 void Monte_Carlo_Core::drop_all_params()
 {
     params.clear();
-    param_static.clear();
+    param_to_be_static.clear();
     param_to_be_inferred.clear();
 }
 
@@ -284,7 +284,7 @@ void Monte_Carlo_Core::assign_parameter(
     }
     else
     {
-        param_static.push_back(parID);
+        param_to_be_static.push_back(parID);
     }
 }
 

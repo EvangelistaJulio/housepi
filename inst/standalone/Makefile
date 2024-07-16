@@ -17,7 +17,10 @@ EXECUTABLE := $(MODEL)/model.exe
 # Compilation flags
 CXXFLAGS := -Wall -Wextra -std=gnu++11
 ifdef DEBUG
-CXXFLAGS += -g -O2 -Wno-unknown-pragmas
+# FLAG
+#CXXFLAGS += -g -O2 -Wno-unknown-pragmas
+CXXFLAGS += -g -O2 -fopenmp
+# FLAG-END
 else
 CXXFLAGS += -Ofast
 # Change openMP flags according to OS

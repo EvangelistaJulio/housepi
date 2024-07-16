@@ -7,8 +7,9 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Unknown_Status_Warning = false;       // Warning for unknown status
-bool Fix_Init_Mult_Chains_Warning = false; // Warning for fixed paramter values when multiple chains
+bool Unknown_Status_Warning = false;       // unknown status
+bool Fix_Init_Mult_Chains_Warning = false; // fixed paramter values when multiple chains
+bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -62,7 +63,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
     if (pathtofile == UNDEFINED)
     {
         // error if nothing was previously defined
-        if (param_static.empty() && param_to_be_inferred.empty())
+        if (param_to_be_static.empty() && param_to_be_inferred.empty())
         {
             screen::raise_error("Undefined parameter path/to/file.");
         }
@@ -81,7 +82,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
             screen::display_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
-            std::vector<std::string> headers = read_column_headers(input, param_file_required_headers, pathtofile);
+            std::vector<std::string> headers = read_column_headers(input, param_file_headers, pathtofile);
 
             //===== Clean original list of parameters =====//
             drop_all_params();
@@ -451,7 +452,7 @@ void MCMC::set_rate_per_contact(int h)
 void MCMC::display_summary()
 {
     using namespace screen;
-    
+
     std::ostringstream oss;
     oss << "n. of individuals: " << report_data["n.indiv"]
         << "\n    * n. of cases: " << report_data["n.cases"]
@@ -513,7 +514,7 @@ void MCMC::display_report()
             oss << "\n    * " << x.first << ": " << x.second
                 << " " << percent(x.second, report_data["_n.contacts_"]);
         }
-        
+
         print_stdout(oss.str() + "\n");
     }
 }
@@ -695,13 +696,13 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 std::string name, choice;
                 std::istringstream iss(line);
 
-                //=====NAME=====//
+                //===== NAME =====//
                 if (!getline(iss, name, screen::C_DELIM))
                 {
                     screen::raise_error("Unable to extract setup entry.\nCheck file line: " + line);
                 }
 
-                //=====CHOICE=====//
+                //===== CHOICE =====//
                 if (!getline(iss, choice))
                 {
                     screen::raise_error("Unable to extract setup choice.\nCheck file line: " + line);
@@ -711,54 +712,84 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 safe_load.emplace(string_cleaner(name), string_cleaner(choice));
             }
 
-            //-----number of threads-----//
+            //---- Check that all provided setups are correct -----//
+            std::vector<std::string> file_entries = {
+                "num_threads", "seed", "num_chains",
+                "num_iter", "num_adapt_iter", "thinning",
+                "burn_in", "rnd_init_params", "inv_temper"};
+
+            std::vector<std::string> wrong_entries = {};
+            for (const auto &pair : safe_load)
+            {
+                if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
+                {
+                    wrong_entries.push_back(pair.first);
+                }
+            }
+            if (wrong_entries.size() > 0)
+            {
+                std::ostringstream oss;
+                oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
+                for (size_t k = 1; k < wrong_entries.size(); k++)
+                {
+                    oss << ", `" << wrong_entries[k] << "`";
+                }
+                oss << ". Available setup options are: `" << file_entries[0] << "`";
+                for (size_t k = 1; k < file_entries.size(); k++)
+                {
+                    oss << ", `" << file_entries[k] << "`";
+                }
+                screen::raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
+            }
+
+            //===== NUMBER OF THREADS =====//
             if (safe_load.find("num_threads") != safe_load.end())
             {
                 num_threads = std::stoi(safe_load.at("num_threads"));
             }
 
-            //-----prng seed-----//
+            //===== PRNG SEED =====//
             if ((safe_load.find("seed") != safe_load.end()) && (safe_load.at("seed") != UNDEFINED))
             {
                 setup_seed = std::stoull(safe_load.at("seed"));
             }
 
-            //-----number of chains-----//
+            //===== NUMBER OF CHAINS =====//
             if (safe_load.find("num_chains") != safe_load.end())
             {
                 setup_num_chains = std::stoul(safe_load.at("num_chains"));
                 if (setup_num_iter < 1)
                 {
                     screen::raise_error(
-                        "n. of chains must be greater than 0. Check your setup.");
+                        "number of chains must be greater than 0. Check your setup.");
                 }
             }
 
-            //-----number of iterations-----//
+            //===== NUMBER OF ITERATIONS =====//
             if (safe_load.find("num_iter") != safe_load.end())
             {
                 setup_num_iter = std::stoul(safe_load.at("num_iter"));
                 if (setup_num_iter < 2)
                 {
                     screen::raise_error(
-                        "n. of iterations must be greater than 1. Check your setup.");
+                        "number of iterations must be greater than 1. Check your setup.");
                 }
             }
 
-            //-----number of finite adaptive iterations-----//
+            //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
             if (safe_load.find("num_adapt_iter") != safe_load.end())
             {
                 setup_num_adapt_iter = std::stoul(safe_load.at("num_adapt_iter"));
             }
 
-            //-----thinning-----//
+            //===== THINNING =====//
             if (safe_load.find("thinning") != safe_load.end())
             {
                 setup_thinning = std::stoul(safe_load.at("thinning"));
                 if (setup_thinning >= setup_num_iter)
                 {
                     screen::raise_error(
-                        "thinning must be smaller than n. of iterations. Check your setup.");
+                        "thinning must be smaller than number of iterations. Check your setup.");
                 }
                 else if (setup_thinning == 0)
                 {
@@ -767,18 +798,18 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 }
             }
 
-            //-----burn-in-----//
-            if (safe_load.find("burnin") != safe_load.end())
+            //===== BURN-IN =====//
+            if (safe_load.find("burn_in") != safe_load.end())
             {
-                setup_burnin = std::stoul(safe_load.at("burnin"));
-                if (setup_burnin >= setup_num_iter)
+                setup_burn_in = std::stoul(safe_load.at("burn_in"));
+                if (setup_burn_in >= setup_num_iter)
                 {
                     screen::raise_error(
-                        "burnin must be smaller than n. of iterations. Check your setup.");
+                        "burn-in must be smaller than number of iterations. Check your setup.");
                 }
             }
 
-            //-----random init parameters-----//
+            //===== RANDOM INITIALIZATION OF PARAMETERS =====//
             if (safe_load.find("rnd_init_params") != safe_load.end())
             {
                 setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
@@ -790,29 +821,30 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 }
             }
 
-            //-----inverse temperature-----//
-            if (safe_load.find("inv_tmprt") != safe_load.end())
+            //===== INVERSE TEMPERATURE =====//
+            if (safe_load.find("inv_temper") != safe_load.end())
             {
-                setup_inv_tmprt = std::stod(safe_load.at("inv_tmprt"));
-                if ((setup_inv_tmprt < 0.) || (setup_inv_tmprt > 1.))
+                setup_inv_temper = std::stod(safe_load.at("inv_temper"));
+                if ((setup_inv_temper < 0.) || (setup_inv_temper > 1.))
                 {
                     screen::raise_error(
-                        "Inverse temperature " + std::to_string(setup_inv_tmprt) + " out of range. Check your setup file.");
+                        "Inverse temperature " + std::to_string(setup_inv_temper) + " out of range [0, 1]. Check your setup.");
                 }
             }
         }
     }
 
-    //=====Define Number of Threads (Monte_Carlo_Core)=====//
+    //===== Define Number of Threads (Monte_Carlo_Core) =====//
     set_num_threads(num_threads);
 
-    //=====Pseudo-Random Number Generator Seeding=====//
+    //===== Pseudo-Random Number Generator Seeding =====//
     set_prng_seed(setup_seed);
 
-    //=====Define MCMC Number of Prints=====//
-    setup_num_prints = setup_num_iter / setup_thinning;
+    //===== Define MCMC Sample Size =====//
+    setup_num_iter -= setup_burn_in;
+    setup_sample_size = setup_num_chains * setup_num_iter / setup_thinning;
 
-    //=====Display=====//
+    //===== Display =====//
     if (verbose)
     {
         screen::display_decorator("Setup::definitions", '-');
@@ -832,14 +864,14 @@ void MCMC::display_setup()
 
     // setup variables only relevant to inference
     oss << "\nnum_chains" << C_DELIM << setup_num_chains
-        << "\nnum_iter" << C_DELIM << setup_num_iter
+        << "\nnum_iter" << C_DELIM << setup_num_iter + setup_burn_in
         << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt_iter
         << "\nthinning" << C_DELIM << setup_thinning
-        << "\nburnin" << C_DELIM << setup_burnin
+        << "\nburn_in" << C_DELIM << setup_burn_in
         << "\nrnd_init_params" << C_DELIM << ((setup_rnd_init_params) ? "TRUE" : "FALSE");
-    if (setup_inv_tmprt != 1.)
+    if (setup_inv_temper != 1.)
     {
-        oss << "\ninv_tmprt" << C_DELIM << setup_inv_tmprt;
+        oss << "\ninv_temper" << C_DELIM << setup_inv_temper;
     }
     oss << "\n";
 
@@ -984,7 +1016,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
             //=====Clean up list of headers for output files=====//
             std::vector<std::string> headers = data_headers;
 
-            // remove default headers 
+            // remove default headers
             headers.erase(find(headers.begin(), headers.end(), "index"));
             headers.erase(find(headers.begin(), headers.end(), "status"));
             headers.erase(find(headers.begin(), headers.end(), "house_index"));

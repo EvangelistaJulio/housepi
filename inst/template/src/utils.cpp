@@ -101,8 +101,11 @@ namespace screen
         elapsed -= duration_cast<milliseconds>(mns).count();
 
         auto scs = duration_cast<seconds>(milliseconds(elapsed));
+        elapsed -= duration_cast<milliseconds>(scs).count();
 
         std::ostringstream oss;
+
+        // show large time scales only if the case
         if (dys.count() > 1)
         {
             oss << dys.count() << "d";
@@ -111,6 +114,7 @@ namespace screen
         {
             oss << std::setfill('0') << std::setw(2) << hrs.count() << "h";
         }
+
         oss << std::setfill('0') << std::setw(2) << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
 

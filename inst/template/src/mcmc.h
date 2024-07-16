@@ -35,11 +35,11 @@ protected:
 	ulong setup_num_iter = 10000;	// n. iterations
 	ulong setup_num_adapt_iter = 0; // n. (finite) adaptive steps
 	ulong setup_thinning = 1;		// n. thinning iterations
-	ulong setup_burnin = 0;			// n. burnin iterations
-	ulong setup_num_prints = 0;		// n. prints (just internal)
+	ulong setup_burn_in = 0;			// n. burnin iterations
+	ulong setup_sample_size = 0;		// n. prints (just internal)
 
 	unsigned long long setup_seed = 1;	// random seed
-	double setup_inv_tmprt = 1.0;		// inverse temperature
+	double setup_inv_temper = 1.0;		// inverse temperature
 	bool setup_rnd_init_params = false; // random initialization of parameters
 
 	//=====Internal=====//
@@ -145,7 +145,6 @@ public:
 
 private:
 	double global_loglike = 0.0;
-	double inverse_temperature = 1.0;
 
 	//=====BUILD=====//
 

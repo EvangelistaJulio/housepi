@@ -2,3 +2,4 @@ seed,576125013
 rnd_init_params,TRUE
 num_adapt_iter,1000
 num_iter,10000
+burn_in,500

@@ -76,12 +76,12 @@ int main(int argc, char *argv[])
             verbose = true;
         }
 
-        else if (carg == std::string("-infer"))
+        else if (carg == std::string("--infer"))
         {
             is_infer = true;
         }
 
-        else if (carg == std::string("-simulate"))
+        else if (carg == std::string("--simulate"))
         {
             is_simulate = true;
         }

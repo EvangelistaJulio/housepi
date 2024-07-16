@@ -416,12 +416,12 @@ public:
 class Monte_Carlo_Core
 {
 public:
-	std::vector<std::string> param_file_required_headers = {
+	std::vector<std::string> param_file_headers = {
 		"name", "value", "infer",
 		"prior", "pargs",
 		"strategy", "sargs", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
-	std::vector<std::string> param_static = {};
+	std::vector<std::string> param_to_be_static = {};
 
 	//=====Constructors=====//
 	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
