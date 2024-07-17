@@ -334,7 +334,11 @@ double MCMC::run_compute_loglikelihood(bool verbose)
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
 void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 {
-    std::string adap_prog_txt, burn_prog_txt, exec_prog_txt;
+    std::string adap_prog_txt = "adaptation";
+    std::string burn_prog_txt = "burn-in";
+    std::string exec_prog_txt = "sampling";
+    std::string end_prog_txt = "completed";
+
     ulong tot_num_sweeps = setup_num_adapt + setup_num_iter;
 
     //==========================//
@@ -375,17 +379,12 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         init_move_counts();
 
         //----- Initialize progress bars -----//
-        if (setup_num_chains == 1)
+        if (setup_num_chains > 1)
         {
-            adap_prog_txt = "adaptation";
-            burn_prog_txt = "burn-in";
-            exec_prog_txt = "sampling";
-        }
-        else
-        {
-            adap_prog_txt = "adap " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
+            adap_prog_txt = "adapt " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
             burn_prog_txt = "burn " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
-            exec_prog_txt = "samp " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
+            exec_prog_txt = "sample " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
+            end_prog_txt = "chain " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
         }
 
         // open this progress bar
@@ -455,7 +454,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         }
 
         //----- Close this chain progress bar -----//
-        screen::display_progress_bar_end(exec_prog_txt, progbar);
+        screen::display_progress_bar_end(end_prog_txt, progbar);
 
         // FIXME :
         // missing a storing diagnostics : everything is canceled for each chain

@@ -269,7 +269,9 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             //=====Display Database and Model Reports=====//
             if (verbose)
             {
+                screen::display_decorator("Database::summary", '-');
                 display_summary();
+                screen::display_decorator("Database::rates", '-');
                 display_report();
             }
         }
@@ -431,10 +433,6 @@ void MCMC::display_summary()
 {
     using namespace screen;
 
-#ifndef USE_RCPP
-    display_decorator("Database::summary", '-');
-#endif
-
     std::ostringstream oss;
     oss << "n. of individuals: " << report_data["n.indiv"]
         << "\n    * n. of cases: " << report_data["n.cases"]
@@ -471,10 +469,6 @@ void MCMC::display_summary()
 void MCMC::display_report()
 {
     using namespace screen;
-
-#ifndef USE_RCPP
-    screen::display_decorator("Database::rates", '-');
-#endif
 
     std::ostringstream oss;
     for (const auto &entry : report_model)

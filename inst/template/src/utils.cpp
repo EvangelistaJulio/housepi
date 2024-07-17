@@ -20,7 +20,7 @@ namespace screen
     std::string percent(int num, int den)
     {
         std::ostringstream oss;
-        oss << std::fixed << std::setprecision(2)
+        oss << std::fixed << std::setprecision(1)
             << "(" << (100.0 * num / den) << "%)";
         return oss.str();
     }
