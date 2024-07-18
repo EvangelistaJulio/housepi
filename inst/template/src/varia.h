@@ -487,7 +487,7 @@ private:
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
 	sys_rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
-	sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[get_num_threads()]; }
+	sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
 };
 

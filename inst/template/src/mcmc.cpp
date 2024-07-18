@@ -17,7 +17,7 @@ bool Large_p_WAIC_Warning = false;                  // Warning for unreliable WA
 /* Assign group rate to an individual  */
 void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
-    //this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
+    // this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
     UNUSED(this_indiv);
 }
 
@@ -334,13 +334,16 @@ double MCMC::run_compute_loglikelihood(bool verbose)
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
 void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 {
-    std::string adap_prog_txt = "adaptation";
-    std::string burn_prog_txt = "burn-in";
-    std::string exec_prog_txt = "sampling";
-    std::string end_prog_txt = "completed";
+    // total number of mcmc sweeps
+    ulong sweep_count = 0;
+    ulong tot_num_sweeps = setup_num_chains * (setup_num_adapt + setup_num_iter);
 
-    ulong tot_num_sweeps = setup_num_adapt + setup_num_iter;
-
+    // progress bar initial text
+    std::string num_chain_prog_txt = std::to_string(setup_num_chains);
+    std::string adap_prog_txt = (setup_num_chains == 1) ? "adaptation" : ("adapt 1/" + num_chain_prog_txt);
+    std::string burn_prog_txt = (setup_num_chains == 1) ? "burn-in" : ("burn 1/" + num_chain_prog_txt);
+    std::string exec_prog_txt = (setup_num_chains == 1) ? "sampling" : ("sample 1/" + num_chain_prog_txt);
+    
     //==========================//
     //===== Initialization =====//
     //==========================//
@@ -356,6 +359,21 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 
     //----- Initialize diagnostics -----//
     init_model_diagnostics();
+
+    //----- Initialize progress bars -----//
+
+    if (setup_num_adapt > 0)
+    {
+        screen::display_progress_bar_start(adap_prog_txt, progbar);
+    }
+    else if (setup_burn_in > 0)
+    {
+        screen::display_progress_bar_start(burn_prog_txt, progbar);
+    }
+    else
+    {
+        screen::display_progress_bar_start(exec_prog_txt, progbar);
+    }
 
     //===== Run Multiple MCMC Chains =====//
     for (intern_chain = 1; intern_chain <= setup_num_chains; intern_chain++)
@@ -378,27 +396,12 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         // reset the acceptance counts
         init_move_counts();
 
-        //----- Initialize progress bars -----//
-        if (setup_num_chains > 1)
+        // adjust progress bar text for multiple chains
+        if (intern_chain > 1)
         {
-            adap_prog_txt = "adapt " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
-            burn_prog_txt = "burn " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
-            exec_prog_txt = "sample " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
-            end_prog_txt = "chain " + std::to_string(intern_chain) + "/" + std::to_string(setup_num_chains);
-        }
-
-        // open this progress bar
-        if (setup_num_adapt > 0)
-        {
-            screen::display_progress_bar_start(adap_prog_txt, progbar);
-        }
-        else if (setup_burn_in > 0)
-        {
-            screen::display_progress_bar_start(burn_prog_txt, progbar);
-        }
-        else
-        {
-            screen::display_progress_bar_start(exec_prog_txt, progbar);
+            adap_prog_txt = "adapt " + std::to_string(intern_chain) + "/" + num_chain_prog_txt;
+            burn_prog_txt = "burn " + std::to_string(intern_chain) + "/" + num_chain_prog_txt;
+            exec_prog_txt = "sample " + std::to_string(intern_chain) + "/" + num_chain_prog_txt;
         }
 
         //=========================================//
@@ -411,8 +414,9 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
             {
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(i);
-                screen::display_progress_bar(adap_prog_txt, i, tot_num_sweeps, progbar);
+                screen::display_progress_bar(adap_prog_txt, sweep_count + i, tot_num_sweeps, progbar);
             }
+            sweep_count += setup_num_adapt;
 
             // reset the acceptance counts
             init_move_counts();
@@ -428,7 +432,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
             {
                 move_all_augm_variables();
                 move_all_parameters();
-                screen::display_progress_bar(burn_prog_txt, setup_num_adapt + i, tot_num_sweeps, progbar);
+                screen::display_progress_bar(burn_prog_txt, sweep_count + i, tot_num_sweeps, progbar);
             }
         }
 
@@ -450,20 +454,21 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
             // print inference state
             print_inferstate();
 
-            screen::display_progress_bar(exec_prog_txt, setup_num_adapt + i + setup_thinning, tot_num_sweeps, progbar);
+            screen::display_progress_bar(exec_prog_txt, sweep_count + i + setup_thinning, tot_num_sweeps, progbar);
         }
-
-        //----- Close this chain progress bar -----//
-        screen::display_progress_bar_end(end_prog_txt, progbar);
+        sweep_count += setup_num_iter;
 
         // FIXME :
         // missing a storing diagnostics : everything is canceled for each chain
         // a Gelman Rubin could be integrated then
     }
 
-    //==========================//
-    //=====end of inference=====//
-    //==========================//
+    //============================//
+    //===== End of inference =====//
+    //============================//
+
+    //----- Close this chain progress bar -----//
+    screen::display_progress_bar_end("completed", progbar);
 
     intern_is_infer_complete = true;
     close_inferstate_file();

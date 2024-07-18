@@ -301,7 +301,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     if (n > max_detected_threads)
     {
         std::ostringstream oss;
-        oss << "Number of threads (" << n << ") changed to max amount of detected threads (" << max_detected_threads << ").";
+        oss << "Number of threads (" << n << ") changed to number of available threads (" << max_detected_threads << ").";
         screen::raise_warning(oss.str(), Above_Max_Threads_Warning);
         n = max_detected_threads;
     }
