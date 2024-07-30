@@ -40,8 +40,9 @@ using sys_rnd_gen = std::mt19937;
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-constexpr int SUSCEPTIBLE = 0; // status of susceptible
-constexpr int INFECTIOUS = 1;  // status of infectious
+constexpr int SUSCEPTIBLE = 0;      // status of susceptible
+constexpr int INFECTIOUS = 1;       // status of infectious
+constexpr int MISSING_STATUS = -1;   // missing status
 
 constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
@@ -103,6 +104,7 @@ namespace screen
     void raise_error(const std::string &txt);
 
     std::string percent(int num, int denom);
+    std::string truth(bool condition);
 }
 
 //------------------------------------------------------------------------------------------------------------//

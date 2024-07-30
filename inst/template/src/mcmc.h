@@ -14,6 +14,10 @@
 #include <iomanip>
 #include <chrono>
 
+#ifdef USE_RCPP
+#include <Rcpp.h>
+#endif
+
 #include "individual.h"
 
 //------------------------------------------------------------------------------------------------------------//
@@ -31,14 +35,14 @@ class MCMC : public Monte_Carlo_Core
 {
 protected:
 	//=====Setup=====//
-	ulong setup_num_chains = 1;		// n. chains
-	ulong setup_num_iter = 10000;	// n. iterations
-	ulong setup_num_adapt = 0; // n. (finite) adaptive steps
-	ulong setup_thinning = 1;		// n. thinning iterations
-	ulong setup_burn_in = 0;			// n. burnin iterations
-	ulong setup_sample_size = 0;		// n. prints (just internal)
+	ulong setup_num_chains = 1;	  // n. chains
+	ulong setup_num_iter = 10000; // n. iterations
+	ulong setup_num_adapt = 0;	  // n. (finite) adaptive steps
+	ulong setup_thinning = 1;	  // n. thinning iterations
+	ulong setup_burn_in = 0;	  // n. burnin iterations
+	ulong setup_sample_size = 0;  // n. prints (just internal)
 
-	unsigned long long setup_seed = 1;	// random seed
+	unsigned long long setup_seed = 1;	// random generator seed
 	double setup_inv_temper = 1.0;		// inverse temperature
 	bool setup_rnd_init_params = false; // random initialization of parameters
 
@@ -70,8 +74,13 @@ protected:
 	std::map<std::string, std::map<std::string, int>> report_model = {};
 
 public:
-	MCMC(){};
-	virtual ~MCMC(){};
+	MCMC()
+	{
+		// default prng seed
+		auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
+		setup_seed = static_cast<unsigned long long>(time_now);
+	};
+	virtual ~MCMC() {};
 
 	//=====Build data and parameters=====//
 	void build_parameters(std::string pathtofile, bool verbose = true);
@@ -83,13 +92,18 @@ public:
 			   std::string augm_file = UNDEFINED, std::string setup_file = UNDEFINED,
 			   std::string extra_file = UNDEFINED, bool verbose = true);
 
-	//===== Display Internal Information=====//
+	//===== Display Internal Information =====//
 	void display_setup();
 	void display_summary();
 	void display_report();
 	void display_parameters();
 	void display_param_diagnostics();
 	void display_thin_results();
+
+	//===== Return Internal Information with Rcpp =====//
+#ifdef USE_RCPP
+	Rcpp::List return_setup();
+#endif
 
 	//=====General Initialization=====//
 	void set_rate_per_group(Individual &this_indiv);
@@ -109,10 +123,10 @@ public:
 	virtual double get_infec_time(int h, int i) const;
 
 	//=====Log-Likelihood computations=====//
-	void set_global_loglike(double x) { global_loglike = x; };
-	double get_global_loglike() const { return global_loglike; };
+	void set_global_loglike(long double x) { global_loglike = x; };
+	long double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
-	virtual double compute_global_loglike();
+	virtual long double compute_global_loglike();
 	double run_compute_loglikelihood(bool verbose = true);
 
 	//=====Monte Carlo Markov Chain moves=====//
@@ -143,7 +157,7 @@ public:
 	void print_augm_variables(std::string output_filename, bool verbose = true);
 
 private:
-	double global_loglike = 0.0;
+	long double global_loglike = 0.0;
 
 	//=====BUILD=====//
 

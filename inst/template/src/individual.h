@@ -41,7 +41,7 @@ public:
 	~Individual(){};
 
 	//=====Getter=====//
-	bool get_status() const { return status; }
+	int get_status() const { return status; }
 	void set_status(int d) { status = d; }
 	int get_index() const { return index; }
 

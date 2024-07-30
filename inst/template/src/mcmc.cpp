@@ -61,9 +61,9 @@ double MCMC::compute_single_house_loglike(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute global loglikelihood */
-double MCMC::compute_global_loglike()
+long double MCMC::compute_global_loglike()
 {
-    double output = 0.0;
+    long double output = 0.0;
 
 #pragma omp parallel for reduction(+ : output)
     for (int h = 0; h < num_househ; h++)
@@ -135,7 +135,7 @@ void MCMC::single_param_move(std::string parID)
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old values in buffer
-        double new_global_loglike = compute_global_loglike();
+        long double new_global_loglike = compute_global_loglike();
 
         //===== METROPOLIS-HASTINGS =====//
         double logQ = setup_inv_temper * (new_global_loglike - get_global_loglike());
@@ -301,7 +301,7 @@ double MCMC::run_compute_loglikelihood(bool verbose)
     initialize_model();
 
     //===== Execution =====//
-    double ll = compute_global_loglike();
+    long double ll = compute_global_loglike();
 
     //----- Print output -----//
     if (verbose)
@@ -343,7 +343,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     std::string adap_prog_txt = (setup_num_chains == 1) ? "adaptation" : ("adapt 1/" + num_chain_prog_txt);
     std::string burn_prog_txt = (setup_num_chains == 1) ? "burn-in" : ("burn 1/" + num_chain_prog_txt);
     std::string exec_prog_txt = (setup_num_chains == 1) ? "sampling" : ("sample 1/" + num_chain_prog_txt);
-    
+
     //==========================//
     //===== Initialization =====//
     //==========================//
@@ -351,7 +351,13 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
     intern_is_infer_complete = false;
 
-    //-----Initialize model -----//
+    //----- Check that a status is present -----//
+    if (std::find(data_headers.begin(), data_headers.end(), "status") == data_headers.end())
+    {
+        screen::raise_error("No infectious status has been provided in the data file.");
+    }
+
+    //----- Initialize model -----//
     initialize_model();
 
     //----- Initialize output file-----//
@@ -440,7 +446,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         //========= MCMC Posterior Sampling ==========//
         //============================================//
 
-        for (ulong i = setup_burn_in; i <= setup_num_iter; i += setup_thinning)
+        for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves
             for (ulong j = 1; j <= setup_thinning; j++)
@@ -499,8 +505,8 @@ void MCMC::init_model_diagnostics()
         househ[h].init_diagnostics(setup_sample_size);
     }
 
-    dgn_loglike = 0;     // (global) loglikelihood
-    dgn_sqr_loglike = 0; // mean squared (global) loglikelihood
+    dgn_loglike = 0.;     // (global) loglikelihood
+    dgn_sqr_loglike = 0.; // mean squared (global) loglikelihood
 }
 
 /* Update Bayesian diagnostics */
@@ -541,7 +547,7 @@ void MCMC::display_thin_results()
         //===========================//
 
         // compute WAIC
-        double samp_var_corr = static_cast<double>(setup_sample_size) / (setup_sample_size - 1.);
+        double samp_var_corr = static_cast<long double>(setup_sample_size) / (setup_sample_size - 1.);
         double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
 
         // implement WAIC warning
@@ -563,13 +569,20 @@ void MCMC::display_thin_results()
             }
             effec_num_params_waic += p_waic;
         }
+
         // diagnostics (sampled every thinning iterration)
         std::ostringstream oss;
-        oss << "loglikelihood.mean" << C_DELIM << std::setprecision(2) << std::fixed << dgn_loglike
-            << "\nloglikelihood.sd" << C_DELIM << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr
-            << "\nlogpoint.predictive.density" << C_DELIM << log_point_pred_dens
-            << "\neffective.parameters" << C_DELIM << effec_num_params_waic
-            << "\nWAIC" << C_DELIM << 2 * (effec_num_params_waic - log_point_pred_dens);
+        oss << std::setprecision(2) << std::fixed
+            << "loglikelihood.mean" << C_DELIM
+            << dgn_loglike
+            << "\nloglikelihood.sd" << C_DELIM
+            << std::sqrt((dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr)
+            << "\nlogpoint.predictive.density" << C_DELIM
+            << log_point_pred_dens
+            << "\neffective.parameters" << C_DELIM
+            << effec_num_params_waic
+            << "\nWAIC" << C_DELIM
+            << 2 * (effec_num_params_waic - log_point_pred_dens);
         print_stdout(oss.str() + "\n");
 
         // practical WAIC warning
@@ -682,3 +695,46 @@ void MCMC::display_param_diagnostics()
 
     print_stdout(oss.str() + "\n");
 }
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : methods (Rcpp) ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef USE_RCPP
+Rcpp::List MCMC::return_setup()
+{
+    using namespace Rcpp;
+    List output;
+
+    output = List::create(
+        _["seed"] = setup_seed,
+        _["num_threads"] = get_num_threads(),
+        _["num_chains"] = setup_num_chains,
+        _["num_adapt"] = setup_num_adapt,
+        _["burn_in"] = setup_burn_in,
+        _["num_iter"] = setup_num_iter,
+        _["thinning"] = setup_thinning,
+        _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
+
+    if (setup_inv_temper != 1.)
+    {
+        output["inv_temper"] = setup_inv_temper;
+    }
+
+    return output;
+}
+#endif
+
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//

@@ -1,7 +1,85 @@
-// user_model.cpp //
+// model.cpp //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
-#include "user_model.h"
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////  * *** * AUGMENTED ONSET - SINGLE INTRODUCTION * *** *  /////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include "model.h"
+
+//------------------------------------------------------------------------------------------------------------//
+//---------------------------------------- - - - CHANGE-ME - - - ---------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- \/ -------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  Model : assign rate_per group to individual  //////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
+{
+	//=====rate 0 : Infectivity=====//
+	if ((this_indiv.get_data("recov") == false) && (this_indiv.get_data("vacc_status") == 0))
+	{ // unrecovered unvaccinated
+		this_indiv.assign_rate_per_group("Infectivity", "i_naive");
+	}
+	else
+	{ // vaccinated o recovered : Infectivity [REFERENCE]
+		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
+	}
+
+	//=====rate 1 : Susceptibility=====//
+	if (this_indiv.get_data("vacc_status") == 0)
+	{ // naive : Susceptibility [REFERENCE]
+		this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
+	}
+	else
+	{ // 1 dose
+		this_indiv.assign_rate_per_group("Susceptibility", "s_vacc");
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  Model : assign rate_per group to individual  //////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign the contact patterns between a couple of individuals. */
+void Model::assign_rate_per_contact_to_household(int h, int i, int k)
+{
+	// from `i` -> to `k`
+	// children if younger than 12 y.o., adults otherwise
+	bool i_is_child = (househ[h].indiv[i].get_data("age") < get_value("child_age"));
+	bool i_is_adult = (i_is_child == false);
+
+	bool k_is_child = (househ[h].indiv[k].get_data("age") < get_value("child_age"));
+	bool k_is_adult = (k_is_child == false);
+
+	if (i_is_child && k_is_child)
+	{ // Child to Child
+		househ[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
+	}
+	else if (i_is_child && k_is_adult)
+	{ // Child to Adult
+		househ[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
+	}
+	else if (i_is_adult && k_is_child)
+	{ // Adult to Child
+		househ[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
+	}
+	else
+	{ // Adult to Adult : Contact Pattern [REFERENCE]
+		househ[h].assign_rate_per_contact(i, k, REFERENCE);
+	}
+}
+
+//------------------------------------------------- /\ -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//------------------------------------------------- || -------------------------------------------------------//
+//---------------------------------------- - - - CHANGE-ME - - - ---------------------------------------------//
+//------------------------------------------------------------------------------------------------------------//
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -14,7 +92,7 @@
 // /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef TEST_EPI_CURVE
+#ifdef USE_EPI_CURVE
 // use the EPI curve for the community contribution
 std::vector<double> Cumul_EPI_Curve;
 std::vector<double> Inst_EPI_Curve;
@@ -141,27 +219,6 @@ double Model::get_infec_time(int h, int i) const
 	return househ[h].indiv[i].get_augm("onset_time") - househ[h].indiv[i].get_augm("incub_period");
 }
 
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////// Model : compute infectivity profile instantaneous ///////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -281,72 +338,6 @@ void Model::initialize_model()
 	}
 }
 
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  Model : assign rate_per group to individual  //////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
-{
-	//=====rate 0 : Infectivity=====//
-	if ((this_indiv.get_data("recov") == false) && (this_indiv.get_data("vacc_status") == 0))
-	{ // unrecovered unvaccinated
-		this_indiv.assign_rate_per_group("Infectivity", "i_naive");
-	}
-	else
-	{ // vaccinated o recovered : Infectivity [REFERENCE]
-		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
-	}
-
-	//=====rate 1 : Susceptibility=====//
-	if (this_indiv.get_data("vacc_status") == 0)
-	{ // naive : Susceptibility [REFERENCE]
-		this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
-	}
-	else
-	{ // 1 dose
-		this_indiv.assign_rate_per_group("Susceptibility", "s_vacc");
-	}
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  Model : assign rate_per group to individual  //////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign the contact patterns between a couple of individuals. */
-void Model::assign_rate_per_contact_to_household(int h, int i, int k)
-{
-	// from `i` -> to `k`
-	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (househ[h].indiv[i].get_data("age") < get_value("child_age"));
-	bool i_is_adult = (i_is_child == false);
-
-	bool k_is_child = (househ[h].indiv[k].get_data("age") < get_value("child_age"));
-	bool k_is_adult = (k_is_child == false);
-
-	if (i_is_child && k_is_child)
-	{ // Child to Child
-		househ[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
-	}
-	else if (i_is_child && k_is_adult)
-	{ // Child to Adult
-		househ[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
-	}
-	else if (i_is_adult && k_is_child)
-	{ // Adult to Child
-		househ[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
-	}
-	else
-	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		househ[h].assign_rate_per_contact(i, k, REFERENCE);
-	}
-}
 
 // -----------------------------------------------------------------------------------------------------------//
 // -----------------------------------------------------------------------------------------------------------//
@@ -388,7 +379,7 @@ double Model::compute_single_house_loglike(int h)
 	double tf = househ[h].get_data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
-#ifdef TEST_EPI_CURVE
+#ifdef USE_EPI_CURVE
 	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
 #else
 	comm_risk_cumul = get_value("alpha") * (tf - t0);
@@ -412,7 +403,7 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
-#ifdef TEST_EPI_CURVE
+#ifdef USE_EPI_CURVE
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
 #else
 			comm_risk_inst = get_value("alpha");
@@ -470,7 +461,7 @@ void Model::simulate_single_house(int h)
 				t + uniform() * dt + househ[h].indiv[i].get_augm("incub_period"));
 			augm_var_store_dependecies(h, i);
 
-#ifdef TEST_EPI_CURVE
+#ifdef USE_EPI_CURVE
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
 #else
 			comm_risk_inst = get_value("alpha");

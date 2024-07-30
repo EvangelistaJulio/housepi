@@ -18,7 +18,11 @@
 Individual::Individual(sdargs new_data)
 {
 	index = new_data.at("index");
-	status = new_data.at("status");
+	if (new_data.find("status") == new_data.end()) {
+		status = MISSING_STATUS;
+	} else {
+		status = new_data.at("status");
+	}
 	data = new_data;
 }
 

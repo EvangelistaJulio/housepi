@@ -207,7 +207,7 @@ std::string Parameter::message_to_diagnostics()
     std::ostringstream oss;
     oss << dgn_mean << screen::C_DELIM
         << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
-        << screen::C_DELIM << ((infer) ? "TRUE" : "FALSE");
+        << screen::C_DELIM << screen::truth(infer);
     if (infer)
     {
         oss << screen::C_DELIM << distr_ptr->message_to_display().str()

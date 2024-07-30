@@ -40,11 +40,12 @@ RCPP_MODULE(modelhousepi12345)
    .method("inference", &MCMC::run_inference, "Perform inference and save results to file.")
    .method("simulation", &MCMC::run_simulation, "Perform simulation and save results to file.")
    .method("loglikelihood", &MCMC::run_compute_loglikelihood, "Perform simulation and save results to file.")
-   .method("setup", &MCMC::display_setup, "Display setup.")
-   .method("summary", &MCMC::display_summary, "Display summary of the dataset.")
-   .method("report", &MCMC::display_report, "Report of model group rates.")
-   .method("params", &MCMC::display_parameters, "Display parameters.")
-   .method("results", &MCMC::display_thin_results, "Results of the inference.");
+   .method("setup", &MCMC::return_setup, "List with setup values.")
+   .method("display.setup", &MCMC::display_setup, "Display setup.")
+   .method("display.summary", &MCMC::display_summary, "Display summary of the dataset.")
+   .method("display.report", &MCMC::display_report, "Report of model group rates.")
+   .method("display.params", &MCMC::display_parameters, "Display parameters.")
+   .method("display.results", &MCMC::display_thin_results, "Results of the inference.");
  
  class_<Model>("Modelhousepi12345")
    .constructor("Default constructor")

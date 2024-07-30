@@ -1,4 +1,4 @@
-// user_model.h //
+// model.h //
 // Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
 
 /* 

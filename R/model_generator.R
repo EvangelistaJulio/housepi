@@ -242,7 +242,10 @@ infer <- function(x,
 
   # Check if multiple chains
   if ("CHAIN__" %in% colnames(df)) {
-    df_list <- split(df[ , !(colnames(df) %in% "CHAIN__")], df[["CHAIN__"]])
+    df_list <- lapply(split(df, df[["CHAIN__"]]), 
+                      function(x) {
+                        coda::as.mcmc(x[, !names(x) %in% "CHAIN__"])
+                        })
     output <- coda::as.mcmc.list(df_list)
 
   } else {

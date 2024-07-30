@@ -24,16 +24,11 @@ ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} -d ${DATABASE} -v
 ## Run Simulation 
 
 ```
-PARAMS=../../vignettes/data/params.csv
-SETUP=../../vignettes/data/setup.csv
-DATABASE=../../vignettes/data/database.csv
 ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --simulate -d ${DATABASE} -o simulated.tmp -v
 ```
 
 ## Run Inference 
 
 ```
-PARAMS=../../vignettes/data/params.csv
-SETUP=$../../vignettes/data/setup.csv
 ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --infer -d simulated.tmp -o inferstate.tmp -v
 ```

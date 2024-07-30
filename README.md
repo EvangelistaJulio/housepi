@@ -1,19 +1,19 @@
-# housepi
+# housepi <img src="man/figures/logo.png" align="right" height="130"/>
 
-**housepi** is an R package designed for the statistical analysis and modeling of epidemiological data from household outbreaks.
-By combining ease-of-use with customizability, housepi supports both novice users and advanced researchers in their epidemiological investigations of disease transmission within households.
-The package is a toolkit to perform Bayesian inference and modeling using the implemented classical models or user defined models.
+## Description
 
-## Key Features
+`housepi` is an R package designed for the statistical analysis and modeling of epidemiological data from household outbreaks. By combining ease of use and customizability, housepi supports both straightforward analysis and advanced epidemiological investigation of disease transmission within households. The package is a toolkit to perform Bayesian inference and modeling using the implemented classical models or user defined models.
 
-- **Ease of Use**: Load data, model configuration, and run inference with straightforward commands.
-- **Customizability**: Create custom models starting from scratch or modifying default templates.
-- **Model Validation**: The support for both inference and simulations estimation and model validation.
-- **Rcpp Integration**: The package uses Rcpp for efficient computation, making it suitable for handling large and complex datasets.
+### Key Features
+
+-   **Ease of Use**: Load data, model configuration, and run inference with straightforward commands.
+-   **Customizability**: Create custom models starting from scratch or modifying default templates.
+-   **Model Validation**: The support for both inference and simulations estimation and model validation.
+-   **Rcpp Integration**: The package uses Rcpp for efficient computation, making it suitable for handling large and complex datasets.
 
 ## Installation
 
-To install **housepi**, use the following command in R:
+To install `housepi`, use the following command in R:
 
 ```{r}
 # Missing a non private repository.
@@ -29,7 +29,7 @@ Start by loading the library:
 library(housepi)
 ```
 
-### Generating a Model
+### Generate a Model
 
 To generate default epidemiological model (e. g. chain binomial model), run the following:
 
@@ -41,21 +41,21 @@ Alternatively, to customize an epidemiological model from a default one:
 
 ```{r}
 # Define your model path
-model_path <- "path/to/your_model"
+my.model.path <- "path/to/your_model"
 
 # Use the template of heterogeneous chain binomial
-skeleton("chain_binom_heter", where=model_path)
+skeleton("chain_binom_heter", where=my.model.path)
 ```
 
 Edit the implementation "model.cpp" and/or "model.h" and generate:
 
 ```{r}
-hemi <- generate(model_path)
+hemi <- generate(my.model.path)
 ```
 
-### Building the Model
+### Build the Model
 
-At any moment you can load the necessary definitions (e.g., database, parameters, setup) and build the model:
+At any moment you can load the necessary definitions (e. g., database, parameters, setup) and build the model:
 
 ```{r}
 build(hemi, 
@@ -66,7 +66,7 @@ build(hemi,
 
 The definitions can be loaded from both a data frame or a file.
 
-### Running Inferece
+### Infer the Model
 
 The package uses the Metropolis-Hastings algorithm to infer the model parameters. Run the Monte Carlo Markov Chain with the following command:
 
@@ -74,11 +74,11 @@ The package uses the Metropolis-Hastings algorithm to infer the model parameters
 mcmc <- infer(hemi)
 ```
 
-This generate a coda mcmc object to be used for extract the inference results (see [documentation](https://rdrr.io/cran/coda/man/mcmc.html)).
+This generate a `coda` mcmc object to be used for extract the inference results (see [documentation](https://rdrr.io/cran/coda/man/mcmc.html)).
 
-### Simulating Data
+### Simulate Data from the Model
 
-Produce a simulated dataset according to the model by runnning:
+Produce a simulated dataset according to the model by running:
 
 ```{r}
 df <- simulate(hemi)

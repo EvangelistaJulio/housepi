@@ -144,7 +144,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
     {
         // open input file stream
         std::ifstream input(pathtofile.c_str());
-        std::vector<std::string> required_headers = {"index", "status", "house_index"};
+        std::vector<std::string> required_headers = {"index", "house_index"};
 
         if (!input.is_open())
         {
@@ -179,6 +179,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             std::vector<Individual> aux_individuals = {};
             for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
             {
+
                 Individual this_indiv(row_to_sdargs(this_row));
                 assign_rate_per_group_to_individual(this_indiv);
                 set_rate_per_group(this_indiv);
@@ -190,14 +191,19 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 {
                     report_data["n.cases"]++;
                 }
+                else if (this_indiv.get_status() == MISSING_STATUS)
+                {
+                    report_data["n.unk.stat"]++;
+                }
                 else if (this_indiv.get_status() != SUSCEPTIBLE)
                 {
                     report_data["n.unk.stat"]++;
+                    this_indiv.set_status(MISSING_STATUS);
 
                     std::ostringstream oss;
                     oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
                         << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
-                        << "\nIf it was intentional, ignore this message.";
+                        << "\nOtherwise use " << MISSING_STATUS << " for missing.";
                     screen::raise_warning(oss.str(), Unknown_Status_Warning);
                 }
             }
@@ -652,10 +658,6 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     // default number of threads
     unsigned num_threads = 1;
 
-    // default prng seed
-    auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-    setup_seed = static_cast<unsigned long long>(time_now);
-
     if (pathtofile == UNDEFINED)
     {
         screen::display_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
@@ -842,15 +844,13 @@ void MCMC::display_setup()
     // common setup variables
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_threads" << C_DELIM << get_num_threads();
-
-    // setup variables only relevant to inference
-    oss << "\nnum_chains" << C_DELIM << setup_num_chains
-        << "\nnum_adapt_iter" << C_DELIM << setup_num_adapt
+        << "\nnum_threads" << C_DELIM << get_num_threads()
+        << "\nnum_chains" << C_DELIM << setup_num_chains
+        << "\nnum_adapt" << C_DELIM << setup_num_adapt
         << "\nburn_in" << C_DELIM << setup_burn_in
         << "\nnum_iter" << C_DELIM << setup_num_iter
         << "\nthinning" << C_DELIM << setup_thinning
-        << "\nrnd_init_params" << C_DELIM << ((setup_rnd_init_params) ? "TRUE" : "FALSE");
+        << "\nrnd_init_params" << C_DELIM << truth(setup_rnd_init_params);
     if (setup_inv_temper != 1.)
     {
         oss << "\ninv_temper" << C_DELIM << setup_inv_temper;
