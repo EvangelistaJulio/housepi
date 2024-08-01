@@ -262,6 +262,7 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 	// -----------------------------------------------------------------------------------------------------------//
 
+
 	/*
 	Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
 	The elements are indexed from 1 to N.

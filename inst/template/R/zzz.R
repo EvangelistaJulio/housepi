@@ -3,11 +3,10 @@
 #' @exportPattern ^[[:alpha:]]+
 NULL
 
-#' housepi12345
+#' Modeling environment
 #'
-#' Household Epidemiological Modeling and Inference Rcpp Toolkit
-#'
-#' A first draft for what could become a package. 
+#' @description
+#' Type ?Modelhousepi12345 to retrieve all information about the modeling class.
 "_PACKAGE"
 
-Rcpp::loadModule("modelhousepi12345", TRUE)
+Rcpp::loadModule("modelhousepi12345_cpp", TRUE)

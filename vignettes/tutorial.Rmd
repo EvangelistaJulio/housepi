@@ -9,16 +9,10 @@ vignette: >
 
 # Package Tutorial
 
-The purpose of this tutorial is to present `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
+This tutorial introduces `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
 
 ```{r, echo=FALSE, out.width = "100%"}
 knitr::include_graphics("images/cover-light.png")
-```
-
-Load the
-
-```{r}
-library(housepi)
 ```
 
 ## Necessary Definitions
@@ -59,76 +53,82 @@ The models require three main input information:
 
 ## Model Generation
 
-We can use the command `generate` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
+After having loaded the package
 
 ```{r}
-hemi <- generate("chain_binom")
+library(housepi)
 ```
 
-*Note:* this process can take a few minutes because it recompiles all templated files. We are looking for a clean way to move this compiliation at the installation.
+we can use the function `generate_model` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
 
-Alternatively, to create a custom model we can start by copying a default models to a custom path. We can do so with the command `skeleton`, e. g.:
+```{r}
+hemi <- generate_model("chain_binom")
+```
+
+*Note:* this process can take a few minutes because it compiles the full template. We are looking for a clean way to move redundant compilations at the installation.
+
+### Customize the Model from a Template
+
+Alternatively, to create a custom model we can start by copying a default models to a custom path. We can do so with the function `template_model`, e. g.:
 
 ```{r, eval=FALSE}
-skeleton("chain_binom", where = "path/to/model")
+template_model(which = "chain_binom", where = "path/to/model")
 ```
 
 Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within our model directory. 
 *Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
 
-After changing the model generation, all relevant commands remain the same.
+After changing the model generation using the path to the custom model, all commands remain the same:
 
 ```{r, eval=FALSE}
-hemi <- generate("path/to/model")
+hemi <- generate_model("path/to/model")
 ```
 
 ### Building the Model
 
-We associate all definitions to our model using the `build` command:
+We associate all definitions to our model using the function `build_model`:
 
 ```{r}
-build(hemi,
-      data = "data/database.csv",
-      params = "data/params.csv",
-      setup = "data/setup.csv")
+build_model(hemi,
+            data = "data/database.csv",
+            params = "data/params.csv",
+            setup = "data/setup.csv")
 
 # show the parameter definitions
-hemi$params()
+hemi$show_params()
 
 # show the setup definitions
-hemi$setup()
+hemi$show_setup()
 ```
 
-To change the setup and parameter definitions change the corresponding files.
-
-## Compute log-likelihood
-
-Sometimes it can be useful to just compute the log-likelihood before trying to run anything else. We can do it by running the command `compute_loglike`:
-
-```{r}
-compute_loglike(hemi)
-```
+We can change the setup and parameter definitions by changing the corresponding files/dataframes.
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the command `simulate`. This requires to have a dataset already loaded to provide the different household compositions.
+To produce a simulated dataset according to the model, we execute the command `run_simulation`. This requires to have a dataset already loaded to provide the different household compositions.
 
 ```{r}
-df <- simulate(hemi)
+df <- run_simulation(hemi)
 
 # override data of the model with the simulated dataset 
-build(hemi, data = df)
+build_model(hemi, data = df)
 
 # show a summary of the new dataset
-hemi$summary()
+hemi$show_summary()
 ```
 
 ## Inference
 
-To perform inference, we execute the command `infer`.
+Before proceeding any further, it can be useful to verify that the provided model can evaluate the log-likelihood without problems. We can do it with the method `loglikelihood`.
 
 ```{r}
-mcmc_traces <- infer(hemi)
+hemi$loglikelihood()
+```
+
+To perform inference, we execute the command `run_inference`.
+
+```{r}
+mcmc_traces <- run_inference(hemi)
 ```
 
 This method returns a 'coda' object which can then be used to analyze the results as follows:
@@ -149,5 +149,5 @@ gelman.diag(mcmc_traces)
 The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. These results can be accessed as follows:
 
 ```{r}
-hemi$results()
+hemi$show_results()
 ```

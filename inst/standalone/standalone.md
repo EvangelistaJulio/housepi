@@ -10,21 +10,26 @@ MODEL=../models/chain_binom
 make MODEL=$MODEL
 make clean MODEL=$MODEL
 ```
-If you want to compile with debug flags (same used by R package compiler), use `make debug` instead.
 
-## Compute Loglikelihood
+If you want to compile with debug flags (same used by R package compiler), use `make debug` instead.
+To load an example you can use the following:
 
 ```
 PARAMS=../../vignettes/data/params.csv
 SETUP=../../vignettes/data/setup.csv
 DATABASE=../../vignettes/data/database.csv
-${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} -d ${DATABASE} -v
 ```
 
 ## Run Simulation 
 
 ```
 ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --simulate -d ${DATABASE} -o simulated.tmp -v
+```
+
+## Compute Loglikelihood
+
+```
+${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} -d simulated.tmp -v
 ```
 
 ## Run Inference 

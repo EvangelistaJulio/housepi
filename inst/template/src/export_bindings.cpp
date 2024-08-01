@@ -1,54 +1,60 @@
 //' @name Modelhousepi12345
-//' @title Custom model
-//' @description Type 'Model' to see its methods
-//' @field new Constructor to initialize a Model object
-//' @field build Construct and set up the model \itemize{
-//'   \item Parameter: is_infer - boolean flag to indicate whether to perform inference
-//'   \item Parameter: is_simulate - boolean flag to indicate whether to perform simulation
-//'   \item Parameter: params_file - file path for the model parameters
-//'   \item Parameter: data_file - file path for the input data
-//'   \item Parameter: augm_file - file path for augmented data
-//'   \item Parameter: setup_file - file path for the setup configurations
-//'   \item Parameter: extra_file - file path for any extra configurations
+//' @title Household modeling class
+//' @description Perform inference and simulation from the model housepi12345.
+//' @field new Initialize a household model object.
+//' @field build Associate definitions and data to the model. \itemize{
+//'   \item Parameter: params_file - file path for the model parameters.
+//'   \item Parameter: data_file - file path for the input data.
+//'   \item Parameter: augm_file - file path for augmented data.
+//'   \item Parameter: setup_file - file path for the setup configurations.
+//'   \item Parameter: extra_file - file path for any extra configurations.
+//'   \item Parameter: verbose - boolean flag to print additional details.
 //' }
-//' @field inference Perform inference on the model \itemize{
-//'   \item Parameter: output_file - The file path where the output will be saved
-//'   \item Parameter: verbose - boolean flag to suppress automatic prints
+//' @field infer Perform inference on the model. \itemize{
+//'   \item Parameter: output_file - The file path where the output will be saved.
+//'   \item Parameter: verbose - boolean flag to print additional details.
+//'   \item Parameter: progbar - boolean flag to show the progress bar.
 //' }
-//' @field simulation Perform simulation on the model \itemize{
-//'   \item Parameter: output_file - The file path where the output will be saved
-//'   \item Parameter: verbose - boolean flag to suppress automatic prints
+//' @field simulate Perform simulation on the model. \itemize{
+//'   \item Parameter: output_file - The file path where the output will be saved.
+//'   \item Parameter: verbose - boolean flag to print additional details.
 //' }
-//' @field loglikelihood Compute model loglikelihood \itemize{
-//'   \item Parameter: verbose - boolean flag to suppress automatic prints
+//' @field loglikelihood Compute the model loglikelihood. \itemize{
+//'   \item Returns: double.
 //' }
-//' @field display.data Summary of data and model group rates.
-//' @field display.results Results of the inference.
+//' @field setup The setup parameter list. \itemize{
+//'   \item Returns: list.
+//' }
+//' @field show_setup Show choices of the setup.
+//' @field show_params Show choices of the parameters.
+//' @field show_summary Show a summary of the dataset.
+//' @field show_group_classes Show a report of the group classes.
+//' @field show_results Show the results of the inference.
 //' @export
 
 #include <Rcpp.h>
 #include "model.h"
- 
+
 // Expose the Model and MCMC classes to R using Rcpp
-RCPP_MODULE(modelhousepi12345)
+RCPP_EXPOSED_CLASS(Modelhousepi12345)
+RCPP_MODULE(modelhousepi12345_cpp)
 {
- using namespace Rcpp;
- 
- class_<MCMC>("MCMChousepi12345")
-   .constructor("Default constructor")
-   .method("build", &MCMC::build, "Construct the model with various configuration files and flags.")
-   .method("inference", &MCMC::run_inference, "Perform inference and save results to file.")
-   .method("simulation", &MCMC::run_simulation, "Perform simulation and save results to file.")
-   .method("loglikelihood", &MCMC::run_compute_loglikelihood, "Perform simulation and save results to file.")
-   .method("setup", &MCMC::return_setup, "List with setup values.")
-   .method("display.setup", &MCMC::display_setup, "Display setup.")
-   .method("display.summary", &MCMC::display_summary, "Display summary of the dataset.")
-   .method("display.report", &MCMC::display_report, "Report of model group rates.")
-   .method("display.params", &MCMC::display_parameters, "Display parameters.")
-   .method("display.results", &MCMC::display_thin_results, "Results of the inference.");
- 
- class_<Model>("Modelhousepi12345")
-   .constructor("Default constructor")
-   .derives<MCMC>("MCMChousepi12345");
+	using namespace Rcpp;
+
+	class_<MCMC>("MCMChousepi12345")
+		.constructor()
+		.method("build", &MCMC::build)
+		.method("infer", &MCMC::run_inference)
+		.method("simulate", &MCMC::run_simulation)
+		.method("loglikelihood", &MCMC::run_eval_loglikelihood)
+		.method("setup", &MCMC::return_setup)
+		.method("show_setup", &MCMC::show_setup)
+		.method("show_summary", &MCMC::show_summary)
+		.method("show_group_classes", &MCMC::show_group_classes)
+		.method("show_params", &MCMC::show_parameters)
+		.method("show_results", &MCMC::show_results);
+
+	class_<Model>("Modelhousepi12345")
+		.constructor("Default constructor.")
+		.derives<MCMC>("MCMChousepi12345");
 }
- 

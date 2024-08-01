@@ -34,44 +34,30 @@ library(housepi)
 To generate default epidemiological model (e. g. chain binomial model), run the following:
 
 ```{r}
-hemi <- generate("chain_binom")
+hemi <- generate_model("chain_binom")
 ```
 
-Alternatively, to customize an epidemiological model from a default one:
-
-```{r}
-# Define your model path
-my.model.path <- "path/to/your_model"
-
-# Use the template of heterogeneous chain binomial
-skeleton("chain_binom_heter", where=my.model.path)
-```
-
-Edit the implementation "model.cpp" and/or "model.h" and generate:
-
-```{r}
-hemi <- generate(my.model.path)
-```
+Alternatively, you can provided a custom model (see documentation).
 
 ### Build the Model
 
-At any moment you can load the necessary definitions (e. g., database, parameters, setup) and build the model:
+At any moment you can load the necessary definitions to build the model (e. g., database, parameters, setup):
 
 ```{r}
-build(hemi, 
-      data = "data.csv", 
-      params = "params.csv", 
-      setup = "setup.csv")
+build_model(hemi,
+            data = "data.csv", 
+            params = "params.csv", 
+            setup = "setup.csv")
 ```
 
-The definitions can be loaded from both a data frame or a file.
+The definitions can be loaded from both a file or a dataframe.
 
 ### Infer the Model
 
 The package uses the Metropolis-Hastings algorithm to infer the model parameters. Run the Monte Carlo Markov Chain with the following command:
 
 ```{r}
-mcmc <- infer(hemi)
+mcmc <- run_inference(hemi)
 ```
 
 This generate a `coda` mcmc object to be used for extract the inference results (see [documentation](https://rdrr.io/cran/coda/man/mcmc.html)).
@@ -81,7 +67,7 @@ This generate a `coda` mcmc object to be used for extract the inference results 
 Produce a simulated dataset according to the model by running:
 
 ```{r}
-df <- simulate(hemi)
+df <- run_simulation(hemi)
 ```
 
 ## License

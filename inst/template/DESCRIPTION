@@ -1,14 +1,14 @@
 Package: housepi12345
 Type: Package
-Title: Hemirt user defined model.
+Title: Environment of a household model.
 Version: 0.0.1
 Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
 Maintainer: <francesco.camaglia@pasteur.fr>
-Description: This is an implementation of a user defined model with the package housepi.
+Description: This is an implementation of the class Modelhousepi12345 with the package housepi.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Depends: methods, Rcpp (>= 1.0.0)
 LinkingTo: Rcpp
-RcppModules: modelhousepi12345
+RcppModules: modelhousepi12345_cpp
 RoxygenNote: 7.3.1
