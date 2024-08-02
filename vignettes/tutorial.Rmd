@@ -93,24 +93,28 @@ build_model(hemi,
             params = "data/params.csv",
             setup = "data/setup.csv")
 
-# show the parameter definitions
-hemi$show_params()
-
 # show the setup definitions
 hemi$show_setup()
 ```
 
-We can change the setup and parameter definitions by changing the corresponding files/dataframes.
+We can change the setup and parameter definitions by changing the corresponding files/dataframes. 
+
+Here we already defined the parameter definitions we will use for the simulation and the strategy for the MCMC moves:
+
+```{r}
+# show the parameter definitions
+hemi$show_params()
+```
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the method `simulate`. This requires an already loaded dataset to provide the different household compositions.
+To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide with the different household compositions.
 
 ```{r}
-# override status of the data with the simulation 
+# override status of the data according to simulation 
 hemi$simulate()
 
-# show a summary of the new dataset
+# show a summary of the new dataset 
 hemi$show_summary()
 ```
 

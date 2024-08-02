@@ -139,8 +139,8 @@ int main(int argc, char *argv[])
         screen::raise_error("Incompatible commands: choose one between -infer and -simulate.");
     }
 
-    user_model.build(params_file, data_file,
-                     augm_file, setup_file,
+    user_model.build(setup_file, params_file, 
+                     data_file, augm_file, 
                      extra_file, verbose);
 
     //=====================//
@@ -175,10 +175,14 @@ int main(int argc, char *argv[])
         }
         else
         {
-            screen::display_decorator("Simulation", screen::C_DECOR, UNDEFINED, verbose);
+            screen::display_decorator("Simulation", screen::C_DECOR, "save: " + output_pathtofile, verbose);
             user_model.simulate();
-            screen::display_decorator("Simulation::output", '-', "save: " + output_pathtofile, verbose);
             user_model.print_augm_variables(output_pathtofile);
+            if (verbose)
+            {
+                screen::display_decorator("Simulation::summary", '-');
+               user_model.show_summary();
+            }
         }
     }
 

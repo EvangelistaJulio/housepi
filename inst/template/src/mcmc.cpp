@@ -337,7 +337,7 @@ void MCMC::infer(std::string output_file, bool progbar)
     intern_is_infer_complete = false;
 
     //----- Check that a status is present -----//
-    if (std::find(data_headers.begin(), data_headers.end(), "status") == data_headers.end())
+    if (std::find(intern_data_headers.begin(), intern_data_headers.end(), "status") == intern_data_headers.end())
     {
         screen::raise_error("No infectious status has been provided in the data file.");
     }
@@ -478,14 +478,18 @@ void MCMC::infer(std::string output_file, bool progbar)
 /* Init Bayesian diagnostics. */
 void MCMC::init_model_diagnostics()
 {
+    // Define MCMC Sample Size 
+    dgn_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    dgn_sample_size *= setup_num_chains;
+
     // diagnostics for all parameters
-    init_param_diagnostics(setup_sample_size);
+    init_param_diagnostics(dgn_sample_size);
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_househ; h++)
     {
-        househ[h].init_diagnostics(setup_sample_size);
+        househ[h].init_diagnostics(dgn_sample_size);
     }
 
     dgn_loglike = 0.;     // (global) loglikelihood
@@ -506,10 +510,10 @@ void MCMC::update_model_diagnostics()
     }
 
     // (global) loglikelihood
-    dgn_loglike += global_loglike / setup_sample_size;
+    dgn_loglike += global_loglike / dgn_sample_size;
 
     // mean squared (global) loglikelihood
-    dgn_sqr_loglike += std::pow(global_loglike, 2) / setup_sample_size;
+    dgn_sqr_loglike += std::pow(global_loglike, 2) / dgn_sample_size;
 }
 
 /* Display results as sampled during thin iterations.
@@ -530,7 +534,7 @@ void MCMC::show_results()
         //===========================//
 
         // compute WAIC
-        double samp_var_corr = static_cast<long double>(setup_sample_size) / (setup_sample_size - 1.);
+        double samp_var_corr = static_cast<long double>(dgn_sample_size) / (dgn_sample_size - 1.);
         double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
 
         // implement WAIC warning
@@ -606,13 +610,15 @@ void MCMC::simulate()
     init_augmented_variables();
 
     //----- Initialize model -----//
-    init_model_for_inference();
+    init_model_for_simulation();
 
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_househ; h++)
     {
         simulate_single_house(h);
     }
+
+    update_report_data();
 }
 
 //------------------------------------------------------------------------------------------------------------//

@@ -137,42 +137,32 @@ double Model::compute_single_house_loglike(int h)
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {
-	int num_new_infectious = 0;
-	int num_old_infectious = 0;
 	std::vector<int> store_old_list = {};
 
 	double commu_esc_proba = exp(-community_risk_of_infection());
 	double log_p2p_esc_proba = -hazard_of_infection();
 
-	//======================//
-	//===== INITIALIZE =====//
-	//======================//
-
-	// set all cases to healthy (change infectious to susceptibles)
-	store_old_list = househ[h].infectious_list;
-	for (int i : store_old_list)
-	{
-		househ[h].change_status(i, SUSCEPTIBLE);
-	}
-
 	//================================================//
 	//==== GENERATION 0 : infection by community =====//
 	//================================================//
 
-	store_old_list = househ[h].susceptibles_list;
-	for (int i : store_old_list)
+	for (int i = 0; i < househ[h].house_size; i++)
 	{
-		if (uniform() > commu_esc_proba)
+		if (uniform() <= commu_esc_proba)
+		{
+			househ[h].change_status(i, SUSCEPTIBLE);
+		}		
+		else
 		{
 			househ[h].change_status(i, INFECTIOUS);
-			num_new_infectious++;
 		}
 	}
 
 	//============================================================//
 	//==== GENERATION >=1 : infection by previous generation =====//
 	//============================================================//
-
+	int num_old_infectious = 0;
+	int num_new_infectious = househ[h].infectious_list.size();
 	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
 	{
 		num_old_infectious = num_new_infectious;

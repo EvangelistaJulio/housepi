@@ -202,24 +202,24 @@ generate_model <- function(modelpath,
 
 #' Build model to run inference or simulation.
 #' @param hemi household model object.
+#' @param setup file path for the setup configurations.
 #' @param params file path for the model parameters.
 #' @param data file path for the input data.
 #' @param augm file path for augmented data.
-#' @param setup file path for the setup configurations.
 #' @param extra file path for any extra configurations.
 #' @param verbose boolean flag to suppress automatic prints.
 #' @export
 build_model <- function(hemi,
+                        setup = "None",
                         params = "None",
                         data = "None",
                         augm = "None",
-                        setup = "None",
                         extra = "None",
                         verbose = FALSE) {
-  hemi$build(cpp_csv_commuter(hemi, params, name = "params"),
+  hemi$build(cpp_csv_commuter(hemi, setup, name = "setup"), 
+             cpp_csv_commuter(hemi, params, name = "params"),
              cpp_csv_commuter(hemi, data, name = "data"), 
              cpp_csv_commuter(hemi, augm, name = "augm"), 
-             cpp_csv_commuter(hemi, setup, name = "setup"), 
              cpp_csv_commuter(hemi, extra, name = "extra"), 
              verbose)
 }
