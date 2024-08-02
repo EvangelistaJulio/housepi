@@ -290,7 +290,7 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-long double MCMC::run_eval_loglikelihood()
+long double MCMC::evaluate()
 {
     //===== Initialization =====//
 
@@ -298,7 +298,7 @@ long double MCMC::run_eval_loglikelihood()
     init_augmented_variables();
 
     //----- Initialize model -----//
-    initialize_model();
+    init_model_for_inference();
 
     return compute_global_loglike();
 }
@@ -315,12 +315,15 @@ long double MCMC::run_eval_loglikelihood()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
-void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
+void MCMC::infer(std::string output_file, bool progbar)
 {
     // total number of mcmc sweeps
     ulong sweep_count = 0;
-    ulong tot_num_sweeps = setup_num_chains * (setup_num_adapt + setup_num_iter);
 
+    // Define MCMC Sample Size (note: Euclidean division)
+    ulong tot_num_sweeps = setup_num_adapt / setup_thinning + setup_burn_in / setup_thinning + setup_num_iter / setup_thinning;
+    tot_num_sweeps *= setup_thinning * setup_num_chains;
+    
     // progress bar initial text
     std::string num_chain_prog_txt = std::to_string(setup_num_chains);
     std::string adap_prog_txt = (setup_num_chains == 1) ? "adaptation" : ("adapt 1/" + num_chain_prog_txt);
@@ -331,7 +334,6 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     //===== Initialization =====//
     //==========================//
 
-    screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
     intern_is_infer_complete = false;
 
     //----- Check that a status is present -----//
@@ -341,9 +343,12 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     }
 
     //----- Initialize model -----//
-    initialize_model();
+    init_model_for_inference();
 
     //----- Initialize output file-----//
+
+    // FIXME : store diagnostics instead of canceling everything  for each chain
+    // FIXME : no need for stdoutput + Gelman Rubin could be integrated
     init_inferstate_file(output_file);
 
     //----- Initialize diagnostics -----//
@@ -374,7 +379,7 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         init_augmented_variables();
 
         //-----Initialize chain-----//
-        initialize_chain();
+        init_single_chain();
 
         // set the value of the global loglikelihood
         set_global_loglike(compute_global_loglike());
@@ -399,13 +404,16 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 
         if (setup_num_adapt > 0)
         {
-            for (ulong i = 1; i <= setup_num_adapt; i++)
-            {
-                move_all_augm_variables();
-                move_and_adapt_all_parameters(i);
-                screen::display_progress_bar(adap_prog_txt, sweep_count + i, tot_num_sweeps, progbar);
+            for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
+            {                
+                for (ulong t = 1; t <= setup_thinning; t++)
+                {
+                    move_all_augm_variables();
+                    move_and_adapt_all_parameters(i + t);
+                }
+                sweep_count += setup_thinning;
+                screen::display_progress_bar(adap_prog_txt, sweep_count, tot_num_sweeps, progbar);
             }
-            sweep_count += setup_num_adapt;
 
             // reset the acceptance counts
             init_move_counts();
@@ -417,11 +425,15 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 
         if (setup_burn_in > 0)
         {
-            for (ulong i = 1; i <= setup_burn_in; i++)
+            for (ulong i = 0; i < setup_burn_in; i += setup_thinning)
             {
-                move_all_augm_variables();
-                move_all_parameters();
-                screen::display_progress_bar(burn_prog_txt, sweep_count + i, tot_num_sweeps, progbar);
+                for (ulong t = 1; t <= setup_thinning; t++)
+                {
+                    move_all_augm_variables();
+                    move_all_parameters();
+                }
+                sweep_count += setup_thinning;
+                screen::display_progress_bar(burn_prog_txt, sweep_count, tot_num_sweeps, progbar);
             }
         }
 
@@ -432,24 +444,20 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves
-            for (ulong j = 1; j <= setup_thinning; j++)
+            for (ulong t = 1; t <= setup_thinning; t++)
             {
                 move_all_augm_variables();
                 move_all_parameters();
             }
+            sweep_count += setup_thinning;
 
             // compute diagnostics for the previous iterations
             update_model_diagnostics();
             // print inference state
             print_inferstate();
 
-            screen::display_progress_bar(exec_prog_txt, sweep_count + i + setup_thinning, tot_num_sweeps, progbar);
+            screen::display_progress_bar(exec_prog_txt, sweep_count, tot_num_sweeps, progbar);
         }
-        sweep_count += setup_num_iter;
-
-        // FIXME :
-        // missing a storing diagnostics : everything is canceled for each chain
-        // a Gelman Rubin could be integrated then
     }
 
     //============================//
@@ -461,14 +469,6 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
 
     intern_is_infer_complete = true;
     close_inferstate_file();
-
-    if (verbose)
-    {
-        screen::display_decorator("Inference::results", '-', UNDEFINED);
-        show_param_diagnostics();
-        screen::display_decorator("Inference::diagnostics", '-', UNDEFINED);
-        show_results();
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -598,28 +598,20 @@ void MCMC::simulate_single_house(int h)
 }
 
 /* Perform simulation as provided by the user */
-void MCMC::run_simulation(std::string output_filename, bool verbose)
+void MCMC::simulate()
 {
-    if (output_filename == UNDEFINED)
-    {
-        screen::raise_error("Missing output file for simulation.");
-    }
-    else
-    {
-        //=====INITIALIZATION=====//
-        screen::display_decorator("Simulation", screen::C_DECOR, UNDEFINED, verbose);
+    //===== Initialization =====//
 
-        init_augmented_variables();
-        initialize_model();
+    //-----random initialization of augmented variables with model-----//
+    init_augmented_variables();
+
+    //----- Initialize model -----//
+    init_model_for_inference();
 
 #pragma omp parallel for default(shared)
-        for (int h = 0; h < num_househ; h++)
-        {
-            simulate_single_house(h);
-        }
-
-        // print results as augmented variable file
-        print_augm_variables(output_filename, verbose);
+    for (int h = 0; h < num_househ; h++)
+    {
+        simulate_single_house(h);
     }
 }
 

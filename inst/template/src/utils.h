@@ -84,7 +84,7 @@ namespace screen
 
     constexpr int DECOR_WIDTH = 65;   // width of progress bar
     constexpr int PROGBAR_WIDTH = 30; // width of progress bar
-    constexpr int PROGBAR_THIN = 241; // thinning of progress bar
+    constexpr int PROGBAR_THIN = 17; // thinning of progress bar
 
     void print_stdout(const std::string txt);
     void display_decorator(const std::string title,

@@ -32,7 +32,7 @@ The models require three main input information:
 2.  **parameters:** a dataframe (or a file) with the initial parameters and priors needed for the Bayesian inference process formatted as follows
 
     | name  | value | infer | prior   | pargs       | strategy | sargs             | range       |
-    |-------|-------|-------|---------|-------------|----------|-------------------|-------------|
+    |---------|---------|---------|---------|---------|---------|---------|---------|
     | alpha | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
     | beta  | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
     | ...   |       |       |         |             |          |                   |             |
@@ -104,11 +104,11 @@ We can change the setup and parameter definitions by changing the corresponding 
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the command `run_simulation`. This requires to have a dataset already loaded to provide the different household compositions.
+To produce a simulated dataset according to the model, we execute the method `simulate`. This requires an already loaded dataset to provide the different household compositions.
 
 ```{r}
-# override data of the model with the simulated dataset 
-df <- run_simulation(hemi)
+# override status of the data with the simulation 
+hemi$simulate()
 
 # show a summary of the new dataset
 hemi$show_summary()
@@ -116,10 +116,10 @@ hemi$show_summary()
 
 ## Inference
 
-Before proceeding any further, it can be useful to verify that the provided model can evaluate the log-likelihood without problems. We can do it with the method `loglikelihood`.
+Before proceeding any further, it can be useful to verify that the provided model can evaluate the loglikelihood without any problem. We can do it with the method `evaluate`.
 
 ```{r}
-hemi$loglikelihood()
+hemi$evaluate()
 ```
 
 To perform inference, we execute the command `run_inference`.

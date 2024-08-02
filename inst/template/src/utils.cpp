@@ -134,9 +134,10 @@ namespace screen
         if (verbose)
         {
             std::ostringstream oss;
-            oss << txt << ": [" + std::string(PROGBAR_WIDTH, '.') << "] "
+            oss << "\r" 
+                << txt << ": [" + std::string(PROGBAR_WIDTH, '.') << "] "
                 << std::fixed << std::setprecision(2) << 0.0 << " %"
-                << " 00m00s<??m??s" << "\r";
+                << " 00m00s<??m??s";
             _helper_stderr_(oss.str());
             _Prog_Bar_Start_ = steady_clock::now();
         }
@@ -149,17 +150,18 @@ namespace screen
 
         if (verbose)
         {
-            if ((total < PROGBAR_THIN) || (progress % (total / PROGBAR_THIN) == 0))
+            if ((total < PROGBAR_THIN) || (progress % PROGBAR_THIN == 0))
             {
                 int where = static_cast<double>(progress) * PROGBAR_WIDTH / total;
                 auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
                 double time_missing = static_cast<double>(time_elapsed) * (static_cast<double>(total) / progress - 1.);
 
                 std::ostringstream oss;
-                oss << txt << ": [" << std::string(where, C_DECOR) << std::string(PROGBAR_WIDTH - where, '.') << "] "
+                oss << "\r" 
+                    << txt << ": [" << std::string(where, C_DECOR) << std::string(PROGBAR_WIDTH - where, '.') << "] "
                     << percent(progress, total)
                     << " " << format_millisecs(time_elapsed) << "<" << format_millisecs(time_missing)
-                    << std::string(20, ' ') << "\r";
+                    << std::string(20, ' ');
                 _helper_stderr_(oss.str());
             }
         }
@@ -178,7 +180,8 @@ namespace screen
         {
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
             std::ostringstream oss;
-            oss << txt << ": [" << std::string(PROGBAR_WIDTH, C_DECOR) << "] "
+            oss << "\r" 
+                << txt << ": [" << std::string(PROGBAR_WIDTH, C_DECOR) << "] "
                 << percent(100, 100)
                 << " " << format_millisecs(time_elapsed)
                 << std::string(20, ' ') << "\n";

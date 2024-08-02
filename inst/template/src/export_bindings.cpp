@@ -11,16 +11,11 @@
 //'   \item Parameter: verbose - boolean flag to suppress automatic prints
 //' }
 //' @field infer Perform inference on the model \itemize{
-//'   \item Parameter: output_file - The file path where the output will be saved
-//'   \item Parameter: verbose - boolean flag to suppress automatic prints
+//'   \item Parameter: output_file - The file path where the output will be saved (temporary)
+//'   \item Parameter: progbar - boolean flag to suppress automatic prints
 //' }
-//' @field simulate Perform simulation on the model \itemize{
-//'   \item Parameter: output_file - The file path where the output will be saved
-//'   \item Parameter: verbose - boolean flag to suppress automatic prints
-//' }
-//' @field loglikelihood Compute model loglikelihood \itemize{
-//'   \item Parameter: verbose - boolean flag to suppress automatic prints
-//' }
+//' @field simulate Change the current database with a simulation from the model.
+//' @field loglikelihood Evaluate the loglikelihood in the current state.
 //' @field display.data Summary of data and model group rates.
 //' @field display.results Results of the inference.
 //' @export
@@ -37,9 +32,9 @@ RCPP_MODULE(modelhousepi12345)
  class_<MCMC>("MCMChousepi12345")
    .constructor()
    .method("build", &MCMC::build)
-   .method("infer", &MCMC::run_inference)
-   .method("simulate", &MCMC::run_simulation)
-   .method("loglikelihood", &MCMC::run_eval_loglikelihood)
+   .method("infer", &MCMC::infer)
+   .method("simulate", &MCMC::simulate)
+   .method("evaluate", &MCMC::evaluate)
    .method("setup", &MCMC::return_setup)
    .method("show_setup", &MCMC::show_setup)
    .method("show_summary", &MCMC::show_summary)

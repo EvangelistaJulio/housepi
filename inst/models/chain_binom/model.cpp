@@ -41,7 +41,7 @@ double Model::hazard_of_infection()
 //------------------------------------------------------------------------------------------------------------//
 
 /* Initialize the Lookup Table. */
-void Model::initialize_model()
+void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)

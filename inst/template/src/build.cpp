@@ -439,6 +439,8 @@ void MCMC::show_summary()
 {
     using namespace screen;
 
+    //===== PRINT =====//
+
     std::ostringstream oss;
     oss << "n. of individuals: " << report_data["n.indiv"]
         << "\n    * n. of cases: " << report_data["n.cases"]
@@ -826,7 +828,8 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     set_prng_seed(setup_seed);
 
     //===== Define MCMC Sample Size =====//
-    setup_sample_size = setup_num_chains * (setup_num_iter - setup_burn_in) / setup_thinning;
+    setup_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    setup_sample_size *= setup_num_chains;
 
     //===== Display =====//
     if (verbose)
@@ -978,7 +981,7 @@ void MCMC::print_inferstate()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
+void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 {
     if (save_augm_pathtofile != UNDEFINED)
     {
@@ -987,13 +990,6 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
 
         if (augm_ofstream.is_open())
         {
-#ifndef USE_RCPP
-            if (verbose)
-            {
-                screen::display_decorator("Output::database", '-', "save: " + save_augm_pathtofile);
-            }
-#endif
-
             // change format of augmented data
             format_augmented_data();
 

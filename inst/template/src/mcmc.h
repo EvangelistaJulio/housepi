@@ -110,8 +110,8 @@ public:
 	void set_rate_per_contact(int h);
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
-	virtual void initialize_model() {};
-	virtual void initialize_chain() {};
+	virtual void init_model_for_inference() {};
+	virtual void init_single_chain() {};
 
 	//=====Augmented Variables=====//
 	void assign_augmented_variables();
@@ -127,7 +127,7 @@ public:
 	long double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
 	virtual long double compute_global_loglike();
-	long double run_eval_loglikelihood();
+	long double evaluate();
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void init_move_counts();
@@ -140,13 +140,13 @@ public:
 	void init_model_diagnostics();
 	void update_model_diagnostics();
 
-	//=====Infer=====//
-	void run_inference(std::string output_filename, bool verbose = true, bool progbar = true);
+	//===== Inference =====//
+	void infer(std::string output_filename, bool progbar = true);
 
-	//=====Simulate=====//
+	//===== Simulatation =====//
 	virtual void simulate_single_house(int h);
 	virtual void format_augmented_data() {};
-	void run_simulation(std::string output_filename, bool verbose = true);
+	void simulate();
 
 	//=====Save Inference State=====//
 	void init_inferstate_file(std::string output_filename);
@@ -154,7 +154,7 @@ public:
 	void close_inferstate_file() { inferstate_ofstream.close(); }
 
 	//=====Save augmented variables=====//
-	void print_augm_variables(std::string output_filename, bool verbose = true);
+	void print_augm_variables(std::string output_filename);
 
 private:
 	long double global_loglike = 0.0;

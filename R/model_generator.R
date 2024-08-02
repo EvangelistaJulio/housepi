@@ -227,14 +227,12 @@ build_model <- function(hemi,
 #' Run the inference.
 #' @param hemi household model object.
 #' @param progbar boolean flag to suppress progress bar.
-#' @param verbose boolean flag to suppress automatic prints.
 #' @returns Return a coda mcmc.
 #' @export
 run_inference <- function(hemi,
-                          progbar = TRUE,
-                          verbose = FALSE) {
+                          progbar = TRUE) {
   tmp_out_file <- get_usr_tmp_file(hemi, "infer")
-  hemi$infer(tmp_out_file, verbose, progbar)
+  hemi$infer(tmp_out_file, progbar)
   df <- utils::read.csv(tmp_out_file, header = TRUE)
   unlink(tmp_out_file)
   
@@ -259,17 +257,4 @@ run_inference <- function(hemi,
   }
 
   return(output)
-}
-
-#' Run the simulation.
-#' @param hemi household model object.
-#' @returns data frame.
-#' @export
-run_simulation <- function(hemi) {
-  tmp_out_file <- get_usr_tmp_file(hemi, "simulate")
-  hemi$simulate(tmp_out_file, FALSE)
-  data <- utils::read.csv(tmp_out_file, header = TRUE)
-  unlink(tmp_out_file)
-  
-  return(data)
 }

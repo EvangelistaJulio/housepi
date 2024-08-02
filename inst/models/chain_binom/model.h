@@ -27,7 +27,7 @@ Missing Reference.
 class Model : public MCMC
 {
 	// Override MCMC methods
-	void initialize_model() override;
+	void init_model_for_inference() override;
 	double compute_single_house_loglike(int h) override;	
 	void simulate_single_house(int h) override;
 
