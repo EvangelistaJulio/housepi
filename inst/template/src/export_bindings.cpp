@@ -40,7 +40,12 @@ RCPP_MODULE(modelhousepi12345)
    .method("infer", &MCMC::run_inference)
    .method("simulate", &MCMC::run_simulation)
    .method("loglikelihood", &MCMC::run_eval_loglikelihood)
-   .method("setup", &MCMC::return_setup);
+   .method("setup", &MCMC::return_setup)
+   .method("show_setup", &MCMC::show_setup)
+   .method("show_summary", &MCMC::show_summary)
+   .method("show_group_classes", &MCMC::show_group_classes)
+   .method("show_params", &MCMC::show_parameters)
+   .method("show_results", &MCMC::show_results);
  
  class_<Model>("Modelhousepi12345")
    .constructor("Default constructor")

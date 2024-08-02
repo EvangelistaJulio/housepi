@@ -9,23 +9,17 @@ vignette: >
 
 # Package Tutorial
 
-The purpose of this tutorial is to present `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
+This tutorial introduces `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
 
 ```{r, echo=FALSE, out.width = "100%"}
 knitr::include_graphics("images/cover-light.png")
-```
-
-Load the
-
-```{r}
-library(housepi)
 ```
 
 ## Necessary Definitions
 
 The models require three main input information:
 
-1.  **database:** : a dataframe (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference.     Other additional columns can be provided.
+1.  **database:** : a dataframe (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference. Other additional columns can be provided.
 
     |           |            |                 |         |         |
     |-----------|------------|-----------------|---------|---------|
@@ -38,81 +32,86 @@ The models require three main input information:
 2.  **parameters:** a dataframe (or a file) with the initial parameters and priors needed for the Bayesian inference process formatted as follows
 
     | name  | value | infer | prior   | pargs       | strategy | sargs             | range       |
-    |---------|---------|---------|---------|---------|---------|---------|---------|
+    |-------|-------|-------|---------|-------------|----------|-------------------|-------------|
     | alpha | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
     | beta  | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
     | ...   |       |       |         |             |          |                   |             |
 
 3.  **setup:** a dataframe (or a file) with configurations such as the number of iterations, thinning, seed, etc.
 
-    |                     |           |
-    |---------------------|-----------|
-    | seed                | 576125013 |
-    | num_iter            | 10000     |
-    | num_adapt           | 1000      |
-    | burn_in             | 500       |
-    | thinning            | 10        |
-    | rnd_init_params     | TRUE      |
-    | num_threads         | 4         |
+    |                 |           |
+    |-----------------|-----------|
+    | seed            | 576125013 |
+    | num_iter        | 10000     |
+    | num_adapt       | 1000      |
+    | burn_in         | 500       |
+    | thinning        | 10        |
+    | rnd_init_params | TRUE      |
+    | num_threads     | 4         |
 
 *Note:* openMP is unsupported on macOS without a custom compiler, thus the option `num_threads` is temporary inactive because of portability issues.
 
 ## Model Generation
 
-We can use the command `generate` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
+After having loaded the package
 
 ```{r}
-hemi <- generate("chain_binom")
+library(housepi)
 ```
 
-*Note:* this process can take a few minutes because it recompiles all templated files. We are looking for a clean way to move this compiliation at the installation.
+we can use the function `generate_model` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
 
-Alternatively, to create a custom model we can start by copying a default models to a custom path. We can do so with the command `skeleton`, e. g.:
-
-```{r, eval=FALSE}
-skeleton("chain_binom", where = "path/to/model")
+```{r}
+hemi <- generate_model("chain_binom")
 ```
 
-Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within our model directory. 
-*Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
+*Note:* this process can take a few minutes because it compiles the full template. We are looking for a clean way to move redundant compilations at the installation.
 
-After changing the model generation, all relevant commands remain the same.
+### Customize the Model from a Template
+
+Alternatively, to create a custom model we can start by copying a default models to a custom path. We can do so with the function `template_model`, e. g.:
 
 ```{r, eval=FALSE}
-hemi <- generate("path/to/model")
+template_model(which = "chain_binom", where = "path/to/model")
+```
+
+Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within our model directory. *Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
+
+After changing the model generation using the path to the custom model, all commands remain the same:
+
+```{r, eval=FALSE}
+hemi <- generate_model("path/to/model")
 ```
 
 ### Building the Model
 
-We associate all definitions to our model using the `build` command:
+We associate all definitions to our model using the function `build_model`:
 
 ```{r}
-build(hemi,
-      data = "data/database.csv",
-      params = "data/params.csv",
-      setup = "data/setup.csv")
+build_model(hemi,
+            data = "data/database.csv",
+            params = "data/params.csv",
+            setup = "data/setup.csv")
 
 # show the parameter definitions
-hemi$params()
+hemi$show_params()
 
 # show the setup definitions
-hemi$setup()
+hemi$show_setup()
 ```
 
-To change the setup and parameter definitions change the corresponding files.
+We can change the setup and parameter definitions by changing the corresponding files/dataframes.
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the command `simulate`. This requires to have a dataset already loaded to provide the different household compositions.
+To produce a simulated dataset according to the model, we execute the command `run_simulation`. This requires to have a dataset already loaded to provide the different household compositions.
 
 ```{r}
+# override data of the model with the simulated dataset 
 df <- run_simulation(hemi)
 
-# override data of the model with the simulated dataset 
-build(hemi, data = df)
-
 # show a summary of the new dataset
-hemi$summary()
+hemi$show_summary()
 ```
 
 ## Inference
@@ -147,5 +146,5 @@ gelman.diag(mcmc_traces)
 The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. These results can be accessed as follows:
 
 ```{r}
-hemi$results()
+hemi$show_results()
 ```

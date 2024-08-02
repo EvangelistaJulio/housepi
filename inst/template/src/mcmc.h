@@ -95,7 +95,7 @@ public:
 	//===== Display Internal Information =====//
 	void show_setup();
 	void show_summary();
-	void show_report();
+	void show_group_classes();
 	void show_parameters();
 	void show_param_diagnostics();
 	void show_results();

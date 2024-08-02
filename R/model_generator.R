@@ -1,6 +1,6 @@
 # ----- Auxiliary Functions ----- #
 
-# get the system directory of a user model
+# get the system directory of a model
 get_usr_tmp_file <- function(x, name) {
   usr_dir <- system.file(package = attr(class(x), "package"))
   output <- file.path(usr_dir, "tmp", paste0(name, ".csv"))
@@ -36,11 +36,11 @@ cpp_csv_commuter <- function(x, input, name = "None") {
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-#' Copy the skeleton of a default model to a given directory.
+#' Copy a default model to a given directory.
 #' @param which default model name.
-#' @param path user path where to copy implementation and header.
+#' @param path path where to copy implementation and header.
 #' @export
-skeleton <- function(which = "None", path = "None") {
+template_model <- function(which = "None", path = "None") {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
   
@@ -90,11 +90,11 @@ skeleton <- function(which = "None", path = "None") {
 #' @param modelpath folder with implementation model.cpp and header model.h.
 #' @param quiet quiet the compilation messages (default).
 #' @param force generate a model even if a cached model already exist.
-#' @returns Return the user model object.
+#' @returns Return the household model object.
 #' @export
-generate <- function(modelpath, 
-                     quiet = TRUE, 
-                     force = FALSE) {
+generate_model <- function(modelpath, 
+                           quiet = TRUE, 
+                           force = FALSE) {
   # system path to housepi
   housepi_dir <- system.file(package = "housepi")
   
@@ -200,8 +200,8 @@ generate <- function(modelpath,
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-#' Build user model to run inference or simulation.
-#' @param x user model object.
+#' Build model to run inference or simulation.
+#' @param hemi household model object.
 #' @param params file path for the model parameters.
 #' @param data file path for the input data.
 #' @param augm file path for augmented data.
@@ -209,59 +209,65 @@ generate <- function(modelpath,
 #' @param extra file path for any extra configurations.
 #' @param verbose boolean flag to suppress automatic prints.
 #' @export
-build <- function(x,
-                  params = "None",
-                  data = "None",
-                  augm = "None",
-                  setup = "None",
-                  extra = "None",
-                  verbose = FALSE) {
-  x$build(
-    cpp_csv_commuter(x, params, name = "params"),
-    cpp_csv_commuter(x, data, name = "data"),
-    cpp_csv_commuter(x, augm, name = "augm"),
-    cpp_csv_commuter(x, setup, name = "setup"),
-    cpp_csv_commuter(x, extra, name = "extra"),
-    verbose
-  )
+build_model <- function(hemi,
+                        params = "None",
+                        data = "None",
+                        augm = "None",
+                        setup = "None",
+                        extra = "None",
+                        verbose = FALSE) {
+  hemi$build(cpp_csv_commuter(hemi, params, name = "params"),
+             cpp_csv_commuter(hemi, data, name = "data"), 
+             cpp_csv_commuter(hemi, augm, name = "augm"), 
+             cpp_csv_commuter(hemi, setup, name = "setup"), 
+             cpp_csv_commuter(hemi, extra, name = "extra"), 
+             verbose)
 }
 
 #' Run the inference.
-#' @param x user model object.
-#' @param verbose boolean flag to suppress automatic prints.
+#' @param hemi household model object.
 #' @param progbar boolean flag to suppress progress bar.
+#' @param verbose boolean flag to suppress automatic prints.
 #' @returns Return a coda mcmc.
 #' @export
-run_inference <- function(x,
-                  verbose = FALSE,
-                  progbar = TRUE) {
-  tmp_out_file <- get_usr_tmp_file(x, "infer")
-  x$infer(tmp_out_file, verbose, progbar)
+run_inference <- function(hemi,
+                          progbar = TRUE,
+                          verbose = FALSE) {
+  tmp_out_file <- get_usr_tmp_file(hemi, "infer")
+  hemi$infer(tmp_out_file, verbose, progbar)
   df <- utils::read.csv(tmp_out_file, header = TRUE)
   unlink(tmp_out_file)
-
+  
+  # extract setup information for coda
+  setup <- hemi$setup()
+  
   # Check if multiple chains
   if ("CHAIN__" %in% colnames(df)) {
-    df_list <- lapply(split(df, df[["CHAIN__"]]), 
-                      function(x) {
-                        coda::as.mcmc(x[, !names(x) %in% "CHAIN__"])
-                        })
+    df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
+      coda::mcmc(data = x[, !names(x) %in% "CHAIN__"],
+                 start = setup[["burn_in"]] + setup[["thinning"]],
+                 end = setup[["num_iter"]],
+                 thin = setup[["thinning"]])
+    })
     output <- coda::as.mcmc.list(df_list)
 
   } else {
-    output <- coda::as.mcmc(df)
+    output <- coda::mcmc(data = df,
+                         start = setup[["burn_in"]] + setup[["thinning"]],
+                         end = setup[["num_iter"]],
+                         thin = setup[["thinning"]])
   }
 
   return(output)
 }
 
 #' Run the simulation.
-#' @param x user model object.
-#' @returns Return a data frame.
+#' @param hemi household model object.
+#' @returns data frame.
 #' @export
-run_simulation <- function(x) {
-  tmp_out_file <- get_usr_tmp_file(x, "simulate")
-  x$simulate(tmp_out_file, FALSE)
+run_simulation <- function(hemi) {
+  tmp_out_file <- get_usr_tmp_file(hemi, "simulate")
+  hemi$simulate(tmp_out_file, FALSE)
   data <- utils::read.csv(tmp_out_file, header = TRUE)
   unlink(tmp_out_file)
   

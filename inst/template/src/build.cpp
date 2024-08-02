@@ -278,7 +278,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 screen::display_decorator("Database::summary", '-');
                 show_summary();
                 screen::display_decorator("Database::rates", '-');
-                show_report();
+                show_group_classes();
             }
         }
     }
@@ -472,7 +472,7 @@ void MCMC::show_summary()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Display model report. */
-void MCMC::show_report()
+void MCMC::show_group_classes()
 {
     using namespace screen;
 
