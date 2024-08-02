@@ -317,6 +317,16 @@ long double MCMC::evaluate()
 /* Performs the inference using Metropolis-Hastings with power posteriors. */
 void MCMC::infer(std::string output_file, bool progbar)
 {
+    //----- Check if data is meaningful -----//
+	if (report_data["n.unk.stat"] == num_indiv)
+	{
+        screen::raise_error("No infectious status has been provided in the data file.");
+    }
+
+    //=================//
+    //===== Setup =====//
+    //=================//
+
     // total number of mcmc sweeps
     ulong sweep_count = 0;
 
@@ -335,12 +345,6 @@ void MCMC::infer(std::string output_file, bool progbar)
     //==========================//
 
     intern_is_infer_complete = false;
-
-    //----- Check that a status is present -----//
-    if (std::find(intern_data_headers.begin(), intern_data_headers.end(), "status") == intern_data_headers.end())
-    {
-        screen::raise_error("No infectious status has been provided in the data file.");
-    }
 
     //----- Initialize model -----//
     init_model_for_inference();
