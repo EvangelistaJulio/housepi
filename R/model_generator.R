@@ -232,11 +232,11 @@ build <- function(x,
 #' @param progbar boolean flag to suppress progress bar.
 #' @returns Return a coda mcmc.
 #' @export
-infer <- function(x,
+run_inference <- function(x,
                   verbose = FALSE,
                   progbar = TRUE) {
   tmp_out_file <- get_usr_tmp_file(x, "infer")
-  x$inference(tmp_out_file, verbose, progbar)
+  x$infer(tmp_out_file, verbose, progbar)
   df <- utils::read.csv(tmp_out_file, header = TRUE)
   unlink(tmp_out_file)
 
@@ -259,20 +259,11 @@ infer <- function(x,
 #' @param x user model object.
 #' @returns Return a data frame.
 #' @export
-simulate <- function(x) {
+run_simulation <- function(x) {
   tmp_out_file <- get_usr_tmp_file(x, "simulate")
-  x$simulation(tmp_out_file, FALSE)
+  x$simulate(tmp_out_file, FALSE)
   data <- utils::read.csv(tmp_out_file, header = TRUE)
   unlink(tmp_out_file)
   
   return(data)
-}
-
-#' Compute the model loglikelihood.
-#' @param x user model object.
-#' @param verbose boolean flag to suppress automatic prints.
-#' @returns Return a double.
-#' @export
-compute_loglike <- function(x, verbose = FALSE) {
-  return(x$loglikelihood(verbose))
 }

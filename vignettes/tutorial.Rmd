@@ -101,20 +101,12 @@ hemi$setup()
 
 To change the setup and parameter definitions change the corresponding files.
 
-## Compute log-likelihood
-
-Sometimes it can be useful to just compute the log-likelihood before trying to run anything else. We can do it by running the command `compute_loglike`:
-
-```{r}
-compute_loglike(hemi)
-```
-
 ## Simulation
 
 To produce a simulated dataset according to the model, we execute the command `simulate`. This requires to have a dataset already loaded to provide the different household compositions.
 
 ```{r}
-df <- simulate(hemi)
+df <- run_simulation(hemi)
 
 # override data of the model with the simulated dataset 
 build(hemi, data = df)
@@ -125,10 +117,16 @@ hemi$summary()
 
 ## Inference
 
-To perform inference, we execute the command `infer`.
+Before proceeding any further, it can be useful to verify that the provided model can evaluate the log-likelihood without problems. We can do it with the method `loglikelihood`.
 
 ```{r}
-mcmc_traces <- infer(hemi)
+hemi$loglikelihood()
+```
+
+To perform inference, we execute the command `run_inference`.
+
+```{r}
+mcmc_traces <- run_inference(hemi)
 ```
 
 This method returns a 'coda' object which can then be used to analyze the results as follows:

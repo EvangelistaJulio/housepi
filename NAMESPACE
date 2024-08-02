@@ -3,6 +3,6 @@
 export(build)
 export(compute_loglike)
 export(generate)
-export(infer)
-export(simulate)
+export(run_inference)
+export(run_simulation)
 export(skeleton)
