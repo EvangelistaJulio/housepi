@@ -112,7 +112,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
             if (verbose)
             {
                 screen::display_decorator("Parameters::definitions", '-');
-                display_parameters();
+                show_parameters();
             }
         }
     }
@@ -276,9 +276,9 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             if (verbose)
             {
                 screen::display_decorator("Database::summary", '-');
-                display_summary();
+                show_summary();
                 screen::display_decorator("Database::rates", '-');
-                display_report();
+                show_report();
             }
         }
     }
@@ -435,7 +435,7 @@ void MCMC::set_rate_per_contact(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the report of the database and of the model group rates. */
-void MCMC::display_summary()
+void MCMC::show_summary()
 {
     using namespace screen;
 
@@ -472,7 +472,7 @@ void MCMC::display_summary()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Display model report. */
-void MCMC::display_report()
+void MCMC::show_report()
 {
     using namespace screen;
 
@@ -832,12 +832,12 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     if (verbose)
     {
         screen::display_decorator("Setup::definitions", '-');
-        display_setup();
+        show_setup();
     }
 }
 
 /* Display the complete choices for the setup. */
-void MCMC::display_setup()
+void MCMC::show_setup()
 {
     using namespace screen;
 

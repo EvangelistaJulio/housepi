@@ -93,12 +93,12 @@ public:
 			   std::string extra_file = UNDEFINED, bool verbose = true);
 
 	//===== Display Internal Information =====//
-	void display_setup();
-	void display_summary();
-	void display_report();
-	void display_parameters();
-	void display_param_diagnostics();
-	void display_thin_results();
+	void show_setup();
+	void show_summary();
+	void show_report();
+	void show_parameters();
+	void show_param_diagnostics();
+	void show_results();
 
 	//===== Return Internal Information with Rcpp =====//
 #ifdef USE_RCPP
@@ -127,7 +127,7 @@ public:
 	long double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
 	virtual long double compute_global_loglike();
-	double run_compute_loglikelihood(bool verbose = true);
+	long double run_eval_loglikelihood();
 
 	//=====Monte Carlo Markov Chain moves=====//
 	void init_move_counts();

@@ -30,6 +30,7 @@
 #include "model.h"
  
 // Expose the Model and MCMC classes to R using Rcpp
+RCPP_EXPOSED_CLASS(Modelhousepi12345)
 RCPP_MODULE(modelhousepi12345)
 {
  using namespace Rcpp;
@@ -39,13 +40,8 @@ RCPP_MODULE(modelhousepi12345)
    .method("build", &MCMC::build, "Construct the model with various configuration files and flags.")
    .method("inference", &MCMC::run_inference, "Perform inference and save results to file.")
    .method("simulation", &MCMC::run_simulation, "Perform simulation and save results to file.")
-   .method("loglikelihood", &MCMC::run_compute_loglikelihood, "Perform simulation and save results to file.")
-   .method("setup", &MCMC::return_setup, "List with setup values.")
-   .method("display.setup", &MCMC::display_setup, "Display setup.")
-   .method("display.summary", &MCMC::display_summary, "Display summary of the dataset.")
-   .method("display.report", &MCMC::display_report, "Report of model group rates.")
-   .method("display.params", &MCMC::display_parameters, "Display parameters.")
-   .method("display.results", &MCMC::display_thin_results, "Results of the inference.");
+   .method("loglikelihood", &MCMC::run_eval_loglikelihood, "Perform simulation and save results to file.")
+   .method("setup", &MCMC::return_setup, "List with setup values.");
  
  class_<Model>("Modelhousepi12345")
    .constructor("Default constructor")

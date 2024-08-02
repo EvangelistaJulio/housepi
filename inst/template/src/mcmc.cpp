@@ -290,7 +290,7 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-double MCMC::run_compute_loglikelihood(bool verbose)
+long double MCMC::run_eval_loglikelihood()
 {
     //===== Initialization =====//
 
@@ -300,24 +300,7 @@ double MCMC::run_compute_loglikelihood(bool verbose)
     //----- Initialize model -----//
     initialize_model();
 
-    //===== Execution =====//
-    long double ll = compute_global_loglike();
-
-    //----- Print output -----//
-    if (verbose)
-    {
-        std::ostringstream oss;
-        oss << "Loglikelihood" << screen::C_DELIM << ll << "\n";
-        screen::print_stdout(oss.str());
-    }
-#ifndef USE_RCPP
-    else
-    {
-        screen::print_stdout(std::to_string(ll) + "\n");
-    }
-#endif
-
-    return ll;
+    return compute_global_loglike();
 }
 
 //------------------------------------------------------------------------------------------------------------//
@@ -482,9 +465,9 @@ void MCMC::run_inference(std::string output_file, bool verbose, bool progbar)
     if (verbose)
     {
         screen::display_decorator("Inference::results", '-', UNDEFINED);
-        display_param_diagnostics();
+        show_param_diagnostics();
         screen::display_decorator("Inference::diagnostics", '-', UNDEFINED);
-        display_thin_results();
+        show_results();
     }
 }
 
@@ -532,7 +515,7 @@ void MCMC::update_model_diagnostics()
 /* Display results as sampled during thin iterations.
 // FIXME : this output needs to be user specified probably
 */
-void MCMC::display_thin_results()
+void MCMC::show_results()
 {
     using namespace screen;
 
@@ -652,7 +635,7 @@ void MCMC::run_simulation(std::string output_filename, bool verbose)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* display the user model parameters */
-void MCMC::display_parameters()
+void MCMC::show_parameters()
 {
     using namespace screen;
 
@@ -677,7 +660,7 @@ void MCMC::display_parameters()
 }
 
 /* display the diagnostics */
-void MCMC::display_param_diagnostics()
+void MCMC::show_param_diagnostics()
 {
     using namespace screen;
 
