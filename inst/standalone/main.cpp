@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
+        screen::display_decorator("Inference", screen::C_DECOR, "save: " + output_pathtofile, verbose);
         user_model.infer(output_pathtofile);
 
         if (verbose)

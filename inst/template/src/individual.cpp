@@ -18,9 +18,12 @@
 Individual::Individual(sdargs new_data)
 {
 	index = new_data.at("index");
-	if (new_data.find("status") == new_data.end()) {
+	if (new_data.find("status") == new_data.end())
+	{
 		status = MISSING_STATUS;
-	} else {
+	}
+	else
+	{
 		status = new_data.at("status");
 	}
 	data = new_data;
@@ -165,42 +168,47 @@ double Household::get_data(std::string dataID) const
 void Household::assign_individual(Individual this_indiv)
 {
 	int status = this_indiv.get_status();
-	indiv.push_back(this_indiv);
 
-	// status list
+	//----- update status lists within the household -----//
 	if (status == INFECTIOUS)
 	{
-		infectious_list.push_back(house_size);
+		num_infectious++;
+		infectious_set.insert(house_size);
+
+		is_infectious.push_back(true);
+		is_susceptible.push_back(false);
+		is_missing_status.push_back(false);
 	}
 	else if (status == SUSCEPTIBLE)
 	{
-		susceptibles_list.push_back(house_size);
+		num_susceptible++;
+		susceptible_set.insert(house_size);
+
+		is_infectious.push_back(false);
+		is_susceptible.push_back(true);
+		is_missing_status.push_back(false);
+	}
+	else if (status == MISSING_STATUS)
+	{
+		num_missing_status++;
+		missing_status_set.insert(house_size);
+
+		is_infectious.push_back(false);
+		is_susceptible.push_back(false);
+		is_missing_status.push_back(true);
 	}
 	else
 	{
-		unknown_status_list.push_back(house_size);
+		std::ostringstream oss;
+		oss << "Impossibile to assign individual " << this_indiv.get_index() << ": unknown status " << status << "`.";
+		screen::raise_error(oss.str());
 	}
+	
+	//----- add the new individual object -----//
+	indiv.push_back(this_indiv);
+
+	//----- update household size -----//
 	house_size++;
-}
-
-
-/* Return the indexes of the infectious, then the susceptibles, unknown statuses */
-// FIXME : is this necessary anymore?
-std::vector<int> Household::get_house_members()
-{
-	std::vector<int> members;
-	members.reserve(house_size); // Reserve space
-
-	// Copy infectious
-	members.insert(members.end(), infectious_list.begin(), infectious_list.end());
-
-	// Copy susceptibles
-	members.insert(members.end(), susceptibles_list.begin(), susceptibles_list.end());
-
-	// Copy unknown
-	members.insert(members.end(), unknown_status_list.begin(), unknown_status_list.end());
-
-	return members;
 }
 
 /* Change_status of individual i to new status (without controls).
@@ -209,37 +217,58 @@ void Household::change_status(int i, int new_status)
 {
 	int old_status = indiv[i].get_status();
 
-	if (old_status != new_status)
+	if (new_status != old_status)
 	{
-		// erase individual i from previous list
-		if (old_status == SUSCEPTIBLE)
+		if (old_status == INFECTIOUS)
 		{
-			susceptibles_list.erase(find(susceptibles_list.begin(), susceptibles_list.end(), i));
+			num_infectious--;
+			infectious_set.erase(i);
+			is_infectious[i] = false;
 		}
-		else if (old_status == INFECTIOUS)
+		else if (old_status == SUSCEPTIBLE)
 		{
-			infectious_list.erase(find(infectious_list.begin(), infectious_list.end(), i));
+			num_susceptible--;
+			susceptible_set.erase(i);
+			is_susceptible[i] = false;
 		}
-		else
+		else if (old_status == MISSING_STATUS)
 		{
-			unknown_status_list.erase(find(unknown_status_list.begin(), unknown_status_list.end(), i));
-		}
-
-		// assign individual i to new list
-		if (new_status == SUSCEPTIBLE)
-		{
-			susceptibles_list.push_back(i);
-		}
-		else if (new_status == INFECTIOUS)
-		{
-			infectious_list.push_back(i);
+			num_missing_status--;
+			missing_status_set.erase(i);
+			is_missing_status[i] = false;
 		}
 		else
 		{
-			unknown_status_list.push_back(i);
+			std::ostringstream oss;
+			oss << "Impossibile to change status: unknown old status `" << old_status << "`.";
+			screen::raise_error(oss.str());
 		}
 
-		// change the status of individual to new
+		if (new_status == INFECTIOUS)
+		{
+			num_infectious++;
+			infectious_set.insert(i);
+			is_infectious[i] = true;
+		}
+		else if (new_status == SUSCEPTIBLE)
+		{
+			num_susceptible++;
+			susceptible_set.insert(i);
+			is_susceptible[i] = true;
+		}
+		else if (new_status == MISSING_STATUS)
+		{
+			num_missing_status++;
+			missing_status_set.insert(i);
+			is_missing_status[i] = true;
+		}
+		else
+		{
+			std::ostringstream oss;
+			oss << "Impossibile to change status: unknown new status `" << new_status << "`.";
+			screen::raise_error(oss.str());
+		}
+
 		indiv[i].set_status(new_status);
 	}
 }
@@ -278,10 +307,3 @@ void Household::update_diagnostics()
 	dgn_sqr_loglike += std::pow(loglike, 2) / dgn_sample_size;
 	dgn_likelihood += std::exp(loglike) / dgn_sample_size;
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//

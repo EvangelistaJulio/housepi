@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <set>
 #include <unordered_map>
 #include <cmath>
 
@@ -94,6 +95,7 @@ private:
 	//=====Attributes (private)=====//
 	int house_index = -1;		  // database index of the household
 	sdargs house_data = {};		  // database associated to individual
+
 	double loglike = -INF_DOUBLE; // log-likelihood value
 	double buffer = -INF_DOUBLE;  // store buffer value of the log-likelihood
 
@@ -105,18 +107,26 @@ public:
 	//=====Attributes (public)=====//
 	std::vector<Individual> indiv = {};
 	int house_size = 0;
+	int num_infectious = 0;
+	int num_susceptible = 0;
+	int num_missing_status = 0;
 	int first_case = -1;
 
 	// contact rate address
 	std::vector<std::vector<const double *>> contact_rates;
 	std::vector<std::vector<std::string>> which_rate;
 
-	// list of house members for given status
-	std::vector<int> infectious_list = {};
-	std::vector<int> susceptibles_list = {};
-	std::vector<int> unknown_status_list = {};
+	// wheter members correspond to a given status or not
+	std::vector<bool> is_infectious = {};
+	std::vector<bool> is_susceptible = {};
+	std::vector<bool> is_missing_status = {};
 
-	//=====Diagnostics=====//
+	// list with ONLY indexes of members with a given status
+	std::set<int> infectious_set = {};
+	std::set<int> susceptible_set = {};
+	std::set<int> missing_status_set = {};
+
+	//===== Diagnostics =====//
 	int dgn_sample_size = 0;		  // sample size
 	long double dgn_likelihood = 0.;  // mean (house) likelihood
 	long double dgn_loglike = 0.;	  // mean (house) log-likelihood
@@ -133,16 +143,17 @@ public:
 	void assign_rate_per_contact(int from, int to, std::string parID) { which_rate[from][to] = parID; }
 	void change_status(int i, int new_status);
 
+	void update_status_lists();
+
 	//======Getter======//
 	int get_index() const { return house_index; }
 	double get_data(std::string dataID) const;
-	std::vector<int> get_house_members(); // FIXME : to be checked
 
 	//======Contact Rates======//
 	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
 	double get_contact_rate(int from, int to) const { return (*contact_rates[from][to]); }
 
-	//======Loglike======//
+	//====== Loglikelihood ======//
 	double get_loglike() const { return loglike; }
 	void set_loglike(double new_loglike)
 	{

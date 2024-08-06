@@ -133,7 +133,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
 void MCMC::update_report_data()
 {
     report_data = {{"n.cases", 0},
-                   {"n.unk.stat", 0},
+                   {"n.miss.stat", 0},
                    {"no.HH.case", 0},
                    {"lst.1.case", 0},
                    {"lst.2.case", 0},
@@ -147,10 +147,10 @@ void MCMC::update_report_data()
     //===== Set Contact Rates and Perform Database Analysis =====//
     for (int h = 0; h < num_househ; h++)
     {
-        int num_infec = househ[h].infectious_list.size();
+        int num_infec = househ[h].num_infectious;
 
         report_data["n.cases"] += num_infec;
-        report_data["n.unk.stat"] += househ[h].unknown_status_list.size();
+        report_data["n.miss.stat"] += househ[h].num_missing_status;
 
         report_data["no.HH.case"] += (num_infec == 0);
         report_data["lst.1.case"] += (num_infec > 0);
@@ -451,10 +451,10 @@ void MCMC::show_summary()
     oss << "n. of individuals: " << num_indiv
         << "\n    * n. of cases: " << report_data["n.cases"]
         << " " << percent(report_data["n.cases"], num_indiv);
-    if (report_data["n.unk.stat"] > 0)
+    if (report_data["n.miss.stat"] > 0)
     {
-        oss << "\n    * n. of missing status : " << report_data["n.unk.stat"]
-        << " " << percent(report_data["n.unk.stat"], num_indiv);
+        oss << "\n    * n. of missing status : " << report_data["n.miss.stat"]
+        << " " << percent(report_data["n.miss.stat"], num_indiv);
     }
 
     oss << "\nn. of households: " << num_househ;
@@ -909,9 +909,6 @@ void MCMC::init_inferstate_file(std::string output_filename)
 
         if (inferstate_ofstream.is_open())
         {
-#ifndef USE_RCPP
-            print_stdout("save: " + output_filename + "\n");
-#endif
             // print loglikelihood
             inferstate_ofstream << "loglike";
 

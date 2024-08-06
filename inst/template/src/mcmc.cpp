@@ -104,7 +104,7 @@ void MCMC::update_first_case(int h)
     double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
     int new_case0 = -1;         // NOTE: init to impossible values
 
-    for (int i : househ[h].infectious_list)
+    for (int i : househ[h].infectious_set)
     {
         t_infec = get_infec_time(h, i);
         new_t0 = std::min(t_infec, new_t0);
@@ -210,7 +210,7 @@ double MCMC::single_household_augm_move(int h)
 
     // Loop over infectious residents of the househould
     // FIXME : only infectious are subject to data augmentation?
-    for (int i : househ[h].infectious_list)
+    for (int i : househ[h].infectious_set)
     {
         // Loop over augmented variables of infectious
         for (std::string augmID : augm_to_be_inferred)
@@ -318,7 +318,7 @@ long double MCMC::evaluate()
 void MCMC::infer(std::string output_file, bool progbar)
 {
     //----- Check if data is meaningful -----//
-	if (report_data["n.unk.stat"] == num_indiv)
+	if (report_data["n.miss.stat"] == num_indiv)
 	{
         screen::raise_error("No infectious status has been provided in the data file.");
     }
@@ -716,10 +716,3 @@ Rcpp::List MCMC::return_setup()
     return output;
 }
 #endif
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//

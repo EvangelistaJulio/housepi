@@ -44,7 +44,7 @@ double Model::hazard_of_infection()
 void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
-	if (report_data["n.unk.stat"] > 0)
+	if (report_data["n.miss.stat"] > 0)
 	{
 		screen::raise_error("A missing status was found : incompatible with the model.");
 	}
@@ -70,7 +70,7 @@ double Model::compute_single_house_loglike(int h)
 	double log_likelihood = 0;
 
 	int hh_size = househ[h].house_size;
-	int n_positive = househ[h].infectious_list.size();
+	int n_positive = househ[h].num_infectious;
 
 	double log_commu_esc_proba = -community_risk_of_infection();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
@@ -137,8 +137,6 @@ double Model::compute_single_house_loglike(int h)
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {
-	std::vector<int> store_old_list = {};
-
 	double commu_esc_proba = exp(-community_risk_of_infection());
 	double log_p2p_esc_proba = -hazard_of_infection();
 
@@ -161,21 +159,18 @@ void Model::simulate_single_house(int h)
 	//============================================================//
 	//==== GENERATION >=1 : infection by previous generation =====//
 	//============================================================//
-	int num_old_infectious = 0;
-	int num_new_infectious = househ[h].infectious_list.size();
-	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
-	{
-		num_old_infectious = num_new_infectious;
-		num_new_infectious = 0;
 
-		store_old_list = househ[h].susceptibles_list;
-		for (int i : store_old_list)
+	int num_gen_infec = househ[h].num_infectious;
+	while ((househ[h].num_susceptible > 0) && (num_gen_infec > 0))
+	{
+		// note : here househ[h].susceptible_set is not allowed because of change_status
+		for (int i = 0; i < househ[h].house_size; i++)
 		{
-			if (uniform() > exp(num_old_infectious * log_p2p_esc_proba))
+			if ((househ[h].is_susceptible[i]) && (uniform() > exp(num_gen_infec * log_p2p_esc_proba)))
 			{
 				househ[h].change_status(i, INFECTIOUS);
-				num_new_infectious++;
 			}
 		}
+		num_gen_infec = househ[h].num_infectious - num_gen_infec;
 	}
 }
