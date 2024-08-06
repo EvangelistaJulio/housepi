@@ -1,6 +1,6 @@
 # ----- Auxiliary Functions ----- #
 
-# get the system directory of a household model
+# get the system directory of a model
 get_usr_tmp_file <- function(x, name) {
   usr_dir <- system.file(package = attr(class(x), "package"))
   output <- file.path(usr_dir, "tmp", paste0(name, ".csv"))
@@ -31,16 +31,11 @@ cpp_csv_commuter <- function(x, input, name = "None") {
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-
-#' Template of a model
-#' 
-#' @description
-#' `template_model` copies the template of a default model.
-#' 
+#' Copy a default model to a given directory.
 #' @param which default model name.
-#' @param where path where to copy implementation and header.
+#' @param path path where to copy implementation and header.
 #' @export
-template_model <- function(which = "None", where = "None") {
+template_model <- function(which = "None", path = "None") {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
 
@@ -95,10 +90,11 @@ template_model <- function(which = "None", where = "None") {
 #' \item default model name.
 #' \item path/to/folder with implementation model.cpp and header model.h.
 #' @param force generate a model even if a cached model already exist.
-#' @param quiet quiet the compilation messages.
-#' @returns Returns the household model object.
+#' @returns Return the household model object.
 #' @export
-generate_model <- function(model, force = FALSE, quiet = TRUE) {
+generate_model <- function(modelpath, 
+                           quiet = TRUE, 
+                           force = FALSE) {
   # system path to housepi
   housepi_dir <- system.file(package = "housepi")
 
@@ -204,54 +200,42 @@ generate_model <- function(model, force = FALSE, quiet = TRUE) {
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-#' Build a model
-#' 
-#' @description
-#' `build_model` associates definitions to the model.
-#' 
+#' Build model to run inference or simulation.
 #' @param hemi household model object.
+#' @param setup file path for the setup configurations.
 #' @param params file path for the model parameters.
 #' @param data file path for the input data.
 #' @param augm file path for augmented data.
-#' @param setup file path for the setup configurations.
 #' @param extra file path for any extra configurations.
 #' @param verbose boolean flag to suppress automatic prints.
 #' @export
 build_model <- function(hemi,
+                        setup = "None",
                         params = "None",
                         data = "None",
                         augm = "None",
-                        setup = "None",
                         extra = "None",
                         verbose = FALSE) {
-  hemi$build(
-    cpp_csv_commuter(hemi, params, name = "params"),
-    cpp_csv_commuter(hemi, data, name = "data"),
-    cpp_csv_commuter(hemi, augm, name = "augm"),
-    cpp_csv_commuter(hemi, setup, name = "setup"),
-    cpp_csv_commuter(hemi, extra, name = "extra"),
-    verbose
-  )
+  hemi$build(cpp_csv_commuter(hemi, setup, name = "setup"), 
+             cpp_csv_commuter(hemi, params, name = "params"),
+             cpp_csv_commuter(hemi, data, name = "data"), 
+             cpp_csv_commuter(hemi, augm, name = "augm"), 
+             cpp_csv_commuter(hemi, extra, name = "extra"), 
+             verbose)
 }
 
-
-#' Run the inference
-#' 
-#' @description
-#' `run_inference` infers the model parameters.
-#' It implements the Metropolis-Hastings MCMCM algorithm.
-#' 
+#' Run the inference.
 #' @param hemi household model object.
-#' @param verbose boolean flag to suppress automatic prints.
 #' @param progbar boolean flag to suppress progress bar.
 #' @returns Return a coda mcmc.
 #' @export
-run_inference <- function(hemi, verbose = FALSE, progbar = TRUE) {
-
+run_inference <- function(hemi,
+                          progbar = TRUE) {
   tmp_out_file <- get_usr_tmp_file(hemi, "infer")
-  hemi$infer(tmp_out_file, verbose, progbar)
+  hemi$infer(tmp_out_file, progbar)
   df <- utils::read.csv(tmp_out_file, header = TRUE)
   unlink(tmp_out_file)
+  
   # extract setup information for coda
   setup <- hemi$setup()
   
@@ -273,22 +257,4 @@ run_inference <- function(hemi, verbose = FALSE, progbar = TRUE) {
   }
   
   return(output)
-}
-
-#' Run the simulation
-#' 
-#' @description
-#' `run_simulation` returns a dataset simulated according to the model.#' 
-#' 
-#' @param hemi household model object.
-#' @returns Return a data frame.
-#' @export
-run_simulation <- function(hemi) {
-
-  tmp_out_file <- get_usr_tmp_file(hemi, "simulate")
-  hemi$simulate(tmp_out_file, FALSE)
-  data <- utils::read.csv(tmp_out_file, header = TRUE)
-  base::unlink(tmp_out_file)
-
-  return(data)
 }

@@ -22,24 +22,24 @@ bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
 ////////////////////////////////////////  MCMC : build  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::build(std::string params_file, std::string data_file,
-                 std::string augm_file, std::string setup_file,
+void MCMC::build(std::string setup_file, std::string params_file,
+                 std::string data_file, std::string augm_file,
                  std::string extra_file, bool verbose)
 {
     //===== reset internal status =====//
     intern_is_infer_complete = false;
 
-    // 1) Load Parameters and Check (required)
+    // 1) Load Setup (optional)
+    build_setup(setup_file, verbose);
+
+    // 2) Load Parameters and Check (required)
     build_parameters(params_file, verbose);
 
-    // 2) Load Data and Check (required)
+    // 3) Load Data and Check (required)
     build_data(data_file, verbose);
 
-    // 3) Load Augmented Variables (optional)
+    // 4) Load Augmented Variables (optional)
     build_augmented(augm_file, verbose);
-
-    // 4) Load Setup (optional)
-    build_setup(setup_file, verbose);
 
     // 5) Load Extra File (optional, user defined)
     // UPDATE: there could be plenty extra files to be store somewhere
@@ -129,6 +129,68 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
 ////////////////////////////////////  MCMC : build data  //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Use the loaded data to fill-in the respective report. */
+void MCMC::update_report_data()
+{
+    report_data = {{"n.cases", 0},
+                   {"n.unk.stat", 0},
+                   {"no.HH.case", 0},
+                   {"lst.1.case", 0},
+                   {"lst.2.case", 0},
+                   {"max.n.HH.cases", 0},
+                   {"n.HH.with.max.cases", 0},
+                   {"min.HH.size", 1000},
+                   {"n.HH.with.min.size", 0},
+                   {"max.HH.size", 0},
+                   {"n.HH.with.max.size", 0}};
+
+    //===== Set Contact Rates and Perform Database Analysis =====//
+    for (int h = 0; h < num_househ; h++)
+    {
+        int num_infec = househ[h].infectious_list.size();
+
+        report_data["n.cases"] += num_infec;
+        report_data["n.unk.stat"] += househ[h].unknown_status_list.size();
+
+        report_data["no.HH.case"] += (num_infec == 0);
+        report_data["lst.1.case"] += (num_infec > 0);
+        report_data["lst.2.case"] += (num_infec > 1);
+
+        // max number of house cases
+        if (report_data["max.n.HH.cases"] < num_infec)
+        {
+            report_data["n.HH.with.max.cases"] = 1;
+            report_data["max.n.HH.cases"] = num_infec;
+        }
+        else if (report_data["max.n.HH.cases"] == num_infec)
+        {
+            report_data["n.HH.with.max.cases"] += 1;
+        }
+
+        // minimum house number of members
+        if (report_data["min.HH.size"] > househ[h].house_size)
+        {
+            report_data["n.HH.with.min.size"] = 1;
+            report_data["min.HH.size"] = househ[h].house_size;
+        }
+        else if (report_data["min.HH.size"] == househ[h].house_size)
+        {
+            report_data["n.HH.with.min.size"] += 1;
+        }
+
+        // maximum house number of members
+        if (report_data["max.HH.size"] < househ[h].house_size)
+        {
+            report_data["n.HH.with.max.size"] = 1;
+            report_data["max.HH.size"] = househ[h].house_size;
+        }
+        else if (report_data["max.HH.size"] == househ[h].house_size)
+        {
+            report_data["n.HH.with.max.size"] += 1;
+        }
+    }
+}
+
 /* Read data file and pre-process the data. */
 void MCMC::build_data(std::string pathtofile, bool verbose)
 {
@@ -155,49 +217,30 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //=====Load column headers=====//
-            data_headers = read_column_headers(input, required_headers, pathtofile);
+            intern_data_headers = read_column_headers(input, required_headers, pathtofile);
 
-            //=====Drop all previous data=====//
+            //===== Drop all previous data =====//
             househ.clear();
+            num_indiv = 0;
             num_househ = 0;
-            report_data = {{"n.indiv", 0},
-                           {"n.cases", 0},
-                           {"n.unk.stat", 0},
-                           {"no.HH.case", 0},
-                           {"lst.1.case", 0},
-                           {"lst.2.case", 0},
-                           {"max.n.HH.cases", 0},
-                           {"n.HH.with.max.cases", 0},
-                           {"min.HH.size", 1000},
-                           {"n.HH.with.min.size", 0},
-                           {"max.HH.size", 0},
-                           {"n.HH.with.max.size", 0},
-                           {"_n.contacts_", 0}};
-            report_model.clear();
+            report_group_classes.clear();
 
             //=====Load individuals from the row with values=====//
             std::vector<Individual> aux_individuals = {};
-            for (ssargs this_row = {}; read_row_by_headers(input, data_headers, this_row); this_row.clear())
+            for (ssargs this_row = {}; read_row_by_headers(input, intern_data_headers, this_row); this_row.clear())
             {
 
                 Individual this_indiv(row_to_sdargs(this_row));
                 assign_rate_per_group_to_individual(this_indiv);
                 set_rate_per_group(this_indiv);
                 aux_individuals.push_back(this_indiv);
-                report_data["n.indiv"]++;
+                num_indiv++;
 
                 //=====check for the validity of the status=====//
-                if (this_indiv.get_status() == INFECTIOUS)
+                std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
+                int this_status = this_indiv.get_status();
+                if(valid_statuses.find(this_status) == valid_statuses.end())
                 {
-                    report_data["n.cases"]++;
-                }
-                else if (this_indiv.get_status() == MISSING_STATUS)
-                {
-                    report_data["n.unk.stat"]++;
-                }
-                else if (this_indiv.get_status() != SUSCEPTIBLE)
-                {
-                    report_data["n.unk.stat"]++;
                     this_indiv.set_status(MISSING_STATUS);
 
                     std::ostringstream oss;
@@ -226,53 +269,16 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
             }
 
-            //===== Set Contact Rates and Perform Database Analysis =====//
-            int aux;
+            //===== Set Contact Rates =====//
             for (int h = 0; h < num_househ; h++)
             {
                 set_rate_per_contact(h);
-
-                aux = househ[h].infectious_list.size();
-
-                report_data["no.HH.case"] += (aux == 0);
-                report_data["lst.1.case"] += (aux > 0);
-                report_data["lst.2.case"] += (aux > 1);
-
-                // max number of house cases
-                if (report_data["max.n.HH.cases"] < aux)
-                {
-                    report_data["n.HH.with.max.cases"] = 1;
-                    report_data["max.n.HH.cases"] = aux;
-                }
-                else if (report_data["max.n.HH.cases"] == aux)
-                {
-                    report_data["n.HH.with.max.cases"] += 1;
-                }
-
-                // minimum house number of members
-                if (report_data["min.HH.size"] > househ[h].house_size)
-                {
-                    report_data["n.HH.with.min.size"] = 1;
-                    report_data["min.HH.size"] = househ[h].house_size;
-                }
-                else if (report_data["min.HH.size"] == househ[h].house_size)
-                {
-                    report_data["n.HH.with.min.size"] += 1;
-                }
-
-                // maximum house number of members
-                if (report_data["max.HH.size"] < househ[h].house_size)
-                {
-                    report_data["n.HH.with.max.size"] = 1;
-                    report_data["max.HH.size"] = househ[h].house_size;
-                }
-                else if (report_data["max.HH.size"] == househ[h].house_size)
-                {
-                    report_data["n.HH.with.max.size"] += 1;
-                }
             }
 
-            //===== Show Database and Model Reports =====//
+            //===== Update Report for Data =====//
+            update_report_data();
+
+            //=====Display Database and Model Reports=====//
             if (verbose)
             {
                 screen::display_decorator("Database::summary", '-');
@@ -311,16 +317,16 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         std::string parID = which.second;
 
         //=====initialize model report=====//
-        if (report_data["n.indiv"] == 0)
+        if (num_indiv == 0)
         {
             // if first individual, initialize rateID-report
-            report_model.emplace(rateID, std::map<std::string, int>());
-            report_model.at(rateID).emplace("[reference]", 0);
+            report_group_classes.emplace(rateID, std::map<std::string, int>());
+            report_group_classes.at(rateID).emplace("[reference]", 0);
         }
         else
         {
             // all individuals must have the same set of rates of first individual
-            if (report_model.find(rateID) == report_model.end())
+            if (report_group_classes.find(rateID) == report_group_classes.end())
             {
                 screen::raise_error("Group rate `" + rateID + "` has not been provided for all individuals.");
             }
@@ -338,20 +344,20 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         {
             // rate set to reference
             this_indiv.set_rate(rateID, get_reference());
-            report_model.at(rateID).at("[reference]") += 1;
+            report_group_classes.at(rateID).at("[reference]") += 1;
         }
         else if (parID != REFERENCE)
         {
             // rate associated to parameter
             assert_param(parID);
             this_indiv.set_rate(rateID, get_address(parID));
-            if (report_model.at(rateID).find(parID) == report_model.at(rateID).end())
+            if (report_group_classes.at(rateID).find(parID) == report_group_classes.at(rateID).end())
             {
-                report_model.at(rateID).emplace(parID, 1);
+                report_group_classes.at(rateID).emplace(parID, 1);
             }
             else
             {
-                report_model.at(rateID).at(parID) += 1;
+                report_group_classes.at(rateID).at(parID) += 1;
             }
         }
     }
@@ -374,13 +380,13 @@ void MCMC::set_rate_per_contact(int h)
     if (h == 0)
     {
         // if first household, initialize contact rate report
-        report_model.emplace(CONTACT_RATE, std::map<std::string, int>());
-        report_model.at(CONTACT_RATE).emplace("[reference]", 0);
+        report_group_classes.emplace(CONTACT_RATE, std::map<std::string, int>());
+        report_group_classes.at(CONTACT_RATE).emplace("[reference]", 0);
     }
     else
     {
         // all household must have a contact rate
-        if (report_model.find(CONTACT_RATE) == report_model.end())
+        if (report_group_classes.find(CONTACT_RATE) == report_group_classes.end())
         {
             screen::raise_error("Contact rate has not been provided for all households.");
         }
@@ -406,24 +412,24 @@ void MCMC::set_rate_per_contact(int h)
                 else if (parID == REFERENCE)
                 {
                     househ[h].set_rate(k, i, get_reference()); // reference rate
-                    report_model.at(CONTACT_RATE).at("[reference]") += 1;
+                    report_group_classes.at(CONTACT_RATE).at("[reference]") += 1;
                 }
                 else if (parID != EMPTY_RATE)
                 {
                     assert_param(parID);
                     househ[h].set_rate(k, i, get_address(parID)); // parameter rate
-                    if (report_model.at(CONTACT_RATE).find(parID) == report_model.at(CONTACT_RATE).end())
+                    if (report_group_classes.at(CONTACT_RATE).find(parID) == report_group_classes.at(CONTACT_RATE).end())
                     {
-                        report_model.at(CONTACT_RATE).emplace(parID, 1);
+                        report_group_classes.at(CONTACT_RATE).emplace(parID, 1);
                     }
                     else
                     {
-                        report_model.at(CONTACT_RATE).at(parID) += 1;
+                        report_group_classes.at(CONTACT_RATE).at(parID) += 1;
                     }
                 }
 
                 // count the total number of pairs
-                report_data.at("_n.contacts_")++;
+                intern_n_contacts++;
             }
         }
     }
@@ -438,25 +444,35 @@ void MCMC::show_summary()
 {
     using namespace screen;
 
+    //===== PRINT =====//
+
     std::ostringstream oss;
-    oss << "n. of individuals: " << report_data["n.indiv"]
+
+    oss << "n. of individuals: " << num_indiv
         << "\n    * n. of cases: " << report_data["n.cases"]
-        << " " << percent(report_data["n.cases"], report_data["n.indiv"]);
+        << " " << percent(report_data["n.cases"], num_indiv);
     if (report_data["n.unk.stat"] > 0)
     {
-        oss << "\nn. of missing status : " << report_data["n.unk.stat"];
+        oss << "\n    * n. of missing status : " << report_data["n.unk.stat"]
+        << " " << percent(report_data["n.unk.stat"], num_indiv);
     }
+
     oss << "\nn. of households: " << num_househ;
     if (report_data["no.HH.case"] > 0)
     {
         oss << "\n    * with no cases: " << report_data["no.HH.case"]
             << " " << percent(report_data["no.HH.case"], num_househ);
     }
+
     oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
-        << " " << percent(report_data["lst.1.case"], num_househ)
-        << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
-        << " " << percent(report_data["lst.2.case"], num_househ)
-        << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
+        << " " << percent(report_data["lst.1.case"], num_househ);
+    if (report_data["lst.1.case"] > 0)
+    {
+        oss << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
+            << " " << percent(report_data["lst.2.case"], num_househ);
+    }
+
+    oss << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
         << " " << percent(report_data["n.HH.with.max.cases"], num_househ)
         << "\nmin n. house members: " << report_data["min.HH.size"]
         << " " << percent(report_data["n.HH.with.min.size"], num_househ)
@@ -470,11 +486,11 @@ void MCMC::show_summary()
 //////////////////////////////////  MCMC : show report  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Show model group classes. */
+/* Display model report. */
 void MCMC::show_group_classes()
 {
     std::ostringstream oss;
-    for (const auto &entry : report_model)
+    for (const auto &entry : report_group_classes)
     {
         if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
         {
@@ -482,19 +498,19 @@ void MCMC::show_group_classes()
             for (auto const &x : entry.second)
             {
                 oss << "\n    * " << x.first << ": " << x.second
-                    << " " << screen::percent(x.second, report_data["n.indiv"]);
+                    << " " << percent(x.second, num_indiv);
             }
             oss << "\n";
         }
     }
 
-    if (report_model.at(CONTACT_RATE).find(EMPTY_RATE) != report_model.at(CONTACT_RATE).end())
+    if (report_group_classes.at(CONTACT_RATE).find(EMPTY_RATE) != report_group_classes.at(CONTACT_RATE).end())
     {
         oss << CONTACT_RATE << ":";
-        for (auto const &x : report_model.at(CONTACT_RATE))
+        for (auto const &x : report_group_classes.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
-                << " " << screen::percent(x.second, report_data["_n.contacts_"]);
+                << " " << percent(x.second, intern_n_contacts);
         }
         oss << "\n";
     }
@@ -822,10 +838,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     //===== Pseudo-Random Number Generator Seeding =====//
     set_prng_seed(setup_seed);
 
-    //===== Define MCMC Sample Size =====//
-    setup_sample_size = setup_num_chains * (setup_num_iter - setup_burn_in) / setup_thinning;
-
-    //===== Show =====//
+    //===== Display =====//
     if (verbose)
     {
         screen::display_decorator("Setup::definitions", '-');
@@ -833,7 +846,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     }
 }
 
-/* Show the complete choices for the setup. */
+/* Display the complete choices for the setup. */
 void MCMC::show_setup()
 {
     using namespace screen;
@@ -975,7 +988,7 @@ void MCMC::print_inferstate()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
+void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 {
     if (save_augm_pathtofile != UNDEFINED)
     {
@@ -984,18 +997,11 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile, bool verbose)
 
         if (augm_ofstream.is_open())
         {
-#ifndef USE_RCPP
-            if (verbose)
-            {
-                screen::display_decorator("Output::database", '-', "save: " + save_augm_pathtofile);
-            }
-#endif
-
             // change format of augmented data
             format_augmented_data();
 
             //=====Clean up list of headers for output files=====//
-            std::vector<std::string> headers = data_headers;
+            std::vector<std::string> headers = intern_data_headers;
 
             // remove default headers
             headers.erase(find(headers.begin(), headers.end(), "index"));

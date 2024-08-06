@@ -139,8 +139,8 @@ int main(int argc, char *argv[])
         screen::raise_error("Incompatible commands: choose one between -infer and -simulate.");
     }
 
-    user_model.build(params_file, data_file,
-                     augm_file, setup_file,
+    user_model.build(setup_file, params_file, 
+                     data_file, augm_file, 
                      extra_file, verbose);
 
     //=====================//
@@ -149,25 +149,48 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        user_model.run_inference(output_pathtofile, verbose);
-        user_model.print_augm_variables(save_augm_pathtofile);
+        screen::display_decorator("Inference", screen::C_DECOR, UNDEFINED, verbose);
+        user_model.infer(output_pathtofile);
+
+        if (verbose)
+        {
+            screen::display_decorator("Inference::results", '-', UNDEFINED);
+            user_model.show_param_diagnostics();
+            screen::display_decorator("Inference::diagnostics", '-', UNDEFINED);
+            user_model.show_results();
+        }
+
+        if (save_augm_pathtofile != UNDEFINED)
+        {
+            screen::display_decorator("Inference::output", '-', "save: " + save_augm_pathtofile, verbose);
+            user_model.print_augm_variables(save_augm_pathtofile);
+        }
     }
+
     else if (is_simulate)
     { //===== Simulation Study =====//
-        user_model.run_simulation(output_pathtofile, verbose);
+        if (output_pathtofile == UNDEFINED)
+        {
+            screen::raise_error("Missing output file for simulation.");
+        }
+        else
+        {
+            screen::display_decorator("Simulation", screen::C_DECOR, "save: " + output_pathtofile, verbose);
+            user_model.simulate();
+            user_model.print_augm_variables(output_pathtofile);
+            if (verbose)
+            {
+                screen::display_decorator("Simulation::summary", '-');
+               user_model.show_summary();
+            }
+        }
     }
+
     else
     { //===== Compute Loglikelihood =====//
         screen::display_decorator("Loglikelihood", screen::C_DECOR, UNDEFINED, verbose);
-        screen::print_stdout(std::to_string(user_model.run_eval_loglikelihood()) + "\n");
+        screen::print_stdout(std::to_string(user_model.evaluate()) + "\n");
     }
 
     return EXIT_SUCCESS;
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//

@@ -2,14 +2,14 @@
 % Please edit documentation in R/model_generator.R
 \name{build_model}
 \alias{build_model}
-\title{Build a model}
+\title{Build model to run inference or simulation.}
 \usage{
 build_model(
   hemi,
+  setup = "None",
   params = "None",
   data = "None",
   augm = "None",
-  setup = "None",
   extra = "None",
   verbose = FALSE
 )
@@ -17,18 +17,18 @@ build_model(
 \arguments{
 \item{hemi}{household model object.}
 
+\item{setup}{file path for the setup configurations.}
+
 \item{params}{file path for the model parameters.}
 
 \item{data}{file path for the input data.}
 
 \item{augm}{file path for augmented data.}
 
-\item{setup}{file path for the setup configurations.}
-
 \item{extra}{file path for any extra configurations.}
 
 \item{verbose}{boolean flag to suppress automatic prints.}
 }
 \description{
-`build_model` associates definitions to the model.
+Build model to run inference or simulation.
 }

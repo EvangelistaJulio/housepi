@@ -2,14 +2,12 @@
 % Please edit documentation in R/model_generator.R
 \name{run_inference}
 \alias{run_inference}
-\title{Run the inference}
+\title{Run the inference.}
 \usage{
-run_inference(hemi, verbose = FALSE, progbar = TRUE)
+run_inference(hemi, progbar = TRUE)
 }
 \arguments{
 \item{hemi}{household model object.}
-
-\item{verbose}{boolean flag to suppress automatic prints.}
 
 \item{progbar}{boolean flag to suppress progress bar.}
 }

@@ -19,7 +19,7 @@ knitr::include_graphics("images/cover-light.png")
 
 The models require three main input information:
 
-1.  **database:** : a dataframe (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference.     Other additional columns can be provided.
+1.  **database:** : a dataframe (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference. Other additional columns can be provided.
 
     |           |            |                 |         |         |
     |-----------|------------|-----------------|---------|---------|
@@ -39,15 +39,15 @@ The models require three main input information:
 
 3.  **setup:** a dataframe (or a file) with configurations such as the number of iterations, thinning, seed, etc.
 
-    |                     |           |
-    |---------------------|-----------|
-    | seed                | 576125013 |
-    | num_iter            | 10000     |
-    | num_adapt           | 1000      |
-    | burn_in             | 500       |
-    | thinning            | 10        |
-    | rnd_init_params     | TRUE      |
-    | num_threads         | 4         |
+    |                 |           |
+    |-----------------|-----------|
+    | seed            | 576125013 |
+    | num_iter        | 10000     |
+    | num_adapt       | 1000      |
+    | burn_in         | 500       |
+    | thinning        | 10        |
+    | rnd_init_params | TRUE      |
+    | num_threads     | 4         |
 
 *Note:* openMP is unsupported on macOS without a custom compiler, thus the option `num_threads` is temporary inactive because of portability issues.
 
@@ -75,8 +75,7 @@ Alternatively, to create a custom model we can start by copying a default models
 template_model(which = "chain_binom", where = "path/to/model")
 ```
 
-Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within our model directory. 
-*Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
+Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within our model directory. *Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
 
 After changing the model generation using the path to the custom model, all commands remain the same:
 
@@ -94,35 +93,37 @@ build_model(hemi,
             params = "data/params.csv",
             setup = "data/setup.csv")
 
-# show the parameter definitions
-hemi$show_params()
-
 # show the setup definitions
 hemi$show_setup()
 ```
 
-We can change the setup and parameter definitions by changing the corresponding files/dataframes.
+We can change the setup and parameter definitions by changing the corresponding files/dataframes. 
+
+Here we already defined the parameter definitions we will use for the simulation and the strategy for the MCMC moves:
+
+```{r}
+# show the parameter definitions
+hemi$show_params()
+```
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the command `run_simulation`. This requires to have a dataset already loaded to provide the different household compositions.
+To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide with the different household compositions.
 
 ```{r}
-df <- run_simulation(hemi)
+# override status of the data according to simulation 
+hemi$simulate()
 
-# override data of the model with the simulated dataset 
-build_model(hemi, data = df)
-
-# show a summary of the new dataset
+# show a summary of the new dataset 
 hemi$show_summary()
 ```
 
 ## Inference
 
-Before proceeding any further, it can be useful to verify that the provided model can evaluate the log-likelihood without problems. We can do it with the method `loglikelihood`.
+Before proceeding any further, it can be useful to verify that the provided model can evaluate the loglikelihood without any problem. We can do it with the method `evaluate`.
 
 ```{r}
-hemi$loglikelihood()
+hemi$evaluate()
 ```
 
 To perform inference, we execute the command `run_inference`.

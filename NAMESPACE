@@ -3,5 +3,4 @@
 export(build_model)
 export(generate_model)
 export(run_inference)
-export(run_simulation)
 export(template_model)

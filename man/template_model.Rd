@@ -2,15 +2,15 @@
 % Please edit documentation in R/model_generator.R
 \name{template_model}
 \alias{template_model}
-\title{Template of a model}
+\title{Copy a default model to a given directory.}
 \usage{
-template_model(which = "None", where = "None")
+template_model(which = "None", path = "None")
 }
 \arguments{
 \item{which}{default model name.}
 
-\item{where}{path where to copy implementation and header.}
+\item{path}{path where to copy implementation and header.}
 }
 \description{
-`template_model` copies the template of a default model.
+Copy a default model to a given directory.
 }
