@@ -132,24 +132,23 @@ public:
 	long double dgn_loglike = 0.;	  // mean (house) log-likelihood
 	long double dgn_sqr_loglike = 0.; // mean squared (house) log-likelihood
 
-	//=====Constructors=====//
+	//===== Constructors =====//
 	Household() {}
 	~Household(){};
 
-	//======Setter======//
+	//====== Setter ======//
 	void assign_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
 	void assign_data(std::string dataID, double value);
 	void assign_rate_per_contact(int from, int to, std::string parID) { which_rate[from][to] = parID; }
 	void change_status(int i, int new_status);
 
-	void update_status_lists();
-
-	//======Getter======//
+	//====== Getter ======//
 	int get_index() const { return house_index; }
 	double get_data(std::string dataID) const;
+	double get_group_rate(int i, std::string rateID) const { return indiv[i].get_group_rate(rateID); }
 
-	//======Contact Rates======//
+	//====== Contact Rates ======//
 	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
 	double get_contact_rate(int from, int to) const { return (*contact_rates[from][to]); }
 
@@ -164,7 +163,7 @@ public:
 	void init_diagnostics(int sample_size);
 	void update_diagnostics();
 
-	//=====Acceptation Rate=====//
+	//===== Acceptation Rate =====//
 	void reset_augm_accept_rate(std::string augmID);
 	void update_augm_accept_rate(std::string augmID, bool is_accepted);
 	int get_augm_accept_counts(std::string augmID) { return num_accept_augm_moves[augmID]; }

@@ -46,7 +46,7 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 }
 
 /* The person-to-person escape probabilities stored inside a matrix.
-	Important: it must be re-ordered to have seroposatives first. */
+	Important: it must be re-ordered to have seropositives first. */
 void Model::fill_house_escape_matrix(int h,
 									 std::vector<double> &commu_esc_proba,
 									 std::vector<std::vector<double>> &p2p_esc_proba)
@@ -58,18 +58,18 @@ void Model::fill_house_escape_matrix(int h,
 	int count = 0;
 
 	// 1) ordered members group rates : infectious
-	for (int i : househ[h].infectious_list)
+	for (int i : househ[h].infectious_set)
 	{
-		susc_rate[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
-		infec_rate[count] = househ[h].indiv[i].get_group_rate("Infectivity");
+		susc_rate[count] = househ[h].get_group_rate(i, "Susceptibility");
+		infec_rate[count] = househ[h].get_group_rate(i, "Infectivity");
 		count++;
 	}
 
 	// 2) ordered members group rates : susceptibles
-	for (int i : househ[h].susceptibles_list)
+	for (int i : househ[h].susceptible_set)
 	{
-		susc_rate[count] = househ[h].indiv[i].get_group_rate("Susceptibility");
-		infec_rate[count] = househ[h].indiv[i].get_group_rate("Infectivity");
+		susc_rate[count] = househ[h].get_group_rate(i, "Susceptibility");
+		infec_rate[count] = househ[h].get_group_rate(i, "Infectivity");
 		count++;
 	}
 
@@ -130,7 +130,7 @@ void Model::init_model_for_inference()
 double Model::compute_single_house_loglike(int h)
 {
 	int hh_size = househ[h].house_size;
-	int num_infec = househ[h].infectious_list.size();
+	int num_infec = househ[h].num_infectious;
 
 	//=====Escape Matrix=====//
 	std::vector<double> commu_esc_proba(hh_size, 1.);
@@ -155,51 +155,54 @@ double Model::compute_single_house_loglike(int h)
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {
-	int hh_size = househ[h].house_size;
-	std::vector<int> store_old_list = {};
-	std::vector<int> old_infectors_list = {}, new_infectors_list = {};
+	//=========================//
+	//===== ESCAPE MATRIX =====//
+	//=========================//
 
-	//=====Escape Matrix=====//
+	int hh_size = househ[h].house_size;
 	std::vector<double> commu_esc_proba(hh_size, 1.);
 	std::vector<std::vector<double>> p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
+
 	fill_house_escape_matrix(h, commu_esc_proba, p2p_esc_proba);
 
-	//=====INITIALIZE=====//
-	
-	// set all cases to susceptible
-	for (int i = 0; i < househ[h].house_size; i ++)
-	{
-		househ[h].change_status(i, SUSCEPTIBLE);
-	}
+	//==================================================//
+	//===== GENERATION 0 : infection by community ======//
+	//==================================================//
 
-	//====GENERATION 0 : infection by community=====//
-	store_old_list = househ[h].susceptibles_list;
-	for (int i : store_old_list)
+	for (int i = 0; i < househ[h].house_size; i++)
 	{
-		if (uniform() > commu_esc_proba[i])
+		if (uniform() < commu_esc_proba[i])
+		{
+			househ[h].change_status(i, SUSCEPTIBLE);
+		}
+		else
 		{
 			househ[h].change_status(i, INFECTIOUS);
-			new_infectors_list.push_back(i);
 		}
 	}
 
-	//====GENERATION >=1 : infection by previous generatioon=====//
-	while ((househ[h].susceptibles_list.size() > 0) && (new_infectors_list.size() > 0))
-	{
-		old_infectors_list = new_infectors_list;
-		new_infectors_list.clear();
+	//=============================================================//
+	//===== GENERATION >=1 : infection by previous generation =====//
+	//=============================================================//
 
-		store_old_list = househ[h].susceptibles_list;
-		for (int i : store_old_list)
+	std::set<int> old_gen_set = {};
+	std::set<int> new_gen_set = househ[h].infectious_set;
+
+	while ((househ[h].num_susceptible > 0) && (!new_gen_set.empty()))
+	{
+		old_gen_set = new_gen_set;
+		new_gen_set.clear();
+
+		for (int i = 0; i < househ[h].house_size; i++)
 		{
-			for (int k : old_infectors_list)
+			if (househ[h].is_susceptible[i])
 			{
-				if (househ[h].indiv[i].get_status() == SUSCEPTIBLE)
+				for (int k : old_gen_set)
 				{
-					if (uniform() > p2p_esc_proba[k][i])
+					if (uniform() >= p2p_esc_proba[k][i])
 					{
 						househ[h].change_status(i, INFECTIOUS);
-						new_infectors_list.push_back(i);
+						new_gen_set.insert(i);
 					}
 				}
 			}

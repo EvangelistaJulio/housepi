@@ -105,11 +105,6 @@ public:
 	//----- Rate Choices -----//
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;
 	void assign_rate_per_contact_to_household(int h, int from, int to) override;
-
-#ifdef USE_EPI_CURVE
-	//===== Load EPI curve as an extra file =====//
-	void build_extra(std::string extra_pathtofile) override;
-#endif
 };
 
 #endif // MODEL__H

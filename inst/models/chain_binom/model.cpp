@@ -140,13 +140,13 @@ void Model::simulate_single_house(int h)
 	double commu_esc_proba = exp(-community_risk_of_infection());
 	double log_p2p_esc_proba = -hazard_of_infection();
 
-	//================================================//
-	//==== GENERATION 0 : infection by community =====//
-	//================================================//
+	//==================================================//
+	//===== GENERATION 0 : infection by community ======//
+	//==================================================//
 
 	for (int i = 0; i < househ[h].house_size; i++)
 	{
-		if (uniform() <= commu_esc_proba)
+		if (uniform() < commu_esc_proba)
 		{
 			househ[h].change_status(i, SUSCEPTIBLE);
 		}
@@ -156,25 +156,29 @@ void Model::simulate_single_house(int h)
 		}
 	}
 
-	//============================================================//
-	//==== GENERATION >=1 : infection by previous generation =====//
-	//============================================================//
+	//==============================================================//
+	//===== GENERATION >=1 : infection by previous generation ======//
+	//==============================================================//
 
-	int num_gen_infec = househ[h].num_infectious;
-	while ((househ[h].num_susceptible > 0) && (num_gen_infec > 0))
+	int num_old_gen = 0;
+	int num_new_gen = househ[h].num_infectious;
+
+	while ((househ[h].num_susceptible > 0) && (num_new_gen > 0))
 	{
+		num_old_gen = num_new_gen;
+		num_new_gen = 0;
+
 		// note : here househ[h].susceptible_set is not allowed because of change_status
 		for (int i = 0; i < househ[h].house_size; i++)
 		{
 			if (househ[h].is_susceptible[i])
 			{
-				if (uniform() > exp(num_gen_infec * log_p2p_esc_proba))
+				if (uniform() >= exp(num_old_gen * log_p2p_esc_proba))
 				{
 					househ[h].change_status(i, INFECTIOUS);
+					num_new_gen++;
 				}
 			}
 		}
-		
-		num_gen_infec = househ[h].num_infectious - num_gen_infec;
 	}
 }

@@ -69,7 +69,7 @@ void Model::init_model_for_inference()
 	if (report_data["min.HH.size"] == 1)
 	{
 		screen::raise_warning(
-			"Hoseholds with one single member are not modeled and will be ignored. Discard them to improve computation time.", 
+			"Hoseholds with one single member are not modeled and will be ignored. Discard them to improve computation time.",
 			Single_House_Member_Warning);
 	}
 
@@ -94,7 +94,7 @@ double Model::compute_single_house_loglike(int h)
 	double log_likelihood = 0;
 
 	int hh_size = househ[h].house_size;
-	int n_positive = househ[h].infectious_list.size();
+	int n_positive = househ[h].num_infectious;
 
 	double log_p2p_esc_proba = -hazard_of_infection();
 	double log_p2p_infec_proba = log(1. - exp(log_p2p_esc_proba));
@@ -112,11 +112,11 @@ double Model::compute_single_house_loglike(int h)
 	if (n_positive > 1) // single introduction
 	{
 		// sum over all possible generations
-		double  sero_positive_term = 0., tmp = 0.;
-		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive-1]; c++)
+		double sero_positive_term = 0., tmp = 0.;
+		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive - 1]; c++)
 		{
 			// reference to the LUT
-			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive-1][c];
+			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive - 1][c];
 
 			// GENERATION (0) : infected by case zero
 			tmp = gen_counts[0] * log_p2p_infec_proba;
@@ -137,10 +137,10 @@ double Model::compute_single_house_loglike(int h)
 			}
 
 			// times n. of equivalent configurations returning the same kind of generation
-			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive-1][c] * exp(tmp);
+			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive - 1][c] * exp(tmp);
 		}
 
-		//log_likelihood += log(sero_positive_term * bax::binomial_coefficient(hh_size - 1, n_positive-1));
+		// log_likelihood += log(sero_positive_term * bax::binomial_coefficient(hh_size - 1, n_positive-1));
 		log_likelihood += log(sero_positive_term);
 	}
 
@@ -161,47 +161,44 @@ double Model::compute_single_house_loglike(int h)
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {
-	int num_new_infectious = 0;
-	int num_old_infectious = 0;
-	std::vector<int> store_old_list = {};
-	int hh_size = househ[h].house_size;
-
 	double log_p2p_esc_proba = -hazard_of_infection();
 
-	//======================//
-	//===== INITIALIZE =====//
-	//======================//
+	//=================================================//
+	//===== GENERATION 0 : by single introduction =====//
+	//=================================================//
 
 	// set all cases to susceptible
-	for (int i = 0; i < househ[h].house_size; i ++)
+	for (int i = 0; i < househ[h].house_size; i++)
 	{
 		househ[h].change_status(i, SUSCEPTIBLE);
 	}
 
-	//================================================//
-	//==== GENERATION 0 : by single introduction =====//
-	//================================================//
-
 	// pick a random introduction
-	househ[h].change_status(static_cast<int>(uniform() * hh_size), INFECTIOUS);
-	num_new_infectious = 1;
+	int first_case = uniform() * househ[h].house_size;
+	househ[h].change_status(first_case, INFECTIOUS);
 
-	//============================================================//
-	//==== GENERATION >=1 : infection by previous generation =====//
-	//============================================================//
+	//=============================================================//
+	//===== GENERATION >=1 : infection by previous generation =====//
+	//=============================================================//
 
-	while ((househ[h].susceptibles_list.size() > 0) && (num_new_infectious > 0))
+	int num_old_gen = 0;
+	int num_new_gen = 1;
+
+	while ((househ[h].num_susceptible > 0) && (num_new_gen > 0))
 	{
-		num_old_infectious = num_new_infectious;
-		num_new_infectious = 0;
+		num_old_gen = num_new_gen;
+		num_new_gen = 0;
 
-		store_old_list = househ[h].susceptibles_list;
-		for (int i : store_old_list)
+		// note : here househ[h].susceptible_set is not allowed because of change_status
+		for (int i = 0; i < househ[h].house_size; i++)
 		{
-			if (uniform() > exp(num_old_infectious * log_p2p_esc_proba))
+			if (househ[h].is_susceptible[i])
 			{
-				househ[h].change_status(i, INFECTIOUS);
-				num_new_infectious++;
+				if (uniform() >= exp(num_old_gen * log_p2p_esc_proba))
+				{
+					househ[h].change_status(i, INFECTIOUS);
+					num_new_gen++;
+				}
 			}
 		}
 	}
