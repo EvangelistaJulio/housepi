@@ -2,14 +2,15 @@
 % Please edit documentation in R/model_generator.R
 \name{generate_model}
 \alias{generate_model}
-\title{Generate a model from a cpp script.}
+\title{Generate a model}
 \usage{
-generate_model(modelpath, quiet = TRUE, force = FALSE)
+generate_model(model, quiet = TRUE, force = FALSE)
 }
 \arguments{
-\item{modelpath}{folder with implementation model.cpp and header model.h.}
-
-\item{quiet}{quiet the compilation messages (default).}
+\item{model}{a string.\itemize{
+\item default model name.
+\item path/to/folder with implementation model.cpp and header model.h.
+}}
 
 \item{force}{generate a model even if a cached model already exist.}
 }
@@ -17,5 +18,5 @@ generate_model(modelpath, quiet = TRUE, force = FALSE)
 Return the household model object.
 }
 \description{
-Generate a model from a cpp script.
+`generate_model` generates a model from a default or from a user script.
 }

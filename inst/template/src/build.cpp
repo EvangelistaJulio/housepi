@@ -489,6 +489,8 @@ void MCMC::show_summary()
 /* Display model report. */
 void MCMC::show_group_classes()
 {
+    using namespace screen;
+    
     std::ostringstream oss;
     for (const auto &entry : report_group_classes)
     {
@@ -606,7 +608,7 @@ void MCMC::assign_augmented_variables()
             }
         }
     }
-    setup_data_augm = !augm_to_be_inferred.empty();
+    intern_is_data_augm = !augm_to_be_inferred.empty();
 
     // assign augmented variables to each individual
     for (int h = 0; h < num_househ; h++)

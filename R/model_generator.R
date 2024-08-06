@@ -1,8 +1,8 @@
 # ----- Auxiliary Functions ----- #
 
 # get the system directory of a model
-get_usr_tmp_file <- function(x, name) {
-  usr_dir <- system.file(package = attr(class(x), "package"))
+get_usr_tmp_file <- function(hemi, name) {
+  usr_dir <- system.file(package = attr(class(hemi), "package"))
   output <- file.path(usr_dir, "tmp", paste0(name, ".csv"))
   dir.create(dirname(output),
              recursive = TRUE,
@@ -12,11 +12,11 @@ get_usr_tmp_file <- function(x, name) {
 
 # create temporary csv file if input is a table (wrapper)
 # note : can this be improved allowing dataframe I/O within Rcpp ?
-cpp_csv_commuter <- function(x, input, name = "None") {
+cpp_csv_commuter <- function(hemi, input, name = "None") {
   if (is.character(input)) {
     output <- input
   } else if (is.data.frame(input) || is.matrix(input) || is.list(input)) {
-    output <- get_usr_tmp_file(x, name)
+    output <- get_usr_tmp_file(hemi, name)
     write.csv(input,
               file = output,
               row.names = FALSE,
@@ -89,10 +89,11 @@ template_model <- function(which = "None", path = "None") {
 #' @param model a string.\itemize{
 #' \item default model name.
 #' \item path/to/folder with implementation model.cpp and header model.h.
+#' }
 #' @param force generate a model even if a cached model already exist.
 #' @returns Return the household model object.
 #' @export
-generate_model <- function(modelpath, 
+generate_model <- function(model, 
                            quiet = TRUE, 
                            force = FALSE) {
   # system path to housepi

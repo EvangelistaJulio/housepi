@@ -23,7 +23,7 @@
 #include "model.h"
 
 // Expose the Model and MCMC classes to R using Rcpp
-RCPP_MODULE(modelhousepi12345)
+RCPP_MODULE(modelhousepi12345_cpp)
 {
  using namespace Rcpp;
  

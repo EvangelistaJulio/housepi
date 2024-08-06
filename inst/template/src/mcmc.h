@@ -46,7 +46,6 @@ protected:
 	double setup_inv_temper = 1.0;		// inverse temperature
 
 	//===== Household Data =====//
-
 	int num_indiv = 0;
 	int num_househ = 0;
 	std::vector<Household> househ = {};
@@ -56,13 +55,10 @@ protected:
 	std::map<std::string, std::map<std::string, int>> report_group_classes = {};
 
 	//===== Augmented Variables =====//
-
-	bool setup_data_augm = false; // data augmentation mode
 	std::set<std::string> augm_full_set = {};
 	std::set<std::string> augm_to_be_inferred = {};
 	std::set<std::string> augm_with_model_set = {};
 	std::set<std::string> augm_rand_init_set = {};
-	
 
 public:
 	//===== CONSTRUCTOR =====//
@@ -80,8 +76,8 @@ public:
 	void build_setup(std::string pathtofile, bool verbose = true);
 	void build_augmented(std::string pathtofile, bool verbose = true);
 	virtual void build_extra(std::string pathtofile, bool verbose = true);
-	void build(std::string setup_file = UNDEFINED, std::string params_file = UNDEFINED, 
-			   std::string data_file = UNDEFINED, std::string augm_file = UNDEFINED, 
+	void build(std::string setup_file = UNDEFINED, std::string params_file = UNDEFINED,
+			   std::string data_file = UNDEFINED, std::string augm_file = UNDEFINED,
 			   std::string extra_file = UNDEFINED, bool verbose = true);
 
 	//===== SHOW =====//
@@ -115,12 +111,11 @@ public:
 	//===== EVALUATE =====//
 	void set_global_loglike(long double x) { global_loglike = x; };
 	long double get_global_loglike() const { return global_loglike; };
-	long double run_eval_loglikelihood();
 	virtual double compute_single_house_loglike(int h);
 	virtual long double compute_global_loglike();
 	long double evaluate();
 
-	//===== INFER =====//	
+	//===== INFER =====//
 	virtual void init_model_for_inference() {};
 	virtual void init_single_chain() {};
 	void infer(std::string output_filename, bool progbar = true);
@@ -131,8 +126,8 @@ public:
 	void move_all_parameters();
 	void move_all_augm_variables();
 	void move_and_adapt_all_parameters(ulong step);
-	void init_model_diagnostics();
-	void update_model_diagnostics();
+	void init_diagnostics();
+	void update_diagnostics();
 	double single_household_augm_move(int h);
 	double get_augm_accept_rate(std::string augmID);
 
@@ -152,32 +147,33 @@ public:
 
 private:
 	//===== Internal =====//
-	
+
 	ulong intern_n_contacts = 0;
-	ulong intern_chain = 0;			// current chain
-	ulong intern_sample_size = 0;  	// sample size
-	bool intern_is_infer_complete = false;
-	bool intern_is_diagnostics = false;
+	ulong intern_chain = 0;				   // current chain
+	ulong intern_sample_size = 0;		   // sample size
+	bool intern_is_infer_complete = false; // inference mode
+	bool intern_is_data_augm = false;	   // data augmentation mode
+	bool intern_is_diagnostics = false;	   // diagnostics mode
 	std::vector<std::string> intern_data_headers = {};
 
 	//----- Global Loglikelihood -----//
 	long double global_loglike = 0.0;
 
 	//----- Diagnostics -----//
-	ulong dgn_sample_size = 0;  		// sample size
-	long double dgn_loglike = 0.;	  	// sum of the loglikelihood
-	long double dgn_sqr_loglike = 0.; 	// sum of the squared loglikelihood
+	ulong dgn_sample_size = 0;		  // sample size
+	long double dgn_loglike = 0.;	  // sum of the loglikelihood
+	long double dgn_sqr_loglike = 0.; // sum of the squared loglikelihood
 
 	//===== BUILD =====//
 
 	//----- build : auxiliary attributes -----//
-	std::ofstream inferstate_ofstream;			   
+	std::ofstream inferstate_ofstream;
 	std::vector<ssargs> load_augm_definition = {};
 
 	//----- build : auxiliary functions -----//
 	bool stobool(std::string token);
 	ssargs parse_dict_string(std::string token);
-	sdargs parse_dict_args(std::string token);	
+	sdargs parse_dict_args(std::string token);
 	sdargs row_to_sdargs(ssargs &this_row);
 	std::string string_cleaner(std::string token);
 	std::vector<std::string> read_column_headers(std::ifstream &input,

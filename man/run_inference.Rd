@@ -15,6 +15,5 @@ run_inference(hemi, progbar = TRUE)
 Return a coda mcmc.
 }
 \description{
-`run_inference` infers the model parameters.
-It implements the Metropolis-Hastings MCMCM algorithm.
+Run the inference.
 }
