@@ -1,0 +1,401 @@
+
+```{r}
+library(dplyr)
+
+BrewIndividualComposition <- setRefClass(
+  #===== NAME =====#
+  "BrewIndividualComposition",
+  
+  #===== ATTRIBUTES =====#
+  fields = list(enc.dict = "list",
+                features.pdf = "data.frame", 
+                expanded.pdf = "data.frame", 
+                num.features = "list"),
+  
+  #===== METHODS =====#
+  methods = list(
+    
+    #----- initialize -----#
+    initialize = function(mydict) {
+      # assign encoding dictionary
+      enc.dict <<- mydict
+      
+      # assign features distributions
+      features.pdf <<- data.frame()
+      expanded <<- data.frame()
+      
+      # assign number of features
+      num.features <<- lapply(enc.dict, function(x) 0)
+      
+      for (col in names(enc.dict)) {
+        # FIXME : lack of generality
+        # One could just provide the list of features to include instead
+        # this would still be a vector w/o attributes
+        if (is.vector(enc.dict[[col]])) {
+          if (is.null(attributes(enc.dict[[col]]))) {
+            num.features[[col]] <<- length(enc.dict[[col]])
+            
+          } else {
+            num.features[[col]] <<- length(enc.dict[[col]])
+          }
+          
+        } else {
+          stop("The encoding dictionary must contains only vectors.")
+        }
+      }
+      
+      # internal consistency check
+      if (.internal.check()) {
+        stop("Internal inconsistency, check your encoding dictionary.")
+      }
+    },
+    
+    #----- encode -----#
+    encode = function(df) {
+      output <- rep(0, nrow(df))
+      
+      # encode features for each provided column
+      multiplier <- 1
+      for (i in seq_along(names(enc.dict))) {
+        if (i > 1) {
+          multiplier <- multiplier * num.features[[i - 1]]
+        }
+        
+        thisenc <- enc.dict[[i]]
+        x <- df[[names(enc.dict)[i]]]
+        
+        if (is.null(attributes(thisenc))) {
+          feats <- findInterval(x, thisenc)
+        }
+        else {
+          feats <- as.integer(factor(x, levels = names(thisenc)))
+          feats[is.na(feats)] <- length(thisenc)
+        }
+        
+        output <- output + (feats - 1) * multiplier
+      }
+      
+      return(output)
+    },
+    
+    #----- decode -----#
+    decode = function(feats) {
+      output <- as.data.frame(matrix(ncol = length(enc.dict), 
+                                     nrow = length(feats)))
+      colnames(output) <- names(enc.dict)
+      
+      for (col in colnames(output)) {
+        thisenc <- enc.dict[[col]]
+        
+        if (is.null(attributes(thisenc))) {
+          output[[col]] <- thisenc[feats %% num.features[[col]] + 1]
+        } else {
+          aux_dict <- setNames(names(thisenc), thisenc)
+          output[[col]] <- sapply(feats %% num.features[[col]], function(x)
+            aux_dict[[as.character(x)]])
+        }
+        
+        feats <- floor(feats / num.features[[col]])
+      }
+      
+      return(output)
+    },
+    
+    #----- FIXME : developer internal check -----#
+    .internal.check = function() {
+      aux <- lapply(enc.dict, function(v)
+        if (is.vector(v))
+          v[-length(v)]
+        else
+          names(v))
+      input <- expand.grid(aux)
+      colnames(input) <- names(enc.dict)
+      output <- decode(encode(input))
+      
+      return(all(output == input))
+    },
+    
+    #----- compute marginals -----#
+    compute.marginals = function(database) {
+      
+      feats <- database %>%
+        mutate(feature = encode(.))
+        
+      # update feature pdf
+      features.pdf <<- feats %>%
+        group_by(feature) %>%
+        tally() %>%
+        mutate(freqs = n / sum(n)) %>%
+        select(!n)
+        
+      # update expanded pdf
+      myvec <- c("feature", attributes(enc.dict)$names)
+      expanded.pdf <<- feats %>%
+        group_by(across(all_of(myvec))) %>%
+        tally() %>%
+        mutate(freqs = n / sum(n)) %>%
+        select(!n)
+    }
+  )
+)
+
+#==== TESTING ====#
+
+# Load database
+database <- read.csv("database.csv")
+
+# FIXME : temporary for testing
+database$sex <- ifelse(database$sex==1, "F", "M")
+
+# model according to group.classes
+group.classes <- list(sex = c(M = 0, F = 1),
+                      age = c(0, 10, 20, 40, 60))
+bc <- BrewIndividualComposition$new(group.classes)
+bc$decode(bc$encode(database)[1:10])
+
+bc$compute.marginals(database)
+```
+
+```{r}
+
+  feats <<- database %>%
+    mutate(feature = bc$encode(.))
+    
+  # update feature pdf
+  features.pdf <- feats %>%
+    group_by(feature) %>%
+    tally() %>%
+    mutate(freqs = n / sum(n)) %>%
+    select(!n)
+    
+  # update expanded pdf
+  myvec <- c("feature", attributes(enc.dict)$names)
+  expanded.pdf <- feats %>%
+    group_by(across(all_of(myvec))) %>%
+    tally() %>%
+    mutate(freqs = n / sum(n)) %>%
+    select(!n)
+
+
+```
+
+```{r}
+
+freqs
+
+```
+
+```{r}
+BrewHouseholdComposition  <- setRefClass(
+  #===== NAME =====#
+  "BrewHouseholdComposition",
+  
+  #==== INHERITANCE =====#
+  contains = "BrewIndividualComposition",
+  
+  
+  #===== ATTRIBUTES =====#
+  fields = list(joint.pdf = "data.frame",
+                hh.size.pdf = "data.frame",
+                other.pdf = "data.frame"), 
+  
+  #===== METHODS =====#
+  methods = list(
+    
+    #----- initialize -----#
+    initialize = function(enc.dict) {
+      callSuper(enc.dict)
+      
+      # default marginals
+      joint.pdf <<- data.frame()
+      hh.size.pdf <<- data.frame()
+      other.pdf <<- data.frame()
+    },
+    
+    #----- compute.marginals -----#
+    compute.marginals = function(database,
+                                 sortby = "features",
+                                 ascending = FALSE) {
+      
+      # extract household size
+      df <- database %>%
+        group_by(house_index) %>%
+        mutate(hh.size = n()) %>%
+        ungroup()
+      
+      # add a column with encoded features
+      df$features <- encode(df)
+      
+      # list with all model features
+      model.features <- seq(prod(unlist(num.features))) - 1
+      
+      # frequencies list
+      freqs <- list()
+      
+      # all pairs of house members ordered by feature
+      # note : pair (X, X) are appended manually
+      combinations <- c(
+        utils::combn(model.features, 2, simplify = FALSE),
+        lapply(model.features, function(x)
+          c(x, x))
+      )
+      
+      # joint compositions of the two `main` house members
+      joint.tuple <- data.frame(hh.mem.a = sapply(combinations, `[`, 1),
+                                hh.mem.b = sapply(combinations, `[`, 2))
+      joint.tuple <- joint.tuple %>%
+        arrange(hh.mem.a, hh.mem.b)
+      
+      # initialize joint freqs
+      freqs$joint <- joint.tuple %>%
+        mutate(freqs = 0)
+      
+      # size : initialize household conditioned sizes
+      freqs$hh.size <- joint.tuple
+      for (i in seq(2, max(df$hh.size))) {
+        freqs$hh.size[[as.character(i)]] <- 0
+      }
+      
+      # other : initialize conditioned compositions of other members
+      freqs$other <- joint.tuple
+      for (i in model.features) {
+        freqs$other[[as.character(i)]] <- 0
+      }
+      
+      # count for household wiith at least 2 members
+      for (h in unique(df[df$hh.size > 1, ][["house_index"]])) {
+        this.house <- df %>%
+          filter(house_index == h)
+        
+        # sort by the two `main` household members
+        if (ascending == TRUE) {
+          this.house <- this.house %>%
+            arrange_at(sortby)
+          # extract the features of the two `main` house members
+          x_1 <- this.house$features[1]
+          x_2 <- this.house$features[2]
+        } else {
+          this.house <- this.house %>%
+            arrange_at(sortby, desc)
+          # extract the features of the two `main` house members
+          x_1 <- this.house$features[2]
+          x_2 <- this.house$features[1]
+        }
+        
+        jmask <- which(joint.tuple$hh.mem.a == x_1 &
+                         joint.tuple$hh.mem.b == x_2)
+        
+        # count `main` pair
+        freqs$joint[jmask, "freqs"] <- freqs$joint[jmask, "freqs"] + 1
+        
+        # count sizes
+        size <- this.house$hh.size[1]
+        csize <- as.character(size)
+        freqs$hh.size[jmask, csize] <- freqs$hh.size[jmask, csize] + 1
+        
+        # count other members
+        if (size > 2) {
+          for (i in seq(3, size)) {
+            cfeat <- as.character(this.house$features[i])
+            freqs$other[jmask, cfeat] <- freqs$other[jmask, cfeat] + 1
+          }
+        }
+        
+      }
+      
+      # normalize joint
+      freqs$joint$freqs <- freqs$joint$freqs / sum(freqs$joint$freqs)
+      
+      # select size count columns
+      scols <- 3:length(colnames(freqs$hh.size))
+      
+      # select other count columns
+      ocols <- 3:length(colnames(freqs$other))
+      
+      # normalize hh.size and other
+      for (i in seq(nrow(freqs$joint))) {
+        norm <- max(1, sum(freqs$other[i, ocols]))
+        freqs$other[i, ocols] <- freqs$other[i, ocols] / norm
+        
+        norm <- max(1, sum(freqs$hh.size[i, scols]))
+        freqs$hh.size[i, scols] <- freqs$hh.size[i, scols] / norm
+      }
+      
+      # assign marginals
+      joint.pdf <<- freqs$joint
+      other.pdf <<- freqs$other
+      hh.size.pdf <<- freqs$hh.size
+    },
+    
+    #----- generate households -----#
+    generate.households = function(num_househ) {
+      
+      idx <- sample(seq(nrow(joint.pdf)), 
+                        num_househ, 
+                        replace = TRUE, 
+                        prob = joint.pdf$freqs)
+      
+      scols <- 3:length(hh.size.pdf)
+      sizelist <- as.integer(colnames(hh.size.pdf[scols]))
+      ocols <- 3:length(other.pdf)
+      otherlist <- as.integer(colnames(other.pdf[ocols]))
+      
+      # initialize encoded dataframe
+      df <- data.frame()
+        
+      for (h in seq_len(num_househ)) {
+        
+        # add `main` pair
+        df <- rbind(df, 
+                    data.frame(features=joint.pdf[idx[h], 1], house_index=h))
+        df <- rbind(df, 
+            data.frame(features=joint.pdf[idx[h], 2], house_index=h))
+        
+        # sample house size
+        jmask <- which(joint.pdf$hh.mem.a == joint.pdf[idx[h], 1] &
+                         joint.pdf$hh.mem.b == joint.pdf[idx[h], 2])
+        size <- sample(sizelist, 1, prob = hh.size.pdf[jmask, scols])
+        
+        # sample other members if any
+        if (size > 2) {
+          for (i in seq_len(size - 2)) {
+            y <- sample(otherlist, 1, prob = other.pdf[jmask, ocols])
+            df <- rbind(df, data.frame(features=y, house_index=h))
+          }
+        }
+      }
+      
+      
+      output <- cbind(data.frame(index = seq(nrow(df)),
+                                 house_index = df$house_index),
+                      decode(df$features))
+
+      return(output)
+    }
+  )
+)
+
+```
+
+```{r}
+#==== TESTING ====#
+
+# Load database
+database <- read.csv("database.csv")
+
+# FIXME : temporary for testing
+database$sex <- ifelse(database$sex==1, "F", "M")
+
+# model according to group.classes
+age.max <- ceiling(max(database$age))
+group.classes <- list(sex = c(F = 0, M = 1),
+                      age = c(0, 10, 20, 40, 60, age.max))
+bc <- BrewHouseholdComposition$new(group.classes)
+bc$compute.marginals(database)
+
+# sample 5 household from model
+set.seed(291)
+bc$generate.households(5)
+
+
+```
