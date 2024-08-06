@@ -89,7 +89,7 @@ double Model::compute_single_house_loglike(int h)
 	if (n_positive > 0)
 	{
 		// sum over all possible generations
-		double  sero_positive_term = 0., tmp = 0.;
+		double sero_positive_term = 0., tmp = 0.;
 		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive]; c++)
 		{
 			// reference to the LUT
@@ -149,7 +149,7 @@ void Model::simulate_single_house(int h)
 		if (uniform() <= commu_esc_proba)
 		{
 			househ[h].change_status(i, SUSCEPTIBLE);
-		}		
+		}
 		else
 		{
 			househ[h].change_status(i, INFECTIOUS);
@@ -166,11 +166,15 @@ void Model::simulate_single_house(int h)
 		// note : here househ[h].susceptible_set is not allowed because of change_status
 		for (int i = 0; i < househ[h].house_size; i++)
 		{
-			if ((househ[h].is_susceptible[i]) && (uniform() > exp(num_gen_infec * log_p2p_esc_proba)))
+			if (househ[h].is_susceptible[i])
 			{
-				househ[h].change_status(i, INFECTIOUS);
+				if (uniform() > exp(num_gen_infec * log_p2p_esc_proba))
+				{
+					househ[h].change_status(i, INFECTIOUS);
+				}
 			}
 		}
+		
 		num_gen_infec = househ[h].num_infectious - num_gen_infec;
 	}
 }
