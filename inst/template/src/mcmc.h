@@ -101,7 +101,7 @@ public:
 
 	//===== AUGMENTED VARIABLES =====//
 	void assign_augmented_variables();
-	void init_augmented_variables();
+	void init_augmented_variables(bool is_init = true);
 	virtual void update_first_case(int h);
 	virtual void augm_var_store_dependecies(int h, int i);
 	virtual void augm_var_update(int h, int i, std::string augmID, double new_val);
@@ -109,15 +109,16 @@ public:
 	virtual double get_infec_time(int h, int i) const;
 
 	//===== EVALUATE =====//
-	void set_global_loglike(long double x) { global_loglike = x; };
-	long double get_global_loglike() const { return global_loglike; };
+	void set_global_loglike(double x) { global_loglike = x; };
+	double get_global_loglike() const { return global_loglike; };
 	virtual double compute_single_house_loglike(int h);
-	virtual long double compute_global_loglike();
-	long double evaluate();
+	virtual double compute_global_loglike();
+	double evaluate();
 
 	//===== INFER =====//
 	virtual void init_model_for_inference() {};
 	virtual void init_single_chain() {};
+	void run_markov_chain(bool is_init_augm, bool progbar);
 	void infer(std::string output_filename, bool progbar = true);
 
 	//----- infer : Monte Carlo Markov Chain -----//
@@ -136,6 +137,9 @@ public:
 	void print_inferstate();
 	void close_inferstate_file() { inferstate_ofstream.close(); }
 
+	//===== POWER POSTERIORS =====//
+	void power_posteriors();
+
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};
 	virtual void simulate_single_house(int h);
@@ -151,18 +155,17 @@ private:
 	ulong intern_n_contacts = 0;
 	ulong intern_chain = 0;				   // current chain
 	ulong intern_sample_size = 0;		   // sample size
-	bool intern_is_infer_complete = false; // inference mode
 	bool intern_is_data_augm = false;	   // data augmentation mode
-	bool intern_is_diagnostics = false;	   // diagnostics mode
+	bool intern_is_infer_complete = false; // inference mode
 	std::vector<std::string> intern_data_headers = {};
 
 	//----- Global Loglikelihood -----//
-	long double global_loglike = 0.0;
+	double global_loglike = 0.0;
 
 	//----- Diagnostics -----//
 	ulong dgn_sample_size = 0;		  // sample size
-	long double dgn_loglike = 0.;	  // sum of the loglikelihood
-	long double dgn_sqr_loglike = 0.; // sum of the squared loglikelihood
+	double dgn_loglike = 0.;	  // sum of the loglikelihood
+	double dgn_sqr_loglike = 0.; // sum of the squared loglikelihood
 
 	//===== BUILD =====//
 

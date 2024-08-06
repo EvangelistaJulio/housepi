@@ -128,9 +128,9 @@ public:
 
 	//===== Diagnostics =====//
 	int dgn_sample_size = 0;		  // sample size
-	long double dgn_likelihood = 0.;  // mean (house) likelihood
-	long double dgn_loglike = 0.;	  // mean (house) log-likelihood
-	long double dgn_sqr_loglike = 0.; // mean squared (house) log-likelihood
+	double dgn_likelihood = 0.;  // mean (house) likelihood
+	double dgn_loglike = 0.;	  // mean (house) log-likelihood
+	double dgn_sqr_loglike = 0.; // mean squared (house) log-likelihood
 
 	//===== Constructors =====//
 	Household() {}

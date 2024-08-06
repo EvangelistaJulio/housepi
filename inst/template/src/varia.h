@@ -46,7 +46,7 @@ public:
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {},
 		std::vector<int> args_to_adapt = {});
-	virtual ~Base_Proposer(){};
+	virtual ~Base_Proposer() {};
 
 	//=====Getter=====//
 	bool is_zero_start() const { return zero_start; }
@@ -290,7 +290,7 @@ public:
 			_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
 		}
 	}
-	virtual ~Base_Parameter(){};
+	virtual ~Base_Parameter() {};
 
 	//=====Getter=====//
 	double get_value() const { return value; }
@@ -348,8 +348,8 @@ class Parameter : public Base_Parameter<sdargs>
 public:
 	//=====Diagnostic : attributes=====//
 	int dgn_sample_size = 0;	   // sample size
-	long double dgn_mean = 0.;	   // mean value
-	long double dgn_mean_sqr = 0.; // mean squared value
+	double dgn_mean = 0.;	   // mean value
+	double dgn_mean_sqr = 0.; // mean squared value
 
 	//=====Constructor=====//
 	Parameter(
@@ -360,7 +360,7 @@ public:
 												  prior_name, prior_args,
 												  strat_name, strat_args,
 												  INF_DOUBLE, // is_zero_start() = false
-												  value_range){};
+												  value_range) {};
 
 	//=====Aliases=====//
 	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
@@ -394,7 +394,7 @@ public:
 												  strat_name,
 												  strat_args,
 												  strat_zero,
-												  value_range){};
+												  value_range) {};
 	//=====Aliases=====//
 	double model_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
 	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
@@ -425,7 +425,7 @@ public:
 
 	//=====Constructors=====//
 	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
-	virtual ~Monte_Carlo_Core(){};
+	virtual ~Monte_Carlo_Core() {};
 
 	//=====Getter=====//
 	void disable_assert_param();
@@ -471,10 +471,10 @@ private:
 	//=====Auxiliary Attributes=====//
 	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
 
-	double buffer_value = 0.0;								// buffer value of the current parameter
-	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
+	double buffer_value = 0.0;									 // buffer value of the current parameter
+	double buffer_logratio = 0.0;								 // buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
-	unsigned setup_num_threads = 1;							// number of OMP threads
+	unsigned setup_num_threads = 1;								 // number of OMP threads
 
 	//=====Getter (auxiliary methods)=====//
 	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;

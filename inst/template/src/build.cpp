@@ -129,6 +129,19 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
 ////////////////////////////////////  MCMC : build data  //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Assign group rate to an individual  */
+void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
+{
+    // this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
+    UNUSED(this_indiv);
+}
+
+/* Assign the contact patterns between a couple of individuals. */
+void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
+{
+    househ[h].assign_rate_per_contact(from, to, EMPTY_RATE);
+}
+
 /* Use the loaded data to fill-in the respective report. */
 void MCMC::update_report_data()
 {
@@ -635,9 +648,9 @@ void MCMC::assign_augmented_variables()
 }
 
 /* Initialize augmented variable for all individuals */
-void MCMC::init_augmented_variables()
+void MCMC::init_augmented_variables(bool is_init)
 {
-    if (!load_augm_definition.empty())
+    if ((is_init) && (!load_augm_definition.empty()))
     {
         //=====assign augmented variables to all individuals=====//
         assign_augmented_variables();
@@ -1060,10 +1073,3 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         }
     }
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//

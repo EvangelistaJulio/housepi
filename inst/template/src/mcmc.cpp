@@ -14,19 +14,6 @@ bool Large_p_WAIC_Warning = false;                  // Warning for unreliable WA
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign group rate to an individual  */
-void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
-{
-    // this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
-    UNUSED(this_indiv);
-}
-
-/* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
-{
-    househ[h].assign_rate_per_contact(from, to, EMPTY_RATE);
-}
-
 /* Return the time of infection of a patient. */
 double MCMC::get_infec_time(int h, int i) const
 {
@@ -61,9 +48,9 @@ double MCMC::compute_single_house_loglike(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute global loglikelihood */
-long double MCMC::compute_global_loglike()
+double MCMC::compute_global_loglike()
 {
-    long double output = 0.0;
+    double output = 0.0;
 
 #pragma omp parallel for reduction(+ : output)
     for (int h = 0; h < num_househ; h++)
@@ -135,13 +122,13 @@ void MCMC::single_param_move(std::string parID)
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old values in buffer
-        long double new_global_loglike = compute_global_loglike();
+        double new_global_loglike = compute_global_loglike();
 
         //===== METROPOLIS-HASTINGS =====//
         double logQ = setup_inv_temper * (new_global_loglike - get_global_loglike());
         logQ += get_move_logratio(); // logratio priors - logratio proposal
 
-        if (log(uniform()) < logQ)
+        if (uniform() < exp(logQ))
         {
             accept_param_move(parID);
             set_global_loglike(new_global_loglike);
@@ -230,7 +217,7 @@ double MCMC::single_household_augm_move(int h)
                 logQ = setup_inv_temper * (new_house_loglike - old_house_loglike);
                 logQ -= househ[h].indiv[i].augm_propose_logratio(augmID, old_value, new_value);
 
-                if (log(uniform()) < logQ)
+                if (uniform() < exp(logQ))
                 {
                     is_accepted = true;
                     househ[h].set_loglike(new_house_loglike);
@@ -290,7 +277,7 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-long double MCMC::evaluate()
+double MCMC::evaluate()
 {
     //===== Initialization =====//
 
@@ -311,49 +298,75 @@ long double MCMC::evaluate()
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  MCMC : inference  ///////////////////////////////////////
+/////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Performs the inference using Metropolis-Hastings with power posteriors. */
-void MCMC::infer(std::string output_file, bool progbar)
+/* Init Bayesian diagnostics. */
+void MCMC::init_diagnostics()
 {
-    //----- Check if data is meaningful -----//
-	if (report_data["n.miss.stat"] == num_indiv)
-	{
-        screen::raise_error("No infectious status has been provided in the data file.");
+    // Define MCMC Sample Size
+    dgn_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    dgn_sample_size *= setup_num_chains;
+
+    // diagnostics for all parameters
+    init_param_diagnostics(dgn_sample_size);
+
+// diagnostics over households
+#pragma omp parallel for default(shared)
+    for (int h = 0; h < num_househ; h++)
+    {
+        househ[h].init_diagnostics(dgn_sample_size);
     }
 
-    //=================//
-    //===== Setup =====//
-    //=================//
+    dgn_loglike = 0.;     // (global) loglikelihood
+    dgn_sqr_loglike = 0.; // mean squared (global) loglikelihood
+}
 
-    // total number of mcmc sweeps
-    ulong sweep_count = 0;
+/* Update Bayesian diagnostics */
+void MCMC::update_diagnostics()
+{
+    // diagnostics for all parameters
+    update_param_diagnostics();
 
-    // Define MCMC Sample Size (note: Euclidean division)
-    ulong tot_num_sweeps = setup_num_adapt / setup_thinning + setup_burn_in / setup_thinning + setup_num_iter / setup_thinning;
-    tot_num_sweeps *= setup_thinning * setup_num_chains;
-    
+// diagnostics over households
+#pragma omp parallel for default(shared)
+    for (int h = 0; h < num_househ; h++)
+    {
+        househ[h].update_diagnostics();
+    }
+
+    // (global) loglikelihood
+    dgn_loglike += global_loglike / dgn_sample_size;
+
+    // mean squared (global) loglikelihood
+    dgn_sqr_loglike += std::pow(global_loglike, 2) / dgn_sample_size;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : run markov chain  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Markov chain core, used for inference and power posteriors. */
+void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
+{
+    //==========================//
+    //===== Initialization =====//
+    //==========================//
+
     // progress bar initial text
     std::string num_chain_prog_txt = std::to_string(setup_num_chains);
     std::string adap_prog_txt = (setup_num_chains == 1) ? "adaptation" : ("adapt 1/" + num_chain_prog_txt);
     std::string burn_prog_txt = (setup_num_chains == 1) ? "burn-in" : ("burn 1/" + num_chain_prog_txt);
     std::string exec_prog_txt = (setup_num_chains == 1) ? "sampling" : ("sample 1/" + num_chain_prog_txt);
 
-    //==========================//
-    //===== Initialization =====//
-    //==========================//
-
-    intern_is_infer_complete = false;
+    // number of completed mcmc sweeps
+    ulong sweep_count = 0;
+    // total number of mcmc sweeps // note : Euclidean division!
+    ulong tot_num_sweeps = setup_num_adapt / setup_thinning + setup_burn_in / setup_thinning + setup_num_iter / setup_thinning;
+    tot_num_sweeps *= setup_thinning * setup_num_chains;
 
     //----- Initialize model -----//
     init_model_for_inference();
-
-    //----- Initialize output file-----//
-
-    // FIXME : store diagnostics instead of canceling everything  for each chain
-    // FIXME : no need for stdoutput + Gelman Rubin could be integrated
-    init_inferstate_file(output_file);
 
     //----- Initialize diagnostics -----//
     init_diagnostics();
@@ -380,7 +393,7 @@ void MCMC::infer(std::string output_file, bool progbar)
         init_rand_params(setup_rnd_init_params);
 
         //-----Initialize augmented variables with model-----//
-        init_augmented_variables();
+        init_augmented_variables(is_init_augm);
 
         //-----Initialize chain-----//
         init_single_chain();
@@ -409,7 +422,7 @@ void MCMC::infer(std::string output_file, bool progbar)
         if (setup_num_adapt > 0)
         {
             for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
-            {                
+            {
                 for (ulong t = 1; t <= setup_thinning; t++)
                 {
                     move_all_augm_variables();
@@ -457,16 +470,37 @@ void MCMC::infer(std::string output_file, bool progbar)
 
             // compute diagnostics for the previous iterations
             update_diagnostics();
+
             // print inference state
             print_inferstate();
 
             screen::display_progress_bar(exec_prog_txt, sweep_count, tot_num_sweeps, progbar);
         }
     }
+}
 
-    //============================//
-    //===== End of inference =====//
-    //============================//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MCMC : infer  /////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Performs the inference using Metropolis-Hastings. */
+void MCMC::infer(std::string output_file, bool progbar)
+{
+    //----- Check if data is meaningful -----//
+    if (report_data["n.miss.stat"] == num_indiv)
+    {
+        screen::raise_error("No infectious status has been provided in the data file.");
+    }
+
+    //----- Initialize output file-----//
+    // FIXME : store diagnostics instead of canceling everything  for each chain
+    // FIXME : no need for stdoutput + Gelman Rubin could be integrated
+    init_inferstate_file(output_file);
+
+    // FIXME : this state must be improved
+    intern_is_infer_complete = false;
+
+    run_markov_chain(true, progbar);
 
     //----- Close this chain progress bar -----//
     screen::display_progress_bar_end("completed", progbar);
@@ -476,77 +510,98 @@ void MCMC::infer(std::string output_file, bool progbar)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
+/////////////////////////////////////  MCMC : power posteriors  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Init Bayesian diagnostics. */
-void MCMC::init_diagnostics()
+/* Use Metropolis-Hastings MCMC to conmpute marginal likelihood with power posteriors. */
+void MCMC::power_posteriors()
 {
-    // Define MCMC Sample Size 
-    dgn_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
-    dgn_sample_size *= setup_num_chains;
+    double marginal_loglike = 0.;
+    double delta_inv_temper = 0.;
+    double mean_loglike, delta_var_loglike;
+    double samp_var_corr = static_cast<double>(dgn_sample_size) / (dgn_sample_size - 1.);
 
-    // diagnostics for all parameters
-    init_param_diagnostics(dgn_sample_size);
+    // FIXME : change this to option
+    int num_rungs = 25;
 
-// diagnostics over households
-#pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; h++)
+    // FIXME : add check to user choices
+    setup_num_chains = 1;
+    setup_rnd_init_params = true;
+
+    // FIXME : avoid printing to file with power_posteriors
+
+    intern_is_infer_complete = false;
+
+    //==================//
+    //===== RUNG 0 =====//
+    //==================//
+
+    setup_inv_temper = 0.;
+    run_markov_chain(true, false);
+
+    //=====================//
+    //===== RUNG >= 1 =====//
+    //=====================//
+
+    setup_rnd_init_params = false;
+
+    // trapezoidal rule to compute marginal likelihood with power posteriors
+    for (int r = 1; r <= num_rungs; r++)
     {
-        househ[h].init_diagnostics(dgn_sample_size);
-    }
+        delta_inv_temper = -setup_inv_temper;
+        mean_loglike = dgn_loglike;
+        delta_var_loglike = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr;
 
-    dgn_loglike = 0.;     // (global) loglikelihood
-    dgn_sqr_loglike = 0.; // mean squared (global) loglikelihood
+        setup_inv_temper = std::pow(static_cast<double>(r) / num_rungs, 5.);
+        run_markov_chain(false, false);
+
+        delta_inv_temper += setup_inv_temper;
+        mean_loglike += dgn_loglike;
+        delta_var_loglike -= (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr;
+
+        // trapezoidal rule to compute marginal likelihood with power posteriors
+        marginal_loglike += 0.5 * mean_loglike * delta_inv_temper;
+
+        // correction
+        marginal_loglike += delta_var_loglike * std::pow(delta_inv_temper, 2) / 12.;
+    }
 }
 
-/* Update Bayesian diagnostics */
-void MCMC::update_diagnostics()
-{
-    // diagnostics for all parameters
-    update_param_diagnostics();
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
-// diagnostics over households
-#pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; h++)
-    {
-        househ[h].update_diagnostics();
-    }
-
-    // (global) loglikelihood
-    dgn_loglike += global_loglike / dgn_sample_size;
-
-    // mean squared (global) loglikelihood
-    dgn_sqr_loglike += std::pow(global_loglike, 2) / dgn_sample_size;
-}
-
-/* Display results as sampled during thin iterations.
-// FIXME : this output needs to be user specified probably
-*/
+/* Display results as sampled during iterations. */
 void MCMC::show_results()
 {
     using namespace screen;
 
     if (!intern_is_infer_complete)
     {
-        raise_warning("Ignored attempt to show results before inference.", Inconmplete_Infer_Diagnostics_Warning);
+        raise_warning("Ignored attempt to show results before inference.",
+                      Inconmplete_Infer_Diagnostics_Warning);
     }
     else
     {
-        //===========================//
-        //===== Compute Results =====//
-        //===========================//
+        //===============================//
+        //===== Compute Diagnostics =====//
+        //===============================//
 
         // compute WAIC
-        double samp_var_corr = static_cast<long double>(dgn_sample_size) / (dgn_sample_size - 1.);
+        double samp_var_corr = static_cast<double>(dgn_sample_size) / (dgn_sample_size - 1.);
         double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
 
-        // implement WAIC warning
+        //---- implement WAIC warning -----//
         // Ref: Vhetari et al. (2016) Stat Comput.
-        Large_p_WAIC_Warning = false; // print warning at every call
+
+        Large_p_WAIC_Warning = false; // note :print warning at every call
         bool is_p_waic_large = false;
-        int p_waic_large_count = 0;
+
         const double p_waic_limit = 0.4;
+        unsigned p_waic_large_count = 0;
 
         // Loop over households
         for (int h = 0; h < num_househ; h++)
@@ -561,7 +616,7 @@ void MCMC::show_results()
             effec_num_params_waic += p_waic;
         }
 
-        // diagnostics (sampled every thinning iterration)
+        // diagnostics (sampled every thinning iteration)
         std::ostringstream oss;
         oss << std::setprecision(2) << std::fixed
             << "loglikelihood.mean" << C_DELIM
@@ -576,6 +631,7 @@ void MCMC::show_results()
             << 2 * (effec_num_params_waic - log_point_pred_dens);
         print_stdout(oss.str() + "\n");
 
+        // FIXME : this should be computed alone
         // practical WAIC warning
         if (is_p_waic_large == true)
         {
