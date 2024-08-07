@@ -7,8 +7,8 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Inconmplete_Infer_Diagnostics_Warning = false; // Warning for unreliable WAIC
-bool Large_p_WAIC_Warning = false;                  // Warning for unreliable WAIC
+bool Inconmplete_Infer_Diagnostics_Warning = false; // wrong call to show diagnostics
+bool Large_p_WAIC_Warning = false;                  // unreliable WAIC
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
@@ -353,12 +353,6 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
     //===== Initialization =====//
     //==========================//
 
-    // progress bar initial text
-    std::string num_chain_prog_txt = std::to_string(setup_num_chains);
-    std::string adap_prog_txt = (setup_num_chains == 1) ? "adaptation" : ("adapt 1/" + num_chain_prog_txt);
-    std::string burn_prog_txt = (setup_num_chains == 1) ? "burn-in" : ("burn 1/" + num_chain_prog_txt);
-    std::string exec_prog_txt = (setup_num_chains == 1) ? "sampling" : ("sample 1/" + num_chain_prog_txt);
-
     // number of completed mcmc sweeps
     ulong sweep_count = 0;
     // total number of mcmc sweeps // note : Euclidean division!
@@ -371,24 +365,14 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
     //----- Initialize diagnostics -----//
     init_diagnostics();
 
-    //----- Initialize progress bars -----//
-
-    if (setup_num_adapt > 0)
-    {
-        screen::display_progress_bar_start(adap_prog_txt, progbar);
-    }
-    else if (setup_burn_in > 0)
-    {
-        screen::display_progress_bar_start(burn_prog_txt, progbar);
-    }
-    else
-    {
-        screen::display_progress_bar_start(exec_prog_txt, progbar);
-    }
-
     //===== Run Multiple MCMC Chains =====//
     for (intern_chain = 1; intern_chain <= setup_num_chains; intern_chain++)
     {
+        //----- Adjust progressbar text for multiple chains -----//
+        std::string adapt_progtxt = get_adapt_progtxt();
+        std::string burn_progtxt = get_burn_progtxt();
+        std::string sample_progtxt = get_sample_progtxt();
+
         //-----Initialize parameter inference-----//
         init_rand_params(setup_rnd_init_params);
 
@@ -407,14 +391,6 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
         // reset the acceptance counts
         init_move_counts();
 
-        // adjust progress bar text for multiple chains
-        if (intern_chain > 1)
-        {
-            adap_prog_txt = "adapt " + std::to_string(intern_chain) + "/" + num_chain_prog_txt;
-            burn_prog_txt = "burn " + std::to_string(intern_chain) + "/" + num_chain_prog_txt;
-            exec_prog_txt = "sample " + std::to_string(intern_chain) + "/" + num_chain_prog_txt;
-        }
-
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
@@ -429,7 +405,7 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
                     move_and_adapt_all_parameters(i + t);
                 }
                 sweep_count += setup_thinning;
-                screen::display_progress_bar(adap_prog_txt, sweep_count, tot_num_sweeps, progbar);
+                screen::display_progress_bar(adapt_progtxt, sweep_count, tot_num_sweeps, progbar);
             }
 
             // reset the acceptance counts
@@ -450,7 +426,7 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
                     move_all_parameters();
                 }
                 sweep_count += setup_thinning;
-                screen::display_progress_bar(burn_prog_txt, sweep_count, tot_num_sweeps, progbar);
+                screen::display_progress_bar(burn_progtxt, sweep_count, tot_num_sweeps, progbar);
             }
         }
 
@@ -474,7 +450,7 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
             // print inference state
             print_inferstate();
 
-            screen::display_progress_bar(exec_prog_txt, sweep_count, tot_num_sweeps, progbar);
+            screen::display_progress_bar(sample_progtxt, sweep_count, tot_num_sweeps, progbar);
         }
     }
 }
@@ -484,6 +460,9 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings. */
+// FIXME : output_file shouldn't be necessary
+// FIXME : store diagnostics instead of canceling everything for each chain (~)
+// FIXME : Gelman Rubin could be integrated
 void MCMC::infer(std::string output_file, bool progbar)
 {
     //----- Check if data is meaningful -----//
@@ -493,19 +472,18 @@ void MCMC::infer(std::string output_file, bool progbar)
     }
 
     //----- Initialize output file-----//
-    // FIXME : store diagnostics instead of canceling everything  for each chain
-    // FIXME : no need for stdoutput + Gelman Rubin could be integrated
     init_inferstate_file(output_file);
 
-    // FIXME : this state must be improved
-    intern_is_infer_complete = false;
+    //----- Start progress bar and clock -----//
+    screen::display_progress_bar_start("initializing", progbar);
 
+    //----- Run Markov Chain -----//
     run_markov_chain(true, progbar);
 
-    //----- Close this chain progress bar -----//
+    //----- Close progress bar -----//
     screen::display_progress_bar_end("completed", progbar);
 
-    intern_is_infer_complete = true;
+    //----- Close output file-----//
     close_inferstate_file();
 }
 
@@ -514,30 +492,44 @@ void MCMC::infer(std::string output_file, bool progbar)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Use Metropolis-Hastings MCMC to conmpute marginal likelihood with power posteriors. */
-void MCMC::power_posteriors()
+double MCMC::power_posteriors(int num_rungs, bool progbar)
 {
+    if (num_rungs < 2)
+    {
+        screen::raise_error(
+            "Number of rungs must be greater than 1.");
+    }
+
     double marginal_loglike = 0.;
     double delta_inv_temper = 0.;
     double mean_loglike, delta_var_loglike;
     double samp_var_corr = static_cast<double>(dgn_sample_size) / (dgn_sample_size - 1.);
 
-    // FIXME : change this to option
-    int num_rungs = 25;
+    //----- Backup user setup to restore them later -----//
+    ulong bkp_num_chains = setup_num_chains;
+    double bkp_inv_temper = setup_inv_temper;
+    bool bkp_rnd_init_params = setup_rnd_init_params;
 
-    // FIXME : add check to user choices
+    // overwrite setup
     setup_num_chains = 1;
+    setup_inv_temper = 0.;
     setup_rnd_init_params = true;
 
-    // FIXME : avoid printing to file with power_posteriors
+    intern_is_print_inferstate = false; // avoid printing
+    intern_is_infer_complete = false;   // FIXME : what is this for then? WAIC?
 
-    intern_is_infer_complete = false;
+    //----- Start progress bar and clock -----//
+    screen::display_progress_bar_start("initializing", progbar);
+
+    // FIXME : improve
+    std::string progtxt = "powerpost";
 
     //==================//
     //===== RUNG 0 =====//
     //==================//
 
-    setup_inv_temper = 0.;
     run_markov_chain(true, false);
+    screen::display_progress_bar(progtxt, 1, num_rungs + 1, progbar);
 
     //=====================//
     //===== RUNG >= 1 =====//
@@ -545,26 +537,42 @@ void MCMC::power_posteriors()
 
     setup_rnd_init_params = false;
 
+    // UPDATE : linear approach can be improved (see literature)
     // trapezoidal rule to compute marginal likelihood with power posteriors
     for (int r = 1; r <= num_rungs; r++)
     {
+        //----- store previous values (r - 1) -----//
         delta_inv_temper = -setup_inv_temper;
         mean_loglike = dgn_loglike;
         delta_var_loglike = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr;
 
+        //----- power posterior sampling -----//
         setup_inv_temper = std::pow(static_cast<double>(r) / num_rungs, 5.);
         run_markov_chain(false, false);
 
+        //----- store current values (r) -----//
         delta_inv_temper += setup_inv_temper;
         mean_loglike += dgn_loglike;
         delta_var_loglike -= (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr;
 
-        // trapezoidal rule to compute marginal likelihood with power posteriors
-        marginal_loglike += 0.5 * mean_loglike * delta_inv_temper;
+        //----- trapezoidal rule to compute marginal likelihood -----//
+        marginal_loglike += mean_loglike * delta_inv_temper / 2.;
 
         // correction
         marginal_loglike += delta_var_loglike * std::pow(delta_inv_temper, 2) / 12.;
+
+        screen::display_progress_bar(progtxt, r + 1, num_rungs + 1, progbar);
     }
+
+    //----- Close progress bar -----//
+    screen::display_progress_bar_end("completed", progbar);
+
+    //----- Restore user setup -----//
+    setup_num_chains = bkp_num_chains;
+    setup_inv_temper = bkp_inv_temper;
+    setup_rnd_init_params = bkp_rnd_init_params;
+
+    return marginal_loglike;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -771,4 +779,5 @@ Rcpp::List MCMC::return_setup()
 
     return output;
 }
+
 #endif

@@ -41,9 +41,9 @@ using sys_rnd_gen = std::mt19937;
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-constexpr int SUSCEPTIBLE = 0;      // status of susceptible
-constexpr int INFECTIOUS = 1;       // status of infectious
-constexpr int MISSING_STATUS = -1;   // missing status
+constexpr int SUSCEPTIBLE = 0;     // status of susceptible
+constexpr int INFECTIOUS = 1;      // status of infectious
+constexpr int MISSING_STATUS = -1; // missing status
 
 constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
@@ -85,7 +85,7 @@ namespace screen
 
     constexpr int DECOR_WIDTH = 65;   // width of progress bar
     constexpr int PROGBAR_WIDTH = 30; // width of progress bar
-    constexpr int PROGBAR_THIN = 17; // thinning of progress bar
+    constexpr int PROGBAR_THIN = 17;  // thinning of progress bar
 
     void print_stdout(const std::string txt);
     void display_decorator(const std::string title,
@@ -123,10 +123,10 @@ class Base_Function
 {
 public:
     //=====Constructors=====//
-    Base_Function(){};
+    Base_Function() {};
     Base_Function(sdargs new_args_int, std::vector<std::string> order = {});
     Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order = {});
-    virtual ~Base_Function(){};
+    virtual ~Base_Function() {};
 
     // FIXME :
     // need to assign args later in case constructor is empty
@@ -244,7 +244,7 @@ class Normal_Distr : public Distribution_1D
 public:
     Normal_Distr(sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Distribution_1D(new_args, {"mean", "sd"}) { set_name("normal"); }
     Normal_Distr(sdargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"mean", "sd"}) { set_name("normal"); }
-    ~Normal_Distr(){};
+    ~Normal_Distr() {};
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
@@ -257,7 +257,7 @@ class Normal_Distr_int : public Normal_Distr
 public:
     Normal_Distr_int(sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Normal_Distr(new_args) { set_name("normal_int"); }
     Normal_Distr_int(sdargs_ext new_args_ext) : Normal_Distr(new_args_ext) { set_name("normal_int"); }
-    ~Normal_Distr_int(){};
+    ~Normal_Distr_int() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
@@ -274,7 +274,7 @@ class Lognorm_Distr : public Distribution_1D
 public:
     Lognorm_Distr(sdargs new_args = {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}) : Distribution_1D(new_args, {"meanlog", "sdlog"}) { set_name("lognorm"); }
     Lognorm_Distr(sdargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"meanlog", "sdlog"}) { set_name("lognorm"); }
-    ~Lognorm_Distr(){};
+    ~Lognorm_Distr() {};
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
@@ -287,7 +287,7 @@ class Lognorm_Distr_int : public Lognorm_Distr
 public:
     Lognorm_Distr_int(sdargs new_args = {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}) : Lognorm_Distr(new_args) { set_name("lognorm_int"); }
     Lognorm_Distr_int(sdargs_ext new_args_ext) : Lognorm_Distr(new_args_ext) { set_name("lognorm_int"); }
-    ~Lognorm_Distr_int(){};
+    ~Lognorm_Distr_int() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
@@ -304,7 +304,7 @@ class Gamma_Distr : public Distribution_1D
 public:
     Gamma_Distr(sdargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args, {"shape", "scale"}) { set_name("gamma"); }
     Gamma_Distr(sdargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"shape", "scale"}) { set_name("gamma"); }
-    ~Gamma_Distr(){};
+    ~Gamma_Distr() {};
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
@@ -323,7 +323,7 @@ class Weibull_Distr : public Distribution_1D
 public:
     Weibull_Distr(sdargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Distribution_1D(new_args, {"shape", "scale"}) { set_name("weibull"); }
     Weibull_Distr(sdargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"shape", "scale"}) { set_name("weibull"); }
-    ~Weibull_Distr(){};
+    ~Weibull_Distr() {};
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
@@ -336,7 +336,7 @@ class Weibull_Distr_int : public Weibull_Distr
 public:
     Weibull_Distr_int(sdargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Weibull_Distr(new_args) { set_name("weibull_int"); }
     Weibull_Distr_int(sdargs_ext new_args_ext) : Weibull_Distr(new_args_ext) { set_name("weibull_int"); }
-    ~Weibull_Distr_int(){};
+    ~Weibull_Distr_int() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
@@ -353,7 +353,7 @@ class Rayleigh_Distr : public Distribution_1D
 public:
     Rayleigh_Distr(sdargs new_args = {{"scale", (double)1.0}}) : Distribution_1D(new_args, {"scale"}) { set_name("rayleigh"); }
     Rayleigh_Distr(sdargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"scale"}) { set_name("rayleigh"); }
-    ~Rayleigh_Distr(){};
+    ~Rayleigh_Distr() {};
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
@@ -366,7 +366,7 @@ class Rayleigh_Distr_int : public Rayleigh_Distr
 public:
     Rayleigh_Distr_int(sdargs new_args = {{"scale", (double)1.0}}) : Rayleigh_Distr(new_args) { set_name("rayleigh_int"); }
     Rayleigh_Distr_int(sdargs_ext new_args_ext) : Rayleigh_Distr(new_args_ext) { set_name("rayleigh_int"); }
-    ~Rayleigh_Distr_int(){};
+    ~Rayleigh_Distr_int() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
@@ -383,7 +383,7 @@ class Exponential_Distr : public Distribution_1D
 public:
     Exponential_Distr(sdargs new_args = {{"rate", (double)1.0}}) : Distribution_1D(new_args, {"rate"}) { set_name("exp"); }
     Exponential_Distr(sdargs_ext new_args_ext) : Distribution_1D(new_args_ext, {"rate"}) { set_name("exp"); }
-    ~Exponential_Distr(){};
+    ~Exponential_Distr() {};
 
     virtual double pdf(double x) override;
     virtual double log_pdf(double x) override;
@@ -396,7 +396,7 @@ class Exponential_Distr_int : public Exponential_Distr
 public:
     Exponential_Distr_int(sdargs new_args = {{"rate", (double)1.0}}) : Exponential_Distr(new_args) { set_name("exp_int"); }
     Exponential_Distr_int(sdargs_ext new_args_ext) : Exponential_Distr(new_args_ext) { set_name("exp_int"); }
-    ~Exponential_Distr_int(){};
+    ~Exponential_Distr_int() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override;
@@ -476,12 +476,5 @@ Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_i
 
     return output;
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
 
 #endif // UTILS__H
