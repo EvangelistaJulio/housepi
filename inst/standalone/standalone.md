@@ -7,11 +7,11 @@ Here a quick tutorial of the basic commands as if the where run within the folde
 
 ```
 MODEL=../models/chain_binom
-make debug MODEL=$MODEL
 make clean MODEL=$MODEL
+make debug MODEL=$MODEL
 ```
 
-If you don't want tocompile with debug flags (same used by R package compiler), use `make` instead.
+If you don't want tocompile with debug flags (same used by R package compiler), use `make` instead. 
 To load an example you can use the following files:
 
 ```

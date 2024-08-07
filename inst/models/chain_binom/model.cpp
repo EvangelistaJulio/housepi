@@ -134,6 +134,8 @@ double Model::compute_single_house_loglike(int h)
 ////////////////////////////////  Model : Methods (simulation)  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// FIXME : parallel simulations seem wrong.
+
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(int h)
 {

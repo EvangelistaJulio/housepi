@@ -24,18 +24,23 @@
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  * ***** * MAIN FUNCTION * ***** *  ///////////////////////////////
+/////////////////////////////////  * *** * MAIN FUNCTION * *** *  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The Main Function. */
 int main(int argc, char *argv[])
 {
-    int carg_i = 1;   // command line argument iterator
+    using namespace screen;
+
+    int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
-    bool verbose = false;     // print relavent information to stdout
+    bool verbose = false;     // verbose option
     bool is_infer = false;    // inference option
     bool is_simulate = false; // simulation option
+    bool is_evaluate = false; // evaluate option
+    bool is_pwr_post = false; // power posterior option
+    ulong num_rungs = 0;
 
     // paths/to/files
     std::string params_file = UNDEFINED;
@@ -43,8 +48,8 @@ int main(int argc, char *argv[])
     std::string augm_file = UNDEFINED;
     std::string setup_file = UNDEFINED;
     std::string extra_file = UNDEFINED;
-    std::string output_pathtofile = UNDEFINED;
-    std::string save_augm_pathtofile = UNDEFINED;
+    std::string output_file = UNDEFINED;
+    std::string save_augm_file = UNDEFINED;
 
     //=====Test if some commands were supplied=====//
     if (argc < 2)
@@ -52,7 +57,7 @@ int main(int argc, char *argv[])
         std::ostringstream oss;
         oss << "No argument or command found. Check the usage through:\n"
             << argv[0] << " -h";
-        screen::raise_error(oss.str());
+        raise_error(oss.str());
     }
 
     //=====Parse commands and options=====//
@@ -66,14 +71,19 @@ int main(int argc, char *argv[])
             // Show the manual using man and installed manpages
             // UPDATE : produce a manual
             std::ostringstream oss;
-            oss << "We apologize for the inconvenience, but the Software Manual is still missing.\n"
-                << "Please, contact the developer.";
-            screen::raise_error(oss.str());
+            oss << "No Software Manual is available, refer to the Rcpp tutorials.\n"
+                << "Apologies for the inconvenience.";
+            raise_error(oss.str());
         }
 
         else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
         {
             verbose = true;
+        }
+
+        else if (carg == std::string("--evaluate"))
+        {
+            is_evaluate = true;
         }
 
         else if (carg == std::string("--infer"))
@@ -84,6 +94,12 @@ int main(int argc, char *argv[])
         else if (carg == std::string("--simulate"))
         {
             is_simulate = true;
+        }
+
+        else if (carg == std::string("--pwr_post"))
+        {
+            is_pwr_post = true;
+            num_rungs = std::stoul(argv[++carg_i]);
         }
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))
@@ -113,34 +129,42 @@ int main(int argc, char *argv[])
 
         else if (carg == std::string("-o") || carg == std::string("--output"))
         {
-            output_pathtofile = argv[++carg_i];
+            output_file = argv[++carg_i];
         }
 
         else if (carg == std::string("--save_augm"))
         {
-            save_augm_pathtofile = argv[++carg_i];
+            save_augm_file = argv[++carg_i];
         }
 
         else
         {
-            screen::raise_error("Unrecognized option `" + carg + "`.");
+            raise_error("Unrecognized option `" + carg + "`.");
         }
 
         carg_i++; // Move to the next command line argument
     }
 
-    //=====INITIALIZATION=====//
+    //==========================//
+    //===== INITIALIZATION =====//
+    //==========================//
 
-    // Initialize Model object with user defined derived class
-    Model user_model;
-
-    if (is_infer && is_simulate)
+    //----- Check for command -----//
+    int aux = is_evaluate + is_infer + is_simulate + is_pwr_post;
+    if (aux > 1)
     {
-        screen::raise_error("Incompatible commands: choose one between -infer and -simulate.");
+        raise_error(
+            "Incompatible commands: choose one between --evaluate, --infer, --simulate or --pwr_post.");
+    }
+    else if (aux == 0)
+    {
+        is_evaluate = true; // default
     }
 
-    user_model.build(setup_file, params_file, 
-                     data_file, augm_file, 
+    //----- Initialize the Model object -----//
+    Model user_model;
+    user_model.build(setup_file, params_file,
+                     data_file, augm_file,
                      extra_file, verbose);
 
     //=====================//
@@ -149,47 +173,58 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        screen::display_decorator("Inference", screen::C_DECOR, "save: " + output_pathtofile, verbose);
-        user_model.infer(output_pathtofile);
+        display_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
+        user_model.infer(output_file, true);
 
         if (verbose)
         {
-            screen::display_decorator("Inference::results", '-', UNDEFINED);
+            display_decorator("Inference::results", '-', UNDEFINED);
             user_model.show_param_diagnostics();
-            screen::display_decorator("Inference::diagnostics", '-', UNDEFINED);
+            display_decorator("Inference::diagnostics", '-', UNDEFINED);
             user_model.show_results();
         }
 
-        if (save_augm_pathtofile != UNDEFINED)
+        if (save_augm_file != UNDEFINED)
         {
-            screen::display_decorator("Inference::output", '-', "save: " + save_augm_pathtofile, verbose);
-            user_model.print_augm_variables(save_augm_pathtofile);
+            display_decorator("Inference::output", '-',
+                              "save: " + save_augm_file,
+                              verbose);
+            user_model.print_augm_variables(save_augm_file);
         }
     }
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_pathtofile == UNDEFINED)
+        if (output_file == UNDEFINED)
         {
-            screen::raise_error("Missing output file for simulation.");
+            raise_error("Missing output file for simulation.");
         }
         else
         {
-            screen::display_decorator("Simulation", screen::C_DECOR, "save: " + output_pathtofile, verbose);
+            display_decorator("Simulation", C_DECOR,
+                              "save: " + output_file,
+                              verbose);
             user_model.simulate();
-            user_model.print_augm_variables(output_pathtofile);
+            user_model.print_augm_variables(output_file);
+
             if (verbose)
             {
-                screen::display_decorator("Simulation::summary", '-');
-               user_model.show_summary();
+                display_decorator("Simulation::summary", '-');
+                user_model.show_summary();
             }
         }
     }
 
-    else
-    { //===== Compute Loglikelihood =====//
-        screen::display_decorator("Loglikelihood", screen::C_DECOR, UNDEFINED, verbose);
-        screen::print_stdout(std::to_string(user_model.evaluate()) + "\n");
+    else if (is_evaluate)
+    { //===== Evaluate Loglikelihood =====//
+        display_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        print_stdout(std::to_string(user_model.evaluate()) + "\n");
+    }
+
+    else if (is_pwr_post)
+    { //===== Power Posteriors =====//
+        display_decorator("Marginal Likelihood", C_DECOR, UNDEFINED, verbose);
+        print_stdout(std::to_string(user_model.power_posteriors(num_rungs)) + "\n");
     }
 
     return EXIT_SUCCESS;

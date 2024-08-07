@@ -252,7 +252,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 //=====check for the validity of the status=====//
                 std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
                 int this_status = this_indiv.get_status();
-                if(valid_statuses.find(this_status) == valid_statuses.end())
+                if (valid_statuses.find(this_status) == valid_statuses.end())
                 {
                     this_indiv.set_status(MISSING_STATUS);
 
@@ -467,7 +467,7 @@ void MCMC::show_summary()
     if (report_data["n.miss.stat"] > 0)
     {
         oss << "\n    * n. of missing status : " << report_data["n.miss.stat"]
-        << " " << percent(report_data["n.miss.stat"], num_indiv);
+            << " " << percent(report_data["n.miss.stat"], num_indiv);
     }
 
     oss << "\nn. of households: " << num_househ;
@@ -503,7 +503,7 @@ void MCMC::show_summary()
 void MCMC::show_group_classes()
 {
     using namespace screen;
-    
+
     std::ostringstream oss;
     for (const auto &entry : report_group_classes)
     {
@@ -729,7 +729,8 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             std::vector<std::string> file_entries = {
                 "num_threads", "seed", "num_chains",
                 "num_iter", "num_adapt", "thinning",
-                "burn_in", "rnd_init_params", "inv_temper"};
+                "burn_in", "rnd_init_params",
+                "num_rungs", "inv_temper"};
 
             std::vector<std::string> wrong_entries = {};
             for (const auto &pair : safe_load)
@@ -922,6 +923,10 @@ void MCMC::init_inferstate_file(std::string output_filename)
 
         if (inferstate_ofstream.is_open())
         {
+            // FIXME : these states must be improved
+            intern_is_print_inferstate = true;
+            intern_is_infer_complete = false;
+
             // print loglikelihood
             inferstate_ofstream << "loglike";
 
@@ -995,6 +1000,14 @@ void MCMC::print_inferstate()
     }
 }
 
+/* Close file with inferred parameters. */
+void MCMC::close_inferstate_file()
+{
+    intern_is_print_inferstate = false;
+    intern_is_infer_complete = true;
+    inferstate_ofstream.close();
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : print augm variables  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1002,6 +1015,8 @@ void MCMC::print_inferstate()
 /* Print all augmented variables of each individual */
 void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 {
+    using namespace screen;
+
     if (save_augm_pathtofile != UNDEFINED)
     {
         std::ofstream augm_ofstream;
@@ -1009,57 +1024,58 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            // change format of augmented data
+            //===== Change format of augmented data =====//
             format_augmented_data();
 
-            //=====Clean up list of headers for output files=====//
-            std::vector<std::string> headers = intern_data_headers;
+            //===== Clean up data entries for output files =====//
+            std::vector<std::string> cols = intern_data_headers;
 
-            // remove default headers
-            headers.erase(find(headers.begin(), headers.end(), "index"));
-            headers.erase(find(headers.begin(), headers.end(), "status"));
-            headers.erase(find(headers.begin(), headers.end(), "house_index"));
+            // remove index and house_index
+            cols.erase(find(cols.begin(), cols.end(), "index"));
+            cols.erase(find(cols.begin(), cols.end(), "house_index"));
 
-            // remove eventual variable with the same name of augmented variables
+            // eventually remove status
+            cols.erase(remove(cols.begin(), cols.end(), "index"), cols.end());
+
+            // eventually remove data called like augmented variables
             for (std::string augmID : augm_full_set)
             {
-                auto it = find(headers.begin(), headers.end(), augmID);
-                if (it != headers.end())
-                {
-                    headers.erase(it);
-                }
+                cols.erase(remove(cols.begin(), cols.end(), augmID), cols.end());
             }
 
-            //=====Print column headers=====//
-            // defaults
-            augm_ofstream << "index" << screen::C_DELIM << "status" << screen::C_DELIM << "house_index";
-            // data
-            for (std::string dataID : headers)
+            //===== Print column headers =====//
+            // default headers
+            augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
+
+            // data headers
+            for (std::string dataID : cols)
             {
-                augm_ofstream << screen::C_DELIM << dataID;
+                augm_ofstream << C_DELIM << dataID;
             }
-            // augmented variables
+
+            // augmented variables headers
             for (std::string augmID : augm_full_set)
             {
-                augm_ofstream << screen::C_DELIM << augmID;
+                augm_ofstream << C_DELIM << augmID;
             }
+
             augm_ofstream << std::endl;
 
-            //=====Print augmented variables for each individual=====//
+            //===== Print data and augmented variables =====//
             for (int h = 0; h < num_househ; h++)
             {
                 for (int i = 0; i < househ[h].house_size; i++)
                 {
                     augm_ofstream << househ[h].indiv[i].get_index()
-                                  << screen::C_DELIM << househ[h].indiv[i].get_status()
-                                  << screen::C_DELIM << househ[h].get_index();
-                    for (std::string dataID : headers)
+                                  << C_DELIM << househ[h].get_index()
+                                  << C_DELIM << househ[h].indiv[i].get_status();
+                    for (std::string dataID : cols)
                     {
-                        augm_ofstream << screen::C_DELIM << househ[h].indiv[i].get_data(dataID);
+                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
                     }
                     for (std::string augmID : augm_full_set)
                     {
-                        augm_ofstream << screen::C_DELIM << househ[h].indiv[i].get_augm(augmID);
+                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
                     }
                     augm_ofstream << std::endl;
                 }
@@ -1069,7 +1085,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
         }
         else
         {
-            screen::raise_error("Unable to open file: " + save_augm_pathtofile);
+            raise_error("Unable to open file: " + save_augm_pathtofile);
         }
     }
 }
