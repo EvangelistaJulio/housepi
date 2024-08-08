@@ -21,33 +21,21 @@ The models require three main input information:
 
 1.  **database:** : a dataframe (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference. Other additional columns can be provided.
 
-    |           |            |                 |         |         |
-    |-----------|------------|-----------------|---------|---------|
-    | **index** | **status** | **house_index** | **age** | **sex** |
-    | 1         | 1          | 1               | 55      | 1       |
-    | 2         | 1          | 1               | 60      | 2       |
-    | 3         | 0          | 2               | 21      | 1       |
-    | ...       |            |                 |         |         |
+```{r, echo=FALSE}
+knitr::kable(read.csv("data/database.csv"))
+```
 
 2.  **parameters:** a dataframe (or a file) with the initial parameters and priors needed for the Bayesian inference process formatted as follows
 
-    | name  | value | infer | prior   | pargs       | strategy | sargs             | range       |
-    |---------|---------|---------|---------|---------|---------|---------|---------|
-    | alpha | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
-    | beta  | 1     | true  | uniform | min/0/max/1 | lognorm  | meanlog/0/sdlog/1 | min/0/max/1 |
-    | ...   |       |       |         |             |          |                   |             |
+```{r, echo=FALSE}
+knitr::kable(read.csv("data/params.csv"))
+```
 
 3.  **setup:** a dataframe (or a file) with configurations such as the number of iterations, thinning, seed, etc.
 
-    |                 |           |
-    |-----------------|-----------|
-    | seed            | 576125013 |
-    | num_iter        | 10000     |
-    | num_adapt       | 1000      |
-    | burn_in         | 500       |
-    | thinning        | 10        |
-    | rnd_init_params | TRUE      |
-    | num_threads     | 4         |
+```{r, echo=FALSE}
+knitr::kable(read.csv("data/setup.csv"))
+```
 
 *Note:* openMP is unsupported on macOS without a custom compiler, thus the option `num_threads` is temporary inactive because of portability issues.
 

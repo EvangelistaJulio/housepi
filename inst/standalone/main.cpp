@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     bool is_infer = false;    // inference option
     bool is_simulate = false; // simulation option
     bool is_evaluate = false; // evaluate option
-    bool is_pwr_post = false; // power posterior option
+    bool is_marginal = false; // power posterior option
     ulong num_rungs = 0;
 
     // paths/to/files
@@ -96,10 +96,17 @@ int main(int argc, char *argv[])
             is_simulate = true;
         }
 
-        else if (carg == std::string("--pwr_post"))
+        else if (carg == std::string("--marginal"))
         {
-            is_pwr_post = true;
-            num_rungs = std::stoul(argv[++carg_i]);
+            is_marginal = true;
+            try
+            {
+                num_rungs = std::stoul(argv[++carg_i]);
+            }
+            catch (...)
+            {
+                raise_error("Unrecognized number of rungs. Declare it as: --marginal <num_rungs>");
+            }
         }
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))
@@ -150,11 +157,11 @@ int main(int argc, char *argv[])
     //==========================//
 
     //----- Check for command -----//
-    int aux = is_evaluate + is_infer + is_simulate + is_pwr_post;
+    int aux = is_evaluate + is_infer + is_simulate + is_marginal;
     if (aux > 1)
     {
         raise_error(
-            "Incompatible commands: choose one between --evaluate, --infer, --simulate or --pwr_post.");
+            "Incompatible commands: choose one between --evaluate, --infer, --simulate or --marginal.");
     }
     else if (aux == 0)
     {
@@ -221,9 +228,9 @@ int main(int argc, char *argv[])
         print_stdout(std::to_string(user_model.evaluate()) + "\n");
     }
 
-    else if (is_pwr_post)
+    else if (is_marginal)
     { //===== Power Posteriors =====//
-        display_decorator("Marginal Likelihood", C_DECOR, UNDEFINED, verbose);
+        display_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
         print_stdout(std::to_string(user_model.power_posteriors(num_rungs)) + "\n");
     }
 

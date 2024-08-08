@@ -94,9 +94,9 @@ namespace screen
                            bool verbose = true);
 
     // print progress bar to stdout
-    void display_progress_bar_start(const std::string &txt, bool verbose = true);
-    void display_progress_bar(const std::string &txt, int progress, int total, bool verbose = true);
-    void display_progress_bar_end(const std::string &txt, bool verbose = true);
+    void progress_bar_init(const std::string &txt, bool verbose = true);
+    void progress_bar_run(const std::string &txt, int progress, int total, bool verbose = true);
+    void progress_bar_end(const std::string &txt, bool verbose = true);
 
     // print warnings to stderr
     void raise_warning(const std::string &txt, bool &is_raised_once);
