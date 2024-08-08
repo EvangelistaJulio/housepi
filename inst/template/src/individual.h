@@ -39,7 +39,7 @@ public:
 	//=====Constructors=====//
 	Individual(sdargs data);
 	Individual() = default;
-	~Individual(){};
+	~Individual() {};
 
 	//=====Getter=====//
 	int get_status() const { return status; }
@@ -93,11 +93,11 @@ class Household
 {
 private:
 	//=====Attributes (private)=====//
-	int house_index = -1;		  // database index of the household
-	sdargs house_data = {};		  // database associated to individual
+	int house_index = -1;	// database index of household
+	sdargs house_data = {}; // database associated to household (manual)
 
-	double loglike = -INF_DOUBLE; // log-likelihood value
-	double buffer = -INF_DOUBLE;  // store buffer value of the log-likelihood
+	double loglike = -INF_DOUBLE; // current log-likelihood value
+	double buffer = -INF_DOUBLE;  // buffer log-likelihood value
 
 	// accpetance rates for augmented variables
 	std::unordered_map<std::string, int> num_accept_augm_moves = {};
@@ -127,14 +127,14 @@ public:
 	std::set<int> missing_status_set = {};
 
 	//===== Diagnostics =====//
-	int dgn_sample_size = 0;		  // sample size
-	double dgn_likelihood = 0.;  // mean (house) likelihood
-	double dgn_loglike = 0.;	  // mean (house) log-likelihood
-	double dgn_sqr_loglike = 0.; // mean squared (house) log-likelihood
+	int dgn_sample_size = 0;	 // sample size
+	long double dgn_likelihood = 0.;	 // mean (house) likelihood
+	long double dgn_loglike = 0.;	 // mean (house) loglikelihood
+	long double dgn_sqr_loglike = 0.; // mean squared (house) loglikelihood
 
 	//===== Constructors =====//
 	Household() {}
-	~Household(){};
+	~Household() {};
 
 	//====== Setter ======//
 	void assign_individual(Individual this_indiv);

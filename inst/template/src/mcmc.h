@@ -44,7 +44,7 @@ protected:
 	bool setup_rnd_init_params = true; // random initialization of parameters
 	unsigned long long setup_seed = 1; // random generator seed
 
-	double setup_inv_temper = 1.0; // inverse temperature
+	long double setup_inv_temper = 1.0; // inverse temperature
 
 	//===== Household Data =====//
 	int num_indiv = 0;
@@ -158,7 +158,7 @@ private:
 
 	ulong intern_chain = 0;			   // current chain
 	ulong intern_sample_size = 0;	   // sample size
-	ulong intern_num_chain_sweeps = 0; // sweeps per chain
+	ulong intern_mcmc_sweeps = 0; // sweeps per chain
 	ulong intern_num_sweeps = 0;	   // total number of sweeps
 
 	ulong intern_rung = 0;

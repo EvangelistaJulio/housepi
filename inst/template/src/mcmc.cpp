@@ -55,6 +55,9 @@ long double MCMC::compute_global_loglike()
 #pragma omp parallel for reduction(+ : output)
     for (int h = 0; h < num_househ; h++)
     {
+        // UPDATE : household loglikelihood is not long double, just double
+        // to modify this traces to parameter values,
+        // i. e. all program doubles to be cast to long double
         househ[h].set_loglike(compute_single_house_loglike(h));
         output += househ[h].get_loglike();
     }
@@ -124,7 +127,7 @@ void MCMC::move_single_param(std::string parID)
         long double new_global_loglike = compute_global_loglike();
 
         //===== METROPOLIS-HASTINGS =====//
-        double logQ = setup_inv_temper * (new_global_loglike - get_global_loglike());
+        long double logQ = setup_inv_temper * (new_global_loglike - get_global_loglike());
         logQ += get_move_logratio(); // logratio priors - logratio proposal
 
         if (uniform() < exp(logQ))
@@ -135,7 +138,7 @@ void MCMC::move_single_param(std::string parID)
         else
         {
             refuse_param_move(parID);
-            // restore loglike in households
+            // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
             for (int h = 0; h < num_househ; h++)
             {
@@ -189,8 +192,8 @@ The move is performed one member at a time, one augmented variable at at time.
 */
 long double MCMC::move_single_house_augm(int h)
 {
-    double old_value, new_value, logQ;
-    double old_house_loglike = 0.0, new_house_loglike = 0.0;
+    double old_value, new_value;
+    long double logQ, old_house_loglike, new_house_loglike;
     bool is_accepted = false;
 
     long double delta_global_loglike = 0.0;
@@ -213,7 +216,7 @@ long double MCMC::move_single_house_augm(int h)
                 augm_var_update(h, i, augmID, new_value); // update value to perform computations
                 new_house_loglike = compute_single_house_loglike(h);
 
-                // metropolis-hasting contribution
+                // MetropolisHasting contribution
                 logQ = setup_inv_temper * (new_house_loglike - old_house_loglike);
                 logQ -= househ[h].indiv[i].augm_propose_logratio(augmID, old_value, new_value);
 
@@ -304,10 +307,6 @@ long double MCMC::evaluate()
 /* Init Bayesian diagnostics. */
 void MCMC::init_diagnostics()
 {
-    // Define MCMC Sample Size
-    dgn_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
-    dgn_sample_size *= setup_num_chains;
-
     // diagnostics for all parameters
     init_param_diagnostics(dgn_sample_size);
 
@@ -352,7 +351,7 @@ std::string MCMC::get_progtxt(std::string txt)
     std::ostringstream oss;
     if (intern_is_power_post)
     {
-        oss << "power_post " << intern_rung << "/" << intern_num_rungs;
+        oss << "power post " << intern_rung << "/" << intern_num_rungs;
     }
     else if (setup_num_chains > 1)
     {
@@ -373,6 +372,8 @@ void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
     //==========================//
     //===== Initialization =====//
     //==========================//
+
+    std::string progtxt;
 
     //----- Initialize model -----//
     init_model_for_inference();
@@ -405,6 +406,8 @@ void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
 
+        progtxt = get_progtxt("adapt");
+
         for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
         {
             for (ulong t = 1; t <= setup_thinning; t++)
@@ -413,7 +416,7 @@ void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
                 move_and_adapt_all_parameters(i + t);
             }
             sweep += setup_thinning;
-            screen::progress_bar_run(get_progtxt("adapt"), sweep, intern_num_sweeps, progbar);
+            screen::progress_bar_run(progtxt, sweep, intern_num_sweeps, progbar);
         }
 
         // reset the acceptance counts
@@ -427,6 +430,8 @@ void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
+        progtxt = get_progtxt("burn");
+
         for (ulong i = 0; i < setup_burn_in; i += setup_thinning)
         {
             for (ulong t = 1; t <= setup_thinning; t++)
@@ -435,12 +440,14 @@ void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
                 move_all_parameters();
             }
             sweep += setup_thinning;
-            screen::progress_bar_run(get_progtxt("burn"), sweep, intern_num_sweeps, progbar);
+            screen::progress_bar_run(progtxt, sweep, intern_num_sweeps, progbar);
         }
 
         //============================================//
         //========= MCMC Posterior Sampling ==========//
         //============================================//
+
+        progtxt = get_progtxt("sample");
 
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
@@ -458,7 +465,7 @@ void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
             // print inference state
             print_inferstate();
 
-            screen::progress_bar_run(get_progtxt("sample"), sweep, intern_num_sweeps, progbar);
+            screen::progress_bar_run(progtxt, sweep, intern_num_sweeps, progbar);
         }
     }
 }
@@ -480,7 +487,7 @@ void MCMC::infer(std::string output_file, bool progbar)
     }
 
     //----- total number of mcmc sweeps -----//
-    intern_num_sweeps = intern_num_chain_sweeps * setup_num_chains;
+    intern_num_sweeps = intern_mcmc_sweeps;
 
     //----- Initialize output file-----//
     init_inferstate_file(output_file);
@@ -505,36 +512,35 @@ void MCMC::infer(std::string output_file, bool progbar)
 /* Use Metropolis-Hastings MCMC to conmpute marginal likelihood with power posteriors. */
 double MCMC::power_posteriors(int num_rungs, bool progbar)
 {
+    // Ref 1. Friel, N., Hurn, M. & Wyse, J. Improving power posterior estimation of statistical evidence. Stat Comput 24, 709–723 (2014).
+
     if (num_rungs < 2)
     {
         screen::raise_error(
             "Number of rungs must be greater than 1.");
     }
-    // fix internal number of rungs
-    intern_num_rungs = num_rungs;
+    else
+    {
+        // fix internal number of rungs
+        intern_num_rungs = num_rungs;
+    }
 
-    ulong sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
-    long double sample_correc = static_cast<long double>(sample_size) / (sample_size - 1);
-    
-    long double d_inv_temper, mean_ll, d_var_ll;
+    long double sample_correc = static_cast<long double>(dgn_sample_size) / (dgn_sample_size - 1);
+
+    long double old_it, old_ll, old_var_ll, new_var_ll;
     long double marginal_loglike = 0.;
 
     //----- Backup user setup to restore them later -----//
-    ulong bkp_num_chains = setup_num_chains;
-    double bkp_inv_temper = setup_inv_temper;
+    long double bkp_inv_temper = setup_inv_temper;
     bool bkp_rnd_init_params = setup_rnd_init_params;
 
-    // overwrite setup
-    setup_num_chains = 1;
-    setup_inv_temper = 0.;
-    setup_rnd_init_params = true;
-
+    //----- Fix states -----//
     intern_is_print_inferstate = false; // avoid printing
-    intern_is_infer_complete = false;   // FIXME : what is this for then? WAIC?
+    intern_is_infer_complete = false;   // showing results becomes meaningless
     intern_is_power_post = true;
 
     //----- total number of mcmc sweeps -----//
-    intern_num_sweeps = intern_num_chain_sweeps * (intern_num_rungs + 1);
+    intern_num_sweeps = intern_mcmc_sweeps * intern_num_rungs;
 
     //----- Start progress bar and clock -----//
     screen::progress_bar_init("init", progbar);
@@ -543,14 +549,18 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
     //===== RUNG 0 =====//
     //==================//
 
+    setup_rnd_init_params = true;
     intern_rung = 0;
+    setup_inv_temper = 0.;
     run_markov_chain(progbar, 0, true);
+    new_var_ll = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc;
 
     // FLAG
-    std::cerr << "\nr = " << intern_rung
-              << " | LL = " << dgn_loglike
-              << " | LL2 = " << dgn_sqr_loglike
-              << " | var = " << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc
+    std::cerr << "\n r = " << intern_rung
+              << " | it = " << setup_inv_temper
+              << " | lls = " << dgn_loglike
+              << " | var = " << new_var_ll
+              << " | sum = " << marginal_loglike
               << std::endl;
     // FLAG-END
 
@@ -561,32 +571,30 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
     setup_rnd_init_params = false;
 
     // UPDATE : linear approach can be improved (see literature)
+
+    //===== Power Fraction, Friel and Pettitt (2008) =====//
     // trapezoidal rule to compute marginal likelihood with power posteriors
-    for (intern_rung = 1; intern_rung <= intern_num_rungs; intern_rung++)
+    for (intern_rung = 1; intern_rung < intern_num_rungs; intern_rung++)
     {
         //----- store previous values (r - 1) -----//
-        d_inv_temper = -setup_inv_temper;
-        mean_ll = dgn_loglike;
-        d_var_ll = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc;
+        old_it = setup_inv_temper;
+        old_ll = dgn_loglike;
+        old_var_ll = new_var_ll;
 
         //----- power posterior sampling -----//
-        setup_inv_temper = std::pow(static_cast<double>(intern_rung) / intern_num_rungs, 5.);
-        run_markov_chain(progbar, intern_rung * intern_num_chain_sweeps, false);
-
-        //----- store current values (r) -----//
-        d_inv_temper += setup_inv_temper;
-        mean_ll += dgn_loglike;
-        d_var_ll += (std::pow(dgn_loglike, 2) - dgn_sqr_loglike) * sample_correc;
+        setup_inv_temper = std::pow(static_cast<long double>(intern_rung) / (intern_num_rungs - 1), 5);
+        run_markov_chain(progbar, intern_rung * intern_mcmc_sweeps, false);
+        new_var_ll = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc;
 
         //----- trapezoidal rule to compute marginal likelihood -----//
         // higher order correction
-        marginal_loglike += mean_ll * d_inv_temper / 2. + d_var_ll * std::pow(d_inv_temper, 2) / 12.;
+        marginal_loglike += (old_ll + dgn_loglike) * (setup_inv_temper - old_it) / 2. - (new_var_ll - old_var_ll) * std::pow(setup_inv_temper - old_it, 2) / 12.;
 
         // FLAG
-        std::cerr << "\nr = " << intern_rung
-                  << " | LL = " << dgn_loglike
-                  << " | LL2 = " << dgn_sqr_loglike
-                  << " | var = " << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc
+        std::cerr << "\n r = " << intern_rung
+                  << " | it = " << setup_inv_temper
+                  << " | ll = " << dgn_loglike
+                  << " | var = " << new_var_ll
                   << " | sum = " << marginal_loglike
                   << std::endl;
         // FLAG-END
@@ -596,7 +604,6 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
     screen::progress_bar_end("end", progbar);
 
     //----- Restore user setup -----//
-    setup_num_chains = bkp_num_chains;
     setup_inv_temper = bkp_inv_temper;
     setup_rnd_init_params = bkp_rnd_init_params;
 
@@ -655,13 +662,13 @@ void MCMC::show_results()
         // diagnostics (sampled every thinning iteration)
         std::ostringstream oss;
         oss << std::setprecision(2) << std::fixed
-            << "loglikelihood.mean" << C_DELIM
+            << "loglikelihood_mean" << C_DELIM
             << dgn_loglike
-            << "\nloglikelihood.sd" << C_DELIM
+            << "\nloglikelihood_sd" << C_DELIM
             << std::sqrt((dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc)
-            << "\nlogpoint.predictive.density" << C_DELIM
+            << "\nlogpoint_predictive_density" << C_DELIM
             << log_point_pred_dens
-            << "\neffective.parameters" << C_DELIM
+            << "\neffective_parameters" << C_DELIM
             << effec_num_params_waic
             << "\nWAIC" << C_DELIM
             << 2 * (effec_num_params_waic - log_point_pred_dens);

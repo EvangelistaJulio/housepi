@@ -834,7 +834,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             //===== INVERSE TEMPERATURE =====//
             if (safe_load.find("inv_temper") != safe_load.end())
             {
-                setup_inv_temper = std::stod(safe_load.at("inv_temper"));
+                setup_inv_temper = std::stold(safe_load.at("inv_temper"));
                 if ((setup_inv_temper < 0.) || (setup_inv_temper > 1.))
                 {
                     screen::raise_error(
@@ -856,10 +856,14 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
     //===== Number of MCMC sweeps per single chain =====//
     // note : Euclidean division!
-    intern_num_chain_sweeps = setup_num_adapt / setup_thinning;
-    intern_num_chain_sweeps += setup_burn_in / setup_thinning;
-    intern_num_chain_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
-    intern_num_chain_sweeps *= setup_thinning;
+    intern_mcmc_sweeps = setup_num_adapt / setup_thinning;
+    intern_mcmc_sweeps += setup_burn_in / setup_thinning;
+    intern_mcmc_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
+    intern_mcmc_sweeps *= setup_thinning * setup_num_chains;
+
+    //===== MCMC Sample Size =====//
+    dgn_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    dgn_sample_size *= setup_num_chains;
 
     //===== Display =====//
     if (verbose)
