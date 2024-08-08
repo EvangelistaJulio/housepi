@@ -73,11 +73,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
         // open input file stream
         std::ifstream input(pathtofile.c_str());
 
-        if (!input.is_open())
-        {
-            screen::raise_error("Impossible to read file: " + pathtofile);
-        }
-        else
+        if (input.is_open())
         {
             screen::display_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
 
@@ -114,6 +110,10 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
                 screen::display_decorator("Parameters::definitions", '-');
                 show_parameters();
             }
+        }
+        else
+        {
+            screen::raise_error("Impossible to read file: " + pathtofile);
         }
     }
 }
@@ -221,11 +221,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
         std::ifstream input(pathtofile.c_str());
         std::vector<std::string> required_headers = {"index", "house_index"};
 
-        if (!input.is_open())
-        {
-            screen::raise_error("Impossible to open file: " + pathtofile);
-        }
-        else
+        if (input.is_open())
         {
             screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
@@ -298,6 +294,10 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 show_summary();
                 show_group_classes();
             }
+        }
+        else
+        {
+            screen::raise_error("Impossible to open file: " + pathtofile);
         }
     }
 }
@@ -694,11 +694,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     {
         std::ifstream input(pathtofile.c_str());
 
-        if (!input.is_open())
-        {
-            screen::raise_error("Impossible to read setup file: " + pathtofile);
-        }
-        else
+        if (input.is_open())
         {
             screen::display_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
 
@@ -846,6 +842,10 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 }
             }
         }
+        else
+        {
+            screen::raise_error("Impossible to read setup file: " + pathtofile);
+        }
     }
 
     //===== Define Number of Threads (Monte_Carlo_Core) =====//
@@ -853,6 +853,13 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
     //===== Pseudo-Random Number Generator Seeding =====//
     set_prng_seed(setup_seed);
+
+    //===== Number of MCMC sweeps per single chain =====//
+    // note : Euclidean division!
+    intern_num_chain_sweeps = setup_num_adapt / setup_thinning;
+    intern_num_chain_sweeps += setup_burn_in / setup_thinning;
+    intern_num_chain_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
+    intern_num_chain_sweeps *= setup_thinning;
 
     //===== Display =====//
     if (verbose)
@@ -967,36 +974,39 @@ void MCMC::init_inferstate_file(std::string output_filename)
 /* Print the model parameters at the given iteration time */
 void MCMC::print_inferstate()
 {
-    if (inferstate_ofstream.is_open())
+    if (intern_is_print_inferstate)
     {
-        // print loglikelihood
-        inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
-
-        /*
-        for (std::string augmID : augm_to_be_inferred)
+        if (inferstate_ofstream.is_open())
         {
-            inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
-        }
-        */
+            // print loglikelihood
+            inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
 
-        // print parameter values
-        for (std::string parID : param_to_be_inferred)
+            /*
+            for (std::string augmID : augm_to_be_inferred)
+            {
+                inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
+            }
+            */
+
+            // print parameter values
+            for (std::string parID : param_to_be_inferred)
+            {
+                inferstate_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
+                // inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
+            }
+
+            // print which chain
+            if (setup_num_chains > 1)
+            {
+                inferstate_ofstream << screen::C_DELIM << intern_chain;
+            }
+
+            inferstate_ofstream << std::endl;
+        }
+        else
         {
-            inferstate_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
-            // inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
+            screen::raise_error("Output file closed unexpectedly.");
         }
-
-        // print which chain
-        if (setup_num_chains > 1)
-        {
-            inferstate_ofstream << screen::C_DELIM << intern_chain;
-        }
-
-        inferstate_ofstream << std::endl;
-    }
-    else
-    {
-        screen::raise_error("Output file closed unexpectedly.");
     }
 }
 

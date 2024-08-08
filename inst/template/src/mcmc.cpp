@@ -48,16 +48,15 @@ double MCMC::compute_single_house_loglike(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute global loglikelihood */
-double MCMC::compute_global_loglike()
+long double MCMC::compute_global_loglike()
 {
-    double output = 0.0;
+    long double output = 0.0;
 
 #pragma omp parallel for reduction(+ : output)
     for (int h = 0; h < num_househ; h++)
     {
-        double tmp = compute_single_house_loglike(h);
-        househ[h].set_loglike(tmp);
-        output += tmp;
+        househ[h].set_loglike(compute_single_house_loglike(h));
+        output += househ[h].get_loglike();
     }
 
     return output;
@@ -115,14 +114,14 @@ void MCMC::update_first_case(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::single_param_move(std::string parID)
+void MCMC::move_single_param(std::string parID)
 {
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_param_move(parID))
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old values in buffer
-        double new_global_loglike = compute_global_loglike();
+        long double new_global_loglike = compute_global_loglike();
 
         //===== METROPOLIS-HASTINGS =====//
         double logQ = setup_inv_temper * (new_global_loglike - get_global_loglike());
@@ -151,7 +150,7 @@ void MCMC::move_all_parameters()
 {
     for (std::string parID : param_to_be_inferred)
     {
-        single_param_move(parID);
+        move_single_param(parID);
     }
 }
 
@@ -162,7 +161,7 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 
     for (std::string parID : param_to_be_inferred)
     {
-        single_param_move(parID);
+        move_single_param(parID);
         adapt(parID, adapt_ratio);
     }
 }
@@ -188,12 +187,13 @@ void MCMC::augm_var_update(int h, int i, std::string augmID, double new_val)
 /* Move augmented variables for infectious members of a single household.
 The move is performed one member at a time, one augmented variable at at time.
 */
-double MCMC::single_household_augm_move(int h)
+long double MCMC::move_single_house_augm(int h)
 {
     double old_value, new_value, logQ;
     double old_house_loglike = 0.0, new_house_loglike = 0.0;
-    double delta_global_loglike = 0.0;
     bool is_accepted = false;
+
+    long double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
     // FIXME : only infectious are subject to data augmentation?
@@ -240,12 +240,12 @@ void MCMC::move_all_augm_variables()
 {
     if (intern_is_data_augm)
     {
-        double variation = 0.;
+        long double variation = 0.;
 
 #pragma omp parallel for reduction(+ : variation)
         for (int h = 0; h < num_househ; h++)
         {
-            variation += single_household_augm_move(h);
+            variation += move_single_house_augm(h);
         }
         set_global_loglike(get_global_loglike() + variation);
     }
@@ -277,7 +277,7 @@ double MCMC::get_augm_accept_rate(std::string augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-double MCMC::evaluate()
+long double MCMC::evaluate()
 {
     //===== Initialization =====//
 
@@ -346,18 +346,33 @@ void MCMC::update_diagnostics()
 ////////////////////////////////////  MCMC : run markov chain  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Markov chain core, used for inference and power posteriors. */
-void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
+/* The text to print in the Markov chian progress bar. */
+std::string MCMC::get_progtxt(std::string txt)
+{
+    std::ostringstream oss;
+    if (intern_is_power_post)
+    {
+        oss << "power_post " << intern_rung << "/" << intern_num_rungs;
+    }
+    else if (setup_num_chains > 1)
+    {
+        oss << txt << " " << intern_chain << "/" << setup_num_chains;
+    }
+    else
+    {
+        oss << txt;
+    }
+
+    return oss.str();
+}
+
+/* Markov chain core, used for inference and power posteriors.
+    note: sweep is the number of previously completed mcmc sweeps. */
+void MCMC::run_markov_chain(bool progbar, ulong sweep, bool is_init_augm)
 {
     //==========================//
     //===== Initialization =====//
     //==========================//
-
-    // number of completed mcmc sweeps
-    ulong sweep_count = 0;
-    // total number of mcmc sweeps // note : Euclidean division!
-    ulong tot_num_sweeps = setup_num_adapt / setup_thinning + setup_burn_in / setup_thinning + setup_num_iter / setup_thinning;
-    tot_num_sweeps *= setup_thinning * setup_num_chains;
 
     //----- Initialize model -----//
     init_model_for_inference();
@@ -368,11 +383,6 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
     //===== Run Multiple MCMC Chains =====//
     for (intern_chain = 1; intern_chain <= setup_num_chains; intern_chain++)
     {
-        //----- Adjust progressbar text for multiple chains -----//
-        std::string adapt_progtxt = get_adapt_progtxt();
-        std::string burn_progtxt = get_burn_progtxt();
-        std::string sample_progtxt = get_sample_progtxt();
-
         //-----Initialize parameter inference-----//
         init_rand_params(setup_rnd_init_params);
 
@@ -388,27 +398,28 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
         // avoid asserting parameters definitions after first call
         disable_assert_param();
 
-        // reset the acceptance counts
+        // initialize the acceptance counts
         init_move_counts();
 
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
 
+        for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
+        {
+            for (ulong t = 1; t <= setup_thinning; t++)
+            {
+                move_all_augm_variables();
+                move_and_adapt_all_parameters(i + t);
+            }
+            sweep += setup_thinning;
+            screen::progress_bar_run(get_progtxt("adapt"), sweep, intern_num_sweeps, progbar);
+        }
+
+        // reset the acceptance counts
+        // UPDATE : move counts become useless since they are not even printed : improve.
         if (setup_num_adapt > 0)
         {
-            for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
-            {
-                for (ulong t = 1; t <= setup_thinning; t++)
-                {
-                    move_all_augm_variables();
-                    move_and_adapt_all_parameters(i + t);
-                }
-                sweep_count += setup_thinning;
-                screen::display_progress_bar(adapt_progtxt, sweep_count, tot_num_sweeps, progbar);
-            }
-
-            // reset the acceptance counts
             init_move_counts();
         }
 
@@ -416,18 +427,15 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
-        if (setup_burn_in > 0)
+        for (ulong i = 0; i < setup_burn_in; i += setup_thinning)
         {
-            for (ulong i = 0; i < setup_burn_in; i += setup_thinning)
+            for (ulong t = 1; t <= setup_thinning; t++)
             {
-                for (ulong t = 1; t <= setup_thinning; t++)
-                {
-                    move_all_augm_variables();
-                    move_all_parameters();
-                }
-                sweep_count += setup_thinning;
-                screen::display_progress_bar(burn_progtxt, sweep_count, tot_num_sweeps, progbar);
+                move_all_augm_variables();
+                move_all_parameters();
             }
+            sweep += setup_thinning;
+            screen::progress_bar_run(get_progtxt("burn"), sweep, intern_num_sweeps, progbar);
         }
 
         //============================================//
@@ -442,7 +450,7 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
                 move_all_augm_variables();
                 move_all_parameters();
             }
-            sweep_count += setup_thinning;
+            sweep += setup_thinning;
 
             // compute diagnostics for the previous iterations
             update_diagnostics();
@@ -450,7 +458,7 @@ void MCMC::run_markov_chain(bool is_init_augm, bool progbar)
             // print inference state
             print_inferstate();
 
-            screen::display_progress_bar(sample_progtxt, sweep_count, tot_num_sweeps, progbar);
+            screen::progress_bar_run(get_progtxt("sample"), sweep, intern_num_sweeps, progbar);
         }
     }
 }
@@ -471,17 +479,20 @@ void MCMC::infer(std::string output_file, bool progbar)
         screen::raise_error("No infectious status has been provided in the data file.");
     }
 
+    //----- total number of mcmc sweeps -----//
+    intern_num_sweeps = intern_num_chain_sweeps * setup_num_chains;
+
     //----- Initialize output file-----//
     init_inferstate_file(output_file);
 
     //----- Start progress bar and clock -----//
-    screen::display_progress_bar_start("initializing", progbar);
+    screen::progress_bar_init("init", progbar);
 
     //----- Run Markov Chain -----//
-    run_markov_chain(true, progbar);
+    run_markov_chain(progbar);
 
     //----- Close progress bar -----//
-    screen::display_progress_bar_end("completed", progbar);
+    screen::progress_bar_end("end", progbar);
 
     //----- Close output file-----//
     close_inferstate_file();
@@ -499,11 +510,14 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
         screen::raise_error(
             "Number of rungs must be greater than 1.");
     }
+    // fix internal number of rungs
+    intern_num_rungs = num_rungs;
 
-    double marginal_loglike = 0.;
-    double delta_inv_temper = 0.;
-    double mean_loglike, delta_var_loglike;
-    double samp_var_corr = static_cast<double>(dgn_sample_size) / (dgn_sample_size - 1.);
+    ulong sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    long double sample_correc = static_cast<long double>(sample_size) / (sample_size - 1);
+    
+    long double d_inv_temper, mean_ll, d_var_ll;
+    long double marginal_loglike = 0.;
 
     //----- Backup user setup to restore them later -----//
     ulong bkp_num_chains = setup_num_chains;
@@ -517,19 +531,28 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
 
     intern_is_print_inferstate = false; // avoid printing
     intern_is_infer_complete = false;   // FIXME : what is this for then? WAIC?
+    intern_is_power_post = true;
+
+    //----- total number of mcmc sweeps -----//
+    intern_num_sweeps = intern_num_chain_sweeps * (intern_num_rungs + 1);
 
     //----- Start progress bar and clock -----//
-    screen::display_progress_bar_start("initializing", progbar);
-
-    // FIXME : improve
-    std::string progtxt = "powerpost";
+    screen::progress_bar_init("init", progbar);
 
     //==================//
     //===== RUNG 0 =====//
     //==================//
 
-    run_markov_chain(true, false);
-    screen::display_progress_bar(progtxt, 1, num_rungs + 1, progbar);
+    intern_rung = 0;
+    run_markov_chain(progbar, 0, true);
+
+    // FLAG
+    std::cerr << "\nr = " << intern_rung
+              << " | LL = " << dgn_loglike
+              << " | LL2 = " << dgn_sqr_loglike
+              << " | var = " << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc
+              << std::endl;
+    // FLAG-END
 
     //=====================//
     //===== RUNG >= 1 =====//
@@ -539,33 +562,38 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
 
     // UPDATE : linear approach can be improved (see literature)
     // trapezoidal rule to compute marginal likelihood with power posteriors
-    for (int r = 1; r <= num_rungs; r++)
+    for (intern_rung = 1; intern_rung <= intern_num_rungs; intern_rung++)
     {
         //----- store previous values (r - 1) -----//
-        delta_inv_temper = -setup_inv_temper;
-        mean_loglike = dgn_loglike;
-        delta_var_loglike = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr;
+        d_inv_temper = -setup_inv_temper;
+        mean_ll = dgn_loglike;
+        d_var_ll = (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc;
 
         //----- power posterior sampling -----//
-        setup_inv_temper = std::pow(static_cast<double>(r) / num_rungs, 5.);
-        run_markov_chain(false, false);
+        setup_inv_temper = std::pow(static_cast<double>(intern_rung) / intern_num_rungs, 5.);
+        run_markov_chain(progbar, intern_rung * intern_num_chain_sweeps, false);
 
         //----- store current values (r) -----//
-        delta_inv_temper += setup_inv_temper;
-        mean_loglike += dgn_loglike;
-        delta_var_loglike -= (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr;
+        d_inv_temper += setup_inv_temper;
+        mean_ll += dgn_loglike;
+        d_var_ll += (std::pow(dgn_loglike, 2) - dgn_sqr_loglike) * sample_correc;
 
         //----- trapezoidal rule to compute marginal likelihood -----//
-        marginal_loglike += mean_loglike * delta_inv_temper / 2.;
+        // higher order correction
+        marginal_loglike += mean_ll * d_inv_temper / 2. + d_var_ll * std::pow(d_inv_temper, 2) / 12.;
 
-        // correction
-        marginal_loglike += delta_var_loglike * std::pow(delta_inv_temper, 2) / 12.;
-
-        screen::display_progress_bar(progtxt, r + 1, num_rungs + 1, progbar);
+        // FLAG
+        std::cerr << "\nr = " << intern_rung
+                  << " | LL = " << dgn_loglike
+                  << " | LL2 = " << dgn_sqr_loglike
+                  << " | var = " << (dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc
+                  << " | sum = " << marginal_loglike
+                  << std::endl;
+        // FLAG-END
     }
 
     //----- Close progress bar -----//
-    screen::display_progress_bar_end("completed", progbar);
+    screen::progress_bar_end("end", progbar);
 
     //----- Restore user setup -----//
     setup_num_chains = bkp_num_chains;
@@ -599,8 +627,8 @@ void MCMC::show_results()
         //===============================//
 
         // compute WAIC
-        double samp_var_corr = static_cast<double>(dgn_sample_size) / (dgn_sample_size - 1.);
-        double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
+        long double sample_correc = static_cast<long double>(dgn_sample_size) / (dgn_sample_size - 1);
+        long double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
 
         //---- implement WAIC warning -----//
         // Ref: Vhetari et al. (2016) Stat Comput.
@@ -608,14 +636,14 @@ void MCMC::show_results()
         Large_p_WAIC_Warning = false; // note :print warning at every call
         bool is_p_waic_large = false;
 
-        const double p_waic_limit = 0.4;
+        const long double p_waic_limit = 0.4;
         unsigned p_waic_large_count = 0;
 
         // Loop over households
         for (int h = 0; h < num_househ; h++)
         {
             log_point_pred_dens += std::log(househ[h].dgn_likelihood);
-            p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * samp_var_corr;
+            p_waic = (househ[h].dgn_sqr_loglike - std::pow(househ[h].dgn_loglike, 2)) * sample_correc;
             if (p_waic > p_waic_limit)
             {
                 is_p_waic_large = true;
@@ -630,7 +658,7 @@ void MCMC::show_results()
             << "loglikelihood.mean" << C_DELIM
             << dgn_loglike
             << "\nloglikelihood.sd" << C_DELIM
-            << std::sqrt((dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * samp_var_corr)
+            << std::sqrt((dgn_sqr_loglike - std::pow(dgn_loglike, 2)) * sample_correc)
             << "\nlogpoint.predictive.density" << C_DELIM
             << log_point_pred_dens
             << "\neffective.parameters" << C_DELIM

@@ -127,8 +127,8 @@ namespace screen
         return oss.str();
     }
 
-    /* Start progress bar. */
-    void display_progress_bar_start(const std::string &txt, bool verbose)
+    /* Initialize progress bar. */
+    void progress_bar_init(const std::string &txt, bool verbose)
     {
         using namespace std::chrono;
 
@@ -150,8 +150,8 @@ namespace screen
 #endif
     }
 
-    /* Display a percentual progress bar (progress/total). */
-    void display_progress_bar(const std::string &txt, int progress, int total, bool verbose)
+    /* Percentual progress bar (progress/total). */
+    void progress_bar_run(const std::string &txt, int progress, int total, bool verbose)
     {
         using namespace std::chrono;
 
@@ -177,8 +177,8 @@ namespace screen
 #endif
     }
 
-    /*  End progress bar. */
-    void display_progress_bar_end(const std::string &txt, bool verbose)
+    /*  End the progress bar. */
+    void progress_bar_end(const std::string &txt, bool verbose)
     {
         using namespace std::chrono;
 

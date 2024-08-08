@@ -29,7 +29,7 @@ ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --simulate -d ${DATABASE} -o simulat
 ## Compute Loglikelihood
 
 ```
-${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} -d simulated.tmp -v
+${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --evaluate -d simulated.tmp -v
 ```
 
 ## Run Inference 
