@@ -19,7 +19,7 @@ class Model : public MCMC
 {
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;
-	double compute_single_house_loglike(int h) override;
+	double compute_house_loglike(int h) override;
 	void simulate_single_house(int h) override;
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;
 

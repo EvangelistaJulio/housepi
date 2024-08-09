@@ -89,7 +89,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_single_house_loglike(int h)
+double Model::compute_house_loglike(int h)
 {
 	double log_likelihood = 0;
 

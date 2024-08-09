@@ -44,7 +44,7 @@ protected:
 	bool setup_rnd_init_params = true; // random initialization of parameters
 	unsigned long long setup_seed = 1; // random generator seed
 
-	long double setup_inv_temper = 1.0; // inverse temperature
+	long double setup_inv_T = 1.0; // inverse temperature
 
 	//===== Household Data =====//
 	int num_indiv = 0;
@@ -112,32 +112,15 @@ public:
 	//===== EVALUATE =====//
 	void set_global_loglike(long double x) { global_loglike = x; };
 	long double get_global_loglike() const { return global_loglike; };
-	virtual double compute_single_house_loglike(int h);
+	virtual double compute_house_loglike(int h);
 	virtual long double compute_global_loglike();
 	long double evaluate();
 
 	//===== INFER =====//
 	virtual void init_model_for_inference() {};
 	virtual void init_single_chain() {};
-	void run_markov_chain(bool progbar, ulong sweep = 0, bool is_init_augm = true);
+	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_init_augm = true);
 	void infer(std::string output_filename, bool progbar = true);
-
-	//----- infer : Monte Carlo Markov Chain -----//
-	void init_move_counts();
-	void init_diagnostics();
-	void update_diagnostics();
-	void move_single_param(std::string parID);
-	void move_all_parameters();
-	void move_all_augm_variables();
-	void move_and_adapt_all_parameters(ulong step);
-
-	double get_augm_accept_rate(std::string augmID);
-	long double move_single_house_augm(int h);
-
-	//----- infer : save inference state -----//
-	void init_inferstate_file(std::string output_filename);
-	void print_inferstate();
-	void close_inferstate_file();
 
 	//===== POWER POSTERIORS (MARGINAL LOGLIKELIHOOD) =====//
 	double power_posteriors(int num_rungs, bool progbar = true);
@@ -152,31 +135,35 @@ public:
 	void print_augm_variables(std::string output_filename);
 
 private:
-	//===== Internal =====//
-
-	ulong intern_n_contacts = 0;
-
-	ulong intern_chain = 0;			   // current chain
-	ulong intern_sample_size = 0;	   // sample size
-	ulong intern_mcmc_sweeps = 0; // sweeps per chain
-	ulong intern_num_sweeps = 0;	   // total number of sweeps
-
-	ulong intern_rung = 0;
-	ulong intern_num_rungs = 0;
-
-	bool intern_is_power_post = false;		 // power posterior mode
-	bool intern_is_data_augm = false;		 // data augmentation mode
-	bool intern_is_infer_complete = false;	 // inference mode
-	bool intern_is_print_inferstate = false; // print inference state mode
-	std::vector<std::string> intern_data_headers = {};
-
-	//----- Global Loglikelihood -----//
+	//===== Global Loglikelihood =====//
 	long double global_loglike = 0.0;
 
+	//===== Internal =====//
+	ulong __n_contacts = 0; // number of contacts
+
+	ulong __chain = 0;			// current chain
+	ulong __sample_size = 0;	// sample size
+	ulong __mcmc_sweeps = 0;	// sweeps per chain
+	ulong __tot_num_sweeps = 0; // total number of sweeps
+
+	ulong __rung = 0;	   // current thermodynamic rung
+	ulong __num_rungs = 0; // number of rungs
+
+	bool __is_power_post = false;		// power posterior mode
+	bool __is_data_augm = false;		// data augmentation mode
+	bool __is_infer_complete = false;	// inference mode
+	bool __is_print_inferstate = false; // print inference state mode
+
+	std::vector<std::string> __data_headers = {};
+
 	//----- Diagnostics -----//
-	ulong dgn_sample_size = 0;		  // sample size
-	long double dgn_loglike = 0.;	  // sum of the loglikelihood
-	long double dgn_sqr_loglike = 0.; // sum of the squared loglikelihood
+	ulong dgn_sample = 0;		 // sample size
+	long double dgn_avg_ll = 0.; // sum of the loglikelihood
+	long double dgn_sqr_ll = 0.; // sum of the squared loglikelihood
+	long double dgn_var_ll()
+	{
+		return (dgn_sqr_ll - std::pow(dgn_avg_ll, 2)) * dgn_sample / (dgn_sample - 1);
+	}
 
 	//===== BUILD =====//
 
@@ -202,8 +189,26 @@ private:
 	sdargs typedict_to_sdargs(std::string token, int h, int i);
 	sdargs_ext typedict_to_sdargs_ext(std::string token);
 
-	//===== PROGRESS BAR =====//
+	//===== PRINTS =====//
 	std::string get_progtxt(std::string txt);
+
+	//----- infer : save inference state -----//
+	void inferstate_init(std::string output_filename);
+	void inferstate_print();
+	void inferstate_close();
+
+	//===== INFER : Monte Carlo Markov Chain =====//
+	void init_move_counts();
+	void init_diagnostics();
+	void update_diagnostics();
+
+	void move_single_param(std::string parID);
+	void move_and_adapt_all_parameters(ulong step);
+	void move_all_parameters();
+	void move_all_augm_variables();
+	long double move_single_house_augm(int h);
+
+	double get_augm_accept_rate(std::string augmID);
 };
 
 #endif // MCMC__H

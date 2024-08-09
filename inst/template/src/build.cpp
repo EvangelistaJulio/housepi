@@ -27,7 +27,7 @@ void MCMC::build(std::string setup_file, std::string params_file,
                  std::string extra_file, bool verbose)
 {
     //===== reset internal status =====//
-    intern_is_infer_complete = false;
+    __is_infer_complete = false;
 
     // 1) Load Setup (optional)
     build_setup(setup_file, verbose);
@@ -226,7 +226,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //=====Load column headers=====//
-            intern_data_headers = read_column_headers(input, required_headers, pathtofile);
+            __data_headers = read_column_headers(input, required_headers, pathtofile);
 
             //===== Drop all previous data =====//
             househ.clear();
@@ -236,7 +236,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
 
             //=====Load individuals from the row with values=====//
             std::vector<Individual> aux_individuals = {};
-            for (ssargs this_row = {}; read_row_by_headers(input, intern_data_headers, this_row); this_row.clear())
+            for (ssargs this_row = {}; read_row_by_headers(input, __data_headers, this_row); this_row.clear())
             {
 
                 Individual this_indiv(row_to_sdargs(this_row));
@@ -442,7 +442,7 @@ void MCMC::set_rate_per_contact(int h)
                 }
 
                 // count the total number of pairs
-                intern_n_contacts++;
+                __n_contacts++;
             }
         }
     }
@@ -525,7 +525,7 @@ void MCMC::show_group_classes()
         for (auto const &x : report_group_classes.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
-                << " " << percent(x.second, intern_n_contacts);
+                << " " << percent(x.second, __n_contacts);
         }
         oss << "\n";
     }
@@ -621,7 +621,7 @@ void MCMC::assign_augmented_variables()
             }
         }
     }
-    intern_is_data_augm = !augm_to_be_inferred.empty();
+    __is_data_augm = !augm_to_be_inferred.empty();
 
     // assign augmented variables to each individual
     for (int h = 0; h < num_househ; h++)
@@ -834,11 +834,11 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
             //===== INVERSE TEMPERATURE =====//
             if (safe_load.find("inv_temper") != safe_load.end())
             {
-                setup_inv_temper = std::stold(safe_load.at("inv_temper"));
-                if ((setup_inv_temper < 0.) || (setup_inv_temper > 1.))
+                setup_inv_T = std::stold(safe_load.at("inv_temper"));
+                if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
                 {
                     screen::raise_error(
-                        "Inverse temperature " + std::to_string(setup_inv_temper) + " out of range [0, 1]. Check your setup.");
+                        "Inverse temperature " + std::to_string(setup_inv_T) + " out of range [0, 1]. Check your setup.");
                 }
             }
         }
@@ -856,14 +856,14 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
     //===== Number of MCMC sweeps per single chain =====//
     // note : Euclidean division!
-    intern_mcmc_sweeps = setup_num_adapt / setup_thinning;
-    intern_mcmc_sweeps += setup_burn_in / setup_thinning;
-    intern_mcmc_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
-    intern_mcmc_sweeps *= setup_thinning * setup_num_chains;
+    __mcmc_sweeps = setup_num_adapt / setup_thinning;
+    __mcmc_sweeps += setup_burn_in / setup_thinning;
+    __mcmc_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
+    __mcmc_sweeps *= setup_thinning * setup_num_chains;
 
     //===== MCMC Sample Size =====//
-    dgn_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
-    dgn_sample_size *= setup_num_chains;
+    dgn_sample = (setup_num_iter - setup_burn_in) / setup_thinning;
+    dgn_sample *= setup_num_chains;
 
     //===== Display =====//
     if (verbose)
@@ -888,9 +888,9 @@ void MCMC::show_setup()
         << "\nnum_iter" << C_DELIM << setup_num_iter
         << "\nthinning" << C_DELIM << setup_thinning
         << "\nrnd_init_params" << C_DELIM << truth(setup_rnd_init_params);
-    if (setup_inv_temper != 1.)
+    if (setup_inv_T != 1.)
     {
-        oss << "\ninv_temper" << C_DELIM << setup_inv_temper;
+        oss << "\ninv_temper" << C_DELIM << setup_inv_T;
     }
     oss << "\n";
 
@@ -920,7 +920,7 @@ void MCMC::build_extra(std::string pathtofile, bool verbose)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the output file with inferred parameters with column names and initial values */
-void MCMC::init_inferstate_file(std::string output_filename)
+void MCMC::inferstate_init(std::string output_filename)
 {
     using namespace screen;
 
@@ -935,8 +935,8 @@ void MCMC::init_inferstate_file(std::string output_filename)
         if (inferstate_ofstream.is_open())
         {
             // FIXME : these states must be improved
-            intern_is_print_inferstate = true;
-            intern_is_infer_complete = false;
+            __is_print_inferstate = true;
+            __is_infer_complete = false;
 
             // print loglikelihood
             inferstate_ofstream << "loglike";
@@ -976,9 +976,9 @@ void MCMC::init_inferstate_file(std::string output_filename)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the model parameters at the given iteration time */
-void MCMC::print_inferstate()
+void MCMC::inferstate_print()
 {
-    if (intern_is_print_inferstate)
+    if (__is_print_inferstate)
     {
         if (inferstate_ofstream.is_open())
         {
@@ -1002,7 +1002,7 @@ void MCMC::print_inferstate()
             // print which chain
             if (setup_num_chains > 1)
             {
-                inferstate_ofstream << screen::C_DELIM << intern_chain;
+                inferstate_ofstream << screen::C_DELIM << __chain;
             }
 
             inferstate_ofstream << std::endl;
@@ -1015,10 +1015,10 @@ void MCMC::print_inferstate()
 }
 
 /* Close file with inferred parameters. */
-void MCMC::close_inferstate_file()
+void MCMC::inferstate_close()
 {
-    intern_is_print_inferstate = false;
-    intern_is_infer_complete = true;
+    __is_print_inferstate = false;
+    __is_infer_complete = true;
     inferstate_ofstream.close();
 }
 
@@ -1042,7 +1042,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             format_augmented_data();
 
             //===== Clean up data entries for output files =====//
-            std::vector<std::string> cols = intern_data_headers;
+            std::vector<std::string> cols = __data_headers;
 
             // remove index and house_index
             cols.erase(find(cols.begin(), cols.end(), "index"));
