@@ -127,7 +127,7 @@ void Model::init_model_for_inference()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_single_house_loglike(int h)
+double Model::compute_house_loglike(int h)
 {
 	int hh_size = househ[h].house_size;
 	int num_infec = househ[h].num_infectious;

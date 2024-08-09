@@ -96,7 +96,7 @@ public:
 	double get_infec_time(int h, int i) const override;
 
 	//----- Override Methods for Inference -----//
-	double compute_single_house_loglike(int h) override;
+	double compute_house_loglike(int h) override;
 
 	//----- Override Methods for Simulations -----//
 	void simulate_single_house(int h) override;

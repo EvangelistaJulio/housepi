@@ -96,8 +96,8 @@ private:
 	int house_index = -1;	// database index of household
 	sdargs house_data = {}; // database associated to household (manual)
 
-	double loglike = -INF_DOUBLE; // current log-likelihood value
-	double buffer = -INF_DOUBLE;  // buffer log-likelihood value
+	double house_loglike = -INF_DOUBLE; // current loglikelihood value
+	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
 
 	// accpetance rates for augmented variables
 	std::unordered_map<std::string, int> num_accept_augm_moves = {};
@@ -127,10 +127,10 @@ public:
 	std::set<int> missing_status_set = {};
 
 	//===== Diagnostics =====//
-	int dgn_sample_size = 0;	 // sample size
-	long double dgn_likelihood = 0.;	 // mean (house) likelihood
-	long double dgn_loglike = 0.;	 // mean (house) loglikelihood
-	long double dgn_sqr_loglike = 0.; // mean squared (house) loglikelihood
+	ulong dgn_sample = 0;			 // sample size
+	long double dgn_likelihood = 0.; // mean (house) likelihood
+	long double dgn_avg_ll = 0.;	 // mean (house) loglikelihood
+	long double dgn_sqr_ll = 0.;	 // mean squared (house) loglikelihood
 
 	//===== Constructors =====//
 	Household() {}
@@ -153,13 +153,13 @@ public:
 	double get_contact_rate(int from, int to) const { return (*contact_rates[from][to]); }
 
 	//====== Loglikelihood ======//
-	double get_loglike() const { return loglike; }
+	double get_loglike() const { return house_loglike; }
 	void set_loglike(double new_loglike)
 	{
-		buffer = loglike;
-		loglike = new_loglike;
+		buffer = house_loglike;
+		house_loglike = new_loglike;
 	}
-	void refuse() { loglike = buffer; }
+	void refuse() { house_loglike = buffer; }
 	void init_diagnostics(int sample_size);
 	void update_diagnostics();
 

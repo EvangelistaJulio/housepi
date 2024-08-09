@@ -307,7 +307,7 @@ double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_single_house_loglike(int h)
+double Model::compute_house_loglike(int h)
 {
 	double loglike_house = 0.0;
 	double t0 = get_infec_time(h, househ[h].first_case);
