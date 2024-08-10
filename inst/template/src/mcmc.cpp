@@ -324,20 +324,23 @@ void MCMC::init_diagnostics()
 /* Update Bayesian diagnostics */
 void MCMC::update_diagnostics()
 {
-    // diagnostics for all parameters
-    update_param_diagnostics();
-
-// diagnostics over households
-#pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; h++)
+    if (!__is_power_post)
     {
-        househ[h].update_diagnostics();
+        // diagnostics for all parameters
+        update_param_diagnostics();
+
+        // diagnostics over households
+#pragma omp parallel for default(shared)
+        for (int h = 0; h < num_househ; h++)
+        {
+            househ[h].update_diagnostics();
+        }
     }
 
-    // (global) loglikelihood
+    // average (global) loglikelihood
     dgn_avg_ll += global_loglike / dgn_sample;
 
-    // mean squared (global) loglikelihood
+    // average squared (global) loglikelihood
     dgn_sqr_ll += std::pow(global_loglike, 2) / dgn_sample;
 }
 
@@ -468,6 +471,8 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
             screen::progress_bar_run(progtxt, sweep, __tot_num_sweeps, progbar);
         }
     }
+
+    close_diagnostics();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -509,19 +514,16 @@ void MCMC::infer(std::string output_file, bool progbar)
 /////////////////////////////////////  MCMC : power posteriors  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Use Metropolis-Hastings MCMC to conmpute marginal likelihood with power posteriors. */
-double MCMC::power_posteriors(int num_rungs, bool progbar)
+/* Use Metropolis-Hastings MCMC to evaluate marginal likelihood with power posteriors. */
+double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions)
 {
-    // Ref 1. Friel, N., Hurn, M. & Wyse, J. Improving power posterior estimation of statistical evidence. Stat Comput 24, 709–723 (2014).
-
-    // FLAG
-    progbar = false;
-    // FLAG-END
+    /* Ref: Friel, N., Hurn, M. & Wyse, J.
+    Improving power posterior estimation of statistical evidence.
+    Stat Comput 24, 709–723 (2014).*/
 
     if (num_rungs < 2)
     {
-        screen::raise_error(
-            "Number of rungs must be greater than 1.");
+        screen::raise_error("Number of rungs must be greater than 1.");
     }
     else
     {
@@ -533,6 +535,12 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
     bool bkp_rnd_init_params = setup_rnd_init_params;
     long double bkp_inv_T = setup_inv_T;
 
+    //----- Thermodynamic ladder estimates -----//
+    bool is_right = false;
+    std::vector<long double> inv_t = {};  // inverse temperature
+    std::vector<long double> avg_ll = {}; // mean loglikelihood
+    std::vector<long double> var_ll = {}; // variance loglikelihood
+
     //----- Fix internal states -----//
     __is_print_inferstate = false; // avoid printing
     __is_infer_complete = false;   // showing results becomes meaningless
@@ -540,12 +548,6 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
 
     //----- Total number of mcmc sweeps -----//
     __tot_num_sweeps = __mcmc_sweeps * (__num_rungs + 1);
-
-    //----- Thermodynamic ladder estimates -----//
-    bool is_right = false;
-    std::vector<long double> inv_t = {};  // inverse temperature
-    std::vector<long double> avg_ll = {}; // mean loglikelihood
-    std::vector<long double> var_ll = {}; // variance loglikelihood
 
     //----- Start progress bar and chrono -----//
     screen::progress_bar_init("init", progbar);
@@ -561,137 +563,78 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
     inv_t.push_back(setup_inv_T);
     avg_ll.push_back(dgn_avg_ll);
     var_ll.push_back(dgn_var_ll());
-
-    // FLAG
-    std::cerr << "\n"
-              << __rung << ")"
-              << " it = " << inv_t[0]
-              << " | avg_ll = " << avg_ll[0]
-              << " | var_ll = " << var_ll[0]
-              << "\n"
-              << std::endl;
-    // FLAG-END
-
-    //=================================//
-    //===== INVERSE TEMPERATURE 1 =====//
-    //=================================//
-
-    setup_rnd_init_params = true;
-    __rung = 1;
-    setup_inv_T = 1.;
-    run_monte_carlo(progbar, __mcmc_sweeps, true);
-    inv_t.push_back(setup_inv_T);
-    avg_ll.push_back(dgn_avg_ll);
-    var_ll.push_back(dgn_var_ll());
-
-    // FLAG
-    std::cerr << "\n"
-              << __rung << ")"
-              << " it = " << inv_t[1]
-              << " | avg_ll = " << avg_ll[1]
-              << " | var_ll = " << var_ll[1]
-              << "\n"
-              << std::endl;
-    // FLAG-END
-
-    //=================================//
-    //===== INVERSE TEMPERATURE 1 =====//
-    //=================================//
-
     setup_rnd_init_params = false;
-    size_t k = 0;
 
-    // trapezoidal rule to compute marginal likelihood with power posteriors
-    while (__rung < __num_rungs)
+    // thermodynamic ladder: use modified power fractions or adaptive scheme
+    if (power_fractions)
     {
-        __rung++;
+        //==================================//
+        //===== POWER FRACTIONS LADDER =====//
+        //==================================//
 
-        //----- adaptive choice of inverse temperature -----//
-        setup_inv_T = (avg_ll[k + 1] - inv_t[k + 1] * var_ll[k + 1] - avg_ll[k] + inv_t[k] * var_ll[k]) / (var_ll[k] - var_ll[k + 1]);
-        
-        // FLAG
-        std::cerr << "\n" << setup_inv_T
-                  << std::endl;
-        // FLAG-END
-
-        if ((setup_inv_T <= inv_t[k]) || (setup_inv_T >= inv_t[k + 1]))
+        //----- Inverse Temperatures (0, 1] -----//
+        for (__rung = 1; __rung < __num_rungs; __rung++)
         {
-            // FLAG
-            std::cerr << "\n MEANY"
-                      << std::endl;
-            // FLAG-END
-            setup_inv_T = inv_t[k] + var_ll[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_ll[k] + var_ll[k + 1]);
+            setup_inv_T = std::pow(static_cast<long double>(__rung) / (__num_rungs - 1), 5);
+            run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
+            inv_t.push_back(setup_inv_T);
+            avg_ll.push_back(dgn_avg_ll);
+            var_ll.push_back(dgn_var_ll());
         }
+    }
+    else
+    {
+        //===========================//
+        //===== ADAPTIVE LADDER =====//
+        //===========================//
 
-        //----- power posterior sampling -----//
-        run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
+        //----- Inverse Temperature 1 -----//
+        __rung = 1;
+        setup_inv_T = 1.;
+        run_monte_carlo(progbar, __mcmc_sweeps, true);
+        inv_t.push_back(setup_inv_T);
+        avg_ll.push_back(dgn_avg_ll);
+        var_ll.push_back(dgn_var_ll());
 
-        //----- find larger rectangular discretization error -----//
-        is_right = (inv_t[k + 1] - setup_inv_T) * (avg_ll[k + 1] - dgn_avg_ll) > (setup_inv_T - inv_t[k]) * (dgn_avg_ll - avg_ll[k]);
-
-        // FLAG
-        std::cerr << "\n"
-                  << "is_right = " << is_right << " | "
-                  << "(" << inv_t[k + 1] << " - " << setup_inv_T << ") * " << (avg_ll[k + 1] - dgn_avg_ll)
-                  << " ?> "
-                  << "(" << setup_inv_T << " - " << inv_t[k] << ") * " << (dgn_avg_ll - avg_ll[k])
-                  << std::endl;
-        // FLAG-END
-
-        //----- insert in-between for all lists -----//
-        inv_t.insert(inv_t.begin() + k + 1, setup_inv_T);
-        avg_ll.insert(avg_ll.begin() + k + 1, dgn_avg_ll);
-        var_ll.insert(var_ll.begin() + k + 1, dgn_var_ll());
-
-        // FLAG
-        std::cerr << "\n"
-                  << "<< ";
-        for (const auto &x : inv_t)
+        //----- Inverse Temperatures (0, 1) -----//
+        size_t k = 0; // index to interval lower bound
+        while (__rung < __num_rungs)
         {
-            std::cerr << x << ", ";
-        }
-        std::cerr << " >>" << std::endl;
-        // FLAG-END
+            __rung++;
 
-        // move index to inserted if right interval is chosen
-        k += (is_right);
+            //----- adaptive choice of inverse temperature -----//
+            // intersection between tangents
+            setup_inv_T = (avg_ll[k + 1] - inv_t[k + 1] * var_ll[k + 1] - avg_ll[k] + inv_t[k] * var_ll[k]) / (var_ll[k] - var_ll[k + 1]);
 
-        // FLAG
-        if (is_right)
-        {
-            std::cerr << "\n"
-                      << __rung << ")"
-                      << " it = " << inv_t[k]
-                      << " | avg_ll = " << avg_ll[k]
-                      << " | var_ll = " << var_ll[k]
-                      << " (RIGHT " << k << ")"
-                      << "\n"
-                      << std::endl;
-        }
-        else
-        {
-            std::cerr << "\n"
-                      << __rung << ")"
-                      << " it = " << inv_t[k + 1]
-                      << " | avg_ll = " << avg_ll[k + 1]
-                      << " | var_ll = " << var_ll[k + 1]
-                      << " (LEFT " << k << ")"
-                      << "\n"
-                      << std::endl;
-        }
+            // otherwise weighted average
+            if ((setup_inv_T <= inv_t[k]) || (setup_inv_T >= inv_t[k + 1]))
+            {
+                setup_inv_T = inv_t[k] + var_ll[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_ll[k] + var_ll[k + 1]);
+            }
 
-        // FLAG-END
+            //----- power posterior sampling -----//
+            run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
+
+            //----- find larger rectangular discretization error -----//
+            is_right = (inv_t[k + 1] - setup_inv_T) * (avg_ll[k + 1] - dgn_avg_ll) > (setup_inv_T - inv_t[k]) * (dgn_avg_ll - avg_ll[k]);
+
+            //----- insert in-between for all lists -----//
+            inv_t.insert(inv_t.begin() + k + 1, setup_inv_T);
+            avg_ll.insert(avg_ll.begin() + k + 1, dgn_avg_ll);
+            var_ll.insert(var_ll.begin() + k + 1, dgn_var_ll());
+
+            // if right interval is chosen, index points to inserted as lower bound
+            k += (is_right);
+        }
     }
 
     //----- trapezoidal rule to compute marginal likelihood -----//
-    long double d_inv_t, marginal_loglike = 0.;
+    long double d_inv_t, output = 0.;
     for (int k = 0; k < num_rungs; k++)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];
-        marginal_loglike += (avg_ll[k + 1] + avg_ll[k]) * d_inv_t / 2. - (var_ll[k + 1] - var_ll[k]) * std::pow(d_inv_t, 2) / 12.;
+        output += (avg_ll[k + 1] + avg_ll[k]) * d_inv_t / 2 - (var_ll[k + 1] - var_ll[k]) * std::pow(d_inv_t, 2) / 12;
     }
-
-    
 
     //----- Close progress bar -----//
     screen::progress_bar_end("end", progbar);
@@ -700,7 +643,7 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
     setup_inv_T = bkp_inv_T;
     setup_rnd_init_params = bkp_rnd_init_params;
 
-    return marginal_loglike;
+    return output;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -710,73 +653,65 @@ double MCMC::power_posteriors(int num_rungs, bool progbar)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Display results as sampled during iterations. */
-void MCMC::show_results()
+/* Compute diagnostics at the end of inference. */
+void MCMC::close_diagnostics()
+{
+    if (!__is_power_post)
+    {
+        //---- compute WAIC and implement warning -----//
+        // Ref: Vhetari et al. (2016) Stat Comput.
+
+        const long double p_waic_limit = 0.4;
+        ulong count_p_waic_large = 0;
+
+        // Loop over households        
+#pragma omp parallel for reduction(+ : dgn_lppd, dgn_eff_pars, count_p_waic_large)
+        for (int h = 0; h < num_househ; h++)
+        {
+            long double p_waic = househ[h].dgn_var_ll();
+
+            dgn_lppd += std::log(househ[h].dgn_likelihood);
+            dgn_eff_pars += p_waic;
+            count_p_waic_large += (p_waic > p_waic_limit);
+        }
+
+        //----- empirical WAIC warning -----//
+        if (count_p_waic_large > 0)
+        {
+            std::ostringstream oss;
+            oss << screen::percent(count_p_waic_large, num_househ)
+                << " p_waic estimates greater than " << p_waic_limit << "."
+                << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
+            screen::raise_warning(oss.str(), Large_p_WAIC_Warning);
+        }
+    }
+}
+
+/* Display diagnostics as sampled during iterations. */
+void MCMC::show_diagnostics()
 {
     using namespace screen;
 
     if (!__is_infer_complete)
     {
-        raise_warning("Ignored attempt to show results before inference.",
+        raise_warning("Ignored attempt to show diagnostics before inference.",
                       Inconmplete_Infer_Diagnostics_Warning);
     }
     else
     {
-        //===============================//
-        //===== Compute Diagnostics =====//
-        //===============================//
-
-        // compute WAIC
-        long double sample_correc = static_cast<long double>(dgn_sample) / (dgn_sample - 1);
-        long double p_waic = 0., log_point_pred_dens = 0., effec_num_params_waic = 0.;
-
-        //---- implement WAIC warning -----//
-        // Ref: Vhetari et al. (2016) Stat Comput.
-
-        Large_p_WAIC_Warning = false; // note :print warning at every call
-        bool is_p_waic_large = false;
-
-        const long double p_waic_limit = 0.4;
-        unsigned p_waic_large_count = 0;
-
-        // Loop over households
-        for (int h = 0; h < num_househ; h++)
-        {
-            log_point_pred_dens += std::log(househ[h].dgn_likelihood);
-            p_waic = (househ[h].dgn_sqr_ll - std::pow(househ[h].dgn_avg_ll, 2)) * sample_correc;
-            if (p_waic > p_waic_limit)
-            {
-                is_p_waic_large = true;
-                p_waic_large_count++;
-            }
-            effec_num_params_waic += p_waic;
-        }
-
-        // diagnostics (sampled every thinning iteration)
         std::ostringstream oss;
         oss << std::setprecision(2) << std::fixed
             << "loglikelihood_mean" << C_DELIM
             << dgn_avg_ll
             << "\nloglikelihood_sd" << C_DELIM
-            << std::sqrt((dgn_sqr_ll - std::pow(dgn_avg_ll, 2)) * sample_correc)
-            << "\nlogpoint_predictive_density" << C_DELIM
-            << log_point_pred_dens
+            << dgn_var_ll()
+            << "\nlog_pointwise_predictive_density" << C_DELIM
+            << dgn_lppd
             << "\neffective_parameters" << C_DELIM
-            << effec_num_params_waic
+            << dgn_eff_pars
             << "\nWAIC" << C_DELIM
-            << 2 * (effec_num_params_waic - log_point_pred_dens);
+            << 2 * (dgn_eff_pars - dgn_lppd);
         print_stdout(oss.str() + "\n");
-
-        // FIXME : this should be computed alone
-        // practical WAIC warning
-        if (is_p_waic_large == true)
-        {
-            std::ostringstream oss;
-            oss << percent(p_waic_large_count, num_househ)
-                << " p_waic estimates greater than " << p_waic_limit << "."
-                << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
-            raise_warning(oss.str(), Large_p_WAIC_Warning);
-        }
     }
 }
 
@@ -853,8 +788,8 @@ void MCMC::show_parameters()
     print_stdout(oss.str() + "\n");
 }
 
-/* display the diagnostics */
-void MCMC::show_param_diagnostics()
+/* display the paramter results */
+void MCMC::show_param_results()
 {
     using namespace screen;
 
@@ -872,40 +807,3 @@ void MCMC::show_param_diagnostics()
 
     print_stdout(oss.str() + "\n");
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : methods (Rcpp) ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef USE_RCPP
-Rcpp::List MCMC::return_setup()
-{
-    using namespace Rcpp;
-    List output;
-
-    output = List::create(
-        _["seed"] = setup_seed,
-        _["num_threads"] = get_num_threads(),
-        _["num_chains"] = setup_num_chains,
-        _["num_adapt"] = setup_num_adapt,
-        _["burn_in"] = setup_burn_in,
-        _["num_iter"] = setup_num_iter,
-        _["thinning"] = setup_thinning,
-        _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
-
-    if (setup_inv_T != 1.)
-    {
-        output["inv_temper"] = setup_inv_T;
-    }
-
-    return output;
-}
-
-#endif

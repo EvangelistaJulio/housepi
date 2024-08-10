@@ -186,9 +186,9 @@ int main(int argc, char *argv[])
         if (verbose)
         {
             display_decorator("Inference::results", '-', UNDEFINED);
-            user_model.show_param_diagnostics();
+            user_model.show_param_results();
             display_decorator("Inference::diagnostics", '-', UNDEFINED);
-            user_model.show_results();
+            user_model.show_diagnostics();
         }
 
         if (save_augm_file != UNDEFINED)
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
     else if (is_marginal)
     { //===== Power Posteriors =====//
         display_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
-        print_stdout(std::to_string(user_model.power_posteriors(num_rungs)) + "\n");
+        print_stdout(std::to_string(user_model.evaluate_marginal(num_rungs)) + "\n");
     }
 
     return EXIT_SUCCESS;

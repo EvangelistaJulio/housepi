@@ -7,6 +7,7 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool Param_Infer_Fixed_Move_Warning = false;
 bool Unknown_Status_Warning = false;       // unknown status
 bool Fix_Init_Mult_Chains_Warning = false; // fixed paramter values when multiple chains
 bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
@@ -18,8 +19,299 @@ bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+// declaration for type in data file
+const std::string TYPE_PARAM = "P";   // Parameter type declaration
+const std::string TYPE_DATA = "D";    // Data type declaration
+const std::string TYPE_SCALAR = "S";  // Scalar type declaration
+const std::string TYPE_COMMAND = "C"; // Command type declaration
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  MCMC : methods (auxiliary functions)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Cleaner std::string from forbidden characters. */
+std::string MCMC::string_cleaner(std::string token)
+{
+    for (char r : {'"', '\r', '\n'})
+    {
+        token.erase(remove(token.begin(), token.end(), r), token.end());
+    }
+    return token;
+}
+
+/* Convert string to boolean variable. */
+bool MCMC::stobool(std::string token)
+{
+    bool output = false;
+
+    if (token == "TRUE" || token == "true" || token == "True" || token == "1")
+    {
+        output = true;
+    }
+    else if (token != "FALSE" && token != "false" && token != "False" && token != "0")
+    {
+        screen::raise_error("Unrecognized boolean value for `" + token + "`.");
+    }
+
+    return output;
+}
+
+/* Parse the dictionary from the string. */
+ssargs MCMC::parse_dict_string(std::string token)
+{
+    std::istringstream args_ss(token);
+    std::vector<std::string> args_stock;
+    ssargs output = {};
+    std::string tmp;
+
+    // rea the entryes of the dictionary
+    while (getline(args_ss, tmp, screen::C_DICT_DELIM))
+    {
+        args_stock.push_back(tmp);
+    }
+    if (args_stock.size() == 0)
+    {
+        output.clear(); // empty dictionary
+    }
+    else if (args_stock.size() % 2 == 1)
+    {
+        screen::raise_error("Incomplete dictionary: " + token + ".");
+    }
+    else
+    {
+        for (std::size_t i = 0; i < args_stock.size(); i += 2)
+        {
+            try
+            {
+                output.emplace(args_stock[i], args_stock[i + 1]);
+            }
+            catch (const std::exception &)
+            {
+                screen::raise_error("Invalid entry of dictionary: " + token + ".");
+            }
+        }
+    }
+
+    return output;
+}
+
+/* Parse the scalar arguments dictionary from the std::string */
+sdargs MCMC::parse_dict_args(std::string token)
+{
+    ssargs input = parse_dict_string(token);
+    sdargs output = {};
+    for (auto const &x : input)
+    {
+        output.emplace(x.first, std::stod(x.second));
+    }
+    return output;
+}
+
+/* Read column headers */
+std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
+                                                   std::vector<std::string> required_headers,
+                                                   std::string pathtofile)
+{
+    std::string line, token;
+    getline(input, line);
+    std::istringstream iss(line);
+    std::vector<std::string> headers = {};
+
+    while (getline(iss, token, screen::C_DELIM))
+    {
+        headers.push_back(string_cleaner(token));
+    }
+
+    // check that all required headers are present
+    if (!required_headers.empty())
+    {
+        bool is_missing = false;
+        std::ostringstream oss;
+
+        // check the validity of the headers
+        for (std::string req : required_headers)
+        {
+            if (std::find(headers.begin(), headers.end(), req) == headers.end())
+            {
+                if (!is_missing)
+                {
+                    oss << "Missing column(s): `" + req + "`";
+                }
+                else
+                {
+                    screen::raise_error(", `" + req + "`");
+                }
+                is_missing = true;
+            }
+        }
+
+        if (is_missing)
+        {
+            // point to the faulty file
+            if (pathtofile != UNDEFINED)
+            {
+                oss << "\nPlease check file: " << pathtofile;
+            }
+
+            // raise the error
+            screen::raise_error(oss.str());
+        }
+    }
+
+    return headers;
+}
+
+/* Load files from the row with headers */
+bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row)
+{
+    std::string line, token;
+    if (getline(input, line))
+    {
+        std::istringstream iss(line);
+        int num_cols = 0;
+
+        while (getline(iss, token, screen::C_DELIM))
+        {
+            this_row.emplace(headers[num_cols], string_cleaner(token));
+            num_cols++;
+        }
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/* convert the output of a row to a string-to-double dictionary */
+sdargs MCMC::row_to_sdargs(ssargs &this_row)
+{
+    sdargs row_with_double = {};
+    for (auto const &x : this_row)
+    {
+        row_with_double.emplace(x.first, stod(x.second));
+    }
+    return row_with_double;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Convert a type-string to a double */
+double MCMC::type_to_double(std::string token, int h, int i)
+{
+    double output = INF_DOUBLE; // default value
+
+    // Note : when does it make sense to have token == UNDEFINED ?
+    if (token != UNDEFINED)
+    {
+        int pos = token.find(screen::C_OPTION_DELIM);
+        std::string k = token.substr(0, pos);
+        std::string v = token.substr(pos + 1);
+
+        if (k == TYPE_SCALAR)
+        {
+            output = std::stod(v);
+        }
+        else if (k == TYPE_DATA)
+        {
+            househ[h].indiv[i].assert_data(v);
+            output = househ[h].indiv[i].get_data(v);
+        }
+        else if (k == TYPE_PARAM)
+        {
+            assert_param(v);
+            if (get_infer(v))
+            {
+                std::ostringstream oss;
+                oss << "The parameter `" << v << "` is chosen for a fixed value move."
+                    << "Eventual changes of the parameter will not affect the move.";
+                screen::raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
+            }
+            output = get_value(v);
+        }
+        else if (k == TYPE_COMMAND)
+        {
+            if (v != "default")
+            {
+                screen::raise_error("Unknown command `" + v + "`.");
+            }
+        }
+        else
+        {
+            screen::raise_error("Unknown variable type specifier `" + k + "`.");
+        }
+    }
+
+    return output;
+}
+
+/* Convert a type-string to a double-pointer */
+const double *MCMC::type_to_doubleptr(std::string token)
+{
+    const double *output = nullptr;
+
+    if (token != UNDEFINED)
+    {
+        int pos = token.find(screen::C_OPTION_DELIM);
+        std::string k = token.substr(0, pos);
+        std::string v = token.substr(pos + 1);
+        if (k == TYPE_PARAM)
+        {
+            assert_param(v);
+            output = get_address(v);
+        }
+        else
+        {
+            std::ostringstream oss;
+            oss << "Unsopported type specifier `" + k + "` found while loading `" << token << "`. "
+                << "Expected type specifier `" << TYPE_PARAM << "` instead.";
+            screen::raise_error(oss.str());
+        }
+    }
+
+    return output;
+}
+
+/* Convert a string with type-dictionary to string-to-double */
+sdargs MCMC::typedict_to_sdargs(std::string token, int h, int i)
+{
+    sdargs output = {};
+    if (token != UNDEFINED)
+    {
+        ssargs input = parse_dict_string(token);
+        for (auto const &x : input)
+        {
+            output.emplace(x.first, type_to_double(x.second, h, i));
+        }
+    }
+    return output;
+}
+
+/* Convert a string with type-dictionary to string-to-double-pointer */
+sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token)
+{
+    sdargs_ext output = {};
+    if (token != UNDEFINED)
+    {
+        ssargs input = parse_dict_string(token);
+        for (auto const &x : input)
+        {
+            output.emplace(x.first, type_to_doubleptr(x.second));
+        }
+    }
+    return output;
+}
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  MCMC : build  ///////////////////////////////////////////
+////////////////////////////////////////  MCMC : BUILD  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::build(std::string setup_file, std::string params_file,
@@ -380,9 +672,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 /////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Set contact rate according to user assignement.
-FIXME : is it necessary occupy this space even if all REFERENCE?
-*/
+/* Set contact rate according to user assignement. */
 void MCMC::set_rate_per_contact(int h)
 {
     // allocate contact patterns
@@ -445,94 +735,6 @@ void MCMC::set_rate_per_contact(int h)
                 __n_contacts++;
             }
         }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print the report of the database and of the model group rates. */
-void MCMC::show_summary()
-{
-    using namespace screen;
-
-    //===== PRINT =====//
-
-    std::ostringstream oss;
-
-    oss << "n. of individuals: " << num_indiv
-        << "\n    * n. of cases: " << report_data["n.cases"]
-        << " " << percent(report_data["n.cases"], num_indiv);
-    if (report_data["n.miss.stat"] > 0)
-    {
-        oss << "\n    * n. of missing status : " << report_data["n.miss.stat"]
-            << " " << percent(report_data["n.miss.stat"], num_indiv);
-    }
-
-    oss << "\nn. of households: " << num_househ;
-    if (report_data["no.HH.case"] > 0)
-    {
-        oss << "\n    * with no cases: " << report_data["no.HH.case"]
-            << " " << percent(report_data["no.HH.case"], num_househ);
-    }
-
-    oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
-        << " " << percent(report_data["lst.1.case"], num_househ);
-    if (report_data["lst.1.case"] > 0)
-    {
-        oss << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
-            << " " << percent(report_data["lst.2.case"], num_househ);
-    }
-
-    oss << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
-        << " " << percent(report_data["n.HH.with.max.cases"], num_househ)
-        << "\nmin n. house members: " << report_data["min.HH.size"]
-        << " " << percent(report_data["n.HH.with.min.size"], num_househ)
-        << "\nmax n. house members: " << report_data["max.HH.size"]
-        << " " << percent(report_data["n.HH.with.max.size"], num_househ);
-
-    print_stdout(oss.str() + "\n");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : show report  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Display model report. */
-void MCMC::show_group_classes()
-{
-    using namespace screen;
-
-    std::ostringstream oss;
-    for (const auto &entry : report_group_classes)
-    {
-        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
-        {
-            oss << entry.first << ":";
-            for (auto const &x : entry.second)
-            {
-                oss << "\n    * " << x.first << ": " << x.second
-                    << " " << percent(x.second, num_indiv);
-            }
-            oss << "\n";
-        }
-    }
-
-    if (report_group_classes.at(CONTACT_RATE).find(EMPTY_RATE) != report_group_classes.at(CONTACT_RATE).end())
-    {
-        oss << CONTACT_RATE << ":";
-        for (auto const &x : report_group_classes.at(CONTACT_RATE))
-        {
-            oss << "\n    * " << x.first << ": " << x.second
-                << " " << percent(x.second, __n_contacts);
-        }
-        oss << "\n";
-    }
-
-    if (oss.str().size() > 0)
-    {
-        screen::print_stdout(oss.str());
     }
 }
 
@@ -650,19 +852,22 @@ void MCMC::assign_augmented_variables()
 /* Initialize augmented variable for all individuals */
 void MCMC::init_augmented_variables(bool is_init)
 {
-    if ((is_init) && (!load_augm_definition.empty()))
+    if (is_init)
     {
-        //=====assign augmented variables to all individuals=====//
-        assign_augmented_variables();
-
-        //=====random initialization on demand=====//
-        for (std::string augmID : augm_rand_init_set)
+        if (!load_augm_definition.empty())
         {
-            for (int h = 0; h < num_househ; h++)
+            //==== assign augmented variables to all individuals =====//
+            assign_augmented_variables();
+
+            //===== random initialization on demand =====//
+            for (std::string augmID : augm_rand_init_set)
             {
-                for (int i = 0; i < househ[h].house_size; i++)
+                for (int h = 0; h < num_househ; h++)
                 {
-                    househ[h].indiv[i].init_augm(augmID, get_prng());
+                    for (int i = 0; i < househ[h].house_size; i++)
+                    {
+                        househ[h].indiv[i].init_augm(augmID, get_prng());
+                    }
                 }
             }
         }
@@ -873,30 +1078,6 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     }
 }
 
-/* Display the complete choices for the setup. */
-void MCMC::show_setup()
-{
-    using namespace screen;
-
-    // common setup variables
-    std::ostringstream oss;
-    oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_threads" << C_DELIM << get_num_threads()
-        << "\nnum_chains" << C_DELIM << setup_num_chains
-        << "\nnum_adapt" << C_DELIM << setup_num_adapt
-        << "\nburn_in" << C_DELIM << setup_burn_in
-        << "\nnum_iter" << C_DELIM << setup_num_iter
-        << "\nthinning" << C_DELIM << setup_thinning
-        << "\nrnd_init_params" << C_DELIM << truth(setup_rnd_init_params);
-    if (setup_inv_T != 1.)
-    {
-        oss << "\ninv_temper" << C_DELIM << setup_inv_T;
-    }
-    oss << "\n";
-
-    print_stdout(oss.str());
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : build extra  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -906,200 +1087,4 @@ void MCMC::build_extra(std::string pathtofile, bool verbose)
 {
     UNUSED(pathtofile);
     UNUSED(verbose);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : init param file  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize the output file with inferred parameters with column names and initial values */
-void MCMC::inferstate_init(std::string output_filename)
-{
-    using namespace screen;
-
-    if (output_filename == UNDEFINED)
-    {
-        raise_error("Undefined output file.");
-    }
-    else
-    {
-        inferstate_ofstream.open(output_filename.c_str());
-
-        if (inferstate_ofstream.is_open())
-        {
-            // FIXME : these states must be improved
-            __is_print_inferstate = true;
-            __is_infer_complete = false;
-
-            // print loglikelihood
-            inferstate_ofstream << "loglike";
-
-            /*
-            // augmented variable acceptance rate
-            for (std::string augmID : augm_to_be_inferred)
-            {
-                inferstate_ofstream << C_DELIM << "augm_" << augmID << "__a%";
-            }
-            */
-
-            for (std::string parID : param_to_be_inferred)
-            {
-                inferstate_ofstream << C_DELIM << parID;
-                // variable acceptance rate
-                // << C_DELIM << parID << "__a%";
-            }
-
-            // which chain
-            if (setup_num_chains > 1)
-            {
-                inferstate_ofstream << C_DELIM << "CHAIN__";
-            }
-
-            inferstate_ofstream << std::endl;
-        }
-        else
-        {
-            raise_error("Unable to open file: " + output_filename);
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : print parameters  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print the model parameters at the given iteration time */
-void MCMC::inferstate_print()
-{
-    if (__is_print_inferstate)
-    {
-        if (inferstate_ofstream.is_open())
-        {
-            // print loglikelihood
-            inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
-
-            /*
-            for (std::string augmID : augm_to_be_inferred)
-            {
-                inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_augm_accept_rate(augmID);
-            }
-            */
-
-            // print parameter values
-            for (std::string parID : param_to_be_inferred)
-            {
-                inferstate_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
-                // inferstate_ofstream << C_DELIM << std::setprecision(2) << std::fixed << 100.0 * get_accept_rate(parID);
-            }
-
-            // print which chain
-            if (setup_num_chains > 1)
-            {
-                inferstate_ofstream << screen::C_DELIM << __chain;
-            }
-
-            inferstate_ofstream << std::endl;
-        }
-        else
-        {
-            screen::raise_error("Output file closed unexpectedly.");
-        }
-    }
-}
-
-/* Close file with inferred parameters. */
-void MCMC::inferstate_close()
-{
-    __is_print_inferstate = false;
-    __is_infer_complete = true;
-    inferstate_ofstream.close();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : print augm variables  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(std::string save_augm_pathtofile)
-{
-    using namespace screen;
-
-    if (save_augm_pathtofile != UNDEFINED)
-    {
-        std::ofstream augm_ofstream;
-        augm_ofstream.open(save_augm_pathtofile.c_str());
-
-        if (augm_ofstream.is_open())
-        {
-            //===== Change format of augmented data =====//
-            format_augmented_data();
-
-            //===== Clean up data entries for output files =====//
-            std::vector<std::string> cols = __data_headers;
-
-            // remove index and house_index
-            cols.erase(find(cols.begin(), cols.end(), "index"));
-            cols.erase(find(cols.begin(), cols.end(), "house_index"));
-
-            // eventually remove status
-            cols.erase(remove(cols.begin(), cols.end(), "index"), cols.end());
-
-            // eventually remove data called like augmented variables
-            for (std::string augmID : augm_full_set)
-            {
-                cols.erase(remove(cols.begin(), cols.end(), augmID), cols.end());
-            }
-
-            //===== Print column headers =====//
-            // default headers
-            augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
-
-            // data headers
-            for (std::string dataID : cols)
-            {
-                augm_ofstream << C_DELIM << dataID;
-            }
-
-            // augmented variables headers
-            for (std::string augmID : augm_full_set)
-            {
-                augm_ofstream << C_DELIM << augmID;
-            }
-
-            augm_ofstream << std::endl;
-
-            //===== Print data and augmented variables =====//
-            for (int h = 0; h < num_househ; h++)
-            {
-                for (int i = 0; i < househ[h].house_size; i++)
-                {
-                    augm_ofstream << househ[h].indiv[i].get_index()
-                                  << C_DELIM << househ[h].get_index()
-                                  << C_DELIM << househ[h].indiv[i].get_status();
-                    for (std::string dataID : cols)
-                    {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
-                    }
-                    for (std::string augmID : augm_full_set)
-                    {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
-                    }
-                    augm_ofstream << std::endl;
-                }
-            }
-
-            augm_ofstream.close();
-        }
-        else
-        {
-            raise_error("Unable to open file: " + save_augm_pathtofile);
-        }
-    }
 }
