@@ -1,0 +1,333 @@
+// show.cpp //
+// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+
+#include "mcmc.h"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print the report of the database and of the model group rates. */
+void MCMC::show_summary()
+{
+    using namespace screen;
+
+    //===== PRINT =====//
+
+    std::ostringstream oss;
+
+    oss << "n. of individuals: " << num_indiv
+        << "\n    * n. of cases: " << report_data["n.cases"]
+        << " " << percent(report_data["n.cases"], num_indiv);
+    if (report_data["n.miss.stat"] > 0)
+    {
+        oss << "\n    * n. of missing status : " << report_data["n.miss.stat"]
+            << " " << percent(report_data["n.miss.stat"], num_indiv);
+    }
+
+    oss << "\nn. of households: " << num_househ;
+    if (report_data["no.HH.case"] > 0)
+    {
+        oss << "\n    * with no cases: " << report_data["no.HH.case"]
+            << " " << percent(report_data["no.HH.case"], num_househ);
+    }
+
+    oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
+        << " " << percent(report_data["lst.1.case"], num_househ);
+    if (report_data["lst.1.case"] > 0)
+    {
+        oss << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
+            << " " << percent(report_data["lst.2.case"], num_househ);
+    }
+
+    oss << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
+        << " " << percent(report_data["n.HH.with.max.cases"], num_househ)
+        << "\nmin n. house members: " << report_data["min.HH.size"]
+        << " " << percent(report_data["n.HH.with.min.size"], num_househ)
+        << "\nmax n. house members: " << report_data["max.HH.size"]
+        << " " << percent(report_data["n.HH.with.max.size"], num_househ);
+
+    print_stdout(oss.str() + "\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : show group classes  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Display model report. */
+void MCMC::show_group_classes()
+{
+    using namespace screen;
+
+    std::ostringstream oss;
+    for (const auto &entry : report_group_classes)
+    {
+        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
+        {
+            oss << entry.first << ":";
+            for (auto const &x : entry.second)
+            {
+                oss << "\n    * " << x.first << ": " << x.second
+                    << " " << percent(x.second, num_indiv);
+            }
+            oss << "\n";
+        }
+    }
+
+    if (report_group_classes.at(CONTACT_RATE).find(EMPTY_RATE) != report_group_classes.at(CONTACT_RATE).end())
+    {
+        oss << CONTACT_RATE << ":";
+        for (auto const &x : report_group_classes.at(CONTACT_RATE))
+        {
+            oss << "\n    * " << x.first << ": " << x.second
+                << " " << percent(x.second, __n_contacts);
+        }
+        oss << "\n";
+    }
+
+    if (oss.str().size() > 0)
+    {
+        screen::print_stdout(oss.str());
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Display the complete choices for the setup. */
+void MCMC::show_setup()
+{
+    using namespace screen;
+
+    // common setup variables
+    std::ostringstream oss;
+    oss << "seed" << C_DELIM << setup_seed
+        << "\nnum_threads" << C_DELIM << get_num_threads()
+        << "\nnum_chains" << C_DELIM << setup_num_chains
+        << "\nnum_adapt" << C_DELIM << setup_num_adapt
+        << "\nburn_in" << C_DELIM << setup_burn_in
+        << "\nnum_iter" << C_DELIM << setup_num_iter
+        << "\nthinning" << C_DELIM << setup_thinning
+        << "\nrnd_init_params" << C_DELIM << truth(setup_rnd_init_params);
+    if (setup_inv_T != 1.)
+    {
+        oss << "\ninv_temper" << C_DELIM << setup_inv_T;
+    }
+    oss << "\n";
+
+    print_stdout(oss.str());
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  MCMC : init param file  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize the output file with inferred parameters with column names and initial values */
+void MCMC::inferstate_init(std::string output_filename)
+{
+    using namespace screen;
+
+    if (output_filename == UNDEFINED)
+    {
+        raise_error("Undefined output file.");
+    }
+    else
+    {
+        inferstate_ofstream.open(output_filename.c_str());
+
+        if (inferstate_ofstream.is_open())
+        {
+            __is_print_inferstate = true;
+            __is_infer_complete = false;
+
+            // print loglikelihood
+            inferstate_ofstream << "loglike";
+
+            for (std::string parID : param_to_be_inferred)
+            {
+                inferstate_ofstream << C_DELIM << parID;
+            }
+
+            // which chain
+            if (setup_num_chains > 1)
+            {
+                inferstate_ofstream << C_DELIM << "CHAIN__";
+            }
+
+            inferstate_ofstream << std::endl;
+        }
+        else
+        {
+            raise_error("Unable to open file: " + output_filename);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : print parameters  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print the model parameters at the given iteration time */
+void MCMC::inferstate_print()
+{
+    if (__is_print_inferstate)
+    {
+        if (inferstate_ofstream.is_open())
+        {
+            // print loglikelihood
+            inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
+
+            // print parameter values
+            for (std::string parID : param_to_be_inferred)
+            {
+                inferstate_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
+            }
+
+            // print which chain
+            if (setup_num_chains > 1)
+            {
+                inferstate_ofstream << screen::C_DELIM << __chain;
+            }
+
+            inferstate_ofstream << std::endl;
+        }
+        else
+        {
+            screen::raise_error("Output file closed unexpectedly.");
+        }
+    }
+}
+
+/* Close file with inferred parameters. */
+void MCMC::inferstate_close()
+{
+    __is_print_inferstate = false;
+    __is_infer_complete = true;
+    inferstate_ofstream.close();
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : print augm variables  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print all augmented variables of each individual */
+void MCMC::print_augm_variables(std::string save_augm_pathtofile)
+{
+    using namespace screen;
+
+    if (save_augm_pathtofile != UNDEFINED)
+    {
+        std::ofstream augm_ofstream;
+        augm_ofstream.open(save_augm_pathtofile.c_str());
+
+        if (augm_ofstream.is_open())
+        {
+            //===== Change format of augmented data =====//
+            format_augmented_data();
+
+            //===== Clean up data entries for output files =====//
+            std::vector<std::string> cols = __data_headers;
+
+            // remove index and house_index
+            cols.erase(find(cols.begin(), cols.end(), "index"));
+            cols.erase(find(cols.begin(), cols.end(), "house_index"));
+
+            // eventually remove status
+            cols.erase(remove(cols.begin(), cols.end(), "index"), cols.end());
+
+            // eventually remove data called like augmented variables
+            for (std::string augmID : augm_full_set)
+            {
+                cols.erase(remove(cols.begin(), cols.end(), augmID), cols.end());
+            }
+
+            //===== Print column headers =====//
+            // default headers
+            augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
+
+            // data headers
+            for (std::string dataID : cols)
+            {
+                augm_ofstream << C_DELIM << dataID;
+            }
+
+            // augmented variables headers
+            for (std::string augmID : augm_full_set)
+            {
+                augm_ofstream << C_DELIM << augmID;
+            }
+
+            augm_ofstream << std::endl;
+
+            //===== Print data and augmented variables =====//
+            for (int h = 0; h < num_househ; h++)
+            {
+                for (int i = 0; i < househ[h].house_size; i++)
+                {
+                    augm_ofstream << househ[h].indiv[i].get_index()
+                                  << C_DELIM << househ[h].get_index()
+                                  << C_DELIM << househ[h].indiv[i].get_status();
+                    for (std::string dataID : cols)
+                    {
+                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
+                    }
+                    for (std::string augmID : augm_full_set)
+                    {
+                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
+                    }
+                    augm_ofstream << std::endl;
+                }
+            }
+
+            augm_ofstream.close();
+        }
+        else
+        {
+            raise_error("Unable to open file: " + save_augm_pathtofile);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef USE_RCPP
+Rcpp::List MCMC::export_setup()
+{
+    using namespace Rcpp;
+    List output;
+
+    output = List::create(
+        _["seed"] = setup_seed,
+        _["num_threads"] = get_num_threads(),
+        _["num_chains"] = setup_num_chains,
+        _["num_adapt"] = setup_num_adapt,
+        _["burn_in"] = setup_burn_in,
+        _["num_iter"] = setup_num_iter,
+        _["thinning"] = setup_thinning,
+        _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
+
+    if (setup_inv_T != 1.)
+    {
+        output["inv_temper"] = setup_inv_T;
+    }
+
+    return output;
+}
+#endif
