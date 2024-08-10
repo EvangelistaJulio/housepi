@@ -92,6 +92,7 @@ public:
 #ifdef USE_RCPP
 	//===== RCPP EXPORTS =====//
 	Rcpp::List export_setup();
+	Rcpp::List export_data();
 #endif
 
 	//===== GROUP CLASSES =====//

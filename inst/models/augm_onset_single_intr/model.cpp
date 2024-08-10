@@ -232,6 +232,9 @@ void Model::augm_var_store_dependecies(int h, int i)
 /* Initialize parameters and augmented variables */
 void Model::common_init_model()
 {
+	// FIXME : the relative order of init_model_for_inference()
+	// and init_augmented_variables() must be checked now
+
 	//===== Initialize infectivity profiles =====//
 	// dictionary with the address to the model parameters for the infectivity profile
 	sdargs_ext infec_profile_args = {
@@ -244,6 +247,8 @@ void Model::common_init_model()
 	infec_profile_func = Infectivity_Profile_Function(infec_profile_args);
 
 	//===== Initialize household features =====//
+	inst_profile_LUT.clear();
+	cumul_profile_LUT.clear();
 	for (int h = 0; h < num_househ; h++)
 	{
 		// produce the empty matrix for the infectivity profiles look-up-tables
@@ -258,19 +263,6 @@ void Model::common_init_model()
 			end_followup = std::max(end_followup, househ[h].indiv[i].get_data("study_period"));
 		}
 		househ[h].assign_data("end_followup", end_followup);
-
-		// find the first case for each household
-		update_first_case(h);
-	}
-
-	//===== Initialize the dependencies of augmented variables =====//
-	// store relative hazard for each of the symptomatic and relative infectees
-	for (int h = 0; h < num_househ; h++)
-	{
-		for (int i = 0; i < househ[h].house_size; i++)
-		{
-			augm_var_store_dependecies(h, i);
-		}
 	}
 }
 

@@ -775,6 +775,8 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
             {
                 load_augm_definition.push_back(this_row);
             }
+
+            assign_augmented_variables();
         }
         else
         {
@@ -782,10 +784,6 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
         }
     }
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC : assign augmented variables  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to all individuals. */
 void MCMC::assign_augmented_variables()
@@ -824,53 +822,31 @@ void MCMC::assign_augmented_variables()
         }
     }
     __is_data_augm = !augm_to_be_inferred.empty();
-
-    // assign augmented variables to each individual
-    for (int h = 0; h < num_househ; h++)
+    
+    // eventually assign augmented variables to each individual
+    if (!load_augm_definition.empty())
     {
-        for (int i = 0; i < househ[h].house_size; i++)
+        for (int h = 0; h < num_househ; h++)
         {
-            for (ssargs loader : load_augm_definition)
+            for (int i = 0; i < househ[h].house_size; i++)
             {
-                Augmented augm_var(
-                    type_to_double(loader.at("value"), h, i),
-                    loader.at("model"),
-                    typedict_to_sdargs_ext(loader.at("model_args")),
-                    loader.at("strategy"),
-                    typedict_to_sdargs(loader.at("strategy_args"), h, i),
-                    type_to_double(loader.at("move_from"), h, i),
-                    typedict_to_sdargs(loader.at("range"), h, i));
-                househ[h].indiv[i].assign_augm(loader.at("name"), augm_var);
-            }
-        }
-    }
-
-    // free memory
-    load_augm_definition.clear();
-}
-
-/* Initialize augmented variable for all individuals */
-void MCMC::init_augmented_variables(bool is_init)
-{
-    if (is_init)
-    {
-        if (!load_augm_definition.empty())
-        {
-            //==== assign augmented variables to all individuals =====//
-            assign_augmented_variables();
-
-            //===== random initialization on demand =====//
-            for (std::string augmID : augm_rand_init_set)
-            {
-                for (int h = 0; h < num_househ; h++)
+                for (ssargs loader : load_augm_definition)
                 {
-                    for (int i = 0; i < househ[h].house_size; i++)
-                    {
-                        househ[h].indiv[i].init_augm(augmID, get_prng());
-                    }
+                    Augmented augm_var(
+                        type_to_double(loader.at("value"), h, i),
+                        loader.at("model"),
+                        typedict_to_sdargs_ext(loader.at("model_args")),
+                        loader.at("strategy"),
+                        typedict_to_sdargs(loader.at("strategy_args"), h, i),
+                        type_to_double(loader.at("move_from"), h, i),
+                        typedict_to_sdargs(loader.at("range"), h, i));
+                    househ[h].indiv[i].assign_augm(loader.at("name"), augm_var);
                 }
             }
         }
+
+        // free memory
+        load_augm_definition.clear();
     }
 }
 
