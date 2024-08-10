@@ -11,15 +11,15 @@ namespace bax
 
 	//===== Transmission Generations : Lookup Tables =====//
 	// numbers of generations
-	std::vector<unsigned> Num_Gener_LookupTable;
+	std::vector<ulong> Num_Gener_LookupTable;
 	// n. of multiplicites per generation
-	std::vector<std::vector<unsigned>> Multipl_Gener_LookupTable;
+	std::vector<std::vector<ulong>> Multipl_Gener_LookupTable;
 	// generation vectors
 	std::vector<std::vector<gentype>> Generations_LookupTable;
 
 	//===== Combinations : Lookup Tables =====//
 	// lookup-table to store the number of combinations
-	std::vector<std::vector<unsigned>> Num_Combin_LookupTable;
+	std::vector<std::vector<ulong>> Num_Combin_LookupTable;
 	// lookup-table to store combinations and complements
 	std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
 
@@ -34,10 +34,10 @@ namespace bax
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/* Standard definition for the factorial. */
-	unsigned factorial(unsigned n)
+	ulong factorial(ulong n)
 	{
-		unsigned result = 1;
-		for (unsigned i = 2; i <= n; i++)
+		ulong result = 1;
+		for (ulong i = 2; i <= n; i++)
 		{
 			result *= i;
 		}
@@ -45,7 +45,7 @@ namespace bax
 	}
 
 	/* Binomial coefficient of N elements in k positions*/
-	unsigned binomial_coefficient(ushort N, ushort k)
+	ulong binomial_coefficient(ushort N, ushort k)
 	{
 		if ((N == 0) || (k == N))
 		{
@@ -53,7 +53,7 @@ namespace bax
 		}
 		else
 		{
-			unsigned result = N;
+			ulong result = N;
 			ushort stop = (k > N - k) ? k : N - k; // use symmetry
 			for (ushort i = 1; i < stop; i++)
 			{
@@ -200,7 +200,7 @@ namespace bax
 
 		// Count-compression of all possible ranked offpsring generations.
 		size_t tot_num_gen = 0;
-		std::vector<unsigned> aux_num_lut;
+		std::vector<ulong> aux_num_lut;
 		std::vector<gentype> aux_gen_lut;
 
 		for (int n = 1; n <= max_N; n++)
@@ -212,7 +212,7 @@ namespace bax
 			{
 				std::map<ushort, ushort> freq_map = {};
 				gentype counts = {};
-				unsigned multiplicities = factorial(n);
+				ulong multiplicities = factorial(n);
 
 				// I take advantage of the order granted by the map
 				for (ushort val : g)
@@ -316,7 +316,7 @@ namespace bax
 		recursive_span_combinations(N, k, current, results, 0, 0);
 
 		// Store all results inside the Lookup Table
-		unsigned c = 0;
+		ulong c = 0;
 		for (vec_ushort current : results)
 		{
 			Combinations_LookupTable[N][k][c].resize(N);
@@ -333,7 +333,7 @@ namespace bax
 	/* Initialize the Look Up Table of combinations and their counts */
 	void init_combinations_lookuptable(ushort max_N)
 	{
-		unsigned num_combin;
+		ulong num_combin;
 
 		// Assure that LUT are empty before initializing 
 		Num_Combin_LookupTable.clear();
@@ -378,7 +378,7 @@ namespace bax
 	{
 		for (ushort k = 0; k < N; k++)
 		{
-			for (unsigned c = 0; c < Num_Combin_LookupTable[N][k]; c++)
+			for (ulong c = 0; c < Num_Combin_LookupTable[N][k]; c++)
 			{
 				EscapePattern new_child(N_star);
 

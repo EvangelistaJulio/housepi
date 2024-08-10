@@ -135,8 +135,17 @@ summary(mcmc_traces)
 gelman.diag(mcmc_traces)
 ```
 
-The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. These results can be accessed as follows:
+## Model Comparison
+
+The inference process returns the Watanabe-Akaike Information Criterion *WAIC*,. These results can be accessed as follows:
 
 ```{r}
 hemi$show_results()
+```
+
+
+Estimate the marginal likelihood with the method of the power posteriors
+
+```{r}
+hemi$power_posteriors(30, TRUE, FALSE)
 ```

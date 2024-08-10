@@ -86,12 +86,12 @@ public:
 	void show_summary();
 	void show_group_classes();
 	void show_parameters();
-	void show_param_diagnostics();
-	void show_results();
+	void show_param_results();
+	void show_diagnostics();
 
 #ifdef USE_RCPP
-	//===== RCPP RETURNS =====//
-	Rcpp::List return_setup();
+	//===== RCPP EXPORTS =====//
+	Rcpp::List export_setup();
 #endif
 
 	//===== GROUP CLASSES =====//
@@ -122,8 +122,8 @@ public:
 	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_init_augm = true);
 	void infer(std::string output_filename, bool progbar = true);
 
-	//===== POWER POSTERIORS (MARGINAL LOGLIKELIHOOD) =====//
-	double power_posteriors(int num_rungs, bool progbar = true);
+	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
+	double evaluate_marginal(int num_rungs, bool progbar = true, bool power_fractions = false);
 
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};
@@ -164,6 +164,8 @@ private:
 	{
 		return (dgn_sqr_ll - std::pow(dgn_avg_ll, 2)) * dgn_sample / (dgn_sample - 1);
 	}
+	long double dgn_lppd = 0.;	   // log pointwise predictive density
+	long double dgn_eff_pars = 0.; // effective n. of parameters
 
 	//===== BUILD =====//
 
@@ -201,6 +203,7 @@ private:
 	void init_move_counts();
 	void init_diagnostics();
 	void update_diagnostics();
+	void close_diagnostics();
 
 	void move_single_param(std::string parID);
 	void move_and_adapt_all_parameters(ulong step);

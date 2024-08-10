@@ -131,7 +131,11 @@ public:
 	long double dgn_likelihood = 0.; // mean (house) likelihood
 	long double dgn_avg_ll = 0.;	 // mean (house) loglikelihood
 	long double dgn_sqr_ll = 0.;	 // mean squared (house) loglikelihood
-
+	long double dgn_var_ll()
+	{
+		return (dgn_sqr_ll - std::pow(dgn_avg_ll, 2)) * dgn_sample / (dgn_sample - 1);
+	}
+	
 	//===== Constructors =====//
 	Household() {}
 	~Household() {};

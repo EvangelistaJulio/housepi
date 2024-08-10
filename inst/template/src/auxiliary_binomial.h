@@ -18,8 +18,8 @@ namespace bax
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    typedef unsigned short int ushort;
-    typedef size_t ulong;                   // alias for typedef unsigned long int ulong;
+    typedef unsigned short int ushort;      // alias for unsigned short int;
+    typedef unsigned long int ulong;        // alias for unsigned long int;
     typedef std::vector<ushort> vec_ushort; // alias for a vector of ushort
     typedef std::vector<ushort> gentype;    // alias for a generation vector
 
@@ -33,10 +33,10 @@ namespace bax
         EscapePattern(ushort N_star_) : N_star(N_star_) {}
         ~EscapePattern() {}
 
-        double likelihood(std::vector<double> &esc_mtx);
-        std::string show();
         void add_entry(ushort new_entry);
         void add_pattern(ulong new_pattern_idx);
+        double likelihood(std::vector<double> &esc_mtx);
+        std::string show();
 
     private:
         const ushort N_star;
@@ -53,15 +53,15 @@ namespace bax
 
     //===== Transmission Generations : Lookup Tables =====//
     // numbers of generations
-    extern std::vector<unsigned> Num_Gener_LookupTable;
+    extern std::vector<ulong> Num_Gener_LookupTable;
     // n. of multiplicites per generation
-    extern std::vector<std::vector<unsigned>> Multipl_Gener_LookupTable;
+    extern std::vector<std::vector<ulong>> Multipl_Gener_LookupTable;
     // generation vectors
     extern std::vector<std::vector<gentype>> Generations_LookupTable;
 
     //===== Combinations : Lookup Tables =====//
     // lookup-table to store the number of combinations
-    extern std::vector<std::vector<unsigned>> Num_Combin_LookupTable;
+    extern std::vector<std::vector<ulong>> Num_Combin_LookupTable;
     // lookup-table to store combinations and complements
     extern std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
 
@@ -75,8 +75,8 @@ namespace bax
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    unsigned factorial(unsigned n);
-    unsigned binomial_coefficient(ushort N, ushort k);
+    ulong factorial(ulong n);
+    ulong binomial_coefficient(ushort N, ushort k);
 
     // functions for the generations lookup table
     std::vector<gentype> recursive_span_generation(ushort n_infec);
