@@ -7,8 +7,7 @@
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Inconmplete_Infer_Diagnostics_Warning = false; // wrong call to show diagnostics
-bool Large_p_WAIC_Warning = false;                  // unreliable WAIC
+bool Large_p_WAIC_Warning = false; // unreliable WAIC
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
@@ -113,7 +112,7 @@ void MCMC::update_first_case(int h)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : methods (parameter move)  /////////////////////////////////
+//////////////////////////////////////  MCMC : parameter move  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
@@ -169,14 +168,43 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
     }
 }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : methods (augmented move)  /////////////////////////////////
+////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Propose augmented variable `augmID` for individual `i`. */
-double MCMC::augm_var_propose(int h, int i, std::string augmID)
+/* Initialize augmented variable for all individuals */
+void MCMC::init_augmented_variables(bool is_init)
 {
-    return househ[h].indiv[i].augm_propose(augmID, get_prng());
+    if (is_init)
+    {
+        //===== random initialization on demand =====//
+        if (!augm_rand_init_set.empty())
+        {
+            for (int h = 0; h < num_househ; h++)
+            {
+                for (int i = 0; i < househ[h].house_size; i++)
+                {
+                    for (std::string augmID : augm_rand_init_set)
+                    {
+                        househ[h].indiv[i].init_augm(augmID, get_prng());
+                    }
+                }
+
+                update_first_case(h);
+                for (int i = 0; i < househ[h].house_size; i++)
+                {
+                    augm_var_store_dependecies(h, i);
+                }
+            }
+        }
+    }
 }
 
 /* Update augmented variable `augmID` for individual `i` (). */
@@ -185,6 +213,12 @@ void MCMC::augm_var_update(int h, int i, std::string augmID, double new_val)
     househ[h].indiv[i].set_augm(augmID, new_val);
     update_first_case(h);             // Update information of first cases
     augm_var_store_dependecies(h, i); // Update infectivity profiles related to idx
+}
+
+/* Propose augmented variable `augmID` for individual `i`. */
+double MCMC::augm_var_propose(int h, int i, std::string augmID)
+{
+    return househ[h].indiv[i].augm_propose(augmID, get_prng());
 }
 
 /* Move augmented variables for infectious members of a single household.
@@ -284,11 +318,11 @@ long double MCMC::evaluate()
 {
     //===== Initialization =====//
 
-    //-----random initialization of augmented variables with model-----//
-    init_augmented_variables();
-
     //----- Initialize model -----//
     init_model_for_inference();
+
+    //-----random initialization of augmented variables with model-----//
+    init_augmented_variables();
 
     return compute_global_loglike();
 }
@@ -514,7 +548,7 @@ void MCMC::infer(std::string output_file, bool progbar)
 /////////////////////////////////////  MCMC : power posteriors  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Use Metropolis-Hastings MCMC to evaluate marginal likelihood with power posteriors. */
+/* Evaluate the logarithm of marginal likelihood with power posteriors. */
 double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions)
 {
     /* Ref: Friel, N., Hurn, M. & Wyse, J.
@@ -664,7 +698,7 @@ void MCMC::close_diagnostics()
         const long double p_waic_limit = 0.4;
         ulong count_p_waic_large = 0;
 
-        // Loop over households        
+        // Loop over households
 #pragma omp parallel for reduction(+ : dgn_lppd, dgn_eff_pars, count_p_waic_large)
         for (int h = 0; h < num_househ; h++)
         {
@@ -684,34 +718,6 @@ void MCMC::close_diagnostics()
                 << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
             screen::raise_warning(oss.str(), Large_p_WAIC_Warning);
         }
-    }
-}
-
-/* Display diagnostics as sampled during iterations. */
-void MCMC::show_diagnostics()
-{
-    using namespace screen;
-
-    if (!__is_infer_complete)
-    {
-        raise_warning("Ignored attempt to show diagnostics before inference.",
-                      Inconmplete_Infer_Diagnostics_Warning);
-    }
-    else
-    {
-        std::ostringstream oss;
-        oss << std::setprecision(2) << std::fixed
-            << "loglikelihood_mean" << C_DELIM
-            << dgn_avg_ll
-            << "\nloglikelihood_sd" << C_DELIM
-            << dgn_var_ll()
-            << "\nlog_pointwise_predictive_density" << C_DELIM
-            << dgn_lppd
-            << "\neffective_parameters" << C_DELIM
-            << dgn_eff_pars
-            << "\nWAIC" << C_DELIM
-            << 2 * (dgn_eff_pars - dgn_lppd);
-        print_stdout(oss.str() + "\n");
     }
 }
 
@@ -737,11 +743,11 @@ void MCMC::simulate()
 {
     //===== Initialization =====//
 
-    //-----random initialization of augmented variables with model-----//
-    init_augmented_variables();
-
     //----- Initialize model -----//
     init_model_for_simulation();
+
+    //-----random initialization of augmented variables with model-----//
+    init_augmented_variables();
 
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_househ; h++)
@@ -750,60 +756,4 @@ void MCMC::simulate()
     }
 
     update_report_data();
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : methods (display) ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* display the user model parameters */
-void MCMC::show_parameters()
-{
-    using namespace screen;
-
-    std::ostringstream oss;
-    oss << param_file_headers[0];
-    for (size_t k = 1; k < param_file_headers.size(); k++)
-    {
-        oss << C_DELIM << param_file_headers[k];
-    }
-    for (std::string parID : param_to_be_inferred)
-    {
-        oss << "\n"
-            << parID << C_DELIM << get_message_to_display(parID);
-    }
-    for (std::string parID : param_to_be_static)
-    {
-        oss << "\n"
-            << parID << C_DELIM << get_message_to_display(parID);
-    }
-
-    print_stdout(oss.str() + "\n");
-}
-
-/* display the paramter results */
-void MCMC::show_param_results()
-{
-    using namespace screen;
-
-    std::ostringstream oss;
-    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
-    for (size_t k = 2; k < param_file_headers.size(); k++)
-    {
-        oss << C_DELIM << param_file_headers[k];
-    }
-    for (std::string parID : param_to_be_inferred)
-    {
-        oss << "\n"
-            << parID << C_DELIM << get_message_to_diagnostics(parID);
-    }
-
-    print_stdout(oss.str() + "\n");
 }

@@ -37,3 +37,9 @@ ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --evaluate -d simulated.tmp -v
 ```
 ${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --infer -d simulated.tmp -o inferstate.tmp -v
 ```
+
+## Marginal likelihood
+
+```
+${MODEL}/model.exe -s ${SETUP} -p ${PARAMS} --marginal 25 -d simulated.tmp        
+```

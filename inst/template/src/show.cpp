@@ -3,6 +3,12 @@
 
 #include "mcmc.h"
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Inconmplete_Infer_Diagnostics_Warning = false; // wrong call to show diagnostics
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,6 +123,91 @@ void MCMC::show_setup()
     oss << "\n";
 
     print_stdout(oss.str());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* display the user model parameters */
+void MCMC::show_parameters()
+{
+    using namespace screen;
+
+    std::ostringstream oss;
+    oss << param_file_headers[0];
+    for (size_t k = 1; k < param_file_headers.size(); k++)
+    {
+        oss << C_DELIM << param_file_headers[k];
+    }
+    for (std::string parID : param_to_be_inferred)
+    {
+        oss << "\n"
+            << parID << C_DELIM << get_message_to_display(parID);
+    }
+    for (std::string parID : param_to_be_static)
+    {
+        oss << "\n"
+            << parID << C_DELIM << get_message_to_display(parID);
+    }
+
+    print_stdout(oss.str() + "\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* display the paramter results */
+void MCMC::show_param_results()
+{
+    using namespace screen;
+
+    std::ostringstream oss;
+    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
+    for (size_t k = 2; k < param_file_headers.size(); k++)
+    {
+        oss << C_DELIM << param_file_headers[k];
+    }
+    for (std::string parID : param_to_be_inferred)
+    {
+        oss << "\n"
+            << parID << C_DELIM << get_message_to_diagnostics(parID);
+    }
+
+    print_stdout(oss.str() + "\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  MCMC : show diagnostics  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Display diagnostics as sampled during iterations. */
+void MCMC::show_diagnostics()
+{
+    using namespace screen;
+
+    if (!__is_infer_complete)
+    {
+        raise_warning("Ignored attempt to show diagnostics before inference.",
+                      Inconmplete_Infer_Diagnostics_Warning);
+    }
+    else
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(2) << std::fixed
+            << "loglikelihood_mean" << C_DELIM
+            << dgn_avg_ll
+            << "\nloglikelihood_sd" << C_DELIM
+            << dgn_var_ll()
+            << "\nlog_pointwise_predictive_density" << C_DELIM
+            << dgn_lppd
+            << "\neffective_parameters" << C_DELIM
+            << dgn_eff_pars
+            << "\nWAIC" << C_DELIM
+            << 2 * (dgn_eff_pars - dgn_lppd);
+        print_stdout(oss.str() + "\n");
+    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -303,31 +394,48 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
     }
 }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef USE_RCPP
-Rcpp::List MCMC::export_setup()
 {
     using namespace Rcpp;
-    List output;
 
-    output = List::create(
-        _["seed"] = setup_seed,
-        _["num_threads"] = get_num_threads(),
-        _["num_chains"] = setup_num_chains,
-        _["num_adapt"] = setup_num_adapt,
-        _["burn_in"] = setup_burn_in,
-        _["num_iter"] = setup_num_iter,
-        _["thinning"] = setup_thinning,
-        _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
-
-    if (setup_inv_T != 1.)
+    List MCMC::export_setup()
     {
-        output["inv_temper"] = setup_inv_T;
+        List output;
+
+        output = List::create(
+            _["seed"] = setup_seed,
+            _["num_threads"] = get_num_threads(),
+            _["num_chains"] = setup_num_chains,
+            _["num_adapt"] = setup_num_adapt,
+            _["burn_in"] = setup_burn_in,
+            _["num_iter"] = setup_num_iter,
+            _["thinning"] = setup_thinning,
+            _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
+
+        if (setup_inv_T != 1.)
+        {
+            output["inv_temper"] = setup_inv_T;
+        }
+
+        return output;
     }
 
-    return output;
+    DataFrame MCMC::export_setup()
+    {
+        DataFrame output;
+
+        
+    }
 }
 #endif
