@@ -66,6 +66,8 @@ void MCMC::show_group_classes()
     using namespace screen;
 
     std::ostringstream oss;
+
+    // format group classes
     for (const auto &entry : report_group_classes)
     {
         if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
@@ -80,6 +82,7 @@ void MCMC::show_group_classes()
         }
     }
 
+    // format contact rates
     if (report_group_classes.at(CONTACT_RATE).find(EMPTY_RATE) != report_group_classes.at(CONTACT_RATE).end())
     {
         oss << CONTACT_RATE << ":";
@@ -91,9 +94,10 @@ void MCMC::show_group_classes()
         oss << "\n";
     }
 
+    // print only if there's something to print
     if (oss.str().size() > 0)
     {
-        screen::print_stdout(oss.str());
+        print_stdout(oss.str());
     }
 }
 
@@ -116,6 +120,8 @@ void MCMC::show_setup()
         << "\nnum_iter" << C_DELIM << setup_num_iter
         << "\nthinning" << C_DELIM << setup_thinning
         << "\nrnd_init_params" << C_DELIM << truth(setup_rnd_init_params);
+
+    // if an inverse temperature has been selected print it
     if (setup_inv_T != 1.)
     {
         oss << "\ninv_temper" << C_DELIM << setup_inv_T;
@@ -269,6 +275,8 @@ void MCMC::inferstate_init(std::string output_filename)
 /* Print the model parameters at the given iteration time */
 void MCMC::inferstate_print()
 {
+    using namespace screen;
+
     if (__is_print_inferstate)
     {
         if (inferstate_ofstream.is_open())
@@ -279,20 +287,20 @@ void MCMC::inferstate_print()
             // print parameter values
             for (std::string parID : param_to_be_inferred)
             {
-                inferstate_ofstream << screen::C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
+                inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
             }
 
             // print which chain
             if (setup_num_chains > 1)
             {
-                inferstate_ofstream << screen::C_DELIM << __chain;
+                inferstate_ofstream << C_DELIM << __chain;
             }
 
             inferstate_ofstream << std::endl;
         }
         else
         {
-            screen::raise_error("Output file closed unexpectedly.");
+            raise_error("Output file closed unexpectedly.");
         }
     }
 }
@@ -328,31 +336,12 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
         if (augm_ofstream.is_open())
         {
-            //===== Change format of augmented data =====//
-            format_augmented_data();
-
-            //===== Clean up data entries for output files =====//
-            std::vector<std::string> cols = __data_headers;
-
-            // remove index and house_index
-            cols.erase(find(cols.begin(), cols.end(), "index"));
-            cols.erase(find(cols.begin(), cols.end(), "house_index"));
-
-            // eventually remove status
-            cols.erase(remove(cols.begin(), cols.end(), "index"), cols.end());
-
-            // eventually remove data called like augmented variables
-            for (std::string augmID : augm_full_set)
-            {
-                cols.erase(remove(cols.begin(), cols.end(), augmID), cols.end());
-            }
-
             //===== Print column headers =====//
             // default headers
             augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
 
             // data headers
-            for (std::string dataID : cols)
+            for (std::string dataID : __data_headers)
             {
                 augm_ofstream << C_DELIM << dataID;
             }
@@ -373,7 +362,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
                     augm_ofstream << househ[h].indiv[i].get_index()
                                   << C_DELIM << househ[h].get_index()
                                   << C_DELIM << househ[h].indiv[i].get_status();
-                    for (std::string dataID : cols)
+                    for (std::string dataID : __data_headers)
                     {
                         augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
                     }
@@ -406,36 +395,90 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef USE_RCPP
+
+/* Export current setup configurations to R List. */
+Rcpp::List MCMC::export_setup()
 {
     using namespace Rcpp;
 
-    List MCMC::export_setup()
+    List output;
+    output = List::create(
+        _["seed"] = setup_seed,
+        _["num_threads"] = get_num_threads(),
+        _["num_chains"] = setup_num_chains,
+        _["num_adapt"] = setup_num_adapt,
+        _["burn_in"] = setup_burn_in,
+        _["num_iter"] = setup_num_iter,
+        _["thinning"] = setup_thinning,
+        _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
+
+    if (setup_inv_T != 1.)
     {
-        List output;
-
-        output = List::create(
-            _["seed"] = setup_seed,
-            _["num_threads"] = get_num_threads(),
-            _["num_chains"] = setup_num_chains,
-            _["num_adapt"] = setup_num_adapt,
-            _["burn_in"] = setup_burn_in,
-            _["num_iter"] = setup_num_iter,
-            _["thinning"] = setup_thinning,
-            _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
-
-        if (setup_inv_T != 1.)
-        {
-            output["inv_temper"] = setup_inv_T;
-        }
-
-        return output;
+        output["inv_temper"] = setup_inv_T;
     }
 
-    DataFrame MCMC::export_setup()
-    {
-        DataFrame output;
-
-        
-    }
+    return output;
 }
+
+/* Export current data configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::export_data()
+{
+    using namespace Rcpp;
+
+    // initialize the dataframe as a list of named vectors
+    std::map<std::string, std::vector<int>> df_int;
+    std::map<std::string, std::vector<double>> df_dbl;
+
+    DataFrame output;
+
+    df_int.insert({"index", std::vector<int>(num_indiv, 0)});
+    df_int.insert({"house_index", std::vector<int>(num_indiv, 0)});
+    df_int.insert({"status", std::vector<int>(num_indiv, 0)});
+
+    for (std::string dataID : __data_headers)
+    {
+        df_dbl.insert({dataID, std::vector<double>(num_indiv, 0.)});
+    }
+    for (std::string augmID : augm_full_set)
+    {
+        df_dbl.insert({augmID, std::vector<double>(num_indiv, 0.)});
+    }
+
+    size_t c = 0;
+    for (int h = 0; h < num_househ; h++)
+    {
+        for (int i = 0; i < househ[h].house_size; i++)
+        {
+            df_int.at("index")[c] = househ[h].indiv[i].get_index();
+            df_int.at("house_index")[c] = househ[h].get_index();
+            df_int.at("status")[c] = househ[h].indiv[i].get_status();
+
+            for (std::string dataID : __data_headers)
+            {
+                df_dbl.at(dataID)[c] = househ[h].indiv[i].get_data(dataID);
+            }
+            for (std::string augmID : augm_full_set)
+            {
+                df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
+            }
+
+            c++;
+        }
+    }
+
+    output = DataFrame::create(_["index"] = df_int.at("index"),
+                               _["house_index"] = df_int.at("house_index"),
+                               _["status"] = df_int.at("status"));
+    for (std::string dataID : __data_headers)
+    {
+        output.push_back(df_dbl.at(dataID), dataID);
+    }
+    for (std::string augmID : augm_full_set)
+    {
+        output.push_back(df_dbl.at(augmID), augmID);
+    }
+
+    return output;
+}
+
 #endif

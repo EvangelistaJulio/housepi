@@ -17,7 +17,9 @@
 /* Constructor with a database row. */
 Individual::Individual(sdargs new_data)
 {
-	index = new_data.at("index");
+	set_index(new_data.at("index"));
+
+	// associate status if provided
 	if (new_data.find("status") == new_data.end())
 	{
 		status = MISSING_STATUS;
@@ -26,6 +28,7 @@ Individual::Individual(sdargs new_data)
 	{
 		status = new_data.at("status");
 	}
+
 	data = new_data;
 }
 

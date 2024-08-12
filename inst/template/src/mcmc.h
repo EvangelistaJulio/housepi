@@ -89,12 +89,6 @@ public:
 	void show_param_results();
 	void show_diagnostics();
 
-#ifdef USE_RCPP
-	//===== RCPP EXPORTS =====//
-	Rcpp::List export_setup();
-	Rcpp::List export_data();
-#endif
-
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &this_indiv);
 	void set_rate_per_contact(int h);
@@ -129,11 +123,16 @@ public:
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};
 	virtual void simulate_single_house(int h);
-	virtual void format_augmented_data() {};
 	void simulate();
 
 	//----- Save augmented variables -----//
 	void print_augm_variables(std::string output_filename);
+
+#ifdef USE_RCPP
+	//===== RCPP EXPORTS =====//
+	Rcpp::List export_setup();
+	Rcpp::DataFrame export_data();
+#endif
 
 private:
 	//===== Global Loglikelihood =====//

@@ -402,23 +402,3 @@ void Model::simulate_single_house(int h)
 		}
 	}
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Model : format augmented data  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Format the augmented variables before printing them to output. */
-void Model::format_augmented_data()
-{
-	for (int h = 0; h < num_househ; h++)
-	{
-		for (int i = 0; i < househ[h].house_size; i++)
-		{
-			if (househ[h].indiv[i].get_status() == SUSCEPTIBLE)
-			{
-				househ[h].indiv[i].set_augm("onset_time", 1000);
-				househ[h].indiv[i].set_augm("incub_period", 0);
-			}
-		}
-	}
-}
