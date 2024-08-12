@@ -510,6 +510,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
     else
     {
         // open input file stream
+        // UPDATE : "index" could also not be required
         std::ifstream input(pathtofile.c_str());
         std::vector<std::string> required_headers = {"index", "house_index"};
 
@@ -517,16 +518,16 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
         {
             screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
-            //=====Load column headers=====//
+            //===== Load Column Headers =====//
             __data_headers = read_column_headers(input, required_headers, pathtofile);
 
             //===== Drop all previous data =====//
-            househ.clear();
             num_indiv = 0;
             num_househ = 0;
+            househ.clear();
             report_group_classes.clear();
 
-            //=====Load individuals from the row with values=====//
+            //===== Load individuals from the row with values =====//
             std::vector<Individual> aux_individuals = {};
             for (ssargs this_row = {}; read_row_by_headers(input, __data_headers, this_row); this_row.clear())
             {
@@ -537,7 +538,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 aux_individuals.push_back(this_indiv);
                 num_indiv++;
 
-                //=====check for the validity of the status=====//
+                //===== Check for the validity of the status =====//
                 std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
                 int this_status = this_indiv.get_status();
                 if (valid_statuses.find(this_status) == valid_statuses.end())
@@ -547,12 +548,33 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                     std::ostringstream oss;
                     oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
                         << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
-                        << "\nOtherwise use " << MISSING_STATUS << " for missing.";
+                        << "\nOtherwise use " << MISSING_STATUS << " for missing statuses.";
                     screen::raise_warning(oss.str(), Unknown_Status_Warning);
                 }
             }
 
-            //=====safe load households=====//
+            //===== Clean up data entries for output files =====//
+            
+            // remove house_index
+            __data_headers.erase(
+                find(__data_headers.begin(), __data_headers.end(), "house_index"));
+
+            // eventually remove index
+            __data_headers.erase(
+                remove(__data_headers.begin(), __data_headers.end(), "index"), __data_headers.end());
+
+            // eventually remove status
+            __data_headers.erase(
+                remove(__data_headers.begin(), __data_headers.end(), "status"), __data_headers.end());
+
+            // eventually remove data called like augmented variab  les
+            for (std::string augmID : augm_full_set)
+            {
+                __data_headers.erase(
+                    remove(__data_headers.begin(), __data_headers.end(), augmID), __data_headers.end());
+            }
+
+            //===== Safe Load of Households =====//
             int hh_idx;
             std::unordered_map<int, int> aux_house_idx = {};
             for (Individual this_indiv : aux_individuals)
@@ -579,7 +601,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             //===== Update Report for Data =====//
             update_report_data();
 
-            //=====Display Database and Model Reports=====//
+            //===== Display Database and Model Reports =====//
             if (verbose)
             {
                 screen::display_decorator("Database::summary", '-');

@@ -106,6 +106,12 @@ hemi$simulate()
 hemi$show_summary()
 ```
 
+To return the full results of the simulation, we can use the method `data` which returns a DataFrame with the current database. 
+
+```{r, eval=FALSE}
+hemi$data()
+```
+
 ## Inference
 
 Before proceeding any further, it can be useful to verify that the provided model can evaluate the loglikelihood without any problem. We can do it with the method `evaluate`.
@@ -114,7 +120,7 @@ Before proceeding any further, it can be useful to verify that the provided mode
 hemi$evaluate()
 ```
 
-To perform inference, we execute the command `run_inference`.
+To perform inference instead, we execute the command `run_inference`.
 
 ```{r}
 mcmc_traces <- run_inference(hemi)
@@ -140,12 +146,11 @@ gelman.diag(mcmc_traces)
 The inference process returns the Watanabe-Akaike Information Criterion *WAIC*,. These results can be accessed as follows:
 
 ```{r}
-hemi$show_results()
+hemi$show_diagnostics()
 ```
-
 
 Estimate the marginal likelihood with the method of the power posteriors
 
 ```{r}
-hemi$power_posteriors(30, TRUE, FALSE)
+hemi$evaluate_marginal(30, TRUE, FALSE)
 ```

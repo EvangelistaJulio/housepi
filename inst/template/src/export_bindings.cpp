@@ -21,14 +21,14 @@
 //'   \item Parameter: progbar - show the progress bar
 //'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 //' }
-//' @field setup Return the setup list.
+//' @field setup Return the current setup as a List.
+//' @field setup Return the current database as a DataFrame.
 //' @field show_setup Show the setup configurations.
 //' @field show_summary Show a summary of the database.
 //' @field show_group_classes Show the group classes.
 //' @field show_params Show the parameter configurations.
 //' @field show_diagnostics Show the WAIC.
 //' @export
-
 
 #include <Rcpp.h>
 #include "model.h"

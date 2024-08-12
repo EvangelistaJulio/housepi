@@ -100,7 +100,6 @@ public:
 
 	//----- Override Methods for Simulations -----//
 	void simulate_single_house(int h) override;
-	void format_augmented_data() override;
 
 	//----- Rate Choices -----//
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;

@@ -36,15 +36,17 @@ public:
 	//=====Attributes (public)=====//
 	std::unordered_map<std::string, std::string> which_rate = {};
 
-	//=====Constructors=====//
-	Individual(sdargs data);
+	//===== Constructors =====//
 	Individual() = default;
+	Individual(sdargs data);
 	~Individual() {};
 
-	//=====Getter=====//
+	//===== Basic Methods =====//
 	int get_status() const { return status; }
-	void set_status(int d) { status = d; }
 	int get_index() const { return index; }
+
+	void set_status(int s) { status = s; }
+	void set_index(int i) { index = i; }
 
 	// Note : get_data is bottleneck if called every iteration.
 	// Deprecated outisde of pre-processing.
