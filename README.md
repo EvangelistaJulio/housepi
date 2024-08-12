@@ -8,8 +8,8 @@
 
 -   **Ease of Use**: Load data, model configuration, and run inference with straightforward commands.
 -   **Customizability**: Create custom models starting from scratch or modifying default templates.
--   **Model Validation**: The support for both inference and simulations estimation and model validation.
--   **Rcpp Integration**: The package uses Rcpp for efficient computation, making it suitable for handling large and complex datasets.
+-   **Model Validation**: Support for inference, simulations and model validation.
+-   **Rcpp Integration**: Use of Rcpp for efficient computation, making it suitable for handling large and complex datasets.
 
 ## Installation
 
@@ -67,7 +67,8 @@ This generate a `coda` mcmc object to be used for extract the inference results 
 Produce a simulated dataset according to the model by running:
 
 ```{r}
-df <- run_simulation(hemi)
+hemi$simulate()
+df <- hemi$data()
 ```
 
 ## License
