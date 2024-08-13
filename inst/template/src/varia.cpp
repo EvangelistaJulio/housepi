@@ -155,24 +155,26 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
 }
 
 /* Display method for proposer (building on the distribution method). */
-std::ostringstream Base_Proposer::message_to_display()
+std::string Base_Proposer::message_to_show()
 {
+    using namespace screen;
+
     std::ostringstream oss;
-    oss << distr_ptr->message_to_display().str() << screen::C_DELIM;
+    oss << distr_ptr->message_to_show() << C_DELIM;
     if (_range_min_ > -INF_DOUBLE)
     {
-        oss << "min" << screen::C_DICT_DELIM << _range_min_;
+        oss << "min" << C_DICT_DELIM << _range_min_;
         if (_range_max_ < INF_DOUBLE)
         {
-            oss << screen::C_DICT_DELIM;
+            oss << C_DICT_DELIM;
         }
     }
     if (_range_max_ < INF_DOUBLE)
     {
-        oss << "max" << screen::C_DICT_DELIM << _range_max_;
+        oss << "max" << C_DICT_DELIM << _range_max_;
     }
 
-    return oss;
+    return oss.str();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -189,29 +191,29 @@ std::ostringstream Base_Proposer::message_to_display()
 /* Init the values for the Bayesian diagnostics. */
 void Parameter::init_diagnostics(int sample_size)
 {
-    dgn_sample_size = sample_size;
-    dgn_mean = 0.;
-    dgn_mean_sqr = 0;
+    dgn_ss = sample_size;
+    dgn_avg = 0.;
+    dgn_sqr = 0;
 }
 
 /* Update the values for the Bayesian diagnostics. */
 void Parameter::update_diagnostics()
 {
-    dgn_mean += get_value() / dgn_sample_size;
-    dgn_mean_sqr += std::pow(get_value(), 2) / dgn_sample_size;
+    dgn_avg += get_value() / dgn_ss;
+    dgn_sqr += std::pow(get_value(), 2) / dgn_ss;
 }
 
 /* Message to be used at the moment of display diagnostics. */
 std::string Parameter::message_to_diagnostics()
 {
+    using namespace screen;
+
     std::ostringstream oss;
-    oss << dgn_mean << screen::C_DELIM
-        << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
-        << screen::C_DELIM << screen::truth(infer);
+    oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer);
     if (infer)
     {
-        oss << screen::C_DELIM << distr_ptr->message_to_display().str()
-            << screen::C_DELIM << prop_ptr->message_to_display().str();
+        oss << C_DELIM << distr_ptr->message_to_show()
+            << C_DELIM << prop_ptr->message_to_show();
     }
 
     return oss.str();
@@ -453,3 +455,79 @@ void Monte_Carlo_Core::update_param_diagnostics()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef USE_RCPP
+
+/* Export current data configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::export_params()
+{
+    using namespace Rcpp;
+
+    {
+        "name", "value", "infer",
+        "prior", "pargs",
+        "strategy", "sargs", "range"};
+
+    
+
+    // initialize the dataframe as a list of named vectors
+    std::map<std::string, std::vector<int>> df_int;
+    std::map<std::string, std::vector<double>> df_dbl;
+
+    DataFrame output;
+
+    df_int.insert({"index", std::vector<int>(num_indiv, 0)});
+    df_int.insert({"house_index", std::vector<int>(num_indiv, 0)});
+    df_int.insert({"status", std::vector<int>(num_indiv, 0)});
+
+    for (std::string dataID : __data_headers)
+    {
+        df_dbl.insert({dataID, std::vector<double>(num_indiv, 0.)});
+    }
+    for (std::string augmID : augm_full_set)
+    {
+        df_dbl.insert({augmID, std::vector<double>(num_indiv, 0.)});
+    }
+
+    size_t c = 0;
+    for (int h = 0; h < num_househ; h++)
+    {
+        for (int i = 0; i < househ[h].house_size; i++)
+        {
+            df_int.at("index")[c] = househ[h].indiv[i].get_index();
+            df_int.at("house_index")[c] = househ[h].get_index();
+            df_int.at("status")[c] = househ[h].indiv[i].get_status();
+
+            for (std::string dataID : __data_headers)
+            {
+                df_dbl.at(dataID)[c] = househ[h].indiv[i].get_data(dataID);
+            }
+            for (std::string augmID : augm_full_set)
+            {
+                df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
+            }
+
+            c++;
+        }
+    }
+
+    output = DataFrame::create(_["index"] = df_int.at("index"),
+                               _["house_index"] = df_int.at("house_index"),
+                               _["status"] = df_int.at("status"));
+    for (std::string dataID : __data_headers)
+    {
+        output.push_back(df_dbl.at(dataID), dataID);
+    }
+    for (std::string augmID : augm_full_set)
+    {
+        output.push_back(df_dbl.at(augmID), augmID);
+    }
+
+    return output;
+}
+
+#endif

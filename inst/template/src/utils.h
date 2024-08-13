@@ -88,7 +88,7 @@ namespace screen
     constexpr int PROGBAR_THIN = 17;  // thinning of progress bar
 
     void print_stdout(const std::string txt);
-    void display_decorator(const std::string title,
+    void show_decorator(const std::string title,
                            char decor,
                            const std::string txt = UNDEFINED,
                            bool verbose = true);
@@ -139,7 +139,9 @@ public:
     void set_name(std::string new_name) { name = new_name; }
     void set_arg(int argID, double new_value) { (this->*_set_arg_func_)(argID, new_value); }
 
-    std::ostringstream message_to_display();
+    std::string message_to_show();
+
+    // FIXME : message to export
 
 private:
     std::string name = UNDEFINED;

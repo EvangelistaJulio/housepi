@@ -69,7 +69,7 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	std::ostringstream message_to_display();
+	std::string message_to_show();
 
 private:
 	//=====Valid Move : functional methods=====//
@@ -319,14 +319,14 @@ public:
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//=====Display=====//
-	std::string message_to_display()
+	std::string message_to_show()
 	{
 		std::ostringstream oss;
 		oss << get_value() << screen::C_DELIM << screen::truth(infer);
 		if (infer)
 		{
-			oss << screen::C_DELIM << distr_ptr->message_to_display().str()
-				<< screen::C_DELIM << prop_ptr->message_to_display().str();
+			oss << screen::C_DELIM << distr_ptr->message_to_show()
+				<< screen::C_DELIM << prop_ptr->message_to_show();
 		}
 		return oss.str();
 	}
@@ -346,11 +346,6 @@ private:
 class Parameter : public Base_Parameter<sdargs>
 {
 public:
-	//=====Diagnostic : attributes=====//
-	int dgn_sample_size = 0;	   // sample size
-	double dgn_mean = 0.;	   // mean value
-	double dgn_mean_sqr = 0.; // mean squared value
-
 	//=====Constructor=====//
 	Parameter(
 		double new_val,
@@ -371,6 +366,14 @@ public:
 	void init_diagnostics(int sample_size);
 	void update_diagnostics();
 	std::string message_to_diagnostics();
+
+private:
+	//=====Diagnostic : attributes=====//
+	int dgn_ss = 0;			  // sample size
+	long double dgn_avg = 0.; // average value
+	long double dgn_sqr = 0.; // average squared value
+
+	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -423,11 +426,11 @@ public:
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_to_be_static = {};
 
-	//=====Constructors=====//
+	//===== Constructors =====//
 	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
 	virtual ~Monte_Carlo_Core() {};
 
-	//=====Getter=====//
+	//===== Getter =====//
 	void disable_assert_param();
 	void assert_param(const std::string k) const;
 	double get_value(const std::string k) const { return (this->*_get_value_method_)(k); }
@@ -435,10 +438,10 @@ public:
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
-	std::string get_message_to_display(const std::string k) { return params.at(k).message_to_display(); }
+	std::string get_message_to_show(const std::string k) { return params.at(k).message_to_show(); }
 	std::string get_message_to_diagnostics(const std::string k) { return params.at(k).message_to_diagnostics(); }
 
-	//=====Setter=====//
+	//===== Setter =====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
@@ -449,11 +452,11 @@ public:
 		sdargs value_range = {});
 	void drop_all_params();
 
-	//=====Parallelization=====//
+	//===== Parallelization =====//
 	void set_num_threads(unsigned n = 1);
 	int get_num_threads() const { return setup_num_threads; };
 
-	//=====Metropolis-Hastings moves=====//
+	//===== Metropolis-Hastings moves =====//
 	bool propose_valid_param_move(const std::string k);
 	double get_move_logratio() { return buffer_logratio; }
 	void accept_param_move(const std::string k);
@@ -462,26 +465,26 @@ public:
 	void init_param_diagnostics(int sample_size);
 	void update_param_diagnostics();
 
-	//=====Pseudo-Random Number Generator=====//
+	//===== Pseudo-Random Number Generator =====//
 	void set_prng_seed(int seed);
 	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
 	double uniform() { return _aux_unif_dist_(get_prng()); }
 
 private:
-	//=====Auxiliary Attributes=====//
+	//===== Internal Attributes =====//
 	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
 
-	double buffer_value = 0.0;									 // buffer value of the current parameter
-	double buffer_logratio = 0.0;								 // buffer logratio (prior+proposal) of the current parameter
+	double buffer_value = 0.0;								// buffer value of the current parameter
+	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
-	unsigned setup_num_threads = 1;								 // number of OMP threads
+	unsigned setup_num_threads = 1;							// number of OMP threads
 
-	//=====Getter (auxiliary methods)=====//
+	//===== Getter (auxiliary methods) =====//
 	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;
 	double _get_value_assert_(const std::string k) const;
 	double _get_value_default_(const std::string k) const;
 
-	//=====Pseudo Random Number Generator (auxiliary methods)=====//
+	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit)
 	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();

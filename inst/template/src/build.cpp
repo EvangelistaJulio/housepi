@@ -367,7 +367,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
             std::vector<std::string> headers = read_column_headers(input, param_file_headers, pathtofile);
@@ -399,7 +399,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
             //===== Show a summary of the used parameters =====//
             if (verbose)
             {
-                screen::display_decorator("Parameters::definitions", '-');
+                screen::show_decorator("Parameters::definitions", '-');
                 show_parameters();
             }
         }
@@ -516,7 +516,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load Column Headers =====//
             __data_headers = read_column_headers(input, required_headers, pathtofile);
@@ -604,7 +604,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             //===== Display Database and Model Reports =====//
             if (verbose)
             {
-                screen::display_decorator("Database::summary", '-');
+                screen::show_decorator("Database::summary", '-');
                 show_summary();
                 show_group_classes();
             }
@@ -782,7 +782,7 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //=====Load column headers=====//
             std::vector<std::string> headers = read_column_headers(input, required_headers, pathtofile);
@@ -891,7 +891,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
     if (pathtofile == UNDEFINED)
     {
-        screen::display_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
+        screen::show_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
     }
     else
     {
@@ -899,7 +899,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             // Create a std::stringstream of the current line
             ssargs safe_load = {};
@@ -1071,7 +1071,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     //===== Display =====//
     if (verbose)
     {
-        screen::display_decorator("Setup::definitions", '-');
+        screen::show_decorator("Setup::definitions", '-');
         show_setup();
     }
 }

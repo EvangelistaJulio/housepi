@@ -64,7 +64,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void display_decorator(const std::string title, char decor, const std::string txt, bool verbose)
+    void show_decorator(const std::string title, char decor, const std::string txt, bool verbose)
     {
         if (verbose)
         {
@@ -278,18 +278,18 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
     _set_arg_func_ = &Base_Function::_set_arg_ext_; // assign setter
 }
 
-/* Return information to be displayed about the distribution. */
-std::ostringstream Base_Function::message_to_display()
+/* Return information to be shown about the distribution. */
+std::string Base_Function::message_to_show()
 {
     std::ostringstream oss;
+    std::size_t i;
     oss << get_name() << screen::C_DELIM;
-    for (std::size_t i = 0; i < args_name.size() - 1; i++)
+    for (i = 0; i < args_name.size() - 1; i++)
     {
         oss << args_name[i] << screen::C_DICT_DELIM << get_arg(i) << screen::C_DICT_DELIM;
     }
-    int i = args_name.size() - 1;
     oss << args_name[i] << screen::C_DICT_DELIM << get_arg(i);
-    return oss;
+    return oss.str();
 }
 
 //-----------------------------------------------------------------------------------------------//

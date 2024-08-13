@@ -132,6 +132,7 @@ public:
 	//===== RCPP EXPORTS =====//
 	Rcpp::List export_setup();
 	Rcpp::DataFrame export_data();
+	Rcpp::List export_params();
 #endif
 
 private:
@@ -156,16 +157,14 @@ private:
 
 	std::vector<std::string> __data_headers = {};
 
-	//----- Diagnostics -----//
-	ulong dgn_sample = 0;		 // sample size
-	long double dgn_avg_ll = 0.; // sum of the loglikelihood
-	long double dgn_sqr_ll = 0.; // sum of the squared loglikelihood
-	long double dgn_var_ll()
-	{
-		return (dgn_sqr_ll - std::pow(dgn_avg_ll, 2)) * dgn_sample / (dgn_sample - 1);
-	}
+	//===== Diagnostics =====//
+	ulong dgn_ss = 0;			   // sample size
+	long double dgn_avg = 0.;	   // sum of the loglikelihood
+	long double dgn_sqr = 0.;	   // sum of the squared loglikelihood
 	long double dgn_lppd = 0.;	   // log pointwise predictive density
 	long double dgn_eff_pars = 0.; // effective n. of parameters
+
+	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
 
 	//===== BUILD =====//
 

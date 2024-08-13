@@ -60,7 +60,7 @@ void MCMC::show_summary()
 ////////////////////////////////  MCMC : show group classes  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display model report. */
+/* Show model group classes. */
 void MCMC::show_group_classes()
 {
     using namespace screen;
@@ -105,7 +105,7 @@ void MCMC::show_group_classes()
 //////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display the complete choices for the setup. */
+/* Show the complete choices for the setup. */
 void MCMC::show_setup()
 {
     using namespace screen;
@@ -135,7 +135,7 @@ void MCMC::show_setup()
 ///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* display the user model parameters */
+/* Show the user model parameters */
 void MCMC::show_parameters()
 {
     using namespace screen;
@@ -149,12 +149,12 @@ void MCMC::show_parameters()
     for (std::string parID : param_to_be_inferred)
     {
         oss << "\n"
-            << parID << C_DELIM << get_message_to_display(parID);
+            << parID << C_DELIM << get_message_to_show(parID);
     }
     for (std::string parID : param_to_be_static)
     {
         oss << "\n"
-            << parID << C_DELIM << get_message_to_display(parID);
+            << parID << C_DELIM << get_message_to_show(parID);
     }
 
     print_stdout(oss.str() + "\n");
@@ -164,7 +164,7 @@ void MCMC::show_parameters()
 ////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* display the paramter results */
+/* Show the results of the paramters. */
 void MCMC::show_param_results()
 {
     using namespace screen;
@@ -188,7 +188,7 @@ void MCMC::show_param_results()
 ///////////////////////////////////  MCMC : show diagnostics  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display diagnostics as sampled during iterations. */
+/* Show diagnostics as sampled during iterations. */
 void MCMC::show_diagnostics()
 {
     using namespace screen;
@@ -203,9 +203,9 @@ void MCMC::show_diagnostics()
         std::ostringstream oss;
         oss << std::setprecision(2) << std::fixed
             << "loglikelihood_mean" << C_DELIM
-            << dgn_avg_ll
+            << dgn_avg
             << "\nloglikelihood_sd" << C_DELIM
-            << dgn_var_ll()
+            << dgn_var()
             << "\nlog_pointwise_predictive_density" << C_DELIM
             << dgn_lppd
             << "\neffective_parameters" << C_DELIM
@@ -415,6 +415,45 @@ Rcpp::List MCMC::export_setup()
     if (setup_inv_T != 1.)
     {
         output["inv_temper"] = setup_inv_T;
+    }
+
+    return output;
+}
+
+/* Export current parameter configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::export_params()
+{
+    using namespace Rcpp;
+    DataFrame output;
+
+    std::vector<std::string> param_file_headers = {
+        "name", "value", "infer",
+        "prior", "pargs",
+        "strategy", "sargs", "range"};
+
+    // ------------------------------------ //
+
+    // FIXME : pseudo
+    std::vector<std::string> all_param_names = param_to_be_inferred + param_to_be_static;
+    output["name"] = all_param_names;
+
+    for (std::string parID : all_param_names)
+    {
+        get_message_to_show(parID);
+    }
+
+    // ------------------------------------ //
+
+    output = DataFrame::create(_["index"] = df_int.at("index"),
+                               _["house_index"] = df_int.at("house_index"),
+                               _["status"] = df_int.at("status"));
+    for (std::string dataID : __data_headers)
+    {
+        output.push_back(df_dbl.at(dataID), dataID);
+    }
+    for (std::string augmID : augm_full_set)
+    {
+        output.push_back(df_dbl.at(augmID), augmID);
     }
 
     return output;

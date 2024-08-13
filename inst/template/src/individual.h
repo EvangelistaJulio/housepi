@@ -129,15 +129,12 @@ public:
 	std::set<int> missing_status_set = {};
 
 	//===== Diagnostics =====//
-	ulong dgn_sample = 0;			 // sample size
-	long double dgn_likelihood = 0.; // mean (house) likelihood
-	long double dgn_avg_ll = 0.;	 // mean (house) loglikelihood
-	long double dgn_sqr_ll = 0.;	 // mean squared (house) loglikelihood
-	long double dgn_var_ll()
-	{
-		return (dgn_sqr_ll - std::pow(dgn_avg_ll, 2)) * dgn_sample / (dgn_sample - 1);
-	}
-	
+	ulong dgn_ss = 0;		   // sample size
+	long double dgn_like = 0.; // average (house) likelihood
+	long double dgn_avg = 0.;  // average (house) loglikelihood
+	long double dgn_sqr = 0.;  // average squared (house) loglikelihood
+	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
+
 	//===== Constructors =====//
 	Household() {}
 	~Household() {};
