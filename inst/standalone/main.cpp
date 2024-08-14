@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
         if (verbose)
         {
             show_decorator("Inference::results", '-', UNDEFINED);
-            user_model.show_param_results();
+            user_model.show_results();
             show_decorator("Inference::diagnostics", '-', UNDEFINED);
             user_model.show_diagnostics();
         }

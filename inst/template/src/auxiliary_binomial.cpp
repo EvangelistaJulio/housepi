@@ -1,5 +1,8 @@
-// auxiliary_binomial.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * auxiliary_binomial.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "auxiliary_binomial.h"
 

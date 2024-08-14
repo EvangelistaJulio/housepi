@@ -19,13 +19,13 @@ knitr::include_graphics("images/cover-light.png")
 
 The models require three main input information:
 
-1.  **database:** : a dataframe (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference. Other additional columns can be provided.
+1.  **data:** : a DataFrame (or a file) with the individual index and house index (necessary columns), plus the status if to perform inference. Other additional columns can be provided.
 
 ```{r, echo=FALSE}
-knitr::kable(read.csv("data/database.csv"))
+knitr::kable(read.csv("data/data.csv"))
 ```
 
-2.  **parameters:** a dataframe (or a file) with the initial parameters and priors needed for the Bayesian inference process formatted as follows
+2.  **parameters:** a DataFrame (or a file) with the initial parameters and priors needed for the Bayesian inference process formatted as follows
 
 ```{r, echo=FALSE}
 knitr::kable(read.csv("data/params.csv"))
@@ -76,18 +76,19 @@ hemi <- generate_model("path/to/model")
 We associate all definitions to our model using the function `build_model`:
 
 ```{r}
-build_model(hemi,
-            data = "data/database.csv",
-            params = "data/params.csv",
-            setup = "data/setup.csv")
+build_model(hemi, data = "data/data.csv", params = "data/params.csv")
+```
 
-# show the setup definitions
+We can change the setup and parameter definitions at any moment by calling the same function.
+
+```{r}
+build_model(hemi, setup = "data/setup.csv")
+
+# show setup definitions
 hemi$show_setup()
 ```
 
-We can change the setup and parameter definitions by changing the corresponding files/dataframes. 
-
-Here we already defined the parameter definitions we will use for the simulation and the strategy for the MCMC moves:
+Here we already provided the parameter definitions to use for the simulations, plus the rules for the MCMC moves. We can show them with:
 
 ```{r}
 # show the parameter definitions
@@ -99,14 +100,14 @@ hemi$show_params()
 To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide with the different household compositions.
 
 ```{r}
-# override status of the data according to simulation 
+# override status of the dataset according to simulation 
 hemi$simulate()
 
-# show a summary of the new dataset 
+# show a summary of the simulated dataset 
 hemi$show_summary()
 ```
 
-To return the full results of the simulation, we can use the method `data` which returns a DataFrame with the current database. 
+To return the full results of the simulation, we can use the method `data` which returns a DataFrame with the current dataset. 
 
 ```{r, eval=FALSE}
 hemi$data()

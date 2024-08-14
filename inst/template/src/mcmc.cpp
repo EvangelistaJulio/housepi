@@ -1,5 +1,8 @@
-// mcmc.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * mcmc.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "mcmc.h"
 
@@ -68,13 +71,13 @@ long double MCMC::compute_global_loglike()
 void MCMC::init_move_counts()
 {
     // for parameters
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         reset_accept_rate(parID);
     }
 
     // for augmented variables
-    for (std::string augmID : augm_to_be_inferred)
+    for (const std::string &augmID : augm_to_be_inferred)
     {
         for (int h = 0; h < num_househ; h++)
         {
@@ -92,7 +95,7 @@ void MCMC::update_first_case(int h)
     double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
     int new_case0 = -1;         // NOTE: init to impossible values
 
-    for (int i : househ[h].infectious_set)
+    for (const int &i : househ[h].infectious_set)
     {
         t_infec = get_infec_time(h, i);
         new_t0 = std::min(t_infec, new_t0);
@@ -150,7 +153,7 @@ void MCMC::move_single_param(std::string parID)
 /* Sweep over all model parameters. */
 void MCMC::move_all_parameters()
 {
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
     }
@@ -161,7 +164,7 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / setup_num_adapt;
 
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
         adapt(parID, adapt_ratio);
@@ -191,7 +194,7 @@ void MCMC::init_augmented_variables(bool is_init)
             {
                 for (int i = 0; i < househ[h].house_size; i++)
                 {
-                    for (std::string augmID : augm_rand_init_set)
+                    for (const std::string &augmID : augm_rand_init_set)
                     {
                         househ[h].indiv[i].init_augm(augmID, get_prng());
                     }
@@ -234,10 +237,10 @@ long double MCMC::move_single_house_augm(int h)
 
     // Loop over infectious residents of the househould
     // FIXME : only infectious are subject to data augmentation?
-    for (int i : househ[h].infectious_set)
+    for (const int &i : househ[h].infectious_set)
     {
         // Loop over augmented variables of infectious
-        for (std::string augmID : augm_to_be_inferred)
+        for (const std::string &augmID : augm_to_be_inferred)
         {
             is_accepted = false;
             old_value = househ[h].indiv[i].get_augm(augmID); // store old value
@@ -485,7 +488,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         //============================================//
 
         progtxt = get_progtxt("sample");
-
+    
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves

@@ -93,8 +93,8 @@ template_model <- function(which = "None", path = "None") {
 #' @param force generate a model even if a cached model already exist.
 #' @returns Return the household model object.
 #' @export
-generate_model <- function(model, 
-                           quiet = TRUE, 
+generate_model <- function(model,
+                           quiet = TRUE,
                            force = FALSE) {
   # system path to housepi
   housepi_dir <- system.file(package = "housepi")

@@ -1,5 +1,8 @@
-// mcmc.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * 
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #ifndef MCMC__H
 #define MCMC__H
@@ -86,8 +89,8 @@ public:
 	void show_summary();
 	void show_group_classes();
 	void show_parameters();
-	void show_param_results();
 	void show_diagnostics();
+	void show_results();
 
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &this_indiv);
@@ -131,8 +134,8 @@ public:
 #ifdef USE_RCPP
 	//===== RCPP EXPORTS =====//
 	Rcpp::List export_setup();
+	Rcpp::DataFrame export_params();
 	Rcpp::DataFrame export_data();
-	Rcpp::List export_params();
 #endif
 
 private:

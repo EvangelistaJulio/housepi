@@ -1,5 +1,8 @@
-// varia.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * varia.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "varia.h"
 
@@ -59,7 +62,7 @@ void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
-    for (int argID : args_to_adapt)
+    for (const int &argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -155,23 +158,32 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
 }
 
 /* Display method for proposer (building on the distribution method). */
-std::string Base_Proposer::message_to_show()
+std::string Base_Proposer::show_range() const
 {
     using namespace screen;
 
     std::ostringstream oss;
-    oss << distr_ptr->message_to_show() << C_DELIM;
-    if (_range_min_ > -INF_DOUBLE)
+    bool is_min = (_range_min_ > -INF_DOUBLE);
+    bool is_max = (_range_max_ < INF_DOUBLE);
+
+    // oss << get_name() << C_DELIM << show_args() << C_DELIM;
+
+    if (is_min && is_max)
+    {
+        oss << "min" << C_DICT_DELIM << _range_min_
+            << C_DICT_DELIM << "max" << C_DICT_DELIM << _range_max_;
+    }
+    else if (is_min)
     {
         oss << "min" << C_DICT_DELIM << _range_min_;
-        if (_range_max_ < INF_DOUBLE)
-        {
-            oss << C_DICT_DELIM;
-        }
     }
-    if (_range_max_ < INF_DOUBLE)
+    else if (is_max)
     {
         oss << "max" << C_DICT_DELIM << _range_max_;
+    }
+    else
+    {
+        oss << UNDEFINED;
     }
 
     return oss.str();
@@ -204,18 +216,14 @@ void Parameter::update_diagnostics()
 }
 
 /* Message to be used at the moment of display diagnostics. */
-std::string Parameter::message_to_diagnostics()
+std::string Parameter::show_diagnostics()
 {
     using namespace screen;
-
     std::ostringstream oss;
-    oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer);
-    if (infer)
-    {
-        oss << C_DELIM << distr_ptr->message_to_show()
-            << C_DELIM << prop_ptr->message_to_show();
-    }
-
+    oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer)
+        << C_DELIM << show_distr_name() << C_DELIM << show_distr_args()
+        << C_DELIM << show_prop_name() << C_DELIM << show_prop_args()
+        << C_DELIM << show_prop_range();
     return oss.str();
 }
 
@@ -371,7 +379,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
         int num_attempts = 0;
         double new_value;
 
-        for (std::string parID : param_to_be_inferred)
+        for (const std::string &parID : param_to_be_inferred)
         {
             new_value = params.at(parID).prior_rand(prng);
             while (params.at(parID).valid(new_value) == false)
@@ -434,7 +442,7 @@ void Monte_Carlo_Core::refuse_param_move(const std::string parID)
 /* Init diagnostics for all parameters */
 void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
 {
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         params.at(parID).init_diagnostics(sample_size);
     }
@@ -443,91 +451,8 @@ void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
 /* Update diagnostics for all parameters */
 void Monte_Carlo_Core::update_param_diagnostics()
 {
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         params.at(parID).update_diagnostics();
     }
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef USE_RCPP
-
-/* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::export_params()
-{
-    using namespace Rcpp;
-
-    {
-        "name", "value", "infer",
-        "prior", "pargs",
-        "strategy", "sargs", "range"};
-
-    
-
-    // initialize the dataframe as a list of named vectors
-    std::map<std::string, std::vector<int>> df_int;
-    std::map<std::string, std::vector<double>> df_dbl;
-
-    DataFrame output;
-
-    df_int.insert({"index", std::vector<int>(num_indiv, 0)});
-    df_int.insert({"house_index", std::vector<int>(num_indiv, 0)});
-    df_int.insert({"status", std::vector<int>(num_indiv, 0)});
-
-    for (std::string dataID : __data_headers)
-    {
-        df_dbl.insert({dataID, std::vector<double>(num_indiv, 0.)});
-    }
-    for (std::string augmID : augm_full_set)
-    {
-        df_dbl.insert({augmID, std::vector<double>(num_indiv, 0.)});
-    }
-
-    size_t c = 0;
-    for (int h = 0; h < num_househ; h++)
-    {
-        for (int i = 0; i < househ[h].house_size; i++)
-        {
-            df_int.at("index")[c] = househ[h].indiv[i].get_index();
-            df_int.at("house_index")[c] = househ[h].get_index();
-            df_int.at("status")[c] = househ[h].indiv[i].get_status();
-
-            for (std::string dataID : __data_headers)
-            {
-                df_dbl.at(dataID)[c] = househ[h].indiv[i].get_data(dataID);
-            }
-            for (std::string augmID : augm_full_set)
-            {
-                df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
-            }
-
-            c++;
-        }
-    }
-
-    output = DataFrame::create(_["index"] = df_int.at("index"),
-                               _["house_index"] = df_int.at("house_index"),
-                               _["status"] = df_int.at("status"));
-    for (std::string dataID : __data_headers)
-    {
-        output.push_back(df_dbl.at(dataID), dataID);
-    }
-    for (std::string augmID : augm_full_set)
-    {
-        output.push_back(df_dbl.at(augmID), augmID);
-    }
-
-    return output;
-}
-
-#endif
