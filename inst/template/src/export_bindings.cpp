@@ -35,7 +35,6 @@
 //' @field show_group_classes Show the group classes.
 //' @field show_params Show the parameter configurations.
 //' @field show_diagnostics Show the WAIC.
-//' @export
 
 #include <Rcpp.h>
 #include "model.h"

@@ -1,6 +1,6 @@
 Package: housepi12345
 Type: Package
-Title: Environment of a household model.
+Title: Household model environment
 Version: 0.0.1
 Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
 Maintainer: <francesco.camaglia@pasteur.fr>

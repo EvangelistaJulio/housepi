@@ -159,7 +159,7 @@ generate_model <- function(model,
     }
 
     # copy folders
-    for (fldr in c("src", "R")) {
+    for (fldr in c("src", "R", "man")) {
       from_path <- file.path(housepi_dir, "template", fldr)
       file.copy(from_path,
                 new_dir,
@@ -168,14 +168,18 @@ generate_model <- function(model,
     }
 
     # update with new name
-    src_files <- c("NAMESPACE",
-                   "DESCRIPTION",
+    src_files <- c("man/housepi12345-package.Rd",
+                   "man/Modelhousepi12345.Rd",
                    "src/export_bindings.cpp",
-                   "R/zzz.R")
+                   "R/zzz.R",
+                   "NAMESPACE",
+                   "DESCRIPTION")
     for (f in src_files) {
-      content <- readLines(file.path(new_dir, f), warn = FALSE)
+      fpath <- file.path(new_dir, f)
+      content <- readLines(fpath, warn = FALSE)
       modified <- gsub("housepi12345", new_name, content)
-      writeLines(modified, file.path(new_dir, f))
+      writeLines(modified, fpath)
+      file.rename(fpath, gsub("housepi12345", new_name, fpath))
     }
 
     # copy implementation
@@ -186,12 +190,11 @@ generate_model <- function(model,
 
     # ----- compile package ----- #
     # FIXME : how to enhance pre-compilation?
-    # FIXME : annoying Warning related to NAMESPACE
     pkgbuild::compile_dll(new_dir, quiet = quiet, debug = FALSE)
   }
 
-  devtools::document(new_dir, quiet = quiet)  
-  devtools::load_all(new_dir)
+  # load locally the package
+  devtools::load_all(new_dir, recompile = FALSE, quiet = FALSE)
 
   # extract the class definition and provide new object
   return(methods::new(get(paste0("Model", new_name))))

@@ -96,7 +96,6 @@ namespace bax
     void init_escape_patterns_lookuptable(ushort max_N);
 
     double chain_binomial_heter_loglikelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
-    void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit = 4);
 }
 
 #endif // AUXILIARY_BINOMIAL__H
