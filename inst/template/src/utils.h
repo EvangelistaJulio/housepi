@@ -1,5 +1,8 @@
-// utils.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * utils.h
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #ifndef UTILS__H
 #define UTILS__H
@@ -47,7 +50,7 @@ constexpr int MISSING_STATUS = -1; // missing status
 
 constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
-constexpr double INF_DOUBLE = 1e10;          // infinity value
+constexpr double INF_DOUBLE = 1e10;           // numerical infinity value 
 
 const std::string UNDEFINED = "None";          // name for undefined choice
 constexpr double REFERENCE_VALUE = 1.0;        // auxiliary reference value for the parameters
@@ -88,10 +91,10 @@ namespace screen
     constexpr int PROGBAR_THIN = 17;  // thinning of progress bar
 
     void print_stdout(const std::string txt);
-    void display_decorator(const std::string title,
-                           char decor,
-                           const std::string txt = UNDEFINED,
-                           bool verbose = true);
+    void show_decorator(const std::string title,
+                        char decor,
+                        const std::string txt = UNDEFINED,
+                        bool verbose = true);
 
     // print progress bar to stdout
     void progress_bar_init(const std::string &txt, bool verbose = true);
@@ -131,15 +134,16 @@ public:
     // FIXME :
     // need to assign args later in case constructor is empty
 
-    //=====Getter (functional)=====//
+    //===== Getter (functional) =====//
     std::string get_name() const { return name; }
     double get_arg(int argID) const { return (this->*_get_arg_func_)(argID); }
 
-    //=====Setter (for internal arguments)=====//
+    //===== Setter (for internal arguments) =====//
     void set_name(std::string new_name) { name = new_name; }
     void set_arg(int argID, double new_value) { (this->*_set_arg_func_)(argID, new_value); }
 
-    std::ostringstream message_to_display();
+    //===== Show =====//
+    std::string show_args() const;
 
 private:
     std::string name = UNDEFINED;

@@ -2,37 +2,35 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #' @name Modelhousepi12345
-#' @title Household modeling class
+#' @title Custom model
 #' @description Perform inference and simulation from the model housepi12345.
 #' @field new Initialize a household model object.
-#' @field build Associate definitions and data to the model. \itemize{
-#'   \item Parameter: params_file - file path for the model parameters.
-#'   \item Parameter: data_file - file path for the input data.
-#'   \item Parameter: augm_file - file path for augmented data.
-#'   \item Parameter: setup_file - file path for the setup configurations.
-#'   \item Parameter: extra_file - file path for any extra configurations.
-#'   \item Parameter: verbose - boolean flag to print additional details.
+#' @field build Construct the model configurations and associate the data. \itemize{
+#'   \item Parameter: setup_file - setup configuration file
+#'   \item Parameter: params_file - parameter definition file
+#'   \item Parameter: data_file - database file
+#'   \item Parameter: augm_file - augmented data configurations
+#'   \item Parameter: extra_file - file path for any extra configurations
+#'   \item Parameter: verbose - show build information
 #' }
-#' @field infer Perform inference on the model. \itemize{
-#'   \item Parameter: output_file - The file path where the output will be saved.
-#'   \item Parameter: verbose - boolean flag to print additional details.
-#'   \item Parameter: progbar - boolean flag to show the progress bar.
+#' @field infer Perform MCMC inference of the model parameters. \itemize{
+#'   \item Parameter: output_file - The file path where the output will be saved
+#'   \item Parameter: progbar - show the progress bar
 #' }
-#' @field simulate Perform simulation on the model. \itemize{
-#'   \item Parameter: output_file - The file path where the output will be saved.
-#'   \item Parameter: verbose - boolean flag to print additional details.
+#' @field simulate Load a simulated database.
+#' @field evaluate Evaluate the loglikelihood according to the current state.
+#' @field marginal Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
+#'   \item Parameter: num_rungs
+#'   \item Parameter: progbar - show the progress bar
+#'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 #' }
-#' @field loglikelihood Compute the model loglikelihood. \itemize{
-#'   \item Returns: double.
-#' }
-#' @field setup The setup parameter list. \itemize{
-#'   \item Returns: list.
-#' }
-#' @field show_setup Show choices of the setup.
-#' @field show_params Show choices of the parameters.
-#' @field show_summary Show a summary of the dataset.
-#' @field show_group_classes Show a report of the group classes.
-#' @field show_results Show the results of the inference.
-#' @export
+#' @field setup Return the current setup as a List.
+#' @field params Return the current parameters as a DataFrame.
+#' @field data Return the current database as a DataFrame.
+#' @field show_setup Show the setup configurations.
+#' @field show_summary Show a summary of the database.
+#' @field show_group_classes Show the group classes.
+#' @field show_params Show the parameter configurations.
+#' @field show_diagnostics Show the WAIC.
 NULL
 

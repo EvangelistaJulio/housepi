@@ -1,5 +1,8 @@
-// varia.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * varia.h
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #ifndef VARIA__H
 #define VARIA__H
@@ -48,12 +51,13 @@ public:
 		std::vector<int> args_to_adapt = {});
 	virtual ~Base_Proposer() {};
 
-	//=====Getter=====//
+	//===== Getter =====//
+	std::string get_name() const { return distr_ptr->get_name(); }
 	bool is_zero_start() const { return zero_start; }
 	double get_strat_zero() const { return strat_zero; }
 	double get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
 
-	//=====Setter=====//
+	//===== Setter =====//
 	void set_strat_zero(double new_val) { strat_zero = new_val; }
 	void set_range(sdargs new_range);
 
@@ -69,7 +73,9 @@ public:
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	std::ostringstream message_to_display();
+	//===== Show =====//
+	std::string show_args() const { return distr_ptr->show_args(); }
+	std::string show_range() const;
 
 private:
 	//=====Valid Move : functional methods=====//
@@ -312,21 +318,29 @@ public:
 	double propose_logratio(double old_val, double new_val) { return (prop_ptr->logratio)(old_val, new_val); }
 	bool valid(double new_val) { return prop_ptr->valid(new_val); }
 
-	//=====prop_ptr : adaptive methods=====//
+	//===== prop_ptr : adaptive methods =====//
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
-	//=====Display=====//
-	std::string message_to_display()
+	//===== Show =====//
+	std::string show_distr_name() { return distr_ptr->get_name(); }
+	std::string show_distr_args() { return distr_ptr->show_args(); }
+	std::string show_prop_name() { return prop_ptr->get_name(); }
+	std::string show_prop_args() { return prop_ptr->show_args(); }
+	std::string show_prop_range() { return prop_ptr->show_range(); }
+
+	std::string show()
 	{
+		using namespace screen;
 		std::ostringstream oss;
-		oss << get_value() << screen::C_DELIM << screen::truth(infer);
+		oss << get_value() << C_DELIM << truth(infer);
 		if (infer)
 		{
-			oss << screen::C_DELIM << distr_ptr->message_to_display().str()
-				<< screen::C_DELIM << prop_ptr->message_to_display().str();
+			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_args()
+				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_args()
+				<< C_DELIM << show_prop_range();
 		}
 		return oss.str();
 	}
@@ -346,12 +360,7 @@ private:
 class Parameter : public Base_Parameter<sdargs>
 {
 public:
-	//=====Diagnostic : attributes=====//
-	int dgn_sample_size = 0;	   // sample size
-	double dgn_mean = 0.;	   // mean value
-	double dgn_mean_sqr = 0.; // mean squared value
-
-	//=====Constructor=====//
+	//===== Constructor =====//
 	Parameter(
 		double new_val,
 		std::string prior_name = UNDEFINED, sdargs prior_args = {},
@@ -362,15 +371,23 @@ public:
 												  INF_DOUBLE, // is_zero_start() = false
 												  value_range) {};
 
-	//=====Aliases=====//
+	//===== Aliases =====//
 	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
 	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
-	//=====Diagnostic : methods=====//
+	//===== Diagnostics =====//
 	void init_diagnostics(int sample_size);
 	void update_diagnostics();
-	std::string message_to_diagnostics();
+	std::string show_diagnostics();
+
+private:
+	//===== Diagnostics =====//
+	int dgn_ss = 0;			  // sample size
+	long double dgn_avg = 0.; // average value
+	long double dgn_sqr = 0.; // average squared value
+
+	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -416,18 +433,17 @@ public:
 class Monte_Carlo_Core
 {
 public:
-	std::vector<std::string> param_file_headers = {
-		"name", "value", "infer",
-		"prior", "pargs",
-		"strategy", "sargs", "range"};
+	std::vector<std::string> param_file_headers = {"name", "value", "infer",
+												   "prior", "args",
+												   "rule", "rargs", "range"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_to_be_static = {};
 
-	//=====Constructors=====//
-	Monte_Carlo_Core() : _aux_unif_dist_(0.0, 1.0) {}
+	//===== Constructors =====//
+	Monte_Carlo_Core() : _uniform_distr_(0.0, 1.0) {}
 	virtual ~Monte_Carlo_Core() {};
 
-	//=====Getter=====//
+	//===== Getter =====//
 	void disable_assert_param();
 	void assert_param(const std::string k) const;
 	double get_value(const std::string k) const { return (this->*_get_value_method_)(k); }
@@ -435,10 +451,17 @@ public:
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
-	std::string get_message_to_display(const std::string k) { return params.at(k).message_to_display(); }
-	std::string get_message_to_diagnostics(const std::string k) { return params.at(k).message_to_diagnostics(); }
 
-	//=====Setter=====//
+	//===== Show =====//
+	std::string show_param_distr_name(const std::string k) { return params.at(k).show_distr_name(); }
+	std::string show_param_distr_args(const std::string k) { return params.at(k).show_distr_args(); }
+	std::string show_param_prop_name(const std::string k) { return params.at(k).show_prop_name(); }
+	std::string show_param_prop_args(const std::string k) { return params.at(k).show_prop_args(); }
+	std::string show_param_prop_range(const std::string k) { return params.at(k).show_prop_range(); }
+	std::string show_param(const std::string k) { return k + screen::C_DELIM + params.at(k).show(); }
+	std::string show_param_diagnostics(const std::string k) { return k + screen::C_DELIM + params.at(k).show_diagnostics(); }
+
+	//===== Setter =====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
@@ -449,11 +472,11 @@ public:
 		sdargs value_range = {});
 	void drop_all_params();
 
-	//=====Parallelization=====//
+	//===== Parallelization =====//
 	void set_num_threads(unsigned n = 1);
 	int get_num_threads() const { return setup_num_threads; };
 
-	//=====Metropolis-Hastings moves=====//
+	//===== Metropolis-Hastings moves =====//
 	bool propose_valid_param_move(const std::string k);
 	double get_move_logratio() { return buffer_logratio; }
 	void accept_param_move(const std::string k);
@@ -462,26 +485,26 @@ public:
 	void init_param_diagnostics(int sample_size);
 	void update_param_diagnostics();
 
-	//=====Pseudo-Random Number Generator=====//
+	//===== Pseudo-Random Number Generator =====//
 	void set_prng_seed(int seed);
 	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
-	double uniform() { return _aux_unif_dist_(get_prng()); }
+	double uniform() { return _uniform_distr_(get_prng()); }
 
 private:
-	//=====Auxiliary Attributes=====//
+	//===== Internal Attributes =====//
 	std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
 
-	double buffer_value = 0.0;									 // buffer value of the current parameter
-	double buffer_logratio = 0.0;								 // buffer logratio (prior+proposal) of the current parameter
-	std::uniform_real_distribution<double> _aux_unif_dist_; // uniform distribution
-	unsigned setup_num_threads = 1;								 // number of OMP threads
+	double buffer_value = 0.0;								// buffer value of the current parameter
+	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
+	std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
+	unsigned setup_num_threads = 1;							// number of OMP threads
 
-	//=====Getter (auxiliary methods)=====//
+	//===== Getter (auxiliary methods) =====//
 	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;
 	double _get_value_assert_(const std::string k) const;
 	double _get_value_default_(const std::string k) const;
 
-	//=====Pseudo Random Number Generator (auxiliary methods)=====//
+	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit)
 	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();

@@ -1,5 +1,8 @@
-// mcmc.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * mcmc.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "mcmc.h"
 
@@ -68,13 +71,13 @@ long double MCMC::compute_global_loglike()
 void MCMC::init_move_counts()
 {
     // for parameters
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         reset_accept_rate(parID);
     }
 
     // for augmented variables
-    for (std::string augmID : augm_to_be_inferred)
+    for (const std::string &augmID : augm_to_be_inferred)
     {
         for (int h = 0; h < num_househ; h++)
         {
@@ -92,7 +95,7 @@ void MCMC::update_first_case(int h)
     double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
     int new_case0 = -1;         // NOTE: init to impossible values
 
-    for (int i : househ[h].infectious_set)
+    for (const int &i : househ[h].infectious_set)
     {
         t_infec = get_infec_time(h, i);
         new_t0 = std::min(t_infec, new_t0);
@@ -150,7 +153,7 @@ void MCMC::move_single_param(std::string parID)
 /* Sweep over all model parameters. */
 void MCMC::move_all_parameters()
 {
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
     }
@@ -161,7 +164,7 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / setup_num_adapt;
 
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
         adapt(parID, adapt_ratio);
@@ -191,7 +194,7 @@ void MCMC::init_augmented_variables(bool is_init)
             {
                 for (int i = 0; i < househ[h].house_size; i++)
                 {
-                    for (std::string augmID : augm_rand_init_set)
+                    for (const std::string &augmID : augm_rand_init_set)
                     {
                         househ[h].indiv[i].init_augm(augmID, get_prng());
                     }
@@ -234,10 +237,10 @@ long double MCMC::move_single_house_augm(int h)
 
     // Loop over infectious residents of the househould
     // FIXME : only infectious are subject to data augmentation?
-    for (int i : househ[h].infectious_set)
+    for (const int &i : househ[h].infectious_set)
     {
         // Loop over augmented variables of infectious
-        for (std::string augmID : augm_to_be_inferred)
+        for (const std::string &augmID : augm_to_be_inferred)
         {
             is_accepted = false;
             old_value = househ[h].indiv[i].get_augm(augmID); // store old value
@@ -342,17 +345,17 @@ long double MCMC::evaluate()
 void MCMC::init_diagnostics()
 {
     // diagnostics for all parameters
-    init_param_diagnostics(dgn_sample);
+    init_param_diagnostics(dgn_ss);
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_househ; h++)
     {
-        househ[h].init_diagnostics(dgn_sample);
+        househ[h].init_diagnostics(dgn_ss);
     }
 
-    dgn_avg_ll = 0.; // (global) loglikelihood
-    dgn_sqr_ll = 0.; // mean squared (global) loglikelihood
+    dgn_avg = 0.; // (global) loglikelihood
+    dgn_sqr = 0.; // mean squared (global) loglikelihood
 }
 
 /* Update Bayesian diagnostics */
@@ -372,10 +375,10 @@ void MCMC::update_diagnostics()
     }
 
     // average (global) loglikelihood
-    dgn_avg_ll += global_loglike / dgn_sample;
+    dgn_avg += global_loglike / dgn_ss;
 
     // average squared (global) loglikelihood
-    dgn_sqr_ll += std::pow(global_loglike, 2) / dgn_sample;
+    dgn_sqr += std::pow(global_loglike, 2) / dgn_ss;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -485,7 +488,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         //============================================//
 
         progtxt = get_progtxt("sample");
-
+    
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves
@@ -595,8 +598,8 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     setup_inv_T = 0.;
     run_monte_carlo(progbar, 0, true);
     inv_t.push_back(setup_inv_T);
-    avg_ll.push_back(dgn_avg_ll);
-    var_ll.push_back(dgn_var_ll());
+    avg_ll.push_back(dgn_avg);
+    var_ll.push_back(dgn_var());
     setup_rnd_init_params = false;
 
     // thermodynamic ladder: use modified power fractions or adaptive scheme
@@ -612,8 +615,8 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
             setup_inv_T = std::pow(static_cast<long double>(__rung) / (__num_rungs - 1), 5);
             run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
             inv_t.push_back(setup_inv_T);
-            avg_ll.push_back(dgn_avg_ll);
-            var_ll.push_back(dgn_var_ll());
+            avg_ll.push_back(dgn_avg);
+            var_ll.push_back(dgn_var());
         }
     }
     else
@@ -627,8 +630,8 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         setup_inv_T = 1.;
         run_monte_carlo(progbar, __mcmc_sweeps, true);
         inv_t.push_back(setup_inv_T);
-        avg_ll.push_back(dgn_avg_ll);
-        var_ll.push_back(dgn_var_ll());
+        avg_ll.push_back(dgn_avg);
+        var_ll.push_back(dgn_var());
 
         //----- Inverse Temperatures (0, 1) -----//
         size_t k = 0; // index to interval lower bound
@@ -650,12 +653,12 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
             run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
 
             //----- find larger rectangular discretization error -----//
-            is_right = (inv_t[k + 1] - setup_inv_T) * (avg_ll[k + 1] - dgn_avg_ll) > (setup_inv_T - inv_t[k]) * (dgn_avg_ll - avg_ll[k]);
+            is_right = (inv_t[k + 1] - setup_inv_T) * (avg_ll[k + 1] - dgn_avg) > (setup_inv_T - inv_t[k]) * (dgn_avg - avg_ll[k]);
 
             //----- insert in-between for all lists -----//
             inv_t.insert(inv_t.begin() + k + 1, setup_inv_T);
-            avg_ll.insert(avg_ll.begin() + k + 1, dgn_avg_ll);
-            var_ll.insert(var_ll.begin() + k + 1, dgn_var_ll());
+            avg_ll.insert(avg_ll.begin() + k + 1, dgn_avg);
+            var_ll.insert(var_ll.begin() + k + 1, dgn_var());
 
             // if right interval is chosen, index points to inserted as lower bound
             k += (is_right);
@@ -702,9 +705,9 @@ void MCMC::close_diagnostics()
 #pragma omp parallel for reduction(+ : dgn_lppd, dgn_eff_pars, count_p_waic_large)
         for (int h = 0; h < num_househ; h++)
         {
-            long double p_waic = househ[h].dgn_var_ll();
+            long double p_waic = househ[h].dgn_var();
 
-            dgn_lppd += std::log(househ[h].dgn_likelihood);
+            dgn_lppd += std::log(househ[h].dgn_like);
             dgn_eff_pars += p_waic;
             count_p_waic_large += (p_waic > p_waic_limit);
         }

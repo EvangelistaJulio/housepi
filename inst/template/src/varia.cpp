@@ -1,5 +1,8 @@
-// varia.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * varia.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "varia.h"
 
@@ -59,7 +62,7 @@ void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
-    for (int argID : args_to_adapt)
+    for (const int &argID : args_to_adapt)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -155,24 +158,35 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
 }
 
 /* Display method for proposer (building on the distribution method). */
-std::ostringstream Base_Proposer::message_to_display()
+std::string Base_Proposer::show_range() const
 {
+    using namespace screen;
+
     std::ostringstream oss;
-    oss << distr_ptr->message_to_display().str() << screen::C_DELIM;
-    if (_range_min_ > -INF_DOUBLE)
+    bool is_min = (_range_min_ > -INF_DOUBLE);
+    bool is_max = (_range_max_ < INF_DOUBLE);
+
+    // oss << get_name() << C_DELIM << show_args() << C_DELIM;
+
+    if (is_min && is_max)
     {
-        oss << "min" << screen::C_DICT_DELIM << _range_min_;
-        if (_range_max_ < INF_DOUBLE)
-        {
-            oss << screen::C_DICT_DELIM;
-        }
+        oss << "min" << C_DICT_DELIM << _range_min_
+            << C_DICT_DELIM << "max" << C_DICT_DELIM << _range_max_;
     }
-    if (_range_max_ < INF_DOUBLE)
+    else if (is_min)
     {
-        oss << "max" << screen::C_DICT_DELIM << _range_max_;
+        oss << "min" << C_DICT_DELIM << _range_min_;
+    }
+    else if (is_max)
+    {
+        oss << "max" << C_DICT_DELIM << _range_max_;
+    }
+    else
+    {
+        oss << UNDEFINED;
     }
 
-    return oss;
+    return oss.str();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -189,31 +203,27 @@ std::ostringstream Base_Proposer::message_to_display()
 /* Init the values for the Bayesian diagnostics. */
 void Parameter::init_diagnostics(int sample_size)
 {
-    dgn_sample_size = sample_size;
-    dgn_mean = 0.;
-    dgn_mean_sqr = 0;
+    dgn_ss = sample_size;
+    dgn_avg = 0.;
+    dgn_sqr = 0;
 }
 
 /* Update the values for the Bayesian diagnostics. */
 void Parameter::update_diagnostics()
 {
-    dgn_mean += get_value() / dgn_sample_size;
-    dgn_mean_sqr += std::pow(get_value(), 2) / dgn_sample_size;
+    dgn_avg += get_value() / dgn_ss;
+    dgn_sqr += std::pow(get_value(), 2) / dgn_ss;
 }
 
 /* Message to be used at the moment of display diagnostics. */
-std::string Parameter::message_to_diagnostics()
+std::string Parameter::show_diagnostics()
 {
+    using namespace screen;
     std::ostringstream oss;
-    oss << dgn_mean << screen::C_DELIM
-        << std::sqrt((dgn_mean_sqr - std::pow(dgn_mean, 2)) * (dgn_sample_size / (dgn_sample_size - 1.)))
-        << screen::C_DELIM << screen::truth(infer);
-    if (infer)
-    {
-        oss << screen::C_DELIM << distr_ptr->message_to_display().str()
-            << screen::C_DELIM << prop_ptr->message_to_display().str();
-    }
-
+    oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer)
+        << C_DELIM << show_distr_name() << C_DELIM << show_distr_args()
+        << C_DELIM << show_prop_name() << C_DELIM << show_prop_args()
+        << C_DELIM << show_prop_range();
     return oss.str();
 }
 
@@ -369,7 +379,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
         int num_attempts = 0;
         double new_value;
 
-        for (std::string parID : param_to_be_inferred)
+        for (const std::string &parID : param_to_be_inferred)
         {
             new_value = params.at(parID).prior_rand(prng);
             while (params.at(parID).valid(new_value) == false)
@@ -432,7 +442,7 @@ void Monte_Carlo_Core::refuse_param_move(const std::string parID)
 /* Init diagnostics for all parameters */
 void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
 {
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         params.at(parID).init_diagnostics(sample_size);
     }
@@ -441,15 +451,8 @@ void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
 /* Update diagnostics for all parameters */
 void Monte_Carlo_Core::update_param_diagnostics()
 {
-    for (std::string parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         params.at(parID).update_diagnostics();
     }
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//

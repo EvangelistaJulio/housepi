@@ -1,5 +1,8 @@
-// show.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * show.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "mcmc.h"
 
@@ -60,7 +63,7 @@ void MCMC::show_summary()
 ////////////////////////////////  MCMC : show group classes  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display model report. */
+/* Show model group classes. */
 void MCMC::show_group_classes()
 {
     using namespace screen;
@@ -73,7 +76,7 @@ void MCMC::show_group_classes()
         if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
         {
             oss << entry.first << ":";
-            for (auto const &x : entry.second)
+            for (const auto &x : entry.second)
             {
                 oss << "\n    * " << x.first << ": " << x.second
                     << " " << percent(x.second, num_indiv);
@@ -86,7 +89,7 @@ void MCMC::show_group_classes()
     if (report_group_classes.at(CONTACT_RATE).find(EMPTY_RATE) != report_group_classes.at(CONTACT_RATE).end())
     {
         oss << CONTACT_RATE << ":";
-        for (auto const &x : report_group_classes.at(CONTACT_RATE))
+        for (const auto &x : report_group_classes.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
                 << " " << percent(x.second, __n_contacts);
@@ -105,7 +108,7 @@ void MCMC::show_group_classes()
 //////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display the complete choices for the setup. */
+/* Show the complete choices for the setup. */
 void MCMC::show_setup()
 {
     using namespace screen;
@@ -135,7 +138,7 @@ void MCMC::show_setup()
 ///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* display the user model parameters */
+/* Show the user model parameters */
 void MCMC::show_parameters()
 {
     using namespace screen;
@@ -146,26 +149,26 @@ void MCMC::show_parameters()
     {
         oss << C_DELIM << param_file_headers[k];
     }
-    for (std::string parID : param_to_be_inferred)
+    oss << "\n";
+
+    for (const std::string &parID : param_to_be_inferred)
     {
-        oss << "\n"
-            << parID << C_DELIM << get_message_to_display(parID);
+        oss << show_param(parID) << "\n";
     }
-    for (std::string parID : param_to_be_static)
+    for (const std::string &parID : param_to_be_static)
     {
-        oss << "\n"
-            << parID << C_DELIM << get_message_to_display(parID);
+        oss << show_param(parID) << "\n";
     }
 
-    print_stdout(oss.str() + "\n");
+    print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* display the paramter results */
-void MCMC::show_param_results()
+/* Show the results of the paramters. */
+void MCMC::show_results()
 {
     using namespace screen;
 
@@ -175,20 +178,20 @@ void MCMC::show_param_results()
     {
         oss << C_DELIM << param_file_headers[k];
     }
-    for (std::string parID : param_to_be_inferred)
+    oss << "\n";
+    for (const std::string &parID : param_to_be_inferred)
     {
-        oss << "\n"
-            << parID << C_DELIM << get_message_to_diagnostics(parID);
+        oss << show_param_diagnostics(parID) << "\n";
     }
 
-    print_stdout(oss.str() + "\n");
+    print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  MCMC : show diagnostics  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display diagnostics as sampled during iterations. */
+/* Show diagnostics as sampled during iterations. */
 void MCMC::show_diagnostics()
 {
     using namespace screen;
@@ -202,17 +205,12 @@ void MCMC::show_diagnostics()
     {
         std::ostringstream oss;
         oss << std::setprecision(2) << std::fixed
-            << "loglikelihood_mean" << C_DELIM
-            << dgn_avg_ll
-            << "\nloglikelihood_sd" << C_DELIM
-            << dgn_var_ll()
-            << "\nlog_pointwise_predictive_density" << C_DELIM
-            << dgn_lppd
-            << "\neffective_parameters" << C_DELIM
-            << dgn_eff_pars
-            << "\nWAIC" << C_DELIM
-            << 2 * (dgn_eff_pars - dgn_lppd);
-        print_stdout(oss.str() + "\n");
+            << "loglikelihood_mean" << C_DELIM << dgn_avg << "\n"
+            << "loglikelihood_sd" << C_DELIM << dgn_var() << "\n"
+            << "log_pointwise_predictive_density" << C_DELIM << dgn_lppd << "\n"
+            << "effective_parameters" << C_DELIM << dgn_eff_pars << "\n"
+            << "WAIC" << C_DELIM << 2. * (dgn_eff_pars - dgn_lppd) << "\n";
+        print_stdout(oss.str());
     }
 }
 
@@ -248,7 +246,7 @@ void MCMC::inferstate_init(std::string output_filename)
             // print loglikelihood
             inferstate_ofstream << "loglike";
 
-            for (std::string parID : param_to_be_inferred)
+            for (const std::string & parID : param_to_be_inferred)
             {
                 inferstate_ofstream << C_DELIM << parID;
             }
@@ -285,7 +283,7 @@ void MCMC::inferstate_print()
             inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
 
             // print parameter values
-            for (std::string parID : param_to_be_inferred)
+            for (const std::string &parID : param_to_be_inferred)
             {
                 inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
             }
@@ -341,13 +339,13 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
 
             // data headers
-            for (std::string dataID : __data_headers)
+            for (const std::string &dataID : __data_headers)
             {
                 augm_ofstream << C_DELIM << dataID;
             }
 
             // augmented variables headers
-            for (std::string augmID : augm_full_set)
+            for (const std::string &augmID : augm_full_set)
             {
                 augm_ofstream << C_DELIM << augmID;
             }
@@ -362,11 +360,11 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
                     augm_ofstream << househ[h].indiv[i].get_index()
                                   << C_DELIM << househ[h].get_index()
                                   << C_DELIM << househ[h].indiv[i].get_status();
-                    for (std::string dataID : __data_headers)
+                    for (const std::string &dataID : __data_headers)
                     {
                         augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
                     }
-                    for (std::string augmID : augm_full_set)
+                    for (const std::string &augmID : augm_full_set)
                     {
                         augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
                     }
@@ -420,6 +418,46 @@ Rcpp::List MCMC::export_setup()
     return output;
 }
 
+/* Export current parameter configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::export_params()
+{
+    using namespace Rcpp;
+    DataFrame output;
+
+    std::vector<std::string> vec_names = param_to_be_inferred;
+    vec_names.insert(vec_names.end(), param_to_be_static.begin(), param_to_be_static.end());
+
+    std::vector<double> vec_value = {};
+    std::vector<bool> vec_infer = {};
+    std::vector<std::string> vec_prior = {}, vec_args = {}, vec_rule = {}, vec_rargs = {}, vec_range = {};
+
+    for (const std::string &parID : vec_names)
+    {
+        vec_value.push_back(get_value(parID));
+        vec_infer.push_back(get_infer(parID));
+        vec_prior.push_back(show_param_distr_name(parID));
+        vec_args.push_back(show_param_distr_args(parID));
+        vec_rule.push_back(show_param_prop_name(parID));
+        vec_rargs.push_back(show_param_prop_args(parID));
+        vec_range.push_back(show_param_prop_range(parID));
+    }
+
+    // FLAG
+    
+    // FLAG-END
+
+    output = DataFrame::create(_["name"] = vec_names,
+                               _["value"] = vec_value,
+                               _["infer"] = vec_infer,
+                               _["prior"] = vec_prior,
+                               _["args"] = vec_args,
+                               _["rule"] = vec_rule,
+                               _["rargs"] = vec_rargs,
+                               _["range"] = vec_range);
+
+    return output;
+}
+
 /* Export current data configurations to R DataFrame. */
 Rcpp::DataFrame MCMC::export_data()
 {
@@ -435,11 +473,11 @@ Rcpp::DataFrame MCMC::export_data()
     df_int.insert({"house_index", std::vector<int>(num_indiv, 0)});
     df_int.insert({"status", std::vector<int>(num_indiv, 0)});
 
-    for (std::string dataID : __data_headers)
+    for (const std::string &dataID : __data_headers)
     {
         df_dbl.insert({dataID, std::vector<double>(num_indiv, 0.)});
     }
-    for (std::string augmID : augm_full_set)
+    for (const std::string &augmID : augm_full_set)
     {
         df_dbl.insert({augmID, std::vector<double>(num_indiv, 0.)});
     }
@@ -453,11 +491,11 @@ Rcpp::DataFrame MCMC::export_data()
             df_int.at("house_index")[c] = househ[h].get_index();
             df_int.at("status")[c] = househ[h].indiv[i].get_status();
 
-            for (std::string dataID : __data_headers)
+            for (const std::string &dataID : __data_headers)
             {
                 df_dbl.at(dataID)[c] = househ[h].indiv[i].get_data(dataID);
             }
-            for (std::string augmID : augm_full_set)
+            for (const std::string &augmID : augm_full_set)
             {
                 df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
             }
@@ -469,11 +507,11 @@ Rcpp::DataFrame MCMC::export_data()
     output = DataFrame::create(_["index"] = df_int.at("index"),
                                _["house_index"] = df_int.at("house_index"),
                                _["status"] = df_int.at("status"));
-    for (std::string dataID : __data_headers)
+    for (const std::string &dataID : __data_headers)
     {
         output.push_back(df_dbl.at(dataID), dataID);
     }
-    for (std::string augmID : augm_full_set)
+    for (const std::string &augmID : augm_full_set)
     {
         output.push_back(df_dbl.at(augmID), augmID);
     }

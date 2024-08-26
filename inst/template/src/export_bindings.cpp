@@ -1,3 +1,9 @@
+/*
+ * export_bin.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
+
 //' @name Modelhousepi12345
 //' @title Custom model
 //' @description Perform inference and simulation from the model housepi12345.
@@ -22,13 +28,13 @@
 //'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 //' }
 //' @field setup Return the current setup as a List.
-//' @field setup Return the current database as a DataFrame.
+//' @field params Return the current parameters as a DataFrame.
+//' @field data Return the current database as a DataFrame.
 //' @field show_setup Show the setup configurations.
 //' @field show_summary Show a summary of the database.
 //' @field show_group_classes Show the group classes.
 //' @field show_params Show the parameter configurations.
 //' @field show_diagnostics Show the WAIC.
-//' @export
 
 #include <Rcpp.h>
 #include "model.h"
@@ -46,6 +52,7 @@ RCPP_MODULE(modelhousepi12345_cpp)
    .method("evaluate", &MCMC::evaluate)
    .method("evaluate_marginal", &MCMC::evaluate_marginal)
    .method("setup", &MCMC::export_setup)
+   .method("params", &MCMC::export_params)
    .method("data", &MCMC::export_data)
    .method("show_setup", &MCMC::show_setup)
    .method("show_summary", &MCMC::show_summary)

@@ -1,5 +1,8 @@
-// auxiliary_binomial.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * auxiliary_binomial.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "auxiliary_binomial.h"
 
@@ -524,67 +527,63 @@ namespace bax
 
 		return loglikelihood;
 	}
-
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-
-	/* Auxiliary (temporary?) function to perform debugs. */
-	void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
-	{
-		for (ushort N_star = 0; N_star <= max_num; N_star++)
-		{
-			size_t num_patterns = EscapePatterns_LookupTable[N_star].size();
-			std::cerr << "\n<<" << N_star << ">>"
-					  << " n.terms = " << ((num_patterns == 0) ? 0 : 1 + (num_patterns - 1) / 2) << std::endl;
-
-			//----- elements for the escape matrix -----//
-			std::vector<double> commu_esc_proba(N_star);
-			for (ushort i = 0; i < N_star; i++)
-			{
-				commu_esc_proba[i] = 0.15 + 0.025 * i;
-				if (N_star < limit)
-				{
-					std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
-				}
-			}
-			std::vector<std::vector<double>> p2p_esc_proba(N_star);
-			for (ushort row = 0; row < N_star; row++)
-			{
-				p2p_esc_proba[row].resize(N_star);
-				for (ushort col = 0; col < N_star; col++)
-				{
-					p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
-					if (N_star < limit)
-					{
-						std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
-					}
-				}
-			}
-
-			if (N_star < limit)
-			{
-				std::cerr << ChainBinomial_LookupTable[N_star].show() << std::endl;
-			}
-			auto start = std::chrono::high_resolution_clock::now();
-			std::cerr << "likelihood: " << std::exp(chain_binomial_heter_loglikelihood(N_star, commu_esc_proba, p2p_esc_proba));
-			auto end = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<double> elapsed = end - start;
-			std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;
-		}
-
-		std::cerr << std::endl;
-	}
 }
 
-/* Debug mode, to check values of the likelihood and print formulation.
-	g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp
-	./auxiliary_binomial.o 7
-*/
-/*
+/* 
+// 
+// Debug mode, to check values of the likelihood and print formulation.
+//
+// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
+//
+
+// Auxiliary function to perform debugs
+void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
+{
+	using namespace bax;
+	for (ushort N_star = 0; N_star <= max_num; N_star++)
+	{
+		size_t num_patterns = EscapePatterns_LookupTable[N_star].size();
+		std::cerr << "\n<<" << N_star << ">>"
+					<< " n.terms = " << ((num_patterns == 0) ? 0 : 1 + (num_patterns - 1) / 2) << std::endl;
+
+		//----- elements for the escape matrix -----//
+		std::vector<double> commu_esc_proba(N_star);
+		for (ushort i = 0; i < N_star; i++)
+		{
+			commu_esc_proba[i] = 0.15 + 0.025 * i;
+			if (N_star < limit)
+			{
+				std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
+			}
+		}
+		std::vector<std::vector<double>> p2p_esc_proba(N_star);
+		for (ushort row = 0; row < N_star; row++)
+		{
+			p2p_esc_proba[row].resize(N_star);
+			for (ushort col = 0; col < N_star; col++)
+			{
+				p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
+				if (N_star < limit)
+				{
+					std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
+				}
+			}
+		}
+
+		if (N_star < limit)
+		{
+			std::cerr << ChainBinomial_LookupTable[N_star].show() << std::endl;
+		}
+		auto start = std::chrono::high_resolution_clock::now();
+		std::cerr << "likelihood: " << std::exp(chain_binomial_heter_loglikelihood(N_star, commu_esc_proba, p2p_esc_proba));
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = end - start;
+		std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;
+	}
+
+	std::cerr << std::endl;
+}
+
 int main(int argc, char *argv[])
 {
 	using namespace bax;
@@ -596,6 +595,6 @@ int main(int argc, char *argv[])
 	}
 
 	init_escape_patterns_lookuptable(max_num);
-	auxiliary_chain_binomial_debugger(max_num);
+	auxiliary_chain_binomial_debugger(max_num, 4);
 }
 */

@@ -1,5 +1,8 @@
-// utils.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * utils.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "utils.h"
 
@@ -64,7 +67,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void display_decorator(const std::string title, char decor, const std::string txt, bool verbose)
+    void show_decorator(const std::string title, char decor, const std::string txt, bool verbose)
     {
         if (verbose)
         {
@@ -257,7 +260,7 @@ Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order
 {
     args_name = order;                          // developer assigment of the order of arguments
     args_int = new double[new_args_int.size()]; // dynamic allocation
-    for (std::size_t i = 0; i < args_name.size(); i++)
+    for (size_t i = 0; i < args_name.size(); i++)
     {
         args_int[i] = new_args_int.at(args_name[i]);
     }
@@ -270,7 +273,7 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 {
     args_name = order;                                  // developer assigment of the order of arguments
     args_ext = new const double *[new_args_ext.size()]; // dynamic allocation
-    for (std::size_t i = 0; i < args_name.size(); i++)
+    for (size_t i = 0; i < args_name.size(); i++)
     {
         args_ext[i] = new_args_ext.at(args_name[i]);
     }
@@ -278,18 +281,23 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
     _set_arg_func_ = &Base_Function::_set_arg_ext_; // assign setter
 }
 
-/* Return information to be displayed about the distribution. */
-std::ostringstream Base_Function::message_to_display()
+/* Return formatted argoments of the distribution. */
+std::string Base_Function::show_args() const
 {
-    std::ostringstream oss;
-    oss << get_name() << screen::C_DELIM;
-    for (std::size_t i = 0; i < args_name.size() - 1; i++)
+    if (args_name.empty())
     {
-        oss << args_name[i] << screen::C_DICT_DELIM << get_arg(i) << screen::C_DICT_DELIM;
+        return UNDEFINED;
     }
-    int i = args_name.size() - 1;
-    oss << args_name[i] << screen::C_DICT_DELIM << get_arg(i);
-    return oss;
+    else
+    {
+        std::ostringstream oss;
+        oss << args_name[0] << screen::C_DICT_DELIM << get_arg(0);
+        for (size_t i = 1; i < args_name.size(); i++)
+        {
+            oss << screen::C_DICT_DELIM << args_name[i] << screen::C_DICT_DELIM << get_arg(i);
+        }
+        return oss.str();
+    }
 }
 
 //-----------------------------------------------------------------------------------------------//

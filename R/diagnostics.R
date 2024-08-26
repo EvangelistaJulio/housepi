@@ -1,8 +1,5 @@
 #!/usr/bin/env Rscript
 
-# clean environment
-rm(list = ls())
-
 # LIBRARIES # FIXME : semplify
 options(warn = -1)
 suppressPackageStartupMessages(library(optparse))
@@ -408,6 +405,3 @@ main <- function() {
     )
   }
 }
-
-# EXECUTE
-main()

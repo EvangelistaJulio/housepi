@@ -1,5 +1,8 @@
-// build.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * build.cpp
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 #include "mcmc.h"
 
@@ -79,7 +82,7 @@ ssargs MCMC::parse_dict_string(std::string token)
     }
     else
     {
-        for (std::size_t i = 0; i < args_stock.size(); i += 2)
+        for (size_t i = 0; i < args_stock.size(); i += 2)
         {
             try
             {
@@ -129,7 +132,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
         std::ostringstream oss;
 
         // check the validity of the headers
-        for (std::string req : required_headers)
+        for (const std::string &req : required_headers)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
@@ -367,7 +370,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
             std::vector<std::string> headers = read_column_headers(input, param_file_headers, pathtofile);
@@ -385,9 +388,9 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
                         this_row["name"],
                         std::stod(this_row["value"]),
                         this_row["prior"],
-                        parse_dict_args(this_row["pargs"]),
-                        this_row["strategy"],
-                        parse_dict_args(this_row["sargs"]),
+                        parse_dict_args(this_row["args"]),
+                        this_row["rule"],
+                        parse_dict_args(this_row["rargs"]),
                         parse_dict_args(this_row["range"]));
                 }
                 else
@@ -399,7 +402,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
             //===== Show a summary of the used parameters =====//
             if (verbose)
             {
-                screen::display_decorator("Parameters::definitions", '-');
+                screen::show_decorator("Parameters::definitions", '-');
                 show_parameters();
             }
         }
@@ -516,7 +519,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load Column Headers =====//
             __data_headers = read_column_headers(input, required_headers, pathtofile);
@@ -568,7 +571,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
                 remove(__data_headers.begin(), __data_headers.end(), "status"), __data_headers.end());
 
             // eventually remove data called like augmented variab  les
-            for (std::string augmID : augm_full_set)
+            for (const std::string &augmID : augm_full_set)
             {
                 __data_headers.erase(
                     remove(__data_headers.begin(), __data_headers.end(), augmID), __data_headers.end());
@@ -604,7 +607,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             //===== Display Database and Model Reports =====//
             if (verbose)
             {
-                screen::display_decorator("Database::summary", '-');
+                screen::show_decorator("Database::summary", '-');
                 show_summary();
                 show_group_classes();
             }
@@ -778,11 +781,11 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
     {
         std::ifstream input(pathtofile.c_str());
         std::vector<std::string> required_headers = {
-            "name", "value", "model", "model_args", "strategy", "strategy_args", "move_from", "range", "init_rand"};
+            "name", "value", "model", "args", "rule", "rargs", "rule_from", "range", "init_rand"};
 
         if (input.is_open())
         {
-            screen::display_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //=====Load column headers=====//
             std::vector<std::string> headers = read_column_headers(input, required_headers, pathtofile);
@@ -819,7 +822,7 @@ void MCMC::assign_augmented_variables()
         augm_full_set.emplace(augmID);
 
         // list of augmented variables to be inferred
-        if (loader.at("strategy") != UNDEFINED)
+        if (loader.at("rule") != UNDEFINED)
         {
             augm_to_be_inferred.emplace(augmID);
         }
@@ -858,9 +861,9 @@ void MCMC::assign_augmented_variables()
                         type_to_double(loader.at("value"), h, i),
                         loader.at("model"),
                         typedict_to_sdargs_ext(loader.at("model_args")),
-                        loader.at("strategy"),
-                        typedict_to_sdargs(loader.at("strategy_args"), h, i),
-                        type_to_double(loader.at("move_from"), h, i),
+                        loader.at("rule"),
+                        typedict_to_sdargs(loader.at("rule_args"), h, i),
+                        type_to_double(loader.at("rule_from"), h, i),
                         typedict_to_sdargs(loader.at("range"), h, i));
                     househ[h].indiv[i].assign_augm(loader.at("name"), augm_var);
                 }
@@ -891,7 +894,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
     if (pathtofile == UNDEFINED)
     {
-        screen::display_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
+        screen::show_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
     }
     else
     {
@@ -899,7 +902,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 
         if (input.is_open())
         {
-            screen::display_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
+            screen::show_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             // Create a std::stringstream of the current line
             ssargs safe_load = {};
@@ -1058,20 +1061,20 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
     set_prng_seed(setup_seed);
 
     //===== Number of MCMC sweeps per single chain =====//
-    // note : Euclidean division!
+    // note : Euclidean divisions!
     __mcmc_sweeps = setup_num_adapt / setup_thinning;
     __mcmc_sweeps += setup_burn_in / setup_thinning;
     __mcmc_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
     __mcmc_sweeps *= setup_thinning * setup_num_chains;
 
     //===== MCMC Sample Size =====//
-    dgn_sample = (setup_num_iter - setup_burn_in) / setup_thinning;
-    dgn_sample *= setup_num_chains;
+    dgn_ss = (setup_num_iter - setup_burn_in) / setup_thinning;
+    dgn_ss *= setup_num_chains;
 
     //===== Display =====//
     if (verbose)
     {
-        screen::display_decorator("Setup::definitions", '-');
+        screen::show_decorator("Setup::definitions", '-');
         show_setup();
     }
 }

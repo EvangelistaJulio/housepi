@@ -180,22 +180,22 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        display_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
+        show_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
         user_model.infer(output_file, true);
 
         if (verbose)
         {
-            display_decorator("Inference::results", '-', UNDEFINED);
-            user_model.show_param_results();
-            display_decorator("Inference::diagnostics", '-', UNDEFINED);
+            show_decorator("Inference::results", '-', UNDEFINED);
+            user_model.show_results();
+            show_decorator("Inference::diagnostics", '-', UNDEFINED);
             user_model.show_diagnostics();
         }
 
         if (save_augm_file != UNDEFINED)
         {
-            display_decorator("Inference::output", '-',
-                              "save: " + save_augm_file,
-                              verbose);
+            show_decorator("Inference::output", '-',
+                           "save: " + save_augm_file,
+                           verbose);
             user_model.print_augm_variables(save_augm_file);
         }
     }
@@ -208,15 +208,15 @@ int main(int argc, char *argv[])
         }
         else
         {
-            display_decorator("Simulation", C_DECOR,
-                              "save: " + output_file,
-                              verbose);
+            show_decorator("Simulation", C_DECOR,
+                           "save: " + output_file,
+                           verbose);
             user_model.simulate();
             user_model.print_augm_variables(output_file);
 
             if (verbose)
             {
-                display_decorator("Simulation::summary", '-');
+                show_decorator("Simulation::summary", '-');
                 user_model.show_summary();
             }
         }
@@ -224,13 +224,13 @@ int main(int argc, char *argv[])
 
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
-        display_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        show_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
         print_stdout(std::to_string(user_model.evaluate()) + "\n");
     }
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
-        display_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        show_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
         print_stdout(std::to_string(user_model.evaluate_marginal(num_rungs)) + "\n");
     }
 

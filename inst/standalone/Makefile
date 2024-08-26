@@ -5,7 +5,7 @@ MODEL ?= ../models/chain_binom
 
 # Lost of source files with exclusions
 SRC := ../template/src
-EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/user_model.cpp
+EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/model.cpp
 SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp) $(MODEL)/model.cpp main.cpp)
 
 # Object files to build (automatic)

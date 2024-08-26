@@ -51,7 +51,8 @@ Thumbs.db
 *.Rproj.user/**
 *.Rout
 *.Rout.save
-
+*.Rcheck/
+*.Rcheck/**
+.Rproj.user
 /doc/
 /Meta/
-.Rproj.user
