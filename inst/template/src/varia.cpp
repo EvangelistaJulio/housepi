@@ -254,6 +254,17 @@ double Monte_Carlo_Core::_get_value_assert_(const std::string k) const
     return _get_value_default_(k);
 }
 
+const double *Monte_Carlo_Core::_get_address_default_(const std::string k) const
+{
+    return params.at(k).get_address();
+}
+
+const double * Monte_Carlo_Core::_get_address_assert_(const std::string k) const
+{
+    assert_param(k);
+    return _get_address_default_(k);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -367,7 +378,7 @@ void Monte_Carlo_Core::assert_param(const std::string k) const
 {
     if (params.find(k) == params.end())
     {
-        screen::raise_error("Parameter `" + k + "` not found. Check your model and/or parameter definition.");
+        screen::raise_error("Parameter `" + k + "` not found. Check your model and your parameter definitions.");
     }
 }
 

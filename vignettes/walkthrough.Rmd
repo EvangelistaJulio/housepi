@@ -1,31 +1,30 @@
 ---
-title: "housepi"
+title: "Walkthrough"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{housepi}
+  %\VignetteIndexEntry{Walkthrough}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-# Package Tutorial
-
-This tutorial introduces `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
+We introduce `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
 
 ```{r, echo=FALSE, out.width = "100%"}
 knitr::include_graphics("images/cover-light.png")
 ```
 
-## Model Generation
-
-After having loaded the package
+We start by loading the package:
 
 ```{r}
 library(housepi)
 ```
 
-we can use the function `generate_model` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
+## Model Generation
+
+We can use the function `generate_model` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
 
 ```{r}
+# generate a chain binomial model
 hemi <- generate_model("chain_binom")
 ```
 

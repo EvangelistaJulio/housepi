@@ -54,7 +54,7 @@ public:
 	// Note : get_data is bottleneck if called every iteration.
 	// Deprecated outisde of pre-processing.
 	double get_data(std::string dataID) const;
-	void assert_data(std::string dataID);
+	void assert_data(std::string dataID) const;
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 	void assign_rate_per_group(std::string rateID, std::string parID);
@@ -152,6 +152,7 @@ public:
 	//====== Getter ======//
 	int get_index() const { return house_index; }
 	double get_data(std::string dataID) const;
+	void assert_data(std::string dataID) const;
 	double get_group_rate(int i, std::string rateID) const { return indiv[i].get_group_rate(rateID); }
 
 	//====== Contact Rates ======//

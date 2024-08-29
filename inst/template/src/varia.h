@@ -429,7 +429,7 @@ public:
 ///////////////////////////////////  Monte_Carlo_Core : class  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* This is a wrapper class containing aliases for the model params. */
+/* This is a wrapper class containing aliases for the model parameters. */
 class Monte_Carlo_Core
 {
 public:
@@ -440,14 +440,14 @@ public:
 	std::vector<std::string> param_to_be_static = {};
 
 	//===== Constructors =====//
-	Monte_Carlo_Core() : _uniform_distr_(0.0, 1.0) {}
+	Monte_Carlo_Core() : _uniform_distr_(0., 1.) {}
 	virtual ~Monte_Carlo_Core() {};
 
 	//===== Getter =====//
 	void disable_assert_param();
 	void assert_param(const std::string k) const;
 	double get_value(const std::string k) const { return (this->*_get_value_method_)(k); }
-	const double *get_address(const std::string k) const { return params.at(k).get_address(); }
+	const double *get_address(const std::string k) const { return (this->*_get_address_method_)(k); }
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
@@ -504,7 +504,12 @@ private:
 	double _get_value_assert_(const std::string k) const;
 	double _get_value_default_(const std::string k) const;
 
+	const double *(Monte_Carlo_Core::*_get_address_method_)(const std::string k) const = &Monte_Carlo_Core::_get_address_assert_;
+	const double * _get_address_assert_(const std::string k) const;
+	const double * _get_address_default_(const std::string k) const;
+
 	//===== Pseudo Random Number Generator (auxiliary methods) =====//
+	// FIXME : this should change if Rcpp according to developer guides
 	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit)
 	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();

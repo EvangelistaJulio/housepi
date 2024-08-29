@@ -42,11 +42,12 @@ Individual::Individual(sdargs new_data)
 /* Return a feature of the Individual as provided in the database */
 double Individual::get_data(std::string dataID) const
 {
+	assert_data(dataID);
 	return data.at(dataID);
 }
 
 /* Check if the individal has the data defined */
-void Individual::assert_data(std::string dataID)
+void Individual::assert_data(std::string dataID) const
 {
 	if (data.find(dataID) == data.end())
 	{
@@ -167,7 +168,19 @@ void Household::assign_data(std::string dataID, double value)
 /* Return a feature of the Household which must be provided during initialization. */
 double Household::get_data(std::string dataID) const
 {
+	assert_data(dataID);
 	return house_data.at(dataID);
+}
+
+/* Check if the data is defined for the Household. */
+void Household::assert_data(std::string dataID) const
+{
+	if (house_data.find(dataID) == house_data.end())
+	{
+		std::ostringstream oss;
+		oss << "Unknown data `" << dataID << "` for household " << get_index() << ".";
+		screen::raise_error(oss.str());
+	}
 }
 
 /* Link an individual to the household */

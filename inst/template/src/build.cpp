@@ -534,7 +534,6 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             std::vector<Individual> aux_individuals = {};
             for (ssargs this_row = {}; read_row_by_headers(input, __data_headers, this_row); this_row.clear())
             {
-
                 Individual this_indiv(row_to_sdargs(this_row));
                 assign_rate_per_group_to_individual(this_indiv);
                 set_rate_per_group(this_indiv);
@@ -543,8 +542,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
 
                 //===== Check for the validity of the status =====//
                 std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
-                int this_status = this_indiv.get_status();
-                if (valid_statuses.find(this_status) == valid_statuses.end())
+                if (valid_statuses.find(this_indiv.get_status()) == valid_statuses.end())
                 {
                     this_indiv.set_status(MISSING_STATUS);
 
@@ -557,7 +555,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
             }
 
             //===== Clean up data entries for output files =====//
-            
+
             // remove house_index
             __data_headers.erase(
                 find(__data_headers.begin(), __data_headers.end(), "house_index"));
@@ -847,7 +845,7 @@ void MCMC::assign_augmented_variables()
         }
     }
     __is_data_augm = !augm_to_be_inferred.empty();
-    
+
     // eventually assign augmented variables to each individual
     if (!load_augm_definition.empty())
     {

@@ -1,0 +1,13 @@
+name,value,infer,prior,args,rule,rargs,range
+alpha,0.15,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+beta,0.25,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+s_vacc,1.00,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+i_vacc,1.00,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+c_adu_to_kid,1.00,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+c_kid_to_adu,1.00,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+c_kid_to_kid,1.00,TRUE,uniform,min/0.0/max/5.0,lognorm,meanlog/0.0/sdlog/1.0,min/0.0/max/5.0
+child_age,12.00,FALSE,,,,,
+tost_alpha,5.85,FALSE,,,,,
+tost_mu,-4.0,FALSE,,,,,
+tost_sigma,1.85,FALSE,,,,,
+tost_tau,5.78,FALSE,,,,,

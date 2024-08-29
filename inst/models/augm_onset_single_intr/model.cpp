@@ -20,23 +20,23 @@
 
 void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
-	//=====rate 0 : Infectivity=====//
-	if ((this_indiv.get_data("recov") == false) && (this_indiv.get_data("vacc_status") == 0))
-	{ // unrecovered unvaccinated
-		this_indiv.assign_rate_per_group("Infectivity", "i_naive");
-	}
-	else
-	{ // vaccinated o recovered : Infectivity [REFERENCE]
+	//===== rate n.0 : Infectivity =====//
+	if (this_indiv.get_data("vacc_status") == 0)
+	{ // naive : Infectivity [REFERENCE]
 		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
 	}
+	else
+	{ // fully vaccinated : Infectivity
+		this_indiv.assign_rate_per_group("Infectivity", "i_vacc");
+	}
 
-	//=====rate 1 : Susceptibility=====//
+	//===== rate n.1 : Susceptibility =====//
 	if (this_indiv.get_data("vacc_status") == 0)
 	{ // naive : Susceptibility [REFERENCE]
 		this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
 	}
 	else
-	{ // 1 dose
+	{ // fully vaccinated : Infectivity
 		this_indiv.assign_rate_per_group("Susceptibility", "s_vacc");
 	}
 }
