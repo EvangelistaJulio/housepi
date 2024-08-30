@@ -500,11 +500,11 @@ private:
 	unsigned setup_num_threads = 1;							// number of OMP threads
 
 	//===== Getter (auxiliary methods) =====//
-	double (Monte_Carlo_Core::*_get_value_method_)(const std::string k) const = &Monte_Carlo_Core::_get_value_assert_;
+	double (Monte_Carlo_Core::*_get_value_method_)(const std::string) const = &Monte_Carlo_Core::_get_value_assert_;
 	double _get_value_assert_(const std::string k) const;
 	double _get_value_default_(const std::string k) const;
 
-	const double *(Monte_Carlo_Core::*_get_address_method_)(const std::string k) const = &Monte_Carlo_Core::_get_address_assert_;
+	const double *(Monte_Carlo_Core::*_get_address_method_)(const std::string) const = &Monte_Carlo_Core::_get_address_assert_;
 	const double * _get_address_assert_(const std::string k) const;
 	const double * _get_address_default_(const std::string k) const;
 

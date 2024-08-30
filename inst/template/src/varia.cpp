@@ -238,31 +238,37 @@ std::string Parameter::show_diagnostics()
 //////////////////////////////  Monte_Carlo_Core : methods (getter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Monte_Carlo_Core::disable_assert_param()
-{
-    _get_value_method_ = &Monte_Carlo_Core::_get_value_default_;
-}
-
+/* Default method to get a value. */
 double Monte_Carlo_Core::_get_value_default_(const std::string k) const
 {
     return params.at(k).get_value();
 }
 
+/* Safe method to get a value with previous assertion. */
 double Monte_Carlo_Core::_get_value_assert_(const std::string k) const
 {
     assert_param(k);
     return _get_value_default_(k);
 }
 
+/* Default method to get an address. */
 const double *Monte_Carlo_Core::_get_address_default_(const std::string k) const
 {
     return params.at(k).get_address();
 }
 
+/* Safe method to get an address with previous assertion. */
 const double * Monte_Carlo_Core::_get_address_assert_(const std::string k) const
 {
     assert_param(k);
     return _get_address_default_(k);
+}
+
+/* Disable parameter assertion. */
+void Monte_Carlo_Core::disable_assert_param()
+{
+    _get_value_method_ = &Monte_Carlo_Core::_get_value_default_;
+    _get_address_method_ = &Monte_Carlo_Core::_get_address_default_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

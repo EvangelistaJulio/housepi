@@ -1,5 +1,5 @@
 /*
- * 
+ * mcmc.h
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
@@ -115,6 +115,7 @@ public:
 	long double evaluate();
 
 	//===== INFER =====//
+	void disable_assert();
 	virtual void init_model_for_inference() {};
 	virtual void init_single_chain() {};
 	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_init_augm = true);

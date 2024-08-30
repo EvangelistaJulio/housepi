@@ -17,7 +17,7 @@ To load an example you can use the following files:
 ```
 PARAMS=../../vignettes/data/params.csv
 SETUP=../../vignettes/data/setup.csv
-DATABASE=../../vignettes/data/database.csv
+DATABASE=../../vignettes/data/data.csv
 ```
 
 ## Run Simulation 

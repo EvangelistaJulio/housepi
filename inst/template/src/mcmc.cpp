@@ -405,6 +405,21 @@ std::string MCMC::get_progtxt(std::string txt)
     return oss.str();
 }
 
+/* Disable all assert methods for user definitions. */
+void MCMC::disable_assert()
+{
+    disable_assert_param();
+
+    // disable augmented variable assertion for all individuals
+    for (int h = 0; h < num_househ; h++)
+    {
+        for (int i = 0; i < househ[h].house_size; i++)
+        {
+            househ[h].indiv[i].disable_assert();
+        }
+    }
+}
+
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed mcmc sweeps. */
 void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
@@ -436,8 +451,9 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         // set the value of the global loglikelihood
         set_global_loglike(compute_global_loglike());
 
-        // avoid asserting parameters definitions after first call
-        disable_assert_param();
+        // avoid asserting user definitions after first round
+        // UPDATE : this can be improved, e. g. with a debug mode
+        disable_assert();
 
         // initialize the acceptance counts
         init_move_counts();
@@ -488,7 +504,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         //============================================//
 
         progtxt = get_progtxt("sample");
-    
+
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves

@@ -1,5 +1,8 @@
-// model.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * model.h
+ *
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////  * *** * AUGMENTED ONSET - SINGLE INTRODUCTION * *** *  /////////////////////
@@ -8,60 +11,33 @@
 #ifndef MODEL__H
 #define MODEL__H
 
+#include <string>
+#include <vector>
+#include <iostream>
+
+#include "infectivity_profiles.h"
 #include "mcmc.h"
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 // alias for a square matrix
 typedef std::vector<std::vector<double>> squarematrix;
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////// Infectivity_Profile_Function ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Choice of the Infectivity Profile Function.
------
-The infectivity profile is considered equal to the distribution
-of the Time from Onset of Symptoms to Transmission `tost`:
->	tost = <time infection infectee> - <time onset infector>
-Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-where the pre-symptomatic values are rescaled as a function of the incubation time `t_incub`.
-The arguments to provide are :
-	0) "tost_alpha" : shape;
-	1) "tost_mu" : location;
-	2) "tost_sigma" : scale;
-	3) "tost_tau" : mean incubation time;
-Note: symtoms can occur after infection (pre-symptomatic transmission),
-i. e. `tost` can be negative.
-----
-Ref:
-----
-Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dörner L, et al.
-The timing of COVID-19 transmission.
-medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
-///////////////////////////////////////////////////////////////////////////////////////////////////
-*/
-
-/* Define the Infectivity_Profile_Function class. */
-class Infectivity_Profile_Function : public Base_Function
+// a namespace for Lookuptables and global variables
+namespace LUT
 {
-public:
-	// Constructors
-	Infectivity_Profile_Function() {};
-	Infectivity_Profile_Function(sdargs new_args) : Base_Function(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infectivity_Profile_Function(sdargs_ext new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	~Infectivity_Profile_Function() {};
+	//----- Attributes for Look-Up-Tables -----//
+	std::vector<squarematrix> inst_profile = {};
+	std::vector<squarematrix> cumul_profile = {};
 
-	double pdf(double tost, double t_incub);
-	double cdf(double tost, double t_incub);
-};
+	//----- Infectivity Profile Functions -----//
+	Infec_Prof_Skew_Logistic infec_prof_func;
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -77,17 +53,6 @@ public:
 class Model : public MCMC
 {
 public:
-	//===== Infectivity Profile Functions =====//
-	Infectivity_Profile_Function infec_profile_func = Infectivity_Profile_Function();
-
-	//----- Attributes for Look-Up-Tables -----//
-	std::vector<squarematrix> inst_profile_LUT = {};
-	std::vector<squarematrix> cumul_profile_LUT = {};
-
-	double compute_infec_profile_inst(int h, int i, double t_transm);
-	double compute_infec_profile_cumul(int h, int i, double t_transm);
-	double hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles);
-
 	//===== Override General Methods =====//
 	void common_init_model();
 	void init_model_for_inference() override { common_init_model(); };
@@ -104,6 +69,11 @@ public:
 	//----- Rate Choices -----//
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;
 	void assign_rate_per_contact_to_household(int h, int from, int to) override;
+	
+	//===== Model dependent methods =====//
+	double compute_infec_prof_inst(int h, int i, double t_transm);
+	double compute_infec_prof_cumul(int h, int i, double t_transm);
+	double hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles);
 };
 
 #endif // MODEL__H
