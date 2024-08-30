@@ -102,9 +102,9 @@ public:
 	void assign_augmented_variables();
 	void init_augmented_variables(bool is_init = true);
 	virtual void update_first_case(int h);
-	virtual void augm_var_store_dependecies(int h, int i);
-	virtual void augm_var_update(int h, int i, std::string augmID, double new_val);
-	virtual double augm_var_propose(int h, int i, std::string augmID);
+	virtual void augm_store_dependecies(int h, int i);
+	virtual void augm_update(int h, int i, std::string augmID, double new_val);
+	virtual double augm_propose(int h, int i, std::string augmID);
 	virtual double get_infec_time(int h, int i) const;
 
 	//===== EVALUATE =====//

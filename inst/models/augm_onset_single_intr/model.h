@@ -57,7 +57,7 @@ public:
 	void common_init_model();
 	void init_model_for_inference() override { common_init_model(); };
 	void init_model_for_simulation() override { common_init_model(); };
-	void augm_var_store_dependecies(int h, int i) override;
+	void augm_store_dependecies(int h, int i) override;
 	double get_infec_time(int h, int i) const override;
 
 	//----- Override Methods for Inference -----//

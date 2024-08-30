@@ -25,7 +25,7 @@ double MCMC::get_infec_time(int h, int i) const
 }
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::augm_var_store_dependecies(int h, int i)
+void MCMC::augm_store_dependecies(int h, int i)
 {
     UNUSED(h);
     UNUSED(i);
@@ -93,7 +93,7 @@ void MCMC::update_first_case(int h)
 {
     double t_infec;
     double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
-    int new_case0 = -1;         // NOTE: init to impossible values
+    househ[h].first_case = -1;  // NOTE: init to impossible values
 
     for (const int &i : househ[h].infectious_set)
     {
@@ -101,10 +101,9 @@ void MCMC::update_first_case(int h)
         new_t0 = std::min(t_infec, new_t0);
         if (t_infec == new_t0)
         {
-            new_case0 = i;
+            househ[h].first_case = i;
         }
     }
-    househ[h].first_case = new_case0;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -200,10 +199,15 @@ void MCMC::init_augmented_variables(bool is_init)
                     }
                 }
 
+                // associate a first case (if any)
                 update_first_case(h);
-                for (int i = 0; i < househ[h].house_size; i++)
+                // initialization make sense only if a case is present
+                if (househ[h].first_case != -1)
                 {
-                    augm_var_store_dependecies(h, i);
+                    for (int i = 0; i < househ[h].house_size; i++)
+                    {
+                        augm_store_dependecies(h, i);
+                    }
                 }
             }
         }
@@ -211,15 +215,15 @@ void MCMC::init_augmented_variables(bool is_init)
 }
 
 /* Update augmented variable `augmID` for individual `i` (). */
-void MCMC::augm_var_update(int h, int i, std::string augmID, double new_val)
+void MCMC::augm_update(int h, int i, std::string augmID, double new_val)
 {
     househ[h].indiv[i].set_augm(augmID, new_val);
-    update_first_case(h);             // Update information of first cases
-    augm_var_store_dependecies(h, i); // Update infectivity profiles related to idx
+    update_first_case(h);         // Update information of first cases
+    augm_store_dependecies(h, i); // Update infectivity profiles related to idx
 }
 
 /* Propose augmented variable `augmID` for individual `i`. */
-double MCMC::augm_var_propose(int h, int i, std::string augmID)
+double MCMC::augm_propose(int h, int i, std::string augmID)
 {
     return househ[h].indiv[i].augm_propose(augmID, get_prng());
 }
@@ -245,12 +249,13 @@ long double MCMC::move_single_house_augm(int h)
             is_accepted = false;
             old_value = househ[h].indiv[i].get_augm(augmID); // store old value
             old_house_loglike = househ[h].get_loglike();     // store old loglike
-            new_value = augm_var_propose(h, i, augmID);      // propose new value
+            new_value = augm_propose(h, i, augmID);          // propose new value
 
             // proceed only if the new value is consistent
             if (househ[h].indiv[i].augm_valid(augmID, new_value))
             {
-                augm_var_update(h, i, augmID, new_value); // update value to perform computations
+                // update value to perform computations
+                augm_update(h, i, augmID, new_value);
                 new_house_loglike = compute_house_loglike(h);
 
                 // MetropolisHasting contribution
@@ -265,7 +270,7 @@ long double MCMC::move_single_house_augm(int h)
                 }
                 else
                 {
-                    augm_var_update(h, i, augmID, old_value); // restore old value
+                    augm_update(h, i, augmID, old_value); // restore old value
                 }
             }
             househ[h].update_augm_accept_rate(augmID, is_accepted);

@@ -174,8 +174,8 @@ void Model::simulate_single_house(int h)
 	}
 
 	// pick a random introduction
-	int first_case = uniform() * househ[h].house_size;
-	househ[h].change_status(first_case, INFECTIOUS);
+	househ[h].first_case = uniform() * househ[h].house_size;
+	househ[h].change_status(househ[h].first_case, INFECTIOUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//

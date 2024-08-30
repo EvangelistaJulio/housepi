@@ -56,32 +56,36 @@ public:
 	double get_data(const std::string d) const { return (this->*_get_data_method_)(d); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate_per_group(std::string rateID, std::string parID);
-	void set_rate(std::string rateID, const double *x) { rate_ptr.emplace(rateID, x); }
-	double get_group_rate(std::string rateID) const { return *rate_ptr.at(rateID); }
+	void assign_rate_per_group(const std::string r, const std::string parID);
+	void set_rate(const std::string r, const double *x) { rate_ptr.emplace(r, x); }
+	double get_group_rate(const std::string r) const { return *rate_ptr.at(r); }
 
 	//=====Augmented Variables=====//
 	void assert_augm(const std::string a) const;
-
 	void assign_augm(const std::string a, Augmented new_augm);
-	void init_augm(const std::string a, sys_rnd_gen &rng);
+	void init_augm(const std::string a, sys_rnd_gen &prng);
 	void set_augm(const std::string a, double new_value) { augm_var.at(a).set_value(new_value); }
 	bool get_augm_infer(const std::string a) const { return augm_var.at(a).get_infer(); }
 	double get_augm(const std::string a) const { return (this->*_get_augm_method_)(a); }
 
 	//-----Augmented Variables: Model distribution-----//
-	double augm_model_rand(const std::string a, sys_rnd_gen &rng) { return augm_var.at(a).model_rand(rng); }
+	double augm_model_rand(const std::string a, sys_rnd_gen &prng) { return augm_var.at(a).model_rand(prng); }
 	double augm_model_log_pdf(const std::string a) { return augm_var.at(a).model_log_pdf(augm_var.at(a).get_value()); }
 	double augm_model_logratio(const std::string a, double old_value, double new_value);
 
 	//-----Augmented Variables: Proposer-----//
-	double augm_propose(const std::string a, sys_rnd_gen &rng);
+	double augm_propose(const std::string a, sys_rnd_gen &prng);
 	double augm_propose_logratio(const std::string a, double old_value, double new_value);
 	bool augm_valid(const std::string a, double new_value) { return augm_var.at(a).valid(new_value); }
 
 private:
 	sdargs_ext rate_ptr = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
+
+	//===== Setter (auxiliary methods) =====//
+	void (Individual::*_set_augm_method_)(const std::string, double) = &Individual::_set_augm_assert_;
+	void _set_augm_assert_(const std::string a, double new_value);
+	void _set_augm_default_(const std::string a, double new_value);
 
 	//===== Getter (auxiliary methods) =====//
 	double (Individual::*_get_augm_method_)(const std::string) const = &Individual::_get_augm_assert_;
@@ -155,15 +159,15 @@ public:
 	//====== Setter ======//
 	void assign_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
-	void assign_data(std::string d, double value);
-	void assign_rate_per_contact(int from, int to, std::string parID) { which_rate[from][to] = parID; }
+	void assign_data(const std::string d, double value);
+	void assign_rate_per_contact(int from, int to, const std::string parID) { which_rate[from][to] = parID; }
 	void change_status(int i, int new_status);
 
 	//====== Getter ======//
 	int get_index() const { return house_index; }
-	double get_data(std::string d) const;
-	void assert_data(std::string d) const;
-	double get_group_rate(int i, std::string rateID) const { return indiv[i].get_group_rate(rateID); }
+	void assert_data(const std::string d) const;
+	double get_data(const std::string d) const;
+	double get_group_rate(int i, const std::string r) const { return indiv[i].get_group_rate(r); }
 
 	//====== Contact Rates ======//
 	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
@@ -181,10 +185,10 @@ public:
 	void update_diagnostics();
 
 	//===== Acceptation Rate =====//
-	void reset_augm_accept_rate(std::string a);
-	void update_augm_accept_rate(std::string a, bool is_accepted);
-	int get_augm_accept_counts(std::string a) { return num_accept_augm_moves[a]; }
-	int get_augm_propos_counts(std::string a) { return num_propos_augm_moves[a]; }
+	void reset_augm_accept_rate(const std::string a);
+	void update_augm_accept_rate(const std::string a, bool is_accepted);
+	int get_augm_accept_counts(const std::string a) { return num_accept_augm_moves[a]; }
+	int get_augm_propos_counts(const std::string a) { return num_propos_augm_moves[a]; }
 };
 
 #endif // INDIVIDUAL__H

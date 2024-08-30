@@ -21,17 +21,13 @@ As an example, we use the default model "augm_onset_single_intr", where survey c
 
 ```{r}
 # generate the model
-hemi <- generate_model("augm_onset_single_intr")
+hemi <- generate_model("chain_binom")
 
 # associate data, parameters and setup
-build_model(hemi, data = "data/data.csv", params = "data/params.csv")
-```
-
-We can change the setup and parameter definitions at any moment by calling the same function.
-
-```{r}
-# associate the setup
-build_model(hemi, setup = "data/setup.csv")
+build_model(hemi, 
+            data = "data/data.csv", 
+            params = "data/params-more.csv",
+            setup = "data/setup.csv")
 
 # show setup definitions
 hemi$show_setup()

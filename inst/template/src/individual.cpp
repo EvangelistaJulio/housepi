@@ -46,6 +46,7 @@ void Individual::assert_data(std::string d) const
 	{
 		std::ostringstream oss;
 		oss << "Unknown data `" << d << "` for individual " << get_index() << ".";
+		oss << " Check your model and your data definitions.";
 		screen::raise_error(oss.str());
 	}
 }
@@ -67,19 +68,19 @@ double Individual::_get_data_assert_(const std::string d) const
 ///////////////////////////  Individual : methods (group rates)  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign a model rate */
-void Individual::assign_rate_per_group(std::string rateID, std::string parID)
+/* Assign a model rate r */
+void Individual::assign_rate_per_group(const std::string r, const std::string parID)
 {
-	if (which_rate.find(rateID) == which_rate.end())
+	if (which_rate.find(r) == which_rate.end())
 	{
 		// if rateID was undeclared, add it
-		which_rate.emplace(rateID, parID);
+		which_rate.emplace(r, parID);
 	}
 	else
 	{
 		// rateID was previously declared
 		std::ostringstream oss;
-		oss << "Individual " << get_index() << " has multiple definitions for group rate `" << rateID << "`.";
+		oss << "Individual " << get_index() << " has multiple definitions for group rate `" << r << "`.";
 		screen::raise_error(oss.str());
 	}
 }
@@ -94,7 +95,8 @@ void Individual::assert_augm(const std::string a) const
 	if (augm_var.find(a) == augm_var.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown augmented variable `" << a << "` for individual " << get_index() << ".";
+		oss << "Unknown augmented variable `" << a << "` for individual " << get_index() << "."
+			<< " Check your model and your augmented variable definitions.";
 		screen::raise_error(oss.str());
 	}
 }
@@ -112,9 +114,25 @@ double Individual::_get_augm_assert_(const std::string a) const
 	return _get_augm_default_(a);
 }
 
+
+/* Default method to set the value of an augmented variable. */
+void Individual::_set_augm_default_(const std::string a, double new_value)
+{
+	augm_var.at(a).set_value(new_value);
+}
+
+/* Safe method to set the value of an augmented variable with previous assertion. */
+void Individual::_set_augm_assert_(const std::string a, double new_value)
+{
+	assert_augm(a);
+	augm_var.at(a).valid(new_value);
+	_set_augm_default_(a, new_value);
+}
+
 /* Disable data and augmented variable assertions. */
 void Individual::disable_assert()
 {
+	_set_augm_method_ = &Individual::_set_augm_default_;
 	_get_augm_method_ = &Individual::_get_augm_default_;
 	_get_data_method_ = &Individual::_get_data_default_;
 }
@@ -135,10 +153,10 @@ void Individual::assign_augm(const std::string a, Augmented new_augm)
 }
 
 /* Init augmented variable within a random initial value */
-void Individual::init_augm(const std::string a, sys_rnd_gen &rng)
+void Individual::init_augm(const std::string a, sys_rnd_gen &prng)
 {
 	int num_attempts = 0;
-	double init_value = augm_model_rand(a, rng);
+	double init_value = augm_model_rand(a, prng);
 
 	while ((!augm_valid(a, init_value)))
 	{
@@ -150,7 +168,7 @@ void Individual::init_augm(const std::string a, sys_rnd_gen &rng)
 				<< " for individual " << get_index();
 			screen::raise_error(oss.str());
 		}
-		init_value = augm_model_rand(a, rng);
+		init_value = augm_model_rand(a, prng);
 		num_attempts++;
 	}
 	set_augm(a, init_value);
@@ -186,36 +204,36 @@ double Individual::augm_model_logratio(const std::string a, double old_value, do
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a data feature to the household */
-void Household::assign_data(std::string dataID, double value)
+void Household::assign_data(const std::string d, double value)
 {
-	if (house_data.find(dataID) == house_data.end())
+	if (house_data.find(d) == house_data.end())
 	{
 		// if rateID was undeclared, add it
-		house_data.emplace(dataID, value);
+		house_data.emplace(d, value);
 	}
 	else
 	{
 		// rateID was previously declared
 		std::ostringstream oss;
-		oss << "Household " << get_index() << " has multiple definitions for data `" << dataID << "`.";
+		oss << "Household " << get_index() << " has multiple definitions for data `" << d << "`.";
 		screen::raise_error(oss.str());
 	}
 }
 
 /* Return a feature of the Household which must be provided during initialization. */
-double Household::get_data(std::string dataID) const
+double Household::get_data(const std::string d) const
 {
-	assert_data(dataID);
-	return house_data.at(dataID);
+	assert_data(d);
+	return house_data.at(d);
 }
 
 /* Check if the data is defined for the Household. */
-void Household::assert_data(std::string dataID) const
+void Household::assert_data(const std::string d) const
 {
-	if (house_data.find(dataID) == house_data.end())
+	if (house_data.find(d) == house_data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data `" << dataID << "` for household " << get_index() << ".";
+		oss << "Unknown data `" << d << "` for household " << get_index() << ".";
 		screen::raise_error(oss.str());
 	}
 }
@@ -334,14 +352,14 @@ void Household::change_status(int i, int new_status)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set to zero the counts of given augmented variables moves. */
-void Household::reset_augm_accept_rate(std::string a)
+void Household::reset_augm_accept_rate(const std::string a)
 {
 	num_accept_augm_moves[a] = 0;
 	num_propos_augm_moves[a] = 0;
 }
 
 /* Update counts for acceptance rate of given augemented variable. */
-void Household::update_augm_accept_rate(std::string a, bool is_accepted)
+void Household::update_augm_accept_rate(const std::string a, bool is_accepted)
 {
 	num_accept_augm_moves[a] += is_accepted;
 	num_propos_augm_moves[a]++;

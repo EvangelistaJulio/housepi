@@ -858,9 +858,9 @@ void MCMC::assign_augmented_variables()
                     Augmented augm_var(
                         type_to_double(loader.at("value"), h, i),
                         loader.at("model"),
-                        typedict_to_sdargs_ext(loader.at("model_args")),
+                        typedict_to_sdargs_ext(loader.at("args")),
                         loader.at("rule"),
-                        typedict_to_sdargs(loader.at("rule_args"), h, i),
+                        typedict_to_sdargs(loader.at("rargs"), h, i),
                         type_to_double(loader.at("rule_from"), h, i),
                         typedict_to_sdargs(loader.at("range"), h, i));
                     househ[h].indiv[i].assign_augm(loader.at("name"), augm_var);
