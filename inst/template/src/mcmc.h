@@ -92,13 +92,20 @@ public:
 	void show_diagnostics();
 	void show_results();
 
+	//===== DATA =====//
+	double get_data(int h, int i, const std::string d) const { return househ[h].indiv[i].get_data(d); }
+	double get_data(int h, const std::string d) const { return househ[h].get_data(d); }
+
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &this_indiv);
 	void set_rate_per_contact(int h);
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
+	double get_group_rate(int h, int i, const std::string r) const { return househ[h].indiv[i].get_group_rate(r); }
 
 	//===== AUGMENTED VARIABLES =====//
+	void set_augm(int h, int i, const std::string a, double new_value) { househ[h].indiv[i].set_augm(a, new_value); };
+	double get_augm(int h, int i, const std::string a) const { return househ[h].indiv[i].get_augm(a); }
 	void assign_augmented_variables();
 	void init_augmented_variables(bool is_init = true);
 	virtual void update_first_case(int h);

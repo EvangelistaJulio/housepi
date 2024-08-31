@@ -28,17 +28,6 @@
 // alias for a square matrix
 typedef std::vector<std::vector<double>> squarematrix;
 
-// a namespace for Lookuptables and global variables
-namespace LUT
-{
-	//----- Attributes for Look-Up-Tables -----//
-	std::vector<squarematrix> inst_profile = {};
-	std::vector<squarematrix> cumul_profile = {};
-
-	//----- Infectivity Profile Functions -----//
-	Infec_Prof_Skew_Logistic infec_prof_func;
-}
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

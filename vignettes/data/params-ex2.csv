@@ -1,7 +1,6 @@
 name,value,infer,prior,args,rule,rargs,range
-alpha,0.005,TRUE,uniform,min/0/max/5,lognorm,meanlog/0/sdlog/1,min/0/max/5
-beta,0.02,TRUE,uniform,min/0/max/5,lognorm,meanlog/0/sdlog/1,min/0/max/5
-gamma,0.85,TRUE,uniform,min/0/max/5,normal,mean/0/sd/1,min/0/max/5
+beta,0.02,TRUE,uniform,min/0/max/1,lognorm,meanlog/0/sdlog/1,min/0/max/1
+gamma,0.85,TRUE,uniform,min/0/max/5,lognorm,meanlog/0/sdlog/1,min/0/max/5
 s_vacc,0.25,FALSE,uniform,min/0/max/5,lognorm,meanlog/0/sdlog/1,min/0/max/5
 i_vacc,0.5,FALSE,uniform,min/0/max/5,lognorm,meanlog/0/sdlog/1,min/0/max/5
 c_adu_to_kid,0.8,FALSE,uniform,min/0/max/5,lognorm,meanlog/0/sdlog/1,min/0/max/5

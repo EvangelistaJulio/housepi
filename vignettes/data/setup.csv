@@ -1,5 +1,5 @@
 seed,576125013
-num_iter,10000
+num_iter,5000
 num_adapt,1000
 burn_in,500
 thinning,10

@@ -7,96 +7,80 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-This tutorial introduces to data augmentation with the package `housepi`. We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
+This tutorial introduces to data augmentation with the package `housepi`. 
+We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
 We start by loading the package:
 
 ```{r}
 library(housepi)
 ```
 
-## Model Generation
-
 The commands to generate and build a model are the same used for all models presented so far. 
 As an example, we use the default model "augm_onset_single_intr", where survey conditioned on single introduction follows the times of onset:
 
 ```{r}
 # generate the model
-hemi <- generate_model("chain_binom")
+hemi <- generate_model("augm_onset_single_intr")
+
 
 # associate data, parameters and setup
 build_model(hemi, 
             data = "data/data.csv", 
-            params = "data/params-more.csv",
-            setup = "data/setup.csv")
+            params = "data/params-ex2.csv",
+            setup = "data/setup-ex2.csv")
 
-# show setup definitions
-hemi$show_setup()
+# store the choice of the parameters used in the simulations
+params <- hemi$params()
 ```
 
-Here we already provided the parameter definitions to use for the simulations, plus the rules for the MCMC moves. We can show them with:
+## Build with Augmented Variables
+
+Loading the augmented variable definitions is more delicate, since in principle their configurations could depend on data and/or parameter.
+
+**augmented:** a DataFrame (or a file) with the augmented variables, the respective models and proposer rules needed for the Bayesian Monte Carlo.
+
 
 ```{r}
-# show the parameter definitions
-hemi$show_params()
+# associate augmented variable definitions
+build_model(hemi, augm = "data/augm.csv")
 ```
 
-## Simulation
+```{r, echo=FALSE}
+knitr::kable(read.csv("data/augm.csv"))
+```
 
-To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide with the different household compositions.
+## Simulate an Augmented Model
+
+We run a simulation with the usual method `simulate`. 
 
 ```{r}
 # override status of the dataset according to simulation 
 hemi$simulate()
 
-# show a summary of the simulated dataset 
-hemi$show_summary()
+# load the simulated dataset
+df <- hemi$data()
+# show the results of the simulation 
+head(df[c("status", "incub_period", "onset_date")])
 ```
+We can see that in addition to status, the simulation also associates the values of the augmented variables: the incubation period and the onset time.
 
-For the full results of the simulation, we can use the method `data` which returns a DataFrame with the current dataset.
-
-```{r, eval=TRUE}
-head(hemi$data())
-```
-
-## Inference
-
-Before proceeding any further, it can be useful to verify that the provided model can evaluate the loglikelihood without errors. We can do this using the method `evaluate`.
+As a sanity check, we can verify than inference returns the parameters used for the simulation.
 
 ```{r}
-hemi$evaluate()
+mcmc_trace <- run_inference(hemi)
+
+# Visualize the trace of the MCMC chain
+coda::traceplot(mcmc_trace)
+
+# store the results
+results <- summary(mcmc_trace)
 ```
 
-To perform inference instead, we execute the command `run_inference`.
-
 ```{r}
-mcmc_traces <- run_inference(hemi)
-```
-
-This method returns a 'coda' object which can then be used to analyze the results as follows:
-
-```{r}
-library(coda)
-
-# Visualize the traces of the first MCMC chain
-traceplot(mcmc_traces[1])
-
-# Print summary of the posterior estimates
-summary(mcmc_traces)
-
-# Gelman-Rubin diagnostic
-gelman.diag(mcmc_traces)
-```
-
-## Model Comparison
-
-The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. These results can be accessed as follows:
-
-```{r}
-hemi$show_diagnostics()
-```
-
-Another feature of the `housepi` package is the possibility to estimate the marginal loglikelihood with the method of the power posteriors:
-
-```{r}
-hemi$evaluate_marginal(30, TRUE, FALSE)
+# collect the information for the check 
+inames <- params[params["infer"] == TRUE, "name"]
+data.frame(Expec = params[params["infer"] == TRUE, "value"],
+           Mean = results[["statistics"]][inames, "Mean"],
+           Q2.5 = results[["quantiles"]][inames, "2.5%"],
+           Q97.5 = results[["quantiles"]][inames, "97.5%"])
 ```

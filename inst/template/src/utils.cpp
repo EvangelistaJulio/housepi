@@ -219,7 +219,7 @@ namespace screen
         if (is_raised_once == false)
         {
 #ifdef USE_RCPP
-            Rcpp::warning("Warning: " + txt);
+            Rcpp::warning(txt);
 #else
             std::cerr << "\nWarning: " + txt << std::endl;
 #endif
@@ -235,7 +235,7 @@ namespace screen
     void raise_error(const std::string &txt)
     {
 #ifdef USE_RCPP
-        Rcpp::stop(txt + "\nExit...");
+        Rcpp::stop(txt);
 #else
         std::cerr << "\nError: " + txt + "\nExit...\n"
                   << std::endl;

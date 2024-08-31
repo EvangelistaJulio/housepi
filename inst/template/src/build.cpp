@@ -408,7 +408,7 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
         }
         else
         {
-            screen::raise_error("Impossible to read file: " + pathtofile);
+            screen::raise_error("Impossible to open parameter file `" + pathtofile + "`.");
         }
     }
 }
@@ -612,7 +612,7 @@ void MCMC::build_data(std::string pathtofile, bool verbose)
         }
         else
         {
-            screen::raise_error("Impossible to open file: " + pathtofile);
+            screen::raise_error("Impossible to open data file `" + pathtofile + "`.");
         }
     }
 }
@@ -785,10 +785,10 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
         {
             screen::show_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
 
-            //=====Load column headers=====//
+            //===== Load column headers =====//
             std::vector<std::string> headers = read_column_headers(input, required_headers, pathtofile);
 
-            //=====Load augmented from the row with options=====//
+            //===== Load augmented from the row with options =====//
             load_augm_definition.clear();
             augm_full_set.clear();
             augm_to_be_inferred.clear();
@@ -803,7 +803,7 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
         }
         else
         {
-            screen::raise_error("Impossible to read file: " + pathtofile);
+            screen::raise_error("Impossible to open augmented file `" + pathtofile + "`.");
         }
     }
 }
@@ -817,7 +817,18 @@ void MCMC::assign_augmented_variables()
     for (ssargs loader : load_augm_definition)
     {
         augmID = loader.at("name");
-        augm_full_set.emplace(augmID);
+
+        if (augm_full_set.find(augmID) == augm_full_set.end())
+        {
+            augm_full_set.emplace(augmID);
+        }
+        else
+        {
+            std::ostringstream oss;
+            oss << "Ambigous definitions for augmented variable `" << augmID << "`."
+                << " Correct your augmented variable file.";
+            screen::raise_error(oss.str());
+        }
 
         // list of augmented variables to be inferred
         if (loader.at("rule") != UNDEFINED)
@@ -867,9 +878,6 @@ void MCMC::assign_augmented_variables()
                 }
             }
         }
-
-        // free memory
-        load_augm_definition.clear();
     }
 }
 
@@ -1029,7 +1037,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
                 setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
                 if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
                 {
-                    screen::raise_warning("Unable to fix initial parameters when running multiple chains.",
+                    screen::raise_warning("Unable to fix initial parameters when running  chains.",
                                           Fix_Init_Mult_Chains_Warning);
                     setup_rnd_init_params = true;
                 }
@@ -1048,7 +1056,7 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
         }
         else
         {
-            screen::raise_error("Impossible to read setup file: " + pathtofile);
+            screen::raise_error("Impossible to open setup file `" + pathtofile + "`.");
         }
     }
 

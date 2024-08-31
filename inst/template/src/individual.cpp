@@ -146,9 +146,7 @@ void Individual::assign_augm(const std::string a, Augmented new_augm)
 	}
 	else
 	{
-		std::ostringstream oss;
-		oss << "Individual " << get_index() << " has multiple definitions for augmented variable `" << a << "`.";
-		screen::raise_error(oss.str());
+		augm_var.at(a) = new_augm;
 	}
 }
 
@@ -213,10 +211,8 @@ void Household::assign_data(const std::string d, double value)
 	}
 	else
 	{
-		// rateID was previously declared
-		std::ostringstream oss;
-		oss << "Household " << get_index() << " has multiple definitions for data `" << d << "`.";
-		screen::raise_error(oss.str());
+		// rateID was previously declared, overwrite it
+		house_data.at(d) = value;
 	}
 }
 

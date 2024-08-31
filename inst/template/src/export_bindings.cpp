@@ -1,5 +1,5 @@
 /*
- * export_bin.cpp
+ * export_bindings.cpp
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */

@@ -244,7 +244,7 @@ void MCMC::inferstate_init(std::string output_filename)
             __is_infer_complete = false;
 
             // print loglikelihood
-            inferstate_ofstream << "loglike";
+            inferstate_ofstream << "loglikelihood";
 
             for (const std::string & parID : param_to_be_inferred)
             {
