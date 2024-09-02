@@ -184,28 +184,30 @@ private:
 	std::vector<ssargs> load_augm_definition = {};
 
 	//----- build : auxiliary functions -----//
-	bool stobool(std::string token);
-	ssargs parse_dict_string(std::string token);
-	sdargs parse_dict_args(std::string token);
+	bool stobool(const std::string tkn);
+
+	std::vector<std::string> parse_list_args(const std::string tkn);
+	sdargs merge_list_args(const std::string tkn_keys, const std::string tkn_vals);
+
 	sdargs row_to_sdargs(ssargs &this_row);
-	std::string string_cleaner(std::string token);
+	std::string string_cleaner(const std::string tkn);
 	std::vector<std::string> read_column_headers(std::ifstream &input,
 												 std::vector<std::string> required_headers = {},
-												 std::string pathtofile = UNDEFINED);
+												 const std::string pathtofile = UNDEFINED);
 	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row);
 	void update_report_data();
 
 	//----- build : type-specified variables -----//
-	double type_to_double(std::string token, int h, int i);
-	const double *type_to_doubleptr(std::string token);
-	sdargs typedict_to_sdargs(std::string token, int h, int i);
-	sdargs_ext typedict_to_sdargs_ext(std::string token);
+	double type_to_double(const std::string tkn_val, const std::string tkn_typ, int h, int i);
+	const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ);
+	sdargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i);
+	sdargs_ext typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ);
 
 	//===== PRINTS =====//
-	std::string get_progtxt(std::string txt);
+	std::string get_progtxt(const std::string txt);
 
 	//----- infer : save inference state -----//
-	void inferstate_init(std::string output_filename);
+	void inferstate_init(const std::string output_filename);
 	void inferstate_print();
 	void inferstate_close();
 
@@ -215,13 +217,13 @@ private:
 	void update_diagnostics();
 	void close_diagnostics();
 
-	void move_single_param(std::string parID);
+	void move_single_param(const std::string parID);
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();
 	void move_all_augm_variables();
 	long double move_single_house_augm(int h);
 
-	double get_augm_accept_rate(std::string augmID);
+	double get_augm_accept_rate(const std::string augmID);
 };
 
 #endif // MCMC__H

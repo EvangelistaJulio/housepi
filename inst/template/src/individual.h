@@ -62,7 +62,10 @@ public:
 
 	//=====Augmented Variables=====//
 	void assert_augm(const std::string a) const;
-	void assign_augm(const std::string a, Augmented new_augm);
+	void assign_augm(const std::string a, double value,
+					 const std::string model_name, sdargs_ext model_args_ext,
+					 const std::string rule_name, sdargs rule_args,
+					 double rule_from, sdargs value_range);
 	void init_augm(const std::string a, sys_rnd_gen &prng);
 	void set_augm(const std::string a, double new_value) { augm_var.at(a).set_value(new_value); }
 	bool get_augm_infer(const std::string a) const { return augm_var.at(a).get_infer(); }

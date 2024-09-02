@@ -1,3 +1,3 @@
-name,value,model,args,rule,rargs,rule_from,range,init_rand
-incub_period,S:0,gamma,shape/P:incub_shape/scale/P:incub_scale,normal,mean/S:0.0/sd/P:incub_rule_sd,None,min/S:0/max/P:incub_max,TRUE
-onset_date,S:0,None,None,normal,mean/S:0.0/sd/P:onset_rule_sd,None,min/P:onset_min,FALSE
+name,value,valuetype,model,args,argsval,argstype,rule,rargs,rargsval,rargstype,rfrom,rfromtype,min,mintype,max,maxtype,init_rand
+incub_period,0,S,gamma,shape/scale,incub_shape/incub_scale,P/P,normal,mean/sd,0/incub_rule_sd,S/P,,,0,S,incub_max,P,TRUE
+onset_date,0,S,,,,,normal,mean/sd,0/onset_rule_sd,S/P,,,onset_min,P,,,FALSE

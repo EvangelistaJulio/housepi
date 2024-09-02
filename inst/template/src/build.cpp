@@ -11,6 +11,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Param_Infer_Fixed_Move_Warning = false;
+bool Non_Specified_Type_Warning = false;
+bool Non_Specified_Value_Warning = false;
 bool Unknown_Status_Warning = false;       // unknown status
 bool Fix_Init_Mult_Chains_Warning = false; // fixed paramter values when multiple chains
 bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
@@ -32,97 +34,61 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 /////////////////////////////  MCMC : methods (auxiliary functions)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Cleaner std::string from forbidden characters. */
-std::string MCMC::string_cleaner(std::string token)
+/* Clean std::string from forbidden characters and convert to UNDEFINED. */
+std::string MCMC::string_cleaner(std::string tkn)
 {
+    // forbidden characters
     for (char r : {'"', '\r', '\n'})
     {
-        token.erase(remove(token.begin(), token.end(), r), token.end());
+        tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
     }
-    return token;
+
+    // check for undefined 
+    if ((tkn == UNDEFINED) || (tkn.size() == 0))
+    {
+        tkn = UNDEFINED;
+    }
+
+    return tkn;
 }
 
 /* Convert string to boolean variable. */
-bool MCMC::stobool(std::string token)
+bool MCMC::stobool(std::string tkn)
 {
     bool output = false;
 
-    if (token == "TRUE" || token == "true" || token == "True" || token == "1")
+    if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
     {
         output = true;
     }
-    else if (token != "FALSE" && token != "false" && token != "False" && token != "0")
+    else if (tkn != "FALSE" && tkn != "false" && tkn != "False" && tkn != "0")
     {
-        screen::raise_error("Unrecognized boolean value for `" + token + "`.");
+        screen::raise_error("Unrecognized boolean value for `" + tkn + "`.");
     }
 
     return output;
 }
 
-/* Parse the dictionary from the string. */
-ssargs MCMC::parse_dict_string(std::string token)
-{
-    std::istringstream args_ss(token);
-    std::vector<std::string> args_stock;
-    ssargs output = {};
-    std::string tmp;
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
-    // rea the entryes of the dictionary
-    while (getline(args_ss, tmp, screen::C_DICT_DELIM))
-    {
-        args_stock.push_back(tmp);
-    }
-    if (args_stock.size() == 0)
-    {
-        output.clear(); // empty dictionary
-    }
-    else if (args_stock.size() % 2 == 1)
-    {
-        screen::raise_error("Incomplete dictionary: " + token + ".");
-    }
-    else
-    {
-        for (size_t i = 0; i < args_stock.size(); i += 2)
-        {
-            try
-            {
-                output.emplace(args_stock[i], args_stock[i + 1]);
-            }
-            catch (const std::exception &)
-            {
-                screen::raise_error("Invalid entry of dictionary: " + token + ".");
-            }
-        }
-    }
-
-    return output;
-}
-
-/* Parse the scalar arguments dictionary from the std::string */
-sdargs MCMC::parse_dict_args(std::string token)
-{
-    ssargs input = parse_dict_string(token);
-    sdargs output = {};
-    for (auto const &x : input)
-    {
-        output.emplace(x.first, std::stod(x.second));
-    }
-    return output;
-}
-
-/* Read column headers */
+/* Read column headers. */
 std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
                                                    std::vector<std::string> required_headers,
                                                    std::string pathtofile)
 {
-    std::string line, token;
+    std::string line, tkn;
     getline(input, line);
     std::istringstream iss(line);
     std::vector<std::string> headers = {};
 
-    while (getline(iss, token, screen::C_DELIM))
+    while (getline(iss, tkn, screen::C_DELIM))
     {
-        headers.push_back(string_cleaner(token));
+        headers.push_back(string_cleaner(tkn));
     }
 
     // check that all required headers are present
@@ -138,26 +104,21 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
             {
                 if (!is_missing)
                 {
-                    oss << "Missing column(s): `" + req + "`";
+                    // point to the faulty file
+                    oss << "Check file: " << pathtofile << "\nMissing column(s): `" + req + "`";
+                    is_missing = true;
                 }
                 else
                 {
-                    screen::raise_error(", `" + req + "`");
+                    oss << ", `" << req << "`";
                 }
-                is_missing = true;
             }
         }
 
+        // raise the error if something was missing
         if (is_missing)
         {
-            // point to the faulty file
-            if (pathtofile != UNDEFINED)
-            {
-                oss << "\nPlease check file: " << pathtofile;
-            }
-
-            // raise the error
-            screen::raise_error(oss.str());
+            screen::raise_error(oss.str() + ".");
         }
     }
 
@@ -167,15 +128,15 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
 /* Load files from the row with headers */
 bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row)
 {
-    std::string line, token;
+    std::string line, tkn;
     if (getline(input, line))
     {
         std::istringstream iss(line);
         int num_cols = 0;
 
-        while (getline(iss, token, screen::C_DELIM))
+        while (getline(iss, tkn, screen::C_DELIM))
         {
-            this_row.emplace(headers[num_cols], string_cleaner(token));
+            this_row.emplace(headers[num_cols], string_cleaner(tkn));
             num_cols++;
         }
         return true;
@@ -197,148 +158,253 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
     return row_with_double;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
-/* Convert a type-string to a double */
-double MCMC::type_to_double(std::string token, int h, int i)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Setup file */
+void MCMC::build_setup(std::string pathtofile, bool verbose)
 {
-    double output = INF_DOUBLE; // default value
+    // default number of threads
+    unsigned num_threads = 1;
 
-    // Note : when does it make sense to have token == UNDEFINED ?
-    if (token != UNDEFINED)
+    if (pathtofile == UNDEFINED)
     {
-        int pos = token.find(screen::C_OPTION_DELIM);
-        std::string k = token.substr(0, pos);
-        std::string v = token.substr(pos + 1);
+        screen::show_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
+    }
+    else
+    {
+        std::ifstream input(pathtofile.c_str());
 
-        if (k == TYPE_SCALAR)
+        if (input.is_open())
         {
-            output = std::stod(v);
-        }
-        else if (k == TYPE_DATA)
-        {
-            househ[h].indiv[i].assert_data(v);
-            output = househ[h].indiv[i].get_data(v);
-        }
-        else if (k == TYPE_PARAM)
-        {
-            assert_param(v);
-            if (get_infer(v))
+            screen::show_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
+
+            // Create a std::stringstream of the current line
+            ssargs safe_load = {};
+            for (std::string line; getline(input, line);)
+            {
+                std::string name, choice;
+                std::istringstream iss(line);
+
+                //===== NAME =====//
+                if (!getline(iss, name, screen::C_DELIM))
+                {
+                    screen::raise_error("Unable to extract setup entry.\nCheck file line: " + line);
+                }
+
+                //===== CHOICE =====//
+                if (!getline(iss, choice))
+                {
+                    screen::raise_error("Unable to extract setup choice.\nCheck file line: " + line);
+                }
+
+                // add the new setup
+                safe_load.emplace(string_cleaner(name), string_cleaner(choice));
+            }
+
+            //---- Check that all provided setups are correct -----//
+            std::vector<std::string> file_entries = {
+                "num_threads", "seed", "num_chains",
+                "num_iter", "num_adapt", "thinning",
+                "burn_in", "rnd_init_params",
+                "num_rungs", "inv_temper"};
+
+            std::vector<std::string> wrong_entries = {};
+            for (const auto &pair : safe_load)
+            {
+                if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
+                {
+                    wrong_entries.push_back(pair.first);
+                }
+            }
+            if (wrong_entries.size() > 0)
             {
                 std::ostringstream oss;
-                oss << "The parameter `" << v << "` is chosen for a fixed value move."
-                    << "Eventual changes of the parameter will not affect the move.";
-                screen::raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
+                oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
+                for (size_t k = 1; k < wrong_entries.size(); k++)
+                {
+                    oss << ", `" << wrong_entries[k] << "`";
+                }
+                oss << ". Available setup options are: `" << file_entries[0] << "`";
+                for (size_t k = 1; k < file_entries.size(); k++)
+                {
+                    oss << ", `" << file_entries[k] << "`";
+                }
+                screen::raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
             }
-            output = get_value(v);
-        }
-        else if (k == TYPE_COMMAND)
-        {
-            if (v != "default")
+
+            //===== NUMBER OF THREADS =====//
+            if (safe_load.find("num_threads") != safe_load.end())
             {
-                screen::raise_error("Unknown command `" + v + "`.");
+                num_threads = std::stoi(safe_load.at("num_threads"));
+            }
+
+            //===== PRNG SEED =====//
+            if ((safe_load.find("seed") != safe_load.end()) && (safe_load.at("seed") != UNDEFINED))
+            {
+                setup_seed = std::stoull(safe_load.at("seed"));
+            }
+
+            //===== NUMBER OF CHAINS =====//
+            if (safe_load.find("num_chains") != safe_load.end())
+            {
+                setup_num_chains = std::stoul(safe_load.at("num_chains"));
+                if (setup_num_iter < 1)
+                {
+                    screen::raise_error(
+                        "number of chains must be greater than 0. Check your setup.");
+                }
+            }
+
+            //===== NUMBER OF ITERATIONS =====//
+            if (safe_load.find("num_iter") != safe_load.end())
+            {
+                setup_num_iter = std::stoul(safe_load.at("num_iter"));
+                if (setup_num_iter < 2)
+                {
+                    screen::raise_error(
+                        "number of iterations must be greater than 1. Check your setup.");
+                }
+            }
+
+            //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
+            if (safe_load.find("num_adapt") != safe_load.end())
+            {
+                setup_num_adapt = std::stoul(safe_load.at("num_adapt"));
+            }
+
+            //===== THINNING =====//
+            if (safe_load.find("thinning") != safe_load.end())
+            {
+                setup_thinning = std::stoul(safe_load.at("thinning"));
+                if (setup_thinning >= setup_num_iter)
+                {
+                    screen::raise_error(
+                        "thinning must be smaller than number of iterations. Check your setup.");
+                }
+                else if (setup_thinning == 0)
+                {
+                    screen::raise_error(
+                        "thinning must be greater than 0. Check your setup.");
+                }
+            }
+
+            //===== BURN-IN =====//
+            if (safe_load.find("burn_in") != safe_load.end())
+            {
+                setup_burn_in = std::stoul(safe_load.at("burn_in"));
+                if (setup_burn_in >= setup_num_iter)
+                {
+                    screen::raise_error(
+                        "burn-in must be smaller than number of iterations. Check your setup.");
+                }
+            }
+
+            //===== RANDOM INITIALIZATION OF PARAMETERS =====//
+            if (safe_load.find("rnd_init_params") != safe_load.end())
+            {
+                setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
+                if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
+                {
+                    screen::raise_warning("Unable to fix initial parameters when running  chains.",
+                                          Fix_Init_Mult_Chains_Warning);
+                    setup_rnd_init_params = true;
+                }
+            }
+
+            //===== INVERSE TEMPERATURE =====//
+            if (safe_load.find("inv_temper") != safe_load.end())
+            {
+                setup_inv_T = std::stold(safe_load.at("inv_temper"));
+                if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
+                {
+                    screen::raise_error(
+                        "Inverse temperature " + std::to_string(setup_inv_T) + " out of range [0, 1]. Check your setup.");
+                }
             }
         }
         else
         {
-            screen::raise_error("Unknown variable type specifier `" + k + "`.");
+            screen::raise_error("Impossible to open setup file `" + pathtofile + "`.");
         }
     }
 
-    return output;
-}
+    //===== Define Number of Threads (Monte_Carlo_Core) =====//
+    set_num_threads(num_threads);
 
-/* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(std::string token)
-{
-    const double *output = nullptr;
+    //===== Pseudo-Random Number Generator Seeding =====//
+    set_prng_seed(setup_seed);
 
-    if (token != UNDEFINED)
+    //===== Number of MCMC sweeps per single chain =====//
+    // note : Euclidean divisions!
+    __mcmc_sweeps = setup_num_adapt / setup_thinning;
+    __mcmc_sweeps += setup_burn_in / setup_thinning;
+    __mcmc_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
+    __mcmc_sweeps *= setup_thinning * setup_num_chains;
+
+    //===== MCMC Sample Size =====//
+    dgn_ss = (setup_num_iter - setup_burn_in) / setup_thinning;
+    dgn_ss *= setup_num_chains;
+
+    //===== Display =====//
+    if (verbose)
     {
-        int pos = token.find(screen::C_OPTION_DELIM);
-        std::string k = token.substr(0, pos);
-        std::string v = token.substr(pos + 1);
-        if (k == TYPE_PARAM)
-        {
-            assert_param(v);
-            output = get_address(v);
-        }
-        else
-        {
-            std::ostringstream oss;
-            oss << "Unsopported type specifier `" + k + "` found while loading `" << token << "`. "
-                << "Expected type specifier `" << TYPE_PARAM << "` instead.";
-            screen::raise_error(oss.str());
-        }
+        screen::show_decorator("Setup::definitions", '-');
+        show_setup();
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Parse the list from the string. */
+std::vector<std::string> MCMC::parse_list_args(const std::string tkn)
+{
+    std::istringstream args_ss(tkn);
+    std::vector<std::string> output = {};
+    std::string tmp;
+
+    // rea the entries of the dictionary
+    while (getline(args_ss, tmp, screen::C_LIST_DELIM))
+    {
+        output.push_back(tmp);
     }
 
     return output;
 }
 
-/* Convert a string with type-dictionary to string-to-double */
-sdargs MCMC::typedict_to_sdargs(std::string token, int h, int i)
+/* Combine after control two lists into a dictionary */
+sdargs MCMC::merge_list_args(const std::string tkn_keys, const std::string tkn_vals)
 {
+    std::vector<std::string> keys = parse_list_args(tkn_keys);
+    std::vector<std::string> vals = parse_list_args(tkn_vals);
     sdargs output = {};
-    if (token != UNDEFINED)
+
+    if (keys.size() != vals.size())
     {
-        ssargs input = parse_dict_string(token);
-        for (auto const &x : input)
+        // inform parameter about the error
+        output.emplace(IO_MISMATCH, INF_DOUBLE);
+    }
+    else
+    {
+        for (size_t x = 0; x < keys.size(); x++)
         {
-            output.emplace(x.first, type_to_double(x.second, h, i));
+            output.emplace(keys[x], std::stod(vals[x]));
         }
     }
     return output;
-}
-
-/* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(std::string token)
-{
-    sdargs_ext output = {};
-    if (token != UNDEFINED)
-    {
-        ssargs input = parse_dict_string(token);
-        for (auto const &x : input)
-        {
-            output.emplace(x.first, type_to_doubleptr(x.second));
-        }
-    }
-    return output;
-}
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  MCMC : BUILD  ///////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::build(std::string setup_file, std::string params_file,
-                 std::string data_file, std::string augm_file,
-                 std::string extra_file, bool verbose)
-{
-    //===== reset internal status =====//
-    __is_infer_complete = false;
-
-    // 1) Load Setup (optional)
-    build_setup(setup_file, verbose);
-
-    // 2) Load Parameters and Check (required)
-    build_parameters(params_file, verbose);
-
-    // 3) Load Data and Check (required)
-    build_data(data_file, verbose);
-
-    // 4) Load Augmented Variables (optional)
-    build_augmented(augm_file, verbose);
-
-    // 5) Load Extra File (optional, user defined)
-    // UPDATE: there could be plenty extra files to be store somewhere
-    build_extra(extra_file, verbose);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -384,14 +450,26 @@ void MCMC::build_parameters(std::string pathtofile, bool verbose)
                 // add entry to shared parameter dictionary
                 if (stobool(this_row.at("infer")))
                 {
+                    // load range
+                    sdargs range = {};
+                    if (this_row["min"] != UNDEFINED)
+                    {
+                        range.emplace("min", std::stod(this_row["min"]));
+                    }
+                    if (this_row["max"] != UNDEFINED)
+                    {
+                        range.emplace("max", std::stod(this_row["max"]));
+                    }
+
+                    // assign parameter to the set of variables
                     assign_parameter(
                         this_row["name"],
                         std::stod(this_row["value"]),
                         this_row["prior"],
-                        parse_dict_args(this_row["args"]),
+                        merge_list_args(this_row["args"], this_row["argsval"]),
                         this_row["rule"],
-                        parse_dict_args(this_row["rargs"]),
-                        parse_dict_args(this_row["range"]));
+                        merge_list_args(this_row["rargs"], this_row["rargsval"]),
+                        range);
                 }
                 else
                 {
@@ -768,6 +846,181 @@ void MCMC::set_rate_per_contact(int h)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Convert a typed string to a double */
+double MCMC::type_to_double(const std::string val, const std::string typ, int h, int i)
+{
+    double output = INF_DOUBLE;
+
+    if ((val == UNDEFINED) && (typ == UNDEFINED))
+    {
+        output = INF_DOUBLE; // default value
+    }
+    else if ((val != UNDEFINED) && (typ == UNDEFINED))
+    {
+        try
+        {
+            output = std::stod(val);
+        }
+        catch (const std::invalid_argument &e)
+        {
+            std::ostringstream oss;
+            oss << "Value `" + val + "` can't be cast to scalar value. Provide the respective type.";
+            screen::raise_warning(oss.str(), Non_Specified_Type_Warning);
+        }
+    }
+    else if ((val == UNDEFINED) && (typ != UNDEFINED))
+    {
+        screen::raise_warning("Found a type without a paired value. Falling back to default.",
+                              Non_Specified_Value_Warning);
+
+        output = INF_DOUBLE; // default value
+    }
+    else
+    {
+        if (typ == TYPE_SCALAR)
+        {
+            output = std::stod(val);
+        }
+        else if (typ == TYPE_DATA)
+        {
+            househ[h].indiv[i].assert_data(val);
+            output = househ[h].indiv[i].get_data(val);
+        }
+        else if (typ == TYPE_PARAM)
+        {
+            assert_param(val);
+            if (get_infer(val))
+            {
+                std::ostringstream oss;
+                // UPDATE : this error is not clear as exposed here
+                oss << "Parameter to be inferred `" << val << "` is chosen for a fixed value move."
+                    << "Eventual changes of the parameter will not affect the move.";
+                screen::raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
+            }
+            output = get_value(val);
+        }
+        else if (typ == TYPE_COMMAND)
+        {
+            if (val == "default")
+            {
+                output = INF_DOUBLE;
+            }
+            else
+            {
+                screen::raise_error("Unknown command type `" + val + "`.");
+            }
+        }
+        else
+        {
+            screen::raise_error("Unknown variable type specifier `" + typ + "`.");
+        }
+    }
+
+    return output;
+}
+
+/* Convert a type-string to a double-pointer */
+const double *MCMC::type_to_doubleptr(const std::string val, const std::string typ)
+{
+    const double *output = nullptr;
+
+    if ((val == UNDEFINED) && (typ == UNDEFINED))
+    {
+        output = nullptr; // default value
+    }
+    else if ((val != UNDEFINED) && (typ == UNDEFINED))
+    {
+        std::ostringstream oss;
+        oss << "Impossible to interpret default value of  `" << val << "`. Please provide a type.";
+        screen::raise_error(oss.str());
+    }
+    else if ((val == UNDEFINED) && (typ != UNDEFINED))
+    {
+        screen::raise_warning("Found a type without a paired value. Falling back to default.",
+                              Non_Specified_Value_Warning);
+
+        output = nullptr; // default value
+    }
+    else
+    {
+        if (typ == TYPE_PARAM)
+        {
+            assert_param(val);
+            output = get_address(val);
+        }
+        else
+        {
+            std::ostringstream oss;
+            oss << "Unsopported type specifier `" + typ + "` found while loading `" << val << "`. "
+                << "Expected type specifier `" << TYPE_PARAM << "` instead.";
+            screen::raise_error(oss.str());
+        }
+    }
+
+    return output;
+}
+
+/* Convert a string with type-dictionary to string-to-double */
+sdargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i)
+{
+    std::vector<std::string> keys = parse_list_args(tkn_key);
+    std::vector<std::string> vals = parse_list_args(tkn_val);
+    std::vector<std::string> typs = parse_list_args(tkn_typ);
+
+    sdargs output = {};
+
+    if (!((keys.size() == vals.size()) && (typs.size() == vals.size())))
+    {
+        // inform augmented variable about the error
+        output.emplace(IO_MISMATCH, INF_DOUBLE);
+    }
+    else
+    {
+        for (size_t x = 0; x < keys.size(); x++)
+        {
+            output.emplace(keys[x], type_to_double(vals[x], typs[x], h, i));
+        }
+    }
+
+    return output;
+}
+
+/* Convert a string with type-dictionary to string-to-double-pointer */
+sdargs_ext MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ)
+{
+    std::vector<std::string> keys = parse_list_args(tkn_key);
+    std::vector<std::string> vals = parse_list_args(tkn_val);
+    std::vector<std::string> typs = parse_list_args(tkn_typ);
+
+    sdargs_ext output = {};
+
+    if (!((keys.size() == vals.size()) && (typs.size() == vals.size())))
+    {
+        // inform augmented variable about the error
+        output.emplace(IO_MISMATCH, nullptr);
+    }
+    else
+    {
+        for (size_t x = 0; x < keys.size(); x++)
+        {
+            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x]));
+        }
+    }
+
+    return output;
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  MCMC : build augmented  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -778,8 +1031,10 @@ void MCMC::build_augmented(std::string pathtofile, bool verbose)
     if (pathtofile != UNDEFINED)
     {
         std::ifstream input(pathtofile.c_str());
-        std::vector<std::string> required_headers = {
-            "name", "value", "model", "args", "rule", "rargs", "rule_from", "range", "init_rand"};
+        std::vector<std::string> required_headers = {"name", "value", "valuetype",
+                                                     "model", "args", "argsval", "argstype", "rule", "init_rand",
+                                                     "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
+                                                     "min", "mintype", "max", "maxtype"};
 
         if (input.is_open())
         {
@@ -866,222 +1121,30 @@ void MCMC::assign_augmented_variables()
             {
                 for (ssargs loader : load_augm_definition)
                 {
-                    Augmented augm_var(
-                        type_to_double(loader.at("value"), h, i),
+                    // load range
+                    sdargs range = {};
+                    if (type_to_double(loader.at("min"), loader.at("mintype"), h, i) != INF_DOUBLE)
+                    {
+                        range.emplace("min", type_to_double(loader.at("value"), loader.at("valuetype"), h, i));
+                    }
+                    if (type_to_double(loader.at("max"), loader.at("maxtype"), h, i) != INF_DOUBLE)
+                    {
+                        range.emplace("max", type_to_double(loader.at("max"), loader.at("maxtype"), h, i));
+                    }
+
+                    // assign augmented variable
+                    househ[h].indiv[i].assign_augm(
+                        loader.at("name"),
+                        type_to_double(loader.at("value"), loader.at("valuetype"), h, i),
                         loader.at("model"),
-                        typedict_to_sdargs_ext(loader.at("args")),
+                        typedict_to_sdargs_ext(loader.at("args"), loader.at("argsval"), loader.at("argstype")),
                         loader.at("rule"),
-                        typedict_to_sdargs(loader.at("rargs"), h, i),
-                        type_to_double(loader.at("rule_from"), h, i),
-                        typedict_to_sdargs(loader.at("range"), h, i));
-                    househ[h].indiv[i].assign_augm(loader.at("name"), augm_var);
+                        typedict_to_sdargs(loader.at("rargs"), loader.at("rargsval"), loader.at("rargstype"), h, i),
+                        type_to_double(loader.at("rfrom"), loader.at("rfromtype"), h, i),
+                        range);
                 }
             }
         }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Setup file */
-void MCMC::build_setup(std::string pathtofile, bool verbose)
-{
-    // default number of threads
-    unsigned num_threads = 1;
-
-    if (pathtofile == UNDEFINED)
-    {
-        screen::show_decorator("Setup", screen::C_DECOR, UNDEFINED, verbose);
-    }
-    else
-    {
-        std::ifstream input(pathtofile.c_str());
-
-        if (input.is_open())
-        {
-            screen::show_decorator("Setup", screen::C_DECOR, "import: " + pathtofile, verbose);
-
-            // Create a std::stringstream of the current line
-            ssargs safe_load = {};
-            for (std::string line; getline(input, line);)
-            {
-                std::string name, choice;
-                std::istringstream iss(line);
-
-                //===== NAME =====//
-                if (!getline(iss, name, screen::C_DELIM))
-                {
-                    screen::raise_error("Unable to extract setup entry.\nCheck file line: " + line);
-                }
-
-                //===== CHOICE =====//
-                if (!getline(iss, choice))
-                {
-                    screen::raise_error("Unable to extract setup choice.\nCheck file line: " + line);
-                }
-
-                // add the new setup
-                safe_load.emplace(string_cleaner(name), string_cleaner(choice));
-            }
-
-            //---- Check that all provided setups are correct -----//
-            std::vector<std::string> file_entries = {
-                "num_threads", "seed", "num_chains",
-                "num_iter", "num_adapt", "thinning",
-                "burn_in", "rnd_init_params",
-                "num_rungs", "inv_temper"};
-
-            std::vector<std::string> wrong_entries = {};
-            for (const auto &pair : safe_load)
-            {
-                if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
-                {
-                    wrong_entries.push_back(pair.first);
-                }
-            }
-            if (wrong_entries.size() > 0)
-            {
-                std::ostringstream oss;
-                oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
-                for (size_t k = 1; k < wrong_entries.size(); k++)
-                {
-                    oss << ", `" << wrong_entries[k] << "`";
-                }
-                oss << ". Available setup options are: `" << file_entries[0] << "`";
-                for (size_t k = 1; k < file_entries.size(); k++)
-                {
-                    oss << ", `" << file_entries[k] << "`";
-                }
-                screen::raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
-            }
-
-            //===== NUMBER OF THREADS =====//
-            if (safe_load.find("num_threads") != safe_load.end())
-            {
-                num_threads = std::stoi(safe_load.at("num_threads"));
-            }
-
-            //===== PRNG SEED =====//
-            if ((safe_load.find("seed") != safe_load.end()) && (safe_load.at("seed") != UNDEFINED))
-            {
-                setup_seed = std::stoull(safe_load.at("seed"));
-            }
-
-            //===== NUMBER OF CHAINS =====//
-            if (safe_load.find("num_chains") != safe_load.end())
-            {
-                setup_num_chains = std::stoul(safe_load.at("num_chains"));
-                if (setup_num_iter < 1)
-                {
-                    screen::raise_error(
-                        "number of chains must be greater than 0. Check your setup.");
-                }
-            }
-
-            //===== NUMBER OF ITERATIONS =====//
-            if (safe_load.find("num_iter") != safe_load.end())
-            {
-                setup_num_iter = std::stoul(safe_load.at("num_iter"));
-                if (setup_num_iter < 2)
-                {
-                    screen::raise_error(
-                        "number of iterations must be greater than 1. Check your setup.");
-                }
-            }
-
-            //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-            if (safe_load.find("num_adapt") != safe_load.end())
-            {
-                setup_num_adapt = std::stoul(safe_load.at("num_adapt"));
-            }
-
-            //===== THINNING =====//
-            if (safe_load.find("thinning") != safe_load.end())
-            {
-                setup_thinning = std::stoul(safe_load.at("thinning"));
-                if (setup_thinning >= setup_num_iter)
-                {
-                    screen::raise_error(
-                        "thinning must be smaller than number of iterations. Check your setup.");
-                }
-                else if (setup_thinning == 0)
-                {
-                    screen::raise_error(
-                        "thinning must be greater than 0. Check your setup.");
-                }
-            }
-
-            //===== BURN-IN =====//
-            if (safe_load.find("burn_in") != safe_load.end())
-            {
-                setup_burn_in = std::stoul(safe_load.at("burn_in"));
-                if (setup_burn_in >= setup_num_iter)
-                {
-                    screen::raise_error(
-                        "burn-in must be smaller than number of iterations. Check your setup.");
-                }
-            }
-
-            //===== RANDOM INITIALIZATION OF PARAMETERS =====//
-            if (safe_load.find("rnd_init_params") != safe_load.end())
-            {
-                setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
-                if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
-                {
-                    screen::raise_warning("Unable to fix initial parameters when running  chains.",
-                                          Fix_Init_Mult_Chains_Warning);
-                    setup_rnd_init_params = true;
-                }
-            }
-
-            //===== INVERSE TEMPERATURE =====//
-            if (safe_load.find("inv_temper") != safe_load.end())
-            {
-                setup_inv_T = std::stold(safe_load.at("inv_temper"));
-                if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
-                {
-                    screen::raise_error(
-                        "Inverse temperature " + std::to_string(setup_inv_T) + " out of range [0, 1]. Check your setup.");
-                }
-            }
-        }
-        else
-        {
-            screen::raise_error("Impossible to open setup file `" + pathtofile + "`.");
-        }
-    }
-
-    //===== Define Number of Threads (Monte_Carlo_Core) =====//
-    set_num_threads(num_threads);
-
-    //===== Pseudo-Random Number Generator Seeding =====//
-    set_prng_seed(setup_seed);
-
-    //===== Number of MCMC sweeps per single chain =====//
-    // note : Euclidean divisions!
-    __mcmc_sweeps = setup_num_adapt / setup_thinning;
-    __mcmc_sweeps += setup_burn_in / setup_thinning;
-    __mcmc_sweeps += (setup_num_iter - setup_burn_in) / setup_thinning;
-    __mcmc_sweeps *= setup_thinning * setup_num_chains;
-
-    //===== MCMC Sample Size =====//
-    dgn_ss = (setup_num_iter - setup_burn_in) / setup_thinning;
-    dgn_ss *= setup_num_chains;
-
-    //===== Display =====//
-    if (verbose)
-    {
-        screen::show_decorator("Setup::definitions", '-');
-        show_setup();
     }
 }
 
@@ -1094,4 +1157,39 @@ void MCMC::build_extra(std::string pathtofile, bool verbose)
 {
     UNUSED(pathtofile);
     UNUSED(verbose);
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  MCMC : BUILD  ///////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::build(std::string setup_file, std::string params_file,
+                 std::string data_file, std::string augm_file,
+                 std::string extra_file, bool verbose)
+{
+    //===== reset internal status =====//
+    __is_infer_complete = false;
+
+    // 1) Load Setup (optional)
+    build_setup(setup_file, verbose);
+
+    // 2) Load Parameters and Check (required)
+    build_parameters(params_file, verbose);
+
+    // 3) Load Data and Check (required)
+    build_data(data_file, verbose);
+
+    // 4) Load Augmented Variables (optional)
+    build_augmented(augm_file, verbose);
+
+    // 5) Load Extra File (optional, user defined)
+    // UPDATE: there could be plenty extra files to be store somewhere
+    build_extra(extra_file, verbose);
 }

@@ -5,3 +5,4 @@ burn_in,2000
 thinning,25
 rnd_init_params,TRUE
 num_chains,1
+num_threads,8

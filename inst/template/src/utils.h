@@ -41,6 +41,16 @@ using sys_rnd_gen = std::mt19937;
 #define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef unsigned short int ushort;
+typedef unsigned long int ulong;
+typedef std::map<std::string, double> sdargs;             // string to double arguments (internal)
+typedef std::map<std::string, const double *> sdargs_ext; // string to pointer to double arguments (external)
+typedef std::map<std::string, std::string> ssargs;        // string to string
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -50,23 +60,15 @@ constexpr int MISSING_STATUS = -1; // missing status
 
 constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
-constexpr double INF_DOUBLE = 1e10;           // numerical infinity value 
+constexpr double INF_DOUBLE = 1e10;          // numerical infinity value
 
-const std::string UNDEFINED = "None";          // name for undefined choice
-constexpr double REFERENCE_VALUE = 1.0;        // auxiliary reference value for the parameters
-const std::string REFERENCE = "__reference__"; // name for reference choice
-const std::string CONTACT_RATE = "Contact";    // name for Contact rate
-const std::string EMPTY_RATE = "__empty__";    // name for Contact rate
+const std::string UNDEFINED = "NA";              // name for undefined choice
+const std::string IO_MISMATCH = "__io_mismatch__"; // name for undefined choice
+constexpr double REFERENCE_VALUE = 1.0;            // auxiliary reference value for the parameters
+const std::string REFERENCE = "__reference__";     // name for reference choice
+const std::string CONTACT_RATE = "Contact";        // name for Contact rate
+const std::string EMPTY_RATE = "__empty__";        // name for Contact rate
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef unsigned short int ushort;
-typedef unsigned long int ulong;
-typedef std::map<std::string, double> sdargs;             // string to double arguments (internal)
-typedef std::map<std::string, const double *> sdargs_ext; // string to pointer to double arguments (external)
-typedef std::map<std::string, std::string> ssargs;        // string to string
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -82,8 +84,7 @@ typedef std::map<std::string, std::string> ssargs;        // string to string
 namespace screen
 {
     constexpr char C_DELIM = ',';        // file delimiter
-    constexpr char C_DICT_DELIM = '/';   // dictionary delimiter
-    constexpr char C_OPTION_DELIM = ':'; // option delimiter
+    constexpr char C_LIST_DELIM = '/';   // dictionary delimiter
     constexpr char C_DECOR = '=';        // decorator for prints
 
     constexpr int DECOR_WIDTH = 65;   // width of progress bar

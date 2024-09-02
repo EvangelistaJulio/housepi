@@ -284,20 +284,28 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
 /* Return formatted argoments of the distribution. */
 std::string Base_Function::show_args() const
 {
-    if (args_name.empty())
-    {
-        return UNDEFINED;
-    }
-    else
+    using namespace screen;
+
+    std::string output = UNDEFINED;
+
+    if (!args_name.empty())
     {
         std::ostringstream oss;
-        oss << args_name[0] << screen::C_DICT_DELIM << get_arg(0);
-        for (size_t i = 1; i < args_name.size(); i++)
+        oss << args_name[0];
+        for (size_t x = 1; x < args_name.size(); x++)
         {
-            oss << screen::C_DICT_DELIM << args_name[i] << screen::C_DICT_DELIM << get_arg(i);
+            oss << C_LIST_DELIM << args_name[x];
         }
-        return oss.str();
+        oss << C_DELIM << get_arg(0);
+        for (size_t x = 1; x < args_name.size(); x++)
+        {
+            oss << C_LIST_DELIM << get_arg(x);
+        }
+
+        output = oss.str();
     }
+
+    return output;
 }
 
 //-----------------------------------------------------------------------------------------------//

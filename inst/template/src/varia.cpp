@@ -160,26 +160,20 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
 /* Display method for proposer (building on the distribution method). */
 std::string Base_Proposer::show_range() const
 {
-    using namespace screen;
-
     std::ostringstream oss;
-    bool is_min = (_range_min_ > -INF_DOUBLE);
-    bool is_max = (_range_max_ < INF_DOUBLE);
 
-    // oss << get_name() << C_DELIM << show_args() << C_DELIM;
-
-    if (is_min && is_max)
+    if (_range_min_ > -INF_DOUBLE)
     {
-        oss << "min" << C_DICT_DELIM << _range_min_
-            << C_DICT_DELIM << "max" << C_DICT_DELIM << _range_max_;
+        oss << _range_min_;
+    } else
+    {
+        oss << UNDEFINED;
     }
-    else if (is_min)
+    oss << screen::C_DELIM;
+    
+    if (_range_max_ < INF_DOUBLE)
     {
-        oss << "min" << C_DICT_DELIM << _range_min_;
-    }
-    else if (is_max)
-    {
-        oss << "max" << C_DICT_DELIM << _range_max_;
+        oss << _range_max_;
     }
     else
     {
@@ -258,7 +252,7 @@ const double *Monte_Carlo_Core::_get_address_default_(const std::string k) const
 }
 
 /* Safe method to get an address with previous assertion. */
-const double * Monte_Carlo_Core::_get_address_assert_(const std::string k) const
+const double *Monte_Carlo_Core::_get_address_assert_(const std::string k) const
 {
     assert_param(k);
     return _get_address_default_(k);
@@ -290,28 +284,39 @@ void Monte_Carlo_Core::assign_parameter(
     std::string strat_name, sdargs strat_args,
     sdargs value_range)
 {
-    Parameter new_param(new_val,
-                        prior_name, prior_args,
-                        strat_name, strat_args,
-                        value_range);
-
-    if (params.find(parID) == params.end())
+    // check that lists have equal sizes
+    if (prior_args.find(IO_MISMATCH) != prior_args.end())
     {
-        params.emplace(parID, new_param);
+        screen::raise_error("Lists of prior arguments and values of parameter `" + parID + "` should have equal size.");
     }
-    else
+    if (strat_args.find(IO_MISMATCH) != strat_args.end())
+    {
+        screen::raise_error("Lists of rule arguments and values of parameter `" + parID + "` should have equal size.");
+    }
+
+    // create the new parameter if it's not already defined
+    if (params.find(parID) != params.end())
     {
         screen::raise_error("Parameter `" + parID + "` has multiple definitions.");
     }
-
-    // update the lists of parameters to be inferred, and these to be static
-    if (new_param.get_infer())
-    {
-        param_to_be_inferred.push_back(parID);
-    }
     else
     {
-        param_to_be_static.push_back(parID);
+        // emplace the new parameter
+        Parameter new_param(new_val,
+                            prior_name, prior_args,
+                            strat_name, strat_args,
+                            value_range);
+        params.emplace(parID, new_param);
+
+        // update the lists of parameters to be inferred, and these to be static
+        if (new_param.get_infer())
+        {
+            param_to_be_inferred.push_back(parID);
+        }
+        else
+        {
+            param_to_be_static.push_back(parID);
+        }
     }
 }
 

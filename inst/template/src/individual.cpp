@@ -114,7 +114,6 @@ double Individual::_get_augm_assert_(const std::string a) const
 	return _get_augm_default_(a);
 }
 
-
 /* Default method to set the value of an augmented variable. */
 void Individual::_set_augm_default_(const std::string a, double new_value)
 {
@@ -138,8 +137,26 @@ void Individual::disable_assert()
 }
 
 /* Assign an augmented variable to the individual. */
-void Individual::assign_augm(const std::string a, Augmented new_augm)
+void Individual::assign_augm(const std::string a, double value,
+							 const std::string model_name, sdargs_ext model_args_ext,
+							 const std::string rule_name, sdargs rule_args,
+							 double rule_from, sdargs value_range)
 {
+    // check that lists have equal sizes
+    if (model_args_ext.find(IO_MISMATCH) != model_args_ext.end())
+    {
+        screen::raise_error("Model arguments, values and types of augmented variable `" + a + "` should have equal size.");
+    }
+    if (rule_args.find(IO_MISMATCH) != rule_args.end())
+    {
+        screen::raise_error("Rule arguments, valuesand types of augmented variable `" + a + "` should have equal size.");
+    }
+
+	Augmented new_augm(value, model_name, model_args_ext,
+                        rule_name, rule_args, rule_from, value_range);
+
+	// overtwrite augmented variable if it has multiple definitions
+	// FIXME : is this relevant?
 	if (augm_var.find(a) == augm_var.end())
 	{
 		augm_var.emplace(a, new_augm);
