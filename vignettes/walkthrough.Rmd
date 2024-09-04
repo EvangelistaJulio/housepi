@@ -128,7 +128,7 @@ To perform inference instead, we execute the command `run_inference`.
 mcmc_traces <- run_inference(hemi)
 ```
 
-This method returns a 'coda' object which can then be used to analyze the results as follows:
+This method returns a `coda` mcmc object (or mcmc.list) which can then be used to analyze the results as follows:
 
 ```{r}
 library(coda)
@@ -139,9 +139,14 @@ traceplot(mcmc_traces[1])
 # Print summary of the posterior estimates
 summary(mcmc_traces)
 
+# Compute effective sample size
+effectiveSize(mcmcm_traces)
+
 # Gelman-Rubin diagnostic
 gelman.diag(mcmc_traces)
 ```
+
+See `coda` [CRAN documentation](https://cran.r-project.org/web/packages/coda/index.html) for further details.
 
 ## Model Comparison
 

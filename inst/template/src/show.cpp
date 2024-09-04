@@ -429,31 +429,35 @@ Rcpp::DataFrame MCMC::export_params()
 
     std::vector<double> vec_value = {};
     std::vector<bool> vec_infer = {};
-    std::vector<std::string> vec_prior = {}, vec_args = {}, vec_rule = {}, vec_rargs = {}, vec_range = {};
+    std::vector<std::string> vec_prior = {}, vec_args = {}, vec_argsval = {};
+    std::vector<std::string> vec_rule = {}, vec_rargs = {}, vec_rargsval = {};
+    std::vector<std::string> vec_min = {}, vec_max = {};
 
     for (const std::string &parID : vec_names)
     {
         vec_value.push_back(get_value(parID));
         vec_infer.push_back(get_infer(parID));
         vec_prior.push_back(show_param_distr_name(parID));
-        vec_args.push_back(show_param_distr_args(parID));
+        vec_args.push_back(parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[0]);
+        vec_argsval.push_back(parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[1]);
         vec_rule.push_back(show_param_prop_name(parID));
-        vec_rargs.push_back(show_param_prop_args(parID));
-        vec_range.push_back(show_param_prop_range(parID));
+        vec_rargs.push_back(parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[0]);
+        vec_rargsval.push_back(parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[1]);
+        vec_min.push_back(parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[0]);
+        vec_max.push_back(parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[1]);
     }
-
-    // FLAG
-    
-    // FLAG-END
 
     output = DataFrame::create(_["name"] = vec_names,
                                _["value"] = vec_value,
                                _["infer"] = vec_infer,
                                _["prior"] = vec_prior,
                                _["args"] = vec_args,
+                               _["argsval"] = vec_argsval,
                                _["rule"] = vec_rule,
                                _["rargs"] = vec_rargs,
-                               _["range"] = vec_range);
+                               _["rargsval"] = vec_rargsval,
+                               _["min"] = vec_min,
+                               _["max"] = vec_max);
 
     return output;
 }

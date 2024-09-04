@@ -37,6 +37,7 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 /* Clean std::string from forbidden characters and convert to UNDEFINED. */
 std::string MCMC::string_cleaner(std::string tkn)
 {
+
     // forbidden characters
     for (char r : {'"', '\r', '\n'})
     {
@@ -53,7 +54,7 @@ std::string MCMC::string_cleaner(std::string tkn)
 }
 
 /* Convert string to boolean variable. */
-bool MCMC::stobool(std::string tkn)
+bool MCMC::stobool(const std::string tkn)
 {
     bool output = false;
 
@@ -69,12 +70,30 @@ bool MCMC::stobool(std::string tkn)
     return output;
 }
 
+/* Parse the list from the string. */
+std::vector<std::string> parse_list(const std::string tkn, const char delim)
+{
+    std::istringstream args_ss(tkn);
+    std::vector<std::string> output = {};
+    std::string tmp;
+
+    // rea the entries of the dictionary
+    while (getline(args_ss, tmp, delim))
+    {
+        output.push_back(tmp);
+    }
+
+    return output;
+}
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+
 
 /* Read column headers. */
 std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
@@ -170,7 +189,7 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-void MCMC::build_setup(std::string pathtofile, bool verbose)
+void MCMC::build_setup(const std::string pathtofile, bool verbose)
 {
     // default number of threads
     unsigned num_threads = 1;
@@ -370,14 +389,14 @@ void MCMC::build_setup(std::string pathtofile, bool verbose)
 //-----------------------------------------------------------------------------------------------//
 
 /* Parse the list from the string. */
-std::vector<std::string> MCMC::parse_list_args(const std::string tkn)
+std::vector<std::string> MCMC::parse_list_args(const std::string tkn, const char delim)
 {
     std::istringstream args_ss(tkn);
     std::vector<std::string> output = {};
     std::string tmp;
 
     // rea the entries of the dictionary
-    while (getline(args_ss, tmp, screen::C_LIST_DELIM))
+    while (getline(args_ss, tmp, delim))
     {
         output.push_back(tmp);
     }
@@ -419,7 +438,7 @@ sdargs MCMC::merge_list_args(const std::string tkn_keys, const std::string tkn_v
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read model parameter file and build paramerter dictionary. */
-void MCMC::build_parameters(std::string pathtofile, bool verbose)
+void MCMC::build_parameters(const std::string pathtofile, bool verbose)
 {
     if (pathtofile == UNDEFINED)
     {
@@ -578,7 +597,7 @@ void MCMC::update_report_data()
 }
 
 /* Read data file and pre-process the data. */
-void MCMC::build_data(std::string pathtofile, bool verbose)
+void MCMC::build_data(const std::string pathtofile, bool verbose)
 {
     if (pathtofile == UNDEFINED)
     {
@@ -1026,7 +1045,7 @@ sdargs_ext MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::st
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
-void MCMC::build_augmented(std::string pathtofile, bool verbose)
+void MCMC::build_augmented(const std::string pathtofile, bool verbose)
 {
     if (pathtofile != UNDEFINED)
     {
@@ -1153,7 +1172,7 @@ void MCMC::assign_augmented_variables()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Extra File (default unused) */
-void MCMC::build_extra(std::string pathtofile, bool verbose)
+void MCMC::build_extra(const std::string pathtofile, bool verbose)
 {
     UNUSED(pathtofile);
     UNUSED(verbose);
@@ -1170,9 +1189,9 @@ void MCMC::build_extra(std::string pathtofile, bool verbose)
 ////////////////////////////////////////  MCMC : BUILD  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::build(std::string setup_file, std::string params_file,
-                 std::string data_file, std::string augm_file,
-                 std::string extra_file, bool verbose)
+void MCMC::build(const std::string setup_file, const std::string params_file,
+                 const std::string data_file, const std::string augm_file,
+                 const std::string extra_file, bool verbose)
 {
     //===== reset internal status =====//
     __is_infer_complete = false;

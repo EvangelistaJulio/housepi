@@ -22,7 +22,6 @@ As an example, we use the default model "augm_onset_single_intr", where survey c
 # generate the model
 hemi <- generate_model("augm_onset_single_intr")
 
-
 # associate data, parameters and setup
 build_model(hemi, 
             data = "data/data.csv", 
@@ -62,21 +61,19 @@ df <- hemi$data()
 # show the results of the simulation 
 head(df[c("status", "incub_period", "onset_date")])
 ```
-We can see that in addition to status, the simulation also associates the values of the augmented variables: the incubation period and the onset time.
+We can see that in addition to the status, the simulation also associates the values of the augmented variables: the incubation period and the onset time.
 
-As a sanity check, we can verify than inference returns the parameters used for the simulation.
+As a sanity check, we can verify that inference returns the parameters used for the simulation.
 
 ```{r}
 mcmc_trace <- run_inference(hemi)
 
-# Visualize the trace of the MCMC chain
+# visualize the trace of the MCMC chain
 coda::traceplot(mcmc_trace)
 
 # store the results
 results <- summary(mcmc_trace)
-```
 
-```{r}
 # collect the information for the check 
 inames <- params[params["infer"] == TRUE, "name"]
 data.frame(Expec = params[params["infer"] == TRUE, "value"],

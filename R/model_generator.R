@@ -1,6 +1,15 @@
-# ----- Auxiliary Functions ----- #
 
-# get the system directory of a model
+#################################
+#######  Global Variables #######
+#################################
+
+UNDEFINED <- "None"
+
+###################################
+####### Auxiliary Functions #######
+###################################
+
+# Get the system directory of a model.
 get_usr_tmp_file <- function(hemi, name) {
   usr_dir <- system.file(package = attr(class(hemi), "package"))
   output <- file.path(usr_dir, "tmp", paste0(name, ".csv"))
@@ -10,9 +19,9 @@ get_usr_tmp_file <- function(hemi, name) {
   return(output)
 }
 
-# create temporary csv file if input is a table (wrapper)
-# note : can this be improved allowing dataframe I/O within Rcpp ?
-cpp_csv_commuter <- function(hemi, input, name = "None") {
+# Create temporary csv file if input is a table (wrapper).
+# FIXME : this should be improved allowing dataframe I/O within Rcpp
+cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
   if (is.character(input)) {
     output <- input
   } else if (is.data.frame(input) || is.matrix(input) || is.list(input)) {
@@ -27,7 +36,7 @@ cpp_csv_commuter <- function(hemi, input, name = "None") {
   return(output)
 }
 
-# default model list message
+# Default model list message.
 show_default_names <- function() {
   models_dir <- file.path(system.file(package = "housepi"), "models")
   cli::cli_alert_info("Default model names:")
@@ -46,22 +55,23 @@ show_default_names <- function() {
 #' @param which default model name.
 #' @param path path where to copy implementation and header.
 #' @export
-template_model <- function(which = "None", path = "None") {
+template_model <- function(which = UNDEFINED, path = UNDEFINED) {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
-  
+
   # check if default exists
   if (!is.character(which)) {
-    stop(cli::format_error(c("Provided model is not a default model name.", 
-                             i = "To see the available default models, run: template_model()")))
+    stop(cli::format_error(
+      c("Provided model is not a default model name.",
+      i = "To see the available default models, run: template_model()")))
     
-  } else if (which == "None") {
+  } else if (which == UNDEFINED) {
     show_default_names()
 
   } else {
     if (which %in% list.files(models_dir)) {
       # create directory
-      if (path == "None") {
+      if (path == UNDEFINED) {
         new_dir <- file.path(getwd(), paste0("user_", which))
       } else {
         new_dir <- path
@@ -69,13 +79,15 @@ template_model <- function(which = "None", path = "None") {
 
       dir.create(new_dir, recursive = TRUE, showWarnings = TRUE)
       if(!dir.exists(new_dir)) {
-        stop(cli::format_error(c("Impossibile to create a temporary directory for the model.",
-                                 i = "Check your user permissions.")))
+        stop(cli::format_error(
+          c("Impossibile to create a temporary directory for the model.",
+          i = "Check your user permissions.")))
       }
       
     } else {
-      stop(cli::format_error(c("Provided model is not a default model name.", 
-                               i = "To see the available default models, run: template_model()")))
+      stop(cli::format_error(
+        c("Provided model is not a default model name.",
+        i = "To see the available default models, run: template_model()")))
     }
 
     # copy files
@@ -83,8 +95,9 @@ template_model <- function(which = "None", path = "None") {
       from_file <- file.path(models_dir, which, f)
       to_file <- file.path(new_dir, f)
       if(!file.copy(from_file, to_file, overwrite = TRUE)) {
-        stop(cli::format_error(c("Failed to setup internal files.", 
-                                 i = "Check your user permissions.")))
+        stop(cli::format_error(
+          c("Failed to setup internal files.",
+          i = "Check your user permissions.")))
       }
     }
   }
@@ -146,9 +159,10 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     new_dir <- file.path(tmp_env_path, new_name)
 
   } else {
-    stop(cli::format_error(c(paste0("Unrecognized model: `", model, 
-                                  "` is nor a default name nor a path to existing folder."),
-                             i = "To see the available default models, run: template_model()")))
+    stop(cli::format_error(
+      c(paste0("Unrecognized model: `", model, 
+      "` is nor a default name nor a path to existing folder."),
+      i = "To see the available default models, run: template_model()")))
   }
 
   # ----- Create model package ----- #
@@ -170,8 +184,9 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     # copy the package to the new directory
     dir.create(new_dir, recursive = TRUE, showWarnings = FALSE)
     if(!dir.exists(new_dir)) {
-      stop(cli::format_error(c("Impossibile to create a temporary directory for the model.",
-                               i = "Check your user permissions.")))
+      stop(cli::format_error(
+        c("Impossibile to create a temporary directory for the model.",
+        i = "Check your user permissions.")))
     }
 
     # copy files
@@ -179,8 +194,9 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
       from_file <- file.path(housepi_dir, "template", f)
       to_file <- file.path(new_dir, f)
       if(!file.copy(from_file, to_file, overwrite = TRUE)) {
-        stop(cli::format_error(c("Failed to setup internal files.",
-                                 i = "Check your user permissions.")))
+        stop(cli::format_error(
+          c("Failed to setup internal files.",
+          i = "Check your user permissions.")))
       }
     }
 
@@ -188,8 +204,9 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     for (fldr in c("src", "R", "man")) {
       from_path <- file.path(housepi_dir, "template", fldr)
       if(!file.copy(from_path, new_dir, recursive = TRUE, overwrite = TRUE)) {
-        stop(cli::format_error(c("Failed to setup internal files.",
-                                 i = "Check your user permissions.")))
+        stop(cli::format_error(
+          c("Failed to setup internal files.",
+          i = "Check your user permissions.")))
       }
     }
 
@@ -246,11 +263,11 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
 #' @param verbose boolean flag to suppress automatic prints.
 #' @export
 build_model <- function(hemi,
-                        setup = "None",
-                        params = "None",
-                        data = "None",
-                        augm = "None",
-                        extra = "None",
+                        setup = UNDEFINED,
+                        params = UNDEFINED,
+                        data = UNDEFINED,
+                        augm = UNDEFINED,
+                        extra = UNDEFINED,
                         verbose = FALSE) {
   hemi$build(cpp_csv_commuter(hemi, setup, name = "setup"), 
              cpp_csv_commuter(hemi, params, name = "params"),

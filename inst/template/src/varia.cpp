@@ -165,12 +165,17 @@ std::string Base_Proposer::show_range() const
     if (_range_min_ > -INF_DOUBLE)
     {
         oss << _range_min_;
-    } else
+    }
+    else
     {
+#ifdef USE_RCPP
+        oss << Rcpp::NA_STRING;
+#else
         oss << UNDEFINED;
+#endif
     }
     oss << screen::C_DELIM;
-    
+
     if (_range_max_ < INF_DOUBLE)
     {
         oss << _range_max_;

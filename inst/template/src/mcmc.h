@@ -75,14 +75,17 @@ public:
 	virtual ~MCMC() {};
 
 	//===== BUILD =====//
-	void build_parameters(std::string pathtofile, bool verbose = true);
-	void build_data(std::string pathtofile, bool verbose = true);
-	void build_setup(std::string pathtofile, bool verbose = true);
-	void build_augmented(std::string pathtofile, bool verbose = true);
-	virtual void build_extra(std::string pathtofile, bool verbose = true);
-	void build(std::string setup_file = UNDEFINED, std::string params_file = UNDEFINED,
-			   std::string data_file = UNDEFINED, std::string augm_file = UNDEFINED,
-			   std::string extra_file = UNDEFINED, bool verbose = true);
+	void build_parameters(const std::string pathtofile, bool verbose = true);
+	void build_data(const std::string pathtofile, bool verbose = true);
+	void build_setup(const std::string pathtofile, bool verbose = true);
+	void build_augmented(const std::string pathtofile, bool verbose = true);
+	virtual void build_extra(const std::string pathtofile, bool verbose = true);
+	void build(const std::string setup_file = UNDEFINED,
+			   const std::string params_file = UNDEFINED,
+			   const std::string data_file = UNDEFINED, 
+			   const std::string augm_file = UNDEFINED,
+			   const std::string extra_file = UNDEFINED, 
+			   bool verbose = true);
 
 	//===== SHOW =====//
 	void show_setup();
@@ -126,7 +129,7 @@ public:
 	virtual void init_model_for_inference() {};
 	virtual void init_single_chain() {};
 	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_init_augm = true);
-	void infer(std::string output_filename, bool progbar = true);
+	void infer(const std::string output_filename, bool progbar = true);
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
 	double evaluate_marginal(int num_rungs, bool progbar = true, bool power_fractions = false);
@@ -137,7 +140,7 @@ public:
 	void simulate();
 
 	//----- Save augmented variables -----//
-	void print_augm_variables(std::string output_filename);
+	void print_augm_variables(const std::string output_filename);
 
 #ifdef USE_RCPP
 	//===== RCPP EXPORTS =====//
@@ -186,11 +189,11 @@ private:
 	//----- build : auxiliary functions -----//
 	bool stobool(const std::string tkn);
 
-	std::vector<std::string> parse_list_args(const std::string tkn);
+	std::vector<std::string> parse_list_args(const std::string tkn, const char = screen::C_LIST_DELIM);
 	sdargs merge_list_args(const std::string tkn_keys, const std::string tkn_vals);
 
 	sdargs row_to_sdargs(ssargs &this_row);
-	std::string string_cleaner(const std::string tkn);
+	std::string string_cleaner(std::string tkn);
 	std::vector<std::string> read_column_headers(std::ifstream &input,
 												 std::vector<std::string> required_headers = {},
 												 const std::string pathtofile = UNDEFINED);

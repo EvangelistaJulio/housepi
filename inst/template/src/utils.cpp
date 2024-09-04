@@ -286,9 +286,13 @@ std::string Base_Function::show_args() const
 {
     using namespace screen;
 
-    std::string output = UNDEFINED;
+    std::string output;
 
-    if (!args_name.empty())
+    if (args_name.empty())
+    {
+        output = UNDEFINED;
+    }
+    else
     {
         std::ostringstream oss;
         oss << args_name[0];
