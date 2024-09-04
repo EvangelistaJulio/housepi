@@ -168,11 +168,7 @@ std::string Base_Proposer::show_range() const
     }
     else
     {
-#ifdef USE_RCPP
-        oss << Rcpp::NA_STRING;
-#else
         oss << UNDEFINED;
-#endif
     }
     oss << screen::C_DELIM;
 

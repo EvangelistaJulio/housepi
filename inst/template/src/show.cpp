@@ -246,7 +246,7 @@ void MCMC::inferstate_init(std::string output_filename)
             // print loglikelihood
             inferstate_ofstream << "loglikelihood";
 
-            for (const std::string & parID : param_to_be_inferred)
+            for (const std::string &parID : param_to_be_inferred)
             {
                 inferstate_ofstream << C_DELIM << parID;
             }
@@ -394,6 +394,18 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
 #ifdef USE_RCPP
 
+Rcpp::String stoRString(const std::string &x)
+{
+    if (x == UNDEFINED)
+    {
+        return NA_STRING;
+    }
+    else
+    {
+        return Rcpp::String(x);
+    }
+}
+
 /* Export current setup configurations to R List. */
 Rcpp::List MCMC::export_setup()
 {
@@ -422,32 +434,39 @@ Rcpp::List MCMC::export_setup()
 Rcpp::DataFrame MCMC::export_params()
 {
     using namespace Rcpp;
-    DataFrame output;
 
     std::vector<std::string> vec_names = param_to_be_inferred;
     vec_names.insert(vec_names.end(), param_to_be_static.begin(), param_to_be_static.end());
 
-    std::vector<double> vec_value = {};
-    std::vector<bool> vec_infer = {};
-    std::vector<std::string> vec_prior = {}, vec_args = {}, vec_argsval = {};
-    std::vector<std::string> vec_rule = {}, vec_rargs = {}, vec_rargsval = {};
-    std::vector<std::string> vec_min = {}, vec_max = {};
+    NumericVector vec_value = {};
+    LogicalVector vec_infer = {};
+    CharacterVector vec_prior = {}, vec_args = {}, vec_argsval = {};
+    CharacterVector vec_rule = {}, vec_rargs = {}, vec_rargsval = {};
+    CharacterVector vec_min = {}, vec_max = {};
 
     for (const std::string &parID : vec_names)
     {
         vec_value.push_back(get_value(parID));
         vec_infer.push_back(get_infer(parID));
-        vec_prior.push_back(show_param_distr_name(parID));
-        vec_args.push_back(parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[0]);
-        vec_argsval.push_back(parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[1]);
-        vec_rule.push_back(show_param_prop_name(parID));
-        vec_rargs.push_back(parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[0]);
-        vec_rargsval.push_back(parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[1]);
-        vec_min.push_back(parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[0]);
-        vec_max.push_back(parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[1]);
+        vec_prior.push_back(stoRString(
+            show_param_distr_name(parID)));
+        vec_args.push_back(stoRString(
+            parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[0]));
+        vec_argsval.push_back(stoRString(
+            parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[1]));
+        vec_rule.push_back(stoRString(
+            show_param_prop_name(parID)));
+        vec_rargs.push_back(stoRString(
+            parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[0]));
+        vec_rargsval.push_back(stoRString(
+            parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[1]));
+        vec_min.push_back(stoRString(
+            parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[0]));
+        vec_max.push_back(stoRString(
+            parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[1]));
     }
 
-    output = DataFrame::create(_["name"] = vec_names,
+    return DataFrame::create(_["name"] = vec_names,
                                _["value"] = vec_value,
                                _["infer"] = vec_infer,
                                _["prior"] = vec_prior,
@@ -458,8 +477,6 @@ Rcpp::DataFrame MCMC::export_params()
                                _["rargsval"] = vec_rargsval,
                                _["min"] = vec_min,
                                _["max"] = vec_max);
-
-    return output;
 }
 
 /* Export current data configurations to R DataFrame. */
