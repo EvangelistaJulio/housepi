@@ -54,21 +54,23 @@ typedef std::map<std::string, std::string> ssargs;        // string to string
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// status aliases
 constexpr int SUSCEPTIBLE = 0;     // status of susceptible
 constexpr int INFECTIOUS = 1;      // status of infectious
 constexpr int MISSING_STATUS = -1; // missing status
 
-constexpr int MAX_NUMBER_ATTEMPTS = 20;      // max n. of attempts for initialization
-constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
-constexpr double INF_DOUBLE = 1e10;          // numerical infinity value
+// FIXME :NaN and NA to be revised
+constexpr double INF_DOUBLE = 1e10;         // numerical infinity value
+const std::string UNDEFINED = "None";       // name for undefined choice
+const std::string EMPTY_RATE = "__empty__"; // name for Contact rate
 
-const std::string UNDEFINED = "None";              // name for undefined choice
+// constants 
+constexpr int MAX_NUMBER_ATTEMPTS = 20;            // max n. of attempts for initialization
+constexpr double TARGET_ACCEPT_RATE = 0.234;       // target acceptation rate for MCMC
 const std::string IO_MISMATCH = "__io_mismatch__"; // name for undefined choice
 constexpr double REFERENCE_VALUE = 1.0;            // auxiliary reference value for the parameters
 const std::string REFERENCE = "__reference__";     // name for reference choice
 const std::string CONTACT_RATE = "Contact";        // name for Contact rate
-const std::string EMPTY_RATE = "__empty__";        // name for Contact rate
-
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -83,9 +85,9 @@ const std::string EMPTY_RATE = "__empty__";        // name for Contact rate
 
 namespace screen
 {
-    constexpr char C_DELIM = ',';        // file delimiter
-    constexpr char C_LIST_DELIM = '/';   // dictionary delimiter
-    constexpr char C_DECOR = '=';        // decorator for prints
+    constexpr char C_DELIM = ',';      // file delimiter
+    constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
+    constexpr char C_DECOR = '=';      // decorator for prints
 
     constexpr int DECOR_WIDTH = 65;   // width of progress bar
     constexpr int PROGBAR_WIDTH = 30; // width of progress bar
@@ -140,11 +142,12 @@ public:
     double get_arg(int argID) const { return (this->*_get_arg_func_)(argID); }
 
     //===== Setter (for internal arguments) =====//
-    void set_name(std::string new_name) { name = new_name; }
+    void set_name(const std::string new_name) { name = new_name; }
     void set_arg(int argID, double new_value) { (this->*_set_arg_func_)(argID, new_value); }
 
     //===== Show =====//
-    std::string show_args() const;
+    std::string show_arg_names() const;
+    std::string show_arg_values() const;
 
 private:
     std::string name = UNDEFINED;
@@ -422,7 +425,7 @@ public:
 
 /* Return the chosen distribution. */
 template <typename sdargs_int_or_ext>
-Distribution_1D *distribution_switchboard(std::string name = UNDEFINED, sdargs_int_or_ext args = {})
+Distribution_1D *distribution_switchboard(const std::string name = UNDEFINED, sdargs_int_or_ext args = {})
 {
     Distribution_1D *output = new Undefined_Distr();
 

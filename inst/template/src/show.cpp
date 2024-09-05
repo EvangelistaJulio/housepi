@@ -448,35 +448,27 @@ Rcpp::DataFrame MCMC::export_params()
     {
         vec_value.push_back(get_value(parID));
         vec_infer.push_back(get_infer(parID));
-        vec_prior.push_back(stoRString(
-            show_param_distr_name(parID)));
-        vec_args.push_back(stoRString(
-            parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[0]));
-        vec_argsval.push_back(stoRString(
-            parse_list_args(show_param_distr_args(parID), screen::C_DELIM)[1]));
-        vec_rule.push_back(stoRString(
-            show_param_prop_name(parID)));
-        vec_rargs.push_back(stoRString(
-            parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[0]));
-        vec_rargsval.push_back(stoRString(
-            parse_list_args(show_param_prop_args(parID), screen::C_DELIM)[1]));
-        vec_min.push_back(stoRString(
-            parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[0]));
-        vec_max.push_back(stoRString(
-            parse_list_args(show_param_prop_range(parID), screen::C_DELIM)[1]));
+        vec_prior.push_back(stoRString(show_param_distr_name(parID)));
+        vec_args.push_back(stoRString(show_param_distr_arg_names(parID)));
+        vec_argsval.push_back(stoRString(show_param_distr_arg_values(parID)));
+        vec_rule.push_back(stoRString(show_param_prop_name(parID)));
+        vec_rargs.push_back(stoRString(show_param_prop_arg_names(parID)));
+        vec_rargsval.push_back(stoRString(show_param_prop_arg_values(parID)));
+        vec_max.push_back(stoRString(show_param_prop_min(parID)));
+        vec_max.push_back(stoRString(show_param_prop_max(parID)));
     }
 
     return DataFrame::create(_["name"] = vec_names,
-                               _["value"] = vec_value,
-                               _["infer"] = vec_infer,
-                               _["prior"] = vec_prior,
-                               _["args"] = vec_args,
-                               _["argsval"] = vec_argsval,
-                               _["rule"] = vec_rule,
-                               _["rargs"] = vec_rargs,
-                               _["rargsval"] = vec_rargsval,
-                               _["min"] = vec_min,
-                               _["max"] = vec_max);
+                             _["value"] = vec_value,
+                             _["infer"] = vec_infer,
+                             _["prior"] = vec_prior,
+                             _["args"] = vec_args,
+                             _["argsval"] = vec_argsval,
+                             _["rule"] = vec_rule,
+                             _["rargs"] = vec_rargs,
+                             _["rargsval"] = vec_rargsval,
+                             _["min"] = vec_min,
+                             _["max"] = vec_max);
 }
 
 /* Export current data configurations to R DataFrame. */
@@ -484,23 +476,20 @@ Rcpp::DataFrame MCMC::export_data()
 {
     using namespace Rcpp;
 
+    // pre-allocate memories
     // initialize the dataframe as a list of named vectors
-    std::map<std::string, std::vector<int>> df_int;
-    std::map<std::string, std::vector<double>> df_dbl;
-
-    DataFrame output;
-
-    df_int.insert({"index", std::vector<int>(num_indiv, 0)});
-    df_int.insert({"house_index", std::vector<int>(num_indiv, 0)});
-    df_int.insert({"status", std::vector<int>(num_indiv, 0)});
+    IntegerVector df_index(num_indiv);
+    IntegerVector df_house_index(num_indiv);
+    IntegerVector df_status(num_indiv);
+    std::map<std::string, NumericVector> df_dbl;
 
     for (const std::string &dataID : __data_headers)
     {
-        df_dbl.insert({dataID, std::vector<double>(num_indiv, 0.)});
+        df_dbl.insert({dataID, NumericVector(num_indiv)});
     }
     for (const std::string &augmID : augm_full_set)
     {
-        df_dbl.insert({augmID, std::vector<double>(num_indiv, 0.)});
+        df_dbl.insert({augmID, NumericVector(num_indiv)});
     }
 
     size_t c = 0;
@@ -508,9 +497,9 @@ Rcpp::DataFrame MCMC::export_data()
     {
         for (int i = 0; i < househ[h].house_size; i++)
         {
-            df_int.at("index")[c] = househ[h].indiv[i].get_index();
-            df_int.at("house_index")[c] = househ[h].get_index();
-            df_int.at("status")[c] = househ[h].indiv[i].get_status();
+            df_index[c] = househ[h].indiv[i].get_index();
+            df_house_index[c] = househ[h].get_index();
+            df_status[c] = househ[h].indiv[i].get_status();
 
             for (const std::string &dataID : __data_headers)
             {
@@ -525,9 +514,10 @@ Rcpp::DataFrame MCMC::export_data()
         }
     }
 
-    output = DataFrame::create(_["index"] = df_int.at("index"),
-                               _["house_index"] = df_int.at("house_index"),
-                               _["status"] = df_int.at("status"));
+    DataFrame output;
+    output = DataFrame::create(_["index"] = df_index,
+                               _["house_index"] = df_house_index,
+                               _["status"] = df_status);
     for (const std::string &dataID : __data_headers)
     {
         output.push_back(df_dbl.at(dataID), dataID);

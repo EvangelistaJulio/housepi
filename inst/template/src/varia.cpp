@@ -157,31 +157,30 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
     return output;
 }
 
-/* Display method for proposer (building on the distribution method). */
-std::string Base_Proposer::show_range() const
+/* Return proposer minimum. */
+std::string Base_Proposer::show_min() const
 {
-    std::ostringstream oss;
-
     if (_range_min_ > -INF_DOUBLE)
     {
-        oss << _range_min_;
+        return std::to_string(_range_min_);
     }
     else
     {
-        oss << UNDEFINED;
+        return UNDEFINED;
     }
-    oss << screen::C_DELIM;
+}
 
+/* Return proposer maximum. */
+std::string Base_Proposer::show_max() const
+{
     if (_range_max_ < INF_DOUBLE)
     {
-        oss << _range_max_;
+        return std::to_string( _range_max_);
     }
     else
     {
-        oss << UNDEFINED;
+        return UNDEFINED;
     }
-
-    return oss.str();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -216,9 +215,9 @@ std::string Parameter::show_diagnostics()
     using namespace screen;
     std::ostringstream oss;
     oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer)
-        << C_DELIM << show_distr_name() << C_DELIM << show_distr_args()
-        << C_DELIM << show_prop_name() << C_DELIM << show_prop_args()
-        << C_DELIM << show_prop_range();
+        << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
+        << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
+        << C_DELIM << show_prop_min() << C_DELIM << show_prop_min();
     return oss.str();
 }
 

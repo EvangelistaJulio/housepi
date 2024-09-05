@@ -281,16 +281,12 @@ Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> o
     _set_arg_func_ = &Base_Function::_set_arg_ext_; // assign setter
 }
 
-/* Return formatted argoments of the distribution. */
-std::string Base_Function::show_args() const
+/* Return formatted argument names of the distribution. */
+std::string Base_Function::show_arg_names() const
 {
-    using namespace screen;
-
-    std::string output;
-
     if (args_name.empty())
     {
-        output = UNDEFINED;
+        return UNDEFINED;
     }
     else
     {
@@ -298,18 +294,29 @@ std::string Base_Function::show_args() const
         oss << args_name[0];
         for (size_t x = 1; x < args_name.size(); x++)
         {
-            oss << C_LIST_DELIM << args_name[x];
+            oss << screen::C_LIST_DELIM << args_name[x];
         }
-        oss << C_DELIM << get_arg(0);
+        return oss.str();
+    }
+}
+
+/* Return formatted argument names of the distribution. */
+std::string Base_Function::show_arg_values() const
+{
+    if (args_name.empty())
+    {
+        return UNDEFINED;
+    }
+    else
+    {
+        std::ostringstream oss;
+        oss << get_arg(0);
         for (size_t x = 1; x < args_name.size(); x++)
         {
-            oss << C_LIST_DELIM << get_arg(x);
+            oss << screen::C_LIST_DELIM << get_arg(x);
         }
-
-        output = oss.str();
+        return oss.str();
     }
-
-    return output;
 }
 
 //-----------------------------------------------------------------------------------------------//

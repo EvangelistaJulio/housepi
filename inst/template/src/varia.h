@@ -74,8 +74,10 @@ public:
 	void adapt(double ratio);
 
 	//===== Show =====//
-	std::string show_args() const { return distr_ptr->show_args(); }
-	std::string show_range() const;
+	std::string show_arg_names() const { return distr_ptr->show_arg_names(); }
+	std::string show_arg_values() const { return distr_ptr->show_arg_values(); }
+	std::string show_min() const;
+	std::string show_max() const;
 
 private:
 	//=====Valid Move : functional methods=====//
@@ -326,10 +328,13 @@ public:
 
 	//===== Show =====//
 	std::string show_distr_name() { return distr_ptr->get_name(); }
-	std::string show_distr_args() { return distr_ptr->show_args(); }
+	std::string show_distr_arg_names() { return distr_ptr->show_arg_names(); }
+	std::string show_distr_arg_values() { return distr_ptr->show_arg_values(); }
 	std::string show_prop_name() { return prop_ptr->get_name(); }
-	std::string show_prop_args() { return prop_ptr->show_args(); }
-	std::string show_prop_range() { return prop_ptr->show_range(); }
+	std::string show_prop_arg_names() { return prop_ptr->show_arg_names(); }
+	std::string show_prop_arg_values() { return prop_ptr->show_arg_values(); }
+	std::string show_prop_min() { return prop_ptr->show_min(); }
+	std::string show_prop_max() { return prop_ptr->show_max(); }
 
 	std::string show()
 	{
@@ -338,9 +343,9 @@ public:
 		oss << get_value() << C_DELIM << truth(infer);
 		if (infer)
 		{
-			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_args()
-				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_args()
-				<< C_DELIM << show_prop_range();
+			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_args_names() << C_DELIM << show_distr_args_values()
+				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_args_names() << C_DELIM << show_prop_arg_values()
+				<< C_DELIM << show_prop_min() << C_DELIM << show_prop_max();
 		}
 		return oss.str();
 	}
@@ -453,15 +458,6 @@ public:
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
 
-	//===== Show =====//
-	std::string show_param_distr_name(const std::string k) { return params.at(k).show_distr_name(); }
-	std::string show_param_distr_args(const std::string k) { return params.at(k).show_distr_args(); }
-	std::string show_param_prop_name(const std::string k) { return params.at(k).show_prop_name(); }
-	std::string show_param_prop_args(const std::string k) { return params.at(k).show_prop_args(); }
-	std::string show_param_prop_range(const std::string k) { return params.at(k).show_prop_range(); }
-	std::string show_param(const std::string k) { return k + screen::C_DELIM + params.at(k).show(); }
-	std::string show_param_diagnostics(const std::string k) { return k + screen::C_DELIM + params.at(k).show_diagnostics(); }
-
 	//===== Setter =====//
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
@@ -490,6 +486,19 @@ public:
 	void set_prng_seed(int seed);
 	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
 	double uniform() { return _uniform_distr_(get_prng()); }
+	
+	//===== Show =====//
+	std::string show_param_distr_name(const std::string k) { return params.at(k).show_distr_name(); }
+	std::string show_param_distr_arg_names(const std::string k) { return params.at(k).show_distr_arg_names(); }
+	std::string show_param_distr_arg_values(const std::string k) { return params.at(k).show_distr_arg_values(); }
+	std::string show_param_prop_name(const std::string k) { return params.at(k).show_prop_name(); }
+	std::string show_param_prop_arg_names(const std::string k) { return params.at(k).show_prop_arg_names(); }
+	std::string show_param_prop_arg_values(const std::string k) { return params.at(k).show_prop_arg_values(); }
+	std::string show_param_prop_min(const std::string k) { return params.at(k).show_prop_min(); }
+	std::string show_param_prop_max(const std::string k) { return params.at(k).show_prop_max(); }
+	std::string show_param(const std::string k) { return k + screen::C_DELIM + params.at(k).show(); }
+	std::string show_param_diagnostics(const std::string k) { return k + screen::C_DELIM + params.at(k).show_diagnostics(); }
+
 
 private:
 	//===== Internal Attributes =====//
