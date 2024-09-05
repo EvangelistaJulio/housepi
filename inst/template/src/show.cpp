@@ -411,8 +411,7 @@ Rcpp::List MCMC::export_setup()
 {
     using namespace Rcpp;
 
-    List output;
-    output = List::create(
+    return List::create(
         _["seed"] = setup_seed,
         _["num_threads"] = get_num_threads(),
         _["num_chains"] = setup_num_chains,
@@ -420,14 +419,8 @@ Rcpp::List MCMC::export_setup()
         _["burn_in"] = setup_burn_in,
         _["num_iter"] = setup_num_iter,
         _["thinning"] = setup_thinning,
-        _["rnd_init_params"] = screen::truth(setup_rnd_init_params));
-
-    if (setup_inv_T != 1.)
-    {
-        output["inv_temper"] = setup_inv_T;
-    }
-
-    return output;
+        _["rnd_init_params"] = setup_rnd_init_params,
+        _["inv_temper"] = setup_inv_T);
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -435,40 +428,36 @@ Rcpp::DataFrame MCMC::export_params()
 {
     using namespace Rcpp;
 
-    std::vector<std::string> vec_names = param_to_be_inferred;
-    vec_names.insert(vec_names.end(), param_to_be_static.begin(), param_to_be_static.end());
+    std::vector<std::string> V_names = param_to_be_inferred;
+    V_names.insert(V_names.end(), param_to_be_static.begin(), param_to_be_static.end());
 
-    NumericVector vec_value = {};
-    LogicalVector vec_infer = {};
-    CharacterVector vec_prior = {}, vec_args = {}, vec_argsval = {};
-    CharacterVector vec_rule = {}, vec_rargs = {}, vec_rargsval = {};
-    CharacterVector vec_min = {}, vec_max = {};
+    NumericVector V_value = {};
+    LogicalVector V_infer = {};
+    CharacterVector V_prior = {}, V_args = {}, V_argsval = {};
+    CharacterVector V_rule = {}, V_rargs = {}, V_rargsval = {};
+    NumericVector V_min = {}, V_max = {};
 
-    for (const std::string &parID : vec_names)
+    for (const std::string &parID : V_names)
     {
-        vec_value.push_back(get_value(parID));
-        vec_infer.push_back(get_infer(parID));
-        vec_prior.push_back(stoRString(show_param_distr_name(parID)));
-        vec_args.push_back(stoRString(show_param_distr_arg_names(parID)));
-        vec_argsval.push_back(stoRString(show_param_distr_arg_values(parID)));
-        vec_rule.push_back(stoRString(show_param_prop_name(parID)));
-        vec_rargs.push_back(stoRString(show_param_prop_arg_names(parID)));
-        vec_rargsval.push_back(stoRString(show_param_prop_arg_values(parID)));
-        vec_max.push_back(stoRString(show_param_prop_min(parID)));
-        vec_max.push_back(stoRString(show_param_prop_max(parID)));
+        V_value.push_back(get_value(parID));
+        V_infer.push_back(get_infer(parID));
+
+        V_prior.push_back(stoRString(show_param_distr_name(parID)));
+        V_args.push_back(stoRString(show_param_distr_arg_names(parID)));
+        V_argsval.push_back(stoRString(show_param_distr_arg_values(parID)));
+
+        V_rule.push_back(stoRString(show_param_prop_name(parID)));
+        V_rargs.push_back(stoRString(show_param_prop_arg_names(parID)));
+        V_rargsval.push_back(stoRString(show_param_prop_arg_values(parID)));
+
+        V_min.push_back(std::isnan(get_param_prop_range_min(parID)) ? NA_REAL : get_param_prop_range_min(parID));
+        V_max.push_back(std::isnan(get_param_prop_range_max(parID)) ? NA_REAL : get_param_prop_range_max(parID));
     }
 
-    return DataFrame::create(_["name"] = vec_names,
-                             _["value"] = vec_value,
-                             _["infer"] = vec_infer,
-                             _["prior"] = vec_prior,
-                             _["args"] = vec_args,
-                             _["argsval"] = vec_argsval,
-                             _["rule"] = vec_rule,
-                             _["rargs"] = vec_rargs,
-                             _["rargsval"] = vec_rargsval,
-                             _["min"] = vec_min,
-                             _["max"] = vec_max);
+    return DataFrame::create(_["name"] = V_names, _["value"] = V_value, _["infer"] = V_infer,
+                             _["prior"] = V_prior, _["args"] = V_args, _["argsval"] = V_argsval,
+                             _["rule"] = V_rule, _["rargs"] = V_rargs, _["rargsval"] = V_rargsval,
+                             _["min"] = V_min, _["max"] = V_max);
 }
 
 /* Export current data configurations to R DataFrame. */

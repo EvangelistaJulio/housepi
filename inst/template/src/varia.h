@@ -76,8 +76,8 @@ public:
 	//===== Show =====//
 	std::string show_arg_names() const { return distr_ptr->show_arg_names(); }
 	std::string show_arg_values() const { return distr_ptr->show_arg_values(); }
-	std::string show_min() const;
-	std::string show_max() const;
+	double get_range_min() const;
+	double get_range_max() const;
 
 private:
 	//=====Valid Move : functional methods=====//
@@ -327,14 +327,14 @@ public:
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//===== Show =====//
-	std::string show_distr_name() { return distr_ptr->get_name(); }
-	std::string show_distr_arg_names() { return distr_ptr->show_arg_names(); }
-	std::string show_distr_arg_values() { return distr_ptr->show_arg_values(); }
-	std::string show_prop_name() { return prop_ptr->get_name(); }
-	std::string show_prop_arg_names() { return prop_ptr->show_arg_names(); }
-	std::string show_prop_arg_values() { return prop_ptr->show_arg_values(); }
-	std::string show_prop_min() { return prop_ptr->show_min(); }
-	std::string show_prop_max() { return prop_ptr->show_max(); }
+	std::string show_distr_name() const { return distr_ptr->get_name(); }
+	std::string show_distr_arg_names() const { return distr_ptr->show_arg_names(); }
+	std::string show_distr_arg_values() const { return distr_ptr->show_arg_values(); }
+	std::string show_prop_name() const { return prop_ptr->get_name(); }
+	std::string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
+	std::string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
+	double get_prop_range_min() const { return prop_ptr->get_range_min(); }
+	double get_prop_range_max() const { return prop_ptr->get_range_max(); }
 
 	std::string show()
 	{
@@ -343,9 +343,9 @@ public:
 		oss << get_value() << C_DELIM << truth(infer);
 		if (infer)
 		{
-			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_args_names() << C_DELIM << show_distr_args_values()
-				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_args_names() << C_DELIM << show_prop_arg_values()
-				<< C_DELIM << show_prop_min() << C_DELIM << show_prop_max();
+			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
+				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
+				<< C_DELIM << get_prop_range_min() << C_DELIM << get_prop_range_max();
 		}
 		return oss.str();
 	}
@@ -488,14 +488,15 @@ public:
 	double uniform() { return _uniform_distr_(get_prng()); }
 	
 	//===== Show =====//
-	std::string show_param_distr_name(const std::string k) { return params.at(k).show_distr_name(); }
-	std::string show_param_distr_arg_names(const std::string k) { return params.at(k).show_distr_arg_names(); }
-	std::string show_param_distr_arg_values(const std::string k) { return params.at(k).show_distr_arg_values(); }
-	std::string show_param_prop_name(const std::string k) { return params.at(k).show_prop_name(); }
-	std::string show_param_prop_arg_names(const std::string k) { return params.at(k).show_prop_arg_names(); }
-	std::string show_param_prop_arg_values(const std::string k) { return params.at(k).show_prop_arg_values(); }
-	std::string show_param_prop_min(const std::string k) { return params.at(k).show_prop_min(); }
-	std::string show_param_prop_max(const std::string k) { return params.at(k).show_prop_max(); }
+	std::string show_param_distr_name(const std::string k) const { return params.at(k).show_distr_name(); }
+	std::string show_param_distr_arg_names(const std::string k) const { return params.at(k).show_distr_arg_names(); }
+	std::string show_param_distr_arg_values(const std::string k) const { return params.at(k).show_distr_arg_values(); }
+	std::string show_param_prop_name(const std::string k) const { return params.at(k).show_prop_name(); }
+	std::string show_param_prop_arg_names(const std::string k) const { return params.at(k).show_prop_arg_names(); }
+	std::string show_param_prop_arg_values(const std::string k) const { return params.at(k).show_prop_arg_values(); }
+	double get_param_prop_range_min(const std::string k) const { return params.at(k).get_prop_range_min(); }
+	double get_param_prop_range_max(const std::string k) const { return params.at(k).get_prop_range_max(); }
+
 	std::string show_param(const std::string k) { return k + screen::C_DELIM + params.at(k).show(); }
 	std::string show_param_diagnostics(const std::string k) { return k + screen::C_DELIM + params.at(k).show_diagnostics(); }
 

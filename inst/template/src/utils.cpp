@@ -67,7 +67,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void show_decorator(const std::string title, char decor, const std::string txt, bool verbose)
+    void print_decorator(const std::string title, char decor, const std::string txt, bool verbose)
     {
         if (verbose)
         {

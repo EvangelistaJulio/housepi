@@ -158,28 +158,28 @@ Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_
 }
 
 /* Return proposer minimum. */
-std::string Base_Proposer::show_min() const
+double Base_Proposer::get_range_min() const
 {
     if (_range_min_ > -INF_DOUBLE)
     {
-        return std::to_string(_range_min_);
+        return _range_min_;
     }
     else
     {
-        return UNDEFINED;
+        return NAN;
     }
 }
 
 /* Return proposer maximum. */
-std::string Base_Proposer::show_max() const
+double Base_Proposer::get_range_max() const
 {
     if (_range_max_ < INF_DOUBLE)
     {
-        return std::to_string( _range_max_);
+        return _range_max_;
     }
     else
     {
-        return UNDEFINED;
+        return NAN;
     }
 }
 
@@ -217,7 +217,7 @@ std::string Parameter::show_diagnostics()
     oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer)
         << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
         << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-        << C_DELIM << show_prop_min() << C_DELIM << show_prop_min();
+        << C_DELIM << get_prop_range_min() << C_DELIM << get_prop_range_min();
     return oss.str();
 }
 
