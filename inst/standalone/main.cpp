@@ -180,20 +180,20 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        show_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
+        print_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
         user_model.infer(output_file, true);
 
         if (verbose)
         {
-            show_decorator("Inference::results", '-', UNDEFINED);
+            print_decorator("Inference::results", '-', UNDEFINED);
             user_model.show_results();
-            show_decorator("Inference::diagnostics", '-', UNDEFINED);
+            print_decorator("Inference::diagnostics", '-', UNDEFINED);
             user_model.show_diagnostics();
         }
 
         if (save_augm_file != UNDEFINED)
         {
-            show_decorator("Inference::output", '-',
+            print_decorator("Inference::output", '-',
                            "save: " + save_augm_file,
                            verbose);
             user_model.print_augm_variables(save_augm_file);
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            show_decorator("Simulation", C_DECOR,
+            print_decorator("Simulation", C_DECOR,
                            "save: " + output_file,
                            verbose);
             user_model.simulate();
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
 
             if (verbose)
             {
-                show_decorator("Simulation::summary", '-');
+                print_decorator("Simulation::summary", '-');
                 user_model.show_summary();
             }
         }
@@ -224,13 +224,13 @@ int main(int argc, char *argv[])
 
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
-        show_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        print_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
         print_stdout(std::to_string(user_model.evaluate()) + "\n");
     }
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
-        show_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        print_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
         print_stdout(std::to_string(user_model.evaluate_marginal(num_rungs)) + "\n");
     }
 

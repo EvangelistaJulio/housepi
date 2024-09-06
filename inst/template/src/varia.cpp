@@ -166,7 +166,7 @@ double Base_Proposer::get_range_min() const
     }
     else
     {
-        return NAN;
+        return std::numeric_limits<double>::quiet_NaN();;
     }
 }
 
@@ -179,7 +179,7 @@ double Base_Proposer::get_range_max() const
     }
     else
     {
-        return NAN;
+        return std::numeric_limits<double>::quiet_NaN();;
     }
 }
 
