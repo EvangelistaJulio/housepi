@@ -218,12 +218,15 @@ namespace screen
     {
         if (is_raised_once == false)
         {
+#pragma omp critical
+            {
 #ifdef USE_RCPP
-            Rcpp::warning(txt);
+                Rcpp::warning(txt);
 #else
-            std::cerr << "\nWarning: " + txt << std::endl;
+                std::cerr << "\nWarning: " + txt << std::endl;
 #endif
-            is_raised_once = true;
+                is_raised_once = true;
+            }
         }
     }
 
@@ -234,13 +237,16 @@ namespace screen
     /* Display an error message. */
     void raise_error(const std::string &txt)
     {
+#pragma omp critical
+        {
 #ifdef USE_RCPP
-        Rcpp::stop(txt);
+            Rcpp::stop(txt);
 #else
-        std::cerr << "\nError: " + txt + "\nExit...\n"
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+            std::cerr << "\nError: " + txt + "\nExit...\n"
+                      << std::endl;
+            std::exit(EXIT_FAILURE);
 #endif
+        }
     }
 }
 
