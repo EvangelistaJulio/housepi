@@ -20,13 +20,13 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 	//=====Susceptibility=====//
 	if (this_indiv.get_data("age") <= get_value("child_age"))
 	{ // child
-		this_indiv.assign_rate_per_group("Susceptibility", "sus_child");
+		this_indiv.assign_rate_per_group("Susceptibility", "s_child");
 	}
 	else
 	{ // adult
 		if (this_indiv.get_data("sex") == 0)
 		{ // adult women
-			this_indiv.assign_rate_per_group("Susceptibility", "sus_women");
+			this_indiv.assign_rate_per_group("Susceptibility", "s_women");
 		}
 		else
 		{ // adult men : Susceptibility [REFERENCE]
@@ -41,7 +41,40 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 	}
 	else
 	{ // child
-		this_indiv.assign_rate_per_group("Infectivity", "inf_child");
+		this_indiv.assign_rate_per_group("Infectivity", "i_child");
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  Model : assign rate_per group to individual  //////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign the contact patterns between a couple of individuals. */
+void Model::assign_rate_per_contact_to_household(int h, int i, int k)
+{
+	// from `i` -> to `k`
+	// children if younger than 12 y.o., adults otherwise
+	bool i_is_child = (get_data(h, i, "age") < get_value("child_age"));
+	bool i_is_adult = (i_is_child == false);
+
+	bool k_is_child = (get_data(h, k, "age") < get_value("child_age"));
+	bool k_is_adult = (k_is_child == false);
+
+	if (i_is_child && k_is_child)
+	{ // Child to Child
+		househ[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
+	}
+	else if (i_is_child && k_is_adult)
+	{ // Child to Adult
+		househ[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
+	}
+	else if (i_is_adult && k_is_child)
+	{ // Adult to Child
+		househ[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
+	}
+	else
+	{ // Adult to Adult : Contact Pattern [REFERENCE]
+		househ[h].assign_rate_per_contact(i, k, REFERENCE);
 	}
 }
 
@@ -84,7 +117,7 @@ void Model::fill_house_escape_matrix(int h,
 		{
 			if (k != i)
 			{
-				p2p_esc_proba[k][i] = exp(-susc_rate[i] * infec_rate[k] * get_value("beta"));
+				p2p_esc_proba[k][i] = exp(-susc_rate[i] * get_contact_rate(h, k, i) * infec_rate[k] * get_value("beta"));
 			}
 			// else is equal to 1 (declared outside, not relevant)
 		}

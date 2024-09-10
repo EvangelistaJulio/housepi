@@ -105,6 +105,7 @@ public:
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
 	double get_group_rate(int h, int i, const std::string r) const { return househ[h].indiv[i].get_group_rate(r); }
+	double get_contact_rate(int h, int from, int to) const { return househ[h].get_contact_rate(from, to); }
 
 	//===== AUGMENTED VARIABLES =====//
 	void set_augm(int h, int i, const std::string a, double new_value) { househ[h].indiv[i].set_augm(a, new_value); };

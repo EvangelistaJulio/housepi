@@ -22,6 +22,7 @@ class Model : public MCMC
 	double compute_house_loglike(int h) override;
 	void simulate_single_house(int h) override;
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;
+	void assign_rate_per_contact_to_household(int h, int i, int k) override;
 
 	//===== Model dependent methods =====//
 	void fill_house_escape_matrix(int h,
