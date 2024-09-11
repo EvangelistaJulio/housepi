@@ -333,7 +333,7 @@ void MCMC::build_setup(const std::string pathtofile, bool verbose)
                 setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
                 if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
                 {
-                    screen::raise_warning("Unable to fix initial parameters when running  chains.",
+                    screen::raise_warning("Unable to fix initial parameters when running multiple chains.",
                                           Fix_Init_Mult_Chains_Warning);
                     setup_rnd_init_params = true;
                 }
@@ -906,12 +906,11 @@ double MCMC::type_to_double(const std::string val, const std::string typ, int h,
         }
         else if (typ == TYPE_DATA)
         {
-            househ[h].indiv[i].assert_data(val);
             output = househ[h].indiv[i].get_data(val);
         }
         else if (typ == TYPE_PARAM)
         {
-            assert_param(val);
+            output = get_value(val);
             if (get_infer(val))
             {
                 std::ostringstream oss;
@@ -920,7 +919,6 @@ double MCMC::type_to_double(const std::string val, const std::string typ, int h,
                     << "Eventual changes of the parameter will not affect the move.";
                 screen::raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
             }
-            output = get_value(val);
         }
         else if (typ == TYPE_COMMAND)
         {
@@ -943,7 +941,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, int h,
 }
 
 /* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(const std::string val, const std::string typ)
+const double *MCMC::type_to_doubleptr(const std::string val, const std::string typ, int h, int i)
 {
     const double *output = nullptr;
 
@@ -966,9 +964,12 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
     }
     else
     {
-        if (typ == TYPE_PARAM)
+        if (typ == TYPE_DATA)
         {
-            assert_param(val);
+            output = househ[h].indiv[i].get_data_addr(val);
+        }
+        else if (typ == TYPE_PARAM)
+        {
             output = get_address(val);
         }
         else
@@ -1009,7 +1010,7 @@ sdargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ)
+sdargs_ext MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i)
 {
     std::vector<std::string> keys = parse_list_args(tkn_key);
     std::vector<std::string> vals = parse_list_args(tkn_val);
@@ -1026,7 +1027,7 @@ sdargs_ext MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::st
     {
         for (size_t x = 0; x < keys.size(); x++)
         {
-            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x]));
+            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], h, i));
         }
     }
 
@@ -1144,7 +1145,7 @@ void MCMC::assign_augmented_variables()
                     sdargs range = {};
                     if (type_to_double(loader.at("min"), loader.at("mintype"), h, i) != INF_DOUBLE)
                     {
-                        range.emplace("min", type_to_double(loader.at("value"), loader.at("valuetype"), h, i));
+                        range.emplace("min", type_to_double(loader.at("min"), loader.at("mintype"), h, i));
                     }
                     if (type_to_double(loader.at("max"), loader.at("maxtype"), h, i) != INF_DOUBLE)
                     {
@@ -1156,7 +1157,7 @@ void MCMC::assign_augmented_variables()
                         loader.at("name"),
                         type_to_double(loader.at("value"), loader.at("valuetype"), h, i),
                         loader.at("model"),
-                        typedict_to_sdargs_ext(loader.at("args"), loader.at("argsval"), loader.at("argstype")),
+                        typedict_to_sdargs_ext(loader.at("args"), loader.at("argsval"), loader.at("argstype"), h, i),
                         loader.at("rule"),
                         typedict_to_sdargs(loader.at("rargs"), loader.at("rargsval"), loader.at("rargstype"), h, i),
                         type_to_double(loader.at("rfrom"), loader.at("rfromtype"), h, i),

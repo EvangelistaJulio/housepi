@@ -203,9 +203,9 @@ private:
 
 	//----- build : type-specified variables -----//
 	double type_to_double(const std::string tkn_val, const std::string tkn_typ, int h, int i);
-	const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ);
+	const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, int h, int i);
 	sdargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i);
-	sdargs_ext typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ);
+	sdargs_ext typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i);
 
 	//===== PRINTS =====//
 	std::string get_progtxt(const std::string txt);

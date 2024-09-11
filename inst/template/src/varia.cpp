@@ -115,10 +115,10 @@ void Base_Proposer::set_range(sdargs new_range)
     }
     else if (condition == 5)
     {
-        if (_range_min_ >= _range_max_)
+        if (_range_min_ > _range_max_)
         {
             std::ostringstream oss;
-            oss << "Provided an inconsistent range: {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
+            oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
             screen::raise_error(oss.str());
         }
         else

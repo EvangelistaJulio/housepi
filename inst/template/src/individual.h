@@ -54,6 +54,7 @@ public:
 	void disable_assert();
 	void assert_data(const std::string d) const;
 	double get_data(const std::string d) const { return (this->*_get_data_method_)(d); }
+	const double *get_data_addr(const std::string d) const { return (this->*_get_data_addr_method_)(d); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 	void assign_rate_per_group(const std::string r, const std::string parID);
@@ -98,6 +99,10 @@ private:
 	double (Individual::*_get_data_method_)(const std::string) const = &Individual::_get_data_assert_;
 	double _get_data_assert_(const std::string d) const;
 	double _get_data_default_(const std::string d) const;
+
+	const double *(Individual::*_get_data_addr_method_)(const std::string) const = &Individual::_get_data_addr_assert_;
+	const double * _get_data_addr_assert_(const std::string k) const;
+	const double * _get_data_addr_default_(const std::string k) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
