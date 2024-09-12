@@ -62,17 +62,17 @@ double Individual::_get_data_assert_(const std::string d) const
 	return _get_data_default_(d);
 }
 
-/* Safe method to get a data address with previous assertion. */
-const double *Individual::_get_data_address_default_(const std::string d) const
+/* Safe method to get a data pointer with previous assertion. */
+const double *Individual::_get_data_pointer_default_(const std::string d) const
 {
 	return &(data.find(d)->second);
 }
 
-/* Safe method to get a data address with previous assertion. */
-const double *Individual::_get_data_address_assert_(const std::string d) const
+/* Safe method to get a data pointer with previous assertion. */
+const double *Individual::_get_data_pointer_assert_(const std::string d) const
 {
 	assert_data(d);
-	return _get_data_address_default_(d);
+	return _get_data_pointer_default_(d);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,7 +145,7 @@ void Individual::disable_assert()
 	_set_augm_method_ = &Individual::_set_augm_default_;
 	_get_augm_method_ = &Individual::_get_augm_default_;
 	_get_data_method_ = &Individual::_get_data_default_;
-	_get_data_address_method_ = &Individual::_get_data_address_default_;
+	_get_data_pointer_method_ = &Individual::_get_data_pointer_default_;
 }
 
 /* Assign an augmented variable to the individual. */

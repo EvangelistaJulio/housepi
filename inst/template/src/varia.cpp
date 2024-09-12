@@ -26,7 +26,7 @@ bool Above_Max_Threads_Warning = false;      // warning for over the threshold n
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(
-    Distribution *distr,
+    Base_Distribution *distr,
     double strategy_from_zero,
     sdargs value_range,
     std::vector<int> list_of_args_to_adapt) : distr_ptr(distr)
@@ -233,36 +233,36 @@ std::string Parameter::show_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to get a value. */
-double Monte_Carlo_Core::_get_value_default_(const std::string k) const
+double Monte_Carlo_Core::_get_param_default_(const std::string k) const
 {
     return params.at(k).get_value();
 }
 
 /* Safe method to get a value with previous assertion. */
-double Monte_Carlo_Core::_get_value_assert_(const std::string k) const
+double Monte_Carlo_Core::_get_param_assert_(const std::string k) const
 {
     assert_param(k);
-    return _get_value_default_(k);
+    return _get_param_default_(k);
 }
 
-/* Default method to get an address. */
-const double *Monte_Carlo_Core::_get_address_default_(const std::string k) const
+/* Default method to get a pointer to a parameter. */
+const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string k) const
 {
-    return params.at(k).get_address();
+    return params.at(k).get_pointer();
 }
 
-/* Safe method to get an address with previous assertion. */
-const double *Monte_Carlo_Core::_get_address_assert_(const std::string k) const
+/* Safe method to get a pointer to a parameter with previous assertion. */
+const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string k) const
 {
     assert_param(k);
-    return _get_address_default_(k);
+    return _get_param_pointer_default_(k);
 }
 
 /* Disable parameter assertion. */
 void Monte_Carlo_Core::disable_assert_param()
 {
-    _get_value_method_ = &Monte_Carlo_Core::_get_value_default_;
-    _get_address_method_ = &Monte_Carlo_Core::_get_address_default_;
+    _get_param_method_ = &Monte_Carlo_Core::_get_param_default_;
+    _get_param_pointer_method_ = &Monte_Carlo_Core::_get_param_pointer_default_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

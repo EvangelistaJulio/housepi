@@ -171,10 +171,10 @@ void Model::initialize_model()
 	//=====Initialize infectivity profiles=====//
 	// dictionary with the address to the model parameters for the infectivity profile
 	sdargs_ptr infec_profile_args = {
-		{"tost_alpha", get_param_address("tost_alpha")},
-		{"tost_mu", get_param_address("tost_mu")},
-		{"tost_sigma", get_param_address("tost_sigma")},
-		{"tost_tau", get_param_address("tost_tau")}};
+		{"tost_alpha", get_param_pointer("tost_alpha")},
+		{"tost_mu", get_param_pointer("tost_mu")},
+		{"tost_sigma", get_param_pointer("tost_sigma")},
+		{"tost_tau", get_param_pointer("tost_tau")}};
 
 	// initialize the infectivity profile function of the model
 	infec_profile_func = Infectivity_Profile_Function(infec_profile_args);

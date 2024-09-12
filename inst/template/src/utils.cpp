@@ -337,7 +337,7 @@ std::string Base_Function::show_arg_values() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* uniform probability density function */
-double Uniform_Distr::pdf(double x)
+double Uniform_Distribution::pdf(double x)
 {
     double low = get_arg(0);
     double up = get_arg(1);
@@ -346,7 +346,7 @@ double Uniform_Distr::pdf(double x)
 }
 
 /* uniform probability density function */
-double Uniform_Distr::log_pdf(double x)
+double Uniform_Distribution::log_pdf(double x)
 {
     double low = get_arg(0);
     double up = get_arg(1);
@@ -355,7 +355,7 @@ double Uniform_Distr::log_pdf(double x)
 }
 
 /* uniform probability density function */
-double Uniform_Distr::logratio(double x, double y)
+double Uniform_Distribution::logratio(double x, double y)
 {
     (void)x;
     (void)y;
@@ -363,7 +363,7 @@ double Uniform_Distr::logratio(double x, double y)
 }
 
 /* uniform random generator */
-double Uniform_Distr::rand(sys_rnd_gen &rng)
+double Uniform_Distribution::rand(sys_rnd_gen &rng)
 {
     double low = get_arg(0);
     double up = get_arg(1);
@@ -376,7 +376,7 @@ double Uniform_Distr::rand(sys_rnd_gen &rng)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* normal probability density function */
-double Normal_Distr::pdf(double x)
+double Normal_Distribution::pdf(double x)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -384,7 +384,7 @@ double Normal_Distr::pdf(double x)
 }
 
 /* logarithm of the normal probability density function */
-double Normal_Distr::log_pdf(double x)
+double Normal_Distribution::log_pdf(double x)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -392,7 +392,7 @@ double Normal_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the normal probability density function */
-double Normal_Distr::logratio(double x, double y)
+double Normal_Distribution::logratio(double x, double y)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -400,7 +400,7 @@ double Normal_Distr::logratio(double x, double y)
 }
 
 /* normal random generator */
-double Normal_Distr::rand(sys_rnd_gen &rng)
+double Normal_Distribution::rand(sys_rnd_gen &rng)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -412,7 +412,7 @@ double Normal_Distr::rand(sys_rnd_gen &rng)
 /////////////////////////  Normal Distribution (discrete) : methods  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Normal_Distr_int::pdf(double x)
+double Normal_Distribution_Discrete::pdf(double x)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
@@ -425,7 +425,7 @@ double Normal_Distr_int::pdf(double x)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* lognormal probability density function */
-double Lognorm_Distr::pdf(double x)
+double Lognorm_Distribution::pdf(double x)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -433,7 +433,7 @@ double Lognorm_Distr::pdf(double x)
 }
 
 /* logarithm of the lognormal probability density function */
-double Lognorm_Distr::log_pdf(double x)
+double Lognorm_Distribution::log_pdf(double x)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -441,7 +441,7 @@ double Lognorm_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the lognormal probability density function */
-double Lognorm_Distr::logratio(double x, double y)
+double Lognorm_Distribution::logratio(double x, double y)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -449,7 +449,7 @@ double Lognorm_Distr::logratio(double x, double y)
 }
 
 /* lognormal random generator */
-double Lognorm_Distr::rand(sys_rnd_gen &rng)
+double Lognorm_Distribution::rand(sys_rnd_gen &rng)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -461,7 +461,7 @@ double Lognorm_Distr::rand(sys_rnd_gen &rng)
 /////////////////////////  Lognormal Distribution (discrete) : methods  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Lognorm_Distr_int::pdf(double x)
+double Lognorm_Distribution_Discrete::pdf(double x)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
@@ -475,7 +475,7 @@ double Lognorm_Distr_int::pdf(double x)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* gamma probability density function */
-double Gamma_Distr::pdf(double x)
+double Gamma_Distribution::pdf(double x)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -483,7 +483,7 @@ double Gamma_Distr::pdf(double x)
 }
 
 /* logarithm of the gamma probability density function */
-double Gamma_Distr::log_pdf(double x)
+double Gamma_Distribution::log_pdf(double x)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -491,7 +491,7 @@ double Gamma_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the gamma probability density function */
-double Gamma_Distr::logratio(double x, double y)
+double Gamma_Distribution::logratio(double x, double y)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -499,7 +499,7 @@ double Gamma_Distr::logratio(double x, double y)
 }
 
 /* gamma random generator */
-double Gamma_Distr::rand(sys_rnd_gen &rng)
+double Gamma_Distribution::rand(sys_rnd_gen &rng)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -512,7 +512,7 @@ double Gamma_Distr::rand(sys_rnd_gen &rng)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* weibull probability density function */
-double Weibull_Distr::pdf(double x)
+double Weibull_Distribution::pdf(double x)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -520,7 +520,7 @@ double Weibull_Distr::pdf(double x)
 }
 
 /* logarithm of the weibull probability density function */
-double Weibull_Distr::log_pdf(double x)
+double Weibull_Distribution::log_pdf(double x)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -528,7 +528,7 @@ double Weibull_Distr::log_pdf(double x)
 }
 
 /* log-ratio of the weibull probability density function */
-double Weibull_Distr::logratio(double x, double y)
+double Weibull_Distribution::logratio(double x, double y)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -536,7 +536,7 @@ double Weibull_Distr::logratio(double x, double y)
 }
 
 /* weibull random generator */
-double Weibull_Distr::rand(sys_rnd_gen &rng)
+double Weibull_Distribution::rand(sys_rnd_gen &rng)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -548,7 +548,7 @@ double Weibull_Distr::rand(sys_rnd_gen &rng)
 ////////////////////////  Weibull Distribution (discrete) : methods  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Weibull_Distr_int::pdf(double x)
+double Weibull_Distribution_Discrete::pdf(double x)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
@@ -561,28 +561,28 @@ double Weibull_Distr_int::pdf(double x)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* rayleigh probability density function */
-double Rayleigh_Distr::pdf(double x)
+double Rayleigh_Distribution::pdf(double x)
 {
     double scale = get_arg(0);
     return x * pow(scale, -2) * exp(-0.5 * pow(x / scale, 2));
 }
 
 /* logarithm of the rayleigh probability density function */
-double Rayleigh_Distr::log_pdf(double x)
+double Rayleigh_Distribution::log_pdf(double x)
 {
     double scale = get_arg(0);
     return log(x) - 2 * log(scale) - 0.5 * pow(x / scale, 2);
 }
 
 /* log-ratio of the rayleigh probability density function */
-double Rayleigh_Distr::logratio(double x, double y)
+double Rayleigh_Distribution::logratio(double x, double y)
 {
     double scale = get_arg(0);
     return log(y / x) + 0.5 * pow(scale, -2) * (pow(x, 2) - pow(y, 2));
 }
 
 /* rayleigh random generator */
-double Rayleigh_Distr::rand(sys_rnd_gen &rng)
+double Rayleigh_Distribution::rand(sys_rnd_gen &rng)
 {
     double scale = get_arg(0);
     std::uniform_real_distribution<double> unif_gen(0, 1);
@@ -593,7 +593,7 @@ double Rayleigh_Distr::rand(sys_rnd_gen &rng)
 ////////////////////////  Rayleigh Distribution (discrete) : methods  ///////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Rayleigh_Distr_int::pdf(double x)
+double Rayleigh_Distribution_Discrete::pdf(double x)
 {
     double scale = get_arg(0);
     double r = floor(x);
@@ -605,28 +605,28 @@ double Rayleigh_Distr_int::pdf(double x)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* exponential probability density function */
-double Exponential_Distr::pdf(double x)
+double Exponential_Distribution::pdf(double x)
 {
     double rate = get_arg(0);
     return rate * exp(-rate * x);
 }
 
 /* logarithm of the exponential probability density function */
-double Exponential_Distr::log_pdf(double x)
+double Exponential_Distribution::log_pdf(double x)
 {
     double rate = get_arg(0);
     return log(rate) - rate * x;
 }
 
 /* log-ratio of the exponential probability density function */
-double Exponential_Distr::logratio(double x, double y)
+double Exponential_Distribution::logratio(double x, double y)
 {
     double rate = get_arg(0);
     return rate * (x - y);
 }
 
 /* exponential random generator */
-double Exponential_Distr::rand(sys_rnd_gen &rng)
+double Exponential_Distribution::rand(sys_rnd_gen &rng)
 {
     double rate = get_arg(0);
     std::exponential_distribution<double> distr_gen(rate);
@@ -637,19 +637,19 @@ double Exponential_Distr::rand(sys_rnd_gen &rng)
 ////////////////////////  Exponential Distribution (discrete) : methods  ////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Exponential_Distr_int::pdf(double x)
+double Exponential_Distribution_Discrete::pdf(double x)
 {
     double rate = get_arg(0);
     return exp(-rate * floor(x)) * (1 - exp(-rate));
 }
 
-double Exponential_Distr_int::log_pdf(double x)
+double Exponential_Distribution_Discrete::log_pdf(double x)
 {
     double rate = get_arg(0);
     return -rate * floor(x) + log(1 - exp(-rate));
 }
 
-double Exponential_Distr_int::logratio(double x, double y)
+double Exponential_Distribution_Discrete::logratio(double x, double y)
 {
     double rate = get_arg(0);
     return rate * (floor(x) - floor(y));

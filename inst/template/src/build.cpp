@@ -782,7 +782,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         {
             // rate associated to parameter
             assert_param(parID);
-            this_indiv.set_rate(rateID, get_param_address(parID));
+            this_indiv.set_rate(rateID, get_param_pointer(parID));
             if (report_group_classes.at(rateID).find(parID) == report_group_classes.at(rateID).end())
             {
                 report_group_classes.at(rateID).emplace(parID, 1);
@@ -847,7 +847,7 @@ void MCMC::set_rate_per_contact(int h)
                 else if (parID != EMPTY_RATE)
                 {
                     assert_param(parID);
-                    househ[h].set_rate(k, i, get_param_address(parID)); // parameter rate
+                    househ[h].set_rate(k, i, get_param_pointer(parID)); // parameter rate
                     if (report_group_classes.at(CONTACT_RATE).find(parID) == report_group_classes.at(CONTACT_RATE).end())
                     {
                         report_group_classes.at(CONTACT_RATE).emplace(parID, 1);
@@ -973,11 +973,11 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
     {
         if (typ == TYPE_DATA)
         {
-            output = househ[h].indiv[i].get_data_address(val);
+            output = househ[h].indiv[i].get_data_pointer(val);
         }
         else if (typ == TYPE_PARAM)
         {
-            output = get_param_address(val);
+            output = get_param_pointer(val);
         }
         else
         {

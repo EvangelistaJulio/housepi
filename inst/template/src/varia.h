@@ -35,7 +35,7 @@
 class Base_Proposer
 {
 protected:
-	Distribution *distr_ptr;
+	Base_Distribution *distr_ptr;
 	double strat_zero;
 	bool zero_start = false;
 	int num_proposed_moves = 0;
@@ -45,7 +45,7 @@ protected:
 public:
 	//=====Constructors=====//
 	Base_Proposer(
-		Distribution *distr,
+		Base_Distribution *distr,
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {},
 		std::vector<int> args_to_adapt = {});
@@ -167,7 +167,7 @@ class Undefined_Proposer : public Base_Proposer
 {
 public:
 	//=====Constructors=====//
-	Undefined_Proposer() : Base_Proposer(new Undefined_Distr())
+	Undefined_Proposer() : Base_Proposer(new Base_Distribution())
 	{
 		_propose_method_ = &Undefined_Proposer::_undef_propose_;
 		_logratio_method_ = &Undefined_Proposer::_undef_logratio_;
@@ -186,7 +186,7 @@ public:
 	Uniform_Proposer(
 		sdargs new_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
 		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Proposer(new Uniform_Distr(new_args), strat_zero, value_range, {"min", "max"})
+		sdargs value_range = {}) : Base_Proposer(new Uniform_Distribution(new_args), strat_zero, value_range, {"min", "max"})
 	{
 		_propose_method_ = &Uniform_Proposer::_sum_to_previous_;
 		_logratio_method_ = &Uniform_Proposer::_logratio_symm_;
@@ -205,7 +205,7 @@ public:
 	Normal_Proposer(
 		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Proposer(new Normal_Distr(new_args), strat_zero, value_range, {1})
+		sdargs value_range = {}) : Base_Proposer(new Normal_Distribution(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Normal_Proposer::_sum_to_previous_;
 		_logratio_method_ = is_zero_start() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
@@ -224,7 +224,7 @@ public:
 	Lognorm_Proposer(
 		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
 		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Proposer(new Lognorm_Distr(new_args), strat_zero, value_range, {1})
+		sdargs value_range = {}) : Base_Proposer(new Lognorm_Distribution(new_args), strat_zero, value_range, {1})
 	{
 		_propose_method_ = &Lognorm_Proposer::_times_previous_;
 		_logratio_method_ = is_zero_start() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
@@ -240,7 +240,7 @@ class Prior_Proposer : public Base_Proposer
 {
 public:
 	//=====Constructor=====//
-	Prior_Proposer(Distribution *distribution) : Base_Proposer(distribution)
+	Prior_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
 	{
 		_propose_method_ = &Prior_Proposer::_draw_rand_;
 		_logratio_method_ = &Prior_Proposer::_logratio_pdf_;
@@ -265,7 +265,7 @@ class Base_Parameter
 protected:
 	double value = INF_DOUBLE;			  // value of the parameter
 	bool infer = false;					  // to be inferred or static
-	Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
+	Base_Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
 	Base_Proposer *prop_ptr = nullptr;	  // propose strategy for Monte Carlo Markov Chain
 
 public:
@@ -281,7 +281,7 @@ public:
 		set_value(value);
 
 		// define distribution
-		distr_ptr = distribution_switchboard(distr_name, distr_args);
+		distr_ptr = distribution(distr_name, distr_args);
 
 		// if no strategy is defined, do not "infer"
 		infer = (strat_name == UNDEFINED) ? false : true;
@@ -302,7 +302,7 @@ public:
 
 	//=====Getter=====//
 	double get_value() const { return value; }
-	const double *get_address() const { return &value; }
+	const double *get_pointer() const { return &value; }
 	bool get_infer() const { return infer; }
 	bool is_zero_start() const { return (prop_ptr->is_zero_start)(); }
 	double get_strat_zero() const { return (prop_ptr->get_strat_zero)(); }
@@ -452,8 +452,8 @@ public:
 	//===== Getter =====//
 	void disable_assert_param();
 	void assert_param(const std::string k) const;
-	double get_param(const std::string k) const { return (this->*_get_value_method_)(k); }
-	const double *get_param_address(const std::string k) const { return (this->*_get_address_method_)(k); }
+	double get_param(const std::string k) const { return (this->*_get_param_method_)(k); }
+	const double *get_param_pointer(const std::string k) const { return (this->*_get_param_pointer_method_)(k); }
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
@@ -511,13 +511,13 @@ private:
 	unsigned setup_num_threads = 1;							// number of OMP threads
 
 	//===== Getter (auxiliary methods) =====//
-	double (Monte_Carlo_Core::*_get_value_method_)(const std::string) const = &Monte_Carlo_Core::_get_value_assert_;
-	double _get_value_assert_(const std::string k) const;
-	double _get_value_default_(const std::string k) const;
+	double (Monte_Carlo_Core::*_get_param_method_)(const std::string) const = &Monte_Carlo_Core::_get_param_assert_;
+	double _get_param_assert_(const std::string k) const;
+	double _get_param_default_(const std::string k) const;
 
-	const double *(Monte_Carlo_Core::*_get_address_method_)(const std::string) const = &Monte_Carlo_Core::_get_address_assert_;
-	const double * _get_address_assert_(const std::string k) const;
-	const double * _get_address_default_(const std::string k) const;
+	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
+	const double * _get_param_pointer_assert_(const std::string k) const;
+	const double * _get_param_pointer_default_(const std::string k) const;
 
 	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	// FIXME : this should change if Rcpp according to developer guides

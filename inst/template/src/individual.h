@@ -54,7 +54,7 @@ public:
 	void disable_assert();
 	void assert_data(const std::string d) const;
 	double get_data(const std::string d) const { return (this->*_get_data_method_)(d); }
-	const double *get_data_address(const std::string d) const { return (this->*_get_data_addr_method_)(d); }
+	const double *get_data_pointer(const std::string d) const { return (this->*_get_data_pointer_method_)(d); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 	void assign_rate_per_group(const std::string r, const std::string parID);
@@ -100,9 +100,9 @@ private:
 	double _get_data_assert_(const std::string d) const;
 	double _get_data_default_(const std::string d) const;
 
-	const double *(Individual::*_get_data_address_method_)(const std::string) const = &Individual::_get_data_address_assert_;
-	const double * _get_data_address_assert_(const std::string k) const;
-	const double * _get_data_address_default_(const std::string k) const;
+	const double *(Individual::*_get_data_pointer_method_)(const std::string) const = &Individual::_get_data_pointer_assert_;
+	const double * _get_data_pointer_assert_(const std::string k) const;
+	const double * _get_data_pointer_default_(const std::string k) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -139,7 +139,7 @@ public:
 	int num_missing_status = 0;
 	int first_case = -1;
 
-	// contact rate address
+	// contact rate pointers
 	std::vector<std::vector<const double *>> contact_rates;
 	std::vector<std::vector<std::string>> which_rate;
 
