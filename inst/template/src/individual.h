@@ -54,7 +54,7 @@ public:
 	void disable_assert();
 	void assert_data(const std::string d) const;
 	double get_data(const std::string d) const { return (this->*_get_data_method_)(d); }
-	const double *get_data_addr(const std::string d) const { return (this->*_get_data_addr_method_)(d); }
+	const double *get_data_address(const std::string d) const { return (this->*_get_data_addr_method_)(d); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
 	void assign_rate_per_group(const std::string r, const std::string parID);
@@ -64,7 +64,7 @@ public:
 	//=====Augmented Variables=====//
 	void assert_augm(const std::string a) const;
 	void assign_augm(const std::string a, double value,
-					 const std::string model_name, sdargs_ext model_args_ext,
+					 const std::string model_name, sdargs_ptr model_args_ext,
 					 const std::string rule_name, sdargs rule_args,
 					 double rule_from, sdargs value_range);
 	void init_augm(const std::string a, sys_rnd_gen &prng);
@@ -83,7 +83,7 @@ public:
 	bool augm_valid(const std::string a, double new_value) { return augm_var.at(a).valid(new_value); }
 
 private:
-	sdargs_ext rate_ptr = {};
+	sdargs_ptr rate_ptr = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
 
 	//===== Setter (auxiliary methods) =====//
@@ -100,9 +100,9 @@ private:
 	double _get_data_assert_(const std::string d) const;
 	double _get_data_default_(const std::string d) const;
 
-	const double *(Individual::*_get_data_addr_method_)(const std::string) const = &Individual::_get_data_addr_assert_;
-	const double * _get_data_addr_assert_(const std::string k) const;
-	const double * _get_data_addr_default_(const std::string k) const;
+	const double *(Individual::*_get_data_address_method_)(const std::string) const = &Individual::_get_data_address_assert_;
+	const double * _get_data_address_assert_(const std::string k) const;
+	const double * _get_data_address_default_(const std::string k) const;
 };
 
 //-----------------------------------------------------------------------------------------------//

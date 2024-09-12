@@ -74,7 +74,7 @@ coda::traceplot(mcmc_trace)
 # store the results
 results <- summary(mcmc_trace)
 
-# collect the information for the check 
+# collect the information for the check
 inames <- params[params["infer"] == TRUE, "name"]
 data.frame(Expec = params[params["infer"] == TRUE, "value"],
            Mean = results[["statistics"]][inames, "Mean"],

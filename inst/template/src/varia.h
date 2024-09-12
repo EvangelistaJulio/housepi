@@ -35,7 +35,7 @@
 class Base_Proposer
 {
 protected:
-	Distribution_1D *distr_ptr;
+	Distribution *distr_ptr;
 	double strat_zero;
 	bool zero_start = false;
 	int num_proposed_moves = 0;
@@ -45,7 +45,7 @@ protected:
 public:
 	//=====Constructors=====//
 	Base_Proposer(
-		Distribution_1D *distr,
+		Distribution *distr,
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {},
 		std::vector<int> args_to_adapt = {});
@@ -240,7 +240,7 @@ class Prior_Proposer : public Base_Proposer
 {
 public:
 	//=====Constructor=====//
-	Prior_Proposer(Distribution_1D *distribution) : Base_Proposer(distribution)
+	Prior_Proposer(Distribution *distribution) : Base_Proposer(distribution)
 	{
 		_propose_method_ = &Prior_Proposer::_draw_rand_;
 		_logratio_method_ = &Prior_Proposer::_logratio_pdf_;
@@ -259,20 +259,20 @@ public:
 ///////////////////////////////////  Base_Parameter : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <typename sdargs_int_or_ext>
+template <typename sdargs_int_or_ptr>
 class Base_Parameter
 {
 protected:
 	double value = INF_DOUBLE;			  // value of the parameter
 	bool infer = false;					  // to be inferred or static
-	Distribution_1D *distr_ptr = nullptr; // prior/model distribution of the parameter
+	Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
 	Base_Proposer *prop_ptr = nullptr;	  // propose strategy for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
 	Base_Parameter(
 		double value,
-		std::string distr_name = UNDEFINED, sdargs_int_or_ext distr_args = {},
+		std::string distr_name = UNDEFINED, sdargs_int_or_ptr distr_args = {},
 		std::string strat_name = UNDEFINED, sdargs strat_args = {},
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {})
@@ -399,20 +399,20 @@ private:
 //////////////////////////////////////  Augmented : class  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Augmented : public Base_Parameter<sdargs_ext>
+class Augmented : public Base_Parameter<sdargs_ptr>
 {
 public:
 	//=====Constructor=====//
 	Augmented(
 		double value,
 		std::string model_name = UNDEFINED,
-		sdargs_ext model_args_ext = {},
+		sdargs_ptr model_args_ptr = {},
 		std::string strat_name = UNDEFINED,
 		sdargs strat_args = {},
 		double strat_zero = INF_DOUBLE,
 		sdargs value_range = {}) : Base_Parameter(value,
 												  model_name,
-												  model_args_ext,
+												  model_args_ptr,
 												  strat_name,
 												  strat_args,
 												  strat_zero,
@@ -452,8 +452,8 @@ public:
 	//===== Getter =====//
 	void disable_assert_param();
 	void assert_param(const std::string k) const;
-	double get_value(const std::string k) const { return (this->*_get_value_method_)(k); }
-	const double *get_address(const std::string k) const { return (this->*_get_address_method_)(k); }
+	double get_param(const std::string k) const { return (this->*_get_value_method_)(k); }
+	const double *get_param_address(const std::string k) const { return (this->*_get_address_method_)(k); }
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
 	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }

@@ -55,7 +55,7 @@ public:
 	// Constructors
 	Infectivity_Profile_Function() {};
 	Infectivity_Profile_Function(sdargs new_args) : Base_Function(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infectivity_Profile_Function(sdargs_ext new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	Infectivity_Profile_Function(sdargs_ptr new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
 	~Infectivity_Profile_Function(){};
 
 	double pdf(double tost, double t_incub);

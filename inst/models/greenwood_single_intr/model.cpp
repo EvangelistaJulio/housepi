@@ -17,7 +17,7 @@
 /* Hazard of infection (logarithm of the person-to-person escape probability). */
 double Model::hazard_of_infection()
 {
-	return get_value("beta");
+	return get_param("beta");
 }
 
 //------------------------------------------- /\ ------------------------------------------------//

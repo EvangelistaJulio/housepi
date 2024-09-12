@@ -54,10 +54,10 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 {
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (get_data(h, i, "age") < get_value("child_age"));
+	bool i_is_child = (get_data(h, i, "age") < get_param("child_age"));
 	bool i_is_adult = (i_is_child == false);
 
-	bool k_is_child = (get_data(h, k, "age") < get_value("child_age"));
+	bool k_is_child = (get_data(h, k, "age") < get_param("child_age"));
 	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
@@ -112,10 +112,10 @@ void Model::common_init_model()
 {
 	//===== Initialize Lookup Tables (infectivity profiles) =====//
 
-	sdargs_ext args = {{"tost_alpha", get_address("tost_alpha")},
-					   {"tost_mu", get_address("tost_mu")},
-					   {"tost_sigma", get_address("tost_sigma")},
-					   {"tost_tau", get_address("tost_tau")}};
+	sdargs_ptr args = {{"tost_alpha", get_param_address("tost_alpha")},
+					   {"tost_mu", get_param_address("tost_mu")},
+					   {"tost_sigma", get_param_address("tost_sigma")},
+					   {"tost_tau", get_param_address("tost_tau")}};
 	LUT_infec_prof_func = Infec_Prof_Skew_Logistic(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)
@@ -137,7 +137,7 @@ void Model::common_init_model()
 	// assign study period (in days) to the households
 	for (int h = 0; h < num_househ; h++)
 	{
-		househ[h].assign_data("study_period", get_value("study_period"));
+		househ[h].assign_data("study_period", get_param("study_period"));
 	}
 }
 
@@ -248,7 +248,7 @@ double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles
 		}
 	}
 
-	return output * get_value("beta") * pow(4. / househ[h].house_size, get_value("gamma"));
+	return output * get_param("beta") * pow(4. / househ[h].house_size, get_param("gamma"));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -429,11 +429,11 @@ void MCMC::disable_assert()
     note: sweep is the number of previously completed mcmc sweeps. */
 void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 {
+    using namespace screen;
+
     //==========================//
     //===== Initialization =====//
     //==========================//
-
-    std::string progtxt;
 
     //----- Initialize model -----//
     init_model_for_inference();
@@ -467,8 +467,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
 
-        progtxt = get_progtxt("adapt");
-
         for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
         {
             for (ulong t = 1; t <= setup_thinning; t++)
@@ -477,7 +475,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_and_adapt_all_parameters(i + t);
             }
             sweep += setup_thinning;
-            screen::progress_bar_run(progtxt, sweep, __tot_num_sweeps, progbar);
+            progress_bar_run(get_progtxt("adapt"), sweep, __tot_num_sweeps, progbar);
         }
 
         // reset the acceptance counts
@@ -491,8 +489,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
-        progtxt = get_progtxt("burn");
-
         for (ulong i = 0; i < setup_burn_in; i += setup_thinning)
         {
             for (ulong t = 1; t <= setup_thinning; t++)
@@ -501,14 +497,12 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_all_parameters();
             }
             sweep += setup_thinning;
-            screen::progress_bar_run(progtxt, sweep, __tot_num_sweeps, progbar);
+            progress_bar_run(get_progtxt("burn"), sweep, __tot_num_sweeps, progbar);
         }
 
         //============================================//
         //========= MCMC Posterior Sampling ==========//
         //============================================//
-
-        progtxt = get_progtxt("sample");
 
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
@@ -526,7 +520,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
             // print inference state
             inferstate_print();
 
-            screen::progress_bar_run(progtxt, sweep, __tot_num_sweeps, progbar);
+            progress_bar_run(get_progtxt("sample"), sweep, __tot_num_sweeps, progbar);
         }
     }
 

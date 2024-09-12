@@ -285,7 +285,7 @@ void MCMC::inferstate_print()
             // print parameter values
             for (const std::string &parID : param_to_be_inferred)
             {
-                inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_value(parID);
+                inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_param(parID);
             }
 
             // print which chain

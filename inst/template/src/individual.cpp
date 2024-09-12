@@ -20,8 +20,6 @@
 /* Constructor with a database row. */
 Individual::Individual(sdargs new_data)
 {
-	set_index(new_data.at("index"));
-
 	// associate status if provided
 	if (new_data.find("status") == new_data.end())
 	{
@@ -65,18 +63,17 @@ double Individual::_get_data_assert_(const std::string d) const
 }
 
 /* Safe method to get a data address with previous assertion. */
-const double *Individual::_get_data_addr_default_(const std::string d) const
+const double *Individual::_get_data_address_default_(const std::string d) const
 {
-    return &(data.find(d)->second);
+	return &(data.find(d)->second);
 }
 
 /* Safe method to get a data address with previous assertion. */
-const double *Individual::_get_data_addr_assert_(const std::string d) const
+const double *Individual::_get_data_address_assert_(const std::string d) const
 {
-    assert_data(d);
-    return _get_data_addr_default_(d);
+	assert_data(d);
+	return _get_data_address_default_(d);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////  Individual : methods (group rates)  //////////////////////////////////
@@ -148,27 +145,27 @@ void Individual::disable_assert()
 	_set_augm_method_ = &Individual::_set_augm_default_;
 	_get_augm_method_ = &Individual::_get_augm_default_;
 	_get_data_method_ = &Individual::_get_data_default_;
-	_get_data_addr_method_ = &Individual::_get_data_addr_default_;
+	_get_data_address_method_ = &Individual::_get_data_address_default_;
 }
 
 /* Assign an augmented variable to the individual. */
 void Individual::assign_augm(const std::string a, double value,
-							 const std::string model_name, sdargs_ext model_args_ext,
+							 const std::string model_name, sdargs_ptr model_args_ext,
 							 const std::string rule_name, sdargs rule_args,
 							 double rule_from, sdargs value_range)
 {
-    // check that lists have equal sizes
-    if (model_args_ext.find(IO_MISMATCH) != model_args_ext.end())
-    {
-        screen::raise_error("Model arguments, values and types of augmented variable `" + a + "` should have equal size.");
-    }
-    if (rule_args.find(IO_MISMATCH) != rule_args.end())
-    {
-        screen::raise_error("Rule arguments, valuesand types of augmented variable `" + a + "` should have equal size.");
-    }
+	// check that lists have equal sizes
+	if (model_args_ext.find(IO_MISMATCH) != model_args_ext.end())
+	{
+		screen::raise_error("Model arguments, values and types of augmented variable `" + a + "` should have equal size.");
+	}
+	if (rule_args.find(IO_MISMATCH) != rule_args.end())
+	{
+		screen::raise_error("Rule arguments, valuesand types of augmented variable `" + a + "` should have equal size.");
+	}
 
 	Augmented new_augm(value, model_name, model_args_ext,
-                        rule_name, rule_args, rule_from, value_range);
+					   rule_name, rule_args, rule_from, value_range);
 
 	// overtwrite augmented variable if it has multiple definitions
 	// FIXME : is this relevant?
@@ -302,7 +299,8 @@ void Household::assign_individual(Individual this_indiv)
 	else
 	{
 		std::ostringstream oss;
-		oss << "Impossibile to assign individual " << this_indiv.get_index() << ": unknown status " << status << "`.";
+		oss << "Impossibile to assign individual `" << this_indiv.get_index()
+			<< "` : unknown status `" << status << "`.";
 		screen::raise_error(oss.str());
 	}
 

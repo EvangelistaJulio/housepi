@@ -16,6 +16,7 @@ bool Non_Specified_Value_Warning = false;
 bool Unknown_Status_Warning = false;       // unknown status
 bool Fix_Init_Mult_Chains_Warning = false; // fixed paramter values when multiple chains
 bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
+bool Unknown_Household_Data_Structure_Warning = false;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -37,14 +38,13 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 /* Clean std::string from forbidden characters and convert to UNDEFINED. */
 std::string MCMC::string_cleaner(std::string tkn)
 {
-
     // forbidden characters
     for (char r : {'"', '\r', '\n'})
     {
         tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
     }
 
-    // check for undefined 
+    // check for undefined
     if ((tkn == UNDEFINED) || (tkn.size() == 0))
     {
         tkn = UNDEFINED;
@@ -93,12 +93,10 @@ std::vector<std::string> parse_list(const std::string tkn, const char delim)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-
-
 /* Read column headers. */
 std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
-                                                   std::vector<std::string> required_headers,
-                                                   std::string pathtofile)
+                                                   std::string pathtofile,
+                                                   std::vector<std::string> required_headers)
 {
     std::string line, tkn;
     getline(input, line);
@@ -458,7 +456,7 @@ void MCMC::build_parameters(const std::string pathtofile, bool verbose)
             screen::print_decorator("Parameters", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
-            std::vector<std::string> headers = read_column_headers(input, param_file_headers, pathtofile);
+            std::vector<std::string> headers = read_column_headers(input, pathtofile, param_file_headers);
 
             //===== Clean original list of parameters =====//
             drop_all_params();
@@ -599,6 +597,11 @@ void MCMC::update_report_data()
 /* Read data file and pre-process the data. */
 void MCMC::build_data(const std::string pathtofile, bool verbose)
 {
+    // define valid status set
+    std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
+    // define standard headers set
+    std::set<std::string> standard_headers = {"house_index", "index", "status"};
+
     if (pathtofile == UNDEFINED)
     {
         // error if nothing was previously defined
@@ -610,16 +613,26 @@ void MCMC::build_data(const std::string pathtofile, bool verbose)
     else
     {
         // open input file stream
-        // UPDATE : "index" could also not be required
         std::ifstream input(pathtofile.c_str());
-        std::vector<std::string> required_headers = {"index", "house_index"};
 
         if (input.is_open())
         {
             screen::print_decorator("Database", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load Column Headers =====//
-            __data_headers = read_column_headers(input, required_headers, pathtofile);
+            __data_headers = read_column_headers(input, pathtofile);
+
+            // boolean to assess the presence of indexes
+            bool is_index = (std::find(__data_headers.begin(), __data_headers.end(), "index") != __data_headers.end());
+            bool is_house_index = (std::find(__data_headers.begin(), __data_headers.end(), "house_index") != __data_headers.end());
+
+            if (!is_house_index)
+            {
+                std::ostringstream oss;
+                oss << "Impossible to associate a household structure: missing data column `house_index`."
+                    << "\nIf it was intentional, ignore this message.";
+                screen::raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
+            }
 
             //===== Drop all previous data =====//
             num_indiv = 0;
@@ -628,66 +641,51 @@ void MCMC::build_data(const std::string pathtofile, bool verbose)
             report_group_classes.clear();
 
             //===== Load individuals from the row with values =====//
+
             std::vector<Individual> aux_individuals = {};
             for (ssargs this_row = {}; read_row_by_headers(input, __data_headers, this_row); this_row.clear())
             {
-                Individual this_indiv(row_to_sdargs(this_row));
+                sdargs args = row_to_sdargs(this_row);
+                Individual this_indiv(args);
+                // associate data index or default provided index
+                this_indiv.set_index((is_index) ? args.at("index") : num_indiv);
+
                 assign_rate_per_group_to_individual(this_indiv);
                 set_rate_per_group(this_indiv);
                 aux_individuals.push_back(this_indiv);
                 num_indiv++;
 
                 //===== Check for the validity of the status =====//
-                std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
                 if (valid_statuses.find(this_indiv.get_status()) == valid_statuses.end())
                 {
                     this_indiv.set_status(MISSING_STATUS);
 
                     std::ostringstream oss;
-                    oss << "Status `" << this_indiv.get_status() << "` interpreted as missing."
-                        << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious states."
-                        << "\nOtherwise use " << MISSING_STATUS << " for missing statuses.";
+                    oss << "Status `" << this_indiv.get_status() << "` of individual `" << this_indiv.get_index() << "` interpreted as missing."
+                        << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
+                        << " Use " << MISSING_STATUS << " for missing status.";
                     screen::raise_warning(oss.str(), Unknown_Status_Warning);
                 }
             }
 
-            //===== Clean up data entries for output files =====//
-
-            // remove house_index
-            __data_headers.erase(
-                find(__data_headers.begin(), __data_headers.end(), "house_index"));
-
-            // eventually remove index
-            __data_headers.erase(
-                remove(__data_headers.begin(), __data_headers.end(), "index"), __data_headers.end());
-
-            // eventually remove status
-            __data_headers.erase(
-                remove(__data_headers.begin(), __data_headers.end(), "status"), __data_headers.end());
-
-            // eventually remove data called like augmented variab  les
-            for (const std::string &augmID : augm_full_set)
-            {
-                __data_headers.erase(
-                    remove(__data_headers.begin(), __data_headers.end(), augmID), __data_headers.end());
-            }
-
             //===== Safe Load of Households =====//
             int hh_idx;
-            std::unordered_map<int, int> aux_house_idx = {};
+            std::unordered_map<int, int> aux_hh_idx = {};
             for (Individual this_indiv : aux_individuals)
             {
-                hh_idx = this_indiv.get_data("house_index");
+                // user provided structure or no structure
+                hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_househ;
 
                 // if household index doesn't exist, add new household
-                if (aux_house_idx.find(hh_idx) == aux_house_idx.end())
+                // note : this is redundant if no structure
+                if (aux_hh_idx.find(hh_idx) == aux_hh_idx.end())
                 {
-                    aux_house_idx.emplace(hh_idx, num_househ);
-                    househ.emplace_back();
-                    househ[num_househ].set_index(hh_idx);
-                    num_househ++;
+                    househ.emplace_back();                  // add a new empty household
+                    househ[num_househ].set_index(hh_idx);   // associate its index
+                    aux_hh_idx.emplace(hh_idx, num_househ); // map index to household number
+                    num_househ++;                           // increment household number
                 }
-                househ[aux_house_idx.at(hh_idx)].assign_individual(this_indiv);
+                househ[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
             }
 
             //===== Set Contact Rates =====//
@@ -705,6 +703,15 @@ void MCMC::build_data(const std::string pathtofile, bool verbose)
                 screen::print_decorator("Database::summary", '-');
                 show_summary();
                 show_group_classes();
+            }
+
+            //===== Clean up data entries for output files =====//
+            // eventually remove standard headers to reorder them at the end
+            for (const std::string &col : standard_headers)
+            {
+                __data_headers.erase(
+                    std::remove(__data_headers.begin(), __data_headers.end(), col),
+                    __data_headers.end());
             }
         }
         else
@@ -775,7 +782,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         {
             // rate associated to parameter
             assert_param(parID);
-            this_indiv.set_rate(rateID, get_address(parID));
+            this_indiv.set_rate(rateID, get_param_address(parID));
             if (report_group_classes.at(rateID).find(parID) == report_group_classes.at(rateID).end())
             {
                 report_group_classes.at(rateID).emplace(parID, 1);
@@ -840,7 +847,7 @@ void MCMC::set_rate_per_contact(int h)
                 else if (parID != EMPTY_RATE)
                 {
                     assert_param(parID);
-                    househ[h].set_rate(k, i, get_address(parID)); // parameter rate
+                    househ[h].set_rate(k, i, get_param_address(parID)); // parameter rate
                     if (report_group_classes.at(CONTACT_RATE).find(parID) == report_group_classes.at(CONTACT_RATE).end())
                     {
                         report_group_classes.at(CONTACT_RATE).emplace(parID, 1);
@@ -906,11 +913,11 @@ double MCMC::type_to_double(const std::string val, const std::string typ, int h,
         }
         else if (typ == TYPE_DATA)
         {
-            output = househ[h].indiv[i].get_data(val);
+            output = get_data(h, i, val);
         }
         else if (typ == TYPE_PARAM)
         {
-            output = get_value(val);
+            output = get_param(val);
             if (get_infer(val))
             {
                 std::ostringstream oss;
@@ -966,11 +973,11 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
     {
         if (typ == TYPE_DATA)
         {
-            output = househ[h].indiv[i].get_data_addr(val);
+            output = househ[h].indiv[i].get_data_address(val);
         }
         else if (typ == TYPE_PARAM)
         {
-            output = get_address(val);
+            output = get_param_address(val);
         }
         else
         {
@@ -1010,13 +1017,13 @@ sdargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ext MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i)
+sdargs_ptr MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i)
 {
     std::vector<std::string> keys = parse_list_args(tkn_key);
     std::vector<std::string> vals = parse_list_args(tkn_val);
     std::vector<std::string> typs = parse_list_args(tkn_typ);
 
-    sdargs_ext output = {};
+    sdargs_ptr output = {};
 
     if (!((keys.size() == vals.size()) && (typs.size() == vals.size())))
     {
@@ -1061,7 +1068,7 @@ void MCMC::build_augmented(const std::string pathtofile, bool verbose)
             screen::print_decorator("Augmented", screen::C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
-            std::vector<std::string> headers = read_column_headers(input, required_headers, pathtofile);
+            std::vector<std::string> headers = read_column_headers(input, pathtofile, required_headers);
 
             //===== Load augmented from the row with options =====//
             load_augm_definition.clear();
@@ -1132,7 +1139,7 @@ void MCMC::assign_augmented_variables()
     }
     __is_data_augm = !augm_to_be_inferred.empty();
 
-    // eventually assign augmented variables to each individual
+    //===== Eventually assign augmented variables to each individual =====//
     if (!load_augm_definition.empty())
     {
         for (int h = 0; h < num_househ; h++)

@@ -241,11 +241,11 @@ void Model::initialize_model()
 {
 	//=====Initialize infectivity profiles=====//
 	// dictionary with the address to the model parameters for the infectivity profile
-	sdargs_ext infec_profile_args = {
-		{"tost_alpha", get_address("tost_alpha")},
-		{"tost_mu", get_address("tost_mu")},
-		{"tost_sigma", get_address("tost_sigma")},
-		{"tost_tau", get_address("tost_tau")}};
+	sdargs_ptr infec_profile_args = {
+		{"tost_alpha", get_param_address("tost_alpha")},
+		{"tost_mu", get_param_address("tost_mu")},
+		{"tost_sigma", get_param_address("tost_sigma")},
+		{"tost_tau", get_param_address("tost_tau")}};
 
 	// initialize the infectivity profile function of the model
 	infec_profile_func = Infectivity_Profile_Function(infec_profile_args);
@@ -324,10 +324,10 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 {
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (househ[h].indiv[i].get_data("age") < get_value("child_age"));
+	bool i_is_child = (househ[h].indiv[i].get_data("age") < get_param("child_age"));
 	bool i_is_adult = (i_is_child == false);
 
-	bool k_is_child = (househ[h].indiv[k].get_data("age") < get_value("child_age"));
+	bool k_is_child = (househ[h].indiv[k].get_data("age") < get_param("child_age"));
 	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
@@ -373,7 +373,7 @@ double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles
 		}
 	}
 
-	return output * get_value("beta") * pow(get_value("median_size") / househ[h].house_size, get_value("delta"));
+	return output * get_param("beta") * pow(get_param("median_size") / househ[h].house_size, get_param("delta"));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -391,7 +391,7 @@ double Model::compute_single_house_loglike(int h)
 #ifdef TEST_EPI_CURVE
 	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
 #else
-	comm_risk_cumul = get_value("alpha") * (tf - t0);
+	comm_risk_cumul = get_param("alpha") * (tf - t0);
 #endif
 
 	// Contribution of healthy members
@@ -415,7 +415,7 @@ double Model::compute_single_house_loglike(int h)
 #ifdef TEST_EPI_CURVE
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
 #else
-			comm_risk_inst = get_value("alpha");
+			comm_risk_inst = get_param("alpha");
 #endif
 			loglike_house += log(househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + hazards_of_infec(h, i, inst_profile_LUT)));
 			loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + hazards_of_infec(h, i, cumul_profile_LUT));
@@ -473,7 +473,7 @@ void Model::simulate_single_house(int h)
 #ifdef TEST_EPI_CURVE
 			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
 #else
-			comm_risk_inst = get_value("alpha");
+			comm_risk_inst = get_param("alpha");
 #endif
 			// refuse according to Bernoulli process
 			esc_proba = exp(-househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + hazards_of_infec(h, i, inst_profile_LUT)) * dt);

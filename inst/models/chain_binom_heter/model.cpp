@@ -18,7 +18,7 @@
 void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 {
 	//=====Susceptibility=====//
-	if (this_indiv.get_data("age") <= get_value("child_age"))
+	if (this_indiv.get_data("age") <= get_param("child_age"))
 	{ // child
 		this_indiv.assign_rate_per_group("Susceptibility", "s_child");
 	}
@@ -35,7 +35,7 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 	}
 
 	//=====Infectivity=====//
-	if (this_indiv.get_data("age") > get_value("child_age"))
+	if (this_indiv.get_data("age") > get_param("child_age"))
 	{ // adult : Susceptiblity [REFERENCE]
 		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
 	}
@@ -54,10 +54,10 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 {
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (get_data(h, i, "age") < get_value("child_age"));
+	bool i_is_child = (get_data(h, i, "age") < get_param("child_age"));
 	bool i_is_adult = (i_is_child == false);
 
-	bool k_is_child = (get_data(h, k, "age") < get_value("child_age"));
+	bool k_is_child = (get_data(h, k, "age") < get_param("child_age"));
 	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
@@ -110,14 +110,14 @@ void Model::fill_house_escape_matrix(int h,
 	for (int i = 0; i < hh_size; i++)
 	{
 		// community : i escaped from community
-		commu_esc_proba[i] = exp(-susc_rate[i] * get_value("alpha"));
+		commu_esc_proba[i] = exp(-susc_rate[i] * get_param("alpha"));
 
 		// person-to-person : i escaped from k
 		for (int k = 0; k < hh_size; k++)
 		{
 			if (k != i)
 			{
-				p2p_esc_proba[k][i] = exp(-susc_rate[i] * get_contact_rate(h, k, i) * infec_rate[k] * get_value("beta"));
+				p2p_esc_proba[k][i] = exp(-susc_rate[i] * get_contact_rate(h, k, i) * infec_rate[k] * get_param("beta"));
 			}
 			// else is equal to 1 (declared outside, not relevant)
 		}

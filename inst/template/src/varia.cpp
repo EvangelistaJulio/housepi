@@ -26,7 +26,7 @@ bool Above_Max_Threads_Warning = false;      // warning for over the threshold n
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(
-    Distribution_1D *distr,
+    Distribution *distr,
     double strategy_from_zero,
     sdargs value_range,
     std::vector<int> list_of_args_to_adapt) : distr_ptr(distr)
@@ -431,7 +431,7 @@ bool Monte_Carlo_Core::propose_valid_param_move(const std::string parID)
     if (params.at(parID).valid(new_value))
     {
         // store old value into buffer
-        buffer_value = get_value(parID);
+        buffer_value = get_param(parID);
         // add the prior logratio to buffer
         buffer_logratio = params.at(parID).prior_logratio(buffer_value, new_value);
         // add the proposal logratio to buffer

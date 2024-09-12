@@ -170,11 +170,11 @@ void Model::initialize_model()
 {
 	//=====Initialize infectivity profiles=====//
 	// dictionary with the address to the model parameters for the infectivity profile
-	sdargs_ext infec_profile_args = {
-		{"tost_alpha", get_address("tost_alpha")},
-		{"tost_mu", get_address("tost_mu")},
-		{"tost_sigma", get_address("tost_sigma")},
-		{"tost_tau", get_address("tost_tau")}};
+	sdargs_ptr infec_profile_args = {
+		{"tost_alpha", get_param_address("tost_alpha")},
+		{"tost_mu", get_param_address("tost_mu")},
+		{"tost_sigma", get_param_address("tost_sigma")},
+		{"tost_tau", get_param_address("tost_tau")}};
 
 	// initialize the infectivity profile function of the model
 	infec_profile_func = Infectivity_Profile_Function(infec_profile_args);
@@ -235,7 +235,7 @@ double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles
 		}
 	}
 
-	return output * get_value("beta") * pow(househ[h].house_size, -get_value("delta"));
+	return output * get_param("beta") * pow(househ[h].house_size, -get_param("delta"));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

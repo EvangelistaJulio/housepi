@@ -275,16 +275,16 @@ Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order
 }
 
 /* Overload constructor for EXTERNAL arguments. */
-Base_Function::Base_Function(sdargs_ext new_args_ext, std::vector<std::string> order)
+Base_Function::Base_Function(sdargs_ptr new_args_ptr, std::vector<std::string> order)
 {
     args_name = order;                                  // developer assigment of the order of arguments
-    args_ext = new const double *[new_args_ext.size()]; // dynamic allocation
+    args_ptr = new const double *[new_args_ptr.size()]; // dynamic allocation
     for (size_t i = 0; i < args_name.size(); i++)
     {
-        args_ext[i] = new_args_ext.at(args_name[i]);
+        args_ptr[i] = new_args_ptr.at(args_name[i]);
     }
-    _get_arg_func_ = &Base_Function::_get_arg_ext_; // assign getter
-    _set_arg_func_ = &Base_Function::_set_arg_ext_; // assign setter
+    _get_arg_func_ = &Base_Function::_get_arg_ptr_; // assign getter
+    _set_arg_func_ = &Base_Function::_set_arg_ptr_; // assign setter
 }
 
 /* Return formatted argument names of the distribution. */

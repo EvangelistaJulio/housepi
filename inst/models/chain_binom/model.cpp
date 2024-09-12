@@ -17,13 +17,13 @@
 /* Community risk of infection (-logarithm of community escape probability). */
 double Model::community_risk_of_infection()
 {
-	return get_value("alpha");
+	return get_param("alpha");
 }
 
 /* Hazard of infection (-logarithm of person-to-person escape probability). */
 double Model::hazard_of_infection()
 {
-	return get_value("beta");
+	return get_param("beta");
 }
 
 //------------------------------------------- /\ ------------------------------------------------//

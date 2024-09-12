@@ -169,6 +169,7 @@ private:
 	bool __is_data_augm = false;		// data augmentation mode
 	bool __is_infer_complete = false;	// inference mode
 	bool __is_print_inferstate = false; // print inference state mode
+	
 
 	std::vector<std::string> __data_headers = {};
 
@@ -196,8 +197,8 @@ private:
 	sdargs row_to_sdargs(ssargs &this_row);
 	std::string string_cleaner(std::string tkn);
 	std::vector<std::string> read_column_headers(std::ifstream &input,
-												 std::vector<std::string> required_headers = {},
-												 const std::string pathtofile = UNDEFINED);
+												 const std::string pathtofile = UNDEFINED,
+												 std::vector<std::string> required_headers = {});
 	bool read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row);
 	void update_report_data();
 
@@ -205,7 +206,7 @@ private:
 	double type_to_double(const std::string tkn_val, const std::string tkn_typ, int h, int i);
 	const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, int h, int i);
 	sdargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i);
-	sdargs_ext typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i);
+	sdargs_ptr typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i);
 
 	//===== PRINTS =====//
 	std::string get_progtxt(const std::string txt);

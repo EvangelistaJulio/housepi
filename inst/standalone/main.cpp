@@ -168,9 +168,9 @@ int main(int argc, char *argv[])
         is_evaluate = true; // default
     }
 
-    //----- Initialize the Model object -----//
-    Model user_model;
-    user_model.build(setup_file, params_file,
+    //----- Initialize the custom Model object -----//
+    Model* user_model = new Model();
+    user_model->build(setup_file, params_file,
                      data_file, augm_file,
                      extra_file, verbose);
 
@@ -181,22 +181,22 @@ int main(int argc, char *argv[])
     if (is_infer)
     { //===== Inference =====//
         print_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
-        user_model.infer(output_file, true);
+        user_model->infer(output_file, true);
 
         if (verbose)
         {
             print_decorator("Inference::results", '-', UNDEFINED);
-            user_model.show_results();
+            user_model->show_results();
             print_decorator("Inference::diagnostics", '-', UNDEFINED);
-            user_model.show_diagnostics();
+            user_model->show_diagnostics();
         }
 
         if (save_augm_file != UNDEFINED)
         {
             print_decorator("Inference::output", '-',
-                           "save: " + save_augm_file,
-                           verbose);
-            user_model.print_augm_variables(save_augm_file);
+                            "save: " + save_augm_file,
+                            verbose);
+            user_model->print_augm_variables(save_augm_file);
         }
     }
 
@@ -209,15 +209,15 @@ int main(int argc, char *argv[])
         else
         {
             print_decorator("Simulation", C_DECOR,
-                           "save: " + output_file,
-                           verbose);
-            user_model.simulate();
-            user_model.print_augm_variables(output_file);
+                            "save: " + output_file,
+                            verbose);
+            user_model->simulate();
+            user_model->print_augm_variables(output_file);
 
             if (verbose)
             {
                 print_decorator("Simulation::summary", '-');
-                user_model.show_summary();
+                user_model->show_summary();
             }
         }
     }
@@ -225,13 +225,13 @@ int main(int argc, char *argv[])
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
         print_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
-        print_stdout(std::to_string(user_model.evaluate()) + "\n");
+        print_stdout(std::to_string(user_model->evaluate()) + "\n");
     }
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
         print_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
-        print_stdout(std::to_string(user_model.evaluate_marginal(num_rungs)) + "\n");
+        print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
     }
 
     return EXIT_SUCCESS;
