@@ -15,7 +15,7 @@ Hum Biol. 1952 Sep;24(3):201-33. PMID: 12990130.
 #ifndef MODEL__H
 #define MODEL__H
 
-#include "auxiliary_binomial.h"
+#include "binomial.h"
 #include "mcmc.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

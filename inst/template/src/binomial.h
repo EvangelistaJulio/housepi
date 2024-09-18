@@ -1,11 +1,11 @@
 /*
- * auxiliary_binomial.h
+ * binomial.h
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef AUXILIARY_BINOMIAL__H
-#define AUXILIARY_BINOMIAL__H
+#ifndef BINOMIAL__H
+#define BINOMIAL__H
 
 #include <vector>
 #include <map>
@@ -98,4 +98,4 @@ namespace bax
     double chain_binomial_heter_loglikelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
 }
 
-#endif // AUXILIARY_BINOMIAL__H
+#endif // BINOMIAL__H

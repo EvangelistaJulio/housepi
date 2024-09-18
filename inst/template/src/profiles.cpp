@@ -1,10 +1,10 @@
 /*
- * infectivity_profiles.cpp
+ * profiles.cpp
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#include "infectivity_profiles.h"
+#include "profiles.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////// Infec_Prof_Skew_Logistic : probability distribution  ///////////////////////

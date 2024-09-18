@@ -23,13 +23,17 @@ get_usr_tmp_file <- function(hemi, name) {
 # FIXME : this should be improved allowing dataframe I/O within Rcpp
 cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
   if (is.character(input)) {
-    output <- input
-  } else if (is.data.frame(input) || is.matrix(input) || is.list(input)) {
+    output <- input # in this case it is a path/to/file
+  } else if (is.data.frame(input)) {
     output <- get_usr_tmp_file(hemi, name)
-    write.csv(input,
-              file = output,
-              row.names = FALSE,
-              quote = FALSE)
+    write.table(input, file = output,
+                row.names = FALSE, na = "", quote = FALSE, sep = ",")
+  } else if (is.list(input)) {
+    # note : a data.frame is a list in R
+    output <- get_usr_tmp_file(hemi, name)
+    write.table(data.frame(k = names(input), v = unname(unlist(input))), 
+                file = output, col.names = FALSE, sep = ",",
+              row.names = FALSE, na = "", quote = FALSE)
   } else {
     stop(cli::format_error(paste0("Unrecognized input for ", name)))
   }
@@ -160,9 +164,8 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
 
   } else {
     stop(cli::format_error(
-      c(paste0("Unrecognized model: `", model, 
-      "` is nor a default name nor a path to existing folder."),
-      i = "To see the available default models, run: template_model()")))
+      c(paste0("`", model, "` is not an existing folder nor a default model."),
+      i = "To see available default models, run: template_model()")))
   }
 
   # ----- Create model package ----- #

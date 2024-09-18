@@ -75,16 +75,16 @@ public:
 	virtual ~MCMC() {};
 
 	//===== BUILD =====//
-	void build_parameters(const std::string pathtofile, bool verbose = true);
-	void build_data(const std::string pathtofile, bool verbose = true);
-	void build_setup(const std::string pathtofile, bool verbose = true);
-	void build_augmented(const std::string pathtofile, bool verbose = true);
-	virtual void build_extra(const std::string pathtofile, bool verbose = true);
-	void build(const std::string setup_file = UNDEFINED,
-			   const std::string params_file = UNDEFINED,
-			   const std::string data_file = UNDEFINED, 
-			   const std::string augm_file = UNDEFINED,
-			   const std::string extra_file = UNDEFINED, 
+	void build_parameters(const std::string &pathtofile, bool verbose = true);
+	void build_data(const std::string &pathtofile, bool verbose = true);
+	void build_setup(const std::string &pathtofile, bool verbose = true);
+	void build_augmented(const std::string &pathtofile, bool verbose = true);
+	virtual void build_extra(const std::string &pathtofile, bool verbose = true);
+	void build(const std::string &setup_file = UNDEFINED,
+			   const std::string &params_file = UNDEFINED,
+			   const std::string &data_file = UNDEFINED, 
+			   const std::string &augm_file = UNDEFINED,
+			   const std::string &extra_file = UNDEFINED, 
 			   bool verbose = true);
 
 	//===== SHOW =====//
@@ -155,23 +155,22 @@ private:
 	long double global_loglike = 0.0;
 
 	//===== Internal =====//
-	ulong __n_contacts = 0; // number of contacts
+	ulong _n_contacts_ = 0; // number of contacts
 
-	ulong __chain = 0;			// current chain
-	ulong __sample_size = 0;	// sample size
-	ulong __mcmc_sweeps = 0;	// sweeps per chain
-	ulong __tot_num_sweeps = 0; // total number of sweeps
+	ulong _chain_ = 0;			// current chain
+	ulong _sample_size_ = 0;	// sample size
+	ulong _mcmc_sweeps_ = 0;	// sweeps per chain
+	ulong _tot_num_sweeps_ = 0; // total number of sweeps
 
-	ulong __rung = 0;	   // current thermodynamic rung
-	ulong __num_rungs = 0; // number of rungs
+	ulong _rung_ = 0;	   // current thermodynamic rung
+	ulong _num_rungs_ = 0; // number of rungs
 
-	bool __is_power_post = false;		// power posterior mode
-	bool __is_data_augm = false;		// data augmentation mode
-	bool __is_infer_complete = false;	// inference mode
-	bool __is_print_inferstate = false; // print inference state mode
-	
+	bool _is_power_post_ = false;		// power posterior mode
+	bool _is_data_augm_ = false;		// data augmentation mode
+	bool _is_infer_complete_ = false;	// inference mode
+	bool _is_print_inferstate_ = false; // print inference state mode
 
-	std::vector<std::string> __data_headers = {};
+	std::vector<std::string> _data_headers_ = {};
 
 	//===== Diagnostics =====//
 	ulong dgn_ss = 0;			   // sample size
@@ -189,7 +188,7 @@ private:
 	std::vector<ssargs> load_augm_definition = {};
 
 	//----- build : auxiliary functions -----//
-	bool stobool(const std::string tkn);
+	bool stobool(const std::string &tkn);
 
 	std::vector<std::string> parse_list_args(const std::string tkn, const char = screen::C_LIST_DELIM);
 	sdargs merge_list_args(const std::string tkn_keys, const std::string tkn_vals);

@@ -6,6 +6,9 @@
 
 #include "varia.h"
 
+using screen::raise_error;
+using screen::raise_warning;
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -25,31 +28,29 @@ bool Above_Max_Threads_Warning = false;      // warning for over the threshold n
 ////////////////////////////////  Base_Proposer : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Base_Proposer::Base_Proposer(
-    Base_Distribution *distr,
-    double strategy_from_zero,
-    sdargs value_range,
-    std::vector<int> list_of_args_to_adapt) : distr_ptr(distr)
+Base_Proposer::Base_Proposer(Base_Distribution *distr,
+                             double rule_start, sdargs range,
+                             std::vector<int> args_to_adapt) : distr_ptr(distr)
 {
-    args_to_adapt = list_of_args_to_adapt;
-    set_range(value_range);
+    _args_to_adapt_ = args_to_adapt;
+    set_range(range);
 
-    if (strategy_from_zero == INF_DOUBLE)
+    if (rule_start == INF_DOUBLE)
     {
-        zero_start = false;
+        _is_start_from_zero_ = false;
     }
     else
     {
-        if (!valid(strategy_from_zero))
+        if (!valid(rule_start))
         {
             std::ostringstream oss;
-            oss << "Initial value " << strategy_from_zero << " and value range"
+            oss << "Initial value " << rule_start << " and value range"
                 << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
                 << "\nIf it was intentional, ignore this message.";
-            screen::raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
+            raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
         }
-        zero_start = true;
-        set_strat_zero(strategy_from_zero);
+        _is_start_from_zero_ = true;
+        set_rule_start_value(rule_start);
     }
 };
 
@@ -62,7 +63,7 @@ void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
-    for (const int &argID : args_to_adapt)
+    for (const int &argID : _args_to_adapt_)
     {
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
     }
@@ -92,12 +93,12 @@ void Base_Proposer::set_range(sdargs new_range)
         if (x.first == "min")
         {
             _range_min_ = x.second;
-            condition += 2;
+            condition += 1;
         }
         else if (x.first == "max")
         {
             _range_max_ = x.second;
-            condition += 3;
+            condition += 2;
         }
     }
 
@@ -105,21 +106,21 @@ void Base_Proposer::set_range(sdargs new_range)
     {
         _valid_func_ = &Base_Proposer::_valid_dummy_;
     }
-    else if (condition == 2)
+    else if (condition == 1)
     {
         _valid_func_ = &Base_Proposer::_valid_range_min_;
     }
-    else if (condition == 3)
+    else if (condition == 2)
     {
         _valid_func_ = &Base_Proposer::_valid_range_max_;
     }
-    else if (condition == 5)
+    else if (condition == 3)
     {
         if (_range_min_ > _range_max_)
         {
             std::ostringstream oss;
             oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            screen::raise_error(oss.str());
+            raise_error(oss.str());
         }
         else
         {
@@ -128,31 +129,39 @@ void Base_Proposer::set_range(sdargs new_range)
     }
     else
     {
-        screen::raise_error("Provided multiple definition for the range.");
+        raise_error("Provided multiple definition for the range.");
     }
 }
 
-/* Switchboard to select the custom metropolis strategy. */
-Base_Proposer *proposer_switchboard(std::string name, sdargs args, double strat_zero, sdargs value_range)
+/* Switchboard to select the custom metropolis proposer rule. */
+Base_Proposer *proposer_switchboard(std::string rule_name, sdargs rule_args, double rule_from, sdargs range)
 {
-    Base_Proposer *output = new Undefined_Proposer();
+    Base_Proposer *output = new Base_Proposer(new Base_Distribution());
 
-    if (name == "uniform")
+    // FLAG
+    std::cerr << "WITHIN proposer_switchboard" << std::endl;
+    // FLAG-END
+
+    if (rule_name == "uniform")
     {
-        output = new Uniform_Proposer(args, strat_zero, value_range);
+        output = new Uniform_Proposer(rule_args, rule_from, range);
     }
-    else if (name == "normal")
+    else if (rule_name == "normal")
     {
-        output = new Normal_Proposer(args, strat_zero, value_range);
+        output = new Normal_Proposer(rule_args, rule_from, range);
     }
-    else if (name == "lognorm")
+    else if (rule_name == "lognorm")
     {
-        output = new Lognorm_Proposer(args, strat_zero, value_range);
+        output = new Lognorm_Proposer(rule_args, rule_from, range);
     }
-    else if (name != UNDEFINED)
+    else if (!screen::is_na(rule_name))
     {
-        screen::raise_error("Unknown metropolis strategy `" + name + "`.");
+        raise_error("Unknown proposer rule `" + rule_name + "` for Metropolis-Hastings.");
     }
+
+    // FLAG
+    std::cerr << "AFTER proposer_switchboard" << std::endl;
+    // FLAG-END
 
     return output;
 }
@@ -166,7 +175,7 @@ double Base_Proposer::get_range_min() const
     }
     else
     {
-        return std::numeric_limits<double>::quiet_NaN();;
+        return std::numeric_limits<double>::quiet_NaN();
     }
 }
 
@@ -179,7 +188,7 @@ double Base_Proposer::get_range_max() const
     }
     else
     {
-        return std::numeric_limits<double>::quiet_NaN();;
+        return std::numeric_limits<double>::quiet_NaN();
     }
 }
 
@@ -281,31 +290,31 @@ void Monte_Carlo_Core::drop_all_params()
 void Monte_Carlo_Core::assign_parameter(
     const std::string parID, double new_val,
     std::string prior_name, sdargs prior_args,
-    std::string strat_name, sdargs strat_args,
-    sdargs value_range)
+    std::string rule_name, sdargs rule_args, sdargs range)
 {
     // check that lists have equal sizes
     if (prior_args.find(IO_MISMATCH) != prior_args.end())
     {
-        screen::raise_error("Lists of prior arguments and values of parameter `" + parID + "` should have equal size.");
+        raise_error("Lists of prior arguments and values of parameter `" + parID + "` should have equal size.");
     }
-    if (strat_args.find(IO_MISMATCH) != strat_args.end())
+    if (rule_args.find(IO_MISMATCH) != rule_args.end())
     {
-        screen::raise_error("Lists of rule arguments and values of parameter `" + parID + "` should have equal size.");
+        raise_error("Lists of rule arguments and values of parameter `" + parID + "` should have equal size.");
     }
 
     // create the new parameter if it's not already defined
     if (params.find(parID) != params.end())
     {
-        screen::raise_error("Parameter `" + parID + "` has multiple definitions.");
+        raise_error("Parameter `" + parID + "` has multiple definitions.");
     }
     else
     {
+        // FLAG
+        std::cerr << "BEFORE emplace the new parameter" << std::endl;
+        // FLAG-END
+
         // emplace the new parameter
-        Parameter new_param(new_val,
-                            prior_name, prior_args,
-                            strat_name, strat_args,
-                            value_range);
+        Parameter new_param(new_val, prior_name, prior_args, rule_name, rule_args, range);
         params.emplace(parID, new_param);
 
         // update the lists of parameters to be inferred, and these to be static
@@ -325,7 +334,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
 {
     if (n == 0)
     {
-        screen::raise_error("Number of threads must be equal or greater than 1.");
+        raise_error("Number of threads must be equal or greater than 1.");
     }
 
 #ifdef _OPENMP
@@ -334,7 +343,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     {
         std::ostringstream oss;
         oss << "Number of threads (" << n << ") changed to number of available threads (" << max_detected_threads << ").";
-        screen::raise_warning(oss.str(), Above_Max_Threads_Warning);
+        raise_warning(oss.str(), Above_Max_Threads_Warning);
         n = max_detected_threads;
     }
 
@@ -356,7 +365,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
 #else
     if (n != 1)
     {
-        screen::raise_warning("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
+        raise_warning("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
     }
     setup_num_threads = 1;
     _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
@@ -389,7 +398,7 @@ void Monte_Carlo_Core::assert_param(const std::string k) const
 {
     if (params.find(k) == params.end())
     {
-        screen::raise_error("Parameter `" + k + "` not found. Check your model and your parameter definitions.");
+        raise_error("Parameter `" + k + "` not found. Check your model and your parameter definitions.");
     }
 }
 
@@ -408,7 +417,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
             {
                 if (num_attempts >= MAX_NUMBER_ATTEMPTS)
                 {
-                    screen::raise_error("Number of attempts exceeded in random initialization of `" + parID + "`.");
+                    raise_error("Number of attempts exceeded in random initialization of `" + parID + "`.");
                 }
                 num_attempts++;
                 new_value = params.at(parID).prior_rand(prng);

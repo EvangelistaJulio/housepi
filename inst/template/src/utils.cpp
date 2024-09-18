@@ -34,12 +34,25 @@ namespace screen
         return (condition ? "TRUE" : "FALSE");
     }
 
+    /* An internal check for string representing NA. */
+    bool is_na(const std::string &txt)
+    {
+        if ((txt == UNDEFINED) || (txt.size() == 0))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Function to change stdout in case of RCPP. */
-    void print_stdout(const std::string txt)
+    void print_stdout(const std::string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::Rcout << txt;
@@ -51,7 +64,7 @@ namespace screen
     }
 
     /* Internal helper function to change stderr in case of RCPP. */
-    void _helper_stderr_(const std::string txt)
+    void _helper_stderr_(const std::string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::Rcerr << txt;
@@ -67,7 +80,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void print_decorator(const std::string title, char decor, const std::string txt, bool verbose)
+    void print_decorator(const std::string &title, char decor, const std::string &txt, bool verbose)
     {
         if (verbose)
         {
@@ -76,7 +89,7 @@ namespace screen
             std::ostringstream oss;
             oss << std::string(sx, decor) << " " << title << " "
                 << std::string(dx, decor) + "\n";
-            if (txt != UNDEFINED)
+            if (!is_na(txt))
             {
                 oss << txt << "\n";
             }
@@ -270,8 +283,8 @@ Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order
     {
         args_int[i] = new_args_int.at(args_name[i]);
     }
-    _get_arg_func_ = &Base_Function::_get_arg_int_; // assign getter
-    _set_arg_func_ = &Base_Function::_set_arg_int_; // assign setter
+    _get_arg_method_ = &Base_Function::_get_arg_int_; // assign getter
+    _set_arg_method_ = &Base_Function::_set_arg_int_; // assign setter
 }
 
 /* Overload constructor for EXTERNAL arguments. */
@@ -283,8 +296,8 @@ Base_Function::Base_Function(sdargs_ptr new_args_ptr, std::vector<std::string> o
     {
         args_ptr[i] = new_args_ptr.at(args_name[i]);
     }
-    _get_arg_func_ = &Base_Function::_get_arg_ptr_; // assign getter
-    _set_arg_func_ = &Base_Function::_set_arg_ptr_; // assign setter
+    _get_arg_method_ = &Base_Function::_get_arg_ptr_; // assign getter
+    _set_arg_method_ = &Base_Function::_set_arg_ptr_; // assign setter
 }
 
 /* Return formatted argument names of the distribution. */

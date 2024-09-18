@@ -35,37 +35,34 @@
 class Base_Proposer
 {
 protected:
+	//===== Attributes =====//
 	Base_Distribution *distr_ptr;
-	double strat_zero;
-	bool zero_start = false;
+	double from_value;
+
 	int num_proposed_moves = 0;
 	double accept_rate = 0.0;
-	std::vector<int> args_to_adapt = {};
 
 public:
 	//=====Constructors=====//
-	Base_Proposer(
-		Base_Distribution *distr,
-		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {},
-		std::vector<int> args_to_adapt = {});
+	Base_Proposer(Base_Distribution *, double rule_start_value = INF_DOUBLE,
+				  sdargs range = {}, std::vector<int> args_to_adapt = {});
 	virtual ~Base_Proposer() {};
 
 	//===== Getter =====//
 	std::string get_name() const { return distr_ptr->get_name(); }
-	bool is_zero_start() const { return zero_start; }
-	double get_strat_zero() const { return strat_zero; }
 	double get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
+	double get_from_value() const { return from_value; }
+	bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
 
 	//===== Setter =====//
-	void set_strat_zero(double new_val) { strat_zero = new_val; }
+	void set_rule_start_value(double x) { from_value = x; }
 	void set_range(sdargs new_range);
 
 	double rand(sys_rnd_gen &prng) { return (distr_ptr->rand)(prng); }
-	bool valid(double new_val) { return (this->*_valid_func_)(new_val); }
+	bool valid(double x) const { return (this->*_valid_func_)(x); }
 
 	virtual double propose(sys_rnd_gen &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
-	virtual double logratio(double old_val, double new_val) { return (this->*_logratio_method_)(old_val, new_val); }
+	virtual double logratio(double old_val, double new_val) const { return (this->*_logratio_method_)(old_val, new_val); }
 
 	//=====Finite Adaptive=====//
 	double get_accept_rate() const { return accept_rate; };
@@ -80,66 +77,68 @@ public:
 	double get_range_max() const;
 
 private:
+	//===== State Attributes =====//
+	std::vector<int> _args_to_adapt_ = {};
+	double _range_min_ = -INF_DOUBLE; // init to -infty
+	double _range_max_ = INF_DOUBLE;  // init to +infty
+
 	//=====Valid Move : functional methods=====//
-	double _range_min_ = -INF_DOUBLE;
-	double _range_max_ = INF_DOUBLE;
-	bool (Base_Proposer::*_valid_func_)(double new_val);
-	bool _valid_range_min_(double x) { return (x > _range_min_); }
-	bool _valid_range_max_(double x) { return (x < _range_max_); }
-	bool _valid_range_both_(double x) { return _valid_range_min_(x) && _valid_range_max_(x); }
-	bool _valid_dummy_(double x)
+	bool (Base_Proposer::*_valid_func_)(double) const = &Base_Proposer::_valid_dummy_;
+
+	// alternative validation methods
+	bool _valid_dummy_(double x) const
 	{
 		UNUSED(x);
 		return true;
 	}
+	bool _valid_range_min_(double x) const { return (x > _range_min_); }
+	bool _valid_range_max_(double x) const { return (x < _range_max_); }
+	bool _valid_range_both_(double x) const { return _valid_range_min_(x) && _valid_range_max_(x); }
 
 protected:
-	double undefined_call_error()
+	//==== State attributes ====//
+	bool _is_start_from_zero_ = false;
+
+	//===== propose : functional methods =====//
+	double (Base_Proposer::*_propose_method_)(sys_rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
+
+	// alternative proposer methods
+	double _propose_undefined_(sys_rnd_gen &prng, double start)
 	{
 		screen::raise_error("Attempt to call a method of an undefined proposer.");
-		return INF_DOUBLE;
-	}
-
-	//=====propose : functional methods=====//
-	double (Base_Proposer::*_propose_method_)(sys_rnd_gen &prng, double start);
-
-	double _undef_propose_(sys_rnd_gen &prng, double start)
-	{
 		UNUSED(prng);
 		UNUSED(start);
-		return undefined_call_error();
+		return std::numeric_limits<double>::quiet_NaN();
 	}
-	double _sum_to_previous_(sys_rnd_gen &prng, double start) { return start + rand(prng); }
-	double _times_previous_(sys_rnd_gen &prng, double start) { return start * rand(prng); }
-	double _draw_rand_(sys_rnd_gen &prng, double start)
+	double _propose_sum_to_previous_(sys_rnd_gen &prng, double start) { return start + rand(prng); }
+	double _propose_times_previous_(sys_rnd_gen &prng, double start) { return start * rand(prng); }
+	double _propose_draw_rand_(sys_rnd_gen &prng, double start)
 	{
 		UNUSED(start);
 		return rand(prng);
 	}
 
-	//=====propose : functional methods=====//
-	double (Base_Proposer::*_logratio_method_)(double old_val, double new_val);
+	//===== logratio : functional methods =====//
+	double (Base_Proposer::*_logratio_method_)(double, double) const = &Base_Proposer::_logratio_undefined_;
 
-	double _undef_logratio_(double old_val, double new_val)
+	// alternative logratios
+	double _logratio_undefined_(double old_val, double new_val) const
 	{
 		UNUSED(old_val);
 		UNUSED(new_val);
 		return 0.0;
 	}
-	double _logratio_pdf_(double old_val, double new_val) { return distr_ptr->logratio(old_val, new_val); }
+	double _logratio_pdf_(double old_val, double new_val) const { return distr_ptr->logratio(old_val, new_val); }
 	// FIXME : double check these
-	double _logratio_sum_to_zero_(double old_val, double new_val) { return _logratio_pdf_(old_val - get_strat_zero(), new_val - get_strat_zero()); }
-	double _logratio_times_zero_(double old_val, double new_val) { return _logratio_pdf_(old_val / get_strat_zero(), new_val / get_strat_zero()); }
-	double _logratio_symm_(double old_val, double new_val)
+	double _logratio_sum_to_zero_(double old_val, double new_val) const { return _logratio_pdf_(old_val - get_from_value(), new_val - get_from_value()); }
+	double _logratio_times_zero_(double old_val, double new_val) const { return _logratio_pdf_(old_val / get_from_value(), new_val / get_from_value()); }
+	double _logratio_symm_(double old_val, double new_val) const
 	{
 		UNUSED(old_val);
 		UNUSED(new_val);
 		return 0.0;
 	}
-	double _logratio_lognorm_symm_(double old_val, double new_val)
-	{
-		return log(old_val) - log(new_val);
-	}
+	double _logratio_lognorm_symm_(double old_val, double new_val) const { return log(old_val) - log(new_val); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,10 +146,10 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer *proposer_switchboard(
-	std::string name = UNDEFINED,
-	sdargs args = {},
-	double strat_zero = INF_DOUBLE,
-	sdargs value_range = {});
+	std::string rule_name = UNDEFINED,
+	sdargs rule_args = {},
+	double rule_from = INF_DOUBLE,
+	sdargs range = {});
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -158,22 +157,6 @@ Base_Proposer *proposer_switchboard(
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Undefined_Proposer : class  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Undefined_Proposer : public Base_Proposer
-{
-public:
-	//=====Constructors=====//
-	Undefined_Proposer() : Base_Proposer(new Base_Distribution())
-	{
-		_propose_method_ = &Undefined_Proposer::_undef_propose_;
-		_logratio_method_ = &Undefined_Proposer::_undef_logratio_;
-	}
-	~Undefined_Proposer() {}
-};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
@@ -184,11 +167,11 @@ class Uniform_Proposer : public Base_Proposer
 public:
 	//=====Constructors=====//
 	Uniform_Proposer(
-		sdargs new_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
-		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Proposer(new Uniform_Distribution(new_args), strat_zero, value_range, {"min", "max"})
+		sdargs rule_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
+		double rule_from = INF_DOUBLE,
+		sdargs range = {}) : Base_Proposer(new Uniform_Distribution(rule_args), rule_from, range, {"min", "max"})
 	{
-		_propose_method_ = &Uniform_Proposer::_sum_to_previous_;
+		_propose_method_ = &Uniform_Proposer::_propose_sum_to_previous_;
 		_logratio_method_ = &Uniform_Proposer::_logratio_symm_;
 	}
 	~Uniform_Proposer() {}
@@ -203,12 +186,12 @@ class Normal_Proposer : public Base_Proposer
 public:
 	//=====Constructor=====//
 	Normal_Proposer(
-		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Proposer(new Normal_Distribution(new_args), strat_zero, value_range, {1})
+		sdargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+		double rule_from = INF_DOUBLE,
+		sdargs range = {}) : Base_Proposer(new Normal_Distribution(rule_args), rule_from, range, {1})
 	{
-		_propose_method_ = &Normal_Proposer::_sum_to_previous_;
-		_logratio_method_ = is_zero_start() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
+		_propose_method_ = &Normal_Proposer::_propose_sum_to_previous_;
+		_logratio_method_ = is_rule_start_from_zero() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
 	}
 	~Normal_Proposer() {}
 };
@@ -222,12 +205,12 @@ class Lognorm_Proposer : public Base_Proposer
 public:
 	//=====Constructor=====//
 	Lognorm_Proposer(
-		sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Proposer(new Lognorm_Distribution(new_args), strat_zero, value_range, {1})
+		sdargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+		double rule_from = INF_DOUBLE,
+		sdargs range = {}) : Base_Proposer(new Lognorm_Distribution(rule_args), rule_from, range, {1})
 	{
-		_propose_method_ = &Lognorm_Proposer::_times_previous_;
-		_logratio_method_ = is_zero_start() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
+		_propose_method_ = &Lognorm_Proposer::_propose_times_previous_;
+		_logratio_method_ = is_rule_start_from_zero() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
 	}
 	~Lognorm_Proposer() {}
 };
@@ -242,7 +225,7 @@ public:
 	//=====Constructor=====//
 	Prior_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
 	{
-		_propose_method_ = &Prior_Proposer::_draw_rand_;
+		_propose_method_ = &Prior_Proposer::_propose_draw_rand_;
 		_logratio_method_ = &Prior_Proposer::_logratio_pdf_;
 	}
 	~Prior_Proposer() {}
@@ -256,26 +239,22 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Parameter : class  ////////////////////////////////////
+///////////////////////////////////  Base_Variable : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename sdargs_int_or_ptr>
-class Base_Parameter
+class Base_Variable
 {
 protected:
-	double value = INF_DOUBLE;			  // value of the parameter
-	bool infer = false;					  // to be inferred or static
+	double value = INF_DOUBLE;				// value of the parameter
+	bool infer = false;						// to be inferred or static
 	Base_Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
-	Base_Proposer *prop_ptr = nullptr;	  // propose strategy for Monte Carlo Markov Chain
+	Base_Proposer *prop_ptr = nullptr;		// proposer for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
-	Base_Parameter(
-		double value,
-		std::string distr_name = UNDEFINED, sdargs_int_or_ptr distr_args = {},
-		std::string strat_name = UNDEFINED, sdargs strat_args = {},
-		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {})
+	Base_Variable(double value, std::string distr_name = UNDEFINED, sdargs_int_or_ptr distr_args = {},
+				  const std::string &rule_name = UNDEFINED, sdargs rule_args = {}, sdargs range = {}, double rule_from = INF_DOUBLE)
 	{
 		// assing value
 		set_value(value);
@@ -283,42 +262,42 @@ public:
 		// define distribution
 		distr_ptr = distribution(distr_name, distr_args);
 
-		// if no strategy is defined, do not "infer"
-		infer = (strat_name == UNDEFINED) ? false : true;
+		// if no rule is defined, do not "infer"
+		infer = !screen::is_na(rule_name);
 
-		// define strategy : prior/model or else with functional programming
-		if (strat_name == "prior" || strat_name == "model")
+		// define proposer rule : prior/model or else with functional programming
+		if (rule_name == "prior" || rule_name == "model")
 		{
 			prop_ptr = new Prior_Proposer(distr_ptr);
-			_propose_method_ = &Base_Parameter::_propose_from_prior_model_;
+			_propose_method_ = &Base_Variable::_propose_from_prior_model_;
 		}
 		else
 		{
-			prop_ptr = proposer_switchboard(strat_name, strat_args, strat_zero, value_range);
-			_propose_method_ = is_zero_start() ? &Base_Parameter::_propose_from_zero_ : &Base_Parameter::_propose_from_previous_;
+			prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from, range);
+			_propose_method_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
 		}
 	}
-	virtual ~Base_Parameter() {};
+	virtual ~Base_Variable() {};
 
 	//=====Getter=====//
 	double get_value() const { return value; }
 	const double *get_pointer() const { return &value; }
 	bool get_infer() const { return infer; }
-	bool is_zero_start() const { return (prop_ptr->is_zero_start)(); }
-	double get_strat_zero() const { return (prop_ptr->get_strat_zero)(); }
+	bool is_from_zero() const { return (prop_ptr->is_rule_start_from_zero)(); }
+	double get_from_value() const { return (prop_ptr->get_from_value)(); }
 
 	//=====Setter=====//
 	void set_value(double x) { value = x; }
 
 	//=====distr_ptr : methods=====//
 	double distr_rand(sys_rnd_gen &prng) { return distr_ptr->rand(prng); }
-	double distr_log_pdf(double new_val) { return distr_ptr->log_pdf(new_val); }
-	double distr_logratio(double old_val, double new_val) { return distr_ptr->logratio(old_val, new_val); }
+	double distr_log_pdf(double x) const { return distr_ptr->log_pdf(x); }
+	double distr_logratio(double old_val, double new_val) const { return distr_ptr->logratio(old_val, new_val); }
 
 	//=====prop_ptr : propose methods=====//
 	double propose(sys_rnd_gen &prng) { return (this->*_propose_method_)(prng); }
-	double propose_logratio(double old_val, double new_val) { return (prop_ptr->logratio)(old_val, new_val); }
-	bool valid(double new_val) { return prop_ptr->valid(new_val); }
+	double propose_logratio(double old_val, double new_val) const { return (prop_ptr->logratio)(old_val, new_val); }
+	bool valid(double x) const { return prop_ptr->valid(x); }
 
 	//===== prop_ptr : adaptive methods =====//
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
@@ -352,29 +331,26 @@ public:
 
 private:
 	//=====Propose : functional methods=====//
-	double (Base_Parameter::*_propose_method_)(sys_rnd_gen &prng);
+	double (Base_Variable::*_propose_method_)(sys_rnd_gen &);
 	double _propose_from_prior_model_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
 	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
-	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_strat_zero()); }
+	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Parameter : class  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Parameter : public Base_Parameter<sdargs>
+class Parameter : public Base_Variable<sdargs>
 {
 public:
 	//===== Constructor =====//
-	Parameter(
-		double new_val,
-		std::string prior_name = UNDEFINED, sdargs prior_args = {},
-		std::string strat_name = UNDEFINED, sdargs strat_args = {},
-		sdargs value_range = {}) : Base_Parameter(new_val,
-												  prior_name, prior_args,
-												  strat_name, strat_args,
-												  INF_DOUBLE, // is_zero_start() = false
-												  value_range) {};
+	Parameter(double new_val, const std::string &prior_name = UNDEFINED, sdargs prior_args = {},
+			  const std::string &rule_name = UNDEFINED, sdargs rule_args = {},
+			  sdargs range = {}) : Base_Variable(new_val, prior_name, prior_args,
+												 rule_name, rule_args, range) {};
+
+	// NOTE : default rule_from = false
 
 	//===== Aliases =====//
 	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
@@ -399,28 +375,18 @@ private:
 //////////////////////////////////////  Augmented : class  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Augmented : public Base_Parameter<sdargs_ptr>
+class Augmented : public Base_Variable<sdargs_ptr>
 {
 public:
 	//=====Constructor=====//
-	Augmented(
-		double value,
-		std::string model_name = UNDEFINED,
-		sdargs_ptr model_args_ptr = {},
-		std::string strat_name = UNDEFINED,
-		sdargs strat_args = {},
-		double strat_zero = INF_DOUBLE,
-		sdargs value_range = {}) : Base_Parameter(value,
-												  model_name,
-												  model_args_ptr,
-												  strat_name,
-												  strat_args,
-												  strat_zero,
-												  value_range) {};
+	Augmented(double value, const std::string &model_name = UNDEFINED, sdargs_ptr model_args_ptr = {},
+			  const std::string &rule_name = UNDEFINED, sdargs rule_args = {}, sdargs range = {},
+			  double rule_from = INF_DOUBLE) : Base_Variable(value, model_name, model_args_ptr,
+															 rule_name, rule_args, range, rule_from) {};
 	//=====Aliases=====//
 	double model_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
-	double model_log_pdf(double new_val) { return distr_log_pdf(new_val); }
-	double model_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
+	double model_log_pdf(double new_val) const { return distr_log_pdf(new_val); }
+	double model_logratio(double old_val, double new_val) const { return distr_logratio(old_val, new_val); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -440,8 +406,7 @@ class Monte_Carlo_Core
 public:
 	std::vector<std::string> param_file_headers = {"name", "value", "infer",
 												   "prior", "args", "argsval",
-												   "rule", "rargs", "rargsval",
-												   "min", "max"};
+												   "rule", "rargs", "rargsval", "min", "max"};
 	std::vector<std::string> param_to_be_inferred = {};
 	std::vector<std::string> param_to_be_static = {};
 
@@ -462,11 +427,9 @@ public:
 	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
-	void assign_parameter(
-		const std::string k, double new_val,
-		std::string prior_name = UNDEFINED, sdargs prior_args = {},
-		std::string strat_name = UNDEFINED, sdargs strat_args = {},
-		sdargs value_range = {});
+	void assign_parameter(const std::string k, double new_val,
+						  std::string prior_name = UNDEFINED, sdargs prior_args = {},
+						  std::string rule_name = UNDEFINED, sdargs rule_args = {}, sdargs range = {});
 	void drop_all_params();
 
 	//===== Parallelization =====//
@@ -475,7 +438,7 @@ public:
 
 	//===== Metropolis-Hastings moves =====//
 	bool propose_valid_param_move(const std::string k);
-	double get_move_logratio() { return buffer_logratio; }
+	double get_move_logratio() const { return buffer_logratio; }
 	void accept_param_move(const std::string k);
 	void refuse_param_move(const std::string k);
 	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
@@ -486,7 +449,7 @@ public:
 	void set_prng_seed(int seed);
 	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
 	double uniform() { return _uniform_distr_(get_prng()); }
-	
+
 	//===== Show =====//
 	std::string show_param_distr_name(const std::string k) const { return params.at(k).show_distr_name(); }
 	std::string show_param_distr_arg_names(const std::string k) const { return params.at(k).show_distr_arg_names(); }
@@ -499,7 +462,6 @@ public:
 
 	std::string show_param(const std::string k) { return k + screen::C_DELIM + params.at(k).show(); }
 	std::string show_param_diagnostics(const std::string k) { return k + screen::C_DELIM + params.at(k).show_diagnostics(); }
-
 
 private:
 	//===== Internal Attributes =====//
@@ -516,8 +478,8 @@ private:
 	double _get_param_default_(const std::string k) const;
 
 	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
-	const double * _get_param_pointer_assert_(const std::string k) const;
-	const double * _get_param_pointer_default_(const std::string k) const;
+	const double *_get_param_pointer_assert_(const std::string k) const;
+	const double *_get_param_pointer_default_(const std::string k) const;
 
 	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	// FIXME : this should change if Rcpp according to developer guides

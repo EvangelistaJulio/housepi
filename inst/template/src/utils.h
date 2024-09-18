@@ -93,10 +93,17 @@ namespace screen
     constexpr int PROGBAR_WIDTH = 30; // width of progress bar
     constexpr int PROGBAR_THIN = 17;  // thinning of progress bar
 
-    void print_stdout(const std::string txt);
-    void print_decorator(const std::string title,
+    // deal with undefined or not available value stored as string
+    bool is_na(const std::string &txt);
+
+    // output formatter
+    std::string percent(int num, int denom);
+    std::string truth(bool condition);
+
+    void print_stdout(const std::string &txt);
+    void print_decorator(const std::string &title,
                          char decor,
-                         const std::string txt = UNDEFINED,
+                         const std::string & txt = UNDEFINED,
                          bool verbose = true);
 
     // print progress bar to stdout
@@ -110,8 +117,6 @@ namespace screen
     // print error message to stderr
     void raise_error(const std::string &txt);
 
-    std::string percent(int num, int denom);
-    std::string truth(bool condition);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -139,11 +144,11 @@ public:
 
     //===== Getter (functional) =====//
     std::string get_name() const { return name; }
-    double get_arg(int argID) const { return (this->*_get_arg_func_)(argID); }
+    double get_arg(int argID) const { return (this->*_get_arg_method_)(argID); }
 
     //===== Setter (for internal arguments) =====//
     void set_name(const std::string new_name) { name = new_name; }
-    void set_arg(int argID, double new_value) { (this->*_set_arg_func_)(argID, new_value); }
+    void set_arg(int argID, double new_value) { (this->*_set_arg_method_)(argID, new_value); }
 
     //===== Show =====//
     std::string show_arg_names() const;
@@ -155,11 +160,11 @@ private:
     double *args_int = nullptr;         // internal arguments (fixed at initialization)
     const double **args_ptr = nullptr;  // external arguments (pointer to variable)
 
-    double (Base_Function::*_get_arg_func_)(int argID) const;
+    double (Base_Function::*_get_arg_method_)(int) const;
     double _get_arg_int_(int argID) const { return args_int[argID]; }
     double _get_arg_ptr_(int argID) const { return *(args_ptr[argID]); }
 
-    void (Base_Function::*_set_arg_func_)(int argID, double new_value);
+    void (Base_Function::*_set_arg_method_)(int, double);
     void _set_arg_int_(int argID, double new_value) { args_int[argID] = new_value; }
     void _set_arg_ptr_(int argID, double new_value)
     {
@@ -181,13 +186,13 @@ public:
     {
         UNUSED(x);
         screen::raise_error("Attempt to call a method of an undefined distribution.");
-        return INF_DOUBLE;
+        return std::numeric_limits<double>::quiet_NaN();
     }
     virtual double log_pdf(double x)
     {
         UNUSED(x);
         screen::raise_error("Attempt to call a method of an undefined distribution.");
-        return INF_DOUBLE;
+        return std::numeric_limits<double>::quiet_NaN();
     }
     virtual double logratio(double x, double y)
     {
@@ -199,7 +204,7 @@ public:
     {
         UNUSED(rng);
         screen::raise_error("Attempt to call a method of an undefined distribution.");
-        return INF_DOUBLE;
+        return std::numeric_limits<double>::quiet_NaN();
     }
 };
 
@@ -454,7 +459,7 @@ Base_Distribution *distribution(const std::string name = UNDEFINED, sdargs_int_o
     {
         output = new Exponential_Distribution_Discrete(args);
     }
-    else if (name != UNDEFINED)
+    else if (!screen::is_na(name))
     {
         screen::raise_error("Unknown distribution `" + name + "`.");
     }

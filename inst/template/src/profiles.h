@@ -1,5 +1,5 @@
 /*
- * infectivity_profiles.h
+ * profiles.h
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
@@ -20,16 +20,16 @@ of the Time from Onset of Symptoms to Transmission `tost`:
 Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
 where the pre-symptomatic values are rescaled as a function of the incubation time `t_incub`.
 The arguments to provide are :
-	0) "tost_alpha" : shape;
-	1) "tost_mu" : location;
-	2) "tost_sigma" : scale;
-	3) "tost_tau" : mean incubation time;
+	0) "alpha" : shape;
+	1) "mu" : location;
+	2) "sigma" : scale;
+	3) "tau" : mean incubation time;
 Note: symtoms can occur after infection (pre-symptomatic transmission),
 i. e. `tost` can be negative.
 ----
 Ref:
 ----
-Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dörner L, et al.
+Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
 The timing of COVID-19 transmission.
 medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,8 +41,8 @@ class Infec_Prof_Skew_Logistic : public Base_Function
 public:
 	// Constructors
 	Infec_Prof_Skew_Logistic() {};
-	Infec_Prof_Skew_Logistic(sdargs new_args) : Base_Function(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infec_Prof_Skew_Logistic(sdargs_ptr new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	Infec_Prof_Skew_Logistic(sdargs new_args) : Base_Function(new_args, {"alpha", "mu", "sigma", "tau"}) { set_name("skew_logistic"); }
+	Infec_Prof_Skew_Logistic(sdargs_ptr new_args_ext) : Base_Function(new_args_ext, {"alpha", "mu", "sigma", "tau"}) { set_name("skew_logistic"); }
 	~Infec_Prof_Skew_Logistic() {};
 
 	double pdf(double tost, double t_incub);

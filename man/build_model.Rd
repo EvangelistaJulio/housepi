@@ -6,11 +6,11 @@
 \usage{
 build_model(
   hemi,
-  setup = "None",
-  params = "None",
-  data = "None",
-  augm = "None",
-  extra = "None",
+  setup = UNDEFINED,
+  params = UNDEFINED,
+  data = UNDEFINED,
+  augm = UNDEFINED,
+  extra = UNDEFINED,
   verbose = FALSE
 )
 }

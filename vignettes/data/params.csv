@@ -1,3 +1,0 @@
-name,value,infer,prior,args,argsval,rule,rargs,rargsval,min,max
-alpha,0.15,TRUE,uniform,min/max,0/5,lognorm,meanlog/sdlog,0/1,0,5
-beta,0.25,TRUE,uniform,min/max,0/5,lognorm,meanlog/sdlog,0/1,0,5

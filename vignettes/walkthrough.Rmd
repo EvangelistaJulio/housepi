@@ -32,17 +32,16 @@ hemi <- generate_model("chain_binom")
 
 ### Customize the Model from a Template
 
-Alternatively, to create a custom model we can start by copying a default models to a custom path. We can do so with the function `template_model`, e. g.:
+Alternatively, to create a custom model we can start by copying a default models to a custom path with the function `template_model`:
 
 ```{r, eval=FALSE}
-template_model(which = "chain_binom", where = "path/to/model")
+# e. g. copy the chain binomial template to a custom directory 
+template_model(which = "chain_binom", path = "path/to/model")
 ```
 
-Modify all relevant parts of the C++ implementation file *model.cpp* and of the header file *model.h* within our model directory.
+Modify all relevant parts of the C++ implementation *model.cpp* and of the header *model.h* within your model directory. *Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
 
-*Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
-
-After changing adjusting the generation according to the custom, all commands remain the same.
+After changing the generation according to the custom directory, all commands remain the same.
 
 ```{r, eval=FALSE}
 hemi <- generate_model("path/to/model")
@@ -50,61 +49,56 @@ hemi <- generate_model("path/to/model")
 
 ## Building the Model
 
-To configure a model we requires three main definitions:
+Every model requires its parameter definitions and a database.
 
-1.  **data:** a DataFrame (or a file) with the individual index and house index (necessary columns), plus all other additional columns. A status must be provided if to perform inference.
+1.  **parameters:** a DataFrame (or a csv file) with the parameters priors and proposer rules needed for the Bayesian Monte Carlo. Constants can be provided by putting the *infer* column to `FALSE`. To help formatting data frame with the respectful definitions, we provide a class `ParameterFrame` which can be used as follows:
+
+```{r, echo=TRUE}
+params <- ParameterFrame$new(list(
+  alpha = list(x = 0.15, prior = "uniform",  args = list(min = 0, max = 5),
+               rule = "lognorm", rule_args = list(sdlog = 5)),
+  beta = list(x = 0.25, prior = "uniform", args = list(min = 0, max = 5),
+              rule = "lognorm", rule_args = list(sdlog = 5))
+  ))
+```
+
+2.  **database:** a numerical DataFrame (or a csv file) with the individual data organised by rows. Individuals with equal `house_index` are associated to the same household. A column `status` must be provided if to perform inference, 0 if negative, 1 if positive, -1 if missing. Additionally, an `index` can be provided.
 
 ```{r, echo=FALSE}
-knitr::kable(head(read.csv("data/data.csv")))
+knitr::kable(head(read.csv("data/survey.csv")))
 ```
 
-2.  **parameters:** a DataFrame (or a file) with the parameters, priors and proposer rules needed for the Bayesian Monte Carlo. Constants can be provided by putting the *infer* case to `FALSE`.
-
-```{r, echo=FALSE}
-knitr::kable(read.csv("data/params.csv"))
-```
-
-3.  **setup:** a dataframe (or a file) with configurations such as the number of iterations, thinning, seed, etc.
-
-```{r, echo=FALSE}
-knitr::kable(read.csv("data/setup.csv", header = FALSE), col.names = NULL)
-```
-
-*Note:* openMP is unsupported on latest macOS distributions, thus at the moment the option `num_threads` is inactive on such systems.
-
-We associate all definitions to our model using the function `build_model`:
+We build our model with these information using the function `build_model`.
 
 ```{r}
-# associate data and parameters
-build_model(hemi, data = "data/data.csv", params = "data/params.csv")
+# associate database and parameters
+build_model(hemi, data = "data/survey.csv", params = params$df)
 ```
 
-We can change the setup and parameter definitions at any moment by calling the same function.
+Additional definitions can be provided at any time by using the same function. E. g. we can pass the Monte Carlo general configurations with the argument: 
+
+* **setup:** a list (or a csv file) with the number of iterations, seed, etc.
 
 ```{r}
-# associate the setup
-build_model(hemi, setup = "data/setup.csv")
+setup <- list(num_iter = 5000, num_adapt = 1000, burn_in = 500,
+              thinning = 10, num_chains = 4, rnd_init_params = TRUE,
+              seed = 576125013, num_threads = 1)
 
-# show setup definitions
-hemi$show_setup()
+# associate setup
+build_model(hemi, setup = setup)
 ```
 
-Here we already provided the parameter definitions to use for the simulations, plus the rules for the MCMC moves. We can show them with:
-
-```{r}
-# show the parameter definitions
-hemi$show_params()
-```
+*Note:* openMP is unsupported on latest macOS distributions, thus the option `num_threads` is inactive on such systems at the moment.
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide with the different household compositions.
+To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide the household compositions.
 
 ```{r}
 # override status of the dataset according to simulation 
 hemi$simulate()
 
-# show a summary of the simulated dataset 
+# show a summary of the current simulated dataset 
 hemi$show_summary()
 ```
 

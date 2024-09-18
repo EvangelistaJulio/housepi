@@ -283,7 +283,7 @@ long double MCMC::move_single_house_augm(int h)
 /* Sweep over all households to move augmented variables. */
 void MCMC::move_all_augm_variables()
 {
-    if (__is_data_augm)
+    if (_is_data_augm_)
     {
         long double variation = 0.;
 
@@ -366,7 +366,7 @@ void MCMC::init_diagnostics()
 /* Update Bayesian diagnostics */
 void MCMC::update_diagnostics()
 {
-    if (!__is_power_post)
+    if (!_is_power_post_)
     {
         // diagnostics for all parameters
         update_param_diagnostics();
@@ -394,13 +394,13 @@ void MCMC::update_diagnostics()
 std::string MCMC::get_progtxt(std::string txt)
 {
     std::ostringstream oss;
-    if (__is_power_post)
+    if (_is_power_post_)
     {
-        oss << "power post " << __rung << "/" << __num_rungs;
+        oss << "power post " << _rung_ << "/" << _num_rungs_;
     }
     else if (setup_num_chains > 1)
     {
-        oss << txt << " " << __chain << "/" << setup_num_chains;
+        oss << txt << " " << _chain_ << "/" << setup_num_chains;
     }
     else
     {
@@ -442,7 +442,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
     init_diagnostics();
 
     //===== Run Multiple MCMC Chains =====//
-    for (__chain = 1; __chain <= setup_num_chains; __chain++)
+    for (_chain_ = 1; _chain_ <= setup_num_chains; _chain_++)
     {
         //-----Initialize parameter inference-----//
         init_rand_params(setup_rnd_init_params);
@@ -475,7 +475,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_and_adapt_all_parameters(i + t);
             }
             sweep += setup_thinning;
-            progress_bar_run(get_progtxt("adapt"), sweep, __tot_num_sweeps, progbar);
+            progress_bar_run(get_progtxt("adapt"), sweep, _tot_num_sweeps_, progbar);
         }
 
         // reset the acceptance counts
@@ -497,7 +497,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_all_parameters();
             }
             sweep += setup_thinning;
-            progress_bar_run(get_progtxt("burn"), sweep, __tot_num_sweeps, progbar);
+            progress_bar_run(get_progtxt("burn"), sweep, _tot_num_sweeps_, progbar);
         }
 
         //============================================//
@@ -520,7 +520,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
             // print inference state
             inferstate_print();
 
-            progress_bar_run(get_progtxt("sample"), sweep, __tot_num_sweeps, progbar);
+            progress_bar_run(get_progtxt("sample"), sweep, _tot_num_sweeps_, progbar);
         }
     }
 
@@ -544,7 +544,7 @@ void MCMC::infer(std::string output_file, bool progbar)
     }
 
     //----- total number of mcmc sweeps -----//
-    __tot_num_sweeps = __mcmc_sweeps;
+    _tot_num_sweeps_ = _mcmc_sweeps_;
 
     //----- Initialize output file-----//
     inferstate_init(output_file);
@@ -580,7 +580,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     else
     {
         // fix internal number of rungs (for progress bar)
-        __num_rungs = num_rungs;
+        _num_rungs_ = num_rungs;
     }
 
     //----- Backup user setup to restore them later -----//
@@ -594,12 +594,12 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     std::vector<long double> var_ll = {}; // variance loglikelihood
 
     //----- Fix internal states -----//
-    __is_print_inferstate = false; // avoid printing
-    __is_infer_complete = false;   // showing results becomes meaningless
-    __is_power_post = true;
+    _is_print_inferstate_ = false; // avoid printing
+    _is_infer_complete_ = false;   // showing results becomes meaningless
+    _is_power_post_ = true;
 
     //----- Total number of mcmc sweeps -----//
-    __tot_num_sweeps = __mcmc_sweeps * (__num_rungs + 1);
+    _tot_num_sweeps_ = _mcmc_sweeps_ * (_num_rungs_ + 1);
 
     //----- Start progress bar and chrono -----//
     screen::progress_bar_init("init", progbar);
@@ -609,7 +609,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     //==================================//
 
     setup_rnd_init_params = true;
-    __rung = 0;
+    _rung_ = 0;
     setup_inv_T = 0.;
     run_monte_carlo(progbar, 0, true);
     inv_t.push_back(setup_inv_T);
@@ -625,10 +625,10 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         //==================================//
 
         //----- Inverse Temperatures (0, 1] -----//
-        for (__rung = 1; __rung < __num_rungs; __rung++)
+        for (_rung_ = 1; _rung_ < _num_rungs_; _rung_++)
         {
-            setup_inv_T = std::pow(static_cast<long double>(__rung) / (__num_rungs - 1), 5);
-            run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
+            setup_inv_T = std::pow(static_cast<long double>(_rung_) / (_num_rungs_ - 1), 5);
+            run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
             inv_t.push_back(setup_inv_T);
             avg_ll.push_back(dgn_avg);
             var_ll.push_back(dgn_var());
@@ -641,18 +641,18 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         //===========================//
 
         //----- Inverse Temperature 1 -----//
-        __rung = 1;
+        _rung_ = 1;
         setup_inv_T = 1.;
-        run_monte_carlo(progbar, __mcmc_sweeps, true);
+        run_monte_carlo(progbar, _mcmc_sweeps_, true);
         inv_t.push_back(setup_inv_T);
         avg_ll.push_back(dgn_avg);
         var_ll.push_back(dgn_var());
 
         //----- Inverse Temperatures (0, 1) -----//
         size_t k = 0; // index to interval lower bound
-        while (__rung < __num_rungs)
+        while (_rung_ < _num_rungs_)
         {
-            __rung++;
+            _rung_++;
 
             //----- adaptive choice of inverse temperature -----//
             // intersection between tangents
@@ -665,7 +665,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
             }
 
             //----- power posterior sampling -----//
-            run_monte_carlo(progbar, __rung * __mcmc_sweeps, false);
+            run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
 
             //----- find larger rectangular discretization error -----//
             is_right = (inv_t[k + 1] - setup_inv_T) * (avg_ll[k + 1] - dgn_avg) > (setup_inv_T - inv_t[k]) * (dgn_avg - avg_ll[k]);
@@ -685,7 +685,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     for (int k = 0; k < num_rungs; k++)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];
-        output += (avg_ll[k + 1] + avg_ll[k]) * d_inv_t / 2 - (var_ll[k + 1] - var_ll[k]) * std::pow(d_inv_t, 2) / 12;
+        output += (avg_ll[k + 1] + avg_ll[k]) * d_inv_t / 2. - (var_ll[k + 1] - var_ll[k]) * std::pow(d_inv_t, 2) / 12.;
     }
 
     //----- Close progress bar -----//
@@ -708,7 +708,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 /* Compute diagnostics at the end of inference. */
 void MCMC::close_diagnostics()
 {
-    if (!__is_power_post)
+    if (!_is_power_post_)
     {
         //---- compute WAIC and implement warning -----//
         // Ref: Vhetari et al. (2016) Stat Comput.

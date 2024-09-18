@@ -4,7 +4,7 @@
 \alias{template_model}
 \title{Copy a default model to a given directory.}
 \usage{
-template_model(which = "None", path = "None")
+template_model(which = UNDEFINED, path = UNDEFINED)
 }
 \arguments{
 \item{which}{default model name.}

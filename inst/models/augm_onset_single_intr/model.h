@@ -16,7 +16,7 @@
 #include <vector>
 #include <iostream>
 
-#include "infectivity_profiles.h"
+#include "profiles.h"
 #include "mcmc.h"
 
 //-----------------------------------------------------------------------------------------------//

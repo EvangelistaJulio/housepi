@@ -6,6 +6,8 @@
 
 #include "individual.h"
 
+using screen::raise_error;
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -45,7 +47,7 @@ void Individual::assert_data(std::string d) const
 		std::ostringstream oss;
 		oss << "Unknown data `" << d << "` for individual " << get_index() << ".";
 		oss << " Check your model and your data definitions.";
-		screen::raise_error(oss.str());
+		raise_error(oss.str());
 	}
 }
 
@@ -92,7 +94,7 @@ void Individual::assign_rate_per_group(const std::string r, const std::string pa
 		// rateID was previously declared
 		std::ostringstream oss;
 		oss << "Individual " << get_index() << " has multiple definitions for group rate `" << r << "`.";
-		screen::raise_error(oss.str());
+		raise_error(oss.str());
 	}
 }
 
@@ -108,7 +110,7 @@ void Individual::assert_augm(const std::string a) const
 		std::ostringstream oss;
 		oss << "Unknown augmented variable `" << a << "` for individual " << get_index() << "."
 			<< " Check your model and your augmented variable definitions.";
-		screen::raise_error(oss.str());
+		raise_error(oss.str());
 	}
 }
 
@@ -151,21 +153,20 @@ void Individual::disable_assert()
 /* Assign an augmented variable to the individual. */
 void Individual::assign_augm(const std::string a, double value,
 							 const std::string model_name, sdargs_ptr model_args_ext,
-							 const std::string rule_name, sdargs rule_args,
-							 double rule_from, sdargs value_range)
+							 const std::string rule_name, sdargs rule_args, sdargs range, double rule_from)
 {
 	// check that lists have equal sizes
 	if (model_args_ext.find(IO_MISMATCH) != model_args_ext.end())
 	{
-		screen::raise_error("Model arguments, values and types of augmented variable `" + a + "` should have equal size.");
+		raise_error("Model arguments, values and types of augmented variable `" + a + "` should have equal size.");
 	}
 	if (rule_args.find(IO_MISMATCH) != rule_args.end())
 	{
-		screen::raise_error("Rule arguments, valuesand types of augmented variable `" + a + "` should have equal size.");
+		raise_error("Rule arguments, valuesand types of augmented variable `" + a + "` should have equal size.");
 	}
 
 	Augmented new_augm(value, model_name, model_args_ext,
-					   rule_name, rule_args, rule_from, value_range);
+					   rule_name, rule_args, range, rule_from);
 
 	// overtwrite augmented variable if it has multiple definitions
 	// FIXME : is this relevant?
@@ -193,7 +194,7 @@ void Individual::init_augm(const std::string a, sys_rnd_gen &prng)
 			oss << "Number of attempts exceeded (" << ">=" << MAX_NUMBER_ATTEMPTS << ")"
 				<< " in random initialization of `" << a << "`"
 				<< " for individual " << get_index();
-			screen::raise_error(oss.str());
+			raise_error(oss.str());
 		}
 		init_value = augm_model_rand(a, prng);
 		num_attempts++;
@@ -259,7 +260,7 @@ void Household::assert_data(const std::string d) const
 	{
 		std::ostringstream oss;
 		oss << "Unknown data `" << d << "` for household " << get_index() << ".";
-		screen::raise_error(oss.str());
+		raise_error(oss.str());
 	}
 }
 
@@ -301,7 +302,7 @@ void Household::assign_individual(Individual this_indiv)
 		std::ostringstream oss;
 		oss << "Impossibile to assign individual `" << this_indiv.get_index()
 			<< "` : unknown status `" << status << "`.";
-		screen::raise_error(oss.str());
+		raise_error(oss.str());
 	}
 
 	//----- add the new individual object -----//
@@ -341,7 +342,7 @@ void Household::change_status(int i, int new_status)
 		{
 			std::ostringstream oss;
 			oss << "Impossibile to change status: unknown old status `" << old_status << "`.";
-			screen::raise_error(oss.str());
+			raise_error(oss.str());
 		}
 
 		if (new_status == INFECTIOUS)
@@ -366,7 +367,7 @@ void Household::change_status(int i, int new_status)
 		{
 			std::ostringstream oss;
 			oss << "Impossibile to change status: unknown new status `" << new_status << "`.";
-			screen::raise_error(oss.str());
+			raise_error(oss.str());
 		}
 
 		indiv[i].set_status(new_status);

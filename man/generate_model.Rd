@@ -12,6 +12,8 @@ generate_model(model, quiet = TRUE, force = FALSE)
 \item path/to/folder with implementation model.cpp and header model.h.
 }}
 
+\item{quiet}{hide compilation commands.}
+
 \item{force}{generate a model even if a cached model already exist.}
 }
 \value{

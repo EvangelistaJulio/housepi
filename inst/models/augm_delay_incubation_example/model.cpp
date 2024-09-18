@@ -23,7 +23,7 @@
 //////////////////////////  Model : initialize model for inference  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Declare a common distribution  */
+/* Declare a common distribution. */
 void Model::init_model_for_inference()
 {
 	// external arguments: pointers to the respective parameters
@@ -55,6 +55,7 @@ void Model::init_model_for_inference()
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(int h)
 {
+	// incubation period = onset - exposure
 	double incub = househ[h].indiv[0].get_augm("onset");
 	incub -= househ[h].indiv[0].get_augm("exposure");
 
