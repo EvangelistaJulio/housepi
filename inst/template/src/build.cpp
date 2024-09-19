@@ -413,10 +413,6 @@ sdargs MCMC::merge_list_args(const std::string tkn_keys, const std::string tkn_v
     std::vector<std::string> vals = parse_list_args(tkn_vals);
     sdargs output = {};
 
-    // FLAG
-    std::cerr << "WITHIN merge_list_args :" << tkn_keys << " | " << tkn_vals <<std::endl;
-    // FLAG-END
-
     if (keys.size() != vals.size())
     {
         // inform parameter about the error
@@ -472,17 +468,9 @@ void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
             //===== Load parameters from the row with options =====//
             for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
             {
-                // FLAG
-                std::cerr << this_row["name"] << std::endl;
-                // FLAG-END
-
                 // add entry to shared parameter dictionary
                 if (stobool(this_row["infer"]))
                 {
-                    // FLAG
-                    std::cerr << "BEFORE range" << std::endl;
-                    // FLAG-END
-
                     // load range
                     sdargs range = {};
                     if (!is_na(this_row["min"]))
@@ -494,10 +482,6 @@ void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
                     {
                         range.emplace("max", std::stod(this_row["max"]));
                     }
-
-                    // FLAG
-                    std::cerr << "BEFORE assign_parameter" << std::endl;
-                    // FLAG-END
 
                     // assign parameter to the set of variables
                     assign_parameter(

@@ -41,8 +41,8 @@ class Infec_Prof_Skew_Logistic : public Base_Function
 public:
 	// Constructors
 	Infec_Prof_Skew_Logistic() {};
-	Infec_Prof_Skew_Logistic(sdargs new_args) : Base_Function(new_args, {"alpha", "mu", "sigma", "tau"}) { set_name("skew_logistic"); }
-	Infec_Prof_Skew_Logistic(sdargs_ptr new_args_ext) : Base_Function(new_args_ext, {"alpha", "mu", "sigma", "tau"}) { set_name("skew_logistic"); }
+	Infec_Prof_Skew_Logistic(sdargs new_arg = {}) : Base_Function("skew_logistic", new_arg, {"alpha", "mu", "sigma", "tau"}) { }
+	Infec_Prof_Skew_Logistic(sdargs_ptr new_args_ptr) : Base_Function("skew_logistic", new_args_ptr, {"alpha", "mu", "sigma", "tau"}) {}
 	~Infec_Prof_Skew_Logistic() {};
 
 	double pdf(double tost, double t_incub);

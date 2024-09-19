@@ -55,11 +55,13 @@ Every model requires its parameter definitions and a database.
 
 ```{r, echo=TRUE}
 params <- ParameterFrame$new(list(
-  alpha = list(x = 0.15, prior = "uniform",  args = list(min = 0, max = 5),
+  alpha = list(x = 0.15, 
+               prior = "uniform", args = list(min = 0, max = 5),
                rule = "lognorm", rule_args = list(sdlog = 5)),
-  beta = list(x = 0.25, prior = "uniform", args = list(min = 0, max = 5),
+  beta = list(x = 0.25, 
+              prior = "uniform", args = list(min = 0, max = 5),
               rule = "lognorm", rule_args = list(sdlog = 5))
-  ))
+  ))$df
 ```
 
 2.  **database:** a numerical DataFrame (or a csv file) with the individual data organised by rows. Individuals with equal `house_index` are associated to the same household. A column `status` must be provided if to perform inference, 0 if negative, 1 if positive, -1 if missing. Additionally, an `index` can be provided.
@@ -72,12 +74,12 @@ We build our model with these information using the function `build_model`.
 
 ```{r}
 # associate database and parameters
-build_model(hemi, data = "data/survey.csv", params = params$df)
+build_model(hemi, data = "data/survey.csv", params = params)
 ```
 
-Additional definitions can be provided at any time by using the same function. E. g. we can pass the Monte Carlo general configurations with the argument: 
+Additional definitions can be provided at any time by using the same function. E. g. we can pass the Monte Carlo general configurations with the argument:
 
-* **setup:** a list (or a csv file) with the number of iterations, seed, etc.
+-   **setup:** a list (or a csv file) with the number of iterations, seed, etc.
 
 ```{r}
 setup <- list(num_iter = 5000, num_adapt = 1000, burn_in = 500,
@@ -92,17 +94,17 @@ build_model(hemi, setup = setup)
 
 ## Simulation
 
-To produce a simulated dataset according to the model, we execute the method `simulate`. This requires to have already loaded a dataset to provide the household compositions.
+To produce a simulated database according to the model, we execute the method `simulate`. This requires to have already loaded a database to provide the household compositions.
 
 ```{r}
-# override status of the dataset according to simulation 
+# override status of the database according to simulation 
 hemi$simulate()
 
-# show a summary of the current simulated dataset 
+# show a summary of the current simulated database 
 hemi$show_summary()
 ```
 
-For the full results of the simulation, we can use the method `data` which returns a DataFrame with the current dataset.
+For the full results of the simulation, we can use the method `data` which returns the DataFrame with the current database.
 
 ```{r, eval=TRUE}
 head(hemi$data())
@@ -110,13 +112,13 @@ head(hemi$data())
 
 ## Inference
 
-Before proceeding any further, it can be useful to verify that the provided model can evaluate the loglikelihood without errors. We can do this using the method `evaluate`.
+Before proceeding any further, it can be useful to check with the method `evaluate` if the model can evaluate the loglikelihood without errors:
 
 ```{r}
 hemi$evaluate()
 ```
 
-To perform inference instead, we execute the command `run_inference`.
+Now we can safely perform inference with the function `run_inference`.
 
 ```{r}
 mcmc_traces <- run_inference(hemi)
@@ -125,22 +127,20 @@ mcmc_traces <- run_inference(hemi)
 This method returns a `coda` mcmc object (or mcmc.list) which can then be used to analyze the results as follows:
 
 ```{r}
-library(coda)
-
 # Visualize the traces of the first MCMC chain
-traceplot(mcmc_traces[1])
+coda::traceplot(mcmc_traces[1])
 
 # Print summary of the posterior estimates
 summary(mcmc_traces)
 
 # Compute effective sample size
-effectiveSize(mcmcm_traces)
+coda::effectiveSize(mcmcm_traces)
 
 # Gelman-Rubin diagnostic
-gelman.diag(mcmc_traces)
+coda::gelman.diag(mcmc_traces)
 ```
 
-See `coda` [CRAN documentation](https://cran.r-project.org/web/packages/coda/index.html) for further details.
+See [coda CRAN documentation](https://cran.r-project.org/web/packages/coda/index.html) for further details.
 
 ## Model Comparison
 

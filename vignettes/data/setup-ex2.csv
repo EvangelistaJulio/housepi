@@ -1,8 +1,0 @@
-seed,576125013
-num_iter,30000
-num_adapt,2500
-burn_in,2000
-thinning,25
-rnd_init_params,TRUE
-num_chains,1
-num_threads,1

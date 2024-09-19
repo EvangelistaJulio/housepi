@@ -31,7 +31,11 @@ namespace screen
     /* A formatted string for TRUE/FALSE values. */
     std::string truth(bool condition)
     {
+#ifdef USE_RCPP
+        return (condition ? "true" : "false");
+#else
         return (condition ? "TRUE" : "FALSE");
+#endif
     }
 
     /* An internal check for string representing NA. */
@@ -204,9 +208,8 @@ namespace screen
             std::ostringstream oss;
             oss << "\r"
                 << txt << ": [" << std::string(PROGBAR_WIDTH, C_DECOR) << "] "
-                << percent(100, 100)
-                << " " << format_millisecs(time_elapsed)
-                << std::string(20, ' ') << "\n";
+                << format_millisecs(time_elapsed)
+                << std::string(25, ' ') << "\n";
             _helper_stderr_(oss.str());
         }
 
@@ -274,46 +277,108 @@ namespace screen
 ////////////////////////////////  Base Function : methods  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Overload constructor for INTERNAL arguments. */
-Base_Function::Base_Function(sdargs new_args_int, std::vector<std::string> order)
+/* Overload constructor for argument VALUES. */
+Base_Function::Base_Function(const std::string default_name,
+                             sdargs default_args_val, std::vector<std::string> default_order)
 {
-    args_name = order;                          // developer assigment of the order of arguments
-    args_int = new double[new_args_int.size()]; // dynamic allocation
-    for (size_t i = 0; i < args_name.size(); i++)
+    name = default_name;
+
+    if (default_args_val.size() != default_order.size())
     {
-        args_int[i] = new_args_int.at(args_name[i]);
+        std::ostringstream oss;
+        oss << "Inconsistent default arguments and order in function `" << get_name() << "`.";
+        screen::raise_error(oss.str());
     }
-    _get_arg_method_ = &Base_Function::_get_arg_int_; // assign getter
-    _set_arg_method_ = &Base_Function::_set_arg_int_; // assign setter
+    else
+    {
+        args_names = default_order;               // developer assigment of arguments order
+        args_val = new double[args_names.size()]; // dynamic allocation
+        for (size_t i = 0; i < args_names.size(); i++)
+        {
+            args_val[i] = default_args_val.at(args_names[i]);
+        }
+        _get_arg_method_ = &Base_Function::_get_arg_val_; // assign getter
+        _set_arg_method_ = &Base_Function::_set_arg_val_; // assign setter
+    }
 }
 
-/* Overload constructor for EXTERNAL arguments. */
-Base_Function::Base_Function(sdargs_ptr new_args_ptr, std::vector<std::string> order)
+/* Overload constructor for argument POINTERS. */
+Base_Function::Base_Function(const std::string default_name,
+                             sdargs_ptr default_args_ptr, std::vector<std::string> default_order)
 {
-    args_name = order;                                  // developer assigment of the order of arguments
-    args_ptr = new const double *[new_args_ptr.size()]; // dynamic allocation
-    for (size_t i = 0; i < args_name.size(); i++)
+    name = default_name;
+
+    if (default_args_ptr.size() != default_order.size())
     {
-        args_ptr[i] = new_args_ptr.at(args_name[i]);
+        std::ostringstream oss;
+        oss << "Inconsistent default arguments and order in function `" << get_name() << "`.";
+        screen::raise_error(oss.str());
     }
-    _get_arg_method_ = &Base_Function::_get_arg_ptr_; // assign getter
-    _set_arg_method_ = &Base_Function::_set_arg_ptr_; // assign setter
+    else
+    {
+        args_names = default_order;                       // developer assigment of arguments order
+        args_ptr = new const double *[args_names.size()]; // dynamic allocation
+        for (size_t i = 0; i < args_names.size(); i++)
+        {
+            args_ptr[i] = default_args_ptr.at(args_names[i]);
+        }
+        _get_arg_method_ = &Base_Function::_get_arg_ptr_; // assign getter
+        _set_arg_method_ = &Base_Function::_set_arg_ptr_; // assign setter
+    }
+}
+
+/* Overload assignment of non default POINTER arguments. */
+void Base_Function::assign_args(sdargs default_args_val)
+{
+    for (const auto &pair : default_args_val)
+    {
+        auto it = std::find(args_names.begin(), args_names.end(), pair.first);
+        if (it == args_names.end())
+        {
+            std::ostringstream oss;
+            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            screen::raise_error(oss.str());
+        }
+        else
+        {
+            args_val[std::distance(args_names.begin(), it)] = pair.second;
+        }
+    }
+}
+
+/* Overload assignment of non default POINTER arguments. */
+void Base_Function::assign_args(sdargs_ptr default_args_ptr)
+{
+    for (const auto &pair : default_args_ptr)
+    {
+        auto it = std::find(args_names.begin(), args_names.end(), pair.first);
+        if (it == args_names.end())
+        {
+            std::ostringstream oss;
+            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            screen::raise_error(oss.str());
+        }
+        else
+        {
+            args_ptr[std::distance(args_names.begin(), it)] = pair.second;
+        }
+    }
 }
 
 /* Return formatted argument names of the distribution. */
 std::string Base_Function::show_arg_names() const
 {
-    if (args_name.empty())
+    if (args_names.empty())
     {
         return UNDEFINED;
     }
     else
     {
         std::ostringstream oss;
-        oss << args_name[0];
-        for (size_t x = 1; x < args_name.size(); x++)
+        oss << args_names[0];
+        for (size_t x = 1; x < args_names.size(); x++)
         {
-            oss << screen::C_LIST_DELIM << args_name[x];
+            oss << screen::C_LIST_DELIM << args_names[x];
         }
         return oss.str();
     }
@@ -322,7 +387,7 @@ std::string Base_Function::show_arg_names() const
 /* Return formatted argument names of the distribution. */
 std::string Base_Function::show_arg_values() const
 {
-    if (args_name.empty())
+    if (args_names.empty())
     {
         return UNDEFINED;
     }
@@ -330,7 +395,7 @@ std::string Base_Function::show_arg_values() const
     {
         std::ostringstream oss;
         oss << get_arg(0);
-        for (size_t x = 1; x < args_name.size(); x++)
+        for (size_t x = 1; x < args_names.size(); x++)
         {
             oss << screen::C_LIST_DELIM << get_arg(x);
         }
@@ -422,15 +487,25 @@ double Normal_Distribution::rand(sys_rnd_gen &rng)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  Normal Distribution (discrete) : methods  ////////////////////////////
+//////////////////////////  Discrete Normal Distribution : methods  /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Normal_Distribution_Discrete::pdf(double x)
+/* discretized normal probability density function */
+double Discrete_Normal_Distribution::pdf(double x)
 {
     double mean = get_arg(0);
     double sd = get_arg(1);
-    int r = round(x);
-    return 0.5 * (erf(0.707106781 * (r + 0.5 - mean) / sd) - erf(0.707106781 * (r - 0.5 - mean) / sd));
+    int r = std::round(x);
+    return 0.5 * (std::erf(0.707106781 * (r + 0.5 - mean) / sd) - std::erf(0.707106781 * (r - 0.5 - mean) / sd));
+}
+
+/* discretized normal random generator */
+double Discrete_Normal_Distribution::rand(sys_rnd_gen &rng)
+{
+    double mean = get_arg(0);
+    double sd = get_arg(1);
+    std::normal_distribution<double> distr_gen(mean, sd);
+    return std::round(distr_gen(rng));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -471,16 +546,26 @@ double Lognorm_Distribution::rand(sys_rnd_gen &rng)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  Lognormal Distribution (discrete) : methods  /////////////////////////
+//////////////////////////  Discrete Lognormal Distribution : methods  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Lognorm_Distribution_Discrete::pdf(double x)
+/* Discrete lognormal probability density function. */
+double Discrete_Lognorm_Distribution::pdf(double x)
 {
     double meanlog = get_arg(0);
     double sdlog = get_arg(1);
     double r = floor(x);
     double aux = (x < 1) ? -1 : erf(0.707106781 * (log(r) - meanlog) / sdlog);
     return 0.5 * (erf(0.707106781 * (log(r + 1) - meanlog) / sdlog) - aux);
+}
+
+/* Discrete lognormal random generator. */
+double Discrete_Lognorm_Distribution::rand(sys_rnd_gen &rng)
+{
+    double meanlog = get_arg(0);
+    double sdlog = get_arg(1);
+    std::lognormal_distribution<double> distr_gen(meanlog, sdlog);
+    return std::round(distr_gen(rng));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -561,12 +646,22 @@ double Weibull_Distribution::rand(sys_rnd_gen &rng)
 ////////////////////////  Weibull Distribution (discrete) : methods  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Weibull_Distribution_Discrete::pdf(double x)
+/* Discrete weibull probability density function */
+double Discrete_Weibull_Distribution::pdf(double x)
 {
     double shape = get_arg(0);
     double scale = get_arg(1);
-    double r = floor(x);
-    return exp(-pow(r / scale, shape)) - exp(-pow((r + 1) / scale, shape));
+    double r = std::floor(x);
+    return std::exp(-std::pow(r / scale, shape)) - exp(-pow((r + 1) / scale, shape));
+}
+
+/* Discrete weibull random generator */
+double Discrete_Weibull_Distribution::rand(sys_rnd_gen &rng)
+{
+    double shape = get_arg(0);
+    double scale = get_arg(1);
+    std::weibull_distribution<double> distr_gen(shape, scale);
+    return std::round(distr_gen(rng));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -603,14 +698,23 @@ double Rayleigh_Distribution::rand(sys_rnd_gen &rng)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  Rayleigh Distribution (discrete) : methods  ///////////////////////////
+/////////////////////////  Discrete Rayleigh Distribution : methods  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Rayleigh_Distribution_Discrete::pdf(double x)
+/* Discrete rayleigh probability density function */
+double Discrete_Rayleigh_Distribution::pdf(double x)
 {
     double scale = get_arg(0);
-    double r = floor(x);
+    double r = std::floor(x);
     return exp(-0.5 * pow(r / scale, 2)) - exp(-0.5 * pow((r + 1) / scale, 2));
+}
+
+/* Discrete rayleigh random generator */
+double Discrete_Rayleigh_Distribution::rand(sys_rnd_gen &rng)
+{
+    double scale = get_arg(0);
+    std::uniform_real_distribution<double> unif_gen(0, 1);
+    return std::round(scale * sqrt(-2 * unif_gen(rng)));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -650,22 +754,32 @@ double Exponential_Distribution::rand(sys_rnd_gen &rng)
 ////////////////////////  Exponential Distribution (discrete) : methods  ////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Exponential_Distribution_Discrete::pdf(double x)
+double Discrete_Exponential_Distribution::pdf(double x)
 {
     double rate = get_arg(0);
     return exp(-rate * floor(x)) * (1 - exp(-rate));
 }
 
-double Exponential_Distribution_Discrete::log_pdf(double x)
+/* Logarithm of the exponential probability density function. */
+double Discrete_Exponential_Distribution::log_pdf(double x)
 {
     double rate = get_arg(0);
-    return -rate * floor(x) + log(1 - exp(-rate));
+    return -rate * std::floor(x) + std::log(1 - std::exp(-rate));
 }
 
-double Exponential_Distribution_Discrete::logratio(double x, double y)
+/* Log-ratio of the discrete exponential probability density function. */
+double Discrete_Exponential_Distribution::logratio(double x, double y)
 {
     double rate = get_arg(0);
-    return rate * (floor(x) - floor(y));
+    return rate * (std::floor(x) - std::floor(y));
+}
+
+/* Discrete exponential random generator. */
+double Discrete_Exponential_Distribution::rand(sys_rnd_gen &rng)
+{
+    double rate = get_arg(0);
+    std::exponential_distribution<double> distr_gen(rate);
+    return std::round(distr_gen(rng));
 }
 
 //-----------------------------------------------------------------------------------------------//

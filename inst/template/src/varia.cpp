@@ -138,10 +138,6 @@ Base_Proposer *proposer_switchboard(std::string rule_name, sdargs rule_args, dou
 {
     Base_Proposer *output = new Base_Proposer(new Base_Distribution());
 
-    // FLAG
-    std::cerr << "WITHIN proposer_switchboard" << std::endl;
-    // FLAG-END
-
     if (rule_name == "uniform")
     {
         output = new Uniform_Proposer(rule_args, rule_from, range);
@@ -158,10 +154,6 @@ Base_Proposer *proposer_switchboard(std::string rule_name, sdargs rule_args, dou
     {
         raise_error("Unknown proposer rule `" + rule_name + "` for Metropolis-Hastings.");
     }
-
-    // FLAG
-    std::cerr << "AFTER proposer_switchboard" << std::endl;
-    // FLAG-END
 
     return output;
 }
@@ -309,10 +301,6 @@ void Monte_Carlo_Core::assign_parameter(
     }
     else
     {
-        // FLAG
-        std::cerr << "BEFORE emplace the new parameter" << std::endl;
-        // FLAG-END
-
         // emplace the new parameter
         Parameter new_param(new_val, prior_name, prior_args, rule_name, rule_args, range);
         params.emplace(parID, new_param);

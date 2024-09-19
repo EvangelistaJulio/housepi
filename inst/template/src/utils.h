@@ -23,6 +23,10 @@
 #include <iostream>
 #endif
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  32bit/64bit  ///////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +107,7 @@ namespace screen
     void print_stdout(const std::string &txt);
     void print_decorator(const std::string &title,
                          char decor,
-                         const std::string & txt = UNDEFINED,
+                         const std::string &txt = UNDEFINED,
                          bool verbose = true);
 
     // print progress bar to stdout
@@ -130,24 +134,25 @@ namespace screen
 ///////////////////////////////////  Base Function : class //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// FIXME :
+// for the moment it is not possible to provide default pointer argumets
+// a solution could be point to internal, at that point the whole pointer thing could be collapsed
+
+/* Parent class to all function classes where the arguements are stored in arrays. */
 class Base_Function
 {
 public:
     //=====Constructors=====//
     Base_Function() {};
-    Base_Function(sdargs new_args_int, std::vector<std::string> order = {});
-    Base_Function(sdargs_ptr new_args_ptr, std::vector<std::string> order = {});
+    Base_Function(const std::string default_name, sdargs default_args_val, std::vector<std::string> default_order = {});
+    Base_Function(const std::string default_name, sdargs_ptr default_args_ptr, std::vector<std::string> default_order = {});
     virtual ~Base_Function() {};
-
-    // FIXME :
-    // need to assign args later in case constructor is empty
 
     //===== Getter (functional) =====//
     std::string get_name() const { return name; }
     double get_arg(int argID) const { return (this->*_get_arg_method_)(argID); }
 
     //===== Setter (for internal arguments) =====//
-    void set_name(const std::string new_name) { name = new_name; }
     void set_arg(int argID, double new_value) { (this->*_set_arg_method_)(argID, new_value); }
 
     //===== Show =====//
@@ -156,21 +161,31 @@ public:
 
 private:
     std::string name = UNDEFINED;
-    std::vector<std::string> args_name; // ordered list of argument names
-    double *args_int = nullptr;         // internal arguments (fixed at initialization)
-    const double **args_ptr = nullptr;  // external arguments (pointer to variable)
+    std::vector<std::string> args_names; // ordered list of argument names
+    double *args_val = nullptr;          // internal arguments (fixed at initialization)
+    const double **args_ptr = nullptr;   // external arguments (pointer to variable)
 
     double (Base_Function::*_get_arg_method_)(int) const;
-    double _get_arg_int_(int argID) const { return args_int[argID]; }
+    double _get_arg_val_(int argID) const { return args_val[argID]; }
     double _get_arg_ptr_(int argID) const { return *(args_ptr[argID]); }
 
+    // note : the set_arg is only used for the adaptive
+    // for this reason a pointer argument can't be set, but just assigned
     void (Base_Function::*_set_arg_method_)(int, double);
-    void _set_arg_int_(int argID, double new_value) { args_int[argID] = new_value; }
+    void _set_arg_val_(int argID, double new_value) { args_val[argID] = new_value; }
     void _set_arg_ptr_(int argID, double new_value)
     {
         UNUSED(new_value);
-        screen::raise_error("Attempt to set external argument `" + args_name[argID] + "` within `" + name + "`.");
+        std::ostringstream oss;
+        oss << "Inconsistent change of pointer argument`" << args_names[argID]
+            << "` within `" << get_name() << "`.";
+        screen::raise_error(oss.str());
     }
+
+protected:
+    //===== Initial non default arguments =====//
+    void assign_args(sdargs new_args_val);
+    void assign_args(sdargs_ptr new_args_ptr);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,8 +230,8 @@ public:
 class Uniform_Distribution : public Base_Distribution
 {
 public:
-    Uniform_Distribution(sdargs new_args = {{"min", (double)0.0}, {"max", (double)1.0}}) : Base_Distribution(new_args, {"min", "max"}) { set_name("uniform"); }
-    Uniform_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"min", "max"}) { set_name("uniform"); }
+    Uniform_Distribution(sdargs new_args = {}) : Base_Distribution("uniform", {{"min", (double)0.0}, {"max", (double)1.0}}, {"min", "max"}) { assign_args(new_args); }
+    Uniform_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("uniform", new_args_ptr, {"min", "max"}) {}
     ~Uniform_Distribution() {}
 
     double pdf(double x) override;
@@ -232,8 +247,8 @@ public:
 class Normal_Distribution : public Base_Distribution
 {
 public:
-    Normal_Distribution(sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Base_Distribution(new_args, {"mean", "sd"}) { set_name("normal"); }
-    Normal_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"mean", "sd"}) { set_name("normal"); }
+    Normal_Distribution(sdargs new_args = {}) : Base_Distribution("normal", {{"mean", (double)0.0}, {"sd", (double)1.0}}, {"mean", "sd"}) { assign_args(new_args); }
+    Normal_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("normal", new_args_ptr, {"mean", "sd"}) {}
     ~Normal_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -242,17 +257,17 @@ public:
     virtual double rand(sys_rnd_gen &rng) override;
 };
 
-class Normal_Distribution_Discrete : public Normal_Distribution
+class Discrete_Normal_Distribution : public Base_Distribution
 {
 public:
-    Normal_Distribution_Discrete(sdargs new_args = {{"mean", (double)0.0}, {"sd", (double)1.0}}) : Normal_Distribution(new_args) { set_name("normal_disc"); }
-    Normal_Distribution_Discrete(sdargs_ptr new_args_ptr) : Normal_Distribution(new_args_ptr) { set_name("normal_disc"); }
-    ~Normal_Distribution_Discrete() {};
+    Discrete_Normal_Distribution(sdargs new_args = {}) : Base_Distribution("normal_discr", {{"mean", (double)0.0}, {"sd", (double)1.0}}, {"mean", "sd"}) { assign_args(new_args); }
+    Discrete_Normal_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("normal_discr", new_args_ptr, {"mean", "sd"}) {}
+    ~Discrete_Normal_Distribution() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(sys_rnd_gen &rng) override { return round(Normal_Distribution::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -262,8 +277,8 @@ public:
 class Lognorm_Distribution : public Base_Distribution
 {
 public:
-    Lognorm_Distribution(sdargs new_args = {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}) : Base_Distribution(new_args, {"meanlog", "sdlog"}) { set_name("lognorm"); }
-    Lognorm_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"meanlog", "sdlog"}) { set_name("lognorm"); }
+    Lognorm_Distribution(sdargs new_args = {}) : Base_Distribution("lognorm", {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}, {"meanlog", "sdlog"}) { assign_args(new_args); }
+    Lognorm_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("lognorm", new_args_ptr, {"meanlog", "sdlog"}) {}
     ~Lognorm_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -272,17 +287,17 @@ public:
     virtual double rand(sys_rnd_gen &rng) override;
 };
 
-class Lognorm_Distribution_Discrete : public Lognorm_Distribution
+class Discrete_Lognorm_Distribution : public Base_Distribution
 {
 public:
-    Lognorm_Distribution_Discrete(sdargs new_args = {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}) : Lognorm_Distribution(new_args) { set_name("lognorm_disc"); }
-    Lognorm_Distribution_Discrete(sdargs_ptr new_args_ptr) : Lognorm_Distribution(new_args_ptr) { set_name("lognorm_disc"); }
-    ~Lognorm_Distribution_Discrete() {};
+    Discrete_Lognorm_Distribution(sdargs new_args = {}) : Base_Distribution("lognorm_discr", {{"meanlog", (double)0.0}, {"sdlog", (double)1.0}}, {"meanlog", "sdlog"}) { assign_args(new_args); }
+    Discrete_Lognorm_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("lognorm_discr", new_args_ptr, {"meanlog", "sdlog"}) {}
+    ~Discrete_Lognorm_Distribution() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(sys_rnd_gen &rng) override { return round(Lognorm_Distribution::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -292,8 +307,8 @@ public:
 class Gamma_Distribution : public Base_Distribution
 {
 public:
-    Gamma_Distribution(sdargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Base_Distribution(new_args, {"shape", "scale"}) { set_name("gamma"); }
-    Gamma_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"shape", "scale"}) { set_name("gamma"); }
+    Gamma_Distribution(sdargs new_args = {}) : Base_Distribution("gamma", {{"shape", (double)1.0}, {"scale", (double)1.0}}, {"shape", "scale"}) { assign_args(new_args); }
+    Gamma_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("gamma", new_args_ptr, {"shape", "scale"}) {}
     ~Gamma_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -311,8 +326,8 @@ public:
 class Weibull_Distribution : public Base_Distribution
 {
 public:
-    Weibull_Distribution(sdargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Base_Distribution(new_args, {"shape", "scale"}) { set_name("weibull"); }
-    Weibull_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"shape", "scale"}) { set_name("weibull"); }
+    Weibull_Distribution(sdargs new_args = {}) : Base_Distribution("weibull", {{"shape", (double)1.0}, {"scale", (double)1.0}}, {"shape", "scale"}) { assign_args(new_args); }
+    Weibull_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("weibull", new_args_ptr, {"shape", "scale"}) {}
     ~Weibull_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -321,17 +336,17 @@ public:
     virtual double rand(sys_rnd_gen &rng) override;
 };
 
-class Weibull_Distribution_Discrete : public Weibull_Distribution
+class Discrete_Weibull_Distribution : public Base_Distribution
 {
 public:
-    Weibull_Distribution_Discrete(sdargs new_args = {{"shape", (double)1.0}, {"scale", (double)1.0}}) : Weibull_Distribution(new_args) { set_name("weibull_disc"); }
-    Weibull_Distribution_Discrete(sdargs_ptr new_args_ptr) : Weibull_Distribution(new_args_ptr) { set_name("weibull_disc"); }
-    ~Weibull_Distribution_Discrete() {};
+    Discrete_Weibull_Distribution(sdargs new_args = {}) : Base_Distribution("weibull_discr", {{"shape", (double)1.0}, {"scale", (double)1.0}}, {"shape", "scale"}) { assign_args(new_args); }
+    Discrete_Weibull_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("weibull_discr", new_args_ptr, {"shape", "scale"}) {}
+    ~Discrete_Weibull_Distribution() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(sys_rnd_gen &rng) override { return round(Weibull_Distribution::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -341,8 +356,8 @@ public:
 class Rayleigh_Distribution : public Base_Distribution
 {
 public:
-    Rayleigh_Distribution(sdargs new_args = {{"scale", (double)1.0}}) : Base_Distribution(new_args, {"scale"}) { set_name("rayleigh"); }
-    Rayleigh_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"scale"}) { set_name("rayleigh"); }
+    Rayleigh_Distribution(sdargs new_args = {}) : Base_Distribution("rayleigh", {{"scale", (double)1.0}}, {"scale"}) { assign_args(new_args); }
+    Rayleigh_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("rayleigh", new_args_ptr, {"scale"}) {}
     ~Rayleigh_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -351,17 +366,17 @@ public:
     virtual double rand(sys_rnd_gen &rng) override;
 };
 
-class Rayleigh_Distribution_Discrete : public Rayleigh_Distribution
+class Discrete_Rayleigh_Distribution : public Base_Distribution
 {
 public:
-    Rayleigh_Distribution_Discrete(sdargs new_args = {{"scale", (double)1.0}}) : Rayleigh_Distribution(new_args) { set_name("rayleigh_disc"); }
-    Rayleigh_Distribution_Discrete(sdargs_ptr new_args_ptr) : Rayleigh_Distribution(new_args_ptr) { set_name("rayleigh_disc"); }
-    ~Rayleigh_Distribution_Discrete() {};
+    Discrete_Rayleigh_Distribution(sdargs new_args = {}) : Base_Distribution("rayleigh_discr", {{"scale", (double)1.0}}, {"scale"}) { assign_args(new_args); }
+    Discrete_Rayleigh_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("rayleigh_discr", new_args_ptr, {"scale"}) {}
+    ~Discrete_Rayleigh_Distribution() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override { return log(pdf(x)); }
     double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
-    double rand(sys_rnd_gen &rng) override { return round(Rayleigh_Distribution::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,8 +386,8 @@ public:
 class Exponential_Distribution : public Base_Distribution
 {
 public:
-    Exponential_Distribution(sdargs new_args = {{"rate", (double)1.0}}) : Base_Distribution(new_args, {"rate"}) { set_name("exp"); }
-    Exponential_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution(new_args_ptr, {"rate"}) { set_name("exp"); }
+    Exponential_Distribution(sdargs new_args = {}) : Base_Distribution("exp", {{"rate", (double)1.0}}, {"rate"}) { assign_args(new_args); }
+    Exponential_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("exp", new_args_ptr, {"rate"}) {}
     ~Exponential_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -381,17 +396,17 @@ public:
     virtual double rand(sys_rnd_gen &rng) override;
 };
 
-class Exponential_Distribution_Discrete : public Exponential_Distribution
+class Discrete_Exponential_Distribution : public Base_Distribution
 {
 public:
-    Exponential_Distribution_Discrete(sdargs new_args = {{"rate", (double)1.0}}) : Exponential_Distribution(new_args) { set_name("exp_disc"); }
-    Exponential_Distribution_Discrete(sdargs_ptr new_args_ptr) : Exponential_Distribution(new_args_ptr) { set_name("exp_disc"); }
-    ~Exponential_Distribution_Discrete() {};
+    Discrete_Exponential_Distribution(sdargs new_args = {}) : Base_Distribution("exp_discr", {{"rate", (double)1.0}}, {"rate"}) { assign_args(new_args); }
+    Discrete_Exponential_Distribution(sdargs_ptr new_args_ptr) : Base_Distribution("exp_discr", new_args_ptr, {"rate"}) {}
+    ~Discrete_Exponential_Distribution() {};
 
     double pdf(double x) override;
     double log_pdf(double x) override;
     double logratio(double x, double y) override;
-    double rand(sys_rnd_gen &rng) override { return round(Exponential_Distribution::rand(rng)); }
+    double rand(sys_rnd_gen &rng) override;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -406,8 +421,8 @@ public:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return the chosen distribution. */
-template <typename sdargs_int_or_ptr>
-Base_Distribution *distribution(const std::string name = UNDEFINED, sdargs_int_or_ptr args = {})
+template <typename sdargs_val_or_ptr>
+Base_Distribution *distribution(const std::string name = UNDEFINED, sdargs_val_or_ptr args = {})
 {
     Base_Distribution *output = new Base_Distribution();
 
@@ -419,17 +434,17 @@ Base_Distribution *distribution(const std::string name = UNDEFINED, sdargs_int_o
     {
         output = new Normal_Distribution(args);
     }
-    else if (name == "normal_disc")
+    else if (name == "normal_discr")
     {
-        output = new Normal_Distribution_Discrete(args);
+        output = new Discrete_Normal_Distribution(args);
     }
     else if (name == "lognorm")
     {
         output = new Lognorm_Distribution(args);
     }
-    else if (name == "lognorm_disc")
+    else if (name == "lognorm_discr")
     {
-        output = new Lognorm_Distribution_Discrete(args);
+        output = new Discrete_Lognorm_Distribution(args);
     }
     else if (name == "gamma")
     {
@@ -439,25 +454,25 @@ Base_Distribution *distribution(const std::string name = UNDEFINED, sdargs_int_o
     {
         output = new Weibull_Distribution(args);
     }
-    else if (name == "weibull_disc")
+    else if (name == "weibull_discr")
     {
-        output = new Weibull_Distribution_Discrete(args);
+        output = new Discrete_Weibull_Distribution(args);
     }
     else if (name == "rayleigh")
     {
         output = new Rayleigh_Distribution(args);
     }
-    else if (name == "rayleigh_disc")
+    else if (name == "rayleigh_discr")
     {
-        output = new Rayleigh_Distribution_Discrete(args);
+        output = new Discrete_Rayleigh_Distribution(args);
     }
     else if (name == "exp")
     {
         output = new Exponential_Distribution(args);
     }
-    else if (name == "exp_disc")
+    else if (name == "exp_discr")
     {
-        output = new Exponential_Distribution_Discrete(args);
+        output = new Discrete_Exponential_Distribution(args);
     }
     else if (!screen::is_na(name))
     {

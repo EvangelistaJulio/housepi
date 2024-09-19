@@ -242,7 +242,7 @@ public:
 ///////////////////////////////////  Base_Variable : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <typename sdargs_int_or_ptr>
+template <typename sdargs_val_or_ptr>
 class Base_Variable
 {
 protected:
@@ -253,7 +253,7 @@ protected:
 
 public:
 	//=====Constructor=====//
-	Base_Variable(double value, std::string distr_name = UNDEFINED, sdargs_int_or_ptr distr_args = {},
+	Base_Variable(double value, std::string distr_name = UNDEFINED, sdargs_val_or_ptr distr_args = {},
 				  const std::string &rule_name = UNDEFINED, sdargs rule_args = {}, sdargs range = {}, double rule_from = INF_DOUBLE)
 	{
 		// assing value

@@ -378,12 +378,18 @@ AugmentedFrame <- setRefClass(
             tmp <- str_split_(range[names(range) == "min"])
             min_ <- tmp[["values"]]
             mintype_ <- tmp[["types"]]
+          } else {
+            min_ <- NA
+            mintype_ <- NA 
           }
           
           if("max" %in% names(range)) {
             aux <- str_split_(range[names(range) == "max"])
             max_ <- tmp[["values"]]
             maxtype_ <- tmp[["types"]]
+          } else {
+            max_ <- NA
+            maxtype_ <- NA 
           }
         }
         

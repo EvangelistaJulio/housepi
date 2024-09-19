@@ -1,4 +1,4 @@
-day_exposure_min,day_exposure_max,day_onset_min,day_onset_max
+exposure_min,exposure_max,onset_min,onset_max
 0,1,1,1
 0,1,3,3
 0,1,3,3
