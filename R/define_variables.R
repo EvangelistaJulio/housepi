@@ -1,9 +1,4 @@
 
-
-
-
-
-
 # Define a custom get function (like in Python dictionaries)
 get_val_ <- function(lst, key, default = NA) {
   return(if (key %in% names(lst))

@@ -80,14 +80,12 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 
 /* The person-to-person escape probabilities stored inside a matrix.
 	Important: it must be re-ordered to have seropositives first. */
-void Model::fill_house_escape_matrix(int h,
-									 std::vector<double> &commu_esc_proba,
-									 std::vector<std::vector<double>> &p2p_esc_proba)
+void Model::fill_house_escape_matrix(int h, vector<double> &commu_esc_proba, squarematrix &p2p_esc_proba)
 {
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
 	int hh_size = househ[h].house_size;
-	std::vector<double> susc_rate(hh_size, 1.);
-	std::vector<double> infec_rate(hh_size, 1.);
+	vector<double> susc_rate(hh_size, 1.);
+	vector<double> infec_rate(hh_size, 1.);
 	int count = 0;
 
 	// 1) ordered members group rates : infectious
@@ -166,8 +164,8 @@ double Model::compute_house_loglike(int h)
 	int num_infec = househ[h].num_infectious;
 
 	//=====Escape Matrix=====//
-	std::vector<double> commu_esc_proba(hh_size, 1.);
-	std::vector<std::vector<double>> p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
+	vector<double> commu_esc_proba(hh_size, 1.);
+	vector<vector<double>> p2p_esc_proba(hh_size, vector<double>(hh_size, 1.));
 	fill_house_escape_matrix(h, commu_esc_proba, p2p_esc_proba);
 
 	//=====compute the loglikelihood=====//
@@ -193,8 +191,8 @@ void Model::simulate_single_house(int h)
 	//=========================//
 
 	int hh_size = househ[h].house_size;
-	std::vector<double> commu_esc_proba(hh_size, 1.);
-	std::vector<std::vector<double>> p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
+	vector<double> commu_esc_proba(hh_size, 1.);
+	vector<vector<double>> p2p_esc_proba(hh_size, vector<double>(hh_size, 1.));
 
 	fill_house_escape_matrix(h, commu_esc_proba, p2p_esc_proba);
 

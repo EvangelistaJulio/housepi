@@ -12,22 +12,8 @@
 #ifndef MODEL__H
 #define MODEL__H
 
-#include <string>
-#include <vector>
-#include <iostream>
-
 #include "profiles.h"
 #include "mcmc.h"
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-// alias for a square matrix
-typedef std::vector<std::vector<double>> squarematrix;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -48,8 +34,8 @@ public:
   Infec_Prof_Skew_Logistic *infec_prof_func_ptr;
   
   //----- Attributes for Look-Up-Tables -----//
-  std::vector<squarematrix> LUT_inst_profile = {};
-  std::vector<squarematrix> LUT_cumul_profile = {};
+  vector<squarematrix> LUT_inst_profile = {};
+  vector<squarematrix> LUT_cumul_profile = {};
   
 	//===== Override General Methods =====//
 	void common_init_model();
@@ -71,7 +57,7 @@ public:
 	//===== Model dependent methods =====//
 	double compute_infec_prof_inst(int h, int i, double t_transm);
 	double compute_infec_prof_cumul(int h, int i, double t_transm);
-	double hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles);
+	double hazards_of_infec(int h, int i, vector<squarematrix> &profiles);
 };
 
 #endif // MODEL__H

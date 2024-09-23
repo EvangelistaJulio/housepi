@@ -101,7 +101,7 @@ void Model::common_init_model()
 {
 	//===== Initialize Lookup Tables (infectivity profiles) =====//
 
-	orderargs_ptr args = {{"alpha", get_param_pointer("tost_alpha")},
+	dictargs_ptr args = {{"alpha", get_param_pointer("tost_alpha")},
 					   {"mu", get_param_pointer("tost_mu")},
 					   {"sigma", get_param_pointer("tost_sigma")},
 					   {"tau", get_param_pointer("tost_tau")}};
@@ -119,8 +119,8 @@ void Model::common_init_model()
 		int h_size = househ[h].house_size;
 
 		// produce the empty matrix for the infectivity profiles look-up-tables
-		LUT_inst_profile.emplace_back(h_size, std::vector<double>(h_size, 0.));
-		LUT_cumul_profile.emplace_back(h_size, std::vector<double>(h_size, 0.));
+		LUT_inst_profile.emplace_back(h_size, vector<double>(h_size, 0.));
+		LUT_cumul_profile.emplace_back(h_size, vector<double>(h_size, 0.));
 	}
 
 	// assign study period (in days) to the households
@@ -224,7 +224,7 @@ void Model::augm_store_dependecies(int h, int i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles)
+double Model::hazards_of_infec(int h, int i, vector<squarematrix> &profiles)
 {
 	double output = 0.0;
 
@@ -259,7 +259,7 @@ double Model::compute_house_loglike(int h)
 	for (int i : househ[h].infectious_set)
 	{
 		// Contribution of model associated to augmented variables
-		for (std::string augmID : augm_with_model_set)
+		for (string augmID : augm_with_model_set)
 		{
 			loglike_house += househ[h].indiv[i].augm_model_log_pdf(augmID);
 		}

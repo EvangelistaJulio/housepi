@@ -25,9 +25,7 @@ class Model : public MCMC
 	void assign_rate_per_contact_to_household(int h, int i, int k) override;
 
 	//===== Model dependent methods =====//
-	void fill_house_escape_matrix(int h,
-								  std::vector<double> &commu_esc_proba,
-								  std::vector<std::vector<double>> &p2p_esc_proba);
+	void fill_house_escape_matrix(int h, vector<double> &commu_esc_proba, squarematrix &p2p_esc_proba);
 };
 
 #endif // MODEL__H

@@ -19,6 +19,8 @@ get_usr_tmp_file <- function(hemi, name) {
   return(output)
 }
 
+
+
 # Create temporary csv file if input is a table (wrapper).
 # FIXME : this should be improved allowing dataframe I/O within Rcpp
 cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {

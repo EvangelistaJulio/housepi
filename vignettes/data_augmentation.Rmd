@@ -31,10 +31,10 @@ We generate the model as showed in the [walkthrough](walkthrough.html):
 
 ```{r}
 # generate the model
-hemi1 <- housepi::generate_model("example_augm_delay_incubation")
+hemi_1 <- housepi::generate_model("example_augm_delay_incubation")
 
 # gamma distribution parameter definitions
-params <- housepi::ParameterFrame(list(
+par_1 <- housepi::ParameterFrame(list(
   shape = list(x = 1, 
                prior = "uniform", args = list(min = 0, max = 5),
                rule = "normal", rule_args = list(sd = 1)),
@@ -44,12 +44,13 @@ params <- housepi::ParameterFrame(list(
   ))
 
 # general setup
-setup <- list(num_iter = 20000, num_adapt = 2500, burn_in = 5000,
-              thinning = 25, seed = 4815162342, num_chains = 4)
+setup_1 <- list(num_iter = 100000, num_adapt = 2500, burn_in = 5000,
+              thinning = 10, seed = 4815162342, num_chains = 1)
 
 # associate data, parameters and setup
-housepi::build_model(hemi1, data = delays, params = params$df, setup = setup)
+housepi::build_model(hemi_1, data = delays, params = par_1$df, setup = setup_1)
 ```
+
 
 The warning is telling us that the database has been interpreted as composed of single individuals, i .e. living in separate households.
 
@@ -58,7 +59,7 @@ The warning is telling us that the database has been interpreted as composed of 
 Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo. However, augmented variable definitions are more delicate, since they can depend on data or parameters. We state which value should be imported from data formatting it as a string "<value-name>`@D`". Here we associate to each individual an exposure and an onset time.
 
 ```{r}
-augm <- housepi::AugmentedFrame(list(
+augm_1 <- housepi::AugmentedFrame(list(
   # define 'exposure' time
   exposure = list(
     x = "exposure_min@D", # start from exposure_min (data)
@@ -66,9 +67,7 @@ augm <- housepi::AugmentedFrame(list(
     args = list(min = "exposure_min@D",  # 'exposure_min' (data)
                 max = "exposure_max@D"), # 'exposure_max' (data)
     rule = "normal",      # rule for Metropolis move is normal
-    rule_args = list(sd = "rule_sd@P"),  # std. dev. of normal rule (parameters)
-    range = list(min = "exposure_min@D",  # 'exposure_min' (data)
-                max = "exposure_max@D")
+    rule_args = list(sd = 0.25)  # std. dev. of normal rule 
   ),
   
   # define 'onset' time
@@ -78,25 +77,24 @@ augm <- housepi::AugmentedFrame(list(
     args = list(min = "onset_min@D", 
                 max = "onset_max@D"),
     rule = "normal",
-    rule_args = list(sd = "rule_sd@P"),
-    range = list(min = "onset_min@D", max = "onset_max@D")
+    rule_args = list(sd = 0.25)
   )
 ))
 
-# add the constant parameter 'rule_sd'
-params$add(name="rule_sd", x = 0.25)
-
 # associate augmented variable definitions
-housepi::build_model(hemi1, params = params$df, augm = augm$df)
+housepi::build_model(hemi_1, augm = augm_1$df)
 ```
 
 We run the inference and we extract the results
 
 ```{r}
-mcmc_trace <- housepi::run_inference(hemi1)
-plot(mcmc_trace, col="#0E86D4")
-results <- summary(mcmc_trace)
+mcmc_trace_1 <- housepi::run_inference(hemi_1)
+coda::traceplot(mcmc_trace_1[1], col="#0E86D4")
+results_1 <- summary(mcmc_trace_1)
 ```
+
+
+results$statistics["shape", "Mean"]
 
 ## Augment Onset Times
 

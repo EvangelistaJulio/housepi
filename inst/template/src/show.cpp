@@ -434,8 +434,8 @@ Rcpp::DataFrame MCMC::export_params()
         V_rargs.push_back(stoRString(show_param_prop_arg_names(parID)));
         V_rargsval.push_back(stoRString(show_param_prop_arg_values(parID)));
 
-        V_min.push_back(std::isnan(get_param_prop_range_min(parID)) ? NA_REAL : get_param_prop_range_min(parID));
-        V_max.push_back(std::isnan(get_param_prop_range_max(parID)) ? NA_REAL : get_param_prop_range_max(parID));
+        V_min.push_back(std::isnan(get_param_range_min(parID)) ? NA_REAL : get_param_range_min(parID));
+        V_max.push_back(std::isnan(get_param_range_max(parID)) ? NA_REAL : get_param_range_max(parID));
     }
 
     return DataFrame::create(_["name"] = V_names, _["value"] = V_value, _["infer"] = V_infer,

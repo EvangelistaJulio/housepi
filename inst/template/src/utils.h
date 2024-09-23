@@ -54,6 +54,7 @@ typedef unsigned short int ushort;
 typedef unsigned long int ulong;
 typedef std::unordered_map<string, double> dictargs;
 typedef std::unordered_map<string, const double *> dictargs_ptr;
+typedef vector<vector<double>> squarematrix;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
