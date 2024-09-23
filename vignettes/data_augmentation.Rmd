@@ -7,63 +7,58 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-This tutorial introduces to data augmentation with the package `housepi`. We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference. We start by loading the package:
+This tutorial introduces to data augmentation with the package `housepi`. We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference. 
 
-```{r}
-library(housepi)
-```
-
-## Estimate incubation periods distribution
+## Estimate Incubation Periods Distribution
 
 For simplicity, we start testing data augmentation on a database which is not a household survey. Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
+Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges. 
+We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
+
 ```{r}
 delays <- read.csv("data/delays.csv")
+delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-5
+delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-5
+delays[["status"]] <- 1
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(head(read.csv("data/delays.csv")))
-```
-
-Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges. To take into account right censoring, we modify the maximum values to allow times to be within the day
-
-```{r}
-delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-5
-delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-5
+knitr::kable(head(delays))
 ```
 
 We generate the model as showed in the [walkthrough](walkthrough.html):
 
 ```{r}
 # generate the model
-hemi1 <- generate_model("example_augm_delay_incubation")
+hemi1 <- housepi::generate_model("example_augm_delay_incubation")
 
-# parameter definitions
-params <- ParameterFrame$new(list(
+# gamma distribution parameter definitions
+params <- housepi::ParameterFrame(list(
   shape = list(x = 1, 
                prior = "uniform", args = list(min = 0, max = 5),
-               rule = "lognorm", rule_args = list(sdlog = 1)),
+               rule = "normal", rule_args = list(sd = 1)),
   scale = list(x = 1,
                prior = "uniform", args = list(min = 0, max = 5),
-               rule = "lognorm", rule_args = list(sdlog = 1))
-  ))$df
+               rule = "normal", rule_args = list(sd = 1))
+  ))
 
 # general setup
-setup <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
-              thinning = 25, seed = 576125013)
+setup <- list(num_iter = 20000, num_adapt = 2500, burn_in = 5000,
+              thinning = 25, seed = 4815162342, num_chains = 4)
 
 # associate data, parameters and setup
-build_model(hemi1, data = delays, params = params, setup = setup)
+housepi::build_model(hemi1, data = delays, params = params$df, setup = setup)
 ```
 
-The code considers the database as a community of individuals living in households of size 1.
+The warning is telling us that the database has been interpreted as composed of single individuals, i .e. living in separate households.
 
 ### Build Augmented Variables
 
 Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo. However, augmented variable definitions are more delicate, since they can depend on data or parameters. We state which value should be imported from data formatting it as a string "<value-name>`@D`". Here we associate to each individual an exposure and an onset time.
 
 ```{r}
-augm <- AugmentedFrame(list(
+augm <- housepi::AugmentedFrame(list(
   # define 'exposure' time
   exposure = list(
     x = "exposure_min@D", # start from exposure_min (data)
@@ -71,43 +66,50 @@ augm <- AugmentedFrame(list(
     args = list(min = "exposure_min@D",  # 'exposure_min' (data)
                 max = "exposure_max@D"), # 'exposure_max' (data)
     rule = "normal",      # rule for Metropolis move is normal
-    rule_args = list(sd = 0.125)         # std. dev. of normal rule
+    rule_args = list(sd = "rule_sd@P"),  # std. dev. of normal rule (parameters)
+    range = list(min = "exposure_min@D",  # 'exposure_min' (data)
+                max = "exposure_max@D")
   ),
   
   # define 'onset' time
   onset = list(
     x = "onset_max@D",    # start from onset_max (data)
     model = "uniform",    # ...
-    args = list(min = "onset_min@D", max = "onset_max@D"),
+    args = list(min = "onset_min@D", 
+                max = "onset_max@D"),
     rule = "normal",
-    rule_args = list(sd = "rule_sd@P")   # 'rule_sd' (parameters)
+    rule_args = list(sd = "rule_sd@P"),
+    range = list(min = "onset_min@D", max = "onset_max@D")
   )
-))$df
+))
+
+# add the constant parameter 'rule_sd'
+params$add(name="rule_sd", x = 0.25)
 
 # associate augmented variable definitions
-build_model(hemi1, augm = augm)
+housepi::build_model(hemi1, params = params$df, augm = augm$df)
 ```
 
 We run the inference and we extract the results
 
 ```{r}
-mcmc_trace <- run_inference(hemi1)
-coda::traceplot(mcmc_trace)
+mcmc_trace <- housepi::run_inference(hemi1)
+plot(mcmc_trace, col="#0E86D4")
 results <- summary(mcmc_trace)
 ```
 
-## Augment onset times
+## Augment Onset Times
 
-We use the default model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
+We use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
 
 ```{r}
-hemi2 <- generate_model("augm_onset_single_intr")
+hemi2 <- housepi::generate_model("augm_onset_single_intr")
 
 setup <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
               thinning = 25, seed = 576125013)
 
-build_model(hemi2, data = "data/survey.csv", 
-            params = "data/params.csv", setup = setup)
+housepi::build_model(hemi2, data = "data/survey.csv", 
+                     params = "data/params.csv", setup = setup)
 
 # store the choice of the parameters to be used in the simulation
 params <- hemi2$params()
@@ -122,20 +124,26 @@ knitr::kable(head(read.csv("data/params.csv")))
 We propose the following augmented variable definitions
 
 ```{r}
-augm <- AugmentedFrame$new()
+augm <- housepi::AugmentedFrame()
 
-augm$add(name = "onset_date", x = 1,
+augm$add(name = "onset_date", 
+         x = 0,
          rule = "normal", rule_args = list(sd = 0.25),
-         range = list(min = -7), init_rand = FALSE)
+         range = list(min = -7))
 
-augm$add(name = "incub_period", model = "gamma",
-         args = list(shape = "inc_shape@P", scale = "inc_scale@P"),
-         rule = "model", range = list(max = "inc_max@P"))
+augm$add(name = "incub_period", 
+         x = 0,
+         model = "gamma",
+         args = list(shape = "incub_shape@P", 
+                     scale = "inc_scale@P"),
+         rule = "model", 
+         range = list(min = 0, max = 14), 
+         init_rand = TRUE)
 
-build_model(hemi2, augm = augm$df)
+housepi::build_model(hemi2, augm = augm$df)
 ```
 
-## Simulate an Augmented Model
+## Simulate an Outbreak
 
 We run a simulation with the method `simulate`.
 
@@ -154,7 +162,7 @@ We can see that in addition to the status, the simulation also associates the va
 As a sanity check, we can verify that inference returns the parameters used for the simulation.
 
 ```{r}
-mcmc_trace <- run_inference(hemi2)
+mcmc_trace <- housepi::run_inference(hemi2)
 coda::traceplot(mcmc_trace)
 results <- summary(mcmc_trace)
 
@@ -166,4 +174,4 @@ data.frame(Expec = params[params["infer"] == TRUE, "value"],
            Q97.5 = results[["quantiles"]][inames, "97.5%"])
 ```
 
-Remember that templated models do simulate the sampling process.
+Remember that templated models do not simulate the sampling process.

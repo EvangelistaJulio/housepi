@@ -230,6 +230,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Raise a warning if it wasn't raised before. */
+    // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
     void raise_warning(const std::string &txt, bool &is_raised_once)
     {
         if (is_raised_once == false)
@@ -251,6 +252,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display an error message. */
+    // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
     void raise_error(const std::string &txt)
     {
 #pragma omp critical

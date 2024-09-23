@@ -13,48 +13,27 @@ We introduce `housepi`, a toolkit for the study of epidemiological data from hou
 knitr::include_graphics("images/cover-light.png")
 ```
 
-We start by loading the package:
-
-```{r}
-library(housepi)
-```
-
 ## Model Generation
 
-We can use the function `generate_model` to initialize the model used for the inference. To use a default model, e. g. *chain_binom* for the chain binomial model, we can run the following:
+We initialize our model objects with the function `generate_model`. We show how it works with the template chain binomial model:
 
 ```{r}
 # generate a chain binomial model
-hemi <- generate_model("chain_binom")
+hemi <- housepi::generate_model("chain_binom")
 ```
 
-*Note:* this process can take a few minutes because it compiles the full template. We are looking for a clean way to move redundant compilations at the installation.
+*Note:* this process can take a few minutes because it compiles the full template.
 
-### Customize the Model from a Template
+To see the list of template model names run `housepi::template_model()`. To create a custom model refer to the vignette [custom_models](custom_models.html).
 
-Alternatively, to create a custom model we can start by copying a default models to a custom path with the function `template_model`:
-
-```{r, eval=FALSE}
-# e. g. copy the chain binomial template to a custom directory 
-template_model(which = "chain_binom", path = "path/to/model")
-```
-
-Modify all relevant parts of the C++ implementation *model.cpp* and of the header *model.h* within your model directory. *Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
-
-After changing the generation according to the custom directory, all commands remain the same.
-
-```{r, eval=FALSE}
-hemi <- generate_model("path/to/model")
-```
-
-## Building the Model
+## Build the Model
 
 Every model requires its parameter definitions and a database.
 
 1.  **parameters:** a DataFrame (or a csv file) with the parameters priors and proposer rules needed for the Bayesian Monte Carlo. Constants can be provided by putting the *infer* column to `FALSE`. To help formatting data frame with the respectful definitions, we provide a class `ParameterFrame` which can be used as follows:
 
 ```{r, echo=TRUE}
-params <- ParameterFrame$new(list(
+params <- housepi::ParameterFrame(list(
   alpha = list(x = 0.15, 
                prior = "uniform", args = list(min = 0, max = 5),
                rule = "lognorm", rule_args = list(sdlog = 5)),
@@ -74,7 +53,7 @@ We build our model with these information using the function `build_model`.
 
 ```{r}
 # associate database and parameters
-build_model(hemi, data = "data/survey.csv", params = params)
+housepi::build_model(hemi, data = "data/survey.csv", params = params)
 ```
 
 Additional definitions can be provided at any time by using the same function. E. g. we can pass the Monte Carlo general configurations with the argument:
@@ -84,13 +63,13 @@ Additional definitions can be provided at any time by using the same function. E
 ```{r}
 setup <- list(num_iter = 5000, num_adapt = 1000, burn_in = 500,
               thinning = 10, num_chains = 4, rnd_init_params = TRUE,
-              seed = 576125013, num_threads = 1)
+              seed = 576125013, num_threads = 4)
 
 # associate setup
-build_model(hemi, setup = setup)
+housepi::build_model(hemi, setup = setup)
 ```
 
-*Note:* openMP is unsupported on latest macOS distributions, thus the option `num_threads` is inactive on such systems at the moment.
+*Note:* openMP is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
 
 ## Simulation
 
@@ -121,7 +100,7 @@ hemi$evaluate()
 Now we can safely perform inference with the function `run_inference`.
 
 ```{r}
-mcmc_traces <- run_inference(hemi)
+mcmc_traces <- housepi::run_inference(hemi)
 ```
 
 This method returns a `coda` mcmc object (or mcmc.list) which can then be used to analyze the results as follows:

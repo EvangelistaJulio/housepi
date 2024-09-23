@@ -46,7 +46,7 @@ Base_Proposer::Base_Proposer(Base_Distribution *distr,
             std::ostringstream oss;
             oss << "Initial value " << rule_start << " and value range"
                 << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
-                << "\nIf it was intentional, ignore this message.";
+                << " If it was intentional, ignore this message.";
             raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
         }
         _is_start_from_zero_ = true;
@@ -211,7 +211,7 @@ void Parameter::update_diagnostics()
 }
 
 /* Message to be used at the moment of display diagnostics. */
-std::string Parameter::show_diagnostics()
+std::string Parameter::show_diagnostics() const
 {
     using namespace screen;
     std::ostringstream oss;
@@ -234,29 +234,29 @@ std::string Parameter::show_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to get a value. */
-double Monte_Carlo_Core::_get_param_default_(const std::string k) const
+double Monte_Carlo_Core::_get_param_default_(const std::string &parID) const
 {
-    return params.at(k).get_value();
+    return params.at(parID).get_value();
 }
 
 /* Safe method to get a value with previous assertion. */
-double Monte_Carlo_Core::_get_param_assert_(const std::string k) const
+double Monte_Carlo_Core::_get_param_assert_(const std::string &parID) const
 {
-    assert_param(k);
-    return _get_param_default_(k);
+    assert_param(parID);
+    return _get_param_default_(parID);
 }
 
 /* Default method to get a pointer to a parameter. */
-const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string k) const
+const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string &parID) const
 {
-    return params.at(k).get_pointer();
+    return params.at(parID).get_pointer();
 }
 
 /* Safe method to get a pointer to a parameter with previous assertion. */
-const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string k) const
+const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string &parID) const
 {
-    assert_param(k);
-    return _get_param_pointer_default_(k);
+    assert_param(parID);
+    return _get_param_pointer_default_(parID);
 }
 
 /* Disable parameter assertion. */
@@ -280,9 +280,9 @@ void Monte_Carlo_Core::drop_all_params()
 
 /* Assign a new parameter to the dictionary. */
 void Monte_Carlo_Core::assign_parameter(
-    const std::string parID, double new_val,
-    std::string prior_name, sdargs prior_args,
-    std::string rule_name, sdargs rule_args, sdargs range)
+    const std::string &parID, double new_val,
+    const std::string &prior_name, const sdargs &prior_args,
+    const std::string &rule_name, const sdargs &rule_args, const sdargs &range)
 {
     // check that lists have equal sizes
     if (prior_args.find(IO_MISMATCH) != prior_args.end())
@@ -302,7 +302,8 @@ void Monte_Carlo_Core::assign_parameter(
     else
     {
         // emplace the new parameter
-        Parameter new_param(new_val, prior_name, prior_args, rule_name, rule_args, range);
+        Parameter new_param(new_val, prior_name, prior_args,
+                            rule_name, rule_args, range);
         params.emplace(parID, new_param);
 
         // update the lists of parameters to be inferred, and these to be static
@@ -326,13 +327,12 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     }
 
 #ifdef _OPENMP
-    unsigned max_detected_threads = omp_get_max_threads();
-    if (n > max_detected_threads)
+    if (n > _max_num_available_threads)
     {
         std::ostringstream oss;
-        oss << "Number of threads (" << n << ") changed to number of available threads (" << max_detected_threads << ").";
+        oss << "Number of threads (" << n << ") changed to number of available threads (" << _max_num_available_threads << ").";
         raise_warning(oss.str(), Above_Max_Threads_Warning);
-        n = max_detected_threads;
+        n = _max_num_available_threads;
     }
 
     // declare the global number of omp threads
@@ -382,11 +382,11 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise raise error. */
-void Monte_Carlo_Core::assert_param(const std::string k) const
+void Monte_Carlo_Core::assert_param(const std::string &parID) const
 {
-    if (params.find(k) == params.end())
+    if (params.find(parID) == params.end())
     {
-        raise_error("Parameter `" + k + "` not found. Check your model and your parameter definitions.");
+        raise_error("Parameter `" + parID + "` not found. Check your model and your parameter definitions.");
     }
 }
 
@@ -420,7 +420,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-bool Monte_Carlo_Core::propose_valid_param_move(const std::string parID)
+bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
 {
     double new_value = params.at(parID).propose(prng); // propose new value
 
@@ -446,13 +446,13 @@ bool Monte_Carlo_Core::propose_valid_param_move(const std::string parID)
 }
 
 /* move is accepted */
-void Monte_Carlo_Core::accept_param_move(const std::string parID)
+void Monte_Carlo_Core::accept_param_move(const std::string &parID)
 {
     params.at(parID).update_accept_rate(true);
 }
 
 /* move is refused: restore old value in the buffer */
-void Monte_Carlo_Core::refuse_param_move(const std::string parID)
+void Monte_Carlo_Core::refuse_param_move(const std::string &parID)
 {
     set_value(parID, buffer_value);
     params.at(parID).update_accept_rate(false);
@@ -474,4 +474,20 @@ void Monte_Carlo_Core::update_param_diagnostics()
     {
         params.at(parID).update_diagnostics();
     }
+}
+
+/* Format parameter to show. */
+std::string Monte_Carlo_Core::show_param(const std::string &parID) const
+{
+    std::ostringstream oss;
+    oss << parID << screen::C_DELIM << params.at(parID).show();
+    return oss.str();
+}
+
+/* Format parameter diagnostics to show. */
+std::string Monte_Carlo_Core::show_param_diagnostics(const std::string &parID) const
+{
+    std::ostringstream oss;
+    oss << parID << screen::C_DELIM << params.at(parID).show_diagnostics();
+    return oss.str();
 }

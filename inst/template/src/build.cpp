@@ -126,7 +126,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
                 if (!is_missing)
                 {
                     // point to the faulty file
-                    oss << "Check file: " << pathtofile << "\nMissing column(s): `" + req + "`";
+                    oss << "Missing column(s): `" + req + "`";
                     is_missing = true;
                 }
                 else
@@ -139,7 +139,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
         // raise the error if something was missing
         if (is_missing)
         {
-            raise_error(oss.str() + ".");
+            raise_error(oss.str() + ". Check file " + pathtofile);
         }
     }
 
@@ -218,13 +218,13 @@ void MCMC::build_setup(const std::string &pathtofile, bool verbose)
                 //===== NAME =====//
                 if (!getline(iss, name, C_DELIM))
                 {
-                    raise_error("Unable to extract setup entry.\nCheck file line: " + line);
+                    raise_error("Unable to extract setup entry. Check file line: " + line);
                 }
 
                 //===== CHOICE =====//
                 if (!getline(iss, choice))
                 {
-                    raise_error("Unable to extract setup choice.\nCheck file line: " + line);
+                    raise_error("Unable to extract setup choice. Check file line: " + line);
                 }
 
                 // add the new setup
@@ -447,7 +447,7 @@ void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
         // error if nothing was previously defined
         if (param_to_be_static.empty() && param_to_be_inferred.empty())
         {
-            raise_error("Undefined file for parameter definitions.");
+            raise_error("Undefined parameter definitions.");
         }
     }
     else
@@ -477,7 +477,6 @@ void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
                     {
                         range.emplace("min", std::stod(this_row["min"]));
                     }
-
                     if (!is_na(this_row["max"]))
                     {
                         range.emplace("max", std::stod(this_row["max"]));
@@ -612,7 +611,7 @@ void MCMC::build_data(const std::string &pathtofile, bool verbose)
         // error if nothing was previously defined
         if (househ.empty())
         {
-            raise_error("Undefined file for database.");
+            raise_error("Undefined database.");
         }
     }
     else
@@ -635,7 +634,7 @@ void MCMC::build_data(const std::string &pathtofile, bool verbose)
             {
                 std::ostringstream oss;
                 oss << "Impossible to associate a household structure: missing data column `house_index`."
-                    << "\nIf it was intentional, ignore this message.";
+                    << " If it was intentional, ignore this message.";
                 raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
             }
 
@@ -667,7 +666,7 @@ void MCMC::build_data(const std::string &pathtofile, bool verbose)
 
                     std::ostringstream oss;
                     oss << "Status `" << this_indiv.get_status() << "` of individual `" << this_indiv.get_index() << "` interpreted as missing."
-                        << "\nUse " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
+                        << " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
                         << " Use " << MISSING_STATUS << " for missing status.";
                     raise_warning(oss.str(), Unknown_Status_Warning);
                 }
@@ -1113,7 +1112,7 @@ void MCMC::assign_augmented_variables()
         {
             std::ostringstream oss;
             oss << "Ambigous definitions for augmented variable `" << augmID << "`."
-                << " Correct your augmented variable file.";
+                << " Check your augmented variable file.";
             raise_error(oss.str());
         }
 

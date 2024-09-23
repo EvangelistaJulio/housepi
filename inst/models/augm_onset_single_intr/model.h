@@ -43,6 +43,14 @@ typedef std::vector<std::vector<double>> squarematrix;
 class Model : public MCMC
 {
 public:
+  //===== Global Variables =====//
+  //----- Infectivity Profile Functions -----//
+  Infec_Prof_Skew_Logistic *infec_prof_func_ptr;
+  
+  //----- Attributes for Look-Up-Tables -----//
+  std::vector<squarematrix> LUT_inst_profile = {};
+  std::vector<squarematrix> LUT_cumul_profile = {};
+  
 	//===== Override General Methods =====//
 	void common_init_model();
 	void init_model_for_inference() override { common_init_model(); };

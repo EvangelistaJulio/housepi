@@ -40,7 +40,6 @@ class Infec_Prof_Skew_Logistic : public Base_Function
 {
 public:
 	// Constructors
-	Infec_Prof_Skew_Logistic() {};
 	Infec_Prof_Skew_Logistic(sdargs new_arg = {}) : Base_Function("skew_logistic", new_arg, {"alpha", "mu", "sigma", "tau"}) { }
 	Infec_Prof_Skew_Logistic(sdargs_ptr new_args_ptr) : Base_Function("skew_logistic", new_args_ptr, {"alpha", "mu", "sigma", "tau"}) {}
 	~Infec_Prof_Skew_Logistic() {};

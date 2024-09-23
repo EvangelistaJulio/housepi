@@ -253,7 +253,7 @@ protected:
 
 public:
 	//=====Constructor=====//
-	Base_Variable(double value, std::string distr_name = UNDEFINED, sdargs_val_or_ptr distr_args = {},
+	Base_Variable(double value, const std::string &distr_name = UNDEFINED, sdargs_val_or_ptr distr_args = {},
 				  const std::string &rule_name = UNDEFINED, sdargs rule_args = {}, sdargs range = {}, double rule_from = INF_DOUBLE)
 	{
 		// assing value
@@ -273,6 +273,7 @@ public:
 		}
 		else
 		{
+			// assigne the pointer to the proposer
 			prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from, range);
 			_propose_method_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
 		}
@@ -315,7 +316,7 @@ public:
 	double get_prop_range_min() const { return prop_ptr->get_range_min(); }
 	double get_prop_range_max() const { return prop_ptr->get_range_max(); }
 
-	std::string show()
+	std::string show() const
 	{
 		using namespace screen;
 		std::ostringstream oss;
@@ -360,7 +361,7 @@ public:
 	//===== Diagnostics =====//
 	void init_diagnostics(int sample_size);
 	void update_diagnostics();
-	std::string show_diagnostics();
+	std::string show_diagnostics() const;
 
 private:
 	//===== Diagnostics =====//
@@ -368,7 +369,7 @@ private:
 	long double dgn_avg = 0.; // average value
 	long double dgn_sqr = 0.; // average squared value
 
-	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
+	long double dgn_var() const { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -411,25 +412,30 @@ public:
 	std::vector<std::string> param_to_be_static = {};
 
 	//===== Constructors =====//
-	Monte_Carlo_Core() : _uniform_distr_(0., 1.) {}
+	Monte_Carlo_Core() : _uniform_distr_(0., 1.)
+	{
+#ifdef _OPENMP
+		_max_num_available_threads = omp_get_max_threads();
+#endif
+	}
 	virtual ~Monte_Carlo_Core() {};
 
 	//===== Getter =====//
 	void disable_assert_param();
-	void assert_param(const std::string k) const;
-	double get_param(const std::string k) const { return (this->*_get_param_method_)(k); }
-	const double *get_param_pointer(const std::string k) const { return (this->*_get_param_pointer_method_)(k); }
+	void assert_param(const std::string &parID) const;
+	double get_param(const std::string &parID) const { return (this->*_get_param_method_)(parID); }
+	const double *get_param_pointer(const std::string &parID) const { return (this->*_get_param_pointer_method_)(parID); }
 	const double *get_reference() const { return &REFERENCE_VALUE; }
-	bool get_infer(const std::string k) const { return params.at(k).get_infer(); }
-	double get_accept_rate(const std::string k) const { return params.at(k).get_accept_rate(); }
+	bool get_infer(const std::string &parID) const { return params.at(parID).get_infer(); }
+	double get_accept_rate(const std::string &parID) const { return params.at(parID).get_accept_rate(); }
 
 	//===== Setter =====//
-	void set_value(const std::string k, double new_val) { params.at(k).set_value(new_val); }
+	void set_value(const std::string &parID, double new_val) { params.at(parID).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
-	void reset_accept_rate(const std::string k) { params.at(k).reset_accept_rate(); }
-	void assign_parameter(const std::string k, double new_val,
-						  std::string prior_name = UNDEFINED, sdargs prior_args = {},
-						  std::string rule_name = UNDEFINED, sdargs rule_args = {}, sdargs range = {});
+	void reset_accept_rate(const std::string &parID) { params.at(parID).reset_accept_rate(); }
+	void assign_parameter(const std::string &parID, double new_val,
+						  const std::string &prior_name = UNDEFINED, const sdargs &prior_args = {},
+						  const std::string &rule_name = UNDEFINED, const sdargs &rule_args = {}, const sdargs &range = {});
 	void drop_all_params();
 
 	//===== Parallelization =====//
@@ -437,11 +443,11 @@ public:
 	int get_num_threads() const { return setup_num_threads; };
 
 	//===== Metropolis-Hastings moves =====//
-	bool propose_valid_param_move(const std::string k);
+	bool propose_valid_param_move(const std::string &parID);
 	double get_move_logratio() const { return buffer_logratio; }
-	void accept_param_move(const std::string k);
-	void refuse_param_move(const std::string k);
-	void adapt(const std::string k, double ratio) { params.at(k).adapt(ratio); }
+	void accept_param_move(const std::string &parID);
+	void refuse_param_move(const std::string &parID);
+	void adapt(const std::string &parID, double ratio) { params.at(parID).adapt(ratio); }
 	void init_param_diagnostics(int sample_size);
 	void update_param_diagnostics();
 
@@ -451,17 +457,17 @@ public:
 	double uniform() { return _uniform_distr_(get_prng()); }
 
 	//===== Show =====//
-	std::string show_param_distr_name(const std::string k) const { return params.at(k).show_distr_name(); }
-	std::string show_param_distr_arg_names(const std::string k) const { return params.at(k).show_distr_arg_names(); }
-	std::string show_param_distr_arg_values(const std::string k) const { return params.at(k).show_distr_arg_values(); }
-	std::string show_param_prop_name(const std::string k) const { return params.at(k).show_prop_name(); }
-	std::string show_param_prop_arg_names(const std::string k) const { return params.at(k).show_prop_arg_names(); }
-	std::string show_param_prop_arg_values(const std::string k) const { return params.at(k).show_prop_arg_values(); }
-	double get_param_prop_range_min(const std::string k) const { return params.at(k).get_prop_range_min(); }
-	double get_param_prop_range_max(const std::string k) const { return params.at(k).get_prop_range_max(); }
+	std::string show_param_distr_name(const std::string &parID) const { return params.at(parID).show_distr_name(); }
+	std::string show_param_distr_arg_names(const std::string &parID) const { return params.at(parID).show_distr_arg_names(); }
+	std::string show_param_distr_arg_values(const std::string &parID) const { return params.at(parID).show_distr_arg_values(); }
+	std::string show_param_prop_name(const std::string &parID) const { return params.at(parID).show_prop_name(); }
+	std::string show_param_prop_arg_names(const std::string &parID) const { return params.at(parID).show_prop_arg_names(); }
+	std::string show_param_prop_arg_values(const std::string &parID) const { return params.at(parID).show_prop_arg_values(); }
+	double get_param_prop_range_min(const std::string &parID) const { return params.at(parID).get_prop_range_min(); }
+	double get_param_prop_range_max(const std::string &parID) const { return params.at(parID).get_prop_range_max(); }
 
-	std::string show_param(const std::string k) { return k + screen::C_DELIM + params.at(k).show(); }
-	std::string show_param_diagnostics(const std::string k) { return k + screen::C_DELIM + params.at(k).show_diagnostics(); }
+	std::string show_param(const std::string &parID) const;
+	std::string show_param_diagnostics(const std::string &parID) const;
 
 private:
 	//===== Internal Attributes =====//
@@ -473,13 +479,13 @@ private:
 	unsigned setup_num_threads = 1;							// number of OMP threads
 
 	//===== Getter (auxiliary methods) =====//
-	double (Monte_Carlo_Core::*_get_param_method_)(const std::string) const = &Monte_Carlo_Core::_get_param_assert_;
-	double _get_param_assert_(const std::string k) const;
-	double _get_param_default_(const std::string k) const;
+	double (Monte_Carlo_Core::*_get_param_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
+	double _get_param_assert_(const std::string &parID) const;
+	double _get_param_default_(const std::string &parID) const;
 
-	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
-	const double *_get_param_pointer_assert_(const std::string k) const;
-	const double *_get_param_pointer_default_(const std::string k) const;
+	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
+	const double *_get_param_pointer_assert_(const std::string &parID) const;
+	const double *_get_param_pointer_default_(const std::string &parID) const;
 
 	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	// FIXME : this should change if Rcpp according to developer guides
@@ -488,6 +494,7 @@ private:
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
 	sys_rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
+	unsigned _max_num_available_threads = 1;
 	sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
 };

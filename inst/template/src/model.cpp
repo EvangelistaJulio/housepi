@@ -10,12 +10,12 @@
 /* Raise error for undefined model usage. */
 void Model::init_model_for_inference()
 {
-	screen::raise_error("Attempt to compute the likelihood with the undefined model (developer only).");
+	screen::raise_error("Attempt to compute the likelihood with undefined model (developer only).");
 }
 
 /* Raise error for undefined model usage. */
 void Model::init_model_for_simulation()
 {
-	screen::raise_error("Attempt to perform a simulation with the undefined model (developer only).");
+	screen::raise_error("Attempt to perform a simulation with undefined model (developer only).");
 }
 

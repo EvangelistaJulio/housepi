@@ -40,17 +40,6 @@ cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
   return(output)
 }
 
-# Default model list message.
-show_default_names <- function() {
-  models_dir <- file.path(system.file(package = "housepi"), "models")
-  cli::cli_alert_info("Default model names:")
-  ulid <- cli::cli_ul()
-  for (name in list.files(models_dir)) {
-    cli::cli_li(name)
-  }
-  cli::cli_end(ulid)
-}
-
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
@@ -70,7 +59,12 @@ template_model <- function(which = UNDEFINED, path = UNDEFINED) {
       i = "To see the available default models, run: template_model()")))
     
   } else if (which == UNDEFINED) {
-    show_default_names()
+    cli::cli_alert_info("Default model names:")
+    ulid <- cli::cli_ul()
+    for (name in list.files(models_dir)) {
+      cli::cli_li(name)
+    }
+    cli::cli_end(ulid)
 
   } else {
     if (which %in% list.files(models_dir)) {

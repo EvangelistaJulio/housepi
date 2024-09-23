@@ -52,56 +52,57 @@ public:
 	void set_index(int i) { index = i; }
 
 	void disable_assert();
-	void assert_data(const std::string dataID) const;
-	double get_data(const std::string dataID) const { return (this->*_get_data_method_)(dataID); }
-	const double *get_data_pointer(const std::string dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
+	void assert_data(const std::string &dataID) const;
+	double get_data(const std::string &dataID) const { return (this->*_get_data_method_)(dataID); }
+	const double *get_data_pointer(const std::string &dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate_per_group(const std::string rateID, const std::string parID);
-	void set_rate(const std::string rateID, const double *x) { rate_ptr.emplace(rateID, x); }
-	double get_group_rate(const std::string rateID) const { return *rate_ptr.at(rateID); }
+	void assign_rate_per_group(const std::string &rateID, const std::string &parID);
+	void set_rate(const std::string &rateID, const double *x) { rate_ptr.emplace(rateID, x); }
+	double get_group_rate(const std::string &rateID) const { return *rate_ptr.at(rateID); }
 
 	//=====Augmented Variables=====//
-	void assert_augm(const std::string a) const;
-	void assign_augm(const std::string a, double value,
-					 const std::string model_name, sdargs_ptr model_args,
-					 const std::string rule_name, sdargs rule_args, sdargs range, double rule_from);
-	void init_augm(const std::string a, sys_rnd_gen &prng);
-	void set_augm(const std::string a, double new_value) { augm_var.at(a).set_value(new_value); }
-	bool get_augm_infer(const std::string a) const { return augm_var.at(a).get_infer(); }
-	double get_augm(const std::string a) const { return (this->*_get_augm_method_)(a); }
+	void assign_augm(const std::string &augmID, double value,
+					 const std::string &model_name, const sdargs_ptr &model_args,
+					 const std::string &rule_name, const sdargs &rule_args, 
+					 const sdargs &range, double rule_from);
+	void assert_augm(const std::string &augmID) const;
+	void init_augm(const std::string &augmID, sys_rnd_gen &prng);
+	void set_augm(const std::string &augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
+	bool get_augm_infer(const std::string &augmID) const { return augm_var.at(augmID).get_infer(); }
+	double get_augm(const std::string &augmID) const { return (this->*_get_augm_method_)(augmID); }
 
 	//-----Augmented Variables: Model distribution-----//
-	double augm_model_rand(const std::string a, sys_rnd_gen &prng) { return augm_var.at(a).model_rand(prng); }
-	double augm_model_log_pdf(const std::string a) { return augm_var.at(a).model_log_pdf(augm_var.at(a).get_value()); }
-	double augm_model_logratio(const std::string a, double old_value, double new_value);
+	double augm_model_rand(const std::string &augmID, sys_rnd_gen &prng) { return augm_var.at(augmID).model_rand(prng); }
+	double augm_model_log_pdf(const std::string &augmID) const { return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value()); }
+	double augm_model_logratio(const std::string &augmID, double old_value, double new_value) const;
 
 	//-----Augmented Variables: Proposer-----//
-	double augm_propose(const std::string a, sys_rnd_gen &prng);
-	double augm_propose_logratio(const std::string a, double old_value, double new_value);
-	bool augm_valid(const std::string a, double new_value) { return augm_var.at(a).valid(new_value); }
+	double augm_propose(const std::string &augmID, sys_rnd_gen &prng);
+	double augm_propose_logratio(const std::string &augmID, double old_value, double new_value) const;
+	bool augm_valid(const std::string &augmID, double new_value) const { return augm_var.at(augmID).valid(new_value); }
 
 private:
 	sdargs_ptr rate_ptr = {};
 	std::unordered_map<std::string, Augmented> augm_var = {};
 
 	//===== Setter (auxiliary methods) =====//
-	void (Individual::*_set_augm_method_)(const std::string, double) = &Individual::_set_augm_assert_;
-	void _set_augm_assert_(const std::string a, double new_value);
-	void _set_augm_default_(const std::string a, double new_value);
+	void (Individual::*_set_augm_method_)(const std::string &, double) = &Individual::_set_augm_assert_;
+	void _set_augm_assert_(const std::string &augmID, double new_value);
+	void _set_augm_default_(const std::string &augmID, double new_value);
 
 	//===== Getter (auxiliary methods) =====//
-	double (Individual::*_get_augm_method_)(const std::string) const = &Individual::_get_augm_assert_;
-	double _get_augm_assert_(const std::string a) const;
-	double _get_augm_default_(const std::string a) const;
+	double (Individual::*_get_augm_method_)(const std::string &) const = &Individual::_get_augm_assert_;
+	double _get_augm_assert_(const std::string &augmID) const;
+	double _get_augm_default_(const std::string &augmID) const;
 
-	double (Individual::*_get_data_method_)(const std::string) const = &Individual::_get_data_assert_;
-	double _get_data_assert_(const std::string d) const;
-	double _get_data_default_(const std::string d) const;
+	double (Individual::*_get_data_method_)(const std::string &) const = &Individual::_get_data_assert_;
+	double _get_data_assert_(const std::string &dataID) const;
+	double _get_data_default_(const std::string &dataID) const;
 
-	const double *(Individual::*_get_data_pointer_method_)(const std::string) const = &Individual::_get_data_pointer_assert_;
-	const double *_get_data_pointer_assert_(const std::string k) const;
-	const double *_get_data_pointer_default_(const std::string k) const;
+	const double *(Individual::*_get_data_pointer_method_)(const std::string &) const = &Individual::_get_data_pointer_assert_;
+	const double *_get_data_pointer_assert_(const std::string &dataID) const;
+	const double *_get_data_pointer_default_(const std::string &dataID) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -157,7 +158,7 @@ public:
 	long double dgn_like = 0.; // average (house) likelihood
 	long double dgn_avg = 0.;  // average (house) loglikelihood
 	long double dgn_sqr = 0.;  // average squared (house) loglikelihood
-	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
+	long double dgn_var() const { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
 
 	//===== Constructors =====//
 	Household() {}
@@ -166,15 +167,15 @@ public:
 	//====== Setter ======//
 	void assign_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
-	void assign_data(const std::string d, double value);
-	void assign_rate_per_contact(int from, int to, const std::string parID) { which_rate[from][to] = parID; }
+	void assign_data(const std::string &dataID, double value);
+	void assign_rate_per_contact(int from, int to, const std::string &parID) { which_rate[from][to] = parID; }
 	void change_status(int i, int new_status);
 
 	//====== Getter ======//
 	int get_index() const { return house_index; }
-	void assert_data(const std::string d) const;
-	double get_data(const std::string d) const;
-	double get_group_rate(int i, const std::string r) const { return indiv[i].get_group_rate(r); }
+	void assert_data(const std::string &dataID) const;
+	double get_data(const std::string &dataID) const;
+	double get_group_rate(int i, const std::string &rateID) const { return indiv[i].get_group_rate(rateID); }
 
 	//====== Contact Rates ======//
 	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
@@ -192,10 +193,10 @@ public:
 	void update_diagnostics();
 
 	//===== Acceptation Rate =====//
-	void reset_augm_accept_rate(const std::string a);
-	void update_augm_accept_rate(const std::string a, bool is_accepted);
-	int get_augm_accept_counts(const std::string a) { return num_accept_augm_moves[a]; }
-	int get_augm_propos_counts(const std::string a) { return num_propos_augm_moves[a]; }
+	void reset_augm_accept_rate(const std::string &augmID);
+	void update_augm_accept_rate(const std::string &augmID, bool is_accepted);
+	int get_augm_accept_counts(const std::string &augmID) { return num_accept_augm_moves[augmID]; }
+	int get_augm_propos_counts(const std::string &augmID) { return num_propos_augm_moves[augmID]; }
 };
 
 #endif // INDIVIDUAL__H

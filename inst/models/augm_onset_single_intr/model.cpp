@@ -93,17 +93,6 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  GLOBAL VARIABLES  //////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-//----- Attributes for Look-Up-Tables -----//
-std::vector<squarematrix> LUT_inst_profile = {};
-std::vector<squarematrix> LUT_cumul_profile = {};
-
-//----- Infectivity Profile Functions -----//
-Infec_Prof_Skew_Logistic LUT_infec_prof_func;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Model : common initialization  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -116,7 +105,7 @@ void Model::common_init_model()
 					   {"mu", get_param_pointer("tost_mu")},
 					   {"sigma", get_param_pointer("tost_sigma")},
 					   {"tau", get_param_pointer("tost_tau")}};
-	LUT_infec_prof_func = Infec_Prof_Skew_Logistic(args);
+	infec_prof_func_ptr = new Infec_Prof_Skew_Logistic(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)
 	LUT_inst_profile.clear();
@@ -167,7 +156,7 @@ double Model::compute_infec_prof_inst(int h, int i, double t_transm)
 {
 	// tost : time from onset of symptoms to transmission
 	double tost = t_transm - get_augm(h, i, "onset_date");
-	return LUT_infec_prof_func.pdf(tost, get_augm(h, i, "incub_period"));
+	return infec_prof_func_ptr->pdf(tost, get_augm(h, i, "incub_period"));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,7 +168,7 @@ double Model::compute_infec_prof_cumul(int h, int i, double t_transm)
 {
 	// tost : time from onset of symptoms to transmission
 	double tost = t_transm - get_augm(h, i, "onset_date");
-	return LUT_infec_prof_func.cdf(tost, get_augm(h, i, "incub_period"));
+	return infec_prof_func_ptr->cdf(tost, get_augm(h, i, "incub_period"));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
