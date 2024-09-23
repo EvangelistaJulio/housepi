@@ -40,8 +40,8 @@ class Infec_Prof_Skew_Logistic : public Base_Function
 {
 public:
 	// Constructors
-	Infec_Prof_Skew_Logistic(sdargs new_arg = {}) : Base_Function("skew_logistic", new_arg, {"alpha", "mu", "sigma", "tau"}) { }
-	Infec_Prof_Skew_Logistic(sdargs_ptr new_args_ptr) : Base_Function("skew_logistic", new_args_ptr, {"alpha", "mu", "sigma", "tau"}) {}
+	Infec_Prof_Skew_Logistic(dictargs new_args = {}) : Base_Function("skew_logistic", {{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}}, {"alpha", "mu", "sigma", "tau"}) { assign_args(new_args); }
+	Infec_Prof_Skew_Logistic(dictargs_ptr new_args_ptr) : Base_Function("skew_logistic", new_args_ptr, {"alpha", "mu", "sigma", "tau"}) {}
 	~Infec_Prof_Skew_Logistic() {};
 
 	double pdf(double tost, double t_incub);

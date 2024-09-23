@@ -101,7 +101,7 @@ void Model::common_init_model()
 {
 	//===== Initialize Lookup Tables (infectivity profiles) =====//
 
-	sdargs_ptr args = {{"alpha", get_param_pointer("tost_alpha")},
+	orderargs_ptr args = {{"alpha", get_param_pointer("tost_alpha")},
 					   {"mu", get_param_pointer("tost_mu")},
 					   {"sigma", get_param_pointer("tost_sigma")},
 					   {"tau", get_param_pointer("tost_tau")}};

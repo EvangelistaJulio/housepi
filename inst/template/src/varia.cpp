@@ -13,7 +13,6 @@ using screen::raise_warning;
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
 bool Disabled_OpenMP_Warning = false;        // warning for attempt to use openmp while disabled
 bool Above_Max_Threads_Warning = false;      // warning for over the threshold n. of threads
 
@@ -29,11 +28,10 @@ bool Above_Max_Threads_Warning = false;      // warning for over the threshold n
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(Base_Distribution *distr,
-                             double rule_start, sdargs range,
-                             std::vector<int> args_to_adapt) : distr_ptr(distr)
+                             double rule_start, 
+                             vector<int> args_to_adapt) : distr_ptr(distr)
 {
     _args_to_adapt_ = args_to_adapt;
-    set_range(range);
 
     if (rule_start == INF_DOUBLE)
     {
@@ -41,14 +39,6 @@ Base_Proposer::Base_Proposer(Base_Distribution *distr,
     }
     else
     {
-        if (!valid(rule_start))
-        {
-            std::ostringstream oss;
-            oss << "Initial value " << rule_start << " and value range"
-                << " {min:" << _range_min_ << ", max:" << _range_max_ << "} are inconsistent."
-                << " If it was intentional, ignore this message.";
-            raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
-        }
         _is_start_from_zero_ = true;
         set_rule_start_value(rule_start);
     }
@@ -83,72 +73,22 @@ void Base_Proposer::update_accept_rate(bool is_accepted)
     num_proposed_moves += 1;
 }
 
-/* Set the range of validity of the value, and the corresponding validation function. */
-void Base_Proposer::set_range(sdargs new_range)
-{
-    int condition = 0;
-
-    for (auto const &x : new_range)
-    {
-        if (x.first == "min")
-        {
-            _range_min_ = x.second;
-            condition += 1;
-        }
-        else if (x.first == "max")
-        {
-            _range_max_ = x.second;
-            condition += 2;
-        }
-    }
-
-    if (condition == 0)
-    {
-        _valid_func_ = &Base_Proposer::_valid_dummy_;
-    }
-    else if (condition == 1)
-    {
-        _valid_func_ = &Base_Proposer::_valid_range_min_;
-    }
-    else if (condition == 2)
-    {
-        _valid_func_ = &Base_Proposer::_valid_range_max_;
-    }
-    else if (condition == 3)
-    {
-        if (_range_min_ > _range_max_)
-        {
-            std::ostringstream oss;
-            oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            raise_error(oss.str());
-        }
-        else
-        {
-            _valid_func_ = &Base_Proposer::_valid_range_both_;
-        }
-    }
-    else
-    {
-        raise_error("Provided multiple definition for the range.");
-    }
-}
-
 /* Switchboard to select the custom metropolis proposer rule. */
-Base_Proposer *proposer_switchboard(std::string rule_name, sdargs rule_args, double rule_from, sdargs range)
+Base_Proposer *proposer_switchboard(string rule_name, dictargs rule_args, double rule_from)
 {
     Base_Proposer *output = new Base_Proposer(new Base_Distribution());
 
     if (rule_name == "uniform")
     {
-        output = new Uniform_Proposer(rule_args, rule_from, range);
+        output = new Uniform_Proposer(rule_args, rule_from);
     }
     else if (rule_name == "normal")
     {
-        output = new Normal_Proposer(rule_args, rule_from, range);
+        output = new Normal_Proposer(rule_args, rule_from);
     }
     else if (rule_name == "lognorm")
     {
-        output = new Lognorm_Proposer(rule_args, rule_from, range);
+        output = new Lognorm_Proposer(rule_args, rule_from);
     }
     else if (!screen::is_na(rule_name))
     {
@@ -156,32 +96,6 @@ Base_Proposer *proposer_switchboard(std::string rule_name, sdargs rule_args, dou
     }
 
     return output;
-}
-
-/* Return proposer minimum. */
-double Base_Proposer::get_range_min() const
-{
-    if (_range_min_ > -INF_DOUBLE)
-    {
-        return _range_min_;
-    }
-    else
-    {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-}
-
-/* Return proposer maximum. */
-double Base_Proposer::get_range_max() const
-{
-    if (_range_max_ < INF_DOUBLE)
-    {
-        return _range_max_;
-    }
-    else
-    {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -211,14 +125,14 @@ void Parameter::update_diagnostics()
 }
 
 /* Message to be used at the moment of display diagnostics. */
-std::string Parameter::show_diagnostics() const
+string Parameter::show_diagnostics() const
 {
     using namespace screen;
     std::ostringstream oss;
     oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer)
         << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
         << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-        << C_DELIM << get_prop_range_min() << C_DELIM << get_prop_range_min();
+        << C_DELIM << get_range_min() << C_DELIM << get_range_max();
     return oss.str();
 }
 
@@ -234,26 +148,26 @@ std::string Parameter::show_diagnostics() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to get a value. */
-double Monte_Carlo_Core::_get_param_default_(const std::string &parID) const
+double Monte_Carlo_Core::_get_param_default_(const string &parID) const
 {
     return params.at(parID).get_value();
 }
 
 /* Safe method to get a value with previous assertion. */
-double Monte_Carlo_Core::_get_param_assert_(const std::string &parID) const
+double Monte_Carlo_Core::_get_param_assert_(const string &parID) const
 {
     assert_param(parID);
     return _get_param_default_(parID);
 }
 
 /* Default method to get a pointer to a parameter. */
-const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string &parID) const
+const double *Monte_Carlo_Core::_get_param_pointer_default_(const string &parID) const
 {
     return params.at(parID).get_pointer();
 }
 
 /* Safe method to get a pointer to a parameter with previous assertion. */
-const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string &parID) const
+const double *Monte_Carlo_Core::_get_param_pointer_assert_(const string &parID) const
 {
     assert_param(parID);
     return _get_param_pointer_default_(parID);
@@ -280,9 +194,9 @@ void Monte_Carlo_Core::drop_all_params()
 
 /* Assign a new parameter to the dictionary. */
 void Monte_Carlo_Core::assign_parameter(
-    const std::string &parID, double new_val,
-    const std::string &prior_name, const sdargs &prior_args,
-    const std::string &rule_name, const sdargs &rule_args, const sdargs &range)
+    const string &parID, double new_val,
+    const string &prior_name, const dictargs &prior_args,
+    const string &rule_name, const dictargs &rule_args, const dictargs &range)
 {
     // check that lists have equal sizes
     if (prior_args.find(IO_MISMATCH) != prior_args.end())
@@ -382,7 +296,7 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise raise error. */
-void Monte_Carlo_Core::assert_param(const std::string &parID) const
+void Monte_Carlo_Core::assert_param(const string &parID) const
 {
     if (params.find(parID) == params.end())
     {
@@ -398,7 +312,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
         int num_attempts = 0;
         double new_value;
 
-        for (const std::string &parID : param_to_be_inferred)
+        for (const string &parID : param_to_be_inferred)
         {
             new_value = params.at(parID).prior_rand(prng);
             while (params.at(parID).valid(new_value) == false)
@@ -420,7 +334,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
+bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
 {
     double new_value = params.at(parID).propose(prng); // propose new value
 
@@ -446,13 +360,13 @@ bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
 }
 
 /* move is accepted */
-void Monte_Carlo_Core::accept_param_move(const std::string &parID)
+void Monte_Carlo_Core::accept_param_move(const string &parID)
 {
     params.at(parID).update_accept_rate(true);
 }
 
 /* move is refused: restore old value in the buffer */
-void Monte_Carlo_Core::refuse_param_move(const std::string &parID)
+void Monte_Carlo_Core::refuse_param_move(const string &parID)
 {
     set_value(parID, buffer_value);
     params.at(parID).update_accept_rate(false);
@@ -461,7 +375,7 @@ void Monte_Carlo_Core::refuse_param_move(const std::string &parID)
 /* Init diagnostics for all parameters */
 void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
 {
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         params.at(parID).init_diagnostics(sample_size);
     }
@@ -470,14 +384,14 @@ void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
 /* Update diagnostics for all parameters */
 void Monte_Carlo_Core::update_param_diagnostics()
 {
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         params.at(parID).update_diagnostics();
     }
 }
 
 /* Format parameter to show. */
-std::string Monte_Carlo_Core::show_param(const std::string &parID) const
+string Monte_Carlo_Core::show_param(const string &parID) const
 {
     std::ostringstream oss;
     oss << parID << screen::C_DELIM << params.at(parID).show();
@@ -485,7 +399,7 @@ std::string Monte_Carlo_Core::show_param(const std::string &parID) const
 }
 
 /* Format parameter diagnostics to show. */
-std::string Monte_Carlo_Core::show_param_diagnostics(const std::string &parID) const
+string Monte_Carlo_Core::show_param_diagnostics(const string &parID) const
 {
     std::ostringstream oss;
     oss << parID << screen::C_DELIM << params.at(parID).show_diagnostics();

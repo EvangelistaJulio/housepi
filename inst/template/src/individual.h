@@ -16,6 +16,10 @@
 
 #include "varia.h"
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -31,17 +35,17 @@ class Individual
 {
 private:
 	//=====Attributes (private)=====//
-	int status = 0;	  // status of the individual
-	int index = 0;	  // database index of the individual
-	sdargs data = {}; // database associated to individual
+	int status = 0;						// status of the individual
+	int index = 0;						// database index of the individual
+	dictargs data = {}; // database associated to individual
 
 public:
 	//=====Attributes (public)=====//
-	std::unordered_map<std::string, std::string> which_rate = {};
+	std::unordered_map<string, string> which_rate = {};
 
 	//===== Constructors =====//
 	Individual() = default;
-	Individual(sdargs data);
+	Individual(dictargs data);
 	~Individual() {};
 
 	//===== Basic Methods =====//
@@ -52,57 +56,57 @@ public:
 	void set_index(int i) { index = i; }
 
 	void disable_assert();
-	void assert_data(const std::string &dataID) const;
-	double get_data(const std::string &dataID) const { return (this->*_get_data_method_)(dataID); }
-	const double *get_data_pointer(const std::string &dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
+	void assert_data(const string &dataID) const;
+	double get_data(const string &dataID) const { return (this->*_get_data_method_)(dataID); }
+	const double *get_data_pointer(const string &dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate_per_group(const std::string &rateID, const std::string &parID);
-	void set_rate(const std::string &rateID, const double *x) { rate_ptr.emplace(rateID, x); }
-	double get_group_rate(const std::string &rateID) const { return *rate_ptr.at(rateID); }
+	void assign_rate_per_group(const string &rateID, const string &parID);
+	void set_rate(const string &rateID, const double *x) { rate_ptr.emplace(rateID, x); }
+	double get_group_rate(const string &rateID) const { return *rate_ptr.at(rateID); }
 
 	//=====Augmented Variables=====//
-	void assign_augm(const std::string &augmID, double value,
-					 const std::string &model_name, const sdargs_ptr &model_args,
-					 const std::string &rule_name, const sdargs &rule_args, 
-					 const sdargs &range, double rule_from);
-	void assert_augm(const std::string &augmID) const;
-	void init_augm(const std::string &augmID, sys_rnd_gen &prng);
-	void set_augm(const std::string &augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
-	bool get_augm_infer(const std::string &augmID) const { return augm_var.at(augmID).get_infer(); }
-	double get_augm(const std::string &augmID) const { return (this->*_get_augm_method_)(augmID); }
+	void assign_augm(const string &augmID, double value,
+					 const string &model_name, const dictargs_ptr &model_args,
+					 const string &rule_name, const dictargs &rule_args,
+					 const dictargs &range, double rule_from);
+	void assert_augm(const string &augmID) const;
+	void init_augm(const string &augmID, sys_rnd_gen &prng);
+	void set_augm(const string &augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
+	bool get_augm_infer(const string &augmID) const { return augm_var.at(augmID).get_infer(); }
+	double get_augm(const string &augmID) const { return (this->*_get_augm_method_)(augmID); }
 
 	//-----Augmented Variables: Model distribution-----//
-	double augm_model_rand(const std::string &augmID, sys_rnd_gen &prng) { return augm_var.at(augmID).model_rand(prng); }
-	double augm_model_log_pdf(const std::string &augmID) const { return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value()); }
-	double augm_model_logratio(const std::string &augmID, double old_value, double new_value) const;
+	double augm_model_rand(const string &augmID, sys_rnd_gen &prng) { return augm_var.at(augmID).model_rand(prng); }
+	double augm_model_log_pdf(const string &augmID) const { return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value()); }
+	double augm_model_logratio(const string &augmID, double old_value, double new_value) const;
 
 	//-----Augmented Variables: Proposer-----//
-	double augm_propose(const std::string &augmID, sys_rnd_gen &prng);
-	double augm_propose_logratio(const std::string &augmID, double old_value, double new_value) const;
-	bool augm_valid(const std::string &augmID, double new_value) const { return augm_var.at(augmID).valid(new_value); }
+	double augm_propose(const string &augmID, sys_rnd_gen &prng);
+	double augm_propose_logratio(const string &augmID, double old_value, double new_value) const;
+	bool augm_valid(const string &augmID, double new_value) const { return augm_var.at(augmID).valid(new_value); }
 
 private:
-	sdargs_ptr rate_ptr = {};
-	std::unordered_map<std::string, Augmented> augm_var = {};
+	dictargs_ptr rate_ptr = {};
+	std::unordered_map<string, Augmented> augm_var = {};
 
 	//===== Setter (auxiliary methods) =====//
-	void (Individual::*_set_augm_method_)(const std::string &, double) = &Individual::_set_augm_assert_;
-	void _set_augm_assert_(const std::string &augmID, double new_value);
-	void _set_augm_default_(const std::string &augmID, double new_value);
+	void (Individual::*_set_augm_method_)(const string &, double) = &Individual::_set_augm_assert_;
+	void _set_augm_assert_(const string &augmID, double new_value);
+	void _set_augm_default_(const string &augmID, double new_value);
 
 	//===== Getter (auxiliary methods) =====//
-	double (Individual::*_get_augm_method_)(const std::string &) const = &Individual::_get_augm_assert_;
-	double _get_augm_assert_(const std::string &augmID) const;
-	double _get_augm_default_(const std::string &augmID) const;
+	double (Individual::*_get_augm_method_)(const string &) const = &Individual::_get_augm_assert_;
+	double _get_augm_assert_(const string &augmID) const;
+	double _get_augm_default_(const string &augmID) const;
 
-	double (Individual::*_get_data_method_)(const std::string &) const = &Individual::_get_data_assert_;
-	double _get_data_assert_(const std::string &dataID) const;
-	double _get_data_default_(const std::string &dataID) const;
+	double (Individual::*_get_data_method_)(const string &) const = &Individual::_get_data_assert_;
+	double _get_data_assert_(const string &dataID) const;
+	double _get_data_default_(const string &dataID) const;
 
-	const double *(Individual::*_get_data_pointer_method_)(const std::string &) const = &Individual::_get_data_pointer_assert_;
-	const double *_get_data_pointer_assert_(const std::string &dataID) const;
-	const double *_get_data_pointer_default_(const std::string &dataID) const;
+	const double *(Individual::*_get_data_pointer_method_)(const string &) const = &Individual::_get_data_pointer_assert_;
+	const double *_get_data_pointer_assert_(const string &dataID) const;
+	const double *_get_data_pointer_default_(const string &dataID) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -120,19 +124,19 @@ class Household
 {
 private:
 	//=====Attributes (private)=====//
-	int house_index = -1;	// database index of household
-	sdargs house_data = {}; // database associated to household (manual)
+	int house_index = -1;	   // database index of household
+	dictargs house_data = {}; // database associated to household (manual)
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
 	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
 
 	// accpetance rates for augmented variables
-	std::unordered_map<std::string, int> num_accept_augm_moves = {};
-	std::unordered_map<std::string, int> num_propos_augm_moves = {};
+	std::unordered_map<string, int> num_accept_augm_moves = {};
+	std::unordered_map<string, int> num_propos_augm_moves = {};
 
 public:
 	//=====Attributes (public)=====//
-	std::vector<Individual> indiv = {};
+	vector<Individual> indiv = {};
 	int house_size = 0;
 	int num_infectious = 0;
 	int num_susceptible = 0;
@@ -140,13 +144,13 @@ public:
 	int first_case = -1;
 
 	// contact rate pointers
-	std::vector<std::vector<const double *>> contact_rates;
-	std::vector<std::vector<std::string>> which_rate;
+	vector<vector<const double *>> contact_rates;
+	vector<vector<string>> which_rate;
 
 	// wheter members correspond to a given status or not
-	std::vector<bool> is_infectious = {};
-	std::vector<bool> is_susceptible = {};
-	std::vector<bool> is_missing_status = {};
+	vector<bool> is_infectious = {};
+	vector<bool> is_susceptible = {};
+	vector<bool> is_missing_status = {};
 
 	// list with ONLY indexes of members with a given status
 	std::set<int> infectious_set = {};
@@ -167,15 +171,15 @@ public:
 	//====== Setter ======//
 	void assign_individual(Individual this_indiv);
 	void set_index(int index) { house_index = index; }
-	void assign_data(const std::string &dataID, double value);
-	void assign_rate_per_contact(int from, int to, const std::string &parID) { which_rate[from][to] = parID; }
+	void assign_data(const string &dataID, double value);
+	void assign_rate_per_contact(int from, int to, const string &parID) { which_rate[from][to] = parID; }
 	void change_status(int i, int new_status);
 
 	//====== Getter ======//
 	int get_index() const { return house_index; }
-	void assert_data(const std::string &dataID) const;
-	double get_data(const std::string &dataID) const;
-	double get_group_rate(int i, const std::string &rateID) const { return indiv[i].get_group_rate(rateID); }
+	void assert_data(const string &dataID) const;
+	double get_data(const string &dataID) const;
+	double get_group_rate(int i, const string &rateID) const { return indiv[i].get_group_rate(rateID); }
 
 	//====== Contact Rates ======//
 	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
@@ -193,10 +197,10 @@ public:
 	void update_diagnostics();
 
 	//===== Acceptation Rate =====//
-	void reset_augm_accept_rate(const std::string &augmID);
-	void update_augm_accept_rate(const std::string &augmID, bool is_accepted);
-	int get_augm_accept_counts(const std::string &augmID) { return num_accept_augm_moves[augmID]; }
-	int get_augm_propos_counts(const std::string &augmID) { return num_propos_augm_moves[augmID]; }
+	void reset_augm_accept_rate(const string &augmID);
+	void update_augm_accept_rate(const string &augmID, bool is_accepted);
+	int get_augm_accept_counts(const string &augmID) { return num_accept_augm_moves[augmID]; }
+	int get_augm_propos_counts(const string &augmID) { return num_propos_augm_moves[augmID]; }
 };
 
 #endif // INDIVIDUAL__H

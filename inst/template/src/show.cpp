@@ -145,11 +145,11 @@ void MCMC::show_parameters()
     }
     oss << "\n";
 
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         oss << show_param(parID) << "\n";
     }
-    for (const std::string &parID : param_to_be_static)
+    for (const string &parID : param_to_be_static)
     {
         oss << show_param(parID) << "\n";
     }
@@ -171,7 +171,7 @@ void MCMC::show_results()
         oss << C_DELIM << param_file_headers[k];
     }
     oss << "\n";
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         oss << show_param_diagnostics(parID) << "\n";
     }
@@ -216,7 +216,7 @@ void MCMC::show_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the output file with inferred parameters with column names and initial values */
-void MCMC::inferstate_init(std::string output_filename)
+void MCMC::inferstate_init(string output_filename)
 {
     if (is_na(output_filename))
     {
@@ -234,7 +234,7 @@ void MCMC::inferstate_init(std::string output_filename)
             // print loglikelihood
             inferstate_ofstream << "loglikelihood";
 
-            for (const std::string &parID : param_to_be_inferred)
+            for (const string &parID : param_to_be_inferred)
             {
                 inferstate_ofstream << C_DELIM << parID;
             }
@@ -269,7 +269,7 @@ void MCMC::inferstate_print()
             inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
 
             // print parameter values
-            for (const std::string &parID : param_to_be_inferred)
+            for (const string &parID : param_to_be_inferred)
             {
                 inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_param(parID);
             }
@@ -309,7 +309,7 @@ void MCMC::inferstate_close()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(std::string save_augm_pathtofile)
+void MCMC::print_augm_variables(string save_augm_pathtofile)
 {
     if (!is_na(save_augm_pathtofile))
     {
@@ -323,13 +323,13 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
             augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
 
             // data headers
-            for (const std::string &dataID : _data_headers_)
+            for (const string &dataID : _data_headers_)
             {
                 augm_ofstream << C_DELIM << dataID;
             }
 
             // augmented variables headers
-            for (const std::string &augmID : augm_full_set)
+            for (const string &augmID : augm_full_set)
             {
                 augm_ofstream << C_DELIM << augmID;
             }
@@ -344,11 +344,11 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
                     augm_ofstream << househ[h].indiv[i].get_index()
                                   << C_DELIM << househ[h].get_index()
                                   << C_DELIM << househ[h].indiv[i].get_status();
-                    for (const std::string &dataID : _data_headers_)
+                    for (const string &dataID : _data_headers_)
                     {
                         augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
                     }
-                    for (const std::string &augmID : augm_full_set)
+                    for (const string &augmID : augm_full_set)
                     {
                         augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
                     }
@@ -378,7 +378,7 @@ void MCMC::print_augm_variables(std::string save_augm_pathtofile)
 
 #ifdef USE_RCPP
 
-Rcpp::String stoRString(const std::string &x)
+Rcpp::String stoRString(const string &x)
 {
     if (is_na(x))
     {
@@ -412,7 +412,7 @@ Rcpp::DataFrame MCMC::export_params()
 {
     using namespace Rcpp;
 
-    std::vector<std::string> V_names = param_to_be_inferred;
+    vector<string> V_names = param_to_be_inferred;
     V_names.insert(V_names.end(), param_to_be_static.begin(), param_to_be_static.end());
 
     NumericVector V_value = {};
@@ -421,7 +421,7 @@ Rcpp::DataFrame MCMC::export_params()
     CharacterVector V_rule = {}, V_rargs = {}, V_rargsval = {};
     NumericVector V_min = {}, V_max = {};
 
-    for (const std::string &parID : V_names)
+    for (const string &parID : V_names)
     {
         V_value.push_back(get_param(parID));
         V_infer.push_back(get_infer(parID));
@@ -454,13 +454,13 @@ Rcpp::DataFrame MCMC::export_data()
     IntegerVector df_index(num_indiv);
     IntegerVector df_house_index(num_indiv);
     IntegerVector df_status(num_indiv);
-    std::map<std::string, NumericVector> df_dbl;
+    std::map<string, NumericVector> df_dbl;
 
-    for (const std::string &dataID : _data_headers_)
+    for (const string &dataID : _data_headers_)
     {
         df_dbl.insert({dataID, NumericVector(num_indiv)});
     }
-    for (const std::string &augmID : augm_full_set)
+    for (const string &augmID : augm_full_set)
     {
         df_dbl.insert({augmID, NumericVector(num_indiv)});
     }
@@ -474,11 +474,11 @@ Rcpp::DataFrame MCMC::export_data()
             df_house_index[c] = househ[h].get_index();
             df_status[c] = househ[h].indiv[i].get_status();
 
-            for (const std::string &dataID : _data_headers_)
+            for (const string &dataID : _data_headers_)
             {
                 df_dbl.at(dataID)[c] = househ[h].indiv[i].get_data(dataID);
             }
-            for (const std::string &augmID : augm_full_set)
+            for (const string &augmID : augm_full_set)
             {
                 df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
             }
@@ -491,11 +491,11 @@ Rcpp::DataFrame MCMC::export_data()
     output = DataFrame::create(_["index"] = df_index,
                                _["house_index"] = df_house_index,
                                _["status"] = df_status);
-    for (const std::string &dataID : _data_headers_)
+    for (const string &dataID : _data_headers_)
     {
         output.push_back(df_dbl.at(dataID), dataID);
     }
-    for (const std::string &augmID : augm_full_set)
+    for (const string &augmID : augm_full_set)
     {
         output.push_back(df_dbl.at(augmID), augmID);
     }

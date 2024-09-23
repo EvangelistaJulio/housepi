@@ -30,10 +30,8 @@
 //' @field setup Return the current setup as a List.
 //' @field params Return the current parameters as a DataFrame.
 //' @field data Return the current database as a DataFrame.
-//' @field show_setup Show the setup configurations.
 //' @field show_summary Show a summary of the database.
 //' @field show_group_classes Show the group classes.
-//' @field show_params Show the parameter configurations.
 //' @field show_diagnostics Show the WAIC.
 
 #include <Rcpp.h>
@@ -54,10 +52,8 @@ RCPP_MODULE(modelhousepi12345_cpp)
    .method("setup", &MCMC::export_setup)
    .method("params", &MCMC::export_params)
    .method("data", &MCMC::export_data)
-   .method("show_setup", &MCMC::show_setup)
    .method("show_summary", &MCMC::show_summary)
    .method("show_group_classes", &MCMC::show_group_classes)
-   .method("show_params", &MCMC::show_parameters)
    .method("show_diagnostics", &MCMC::show_diagnostics);
  
  class_<Model>("Modelhousepi12345")

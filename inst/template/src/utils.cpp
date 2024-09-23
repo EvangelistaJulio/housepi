@@ -20,7 +20,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* A formatted string for percent of num/denom */
-    std::string percent(int num, int den)
+    string percent(int num, int den)
     {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(1)
@@ -29,7 +29,7 @@ namespace screen
     }
 
     /* A formatted string for TRUE/FALSE values. */
-    std::string truth(bool condition)
+    string truth(bool condition)
     {
 #ifdef USE_RCPP
         return (condition ? "true" : "false");
@@ -39,7 +39,7 @@ namespace screen
     }
 
     /* An internal check for string representing NA. */
-    bool is_na(const std::string &txt)
+    bool is_na(const string &txt)
     {
         if ((txt == UNDEFINED) || (txt.size() == 0))
         {
@@ -56,7 +56,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Function to change stdout in case of RCPP. */
-    void print_stdout(const std::string &txt)
+    void print_stdout(const string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::Rcout << txt;
@@ -68,7 +68,7 @@ namespace screen
     }
 
     /* Internal helper function to change stderr in case of RCPP. */
-    void _helper_stderr_(const std::string &txt)
+    void _helper_stderr_(const string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::Rcerr << txt;
@@ -84,15 +84,15 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void print_decorator(const std::string &title, char decor, const std::string &txt, bool verbose)
+    void print_decorator(const string &title, char decor, const string &txt, bool verbose)
     {
         if (verbose)
         {
             int sx = 3;
             int dx = DECOR_WIDTH - title.length() - sx; // right half bar
             std::ostringstream oss;
-            oss << std::string(sx, decor) << " " << title << " "
-                << std::string(dx, decor) + "\n";
+            oss << string(sx, decor) << " " << title << " "
+                << string(dx, decor) + "\n";
             if (!is_na(txt))
             {
                 oss << txt << "\n";
@@ -113,7 +113,7 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Format the  */
-    std::string format_millisecs(long long elapsed)
+    string format_millisecs(long long elapsed)
     {
         using namespace std::chrono;
 
@@ -148,7 +148,7 @@ namespace screen
     }
 
     /* Initialize progress bar. */
-    void progress_bar_init(const std::string &txt, bool verbose)
+    void progress_bar_init(const string &txt, bool verbose)
     {
         using namespace std::chrono;
 
@@ -156,10 +156,10 @@ namespace screen
         {
             std::ostringstream oss;
             oss << "\r"
-                << txt << ": [" + std::string(PROGBAR_WIDTH, '.') << "] "
+                << txt << ": [" + string(PROGBAR_WIDTH, '.') << "] "
                 << std::fixed << std::setprecision(2) << 0.0 << " %"
                 << " 00m00s<??m??s"
-                << std::string(20, ' ');
+                << string(20, ' ');
             _helper_stderr_(oss.str());
 
             _Prog_Bar_Start_ = steady_clock::now();
@@ -171,7 +171,7 @@ namespace screen
     }
 
     /* Percentual progress bar (progress/total). */
-    void progress_bar_run(const std::string &txt, int progress, int total, bool verbose)
+    void progress_bar_run(const string &txt, int progress, int total, bool verbose)
     {
         using namespace std::chrono;
 
@@ -185,10 +185,10 @@ namespace screen
 
                 std::ostringstream oss;
                 oss << "\r"
-                    << txt << ": [" << std::string(where, C_DECOR) << std::string(PROGBAR_WIDTH - where, '.') << "] "
+                    << txt << ": [" << string(where, C_DECOR) << string(PROGBAR_WIDTH - where, '.') << "] "
                     << percent(progress, total)
                     << " " << format_millisecs(time_elapsed) << "<" << format_millisecs(time_missing)
-                    << std::string(20, ' ');
+                    << string(20, ' ');
                 _helper_stderr_(oss.str());
             }
         }
@@ -198,7 +198,7 @@ namespace screen
     }
 
     /*  End the progress bar. */
-    void progress_bar_end(const std::string &txt, bool verbose)
+    void progress_bar_end(const string &txt, bool verbose)
     {
         using namespace std::chrono;
 
@@ -207,9 +207,9 @@ namespace screen
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
             std::ostringstream oss;
             oss << "\r"
-                << txt << ": [" << std::string(PROGBAR_WIDTH, C_DECOR) << "] "
+                << txt << ": [" << string(PROGBAR_WIDTH, C_DECOR) << "] "
                 << format_millisecs(time_elapsed)
-                << std::string(25, ' ') << "\n";
+                << string(25, ' ') << "\n";
             _helper_stderr_(oss.str());
         }
 
@@ -231,7 +231,7 @@ namespace screen
 
     /* Raise a warning if it wasn't raised before. */
     // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
-    void raise_warning(const std::string &txt, bool &is_raised_once)
+    void raise_warning(const string &txt, bool &is_raised_once)
     {
         if (is_raised_once == false)
         {
@@ -253,7 +253,7 @@ namespace screen
 
     /* Display an error message. */
     // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
-    void raise_error(const std::string &txt)
+    void raise_error(const string &txt)
     {
 #pragma omp critical
         {
@@ -268,6 +268,12 @@ namespace screen
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Unused_Range_Warning = false; // warning for invalid proposer range declaration
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -280,116 +286,209 @@ namespace screen
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Overload constructor for argument VALUES. */
-Base_Function::Base_Function(const std::string default_name,
-                             sdargs default_args_val, std::vector<std::string> default_order)
+Base_Function::Base_Function(const string &dflt_name, const dictargs &dflt_args_val, const vector<string> &dflt_order)
 {
-    name = default_name;
-
-    if (default_args_val.size() != default_order.size())
+    _name_ = dflt_name;
+    _args_names_ = dflt_order;
+    _args_val_ = new double[_args_names_.size()];
+    int i = 0;
+    for (const string &argID : dflt_order)
     {
-        std::ostringstream oss;
-        oss << "Inconsistent default arguments and order in function `" << get_name() << "`.";
-        screen::raise_error(oss.str());
+        _args_val_[i++] = dflt_args_val.at(argID);
     }
-    else
-    {
-        args_names = default_order;               // developer assigment of arguments order
-        args_val = new double[args_names.size()]; // dynamic allocation
-        for (size_t i = 0; i < args_names.size(); i++)
-        {
-            args_val[i] = default_args_val.at(args_names[i]);
-        }
-        _get_arg_method_ = &Base_Function::_get_arg_val_; // assign getter
-        _set_arg_method_ = &Base_Function::_set_arg_val_; // assign setter
-    }
+    _get_arg_method_ = &Base_Function::_get_arg_val_; // assign getter
+    _set_arg_method_ = &Base_Function::_set_arg_val_; // assign setter
 }
 
 /* Overload constructor for argument POINTERS. */
-Base_Function::Base_Function(const std::string default_name,
-                             sdargs_ptr default_args_ptr, std::vector<std::string> default_order)
+Base_Function::Base_Function(const string &dflt_name, const dictargs_ptr &dflt_args_ptr, const vector<string> &dflt_order)
 {
-    name = default_name;
+    _name_ = dflt_name;
+    _args_names_ = dflt_order;
+    _args_ptr_ = new const double *[dflt_args_ptr.size()];
+    int i = 0;
+    for (const string &argID : dflt_order)
+    {
+        _args_ptr_[i++] = dflt_args_ptr.at(argID);
+    }
+    _get_arg_method_ = &Base_Function::_get_arg_ptr_; // assign getter
+    _set_arg_method_ = &Base_Function::_set_arg_ptr_; // assign setter
+}
 
-    if (default_args_ptr.size() != default_order.size())
+/* Overload assignment of non default POINTER arguments. */
+void Base_Function::assign_args(dictargs dflt_args_val)
+{
+    for (const auto &pair : dflt_args_val)
+    {
+        auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
+        if (it == _args_names_.end())
+        {
+            std::ostringstream oss;
+            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            screen::raise_error(oss.str());
+        }
+        else
+        {
+            _args_val_[std::distance(_args_names_.begin(), it)] = pair.second;
+        }
+    }
+}
+
+/* Overload assignment of non default POINTER arguments. */
+void Base_Function::assign_args(dictargs_ptr dflt_args_ptr)
+{
+    for (const auto &pair : dflt_args_ptr)
+    {
+        auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
+        if (it == _args_names_.end())
+        {
+            std::ostringstream oss;
+            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            screen::raise_error(oss.str());
+        }
+        else
+        {
+            _args_ptr_[std::distance(_args_names_.begin(), it)] = pair.second;
+        }
+    }
+}
+
+/* Set the range of validity of the value, and the corresponding validation function. */
+void Base_Function::set_range(dictargs new_range)
+{
+    bool is_min = false;
+    bool is_max = false;
+    double new_min = -INF_DOUBLE;
+    double new_max = INF_DOUBLE;
+
+    //----- Read the range -----//
+    for (auto const &x : new_range)
+    {
+        if (x.first == "min")
+        {
+            if (is_min)
+            {
+                screen::raise_error("Multiple definition for `min`.");
+            }
+            else
+            {
+                new_min = x.second;
+                is_min = true;
+            }
+        }
+        else if (x.first == "max")
+        {
+            if (is_max)
+            {
+                screen::raise_error("Multiple definition for `max`.");
+            }
+            else
+            {
+                new_max = x.second;
+                is_max = true;
+            }
+        }
+        else
+        {
+            std::ostringstream oss;
+            oss << "Invalid range keyword `" << x.first << "`. Provide only `min` and/or `max`.";
+            screen::raise_error(oss.str());
+        }
+    }
+
+    //----- Overwrite min and max if they exist as arguments -----//
+    if (std::find(_args_names_.begin(), _args_names_.end(), "min") != _args_names_.end())
+    {
+        new_min = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
+        if (is_min)
+        {
+            std::ostringstream oss;
+            oss << "Overwriting range min with argument min " << new_min << " in `" << get_name() << "`.";
+            screen::raise_warning(oss.str(), Unused_Range_Warning);
+        }
+        is_min = true;
+    }
+    if (std::find(_args_names_.begin(), _args_names_.end(), "max") != _args_names_.end())
+    {
+        new_max = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
+        if (is_max)
+        {
+            std::ostringstream oss;
+            oss << "Overwriting range max with argument max " << new_min << " in `" << get_name() << "`.";
+            screen::raise_warning(oss.str(), Unused_Range_Warning);
+        }
+        is_max = true;
+    }
+
+    //----- Check compatibility with default range -----//
+    if (new_min < _range_min_)
     {
         std::ostringstream oss;
-        oss << "Inconsistent default arguments and order in function `" << get_name() << "`.";
+        oss << "Invalid min value" << new_min << " for distribution `" << get_name() << "`.";
         screen::raise_error(oss.str());
     }
-    else
+    if (new_max > _range_max_)
     {
-        args_names = default_order;                       // developer assigment of arguments order
-        args_ptr = new const double *[args_names.size()]; // dynamic allocation
-        for (size_t i = 0; i < args_names.size(); i++)
-        {
-            args_ptr[i] = default_args_ptr.at(args_names[i]);
-        }
-        _get_arg_method_ = &Base_Function::_get_arg_ptr_; // assign getter
-        _set_arg_method_ = &Base_Function::_set_arg_ptr_; // assign setter
+        std::ostringstream oss;
+        oss << "Invalid max value" << new_max << " for distribution `" << get_name() << "`.";
+        screen::raise_error(oss.str());
     }
-}
 
-/* Overload assignment of non default POINTER arguments. */
-void Base_Function::assign_args(sdargs default_args_val)
-{
-    for (const auto &pair : default_args_val)
+    //----- Assign valid range functional method -----//
+    if ((!is_min) && (!is_max))
     {
-        auto it = std::find(args_names.begin(), args_names.end(), pair.first);
-        if (it == args_names.end())
+        _valid_range_method_ = &Base_Function::_valid_range_dummy_;
+    }
+    else if ((is_min) && (!is_max))
+    {
+        _range_min_ = new_min;
+        _valid_range_method_ = &Base_Function::_valid_range_min_;
+    }
+    else if ((!is_min) && (is_max))
+    {
+        _range_max_ = new_max;
+        _valid_range_method_ = &Base_Function::_valid_range_max_;
+    }
+    else // ((is_min) && (is_max))
+    {
+        if (_range_min_ > _range_max_)
         {
             std::ostringstream oss;
-            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
             screen::raise_error(oss.str());
         }
         else
         {
-            args_val[std::distance(args_names.begin(), it)] = pair.second;
-        }
-    }
-}
-
-/* Overload assignment of non default POINTER arguments. */
-void Base_Function::assign_args(sdargs_ptr default_args_ptr)
-{
-    for (const auto &pair : default_args_ptr)
-    {
-        auto it = std::find(args_names.begin(), args_names.end(), pair.first);
-        if (it == args_names.end())
-        {
-            std::ostringstream oss;
-            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
-            screen::raise_error(oss.str());
-        }
-        else
-        {
-            args_ptr[std::distance(args_names.begin(), it)] = pair.second;
+            _range_min_ = new_min;
+            _range_max_ = new_max;
+            _valid_range_method_ = &Base_Function::_valid_range_both_;
         }
     }
 }
 
 /* Return formatted argument names of the distribution. */
-std::string Base_Function::show_arg_names() const
+string Base_Function::show_arg_names() const
 {
-    if (args_names.empty())
+    if (_args_names_.empty())
     {
         return UNDEFINED;
     }
     else
     {
         std::ostringstream oss;
-        oss << args_names[0];
-        for (size_t x = 1; x < args_names.size(); x++)
+        oss << _args_names_[0];
+        for (size_t x = 1; x < _args_names_.size(); x++)
         {
-            oss << screen::C_LIST_DELIM << args_names[x];
+            oss << screen::C_LIST_DELIM << _args_names_[x];
         }
         return oss.str();
     }
 }
 
 /* Return formatted argument names of the distribution. */
-std::string Base_Function::show_arg_values() const
+string Base_Function::show_arg_values() const
 {
-    if (args_names.empty())
+    if (_args_names_.empty())
     {
         return UNDEFINED;
     }
@@ -397,396 +496,10 @@ std::string Base_Function::show_arg_values() const
     {
         std::ostringstream oss;
         oss << get_arg(0);
-        for (size_t x = 1; x < args_names.size(); x++)
+        for (size_t x = 1; x < _args_names_.size(); x++)
         {
             oss << screen::C_LIST_DELIM << get_arg(x);
         }
         return oss.str();
     }
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Uniform Distribution : methods  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* uniform probability density function */
-double Uniform_Distribution::pdf(double x)
-{
-    double low = get_arg(0);
-    double up = get_arg(1);
-    (void)x;
-    return pow(up - low, -1);
-}
-
-/* uniform probability density function */
-double Uniform_Distribution::log_pdf(double x)
-{
-    double low = get_arg(0);
-    double up = get_arg(1);
-    (void)x;
-    return -log(up - low);
-}
-
-/* uniform probability density function */
-double Uniform_Distribution::logratio(double x, double y)
-{
-    (void)x;
-    (void)y;
-    return 0.0;
-}
-
-/* uniform random generator */
-double Uniform_Distribution::rand(sys_rnd_gen &rng)
-{
-    double low = get_arg(0);
-    double up = get_arg(1);
-    std::uniform_real_distribution<double> distr_gen(low, up);
-    return distr_gen(rng);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Normal Distribution : methods  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* normal probability density function */
-double Normal_Distribution::pdf(double x)
-{
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    return exp(-0.5 * pow((x - mean) / sd, 2)) * pow(sd, -1) * 0.398942280;
-}
-
-/* logarithm of the normal probability density function */
-double Normal_Distribution::log_pdf(double x)
-{
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    return -0.5 * pow((x - mean) / sd, 2) - log(sd) - 0.918938533;
-}
-
-/* log-ratio of the normal probability density function */
-double Normal_Distribution::logratio(double x, double y)
-{
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    return 0.5 * (pow((x - mean) / sd, 2) - pow((y - mean) / sd, 2));
-}
-
-/* normal random generator */
-double Normal_Distribution::rand(sys_rnd_gen &rng)
-{
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    std::normal_distribution<double> distr_gen(mean, sd);
-    return distr_gen(rng);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////  Discrete Normal Distribution : methods  /////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* discretized normal probability density function */
-double Discrete_Normal_Distribution::pdf(double x)
-{
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    int r = std::round(x);
-    return 0.5 * (std::erf(0.707106781 * (r + 0.5 - mean) / sd) - std::erf(0.707106781 * (r - 0.5 - mean) / sd));
-}
-
-/* discretized normal random generator */
-double Discrete_Normal_Distribution::rand(sys_rnd_gen &rng)
-{
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    std::normal_distribution<double> distr_gen(mean, sd);
-    return std::round(distr_gen(rng));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Lognormal Distribution : methods  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* lognormal probability density function */
-double Lognorm_Distribution::pdf(double x)
-{
-    double meanlog = get_arg(0);
-    double sdlog = get_arg(1);
-    return exp(-0.5 * pow((log(x) - meanlog) / sdlog, 2)) * pow(x * sdlog, -1) * 0.398942280;
-}
-
-/* logarithm of the lognormal probability density function */
-double Lognorm_Distribution::log_pdf(double x)
-{
-    double meanlog = get_arg(0);
-    double sdlog = get_arg(1);
-    return -0.5 * pow((log(x) - meanlog) / sdlog, 2) - log(x) - log(sdlog) - 0.918938533;
-}
-
-/* log-ratio of the lognormal probability density function */
-double Lognorm_Distribution::logratio(double x, double y)
-{
-    double meanlog = get_arg(0);
-    double sdlog = get_arg(1);
-    return 0.5 * (pow((log(x) - meanlog) / sdlog, 2) - pow((log(y) - meanlog) / sdlog, 2)) + log(x) - log(y);
-}
-
-/* lognormal random generator */
-double Lognorm_Distribution::rand(sys_rnd_gen &rng)
-{
-    double meanlog = get_arg(0);
-    double sdlog = get_arg(1);
-    std::lognormal_distribution<double> distr_gen(meanlog, sdlog);
-    return distr_gen(rng);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////  Discrete Lognormal Distribution : methods  //////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Discrete lognormal probability density function. */
-double Discrete_Lognorm_Distribution::pdf(double x)
-{
-    double meanlog = get_arg(0);
-    double sdlog = get_arg(1);
-    double r = floor(x);
-    double aux = (x < 1) ? -1 : erf(0.707106781 * (log(r) - meanlog) / sdlog);
-    return 0.5 * (erf(0.707106781 * (log(r + 1) - meanlog) / sdlog) - aux);
-}
-
-/* Discrete lognormal random generator. */
-double Discrete_Lognorm_Distribution::rand(sys_rnd_gen &rng)
-{
-    double meanlog = get_arg(0);
-    double sdlog = get_arg(1);
-    std::lognormal_distribution<double> distr_gen(meanlog, sdlog);
-    return std::round(distr_gen(rng));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Gamma Distribution : methods  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* gamma probability density function */
-double Gamma_Distribution::pdf(double x)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    return exp(-x / scale) * pow(x, shape - 1.) / (tgamma(shape) * pow(scale, shape));
-}
-
-/* logarithm of the gamma probability density function */
-double Gamma_Distribution::log_pdf(double x)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    return (shape - 1) * log(x) - lgamma(shape) - shape * log(scale) - x / scale;
-}
-
-/* log-ratio of the gamma probability density function */
-double Gamma_Distribution::logratio(double x, double y)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    return (shape - 1) * (log(y / x)) + (x - y) / scale;
-}
-
-/* gamma random generator */
-double Gamma_Distribution::rand(sys_rnd_gen &rng)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    std::gamma_distribution<double> distr_gen(shape, scale);
-    return distr_gen(rng);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Weibull Distribution : methods  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* weibull probability density function */
-double Weibull_Distribution::pdf(double x)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    return (shape / scale) * pow((x / scale), shape - 1) * exp(-pow(x / scale, shape));
-}
-
-/* logarithm of the weibull probability density function */
-double Weibull_Distribution::log_pdf(double x)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    return log(shape / scale) + (shape - 1) * log(x / scale) - pow(x / scale, shape);
-}
-
-/* log-ratio of the weibull probability density function */
-double Weibull_Distribution::logratio(double x, double y)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    return (shape - 1) * (log(y / x)) + pow(x / scale, shape) - pow(y / scale, shape);
-}
-
-/* weibull random generator */
-double Weibull_Distribution::rand(sys_rnd_gen &rng)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    std::weibull_distribution<double> distr_gen(shape, scale);
-    return distr_gen(rng);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  Weibull Distribution (discrete) : methods  ////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Discrete weibull probability density function */
-double Discrete_Weibull_Distribution::pdf(double x)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    double r = std::floor(x);
-    return std::exp(-std::pow(r / scale, shape)) - exp(-pow((r + 1) / scale, shape));
-}
-
-/* Discrete weibull random generator */
-double Discrete_Weibull_Distribution::rand(sys_rnd_gen &rng)
-{
-    double shape = get_arg(0);
-    double scale = get_arg(1);
-    std::weibull_distribution<double> distr_gen(shape, scale);
-    return std::round(distr_gen(rng));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Rayleigh Distribution : methods  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* rayleigh probability density function */
-double Rayleigh_Distribution::pdf(double x)
-{
-    double scale = get_arg(0);
-    return x * pow(scale, -2) * exp(-0.5 * pow(x / scale, 2));
-}
-
-/* logarithm of the rayleigh probability density function */
-double Rayleigh_Distribution::log_pdf(double x)
-{
-    double scale = get_arg(0);
-    return log(x) - 2 * log(scale) - 0.5 * pow(x / scale, 2);
-}
-
-/* log-ratio of the rayleigh probability density function */
-double Rayleigh_Distribution::logratio(double x, double y)
-{
-    double scale = get_arg(0);
-    return log(y / x) + 0.5 * pow(scale, -2) * (pow(x, 2) - pow(y, 2));
-}
-
-/* rayleigh random generator */
-double Rayleigh_Distribution::rand(sys_rnd_gen &rng)
-{
-    double scale = get_arg(0);
-    std::uniform_real_distribution<double> unif_gen(0, 1);
-    return scale * sqrt(-2 * unif_gen(rng));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  Discrete Rayleigh Distribution : methods  ////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Discrete rayleigh probability density function */
-double Discrete_Rayleigh_Distribution::pdf(double x)
-{
-    double scale = get_arg(0);
-    double r = std::floor(x);
-    return exp(-0.5 * pow(r / scale, 2)) - exp(-0.5 * pow((r + 1) / scale, 2));
-}
-
-/* Discrete rayleigh random generator */
-double Discrete_Rayleigh_Distribution::rand(sys_rnd_gen &rng)
-{
-    double scale = get_arg(0);
-    std::uniform_real_distribution<double> unif_gen(0, 1);
-    return std::round(scale * sqrt(-2 * unif_gen(rng)));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Exponential Distribution : methods  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* exponential probability density function */
-double Exponential_Distribution::pdf(double x)
-{
-    double rate = get_arg(0);
-    return rate * exp(-rate * x);
-}
-
-/* logarithm of the exponential probability density function */
-double Exponential_Distribution::log_pdf(double x)
-{
-    double rate = get_arg(0);
-    return log(rate) - rate * x;
-}
-
-/* log-ratio of the exponential probability density function */
-double Exponential_Distribution::logratio(double x, double y)
-{
-    double rate = get_arg(0);
-    return rate * (x - y);
-}
-
-/* exponential random generator */
-double Exponential_Distribution::rand(sys_rnd_gen &rng)
-{
-    double rate = get_arg(0);
-    std::exponential_distribution<double> distr_gen(rate);
-    return distr_gen(rng);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  Exponential Distribution (discrete) : methods  ////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Discrete_Exponential_Distribution::pdf(double x)
-{
-    double rate = get_arg(0);
-    return exp(-rate * floor(x)) * (1 - exp(-rate));
-}
-
-/* Logarithm of the exponential probability density function. */
-double Discrete_Exponential_Distribution::log_pdf(double x)
-{
-    double rate = get_arg(0);
-    return -rate * std::floor(x) + std::log(1 - std::exp(-rate));
-}
-
-/* Log-ratio of the discrete exponential probability density function. */
-double Discrete_Exponential_Distribution::logratio(double x, double y)
-{
-    double rate = get_arg(0);
-    return rate * (std::floor(x) - std::floor(y));
-}
-
-/* Discrete exponential random generator. */
-double Discrete_Exponential_Distribution::rand(sys_rnd_gen &rng)
-{
-    double rate = get_arg(0);
-    std::exponential_distribution<double> distr_gen(rate);
-    return std::round(distr_gen(rng));
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//

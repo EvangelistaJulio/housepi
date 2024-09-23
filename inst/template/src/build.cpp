@@ -28,17 +28,17 @@ bool Unknown_Household_Data_Structure_Warning = false;
 //-----------------------------------------------------------------------------------------------//
 
 // declaration for type in data file
-const std::string TYPE_PARAM = "P";   // Parameter type declaration
-const std::string TYPE_DATA = "D";    // Data type declaration
-const std::string TYPE_SCALAR = "S";  // Scalar type declaration
-const std::string TYPE_COMMAND = "C"; // Command type declaration
+const string TYPE_PARAM = "P";   // Parameter type declaration
+const string TYPE_DATA = "D";    // Data type declaration
+const string TYPE_SCALAR = "S";  // Scalar type declaration
+const string TYPE_COMMAND = "C"; // Command type declaration
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMC : methods (auxiliary functions)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Clean std::string from forbidden characters and convert to UNDEFINED. */
-std::string MCMC::string_cleaner(std::string tkn)
+/* Clean string from forbidden characters and convert to UNDEFINED. */
+string MCMC::string_cleaner(string tkn)
 {
     // forbidden characters
     for (char r : {'"', '\r', '\n'})
@@ -56,7 +56,7 @@ std::string MCMC::string_cleaner(std::string tkn)
 }
 
 /* Convert string to boolean variable. */
-bool MCMC::stobool(const std::string &tkn)
+bool MCMC::stobool(const string &tkn)
 {
     bool output = false;
 
@@ -67,7 +67,9 @@ bool MCMC::stobool(const std::string &tkn)
     else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
     {
         output = false;
-    } else {
+    }
+    else
+    {
         raise_error("Unrecognized boolean value for `" + tkn + "`.");
     }
 
@@ -75,11 +77,11 @@ bool MCMC::stobool(const std::string &tkn)
 }
 
 /* Parse the list from the string. */
-std::vector<std::string> parse_list(const std::string tkn, const char delim)
+vector<string> parse_list(const string tkn, const char delim)
 {
     std::istringstream args_ss(tkn);
-    std::vector<std::string> output = {};
-    std::string tmp;
+    vector<string> output = {};
+    string tmp;
 
     // rea the entries of the dictionary
     while (getline(args_ss, tmp, delim))
@@ -98,14 +100,14 @@ std::vector<std::string> parse_list(const std::string tkn, const char delim)
 //-----------------------------------------------------------------------------------------------//
 
 /* Read column headers. */
-std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
-                                                   std::string pathtofile,
-                                                   std::vector<std::string> required_headers)
+vector<string> MCMC::read_column_headers(std::ifstream &input,
+                                         string pathtofile,
+                                         vector<string> required_headers)
 {
-    std::string line, tkn;
+    string line, tkn;
     getline(input, line);
     std::istringstream iss(line);
-    std::vector<std::string> headers = {};
+    vector<string> headers = {};
 
     while (getline(iss, tkn, C_DELIM))
     {
@@ -119,7 +121,7 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
         std::ostringstream oss;
 
         // check the validity of the headers
-        for (const std::string &req : required_headers)
+        for (const string &req : required_headers)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
@@ -147,9 +149,9 @@ std::vector<std::string> MCMC::read_column_headers(std::ifstream &input,
 }
 
 /* Load files from the row with headers */
-bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> headers, ssargs &this_row)
+bool MCMC::read_row_by_headers(std::ifstream &input, vector<string> headers, ssargs &this_row)
 {
-    std::string line, tkn;
+    string line, tkn;
     if (getline(input, line))
     {
         std::istringstream iss(line);
@@ -169,9 +171,9 @@ bool MCMC::read_row_by_headers(std::ifstream &input, std::vector<std::string> he
 }
 
 /* convert the output of a row to a string-to-double dictionary */
-sdargs MCMC::row_to_sdargs(ssargs &this_row)
+dictargs MCMC::row_to_sdargs(ssargs &this_row)
 {
-    sdargs row_with_double = {};
+    dictargs row_with_double = {};
     for (auto const &x : this_row)
     {
         row_with_double.emplace(x.first, stod(x.second));
@@ -191,7 +193,7 @@ sdargs MCMC::row_to_sdargs(ssargs &this_row)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file */
-void MCMC::build_setup(const std::string &pathtofile, bool verbose)
+void MCMC::build_setup(const string &pathtofile, bool verbose)
 {
     // default number of threads
     unsigned num_threads = 1;
@@ -208,11 +210,11 @@ void MCMC::build_setup(const std::string &pathtofile, bool verbose)
         {
             print_decorator("Setup", C_DECOR, "import: " + pathtofile, verbose);
 
-            // Create a std::stringstream of the current line
+            // Create a stringstream of the current line
             ssargs safe_load = {};
-            for (std::string line; getline(input, line);)
+            for (string line; getline(input, line);)
             {
-                std::string name, choice;
+                string name, choice;
                 std::istringstream iss(line);
 
                 //===== NAME =====//
@@ -232,13 +234,13 @@ void MCMC::build_setup(const std::string &pathtofile, bool verbose)
             }
 
             //---- Check that all provided setups are correct -----//
-            std::vector<std::string> file_entries = {
+            vector<string> file_entries = {
                 "num_threads", "seed", "num_chains",
                 "num_iter", "num_adapt", "thinning",
                 "burn_in", "rnd_init_params",
                 "num_rungs", "inv_temper"};
 
-            std::vector<std::string> wrong_entries = {};
+            vector<string> wrong_entries = {};
             for (const auto &pair : safe_load)
             {
                 if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
@@ -336,7 +338,7 @@ void MCMC::build_setup(const std::string &pathtofile, bool verbose)
                 if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
                 {
                     raise_warning("Unable to fix initial parameters when running multiple chains.",
-                                          Fix_Init_Mult_Chains_Warning);
+                                  Fix_Init_Mult_Chains_Warning);
                     setup_rnd_init_params = true;
                 }
             }
@@ -391,11 +393,11 @@ void MCMC::build_setup(const std::string &pathtofile, bool verbose)
 //-----------------------------------------------------------------------------------------------//
 
 /* Parse the list from the string. */
-std::vector<std::string> MCMC::parse_list_args(const std::string tkn, const char delim)
+vector<string> MCMC::parse_list_args(const string tkn, const char delim)
 {
     std::istringstream args_ss(tkn);
-    std::vector<std::string> output = {};
-    std::string tmp;
+    vector<string> output = {};
+    string tmp;
 
     // rea the entries of the dictionary
     while (getline(args_ss, tmp, delim))
@@ -407,11 +409,11 @@ std::vector<std::string> MCMC::parse_list_args(const std::string tkn, const char
 }
 
 /* Combine after control two lists into a dictionary */
-sdargs MCMC::merge_list_args(const std::string tkn_keys, const std::string tkn_vals)
+dictargs MCMC::merge_list_args(const string tkn_keys, const string tkn_vals)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_keys);
-    std::vector<std::string> vals = parse_list_args(tkn_vals);
-    sdargs output = {};
+    vector<string> keys = parse_list_args(tkn_keys);
+    vector<string> vals = parse_list_args(tkn_vals);
+    dictargs output = {};
 
     if (keys.size() != vals.size())
     {
@@ -440,7 +442,7 @@ sdargs MCMC::merge_list_args(const std::string tkn_keys, const std::string tkn_v
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read model parameter file and build paramerter dictionary. */
-void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
+void MCMC::build_parameters(const string &pathtofile, bool verbose)
 {
     if (is_na(pathtofile))
     {
@@ -460,7 +462,7 @@ void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
             print_decorator("Parameters", C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
-            std::vector<std::string> headers = read_column_headers(input, pathtofile, param_file_headers);
+            vector<string> headers = read_column_headers(input, pathtofile, param_file_headers);
 
             //===== Empty current list of parameters =====//
             drop_all_params();
@@ -472,7 +474,7 @@ void MCMC::build_parameters(const std::string &pathtofile, bool verbose)
                 if (stobool(this_row["infer"]))
                 {
                     // load range
-                    sdargs range = {};
+                    dictargs range = {};
                     if (!is_na(this_row["min"]))
                     {
                         range.emplace("min", std::stod(this_row["min"]));
@@ -599,12 +601,12 @@ void MCMC::update_report_data()
 }
 
 /* Read data file and pre-process the data. */
-void MCMC::build_data(const std::string &pathtofile, bool verbose)
+void MCMC::build_data(const string &pathtofile, bool verbose)
 {
     // define valid status set
     std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
     // define standard headers set
-    std::set<std::string> standard_headers = {"house_index", "index", "status"};
+    std::set<string> standard_headers = {"house_index", "index", "status"};
 
     if (is_na(pathtofile))
     {
@@ -646,10 +648,10 @@ void MCMC::build_data(const std::string &pathtofile, bool verbose)
 
             //===== Load individuals from the row with values =====//
 
-            std::vector<Individual> aux_individuals = {};
+            vector<Individual> aux_individuals = {};
             for (ssargs this_row = {}; read_row_by_headers(input, _data_headers_, this_row); this_row.clear())
             {
-                sdargs args = row_to_sdargs(this_row);
+                dictargs args = row_to_sdargs(this_row);
                 Individual this_indiv(args);
                 // associate data index or default provided index
                 this_indiv.set_index((is_index) ? args.at("index") : num_indiv);
@@ -711,7 +713,7 @@ void MCMC::build_data(const std::string &pathtofile, bool verbose)
 
             //===== Clean up data entries for output files =====//
             // eventually remove standard headers to reorder them at the end
-            for (const std::string &col : standard_headers)
+            for (const string &col : standard_headers)
             {
                 _data_headers_.erase(
                     std::remove(_data_headers_.begin(), _data_headers_.end(), col),
@@ -741,7 +743,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 {
     for (const auto &which : this_indiv.which_rate)
     {
-        std::string rateID = which.first;
+        string rateID = which.first;
         if (rateID == CONTACT_RATE)
         {
             std::ostringstream oss;
@@ -750,13 +752,13 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             raise_error(oss.str());
         }
 
-        std::string parID = which.second;
+        string parID = which.second;
 
         //=====initialize model report=====//
         if (num_indiv == 0)
         {
             // if first individual, initialize rateID-report
-            report_group_classes.emplace(rateID, std::map<std::string, int>());
+            report_group_classes.emplace(rateID, std::map<string, int>());
             report_group_classes.at(rateID).emplace("[reference]", 0);
         }
         else
@@ -808,13 +810,13 @@ void MCMC::set_rate_per_contact(int h)
 {
     // allocate contact patterns
     int s = househ[h].house_size;
-    househ[h].which_rate.resize(s, std::vector<std::string>(s, UNDEFINED));
-    househ[h].contact_rates.resize(s, std::vector<const double *>(s, &REFERENCE_VALUE));
+    househ[h].which_rate.resize(s, vector<string>(s, UNDEFINED));
+    househ[h].contact_rates.resize(s, vector<const double *>(s, &REFERENCE_VALUE));
 
     if (h == 0)
     {
         // if first household, initialize contact rate report
-        report_group_classes.emplace(CONTACT_RATE, std::map<std::string, int>());
+        report_group_classes.emplace(CONTACT_RATE, std::map<string, int>());
         report_group_classes.at(CONTACT_RATE).emplace("[reference]", 0);
     }
     else
@@ -834,7 +836,7 @@ void MCMC::set_rate_per_contact(int h)
             if (k != i)
             {
                 assign_rate_per_contact_to_household(h, k, i);
-                std::string parID = househ[h].which_rate[k][i];
+                string parID = househ[h].which_rate[k][i];
 
                 if (is_na(parID))
                 {
@@ -881,7 +883,7 @@ void MCMC::set_rate_per_contact(int h)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed string to a double */
-double MCMC::type_to_double(const std::string val, const std::string typ, int h, int i)
+double MCMC::type_to_double(const string val, const string typ, int h, int i)
 {
     double output = INF_DOUBLE;
 
@@ -905,7 +907,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, int h,
     else if (is_na(val) && !is_na(typ))
     {
         raise_warning("Found a type without a paired value. Falling back to default.",
-                              Non_Specified_Value_Warning);
+                      Non_Specified_Value_Warning);
 
         output = INF_DOUBLE; // default value
     }
@@ -952,7 +954,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, int h,
 }
 
 /* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(const std::string val, const std::string typ, int h, int i)
+const double *MCMC::type_to_doubleptr(const string val, const string typ, int h, int i)
 {
     const double *output = nullptr;
 
@@ -969,7 +971,7 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
     else if (is_na(val) && !is_na(typ))
     {
         raise_warning("Found a type without a paired value. Falling back to default.",
-                              Non_Specified_Value_Warning);
+                      Non_Specified_Value_Warning);
 
         output = nullptr; // default value
     }
@@ -996,13 +998,13 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
 }
 
 /* Convert a string with type-dictionary to string-to-double */
-sdargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i)
+dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_key);
-    std::vector<std::string> vals = parse_list_args(tkn_val);
-    std::vector<std::string> typs = parse_list_args(tkn_typ);
+    vector<string> keys = parse_list_args(tkn_key);
+    vector<string> vals = parse_list_args(tkn_val);
+    vector<string> typs = parse_list_args(tkn_typ);
 
-    sdargs output = {};
+    dictargs output = {};
 
     if (!((keys.size() == vals.size()) && (typs.size() == vals.size())))
     {
@@ -1021,13 +1023,13 @@ sdargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-sdargs_ptr MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, int h, int i)
+dictargs_ptr MCMC::typedict_to_sdargs_ext(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_key);
-    std::vector<std::string> vals = parse_list_args(tkn_val);
-    std::vector<std::string> typs = parse_list_args(tkn_typ);
+    vector<string> keys = parse_list_args(tkn_key);
+    vector<string> vals = parse_list_args(tkn_val);
+    vector<string> typs = parse_list_args(tkn_typ);
 
-    sdargs_ptr output = {};
+    dictargs_ptr output = {};
 
     if (!((keys.size() == vals.size()) && (typs.size() == vals.size())))
     {
@@ -1057,22 +1059,22 @@ sdargs_ptr MCMC::typedict_to_sdargs_ext(const std::string tkn_key, const std::st
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
-void MCMC::build_augmented(const std::string &pathtofile, bool verbose)
+void MCMC::build_augmented(const string &pathtofile, bool verbose)
 {
     if (!is_na(pathtofile))
     {
         std::ifstream input(pathtofile.c_str());
-        std::vector<std::string> required_headers = {"name", "value", "valuetype",
-                                                     "model", "args", "argsval", "argstype", "rule", "init_rand",
-                                                     "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
-                                                     "min", "mintype", "max", "maxtype"};
+        vector<string> required_headers = {"name", "value", "valuetype",
+                                           "model", "args", "argsval", "argstype", "rule", "init_rand",
+                                           "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
+                                           "min", "mintype", "max", "maxtype"};
 
         if (input.is_open())
         {
             print_decorator("Augmented", C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load column headers =====//
-            std::vector<std::string> headers = read_column_headers(input, pathtofile, required_headers);
+            vector<string> headers = read_column_headers(input, pathtofile, required_headers);
 
             //===== Load augmented from the row with options =====//
             load_augm_definition.clear();
@@ -1097,7 +1099,7 @@ void MCMC::build_augmented(const std::string &pathtofile, bool verbose)
 /* Assign augmented variables to all individuals. */
 void MCMC::assign_augmented_variables()
 {
-    std::string augmID;
+    string augmID;
 
     // load the definitions of agumetned variablews and define lists of usage
     for (ssargs loader : load_augm_definition)
@@ -1153,7 +1155,7 @@ void MCMC::assign_augmented_variables()
                 for (ssargs loader : load_augm_definition)
                 {
                     // load range
-                    sdargs range = {};
+                    dictargs range = {};
                     if (type_to_double(loader.at("min"), loader.at("mintype"), h, i) != INF_DOUBLE)
                     {
                         range.emplace("min", type_to_double(loader.at("min"), loader.at("mintype"), h, i));
@@ -1184,7 +1186,7 @@ void MCMC::assign_augmented_variables()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Extra File (default unused) */
-void MCMC::build_extra(const std::string &pathtofile, bool verbose)
+void MCMC::build_extra(const string &pathtofile, bool verbose)
 {
     UNUSED(pathtofile);
     UNUSED(verbose);
@@ -1201,9 +1203,9 @@ void MCMC::build_extra(const std::string &pathtofile, bool verbose)
 ////////////////////////////////////////  MCMC : BUILD  ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::build(const std::string &setup_file, const std::string &params_file,
-                 const std::string &data_file, const std::string &augm_file,
-                 const std::string &extra_file, bool verbose)
+void MCMC::build(const string &setup_file, const string &params_file,
+                 const string &data_file, const string &augm_file,
+                 const string &extra_file, bool verbose)
 {
     //===== reset internal status =====//
     _is_infer_complete_ = false;

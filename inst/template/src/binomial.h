@@ -13,7 +13,6 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
-#include <chrono>
 
 namespace bax
 {
@@ -21,10 +20,12 @@ namespace bax
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
+    using std::vector;
+    using std::string;
     typedef unsigned short int ushort;      // alias for unsigned short int;
     typedef unsigned long int ulong;        // alias for unsigned long int;
-    typedef std::vector<ushort> vec_ushort; // alias for a vector of ushort
-    typedef std::vector<ushort> gentype;    // alias for a generation vector
+    typedef vector<ushort> vec_ushort; // alias for a vector of ushort
+    typedef vector<ushort> gentype;    // alias for a generation vector
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
@@ -38,8 +39,8 @@ namespace bax
 
         void add_entry(ushort new_entry);
         void add_pattern(ulong new_pattern_idx);
-        double likelihood(std::vector<double> &esc_mtx);
-        std::string show();
+        double likelihood(vector<double> &esc_mtx);
+        string show();
 
     private:
         const ushort N_star;
@@ -47,7 +48,7 @@ namespace bax
         size_t num_patterns = 0;
 
         vec_ushort entries = {};
-        std::vector<ulong> pattern_idxs = {};
+        vector<ulong> pattern_idxs = {};
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,23 +57,23 @@ namespace bax
 
     //===== Transmission Generations : Lookup Tables =====//
     // numbers of generations
-    extern std::vector<ulong> Num_Gener_LookupTable;
+    extern vector<ulong> Num_Gener_LookupTable;
     // n. of multiplicites per generation
-    extern std::vector<std::vector<ulong>> Multipl_Gener_LookupTable;
+    extern vector<vector<ulong>> Multipl_Gener_LookupTable;
     // generation vectors
-    extern std::vector<std::vector<gentype>> Generations_LookupTable;
+    extern vector<vector<gentype>> Generations_LookupTable;
 
     //===== Combinations : Lookup Tables =====//
     // lookup-table to store the number of combinations
-    extern std::vector<std::vector<ulong>> Num_Combin_LookupTable;
+    extern vector<vector<ulong>> Num_Combin_LookupTable;
     // lookup-table to store combinations and complements
-    extern std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
+    extern vector<vector<vector<vector<ushort>>>> Combinations_LookupTable;
 
     //===== EscapePatterns : Lookup Tables =====//
     // lookup-table to store the number of combinations
-    extern std::vector<EscapePattern> ChainBinomial_LookupTable;
+    extern vector<EscapePattern> ChainBinomial_LookupTable;
     // lookup-table to store combinations and complements
-    extern std::vector<std::vector<EscapePattern>> EscapePatterns_LookupTable;
+    extern vector<vector<EscapePattern>> EscapePatterns_LookupTable;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
@@ -82,20 +83,20 @@ namespace bax
     ulong binomial_coefficient(ushort N, ushort k);
 
     // functions for the generations lookup table
-    std::vector<gentype> recursive_span_generation(ushort n_infec);
+    vector<gentype> recursive_span_generation(ushort n_infec);
     void init_generations_lookuptable(ushort max_N);
 
     // functions for the combinations lookup table
-    void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, std::vector<vec_ushort> &results, ushort start, ushort loop);
+    void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, vector<vec_ushort> &results, ushort start, ushort loop);
     void store_combinations(ushort N, ushort k);
     void init_combinations_lookuptable(ushort max_N);
     void clear_combinations_lookuptable();
 
     // recursive likelihood formulation
-    void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results);
+    void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, vector<EscapePattern> &results);
     void init_escape_patterns_lookuptable(ushort max_N);
 
-    double chain_binomial_heter_loglikelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
+    double chain_binomial_heter_loglikelihood(ushort N_star, vector<double> &commu_esc_proba, vector<vector<double>> &p2p_esc_proba);
 }
 
 #endif // BINOMIAL__H

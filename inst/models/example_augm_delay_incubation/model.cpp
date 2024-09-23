@@ -27,11 +27,11 @@
 void Model::init_model_for_inference()
 {
 	// external arguments: pointers to the respective parameters
-	sdargs_ptr args = {{"shape", get_param_pointer("shape")},
+	orderargs_ptr args = {{"shape", get_param_pointer("shape")},
 					   {"scale", get_param_pointer("scale")}};
 
 	// choose the incubation period distribution
-	distr_ptr = distribution("gamma", args);
+	distr_ptr = distribution_ptr("gamma", args);
 }
 
 //------------------------------------------- /\ ------------------------------------------------//

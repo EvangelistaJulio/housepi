@@ -71,13 +71,13 @@ long double MCMC::compute_global_loglike()
 void MCMC::init_move_counts()
 {
     // for parameters
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         reset_accept_rate(parID);
     }
 
     // for augmented variables
-    for (const std::string &augmID : augm_to_be_inferred)
+    for (const string &augmID : augm_to_be_inferred)
     {
         for (int h = 0; h < num_househ; h++)
         {
@@ -118,7 +118,7 @@ void MCMC::update_first_case(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::move_single_param(std::string parID)
+void MCMC::move_single_param(string parID)
 {
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_param_move(parID))
@@ -152,7 +152,7 @@ void MCMC::move_single_param(std::string parID)
 /* Sweep over all model parameters. */
 void MCMC::move_all_parameters()
 {
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
     }
@@ -163,7 +163,7 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / setup_num_adapt;
 
-    for (const std::string &parID : param_to_be_inferred)
+    for (const string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
         adapt(parID, adapt_ratio);
@@ -193,7 +193,7 @@ void MCMC::init_augmented_variables(bool is_init)
             {
                 for (int i = 0; i < househ[h].house_size; i++)
                 {
-                    for (const std::string &augmID : augm_rand_init_set)
+                    for (const string &augmID : augm_rand_init_set)
                     {
                         househ[h].indiv[i].init_augm(augmID, get_prng());
                     }
@@ -215,7 +215,7 @@ void MCMC::init_augmented_variables(bool is_init)
 }
 
 /* Update augmented variable `augmID` for individual `i` (). */
-void MCMC::augm_update(int h, int i, std::string augmID, double new_val)
+void MCMC::augm_update(int h, int i, string augmID, double new_val)
 {
     househ[h].indiv[i].set_augm(augmID, new_val);
     update_first_case(h);         // Update information of first cases
@@ -223,7 +223,7 @@ void MCMC::augm_update(int h, int i, std::string augmID, double new_val)
 }
 
 /* Propose augmented variable `augmID` for individual `i`. */
-double MCMC::augm_propose(int h, int i, std::string augmID)
+double MCMC::augm_propose(int h, int i, string augmID)
 {
     return househ[h].indiv[i].augm_propose(augmID, get_prng());
 }
@@ -244,7 +244,7 @@ long double MCMC::move_single_house_augm(int h)
     for (const int &i : househ[h].infectious_set)
     {
         // Loop over augmented variables of infectious
-        for (const std::string &augmID : augm_to_be_inferred)
+        for (const string &augmID : augm_to_be_inferred)
         {
             is_accepted = false;
             old_value = househ[h].indiv[i].get_augm(augmID); // store old value
@@ -297,7 +297,7 @@ void MCMC::move_all_augm_variables()
 }
 
 /* Return the value of the acceptance rate of the given augmented variable */
-double MCMC::get_augm_accept_rate(std::string augmID)
+double MCMC::get_augm_accept_rate(string augmID)
 {
     int accept_count = 0, propos_count = 0;
 
@@ -391,7 +391,7 @@ void MCMC::update_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The text to print in the Markov chian progress bar. */
-std::string MCMC::get_progtxt(std::string txt)
+string MCMC::get_progtxt(string txt)
 {
     std::ostringstream oss;
     if (_is_power_post_)
@@ -535,7 +535,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 // FIXME : output_file shouldn't be necessary
 // FIXME : store diagnostics instead of canceling everything for each chain (~)
 // FIXME : Gelman Rubin could be integrated
-void MCMC::infer(std::string output_file, bool progbar)
+void MCMC::infer(string output_file, bool progbar)
 {
     //----- Check if data is meaningful -----//
     if (report_data["n.miss.stat"] == num_indiv)
@@ -589,9 +589,9 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
-    std::vector<long double> inv_t = {};  // inverse temperature
-    std::vector<long double> avg_ll = {}; // mean loglikelihood
-    std::vector<long double> var_ll = {}; // variance loglikelihood
+    vector<long double> inv_t = {};  // inverse temperature
+    vector<long double> avg_ll = {}; // mean loglikelihood
+    vector<long double> var_ll = {}; // variance loglikelihood
 
     //----- Fix internal states -----//
     _is_print_inferstate_ = false; // avoid printing
