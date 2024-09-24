@@ -62,18 +62,18 @@ Similarly to parameter definitions, for augmented variables we provide a DataFra
 augm_1 <- housepi::AugmentedFrame(list(
   # define 'exposure' time
   exposure = list(
-    x = "exposure_min@D", # start from exposure_min (data)
-    model = "uniform",    # associate a uniform model
-    args = list(min = "exposure_min@D",  # 'exposure_min' (data)
-                max = "exposure_max@D"), # 'exposure_max' (data)
-    rule = "normal",      # rule for Metropolis move is normal
-    rule_args = list(sd = 0.25)  # std. dev. of normal rule 
+    x = "exposure_min@D", # start from the data 'exposure_min'
+    model = "uniform",                   # associate a uniform model
+    args = list(min = "exposure_min@D",  # use exposure min and max from data
+                max = "exposure_max@D"), # as the uniform distribution domain 
+    rule = "normal",            # choose a normal rule for the Metropolis move
+    rule_args = list(sd = 0.25) # with a std. dev. of 0.25
   ),
   
   # define 'onset' time
   onset = list(
-    x = "onset_max@D",    # start from onset_max (data)
-    model = "uniform",    # ...
+    x = "onset_max@D", # start from onset_max (data)
+    model = "uniform", # ...
     args = list(min = "onset_min@D", 
                 max = "onset_max@D"),
     rule = "normal",
@@ -89,28 +89,29 @@ We run the inference and we extract the results
 
 ```{r}
 mcmc_trace_1 <- housepi::run_inference(hemi_1)
-coda::traceplot(mcmc_trace_1[1], col="#0E86D4")
+plot(mcmc_trace_1, col="#0E86D4")
 results_1 <- summary(mcmc_trace_1)
 ```
-
-
-results$statistics["shape", "Mean"]
 
 ## Augment Onset Times
 
 We use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
 
 ```{r}
-hemi2 <- housepi::generate_model("augm_onset_single_intr")
+hemi_2 <- housepi::generate_model("augm_onset_single_intr")
+```
 
-setup <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
+```{r}
+setup_2 <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
               thinning = 25, seed = 576125013)
 
-housepi::build_model(hemi2, data = "data/survey.csv", 
-                     params = "data/params.csv", setup = setup)
+# results_1$statistics["shape", "Mean"]
+# results_1$statistics["scale", "Mean"]
 
-# store the choice of the parameters to be used in the simulation
-params <- hemi2$params()
+housepi::build_model(hemi_2, data = "data/survey.csv", params = "data/params.csv", 
+                     setup = setup_2)
+
+par_2 <- hemi_2$params()
 ```
 
 This time we have loaded the parameter definitions directly from a file
@@ -127,13 +128,12 @@ augm <- housepi::AugmentedFrame()
 augm$add(name = "onset_date", 
          x = 0,
          rule = "normal", rule_args = list(sd = 0.25),
-         range = list(min = -7))
+         range = list(min = -3))
 
 augm$add(name = "incub_period", 
          x = 0,
-         model = "gamma",
-         args = list(shape = "incub_shape@P", 
-                     scale = "inc_scale@P"),
+         model = "gamma", args = list(shape = "incub_shape@P", 
+                                      scale = "inc_scale@P"),
          rule = "model", 
          range = list(min = 0, max = 14), 
          init_rand = TRUE)

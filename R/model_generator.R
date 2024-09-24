@@ -20,10 +20,10 @@ get_usr_tmp_file <- function(hemi, name) {
 }
 
 
-
 # Create temporary csv file if input is a table (wrapper).
 # FIXME : this should be improved allowing dataframe I/O within Rcpp
 cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
+  options(scipen = 500)
   if (is.character(input)) {
     output <- input # in this case it is a path/to/file
   } else if (is.data.frame(input)) {
@@ -33,12 +33,14 @@ cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
   } else if (is.list(input)) {
     # note : a data.frame is a list in R
     output <- get_usr_tmp_file(hemi, name)
-    write.table(data.frame(k = names(input), v = unname(unlist(input))), 
-                file = output, col.names = FALSE, sep = ",",
+    my_table <- data.frame(k = names(input), v = unname(unlist(input)), 
+                           stringsAsFactors = FALSE)
+    write.table(my_table, file = output, col.names = FALSE, sep = ",",
               row.names = FALSE, na = "", quote = FALSE)
   } else {
     stop(cli::format_error(paste0("Unrecognized input for ", name)))
   }
+  options(scipen = 0)
   return(output)
 }
 
