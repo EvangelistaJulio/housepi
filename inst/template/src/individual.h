@@ -7,8 +7,6 @@
 #ifndef INDIVIDUAL__H
 #define INDIVIDUAL__H
 
-#include <string>
-#include <vector>
 #include <algorithm>
 #include <set>
 #include <unordered_map>
@@ -152,17 +150,14 @@ public:
 	vector<bool> is_susceptible = {};
 	vector<bool> is_missing_status = {};
 
-	// list with ONLY indexes of members with a given status
+	// list with ONLY indexes of members with a given status	
 	std::set<int> infectious_set = {};
 	std::set<int> susceptible_set = {};
 	std::set<int> missing_status_set = {};
 
 	//===== Diagnostics =====//
-	ulong dgn_ss = 0;		   // sample size
-	long double dgn_like = 0.; // average (house) likelihood
-	long double dgn_avg = 0.;  // average (house) loglikelihood
-	long double dgn_sqr = 0.;  // average squared (house) loglikelihood
-	long double dgn_var() const { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
+	ulong dgn_count = 0;
+	vector<double> dgn_loglike = {};
 
 	//===== Constructors =====//
 	Household() {}
@@ -193,7 +188,7 @@ public:
 		house_loglike = new_loglike;
 	}
 	void refuse() { house_loglike = buffer; }
-	void init_diagnostics(int sample_size);
+	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
 
 	//===== Acceptation Rate =====//

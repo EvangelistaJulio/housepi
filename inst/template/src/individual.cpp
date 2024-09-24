@@ -110,7 +110,7 @@ void Individual::assert_augm(const string &augmID) const
 	if (augm_var.find(augmID) == augm_var.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown augmented variable `" << augmID 
+		oss << "Unknown augmented variable `" << augmID
 			<< "` for individual " << get_index() << "."
 			<< " Check your model and your augmented variable definitions.";
 		raise_error(oss.str());
@@ -200,7 +200,7 @@ void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 			raise_error(oss.str());
 		}
 		init_value = augm_model_rand(augmID, prng);
-		num_attempts++;
+		++num_attempts;
 	}
 	set_augm(augmID, init_value);
 }
@@ -275,7 +275,7 @@ void Household::assign_individual(Individual this_indiv)
 	//----- update status lists within the household -----//
 	if (status == INFECTIOUS)
 	{
-		num_infectious++;
+		++num_infectious;
 		infectious_set.insert(house_size);
 
 		is_infectious.push_back(true);
@@ -284,7 +284,7 @@ void Household::assign_individual(Individual this_indiv)
 	}
 	else if (status == SUSCEPTIBLE)
 	{
-		num_susceptible++;
+		++num_susceptible;
 		susceptible_set.insert(house_size);
 
 		is_infectious.push_back(false);
@@ -293,7 +293,7 @@ void Household::assign_individual(Individual this_indiv)
 	}
 	else if (status == MISSING_STATUS)
 	{
-		num_missing_status++;
+		++num_missing_status;
 		missing_status_set.insert(house_size);
 
 		is_infectious.push_back(false);
@@ -312,7 +312,7 @@ void Household::assign_individual(Individual this_indiv)
 	indiv.push_back(this_indiv);
 
 	//----- update household size -----//
-	house_size++;
+	++house_size;
 }
 
 /* Change_status of individual i to new status (without controls).
@@ -350,19 +350,19 @@ void Household::change_status(int i, int new_status)
 
 		if (new_status == INFECTIOUS)
 		{
-			num_infectious++;
+			++num_infectious;
 			infectious_set.insert(i);
 			is_infectious[i] = true;
 		}
 		else if (new_status == SUSCEPTIBLE)
 		{
-			num_susceptible++;
+			++num_susceptible;
 			susceptible_set.insert(i);
 			is_susceptible[i] = true;
 		}
 		else if (new_status == MISSING_STATUS)
 		{
-			num_missing_status++;
+			++num_missing_status;
 			missing_status_set.insert(i);
 			is_missing_status[i] = true;
 		}
@@ -396,18 +396,15 @@ void Household::update_augm_accept_rate(const string &augmID, bool is_accepted)
 }
 
 /* update the values for the Bayesian diagnostics */
-void Household::init_diagnostics(int sample_size)
+void Household::init_diagnostics(ulong sample_size)
 {
-	dgn_ss = sample_size;
-	dgn_like = 0.;
-	dgn_avg = 0.;
-	dgn_sqr = 0.;
+	dgn_count = 0;
+	dgn_loglike.clear();
+	dgn_loglike = vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
 }
 
 /* update the values for the Bayesian diagnostics */
 void Household::update_diagnostics()
 {
-	dgn_like += std::exp(house_loglike) / dgn_ss;
-	dgn_avg += house_loglike / dgn_ss;
-	dgn_sqr += std::pow(house_loglike, 2) / dgn_ss;
+	dgn_loglike[dgn_count++] = house_loglike;
 }

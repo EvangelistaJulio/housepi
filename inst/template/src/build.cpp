@@ -159,8 +159,7 @@ bool MCMC::read_row_by_headers(std::ifstream &input, vector<string> headers, ssa
 
         while (getline(iss, tkn, C_DELIM))
         {
-            this_row.emplace(headers[num_cols], string_cleaner(tkn));
-            num_cols++;
+            this_row.emplace(headers[num_cols++], string_cleaner(tkn));
         }
         return true;
     }
@@ -252,12 +251,12 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
             {
                 std::ostringstream oss;
                 oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
-                for (size_t k = 1; k < wrong_entries.size(); k++)
+                for (size_t k = 1; k < wrong_entries.size(); ++k)
                 {
                     oss << ", `" << wrong_entries[k] << "`";
                 }
                 oss << ". Available setup options are: `" << file_entries[0] << "`";
-                for (size_t k = 1; k < file_entries.size(); k++)
+                for (size_t k = 1; k < file_entries.size(); ++k)
                 {
                     oss << ", `" << file_entries[k] << "`";
                 }
@@ -422,9 +421,9 @@ dictargs MCMC::merge_list_args(const string tkn_keys, const string tkn_vals)
     }
     else
     {
-        for (size_t x = 0; x < keys.size(); x++)
+        for (size_t i = 0; i < keys.size(); ++i)
         {
-            output.emplace(keys[x], std::stod(vals[x]));
+            output.emplace(keys[i], std::stod(vals[i]));
         }
     }
     return output;
@@ -554,7 +553,7 @@ void MCMC::update_report_data()
                    {"n.HH.with.max.size", 0}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
         int num_infec = househ[h].num_infectious;
 
@@ -659,7 +658,7 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
                 assign_rate_per_group_to_individual(this_indiv);
                 set_rate_per_group(this_indiv);
                 aux_individuals.push_back(this_indiv);
-                num_indiv++;
+                ++num_indiv;
 
                 //===== Check for the validity of the status =====//
                 if (valid_statuses.find(this_indiv.get_status()) == valid_statuses.end())
@@ -689,13 +688,13 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
                     househ.emplace_back();                  // add a new empty household
                     househ[num_househ].set_index(hh_idx);   // associate its index
                     aux_hh_idx.emplace(hh_idx, num_househ); // map index to household number
-                    num_househ++;                           // increment household number
+                    ++num_househ;                           // increment household number
                 }
                 househ[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
             }
 
             //===== Set Contact Rates =====//
-            for (int h = 0; h < num_househ; h++)
+            for (int h = 0; h < num_househ; ++h)
             {
                 set_rate_per_contact(h);
             }
@@ -828,9 +827,9 @@ void MCMC::set_rate_per_contact(int h)
         }
     }
 
-    for (int k = 0; k < househ[h].house_size; k++)
+    for (int k = 0; k < househ[h].house_size; ++k)
     {
-        for (int i = 0; i < househ[h].house_size; i++)
+        for (int i = 0; i < househ[h].house_size; ++i)
         {
             // note : from `k` --> to `i`
             if (k != i)
@@ -865,7 +864,7 @@ void MCMC::set_rate_per_contact(int h)
                 }
 
                 // count the total number of pairs
-                _n_contacts_++;
+                ++_n_contacts_;
             }
         }
     }
@@ -1013,7 +1012,7 @@ dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, co
     }
     else
     {
-        for (size_t x = 0; x < keys.size(); x++)
+        for (size_t x = 0; x < keys.size(); ++x)
         {
             output.emplace(keys[x], type_to_double(vals[x], typs[x], h, i));
         }
@@ -1038,7 +1037,7 @@ dictargs_ptr MCMC::typedict_to_sdargs_ext(const string tkn_key, const string tkn
     }
     else
     {
-        for (size_t x = 0; x < keys.size(); x++)
+        for (size_t x = 0; x < keys.size(); ++x)
         {
             output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], h, i));
         }
@@ -1148,9 +1147,9 @@ void MCMC::assign_augmented_variables()
     //===== Eventually assign augmented variables to each individual =====//
     if (!load_augm_definition.empty())
     {
-        for (int h = 0; h < num_househ; h++)
+        for (int h = 0; h < num_househ; ++h)
         {
-            for (int i = 0; i < househ[h].house_size; i++)
+            for (int i = 0; i < househ[h].house_size; ++i)
             {
                 for (ssargs loader : load_augm_definition)
                 {

@@ -55,7 +55,7 @@ long double MCMC::compute_global_loglike()
     long double output = 0.0;
 
 #pragma omp parallel for reduction(+ : output)
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
         // UPDATE : household loglikelihood is not long double, just double
         // to modify this traces to parameter values,
@@ -79,7 +79,7 @@ void MCMC::init_move_counts()
     // for augmented variables
     for (const string &augmID : augm_to_be_inferred)
     {
-        for (int h = 0; h < num_househ; h++)
+        for (int h = 0; h < num_househ; ++h)
         {
             househ[h].reset_augm_accept_rate(augmID);
         }
@@ -141,7 +141,7 @@ void MCMC::move_single_param(string parID)
             refuse_param_move(parID);
             // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
-            for (int h = 0; h < num_househ; h++)
+            for (int h = 0; h < num_househ; ++h)
             {
                 househ[h].refuse();
             }
@@ -189,9 +189,9 @@ void MCMC::init_augmented_variables(bool is_init)
         //===== random initialization on demand =====//
         if (!augm_rand_init_set.empty())
         {
-            for (int h = 0; h < num_househ; h++)
+            for (int h = 0; h < num_househ; ++h)
             {
-                for (int i = 0; i < househ[h].house_size; i++)
+                for (int i = 0; i < househ[h].house_size; ++i)
                 {
                     for (const string &augmID : augm_rand_init_set)
                     {
@@ -204,7 +204,7 @@ void MCMC::init_augmented_variables(bool is_init)
                 // initialization make sense only if a case is present
                 if (househ[h].first_case != -1)
                 {
-                    for (int i = 0; i < househ[h].house_size; i++)
+                    for (int i = 0; i < househ[h].house_size; ++i)
                     {
                         augm_store_dependecies(h, i);
                     }
@@ -288,7 +288,7 @@ void MCMC::move_all_augm_variables()
         long double variation = 0.;
 
 #pragma omp parallel for reduction(+ : variation)
-        for (int h = 0; h < num_househ; h++)
+        for (int h = 0; h < num_househ; ++h)
         {
             variation += move_single_house_augm(h);
         }
@@ -302,7 +302,7 @@ double MCMC::get_augm_accept_rate(string augmID)
     int accept_count = 0, propos_count = 0;
 
 #pragma omp parallel for reduction(+ : accept_count, propos_count)
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
         accept_count += househ[h].get_augm_accept_counts(augmID);
         propos_count += househ[h].get_augm_propos_counts(augmID);
@@ -354,13 +354,10 @@ void MCMC::init_diagnostics()
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
         househ[h].init_diagnostics(dgn_ss);
     }
-
-    dgn_avg = 0.; // (global) loglikelihood
-    dgn_sqr = 0.; // mean squared (global) loglikelihood
 }
 
 /* Update Bayesian diagnostics */
@@ -373,17 +370,11 @@ void MCMC::update_diagnostics()
 
         // diagnostics over households
 #pragma omp parallel for default(shared)
-        for (int h = 0; h < num_househ; h++)
+        for (int h = 0; h < num_househ; ++h)
         {
             househ[h].update_diagnostics();
         }
     }
-
-    // average (global) loglikelihood
-    dgn_avg += global_loglike / dgn_ss;
-
-    // average squared (global) loglikelihood
-    dgn_sqr += std::pow(global_loglike, 2) / dgn_ss;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -416,9 +407,9 @@ void MCMC::disable_assert()
     disable_assert_param();
 
     // disable augmented variable assertion for all individuals
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
-        for (int i = 0; i < househ[h].house_size; i++)
+        for (int i = 0; i < househ[h].house_size; ++i)
         {
             househ[h].indiv[i].disable_assert();
         }
@@ -442,7 +433,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
     init_diagnostics();
 
     //===== Run Multiple MCMC Chains =====//
-    for (_chain_ = 1; _chain_ <= setup_num_chains; _chain_++)
+    for (_chain_ = 1; _chain_ <= setup_num_chains; ++_chain_)
     {
         //-----Initialize parameter inference-----//
         init_rand_params(setup_rnd_init_params);
@@ -469,7 +460,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 
         for (ulong i = 0; i < setup_num_adapt; i += setup_thinning)
         {
-            for (ulong t = 1; t <= setup_thinning; t++)
+            for (ulong t = 1; t <= setup_thinning; ++t)
             {
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(i + t);
@@ -491,7 +482,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 
         for (ulong i = 0; i < setup_burn_in; i += setup_thinning)
         {
-            for (ulong t = 1; t <= setup_thinning; t++)
+            for (ulong t = 1; t <= setup_thinning; ++t)
             {
                 move_all_augm_variables();
                 move_all_parameters();
@@ -507,7 +498,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         for (ulong i = setup_burn_in; i < setup_num_iter; i += setup_thinning)
         {
             // thinning mcmc moves
-            for (ulong t = 1; t <= setup_thinning; t++)
+            for (ulong t = 1; t <= setup_thinning; ++t)
             {
                 move_all_augm_variables();
                 move_all_parameters();
@@ -523,8 +514,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
             progress_bar_run(get_progtxt("sample"), sweep, _tot_num_sweeps_, progbar);
         }
     }
-
-    close_diagnostics();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -533,7 +522,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 
 /* Performs the inference using Metropolis-Hastings. */
 // FIXME : output_file shouldn't be necessary
-// FIXME : store diagnostics instead of canceling everything for each chain (~)
 // FIXME : Gelman Rubin could be integrated
 void MCMC::infer(string output_file, bool progbar)
 {
@@ -625,7 +613,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         //==================================//
 
         //----- Inverse Temperatures (0, 1] -----//
-        for (_rung_ = 1; _rung_ < _num_rungs_; _rung_++)
+        for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
         {
             setup_inv_T = std::pow(static_cast<long double>(_rung_) / (_num_rungs_ - 1), 5);
             run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
@@ -652,7 +640,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         size_t k = 0; // index to interval lower bound
         while (_rung_ < _num_rungs_)
         {
-            _rung_++;
+            ++_rung_;
 
             //----- adaptive choice of inverse temperature -----//
             // intersection between tangents
@@ -682,7 +670,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
     //----- trapezoidal rule to compute marginal likelihood -----//
     long double d_inv_t, output = 0.;
-    for (int k = 0; k < num_rungs; k++)
+    for (int k = 0; k < num_rungs; ++k)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];
         output += (avg_ll[k + 1] + avg_ll[k]) * d_inv_t / 2. - (var_ll[k + 1] - var_ll[k]) * std::pow(d_inv_t, 2) / 12.;
@@ -696,47 +684,6 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     setup_rnd_init_params = bkp_rnd_init_params;
 
     return output;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Compute diagnostics at the end of inference. */
-void MCMC::close_diagnostics()
-{
-    if (!_is_power_post_)
-    {
-        //---- compute WAIC and implement warning -----//
-        // Ref: Vhetari et al. (2016) Stat Comput.
-
-        const long double p_waic_limit = 0.4;
-        ulong count_p_waic_large = 0;
-
-        // Loop over households
-#pragma omp parallel for reduction(+ : dgn_lppd, dgn_eff_pars, count_p_waic_large)
-        for (int h = 0; h < num_househ; h++)
-        {
-            long double p_waic = househ[h].dgn_var();
-
-            dgn_lppd += std::log(househ[h].dgn_like);
-            dgn_eff_pars += p_waic;
-            count_p_waic_large += (p_waic > p_waic_limit);
-        }
-
-        //----- empirical WAIC warning -----//
-        if (count_p_waic_large > 0)
-        {
-            std::ostringstream oss;
-            oss << screen::percent(count_p_waic_large, num_househ)
-                << " p_waic estimates greater than " << p_waic_limit << "."
-                << " Unreliable WAIC (Vehtari-Gelman-Gabry criterion).";
-            screen::raise_warning(oss.str(), Large_p_WAIC_Warning);
-        }
-    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -768,7 +715,7 @@ void MCMC::simulate()
     init_augmented_variables();
 
 #pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
         simulate_single_house(h);
     }

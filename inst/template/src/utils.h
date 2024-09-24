@@ -17,7 +17,7 @@
 #include <sstream>
 #include <chrono>
 
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
 #include <Rcpp.h>
 #else
 #include <iostream>

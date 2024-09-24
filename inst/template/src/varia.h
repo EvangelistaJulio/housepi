@@ -13,17 +13,13 @@
 #include <unordered_map>
 #include <cmath>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 #include "distributions.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-//bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
+// bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -121,7 +117,7 @@ protected:
 		return 0.0;
 	}
 	double _logratio_lognorm_symm_(double old_val, double new_val) const { return log(old_val) - log(new_val); }
-	
+
 private:
 	//===== State Attributes =====//
 	vector<int> _args_to_adapt_ = {};
@@ -349,7 +345,7 @@ public:
 	Parameter(double new_val, const string &prior_name = UNDEFINED, dictargs prior_args = {},
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {},
 			  dictargs range = {}) : Base_Variable(new_val, prior_name, prior_args,
-												 rule_name, rule_args, range) {};
+												   rule_name, rule_args, range) {};
 
 	// NOTE : default rule_from = false
 
@@ -359,17 +355,14 @@ public:
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
 	//===== Diagnostics =====//
-	void init_diagnostics(int sample_size);
+	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
 	string show_diagnostics() const;
 
 private:
 	//===== Diagnostics =====//
-	int dgn_ss = 0;			  // sample size
-	long double dgn_avg = 0.; // average value
-	long double dgn_sqr = 0.; // average squared value
-
-	long double dgn_var() const { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
+	ulong dgn_count = 0;
+	vector<double> dgn_value = {};
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -406,8 +399,8 @@ class Monte_Carlo_Core
 {
 public:
 	vector<string> param_file_headers = {"name", "value", "infer",
-												   "prior", "args", "argsval",
-												   "rule", "rargs", "rargsval", "min", "max"};
+										 "prior", "args", "argsval",
+										 "rule", "rargs", "rargsval", "min", "max"};
 	vector<string> param_to_be_inferred = {};
 	vector<string> param_to_be_static = {};
 
@@ -448,7 +441,7 @@ public:
 	void accept_param_move(const string &parID);
 	void refuse_param_move(const string &parID);
 	void adapt(const string &parID, double ratio) { params.at(parID).adapt(ratio); }
-	void init_param_diagnostics(int sample_size);
+	void init_param_diagnostics(ulong sample_size);
 	void update_param_diagnostics();
 
 	//===== Pseudo-Random Number Generator =====//
@@ -489,7 +482,7 @@ private:
 
 	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	// FIXME : this should change if Rcpp according to developer guides
-	sys_rnd_gen prng;							 // Mersenne Twister 19937 generator (32 or 64 bit)
+	sys_rnd_gen prng;						// Mersenne Twister 19937 generator (32 or 64 bit)
 	vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
 	sys_rnd_gen &_prng_unique_thread_() { return prng; }

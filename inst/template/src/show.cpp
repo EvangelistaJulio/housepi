@@ -8,12 +8,6 @@
 
 using namespace screen;
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Inconmplete_Infer_Diagnostics_Warning = false; // wrong call to show diagnostics
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -139,7 +133,7 @@ void MCMC::show_parameters()
 {
     std::ostringstream oss;
     oss << param_file_headers[0];
-    for (size_t k = 1; k < param_file_headers.size(); k++)
+    for (size_t k = 1; k < param_file_headers.size(); ++k)
     {
         oss << C_DELIM << param_file_headers[k];
     }
@@ -166,7 +160,7 @@ void MCMC::show_results()
 {
     std::ostringstream oss;
     oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
-    for (size_t k = 2; k < param_file_headers.size(); k++)
+    for (size_t k = 2; k < param_file_headers.size(); ++k)
     {
         oss << C_DELIM << param_file_headers[k];
     }
@@ -177,31 +171,6 @@ void MCMC::show_results()
     }
 
     print_stdout(oss.str());
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : show diagnostics  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Show diagnostics as sampled during iterations. */
-void MCMC::show_diagnostics()
-{
-    if (!_is_infer_complete_)
-    {
-        raise_warning("Ignored attempt to show diagnostics before inference.",
-                      Inconmplete_Infer_Diagnostics_Warning);
-    }
-    else
-    {
-        std::ostringstream oss;
-        oss << std::setprecision(2) << std::fixed
-            << "loglikelihood_mean" << C_DELIM << dgn_avg << "\n"
-            << "loglikelihood_sd" << C_DELIM << dgn_var() << "\n"
-            << "log_pointwise_predictive_density" << C_DELIM << dgn_lppd << "\n"
-            << "effective_parameters" << C_DELIM << dgn_eff_pars << "\n"
-            << "WAIC" << C_DELIM << 2. * (dgn_eff_pars - dgn_lppd) << "\n";
-        print_stdout(oss.str());
-    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -337,9 +306,9 @@ void MCMC::print_augm_variables(string save_augm_pathtofile)
             augm_ofstream << std::endl;
 
             //===== Print data and augmented variables =====//
-            for (int h = 0; h < num_househ; h++)
+            for (int h = 0; h < num_househ; ++h)
             {
-                for (int i = 0; i < househ[h].house_size; i++)
+                for (int i = 0; i < househ[h].house_size; ++i)
                 {
                     augm_ofstream << househ[h].indiv[i].get_index()
                                   << C_DELIM << househ[h].get_index()
@@ -376,7 +345,7 @@ void MCMC::print_augm_variables(string save_augm_pathtofile)
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
 
 Rcpp::String stoRString(const string &x)
 {
@@ -466,9 +435,9 @@ Rcpp::DataFrame MCMC::export_data()
     }
 
     size_t c = 0;
-    for (int h = 0; h < num_househ; h++)
+    for (int h = 0; h < num_househ; ++h)
     {
-        for (int i = 0; i < househ[h].house_size; i++)
+        for (int i = 0; i < househ[h].house_size; ++i)
         {
             df_index[c] = househ[h].indiv[i].get_index();
             df_house_index[c] = househ[h].get_index();
@@ -483,7 +452,7 @@ Rcpp::DataFrame MCMC::export_data()
                 df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
             }
 
-            c++;
+            ++c;
         }
     }
 

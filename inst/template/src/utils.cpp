@@ -31,7 +31,7 @@ namespace screen
     /* A formatted string for TRUE/FALSE values. */
     string truth(bool condition)
     {
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
         return (condition ? "true" : "false");
 #else
         return (condition ? "TRUE" : "FALSE");
@@ -58,7 +58,7 @@ namespace screen
     /* Function to change stdout in case of RCPP. */
     void print_stdout(const string &txt)
     {
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
         Rcpp::Rcout << txt;
         Rcpp::Rcout.flush();
 #else
@@ -70,7 +70,7 @@ namespace screen
     /* Internal helper function to change stderr in case of RCPP. */
     void _helper_stderr_(const string &txt)
     {
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
         Rcpp::Rcerr << txt;
         Rcpp::Rcerr.flush();
 #else
@@ -165,7 +165,7 @@ namespace screen
             _Prog_Bar_Start_ = steady_clock::now();
         }
 
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
         Rcpp::checkUserInterrupt();
 #endif
     }
@@ -192,7 +192,7 @@ namespace screen
                 _helper_stderr_(oss.str());
             }
         }
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
         Rcpp::checkUserInterrupt();
 #endif
     }
@@ -213,7 +213,7 @@ namespace screen
             _helper_stderr_(oss.str());
         }
 
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
         Rcpp::checkUserInterrupt();
 #endif
     }
@@ -237,7 +237,7 @@ namespace screen
         {
 #pragma omp critical
             {
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
                 Rcpp::warning(txt);
 #else
                 std::cerr << "\nWarning: " + txt << std::endl;
@@ -257,7 +257,7 @@ namespace screen
     {
 #pragma omp critical
         {
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
             Rcpp::stop(txt);
 #else
             std::cerr << "\nError: " + txt + "\nExit...\n"
@@ -477,9 +477,9 @@ string Base_Function::show_arg_names() const
     {
         std::ostringstream oss;
         oss << _args_names_[0];
-        for (size_t x = 1; x < _args_names_.size(); x++)
+        for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << screen::C_LIST_DELIM << _args_names_[x];
+            oss << screen::C_LIST_DELIM << _args_names_[i];
         }
         return oss.str();
     }
@@ -496,9 +496,9 @@ string Base_Function::show_arg_values() const
     {
         std::ostringstream oss;
         oss << get_arg(0);
-        for (size_t x = 1; x < _args_names_.size(); x++)
+        for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << screen::C_LIST_DELIM << get_arg(x);
+            oss << screen::C_LIST_DELIM << get_arg(i);
         }
         return oss.str();
     }

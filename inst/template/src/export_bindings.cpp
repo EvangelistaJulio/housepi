@@ -32,7 +32,6 @@
 //' @field data Return the current database as a DataFrame.
 //' @field show_summary Show a summary of the database.
 //' @field show_group_classes Show the group classes.
-//' @field show_diagnostics Show the WAIC.
 
 #include <Rcpp.h>
 #include "model.h"
@@ -53,8 +52,7 @@ RCPP_MODULE(modelhousepi12345_cpp)
    .method("params", &MCMC::export_params)
    .method("data", &MCMC::export_data)
    .method("show_summary", &MCMC::show_summary)
-   .method("show_group_classes", &MCMC::show_group_classes)
-   .method("show_diagnostics", &MCMC::show_diagnostics);
+   .method("show_group_classes", &MCMC::show_group_classes);
  
  class_<Model>("Modelhousepi12345")
    .constructor()

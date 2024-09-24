@@ -7,8 +7,6 @@
 #ifndef MCMC__H
 #define MCMC__H
 
-#include <string>
-#include <vector>
 #include <set>
 #include <map>
 #include <cmath>
@@ -18,7 +16,7 @@
 #include <iomanip>
 #include <chrono>
 
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
 #include <Rcpp.h>
 #endif
 
@@ -99,7 +97,6 @@ public:
 	void show_summary();
 	void show_group_classes();
 	void show_parameters();
-	void show_diagnostics();
 	void show_results();
 
 	//===== DATA =====//
@@ -150,7 +147,7 @@ public:
 	//----- Save augmented variables -----//
 	void print_augm_variables(const string output_filename);
 
-#ifdef USE_RCPP
+#ifdef RCPP_VERSION
 	//===== RCPP EXPORTS =====//
 	Rcpp::List export_setup();
 	Rcpp::DataFrame export_params();
@@ -226,7 +223,6 @@ private:
 	void init_move_counts();
 	void init_diagnostics();
 	void update_diagnostics();
-	void close_diagnostics();
 
 	void move_single_param(const string parID);
 	void move_and_adapt_all_parameters(ulong step);

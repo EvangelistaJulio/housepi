@@ -13,8 +13,8 @@ using screen::raise_warning;
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Disabled_OpenMP_Warning = false;        // warning for attempt to use openmp while disabled
-bool Above_Max_Threads_Warning = false;      // warning for over the threshold n. of threads
+bool Disabled_OpenMP_Warning = false;   // warning for attempt to use openmp while disabled
+bool Above_Max_Threads_Warning = false; // warning for over the threshold n. of threads
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -28,7 +28,7 @@ bool Above_Max_Threads_Warning = false;      // warning for over the threshold n
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(Base_Distribution *distr,
-                             double rule_start, 
+                             double rule_start,
                              vector<int> args_to_adapt) : distr_ptr(distr)
 {
     _args_to_adapt_ = args_to_adapt;
@@ -110,18 +110,17 @@ Base_Proposer *proposer_switchboard(string rule_name, dictargs rule_args, double
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init the values for the Bayesian diagnostics. */
-void Parameter::init_diagnostics(int sample_size)
+void Parameter::init_diagnostics(ulong sample_size)
 {
-    dgn_ss = sample_size;
-    dgn_avg = 0.;
-    dgn_sqr = 0;
+    dgn_count = 0;
+    dgn_value.clear();
+    dgn_value = vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
 }
 
 /* Update the values for the Bayesian diagnostics. */
 void Parameter::update_diagnostics()
 {
-    dgn_avg += get_value() / dgn_ss;
-    dgn_sqr += std::pow(get_value(), 2) / dgn_ss;
+    dgn_value[dgn_count++] = get_value();
 }
 
 /* Message to be used at the moment of display diagnostics. */
@@ -129,7 +128,23 @@ string Parameter::show_diagnostics() const
 {
     using namespace screen;
     std::ostringstream oss;
-    oss << dgn_avg << C_DELIM << std::sqrt(dgn_var()) << C_DELIM << truth(infer)
+
+    //----- Welford online algorithm -----//
+    double x, delta, delta2;
+    double avg = 0.0, sqr_diff = 0.0;
+
+    for (size_t i = 0; i < dgn_value.size(); ++i)
+    {
+        x = dgn_value[i];
+        delta = x - avg;
+        avg += delta / (i + 1);
+        delta2 = x - avg;
+        sqr_diff += delta * delta2;
+    }
+    //----- ----- -----//
+
+    oss << avg << C_DELIM << std::sqrt(sqr_diff / (dgn_value.size() - 1))
+        << C_DELIM << truth(infer)
         << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
         << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
         << C_DELIM << get_range_min() << C_DELIM << get_range_max();
@@ -284,7 +299,7 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
     if (setup_num_threads > 1)
     {
         std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
-        for (unsigned n = 0; n < setup_num_threads; n++)
+        for (unsigned n = 0; n < setup_num_threads; ++n)
         {
             prng_parallel[n].seed(seed_generator(prng));
         }
@@ -321,8 +336,8 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
                 {
                     raise_error("Number of attempts exceeded in random initialization of `" + parID + "`.");
                 }
-                num_attempts++;
                 new_value = params.at(parID).prior_rand(prng);
+                ++num_attempts;
             }
             set_value(parID, new_value);
         }
@@ -373,7 +388,7 @@ void Monte_Carlo_Core::refuse_param_move(const string &parID)
 }
 
 /* Init diagnostics for all parameters */
-void Monte_Carlo_Core::init_param_diagnostics(int sample_size)
+void Monte_Carlo_Core::init_param_diagnostics(ulong sample_size)
 {
     for (const string &parID : param_to_be_inferred)
     {
