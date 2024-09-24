@@ -54,6 +54,7 @@ Thumbs.db
 *.Rout.save
 *.Rcheck/
 *.Rcheck/**
+*RcppExports.cpp
 .Rproj.user
 /doc/
 /Meta/

@@ -6,7 +6,7 @@
 
 #include "mcmc.h"
 
-using namespace screen;
+using namespace basics;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
@@ -32,153 +32,6 @@ const string TYPE_PARAM = "P";   // Parameter type declaration
 const string TYPE_DATA = "D";    // Data type declaration
 const string TYPE_SCALAR = "S";  // Scalar type declaration
 const string TYPE_COMMAND = "C"; // Command type declaration
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC : methods (auxiliary functions)  ////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Clean string from forbidden characters and convert to UNDEFINED. */
-string MCMC::string_cleaner(string tkn)
-{
-    // forbidden characters
-    for (char r : {'"', '\r', '\n'})
-    {
-        tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
-    }
-
-    // check for undefined
-    if (is_na(tkn))
-    {
-        tkn = UNDEFINED;
-    }
-
-    return tkn;
-}
-
-/* Convert string to boolean variable. */
-bool MCMC::stobool(const string &tkn)
-{
-    bool output = false;
-
-    if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
-    {
-        output = true;
-    }
-    else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
-    {
-        output = false;
-    }
-    else
-    {
-        raise_error("Unrecognized boolean value for `" + tkn + "`.");
-    }
-
-    return output;
-}
-
-/* Parse the list from the string. */
-vector<string> parse_list(const string tkn, const char delim)
-{
-    std::istringstream args_ss(tkn);
-    vector<string> output = {};
-    string tmp;
-
-    // rea the entries of the dictionary
-    while (getline(args_ss, tmp, delim))
-    {
-        output.push_back(tmp);
-    }
-
-    return output;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Read column headers. */
-vector<string> MCMC::read_column_headers(std::ifstream &input,
-                                         string pathtofile,
-                                         vector<string> required_headers)
-{
-    string line, tkn;
-    getline(input, line);
-    std::istringstream iss(line);
-    vector<string> headers = {};
-
-    while (getline(iss, tkn, C_DELIM))
-    {
-        headers.push_back(string_cleaner(tkn));
-    }
-
-    // check that all required headers are present
-    if (!required_headers.empty())
-    {
-        bool is_missing = false;
-        std::ostringstream oss;
-
-        // check the validity of the headers
-        for (const string &req : required_headers)
-        {
-            if (std::find(headers.begin(), headers.end(), req) == headers.end())
-            {
-                if (!is_missing)
-                {
-                    // point to the faulty file
-                    oss << "Missing column(s): `" + req + "`";
-                    is_missing = true;
-                }
-                else
-                {
-                    oss << ", `" << req << "`";
-                }
-            }
-        }
-
-        // raise the error if something was missing
-        if (is_missing)
-        {
-            raise_error(oss.str() + ". Check file " + pathtofile);
-        }
-    }
-
-    return headers;
-}
-
-/* Load files from the row with headers */
-bool MCMC::read_row_by_headers(std::ifstream &input, vector<string> headers, ssargs &this_row)
-{
-    string line, tkn;
-    if (getline(input, line))
-    {
-        std::istringstream iss(line);
-        int num_cols = 0;
-
-        while (getline(iss, tkn, C_DELIM))
-        {
-            this_row.emplace(headers[num_cols++], string_cleaner(tkn));
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-/* convert the output of a row to a string-to-double dictionary */
-dictargs MCMC::row_to_sdargs(ssargs &this_row)
-{
-    dictargs row_with_double = {};
-    for (auto const &x : this_row)
-    {
-        row_with_double.emplace(x.first, stod(x.second));
-    }
-    return row_with_double;
-}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -345,7 +198,7 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
             //===== INVERSE TEMPERATURE =====//
             if (safe_load.find("inv_temper") != safe_load.end())
             {
-                setup_inv_T = std::stold(safe_load.at("inv_temper"));
+                setup_inv_T = std::stod(safe_load.at("inv_temper"));
                 if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
                 {
                     raise_error(
@@ -372,9 +225,7 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
     _mcmc_sweeps_ += (setup_num_iter - setup_burn_in) / setup_thinning;
     _mcmc_sweeps_ *= setup_thinning * setup_num_chains;
 
-    //===== MCMC Sample Size =====//
-    dgn_ss = (setup_num_iter - setup_burn_in) / setup_thinning;
-    dgn_ss *= setup_num_chains;
+
 
     //===== Display =====//
     if (verbose)
@@ -382,51 +233,6 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
         print_decorator("Setup::definitions", '-');
         show_setup();
     }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Parse the list from the string. */
-vector<string> MCMC::parse_list_args(const string tkn, const char delim)
-{
-    std::istringstream args_ss(tkn);
-    vector<string> output = {};
-    string tmp;
-
-    // rea the entries of the dictionary
-    while (getline(args_ss, tmp, delim))
-    {
-        output.push_back(tmp);
-    }
-
-    return output;
-}
-
-/* Combine after control two lists into a dictionary */
-dictargs MCMC::merge_list_args(const string tkn_keys, const string tkn_vals)
-{
-    vector<string> keys = parse_list_args(tkn_keys);
-    vector<string> vals = parse_list_args(tkn_vals);
-    dictargs output = {};
-
-    if (keys.size() != vals.size())
-    {
-        // inform parameter about the error
-        output.emplace(IO_MISMATCH, INF_DOUBLE);
-    }
-    else
-    {
-        for (size_t i = 0; i < keys.size(); ++i)
-        {
-            output.emplace(keys[i], std::stod(vals[i]));
-        }
-    }
-    return output;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -625,7 +431,7 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
             print_decorator("Database", C_DECOR, "import: " + pathtofile, verbose);
 
             //===== Load Column Headers =====//
-            _data_headers_ = read_column_headers(input, pathtofile);
+            _data_headers_ = read_column_headers(input, pathtofile, {});
 
             // boolean to assess the presence of indexes
             bool is_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "index") != _data_headers_.end());
@@ -650,7 +456,7 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
             vector<Individual> aux_individuals = {};
             for (ssargs this_row = {}; read_row_by_headers(input, _data_headers_, this_row); this_row.clear())
             {
-                dictargs args = row_to_sdargs(this_row);
+                dictargs args = row_to_dictargs(this_row);
                 Individual this_indiv(args);
                 // associate data index or default provided index
                 this_indiv.set_index((is_index) ? args.at("index") : num_indiv);
@@ -1206,9 +1012,6 @@ void MCMC::build(const string &setup_file, const string &params_file,
                  const string &data_file, const string &augm_file,
                  const string &extra_file, bool verbose)
 {
-    //===== reset internal status =====//
-    _is_infer_complete_ = false;
-
     // 1) Load Setup (optional)
     build_setup(setup_file, verbose);
 

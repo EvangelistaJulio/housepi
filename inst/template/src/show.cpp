@@ -6,7 +6,7 @@
 
 #include "mcmc.h"
 
-using namespace screen;
+using namespace basics;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
@@ -151,28 +151,6 @@ void MCMC::show_parameters()
     print_stdout(oss.str());
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Show the results of the paramters. */
-void MCMC::show_results()
-{
-    std::ostringstream oss;
-    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
-    for (size_t k = 2; k < param_file_headers.size(); ++k)
-    {
-        oss << C_DELIM << param_file_headers[k];
-    }
-    oss << "\n";
-    for (const string &parID : param_to_be_inferred)
-    {
-        oss << show_param_diagnostics(parID) << "\n";
-    }
-
-    print_stdout(oss.str());
-}
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -180,172 +158,11 @@ void MCMC::show_results()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : init param file  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize the output file with inferred parameters with column names and initial values */
-void MCMC::inferstate_init(string output_filename)
-{
-    if (is_na(output_filename))
-    {
-        raise_error("Undefined output file.");
-    }
-    else
-    {
-        inferstate_ofstream.open(output_filename.c_str());
-
-        if (inferstate_ofstream.is_open())
-        {
-            _is_print_inferstate_ = true;
-            _is_infer_complete_ = false;
-
-            // print loglikelihood
-            inferstate_ofstream << "loglikelihood";
-
-            for (const string &parID : param_to_be_inferred)
-            {
-                inferstate_ofstream << C_DELIM << parID;
-            }
-
-            // which chain
-            if (setup_num_chains > 1)
-            {
-                inferstate_ofstream << C_DELIM << "CHAIN__";
-            }
-
-            inferstate_ofstream << std::endl;
-        }
-        else
-        {
-            raise_error("Unable to open file: " + output_filename);
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : print parameters  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print the model parameters at the given iteration time */
-void MCMC::inferstate_print()
-{
-    if (_is_print_inferstate_)
-    {
-        if (inferstate_ofstream.is_open())
-        {
-            // print loglikelihood
-            inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
-
-            // print parameter values
-            for (const string &parID : param_to_be_inferred)
-            {
-                inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_param(parID);
-            }
-
-            // print which chain
-            if (setup_num_chains > 1)
-            {
-                inferstate_ofstream << C_DELIM << _chain_;
-            }
-
-            inferstate_ofstream << std::endl;
-        }
-        else
-        {
-            raise_error("Output file closed unexpectedly.");
-        }
-    }
-}
-
-/* Close file with inferred parameters. */
-void MCMC::inferstate_close()
-{
-    _is_print_inferstate_ = false;
-    _is_infer_complete_ = true;
-    inferstate_ofstream.close();
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : print augm variables  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(string save_augm_pathtofile)
-{
-    if (!is_na(save_augm_pathtofile))
-    {
-        std::ofstream augm_ofstream;
-        augm_ofstream.open(save_augm_pathtofile.c_str());
-
-        if (augm_ofstream.is_open())
-        {
-            //===== Print column headers =====//
-            // default headers
-            augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
-
-            // data headers
-            for (const string &dataID : _data_headers_)
-            {
-                augm_ofstream << C_DELIM << dataID;
-            }
-
-            // augmented variables headers
-            for (const string &augmID : augm_full_set)
-            {
-                augm_ofstream << C_DELIM << augmID;
-            }
-
-            augm_ofstream << std::endl;
-
-            //===== Print data and augmented variables =====//
-            for (int h = 0; h < num_househ; ++h)
-            {
-                for (int i = 0; i < househ[h].house_size; ++i)
-                {
-                    augm_ofstream << househ[h].indiv[i].get_index()
-                                  << C_DELIM << househ[h].get_index()
-                                  << C_DELIM << househ[h].indiv[i].get_status();
-                    for (const string &dataID : _data_headers_)
-                    {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
-                    }
-                    for (const string &augmID : augm_full_set)
-                    {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
-                    }
-                    augm_ofstream << std::endl;
-                }
-            }
-
-            augm_ofstream.close();
-        }
-        else
-        {
-            raise_error("Unable to open file: " + save_augm_pathtofile);
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+#ifdef USE_RCPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef RCPP_VERSION
 
 Rcpp::String stoRString(const string &x)
 {
@@ -470,6 +287,208 @@ Rcpp::DataFrame MCMC::export_data()
     }
 
     return output;
+}
+
+/* Export MCMC traces with posterior samples. */
+Rcpp::DataFrame MCMC::export_traces()
+{
+    using namespace Rcpp;
+
+    DataFrame output = DataFrame::create(
+        _["loglikelihood"] = wrap(dgn_glob_loglike));
+
+    for (const string &parID : param_to_be_inferred)
+    {
+        output.push_back(wrap(get_dgn_value(parID)), parID);
+    }
+
+    // retrieve chain identities
+    if (setup_num_chains > 1)
+    {
+        ulong size = (setup_num_iter - setup_burn_in) / setup_thinning;
+        IntegerVector df_chain(size * setup_num_chains);
+        ulong k = 0;
+        for (ulong c = 1; c <= setup_num_chains; ++c) {
+            std::fill(df_chain.begin() + k, df_chain.begin() + k + size, c);
+            k += size;
+        }
+        output.push_back(df_chain, "CHAIN__");
+    }
+
+    return output;
+}
+
+/* Export all sampled values of the loglikelihood for all household. */
+Rcpp::NumericMatrix MCMC::export_loglike_matrix()
+{
+    using namespace Rcpp;
+
+    ulong sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    sample_size *= setup_num_chains;
+
+    // Create a NumericMatrix with N rows and K columns
+    NumericMatrix output(sample_size, num_househ);
+
+    // Assign each NumericVector to a column of the matrix
+    for (int h = 0; h < num_househ; ++h) {
+        NumericVector column = wrap(househ[h].get_dgn_loglike());
+        output(_, h) = column;
+    }
+
+    return output;
+}
+
+#else
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show the results of the paramters. */
+void MCMC::show_results()
+{
+    std::ostringstream oss;
+    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
+    for (size_t k = 2; k < param_file_headers.size(); ++k)
+    {
+        oss << C_DELIM << param_file_headers[k];
+    }
+    oss << "\n";
+    for (const string &parID : param_to_be_inferred)
+    {
+        oss << show_param_diagnostics(parID) << "\n";
+    }
+
+    print_stdout(oss.str());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize the output file with inferred parameters with column names and initial values */
+void MCMC::print_infer_state(const string &output_filename)
+{
+    if (!is_na(output_filename))
+    {
+        std::ofstream inferstate_ofstream;
+        inferstate_ofstream.open(output_filename.c_str());
+
+        if (inferstate_ofstream.is_open())
+        {
+            // header : loglikelihood
+            inferstate_ofstream << "loglikelihood";
+            // header : parameters
+            for (const string &parID : param_to_be_inferred)
+            {
+                inferstate_ofstream << C_DELIM << parID;
+            }
+            // header : chain
+            if (setup_num_chains > 1)
+            {
+                inferstate_ofstream << C_DELIM << "CHAIN__";
+            }
+            inferstate_ofstream << std::endl;
+
+            // FIXME : // FLAG : // HERE :
+            {
+                // print : loglikelihood
+                inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
+                // print : parameter values
+                for (const string &parID : param_to_be_inferred)
+                {
+                    inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_param(parID);
+                }
+                // print : which chain
+                if (setup_num_chains > 1)
+                {
+                    inferstate_ofstream << C_DELIM << _chain_;
+                }
+                inferstate_ofstream << std::endl;
+            }
+
+            inferstate_ofstream.close();
+        }
+        else
+        {
+            raise_error("Unable to open file: " + output_filename);
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : print augm variables  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print all augmented variables of each individual */
+void MCMC::print_augm_variables(const string &save_augm_pathtofile)
+{
+    if (!is_na(save_augm_pathtofile))
+    {
+        std::ofstream augm_ofstream;
+        augm_ofstream.open(save_augm_pathtofile.c_str());
+
+        if (augm_ofstream.is_open())
+        {
+            //===== Print column headers =====//
+            // default headers
+            augm_ofstream << "index" << C_DELIM << "house_index" << C_DELIM << "status";
+
+            // data headers
+            for (const string &dataID : _data_headers_)
+            {
+                augm_ofstream << C_DELIM << dataID;
+            }
+
+            // augmented variables headers
+            for (const string &augmID : augm_full_set)
+            {
+                augm_ofstream << C_DELIM << augmID;
+            }
+
+            augm_ofstream << std::endl;
+
+            //===== Print data and augmented variables =====//
+            for (int h = 0; h < num_househ; ++h)
+            {
+                for (int i = 0; i < househ[h].house_size; ++i)
+                {
+                    augm_ofstream << househ[h].indiv[i].get_index()
+                                  << C_DELIM << househ[h].get_index()
+                                  << C_DELIM << househ[h].indiv[i].get_status();
+                    for (const string &dataID : _data_headers_)
+                    {
+                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
+                    }
+                    for (const string &augmID : augm_full_set)
+                    {
+                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
+                    }
+                    augm_ofstream << std::endl;
+                }
+            }
+
+            augm_ofstream.close();
+        }
+        else
+        {
+            raise_error("Unable to open file: " + save_augm_pathtofile);
+        }
+    }
 }
 
 #endif

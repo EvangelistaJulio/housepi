@@ -16,17 +16,12 @@
 #include <iomanip>
 #include <chrono>
 
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
 #include <Rcpp.h>
 #endif
 
+#include "read.h"
 #include "individual.h"
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef std::map<string, string> ssargs;                
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -52,7 +47,7 @@ protected:
 	bool setup_rnd_init_params = true; // random initialization of parameters
 	unsigned long long setup_seed = 1; // random generator seed
 
-	long double setup_inv_T = 1.0; // inverse temperature
+	double setup_inv_T = 1.0; // inverse temperature
 
 	//===== Household Data =====//
 	int num_indiv = 0;
@@ -87,17 +82,10 @@ public:
 	virtual void build_extra(const string &pathtofile, bool verbose = true);
 	void build(const string &setup_file = UNDEFINED,
 			   const string &params_file = UNDEFINED,
-			   const string &data_file = UNDEFINED, 
+			   const string &data_file = UNDEFINED,
 			   const string &augm_file = UNDEFINED,
-			   const string &extra_file = UNDEFINED, 
+			   const string &extra_file = UNDEFINED,
 			   bool verbose = true);
-
-	//===== SHOW =====//
-	void show_setup();
-	void show_summary();
-	void show_group_classes();
-	void show_parameters();
-	void show_results();
 
 	//===== DATA =====//
 	double get_data(int h, int i, const string d) const { return househ[h].indiv[i].get_data(d); }
@@ -110,6 +98,7 @@ public:
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
 	double get_group_rate(int h, int i, const string r) const { return househ[h].indiv[i].get_group_rate(r); }
 	double get_contact_rate(int h, int from, int to) const { return househ[h].get_contact_rate(from, to); }
+	void update_report_data();
 
 	//===== AUGMENTED VARIABLES =====//
 	void set_augm(int h, int i, const string a, double new_value) { househ[h].indiv[i].set_augm(a, new_value); };
@@ -134,7 +123,7 @@ public:
 	virtual void init_model_for_inference() {};
 	virtual void init_single_chain() {};
 	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_init_augm = true);
-	void infer(const string output_filename, bool progbar = true);
+	void infer(bool progbar = true);
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
 	double evaluate_marginal(int num_rungs, bool progbar = true, bool power_fractions = false);
@@ -144,19 +133,35 @@ public:
 	virtual void simulate_single_house(int h);
 	void simulate();
 
-	//----- Save augmented variables -----//
-	void print_augm_variables(const string output_filename);
+	//===== SHOW =====//
+	void show_setup();
+	void show_summary();
+	void show_group_classes();
+	void show_parameters();
 
-#ifdef RCPP_VERSION
-	//===== RCPP EXPORTS =====//
+#ifdef USE_RCPP
+	//----- Rcpp exports -----//
 	Rcpp::List export_setup();
 	Rcpp::DataFrame export_params();
 	Rcpp::DataFrame export_data();
+	Rcpp::DataFrame export_traces();
+	Rcpp::NumericMatrix export_loglike_matrix();
+	
+#else
+	void show_results();
+
+	//----- Save outputs -----//
+	void print_infer_state(const string &output_filename = UNDEFINED);
+	void print_augm_variables(const string &output_filename = UNDEFINED);
 #endif
 
 private:
 	//===== Global Loglikelihood =====//
 	long double global_loglike = 0.0;
+
+	//===== Diagnostics =====//
+	ulong dgn_count = 0;
+	vector<double> dgn_glob_loglike = {};
 
 	//===== Internal =====//
 	ulong _n_contacts_ = 0; // number of contacts
@@ -169,41 +174,15 @@ private:
 	ulong _rung_ = 0;	   // current thermodynamic rung
 	ulong _num_rungs_ = 0; // number of rungs
 
-	bool _is_power_post_ = false;		// power posterior mode
-	bool _is_data_augm_ = false;		// data augmentation mode
-	bool _is_infer_complete_ = false;	// inference mode
-	bool _is_print_inferstate_ = false; // print inference state mode
+	bool _is_power_post_ = false; // power posterior mode
+	bool _is_data_augm_ = false;  // data augmentation mode
 
 	vector<string> _data_headers_ = {};
-
-	//===== Diagnostics =====//
-	ulong dgn_ss = 0;			   // sample size
-	long double dgn_avg = 0.;	   // sum of the loglikelihood
-	long double dgn_sqr = 0.;	   // sum of the squared loglikelihood
-	long double dgn_lppd = 0.;	   // log pointwise predictive density
-	long double dgn_eff_pars = 0.; // effective n. of parameters
-
-	long double dgn_var() { return (dgn_sqr - std::pow(dgn_avg, 2)) * dgn_ss / (dgn_ss - 1); }
 
 	//===== BUILD =====//
 
 	//----- build : auxiliary attributes -----//
-	std::ofstream inferstate_ofstream;
 	vector<ssargs> load_augm_definition = {};
-
-	//----- build : auxiliary functions -----//
-	bool stobool(const string &tkn);
-
-	vector<string> parse_list_args(const string tkn, const char = screen::C_LIST_DELIM);
-	dictargs merge_list_args(const string tkn_keys, const string tkn_vals);
-
-	dictargs row_to_sdargs(ssargs &this_row);
-	string string_cleaner(string tkn);
-	vector<string> read_column_headers(std::ifstream &input,
-												 const string pathtofile = UNDEFINED,
-												 vector<string> required_headers = {});
-	bool read_row_by_headers(std::ifstream &input, vector<string> headers, ssargs &this_row);
-	void update_report_data();
 
 	//----- build : type-specified variables -----//
 	double type_to_double(const string tkn_val, const string tkn_typ, int h, int i);
@@ -213,11 +192,6 @@ private:
 
 	//===== PRINTS =====//
 	string get_progtxt(const string txt);
-
-	//----- infer : save inference state -----//
-	void inferstate_init(const string output_filename);
-	void inferstate_print();
-	void inferstate_close();
 
 	//===== INFER : Monte Carlo Markov Chain =====//
 	void init_move_counts();

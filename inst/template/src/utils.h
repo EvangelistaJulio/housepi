@@ -17,7 +17,7 @@
 #include <sstream>
 #include <chrono>
 
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
 #include <Rcpp.h>
 #else
 #include <iostream>
@@ -89,7 +89,7 @@ const string CONTACT_RATE = "Contact";        // name for Contact rate
 /////////////////////////////////  Input/Output Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace screen
+namespace basics
 {
     constexpr char C_DELIM = ',';      // file delimiter
     constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
@@ -101,6 +101,7 @@ namespace screen
 
     // deal with undefined or not available value stored as string
     bool is_na(const string &txt);
+    void statistics(const vector<double> &data, double &avg, double &var);
 
     // output formatter
     string percent(int num, int denom);
@@ -122,7 +123,6 @@ namespace screen
 
     // print error message to stderr
     void raise_error(const string &txt);
-
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -208,7 +208,7 @@ private:
         std::ostringstream oss;
         oss << "Inconsistent change of pointer argument`" << _args_names_[i]
             << "` within `" << get_name() << "`.";
-        screen::raise_error(oss.str());
+        basics::raise_error(oss.str());
     }
 };
 

@@ -39,16 +39,12 @@ Perform inference and simulation from the model housepi12345.
 
 \item{\code{params}}{Return the current parameters as a DataFrame.}
 
-\item{\code{data}}{Return the current database as a DataFrame.}
+\item{\code{traces}}{Return the MCMC traces as a DataFrame.}
 
-\item{\code{show_setup}}{Show the setup configurations.}
+\item{\code{data}}{Return the current database as a DataFrame.}
 
 \item{\code{show_summary}}{Show a summary of the database.}
 
 \item{\code{show_group_classes}}{Show the group classes.}
-
-\item{\code{show_params}}{Show the parameter configurations.}
-
-\item{\code{show_diagnostics}}{Show the WAIC.}
 }}
 

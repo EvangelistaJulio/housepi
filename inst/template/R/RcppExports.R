@@ -26,11 +26,9 @@
 #' }
 #' @field setup Return the current setup as a List.
 #' @field params Return the current parameters as a DataFrame.
+#' @field traces Return the MCMC traces as a DataFrame.
 #' @field data Return the current database as a DataFrame.
-#' @field show_setup Show the setup configurations.
 #' @field show_summary Show a summary of the database.
 #' @field show_group_classes Show the group classes.
-#' @field show_params Show the parameter configurations.
-#' @field show_diagnostics Show the WAIC.
 NULL
 

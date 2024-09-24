@@ -30,7 +30,7 @@
 /* The Main Function. */
 int main(int argc, char *argv[])
 {
-    using namespace screen;
+    using namespace basics;
 
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
@@ -169,10 +169,10 @@ int main(int argc, char *argv[])
     }
 
     //----- Initialize the custom Model object -----//
-    Model* user_model = new Model();
+    Model *user_model = new Model();
     user_model->build(setup_file, params_file,
-                     data_file, augm_file,
-                     extra_file, verbose);
+                      data_file, augm_file,
+                      extra_file, verbose);
 
     //=====================//
     //===== EXECUTION =====//
@@ -180,20 +180,26 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        print_decorator("Inference", C_DECOR, "save: " + output_file, verbose);
-        user_model->infer(output_file, true);
+        print_decorator("Inference", C_DECOR, UNDEFINED, verbose);
+        user_model->infer(true);
 
         if (verbose)
         {
             print_decorator("Inference::results", '-', UNDEFINED);
             user_model->show_results();
-            print_decorator("Inference::diagnostics", '-', UNDEFINED);
-            user_model->show_diagnostics();
+        }
+
+        if (output_file != UNDEFINED)
+        {
+            print_decorator("Inference::infer state", '-',
+                            "save: " + save_augm_file,
+                            verbose);
+            user_model->print_infer_state(output_file);
         }
 
         if (save_augm_file != UNDEFINED)
         {
-            print_decorator("Inference::output", '-',
+            print_decorator("Inference::augmented dataframe", '-',
                             "save: " + save_augm_file,
                             verbose);
             user_model->print_augm_variables(save_augm_file);

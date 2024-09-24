@@ -7,7 +7,7 @@
 #include "utils.h"
 
 // auxiliary namespace for I/O custom functions
-namespace screen
+namespace basics
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
@@ -18,25 +18,6 @@ namespace screen
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* A formatted string for percent of num/denom */
-    string percent(int num, int den)
-    {
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(1)
-            << "(" << (100.0 * num / den) << "%)";
-        return oss.str();
-    }
-
-    /* A formatted string for TRUE/FALSE values. */
-    string truth(bool condition)
-    {
-#ifdef RCPP_VERSION
-        return (condition ? "true" : "false");
-#else
-        return (condition ? "TRUE" : "FALSE");
-#endif
-    }
 
     /* An internal check for string representing NA. */
     bool is_na(const string &txt)
@@ -51,6 +32,44 @@ namespace screen
         }
     }
 
+    /* Welford online algorithm for mean and variance. */
+    void statistics(const vector<double> &data, double &avg, double &var)
+    {
+        size_t N = data.size();
+        double x, delta, delta2;
+        double sqr_diff = 0.0;
+
+        avg = 0.0;
+        for (size_t i = 0; i < N; ++i)
+        {
+            x = data[i];
+            delta = x - avg;
+            avg += delta / (i + 1);
+            delta2 = x - avg;
+            sqr_diff += delta * delta2;
+        }
+        var = sqr_diff / (N - 1);
+    }
+
+    /* A formatted string for percent of num/denom */
+    string percent(int num, int den)
+    {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(1)
+            << "(" << (100.0 * num / den) << "%)";
+        return oss.str();
+    }
+
+    /* A formatted string for TRUE/FALSE values. */
+    string truth(bool condition)
+    {
+#ifdef USE_RCPP
+        return (condition ? "true" : "false");
+#else
+        return (condition ? "TRUE" : "FALSE");
+#endif
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,7 +77,7 @@ namespace screen
     /* Function to change stdout in case of RCPP. */
     void print_stdout(const string &txt)
     {
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
         Rcpp::Rcout << txt;
         Rcpp::Rcout.flush();
 #else
@@ -70,7 +89,7 @@ namespace screen
     /* Internal helper function to change stderr in case of RCPP. */
     void _helper_stderr_(const string &txt)
     {
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
         Rcpp::Rcerr << txt;
         Rcpp::Rcerr.flush();
 #else
@@ -165,7 +184,7 @@ namespace screen
             _Prog_Bar_Start_ = steady_clock::now();
         }
 
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
         Rcpp::checkUserInterrupt();
 #endif
     }
@@ -192,7 +211,7 @@ namespace screen
                 _helper_stderr_(oss.str());
             }
         }
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
         Rcpp::checkUserInterrupt();
 #endif
     }
@@ -213,7 +232,7 @@ namespace screen
             _helper_stderr_(oss.str());
         }
 
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
         Rcpp::checkUserInterrupt();
 #endif
     }
@@ -237,7 +256,7 @@ namespace screen
         {
 #pragma omp critical
             {
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
                 Rcpp::warning(txt);
 #else
                 std::cerr << "\nWarning: " + txt << std::endl;
@@ -257,7 +276,7 @@ namespace screen
     {
 #pragma omp critical
         {
-#ifdef RCPP_VERSION
+#ifdef USE_RCPP
             Rcpp::stop(txt);
 #else
             std::cerr << "\nError: " + txt + "\nExit...\n"
@@ -267,6 +286,8 @@ namespace screen
         }
     }
 }
+
+using namespace basics;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
@@ -325,7 +346,7 @@ void Base_Function::assign_args(dictargs dflt_args_val)
         {
             std::ostringstream oss;
             oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
-            screen::raise_error(oss.str());
+            raise_error(oss.str());
         }
         else
         {
@@ -344,7 +365,7 @@ void Base_Function::assign_args(dictargs_ptr dflt_args_ptr)
         {
             std::ostringstream oss;
             oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
-            screen::raise_error(oss.str());
+            raise_error(oss.str());
         }
         else
         {
@@ -368,7 +389,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             if (is_min)
             {
-                screen::raise_error("Multiple definition for `min`.");
+                raise_error("Multiple definition for `min`.");
             }
             else
             {
@@ -380,7 +401,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             if (is_max)
             {
-                screen::raise_error("Multiple definition for `max`.");
+                raise_error("Multiple definition for `max`.");
             }
             else
             {
@@ -392,7 +413,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             std::ostringstream oss;
             oss << "Invalid range keyword `" << x.first << "`. Provide only `min` and/or `max`.";
-            screen::raise_error(oss.str());
+            raise_error(oss.str());
         }
     }
 
@@ -404,7 +425,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             std::ostringstream oss;
             oss << "Overwriting range min with argument min " << new_min << " in `" << get_name() << "`.";
-            screen::raise_warning(oss.str(), Unused_Range_Warning);
+            raise_warning(oss.str(), Unused_Range_Warning);
         }
         is_min = true;
     }
@@ -415,7 +436,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             std::ostringstream oss;
             oss << "Overwriting range max with argument max " << new_min << " in `" << get_name() << "`.";
-            screen::raise_warning(oss.str(), Unused_Range_Warning);
+            raise_warning(oss.str(), Unused_Range_Warning);
         }
         is_max = true;
     }
@@ -425,13 +446,13 @@ void Base_Function::set_range(dictargs new_range)
     {
         std::ostringstream oss;
         oss << "Invalid min value" << new_min << " for distribution `" << get_name() << "`.";
-        screen::raise_error(oss.str());
+        raise_error(oss.str());
     }
     if (new_max > _range_max_)
     {
         std::ostringstream oss;
         oss << "Invalid max value" << new_max << " for distribution `" << get_name() << "`.";
-        screen::raise_error(oss.str());
+        raise_error(oss.str());
     }
 
     //----- Assign valid range functional method -----//
@@ -455,7 +476,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             std::ostringstream oss;
             oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            screen::raise_error(oss.str());
+            raise_error(oss.str());
         }
         else
         {
@@ -479,7 +500,7 @@ string Base_Function::show_arg_names() const
         oss << _args_names_[0];
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << screen::C_LIST_DELIM << _args_names_[i];
+            oss << C_LIST_DELIM << _args_names_[i];
         }
         return oss.str();
     }
@@ -498,7 +519,7 @@ string Base_Function::show_arg_values() const
         oss << get_arg(0);
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << screen::C_LIST_DELIM << get_arg(i);
+            oss << C_LIST_DELIM << get_arg(i);
         }
         return oss.str();
     }

@@ -83,7 +83,7 @@ protected:
 	// alternative proposer methods
 	double _propose_undefined_(sys_rnd_gen &prng, double start)
 	{
-		screen::raise_error("Attempt to call a method of an undefined proposer.");
+		basics::raise_error("Attempt to call a method of an undefined proposer.");
 		UNUSED(prng);
 		UNUSED(start);
 		return std::numeric_limits<double>::quiet_NaN();
@@ -244,7 +244,7 @@ public:
 		distr_ptr->set_range(range);
 
 		// if no rule is defined, do not "infer"
-		infer = !screen::is_na(rule_name);
+		infer = !basics::is_na(rule_name);
 
 		// define proposer rule : prior/model or else with functional programming
 		if (rule_name == "prior" || rule_name == "model")
@@ -314,7 +314,7 @@ public:
 
 	string show() const
 	{
-		using namespace screen;
+		using namespace basics;
 		std::ostringstream oss;
 		oss << get_value() << C_DELIM << truth(infer);
 		if (infer)
@@ -355,14 +355,12 @@ public:
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
 	//===== Diagnostics =====//
+	ulong dgn_count = 0;
+	vector<double> dgn_value = {};
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
 	string show_diagnostics() const;
-
-private:
-	//===== Diagnostics =====//
-	ulong dgn_count = 0;
-	vector<double> dgn_value = {};
+	vector<double> get_dgn_value() const { return dgn_value; }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -461,6 +459,7 @@ public:
 
 	string show_param(const string &parID) const;
 	string show_param_diagnostics(const string &parID) const;
+	vector<double> get_dgn_value(const string &parID) const { return params.at(parID).get_dgn_value(); }
 
 private:
 	//===== Internal Attributes =====//

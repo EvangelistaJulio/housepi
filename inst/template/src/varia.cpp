@@ -6,8 +6,8 @@
 
 #include "varia.h"
 
-using screen::raise_error;
-using screen::raise_warning;
+using basics::raise_error;
+using basics::raise_warning;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
@@ -90,7 +90,7 @@ Base_Proposer *proposer_switchboard(string rule_name, dictargs rule_args, double
     {
         output = new Lognorm_Proposer(rule_args, rule_from);
     }
-    else if (!screen::is_na(rule_name))
+    else if (!basics::is_na(rule_name))
     {
         raise_error("Unknown proposer rule `" + rule_name + "` for Metropolis-Hastings.");
     }
@@ -126,25 +126,13 @@ void Parameter::update_diagnostics()
 /* Message to be used at the moment of display diagnostics. */
 string Parameter::show_diagnostics() const
 {
-    using namespace screen;
+    using namespace basics;
     std::ostringstream oss;
 
-    //----- Welford online algorithm -----//
-    double x, delta, delta2;
-    double avg = 0.0, sqr_diff = 0.0;
+    double avg = 0, var = 0;
+    statistics(dgn_value, avg, var);
 
-    for (size_t i = 0; i < dgn_value.size(); ++i)
-    {
-        x = dgn_value[i];
-        delta = x - avg;
-        avg += delta / (i + 1);
-        delta2 = x - avg;
-        sqr_diff += delta * delta2;
-    }
-    //----- ----- -----//
-
-    oss << avg << C_DELIM << std::sqrt(sqr_diff / (dgn_value.size() - 1))
-        << C_DELIM << truth(infer)
+    oss << avg << C_DELIM << std::sqrt(var) << C_DELIM << truth(infer)
         << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
         << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
         << C_DELIM << get_range_min() << C_DELIM << get_range_max();
@@ -409,7 +397,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 string Monte_Carlo_Core::show_param(const string &parID) const
 {
     std::ostringstream oss;
-    oss << parID << screen::C_DELIM << params.at(parID).show();
+    oss << parID << basics::C_DELIM << params.at(parID).show();
     return oss.str();
 }
 
@@ -417,6 +405,6 @@ string Monte_Carlo_Core::show_param(const string &parID) const
 string Monte_Carlo_Core::show_param_diagnostics(const string &parID) const
 {
     std::ostringstream oss;
-    oss << parID << screen::C_DELIM << params.at(parID).show_diagnostics();
+    oss << parID << basics::C_DELIM << params.at(parID).show_diagnostics();
     return oss.str();
 }

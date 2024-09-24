@@ -40,7 +40,7 @@ params <- housepi::ParameterFrame(list(
   beta = list(x = 0.25, 
               prior = "uniform", args = list(min = 0, max = 5),
               rule = "lognorm", rule_args = list(sdlog = 5))
-  ))$df
+  ))
 ```
 
 2.  **database:** a numerical DataFrame (or a csv file) with the individual data organised by rows. Individuals with equal `house_index` are associated to the same household. A column `status` must be provided if to perform inference, 0 if negative, 1 if positive, -1 if missing. Additionally, an `index` can be provided.
@@ -53,7 +53,7 @@ We build our model with these information using the function `build_model`.
 
 ```{r}
 # associate database and parameters
-housepi::build_model(hemi, data = "data/survey.csv", params = params)
+housepi::build_model(hemi, data = "data/survey.csv", params = params$df)
 ```
 
 Additional definitions can be provided at any time by using the same function. E. g. we can pass the Monte Carlo general configurations with the argument:
@@ -113,7 +113,7 @@ coda::traceplot(mcmc_traces[1])
 summary(mcmc_traces)
 
 # Compute effective sample size
-coda::effectiveSize(mcmcm_traces)
+coda::effectiveSize(mcmc_traces)
 
 # Gelman-Rubin diagnostic
 coda::gelman.diag(mcmc_traces)
@@ -121,12 +121,18 @@ coda::gelman.diag(mcmc_traces)
 
 See [coda CRAN documentation](https://cran.r-project.org/web/packages/coda/index.html) for further details.
 
-## Model Comparison
+## Model Diagnostic
 
-The inference process returns the Watanabe-Akaike Information Criterion *WAIC*. These results can be accessed as follows:
+We can extract the log-likelihood matrix to perform model diagnostics with the R package `loo` ([CRAN documentation](https://cloud.r-project.org/web/packages/loo/index.html)) :
 
 ```{r}
-hemi$show_diagnostics()
+llmtx <- hemi$loglike_matrix()
+
+# WAIC (widely applicable information criterion)
+loo::waic(mtx)
+
+# approximate LOO-CV
+loo::loo(llmtx)
 ```
 
 Another feature of the `housepi` package is the possibility to estimate the marginal loglikelihood with the method of the power posteriors:

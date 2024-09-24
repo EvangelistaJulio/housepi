@@ -349,20 +349,32 @@ long double MCMC::evaluate()
 /* Init Bayesian diagnostics. */
 void MCMC::init_diagnostics()
 {
-    // diagnostics for all parameters
-    init_param_diagnostics(dgn_ss);
+    ulong sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
+    sample_size *= setup_num_chains;
+
+    dgn_count = 0;
+    dgn_glob_loglike = vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
+
+    if (!_is_power_post_)
+    {
+        // diagnostics for all parameters
+        init_param_diagnostics(sample_size);
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; ++h)
-    {
-        househ[h].init_diagnostics(dgn_ss);
+        for (int h = 0; h < num_househ; ++h)
+        {
+            househ[h].init_diagnostics(sample_size);
+        }
     }
 }
 
 /* Update Bayesian diagnostics */
 void MCMC::update_diagnostics()
 {
+    // diagnostics for global loglike
+    dgn_glob_loglike[dgn_count++] = get_global_loglike();
+
     if (!_is_power_post_)
     {
         // diagnostics for all parameters
@@ -420,7 +432,7 @@ void MCMC::disable_assert()
     note: sweep is the number of previously completed mcmc sweeps. */
 void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 {
-    using namespace screen;
+    using namespace basics;
 
     //==========================//
     //===== Initialization =====//
@@ -507,10 +519,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 
             // compute diagnostics for the previous iterations
             update_diagnostics();
-
-            // print inference state
-            inferstate_print();
-
             progress_bar_run(get_progtxt("sample"), sweep, _tot_num_sweeps_, progbar);
         }
     }
@@ -521,33 +529,26 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings. */
-// FIXME : output_file shouldn't be necessary
 // FIXME : Gelman Rubin could be integrated
-void MCMC::infer(string output_file, bool progbar)
+void MCMC::infer(bool progbar)
 {
     //----- Check if data is meaningful -----//
     if (report_data["n.miss.stat"] == num_indiv)
     {
-        screen::raise_error("No infectious status has been provided in the data file.");
+        basics::raise_error("No infectious status has been provided in the data file.");
     }
 
     //----- total number of mcmc sweeps -----//
     _tot_num_sweeps_ = _mcmc_sweeps_;
 
-    //----- Initialize output file-----//
-    inferstate_init(output_file);
-
     //----- Start progress bar and chrono -----//
-    screen::progress_bar_init("init", progbar);
+    basics::progress_bar_init("init", progbar);
 
     //----- Run Markov Chain -----//
     run_monte_carlo(progbar);
 
     //----- Close progress bar -----//
-    screen::progress_bar_end("end", progbar);
-
-    //----- Close output file-----//
-    inferstate_close();
+    basics::progress_bar_end("end", progbar);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -563,7 +564,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
     if (num_rungs < 2)
     {
-        screen::raise_error("Number of rungs must be greater than 1.");
+        basics::raise_error("Number of rungs must be greater than 1.");
     }
     else
     {
@@ -573,24 +574,23 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
     //----- Backup user setup to restore them later -----//
     bool bkp_rnd_init_params = setup_rnd_init_params;
-    long double bkp_inv_T = setup_inv_T;
+    double bkp_inv_T = setup_inv_T;
 
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
-    vector<long double> inv_t = {};  // inverse temperature
-    vector<long double> avg_ll = {}; // mean loglikelihood
-    vector<long double> var_ll = {}; // variance loglikelihood
+    double avg, var;
+    vector<double> inv_t = {};      // inverse temperature
+    vector<double> vec_avg_ll = {}; // mean loglikelihood
+    vector<double> vec_var_ll = {}; // variance loglikelihood
 
     //----- Fix internal states -----//
-    _is_print_inferstate_ = false; // avoid printing
-    _is_infer_complete_ = false;   // showing results becomes meaningless
     _is_power_post_ = true;
 
     //----- Total number of mcmc sweeps -----//
     _tot_num_sweeps_ = _mcmc_sweeps_ * (_num_rungs_ + 1);
 
     //----- Start progress bar and chrono -----//
-    screen::progress_bar_init("init", progbar);
+    basics::progress_bar_init("init", progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
@@ -600,10 +600,11 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     _rung_ = 0;
     setup_inv_T = 0.;
     run_monte_carlo(progbar, 0, true);
+    basics::statistics(dgn_glob_loglike, avg, var);
+
     inv_t.push_back(setup_inv_T);
-    avg_ll.push_back(dgn_avg);
-    var_ll.push_back(dgn_var());
-    setup_rnd_init_params = false;
+    vec_avg_ll.push_back(avg);
+    vec_var_ll.push_back(var);
 
     // thermodynamic ladder: use modified power fractions or adaptive scheme
     if (power_fractions)
@@ -613,13 +614,16 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         //==================================//
 
         //----- Inverse Temperatures (0, 1] -----//
+        setup_rnd_init_params = false;
         for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
         {
             setup_inv_T = std::pow(static_cast<long double>(_rung_) / (_num_rungs_ - 1), 5);
             run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
+            basics::statistics(dgn_glob_loglike, avg, var);
+
             inv_t.push_back(setup_inv_T);
-            avg_ll.push_back(dgn_avg);
-            var_ll.push_back(dgn_var());
+            vec_avg_ll.push_back(avg);
+            vec_var_ll.push_back(var);
         }
     }
     else
@@ -629,12 +633,15 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         //===========================//
 
         //----- Inverse Temperature 1 -----//
+        setup_rnd_init_params = false;
         _rung_ = 1;
         setup_inv_T = 1.;
         run_monte_carlo(progbar, _mcmc_sweeps_, true);
+        basics::statistics(dgn_glob_loglike, avg, var);
+        
         inv_t.push_back(setup_inv_T);
-        avg_ll.push_back(dgn_avg);
-        var_ll.push_back(dgn_var());
+        vec_avg_ll.push_back(avg);
+        vec_var_ll.push_back(var);
 
         //----- Inverse Temperatures (0, 1) -----//
         size_t k = 0; // index to interval lower bound
@@ -644,24 +651,25 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
             //----- adaptive choice of inverse temperature -----//
             // intersection between tangents
-            setup_inv_T = (avg_ll[k + 1] - inv_t[k + 1] * var_ll[k + 1] - avg_ll[k] + inv_t[k] * var_ll[k]) / (var_ll[k] - var_ll[k + 1]);
+            setup_inv_T = (vec_avg_ll[k + 1] - inv_t[k + 1] * vec_var_ll[k + 1] - vec_avg_ll[k] + inv_t[k] * vec_var_ll[k]) / (vec_var_ll[k] - vec_var_ll[k + 1]);
 
             // otherwise weighted average
             if ((setup_inv_T <= inv_t[k]) || (setup_inv_T >= inv_t[k + 1]))
             {
-                setup_inv_T = inv_t[k] + var_ll[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_ll[k] + var_ll[k + 1]);
+                setup_inv_T = inv_t[k] + vec_var_ll[k + 1] * (inv_t[k + 1] - inv_t[k]) / (vec_var_ll[k] + vec_var_ll[k + 1]);
             }
 
             //----- power posterior sampling -----//
             run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
+            basics::statistics(dgn_glob_loglike, avg, var);
 
             //----- find larger rectangular discretization error -----//
-            is_right = (inv_t[k + 1] - setup_inv_T) * (avg_ll[k + 1] - dgn_avg) > (setup_inv_T - inv_t[k]) * (dgn_avg - avg_ll[k]);
+            is_right = (inv_t[k + 1] - setup_inv_T) * (vec_avg_ll[k + 1] - avg) > (setup_inv_T - inv_t[k]) * (avg - vec_avg_ll[k]);
 
             //----- insert in-between for all lists -----//
             inv_t.insert(inv_t.begin() + k + 1, setup_inv_T);
-            avg_ll.insert(avg_ll.begin() + k + 1, dgn_avg);
-            var_ll.insert(var_ll.begin() + k + 1, dgn_var());
+            vec_avg_ll.insert(vec_avg_ll.begin() + k + 1, avg);
+            vec_var_ll.insert(vec_var_ll.begin() + k + 1, var);
 
             // if right interval is chosen, index points to inserted as lower bound
             k += (is_right);
@@ -673,11 +681,11 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     for (int k = 0; k < num_rungs; ++k)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];
-        output += (avg_ll[k + 1] + avg_ll[k]) * d_inv_t / 2. - (var_ll[k + 1] - var_ll[k]) * std::pow(d_inv_t, 2) / 12.;
+        output += (vec_avg_ll[k + 1] + vec_avg_ll[k]) * d_inv_t / 2. - (vec_var_ll[k + 1] - vec_var_ll[k]) * std::pow(d_inv_t, 2) / 12.;
     }
 
     //----- Close progress bar -----//
-    screen::progress_bar_end("end", progbar);
+    basics::progress_bar_end("end", progbar);
 
     //----- Restore user setup -----//
     setup_inv_T = bkp_inv_T;

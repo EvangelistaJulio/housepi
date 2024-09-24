@@ -33,8 +33,8 @@ class Individual
 {
 private:
 	//=====Attributes (private)=====//
-	int status = 0;						// status of the individual
-	int index = 0;						// database index of the individual
+	int status = 0;		// status of the individual
+	int index = 0;		// database index of the individual
 	dictargs data = {}; // database associated to individual
 
 public:
@@ -122,7 +122,7 @@ class Household
 {
 private:
 	//=====Attributes (private)=====//
-	int house_index = -1;	   // database index of household
+	int house_index = -1;	  // database index of household
 	dictargs house_data = {}; // database associated to household (manual)
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
@@ -150,14 +150,10 @@ public:
 	vector<bool> is_susceptible = {};
 	vector<bool> is_missing_status = {};
 
-	// list with ONLY indexes of members with a given status	
+	// list with ONLY indexes of members with a given status
 	std::set<int> infectious_set = {};
 	std::set<int> susceptible_set = {};
 	std::set<int> missing_status_set = {};
-
-	//===== Diagnostics =====//
-	ulong dgn_count = 0;
-	vector<double> dgn_loglike = {};
 
 	//===== Constructors =====//
 	Household() {}
@@ -188,8 +184,13 @@ public:
 		house_loglike = new_loglike;
 	}
 	void refuse() { house_loglike = buffer; }
+
+	//===== Diagnostics =====//
+	ulong dgn_count = 0;
+	vector<double> dgn_loglike = {};
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
+	vector<double> get_dgn_loglike() const { return dgn_loglike; }
 
 	//===== Acceptation Rate =====//
 	void reset_augm_accept_rate(const string &augmID);

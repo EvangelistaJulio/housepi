@@ -27,13 +27,13 @@ public:
     virtual double pdf(double x)
     {
         UNUSED(x);
-        screen::raise_error("Attempt to call a method of an undefined distribution.");
+        basics::raise_error("Attempt to call a method of an undefined distribution.");
         return std::numeric_limits<double>::quiet_NaN();
     }
     virtual double log_pdf(double x)
     {
         UNUSED(x);
-        screen::raise_error("Attempt to call a method of an undefined distribution.");
+        basics::raise_error("Attempt to call a method of an undefined distribution.");
         return std::numeric_limits<double>::quiet_NaN();
     }
     virtual double logratio(double x, double y)
@@ -45,7 +45,7 @@ public:
     virtual double rand(sys_rnd_gen &rng)
     {
         UNUSED(rng);
-        screen::raise_error("Attempt to call a method of an undefined distribution.");
+        basics::raise_error("Attempt to call a method of an undefined distribution.");
         return std::numeric_limits<double>::quiet_NaN();
     }
 };
@@ -337,9 +337,9 @@ Base_Distribution *distribution_ptr(const string &name = UNDEFINED, dictargs_val
     {
         output = new Discrete_Exponential_Distribution(args);
     }
-    else if (!screen::is_na(name))
+    else if (!basics::is_na(name))
     {
-        screen::raise_error("Unknown distribution `" + name + "`.");
+        basics::raise_error("Unknown distribution `" + name + "`.");
     }
 
     return output;

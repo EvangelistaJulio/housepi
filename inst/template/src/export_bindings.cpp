@@ -27,10 +27,12 @@
 //'   \item Parameter: progbar - show the progress bar
 //'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 //' }
-//' @field setup Return the current setup as a List.
-//' @field params Return the current parameters as a DataFrame.
-//' @field data Return the current database as a DataFrame.
-//' @field show_summary Show a summary of the database.
+//' @field setup Return a List with current setup.
+//' @field params Return a DataFrame with current parameters.
+//' @field traces Return a DataFrame with MCMC traces.
+//' @field loglike_matrix Return matrix with loglikelihood values.
+//' @field data Return a DataFrame with current database.
+//' @field show_summary Show a summary of the current database.
 //' @field show_group_classes Show the group classes.
 
 #include <Rcpp.h>
@@ -51,6 +53,8 @@ RCPP_MODULE(modelhousepi12345_cpp)
    .method("setup", &MCMC::export_setup)
    .method("params", &MCMC::export_params)
    .method("data", &MCMC::export_data)
+   .method("traces", &MCMC::export_traces)
+   .method("loglike_matrix", &MCMC::export_loglike_matrix)   
    .method("show_summary", &MCMC::show_summary)
    .method("show_group_classes", &MCMC::show_group_classes);
  
