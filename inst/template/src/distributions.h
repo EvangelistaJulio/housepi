@@ -57,8 +57,8 @@ public:
 class Uniform_Distribution : public Base_Distribution
 {
 public:
-    Uniform_Distribution(dictargs new_args = {}) : Base_Distribution("uniform", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"}) { assign_args(new_args); }
-    Uniform_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("uniform", new_args_ptr, {"min", "max"}) {}
+    Uniform_Distribution(dictargs new_args = {}) : Base_Distribution("unif", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"}) { assign_args(new_args); }
+    Uniform_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("unif", new_args_ptr, {"min", "max"}) {}
     ~Uniform_Distribution() {}
 
     double pdf(double x) override;
@@ -74,8 +74,8 @@ public:
 class Normal_Distribution : public Base_Distribution
 {
 public:
-    Normal_Distribution(dictargs new_args = {}) : Base_Distribution("normal", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"}) { assign_args(new_args); }
-    Normal_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("normal", new_args_ptr, {"mean", "sd"}) {}
+    Normal_Distribution(dictargs new_args = {}) : Base_Distribution("norm", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"}) { assign_args(new_args); }
+    Normal_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("norm", new_args_ptr, {"mean", "sd"}) {}
     ~Normal_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -87,8 +87,8 @@ public:
 class Discrete_Normal_Distribution : public Base_Distribution
 {
 public:
-    Discrete_Normal_Distribution(dictargs new_args = {}) : Base_Distribution("normal_discr", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"}) { assign_args(new_args); }
-    Discrete_Normal_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("normal_discr", new_args_ptr, {"mean", "sd"}) { set_range({{"min", 0}}); }
+    Discrete_Normal_Distribution(dictargs new_args = {}) : Base_Distribution("norm_discr", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"}) { assign_args(new_args); }
+    Discrete_Normal_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("norm_discr", new_args_ptr, {"mean", "sd"}) { set_range({{"min", 0}}); }
     ~Discrete_Normal_Distribution() {};
 
     double pdf(double x) override;
@@ -104,12 +104,12 @@ public:
 class Lognorm_Distribution : public Base_Distribution
 {
 public:
-    Lognorm_Distribution(dictargs new_args = {}) : Base_Distribution("lognorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"})
+    Lognorm_Distribution(dictargs new_args = {}) : Base_Distribution("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Lognorm_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("lognorm", new_args_ptr, {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
+    Lognorm_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("lnorm", new_args_ptr, {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
     ~Lognorm_Distribution() {};
 
     virtual double pdf(double x) override;
@@ -121,12 +121,12 @@ public:
 class Discrete_Lognorm_Distribution : public Base_Distribution
 {
 public:
-    Discrete_Lognorm_Distribution(dictargs new_args = {}) : Base_Distribution("lognorm_discr", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"})
+    Discrete_Lognorm_Distribution(dictargs new_args = {}) : Base_Distribution("lnorm_discr", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Discrete_Lognorm_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("lognorm_discr", new_args_ptr, {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
+    Discrete_Lognorm_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("lnorm_discr", new_args_ptr, {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
     ~Discrete_Lognorm_Distribution() {};
 
     double pdf(double x) override;
@@ -289,23 +289,23 @@ Base_Distribution *distribution_ptr(const string &name = UNDEFINED, dictargs_val
 {
     Base_Distribution *output = new Base_Distribution();
 
-    if (name == "uniform")
+    if (name == "unif")
     {
         output = new Uniform_Distribution(args);
     }
-    else if (name == "normal")
+    else if (name == "norm")
     {
         output = new Normal_Distribution(args);
     }
-    else if (name == "normal_discr")
+    else if (name == "norm_discr")
     {
         output = new Discrete_Normal_Distribution(args);
     }
-    else if (name == "lognorm")
+    else if (name == "lnorm")
     {
         output = new Lognorm_Distribution(args);
     }
-    else if (name == "lognorm_discr")
+    else if (name == "lnorm_discr")
     {
         output = new Discrete_Lognorm_Distribution(args);
     }

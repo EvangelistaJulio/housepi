@@ -101,10 +101,10 @@ void Model::common_init_model()
 {
 	//===== Initialize Lookup Tables (infectivity profiles) =====//
 
-	dictargs_ptr args = {{"alpha", get_param_pointer("tost_alpha")},
-					   {"mu", get_param_pointer("tost_mu")},
-					   {"sigma", get_param_pointer("tost_sigma")},
-					   {"tau", get_param_pointer("tost_tau")}};
+	dictargs args = {{"alpha", get_param("tost_alpha")},
+					   {"mu", get_param("tost_mu")},
+					   {"sigma", get_param("tost_sigma")},
+					   {"tau", get_param("tost_tau")}};
 	infec_prof_func_ptr = new Infec_Prof_Skew_Logistic(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)

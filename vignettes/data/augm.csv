@@ -1,5 +1,0 @@
-name,value,valuetype,model,args,argsval,argstype,rule,rargs,rargsval,rargstype,rfrom,rfromtype,min,mintype,max,maxtype,init_rand
-incub_period,0,S,gamma,shape/scale,incub_shape/incub_scale,P/P,normal,sd,0.5,S,,,0,S,incub_max,P,TRUE
-
-
-onset_date,0,S,,,,,normal,mean/sd,0/onset_rule_sd,S/P,,,onset_min,P,,,FALSE

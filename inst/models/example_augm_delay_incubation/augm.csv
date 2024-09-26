@@ -1,3 +1,0 @@
-name,value,valuetype,model,args,argsval,argstype,rule,rargs,rargsval,rargstype,rfrom,rfromtype,min,mintype,max,maxtype,init_rand
-exposure,expmin,D,uniform,min/max,expmin/expmax,D/D,normal,mean/sd,0/0.125,S/S,,,expmin,D,expmax,D,FALSE
-onset,onsmax,D,uniform,min/max,onsmin/onsmax,D/D,normal,mean/sd,0/0.125,S/S,,,onsmin,D,onsmax,D,FALSE

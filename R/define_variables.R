@@ -1,10 +1,16 @@
+#
+# define_variables.R
+#
+# Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+#
 
 # Define a custom get function (like in Python dictionaries)
 get_val_ <- function(lst, key, default = NA) {
-  return(if (key %in% names(lst))
-    lst[[key]]
-    else
-      default)
+  if (key %in% names(lst)) {
+    return(lst[[key]])
+  } else {  
+    return(default)
+  }
 }
 
 # Format NA types with defaults according to values
@@ -60,17 +66,17 @@ str_join_ <- function(x) {
 #'   # define the `shape` parameter
 #'   shape = list(
 #'     x = 1,                          # initial value
-#'     prior = "uniform",              # choose a uniform prior
+#'     prior = "unif",                 # choose a uniform prior
 #'     args = list(min = 0,            # minimum of the uniform prior
 #'                 max = 5),           # maximum of the uniform prior
-#'     rule = "normal",                # Metropolis normal move
+#'     rule = "norm",                  # Monte Carlo normal move
 #'     rule_args = list(sd = 0.5)      # initial sd of the move (later adapted)
 #'   ),
 #'   # define the `scale` parameter
 #'   scale = list(
 #'     x = 0.5,                        # initial value
 #'     infer = FALSE,                  # do to infer scale
-#'     prior = "lognorm",              # choose a lognormal prior
+#'     prior = "lnorm",                # choose a lognormal prior
 #'     args = list(meanlog = 0,        # meanlog of lognormal prior
 #'                 sdlog = 1),         # sdlog of lognormal prior
 #'     rule = "prior"                  # sample from the prior
@@ -95,41 +101,58 @@ ParameterFrame <- setRefClass(
   #===== METHODS =====#
   methods = list(
     #===== Method : initialize/new =====#
-    initialize = function(params = list()) {
+    initialize = function(definitions = list(), housepi_model = NULL) {
       df <<- data.frame(
-        name = character(),
-        value = numeric(),
-        infer = logical(),
-        prior = character(),
-        args = character(),
-        argsval = character(),
-        rule = character(),
-        rargs = character(),
-        rargsval = character(),
-        min = numeric(),
-        max = numeric(),
+        name = character(), value = numeric(), infer = logical(),
+        prior = character(), args = character(), argsval = character(),
+        rule = character(), rargs = character(), rargsval = character(),
+        min = numeric(), max = numeric(),
         stringsAsFactors = FALSE
       )
       
-      for (p in names(params)) {
-        this <- params[[p]]
-        add(
-          name = p,
-          x = get_val_(this, "x"),
-          infer = get_val_(this, "infer"),
-          prior = get_val_(this, "prior"),
-          args = get_val_(this, "args", default = list()),
-          rule = get_val_(this, "rule"),
-          rule_args = get_val_(this, "rule_args", default = list()),
-          range = get_val_(this, "range", default = list())
-        )
+      if (length(definitions) == 0) {
+        # reinitialize according to templated parameters
+        if (!is.null(housepi_model)) {
+          template(housepi_model)
+        }
+        
+      } else {
+        # user definitions
+        for (p in names(definitions)) {
+          this <- definitions[[p]]
+          add(
+            name = p,
+            x = get_val_(this, "x"),
+            infer = get_val_(this, "infer"),
+            prior = get_val_(this, "prior"),
+            args = get_val_(this, "args", default = list()),
+            rule = get_val_(this, "rule"),
+            rule_args = get_val_(this, "rule_args", default = list()),
+            range = get_val_(this, "range", default = list())
+          )
+        }
+        # check if definitions match the model
+        if (!is.null(housepi_model)) {
+          check(housepi_model)
+        }
       }
-      
     },
     
-    #===== from_model =====#
-    from_model = function(housepi_model) {
-      "Pre-load missing parameter definitions needed by the model.
+    #===== Method : from_model =====#
+    template = function(housepi_model) {
+      "Load templated parameter definition and verwrite current definitions.
+      \\itemize{
+      \\item Parameter: housepi_model - housepi model object.
+      }"
+      
+      hemi_dir <- system.file(package = attr(class(housepi_model), "package"))
+      templ_params_file <- file.path(hemi_dir, "src", "templated_params")
+      initialize(definitions = dget(templ_params_file), housepi_model = NULL)
+    },
+    
+    #===== Method : check =====#
+    check = function(housepi_model) {
+      "Check if parameter definitions are missing and pre-load them.
       \\itemize{
       \\item Parameter: housepi_model - housepi model object.
       }"
@@ -137,22 +160,27 @@ ParameterFrame <- setRefClass(
       hemi_dir <- system.file(package = attr(class(housepi_model), "package"))
       model_path <- file.path(hemi_dir, "src", "model.cpp")
       
-      # read the script
+      # read the script and extract parameters
       script <- readChar(model_path, file.info(model_path)$size)
       
-      # extract from get_param("string") or get_param('string')
+      # from : get_param("string") or get_param('string')
       regular_expr <- 'get_param\\(\\s*["\'](.*?)["\']\\s*\\)'
       matches <- stringr::str_match_all(script, regular_expr)
       model_params_set <- unique(unlist(matches[[1]][, 2]))
       
-      # extract from : assign_rate_per_contact(, , "string")
+      # from : get_param_pointer("string") or get_param_pointer('string')
+      regular_expr <- 'get_param_pointer\\(\\s*["\'](.*?)["\']\\s*\\)'
+      matches <- stringr::str_match_all(script, regular_expr)
+      model_params_set <- c(model_params_set, unique(unlist(matches[[1]][, 2])))
+      
+      # from : assign_rate_per_contact(, , "string")
       regular_expr <- '\\.assign_rate_per_contact\\s*\\(.*?,.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       aux <- unlist(lapply(matches, function(x)
         x[, 2]))
       model_params_set <- c(model_params_set, unique(aux[!is.na(aux)]))
       
-      # extract from : assign_rate_per_group(, "string")
+      # from : assign_rate_per_group(, "string")
       regular_expr <- '\\.assign_rate_per_group\\s*\\(.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       aux <- unlist(lapply(matches, function(x)
@@ -165,15 +193,9 @@ ParameterFrame <- setRefClass(
       # add missing parameters with standard options
       for (name in model_params_set) {
         if (!(name %in% df[["name"]])) {
-          add(
-            name = name,
-            x = 1,
-            infer = FALSE,
-            prior = "uniform",
-            args = list(min = 0, max = 10),
-            rule = "normal",
-            rule_args = list(sd = 1)
-          )
+          add(name = name, x = 1, infer = FALSE,
+              prior = "unif", args = list(min = 0, max = 10),
+              rule = "norm", rule_args = list(sd = 1))
         }
       }
       
@@ -185,9 +207,7 @@ ParameterFrame <- setRefClass(
         }
       }
       if (length(unused) > 0) {
-        oss <- paste0("The following parameter(s) are not present in the model: `",
-                      unused[[1]],
-                      "`")
+        oss <- paste0("Parameter(s) not declared within model: `", unused[[1]], "`")
         for (name in unused[-1]) {
           oss <- paste0(oss, ", `", name, "`")
         }
@@ -196,15 +216,11 @@ ParameterFrame <- setRefClass(
     },
     
     #===== Method : add =====#
-    add = function(name = NA,
-                   x = NA,
-                   infer = NA,
-                   prior = NA,
-                   args = list(),
-                   rule = NA,
-                   rule_args = list(),
+    add = function(name = NA, x = NA, infer = NA,
+                   prior = NA, args = list(),
+                   rule = NA, rule_args = list(),
                    range = list()) {
-      "Add a new parameter to data frame
+      "Add a new parameter to data frame.
       \\itemize{
       \\item Parameter: name - String with name of the parameter.
       \\item Parameter: x - Scalar with value of the parameter.
@@ -229,14 +245,13 @@ ParameterFrame <- setRefClass(
         df <<- df[df$name != name, ]
       }
       
+      #----- extrapolate infer value -----#
       if (is.na(infer)) {
         infer <- !is.na(rule)
         if (is.na(rule) && (!is.na(prior))) {
           cli::cli_alert_warning(cli::format_warning(
-            c(
-              paste0("`", name, "` choice interpreted as if infer = FALSE."),
-              i = "Provide one between rule and infer to silence this warning."
-            )
+            c(paste0("`", name, "` interpreted as if infer = FALSE."),
+              i = "Provide one between rule/infer to silence this warning.")
           ))
         }
       }
@@ -274,42 +289,21 @@ ParameterFrame <- setRefClass(
         min_ <- get_val_(names(range), "min")
         max_ <- get_val_(names(range), "max")
         
-        df <<- rbind(
-          df,
-          data.frame(
-            name = name,
-            value = x,
-            infer = TRUE,
-            prior = prior,
-            args = args_,
-            argsval = argsval_,
-            rule = rule,
-            rargs = rargs_,
-            rargsval = rargsval_,
-            min = min_,
-            max = max_,
-            stringsAsFactors = FALSE
-          )
-        )
+        #----- df : append -----#
+        df <<- rbind(df, 
+                     data.frame(name = name, value = x, infer = TRUE,
+                                prior = prior, args = args_, argsval = argsval_,
+                                rule = rule, rargs = rargs_, rargsval = rargsval_,
+                                min = min_, max = max_,
+                                stringsAsFactors = FALSE))
         
       } else {
-        df <<- rbind(
-          df,
-          data.frame(
-            name = name,
-            value = x,
-            infer = FALSE,
-            prior = NA,
-            args = NA,
-            argsval = NA,
-            rule = NA,
-            rargs = NA,
-            rargsval = NA,
-            min = NA,
-            max = NA,
-            stringsAsFactors = FALSE
-          )
-        )
+        df <<- rbind(df,
+                     data.frame(name = name, value = x, infer = FALSE,
+                                prior = NA, args = NA, argsval = NA,
+                                rule = NA, rargs = NA, rargsval = NA,
+                                min = NA, max = NA,
+                                stringsAsFactors = FALSE))
       }
     }
   )
@@ -325,19 +319,19 @@ ParameterFrame <- setRefClass(
 #'   # define augmented variable 'exposure' for exposure time
 #'   exposure = list(
 #'     x = "exposure_min@D", # start from exposure_min imported from data
-#'     model = "uniform",    # associate a uniform model
-#'     args = list(min = "exposure_min@D",  # 'exposure_min' imported from data
+#'     model = "unif",                      # associate a uniform model
+#'     args = list(min = "exposure_min@D",  # within 'exposure_min' and
 #'                 max = "exposure_max@D"), # 'exposure_max' imported from data
-#'     rule = "normal",      # rule for Metropolis move is normal
-#'     rule_args = list(sd = 0.125)         # std. dev. of normal rule
+#'     rule = "norm",               # normal rule for Monte Carlo move
+#'     rule_args = list(sd = 0.125) # std. dev. of normal rule
 #'   ),
 #'   # define augmented variable 'onset' for onset time
 #'   onset = list(
 #'     x = "onset_max@D",    # start from maximum # ...
-#'     model = "uniform",
+#'     model = "unif",
 #'     args = list(min = "onset_min@D",
 #'                 max = "onset_max@D"),
-#'     rule = "normal",
+#'     rule = "norm",
 #'     rule_args = list(sd = "rule_sd@P")   # 'rule_sd' imported from parameters
 #'   )
 #' ))
@@ -357,56 +351,39 @@ AugmentedFrame <- setRefClass(
   #===== METHODS =====#
   methods = list(
     #===== Method : initialize/new =====#
-    initialize = function(augm = list()) {
+    initialize = function(definitions = list()) {
       df <<- data.frame(
-        name = character(),
-        value = character(),
-        valuetype = character(),
-        model = character(),
-        args = character(),
-        argsval = character(),
-        argstype = character(),
+        name = character(), value = character(), valuetype = character(),
+        model = character(), 
+        args = character(),  argsval = character(), argstype = character(),
         rule = character(),
-        rargs = character(),
-        rargsval = character(),
-        rargstype = character(),
-        rfrom = character(),
-        rfromtype = character(),
-        min = character(),
-        mintype = character(),
-        max = character(),
-        maxtype = character(),
+        rargs = character(), rargsval = character(), rargstype = character(),
+        rfrom = character(), rfromtype = character(),
+        min = character(),  mintype = character(),
+        max = character(), maxtype = character(),
         init_rand = logical(),
         stringsAsFactors = FALSE
       )
       
-      for (a in names(augm)) {
-        this <- augm[[a]]
-        add(
-          name = a,
-          x = get_val_(this, "x"),
-          model = get_val_(this, "model"),
-          args = get_val_(this, "args", default = list()),
-          rule = get_val_(this, "rule"),
-          rule_args = get_val_(this, "rule_args", default = list()),
-          rule_from = get_val_(this, "rule_from"),
-          range = get_val_(this, "range", default = list()),
-          init_rand = get_val_(this, "init_rand", default = FALSE)
-        )
+      for (a in names(definitions)) {
+        this <- definitions[[a]]
+        add(name = a,
+            x = get_val_(this, "x"),
+            model = get_val_(this, "model"),
+            args = get_val_(this, "args", default = list()),
+            rule = get_val_(this, "rule"),
+            rule_args = get_val_(this, "rule_args", default = list()),
+            rule_from = get_val_(this, "rule_from"),
+            range = get_val_(this, "range", default = list()),
+            init_rand = get_val_(this, "init_rand", default = FALSE))
       }
       
     },
     
     #===== Method : add =====#
-    add = function(name = NA,
-                   x = NA,
-                   model = NA,
-                   args = list(),
-                   rule = NA,
-                   rule_args = list(),
-                   rule_from = NA,
-                   range = list(),
-                   init_rand = FALSE) {
+    add = function(name = NA, x = NA, model = NA, args = list(),
+                   rule = NA, rule_args = list(), rule_from = NA,
+                   range = list(), init_rand = FALSE) {
       "Add a new parameter to data frame
       \\itemize{
       \\item Parameter: name - String with name of the parameter.
@@ -420,29 +397,44 @@ AugmentedFrame <- setRefClass(
       \\item Parameter: init_rand - Logical to randomly initialize with model.
       }"
       
-      if (is.na(name) || is.na(x)) {
-        stop(cli::format_error(c(
-          "Incomplete definition: provide both name and value x."
-        )))
+      if (is.na(name)) {
+        stop(cli::format_error("Incomplete definition: missing name."))
+      } else {
+        if (name %in% df[["name"]])
+        {
+          cli::cli_alert_warning(cli::format_warning(c(
+            paste0("Existing `", name, "` definition has been overwritten.")
+          )))
+          df <<- df[df$name != name, ]
+        }
       }
       
-      #----- value -----#
-      value_ <- str_split_(x)[["values"]]
-      valuetype_ <- str_split_(x)[["types"]]
-      
-      if (name %in% df[["name"]])
-      {
-        cli::cli_alert_warning(cli::format_warning(c(
-          paste0("Existing `", name, "` definition has been overwritten.")
-        )))
-        df <<- df[df$name != name, ]
+      #----- value/init_rand -----#
+      if (init_rand) {
+        if (is.na(model)) {
+          stop(cli::format_error("Unknown model for random initialization."))
+        } else {
+          value_ <- NA
+          valuetype_ <- NA
+        }
+      } else {
+        if (is.na(x)) {
+          stop(cli::format_error(
+            c("Incomplete definition: missing value x.", 
+              i = "Alternatively provide a model and set init_rand = TRUE")
+          ))
+        } else {
+          value_ <- str_split_(x)[["values"]]
+          valuetype_ <- str_split_(x)[["types"]]
+        }
       }
-      
-      # assign method only if arguments are provided
+
+      #----- method -----#
       args_ <- NA
       argsval_ <- NA
       argstype_ <- NA
       
+      # assign method only if arguments are provided
       if (!is.na(model))  {
         if (length(args) == 0)
         {
@@ -466,7 +458,7 @@ AugmentedFrame <- setRefClass(
       rfromtype_ <- NA
       
       if (!is.na(rule)) {
-        if (length(rule_args) == 0) {
+        if ((rule != "model") && (length(rule_args) == 0)) {
           cli::cli_alert_warning(cli::format_warning(c(
             paste0("Missing rule_args for augmented variable `", name, "`.")
           )))
@@ -510,30 +502,18 @@ AugmentedFrame <- setRefClass(
         }
       }
       
-      df <<- rbind(
-        df,
-        data.frame(
-          name = name,
-          value = value_,
-          valuetype = valuetype_,
-          model = model,
-          args = args_,
-          argsval = argsval_,
-          argstype = argstype_,
-          rule = rule,
-          rargs = rargs_,
-          rargsval = rargsval_,
-          rargstype = rargstype_,
-          rfrom = rfrom_,
-          rfromtype = rfromtype_,
-          min = min_,
-          mintype = mintype_,
-          max = max_,
-          maxtype = maxtype_,
-          init_rand = init_rand,
-          stringsAsFactors = FALSE
-        )
-      )
+      df <<- rbind(df,
+                   data.frame(name = name, 
+                              value = value_, valuetype = valuetype_,
+                              model = model, args = args_, 
+                              argsval = argsval_, argstype = argstype_,
+                              rule = rule, rargs = rargs_, 
+                              rargsval = rargsval_, rargstype = rargstype_,
+                              rfrom = rfrom_, rfromtype = rfromtype_,
+                              min = min_, mintype = mintype_,
+                              max = max_, maxtype = maxtype_, 
+                              init_rand = init_rand,
+                              stringsAsFactors = FALSE))
     }
   )
 )

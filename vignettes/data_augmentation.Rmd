@@ -17,7 +17,7 @@ Assuming the incubation period to be described by a gamma distribution, we want 
 We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
 
 ```{r}
-delays <- read.csv("data/delays.csv")
+delays <- read.csv("delays.csv")
 delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-5
 delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-5
 delays[["status"]] <- 1
@@ -36,11 +36,11 @@ hemi_1 <- housepi::generate_model("example_augm_delay_incubation")
 # gamma distribution parameter definitions
 par_1 <- housepi::ParameterFrame(list(
   shape = list(x = 1, 
-               prior = "uniform", args = list(min = 0, max = 5),
-               rule = "normal", rule_args = list(sd = 1)),
+               prior = "unif", args = list(min = 0, max = 5),
+               rule = "norm", rule_args = list(sd = 1)),
   scale = list(x = 1,
-               prior = "uniform", args = list(min = 0, max = 5),
-               rule = "normal", rule_args = list(sd = 1))
+               prior = "unif", args = list(min = 0, max = 5),
+               rule = "norm", rule_args = list(sd = 1))
   ))
 
 # general setup
@@ -62,21 +62,21 @@ Similarly to parameter definitions, for augmented variables we provide a DataFra
 augm_1 <- housepi::AugmentedFrame(list(
   # define 'exposure' time
   exposure = list(
-    x = "exposure_min@D", # start from the data 'exposure_min'
-    model = "uniform",                   # associate a uniform model
-    args = list(min = "exposure_min@D",  # use exposure min and max from data
-                max = "exposure_max@D"), # as the uniform distribution domain 
-    rule = "normal",            # choose a normal rule for the Metropolis move
+    x = "exposure_min@D", # start from data 'exposure_min'
+    model = "unif",                      # associate a uniform model
+    args = list(min = "exposure_min@D",  # within the range 'exposure_min' 
+                max = "exposure_max@D"), # and 'exposure_max'
+    rule = "norm",              # choose normal rule for the Monte Carlo
     rule_args = list(sd = 0.25) # with a std. dev. of 0.25
   ),
   
   # define 'onset' time
   onset = list(
-    x = "onset_max@D", # start from onset_max (data)
-    model = "uniform", # ...
+    x = "onset_max@D", # start from 'onset_max'
+    model = "unif",    # ...
     args = list(min = "onset_min@D", 
                 max = "onset_max@D"),
-    rule = "normal",
+    rule = "norm",
     rule_args = list(sd = 0.25)
   )
 ))
@@ -100,62 +100,69 @@ We use the template model "augm_onset_single_intr", where surveys are conditione
 ```{r}
 hemi_2 <- housepi::generate_model("augm_onset_single_intr")
 ```
+This time we load the parameter definitions directly from the model template:
 
 ```{r}
-setup_2 <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
-              thinning = 25, seed = 576125013)
-
-# results_1$statistics["shape", "Mean"]
-# results_1$statistics["scale", "Mean"]
-
-housepi::build_model(hemi_2, data = "data/survey.csv", params = "data/params.csv", 
-                     setup = setup_2)
-
-par_2 <- hemi_2$params()
+par_2 <- housepi::ParameterFrame(housepi_model = hemi_2)
 ```
 
-This time we have loaded the parameter definitions directly from a file
-
 ```{r, echo=FALSE}
-knitr::kable(head(read.csv("data/params.csv")))
+knitr::kable(head(par_2$df))
 ```
 
 We propose the following augmented variable definitions
 
 ```{r}
-augm <- housepi::AugmentedFrame()
+augm_2 <- housepi::AugmentedFrame()
 
-augm$add(name = "onset_date", 
-         x = 0,
-         rule = "normal", rule_args = list(sd = 0.25),
-         range = list(min = -3))
+# add 'onset_date' definition
+augm_2$add(name = "onset_date", 
+           x = 0,
+           rule = "norm", rule_args = list(sd = 0.25),
+           range = list(min = -3))
 
-augm$add(name = "incub_period", 
-         x = 0,
-         model = "gamma", args = list(shape = "incub_shape@P", 
-                                      scale = "inc_scale@P"),
-         rule = "model", 
-         range = list(min = 0, max = 14), 
-         init_rand = TRUE)
+# add 'incub_period' definition
+augm_2$add(name = "incub_period", 
+           init_rand = TRUE,
+           model = "gamma", 
+           args = list(shape = "inc_shape@P", 
+                       scale = "inc_scale@P"),
+           rule = "model", 
+           range = list(min = 0, max = 14))
 
-housepi::build_model(hemi2, augm = augm$df)
+# assign model arguments of incubation period from parameters
+# we use the inferred values from the first example
+par_2$add(name = "inc_shape", x = results_1$statistics["shape", "Mean"])
+par_2$add(name = "inc_scale", x = results_1$statistics["scale", "Mean"])
 ```
 
-## Simulate an Outbreak
+```{r}
+
+setup_2 <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
+              thinning = 25, seed = 576125013)
+
+housepi::build_model(hemi_2, data = "survey.csv", params = par_2$df, 
+                     setup = setup_2, augm = augm_2$df)
+```
+
+### Simulate an Outbreak
 
 We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation 
-hemi2$simulate()
+hemi_2$simulate()
 
-# load the simulated dataset
-df <- hemi$data()
+# store the simulated dataset
+database <- hemi_2$data()
+
 # show the results of the simulation 
-head(df[c("status", "incub_period", "onset_date")])
+head(database[c("status", "incub_period", "onset_date")])
 ```
 
 We can see that in addition to the status, the simulation also associates the values of the augmented variables: the incubation period and the onset time.
+
+### Simulate an Outbreak
 
 As a sanity check, we can verify that inference returns the parameters used for the simulation.
 
@@ -173,3 +180,7 @@ data.frame(Expec = params[params["infer"] == TRUE, "value"],
 ```
 
 Remember that templated models do not simulate the sampling process.
+
+```{r}
+p <- housepi::ParameterFrame(dget("parameters"))
+```

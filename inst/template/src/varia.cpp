@@ -78,15 +78,15 @@ Base_Proposer *proposer_switchboard(string rule_name, dictargs rule_args, double
 {
     Base_Proposer *output = new Base_Proposer(new Base_Distribution());
 
-    if (rule_name == "uniform")
+    if (rule_name == "unif")
     {
         output = new Uniform_Proposer(rule_args, rule_from);
     }
-    else if (rule_name == "normal")
+    else if (rule_name == "norm")
     {
         output = new Normal_Proposer(rule_args, rule_from);
     }
-    else if (rule_name == "lognorm")
+    else if (rule_name == "lnorm")
     {
         output = new Lognorm_Proposer(rule_args, rule_from);
     }

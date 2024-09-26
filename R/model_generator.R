@@ -1,4 +1,9 @@
-
+#
+# model_generator.R
+#
+# Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+#
+  
 #################################
 #######  Global Variables #######
 #################################
@@ -236,6 +241,12 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     if(!file.copy(hpp_file, file.path(new_dir, "src", "model.h"), overwrite = TRUE)) {
       stop(cli::format_error(c("Failed to setup header file.",
                                i = "Check your user permissions.")))
+    }
+    
+    # copy templated parameters
+    templ_pars_file <- file.path(housepi_dir, "models", model, "templated_params")
+    if(!file.copy(templ_pars_file, file.path(new_dir, "src", "templated_params"), overwrite = TRUE)) {
+      cli::cli_alert_warning(cli::format_warning(c("Missing templated parameters.")))
     }
 
     # ----- compile package ----- #

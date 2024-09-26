@@ -33,7 +33,7 @@ hemi <- housepi::generate_model(my_model_path)
 ```{r}
 
 
-housepi::build_model(hemi, data="data/survey.csv", params =  params$df)
+housepi::build_model(hemi, data="survey.csv", params =  params$df)
 
 ```
 
