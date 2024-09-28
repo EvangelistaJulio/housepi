@@ -187,13 +187,13 @@ void Model::augm_store_dependecies(int h, int i)
 		{ // `i` : infector, `k` : infectee
 			LUT_inst_profile[h][i][k] = compute_infec_prof_inst(h, i, t_infec_k);
 			LUT_cumul_profile[h][i][k] = compute_infec_prof_cumul(h, i, t_infec_k);
-			//LUT_inst_profile[h][k][i] = 0.;
-			//LUT_cumul_profile[h][k][i] = 0.;
+			LUT_inst_profile[h][k][i] = 0.;
+			LUT_cumul_profile[h][k][i] = 0.;
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
-			//LUT_inst_profile[h][i][k] = 0.;
-			//LUT_cumul_profile[h][i][k] = 0.;
+			LUT_inst_profile[h][i][k] = 0.;
+			LUT_cumul_profile[h][i][k] = 0.;
 			LUT_inst_profile[h][k][i] = compute_infec_prof_inst(h, k, t_infec_i);
 			LUT_cumul_profile[h][k][i] = compute_infec_prof_cumul(h, k, t_infec_i);
 		}
