@@ -102,9 +102,9 @@ void Model::common_init_model()
 	//===== Initialize Lookup Tables (infectivity profiles) =====//
 
 	dictargs args = {{"alpha", get_param("tost_alpha")},
-					   {"mu", get_param("tost_mu")},
-					   {"sigma", get_param("tost_sigma")},
-					   {"tau", get_param("tost_tau")}};
+					 {"mu", get_param("tost_mu")},
+					 {"sigma", get_param("tost_sigma")},
+					 {"tau", get_param("tost_tau")}};
 	infec_prof_func_ptr = new Infec_Prof_Skew_Logistic(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)
@@ -121,12 +121,6 @@ void Model::common_init_model()
 		// produce the empty matrix for the infectivity profiles look-up-tables
 		LUT_inst_profile.emplace_back(h_size, vector<double>(h_size, 0.));
 		LUT_cumul_profile.emplace_back(h_size, vector<double>(h_size, 0.));
-	}
-
-	// assign study period (in days) to the households
-	for (int h = 0; h < num_househ; h++)
-	{
-		househ[h].assign_data("study_period", get_param("study_period"));
 	}
 }
 
@@ -192,9 +186,13 @@ void Model::augm_store_dependecies(int h, int i)
 		{ // `i` : infector, `k` : infectee
 			LUT_inst_profile[h][i][k] = compute_infec_prof_inst(h, i, t_infec_k);
 			LUT_cumul_profile[h][i][k] = compute_infec_prof_cumul(h, i, t_infec_k);
+			LUT_inst_profile[h][k][i] = 0.;
+			LUT_cumul_profile[h][k][i] = 0.;
 		}
 		else if (t_infec_k < t_infec_i)
 		{ // `k` : infector, `i` : infectee
+			LUT_inst_profile[h][i][k] = 0.;
+			LUT_cumul_profile[h][i][k] = 0.;
 			LUT_inst_profile[h][k][i] = compute_infec_prof_inst(h, k, t_infec_i);
 			LUT_cumul_profile[h][k][i] = compute_infec_prof_cumul(h, k, t_infec_i);
 		}
@@ -205,7 +203,7 @@ void Model::augm_store_dependecies(int h, int i)
 	//===== Susceptible Members =====//
 	//===============================//
 
-	double tf = get_augm(h, househ[h].first_case, "onset_date") + get_data(h, "study_period");
+	double tf = get_augm(h, househ[h].first_case, "onset_date") + get_param("study_period");
 	for (int k : househ[h].susceptible_set)
 	{
 		LUT_cumul_profile[h][i][k] = compute_infec_prof_cumul(h, i, tf);
@@ -220,11 +218,11 @@ void Model::augm_store_dependecies(int h, int i)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Model : hazards of infection  ///////////////////////////////////
+//////////////////////////////////  Model : force of infection  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::hazards_of_infec(int h, int i, vector<squarematrix> &profiles)
+double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles)
 {
 	double output = 0.0;
 
@@ -233,11 +231,14 @@ double Model::hazards_of_infec(int h, int i, vector<squarematrix> &profiles)
 	{
 		if (k != i)
 		{
-			output += househ[h].get_contact_rate(k, i) * get_group_rate(h, i, "Infectivity") * profiles[h][k][i];
+			output += get_contact_rate(h, k, i) * get_group_rate(h, k, "Infectivity") * profiles[h][k][i];
 		}
 	}
 
-	return output * get_param("beta") * pow(4. / househ[h].house_size, get_param("gamma"));
+	output *= get_group_rate(h, i, "Susceptibility") * get_param("beta");
+	output *= pow(4.0 / househ[h].house_size, get_param("gamma"));
+
+	return output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,7 +253,7 @@ double Model::compute_house_loglike(int h)
 	// Contribution of healthy members
 	for (int i : househ[h].susceptible_set)
 	{
-		loglike_house -= get_group_rate(h, i, "Susceptibility") * hazards_of_infec(h, i, LUT_cumul_profile);
+		loglike_house -= force_of_infec(h, i, LUT_cumul_profile);
 	}
 
 	// Contribution of symptomatic members
@@ -267,9 +268,8 @@ double Model::compute_house_loglike(int h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
-
-			loglike_house += log(get_group_rate(h, i, "Susceptibility") * hazards_of_infec(h, i, LUT_inst_profile));
-			loglike_house -= get_group_rate(h, i, "Susceptibility") * hazards_of_infec(h, i, LUT_cumul_profile);
+			loglike_house += log(force_of_infec(h, i, LUT_inst_profile));
+			loglike_house -= force_of_infec(h, i, LUT_cumul_profile);
 		}
 	}
 
@@ -293,8 +293,7 @@ void Model::simulate_single_house(int h)
 	// note: incub periods are initialized according to option in augm file
 	// note: also simulation are conditioned on the the first cases
 
-	double t0, tf, dt = 0.01;
-	double esc_rate;
+	double Dt = 0.01;
 
 	//=================================================//
 	//===== GENERATION 0 : by single introduction =====//
@@ -306,18 +305,19 @@ void Model::simulate_single_house(int h)
 		househ[h].change_status(i, SUSCEPTIBLE);
 	}
 
-	// pick a random introduction
+	// pick a random introduction and leave user
 	househ[h].first_case = uniform() * househ[h].house_size;
 	househ[h].change_status(househ[h].first_case, INFECTIOUS);
-
-	t0 = get_infec_time(h, househ[h].first_case);
-	tf = get_augm(h, househ[h].first_case, "onset_date") + get_data(h, "study_period");
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	for (double t = dt + t0; (t < tf) && (househ[h].num_susceptible > 0); t += dt)
+	double t0 = get_augm(h, househ[h].first_case, "onset_date");
+	double tf = t0 + get_param("study_period");
+
+	// onset of secondary cases following the first case  
+	for (double t = t0 + Dt; (t < tf) && (househ[h].num_susceptible > 0); t += Dt)
 	{
 		for (int i = 0; i < househ[h].house_size; i++)
 		{
@@ -325,13 +325,11 @@ void Model::simulate_single_house(int h)
 			{
 				// set new status for computations
 				househ[h].change_status(i, INFECTIOUS);
-				set_augm(h, i, "onset_date", t + uniform() * dt + get_augm(h, i, "incub_period"));
+				set_augm(h, i, "onset_date", t);
 				augm_store_dependecies(h, i);
 
-				// refuse according to Bernoulli process
-				esc_rate = get_group_rate(h, i, "Susceptibility") * hazards_of_infec(h, i, LUT_inst_profile) * dt;
-
-				if (uniform() < exp(-esc_rate))
+				// restore status id escaped infection
+				if (uniform() < exp(-force_of_infec(h, i, LUT_inst_profile) * Dt))
 				{
 					househ[h].change_status(i, SUSCEPTIBLE);
 					augm_store_dependecies(h, i);

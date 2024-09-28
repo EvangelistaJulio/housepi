@@ -220,12 +220,10 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
 
     //===== Number of MCMC sweeps per single chain =====//
     // note : Euclidean divisions!
-    _mcmc_sweeps_ = setup_num_adapt / setup_thinning;
-    _mcmc_sweeps_ += setup_burn_in / setup_thinning;
-    _mcmc_sweeps_ += (setup_num_iter - setup_burn_in) / setup_thinning;
-    _mcmc_sweeps_ *= setup_thinning * setup_num_chains;
-
-
+    _thin_sweeps_ = setup_num_adapt / setup_thinning;
+    _thin_sweeps_ += setup_burn_in / setup_thinning;
+    _thin_sweeps_ += (setup_num_iter - setup_burn_in) / setup_thinning;
+    _thin_sweeps_ *= setup_num_chains;
 
     //===== Display =====//
     if (verbose)
@@ -711,10 +709,10 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
     }
     else if (is_na(val) && !is_na(typ))
     {
-        raise_warning("Found a type without a paired value. Falling back to default.",
+        raise_warning("Ignoring value type without a paired value.",
                       Non_Specified_Value_Warning);
 
-        output = INF_DOUBLE; // default value
+        output = INF_DOUBLE; // FIXME default value
     }
     else
     {
@@ -732,9 +730,9 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
             if (get_infer(val))
             {
                 std::ostringstream oss;
-                // UPDATE : this error is not clear as exposed here
-                oss << "Parameter to be inferred `" << val << "` is chosen for a fixed value move."
-                    << "Eventual changes of the parameter will not affect the move.";
+                // FIXME : this warning is not clear as exposed here
+                oss << "Non constant parameter `" << val << "` assigned as fixed argument."
+                    << " Changes of the parameter will not affect the argument.";
                 raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
             }
         }
@@ -869,10 +867,11 @@ void MCMC::build_augmented(const string &pathtofile, bool verbose)
     if (!is_na(pathtofile))
     {
         std::ifstream input(pathtofile.c_str());
-        vector<string> required_headers = {"name", "value", "valuetype",
-                                           "model", "args", "argsval", "argstype", "rule", "init_rand",
-                                           "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
-                                           "min", "mintype", "max", "maxtype"};
+        const vector<string> required_headers = {
+            "name", "value", "valuetype",
+            "model", "args", "argsval", "argstype", "rule",
+            "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
+            "min", "mintype", "max", "maxtype", "init_rand"};
 
         if (input.is_open())
         {
@@ -904,14 +903,19 @@ void MCMC::build_augmented(const string &pathtofile, bool verbose)
 /* Assign augmented variables to all individuals. */
 void MCMC::assign_augmented_variables()
 {
-    string augmID;
-
     // load the definitions of agumetned variablews and define lists of usage
     for (ssargs loader : load_augm_definition)
     {
-        augmID = loader.at("name");
+        string augmID = loader.at("name");
+        bool is_init_rand = false;
 
-        if (augm_full_set.find(augmID) == augm_full_set.end())
+        if (is_na(loader.at("name")))
+        {
+            std::ostringstream oss;
+            oss << "Augmented variable name can not be undefined.";
+            raise_error(oss.str());
+        }
+        else if (augm_full_set.find(augmID) == augm_full_set.end())
         {
             augm_full_set.emplace(augmID);
         }
@@ -921,6 +925,11 @@ void MCMC::assign_augmented_variables()
             oss << "Ambigous definitions for augmented variable `" << augmID << "`."
                 << " Check your augmented variable file.";
             raise_error(oss.str());
+        }
+
+        if (!is_na(loader.at("init_rand")))
+        {
+            is_init_rand = stobool(loader.at("init_rand"));
         }
 
         // list of augmented variables to be inferred
@@ -933,7 +942,7 @@ void MCMC::assign_augmented_variables()
         // note: no contribution of constant variables to Metropolis
         if (is_na(loader.at("model")))
         {
-            if (stobool(loader.at("init_rand")) == true)
+            if (is_init_rand)
             {
                 raise_error("Unknown random initialization without a model for `" + augmID + "`.");
             }
@@ -942,7 +951,7 @@ void MCMC::assign_augmented_variables()
         {
             augm_with_model_set.emplace(augmID);
 
-            if (stobool(loader.at("init_rand")) == true)
+            if (is_init_rand)
             {
                 augm_rand_init_set.emplace(augmID);
             }
@@ -961,13 +970,16 @@ void MCMC::assign_augmented_variables()
                 {
                     // load range
                     dictargs range = {};
-                    if (type_to_double(loader.at("min"), loader.at("mintype"), h, i) != INF_DOUBLE)
+                    double aux_min = type_to_double(loader.at("min"), loader.at("mintype"), h, i);
+                    if (aux_min != INF_DOUBLE)
                     {
-                        range.emplace("min", type_to_double(loader.at("min"), loader.at("mintype"), h, i));
+                        range.emplace("min", aux_min);
                     }
-                    if (type_to_double(loader.at("max"), loader.at("maxtype"), h, i) != INF_DOUBLE)
+
+                    double aux_max = type_to_double(loader.at("max"), loader.at("maxtype"), h, i);
+                    if (aux_max != INF_DOUBLE)
                     {
-                        range.emplace("max", type_to_double(loader.at("max"), loader.at("maxtype"), h, i));
+                        range.emplace("max", aux_max);
                     }
 
                     // assign augmented variable

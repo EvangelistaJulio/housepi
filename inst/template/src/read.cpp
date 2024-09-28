@@ -114,15 +114,23 @@ vector<string> read_column_headers(std::ifstream &input,
 bool read_row_by_headers(std::ifstream &input, const vector<string> &headers, ssargs &this_row)
 {
     string line, tkn;
+
     if (getline(input, line))
     {
         std::istringstream iss(line);
-        int num_cols = 0;
+        size_t num_cols = 0;
 
         while (getline(iss, tkn, C_DELIM))
         {
             this_row.emplace(headers[num_cols++], string_cleaner(tkn));
         }
+
+        // last column is empty
+        for (size_t i = num_cols; i < headers.size(); i++)
+        {
+            this_row.emplace(headers[i], UNDEFINED);
+        }
+
         return true;
     }
     else
@@ -164,7 +172,6 @@ vector<string> parse_list_args(const string &tkn, const char delim)
 
     return output;
 }
-
 
 /* Combine after control two lists into a dictionary */
 dictargs merge_list_args(const string &tkn_keys, const string &tkn_vals)

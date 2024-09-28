@@ -95,16 +95,12 @@ namespace basics
     constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
     constexpr char C_DECOR = '=';      // decorator for prints
 
-    constexpr int DECOR_WIDTH = 65;   // width of progress bar
-    constexpr int PROGBAR_WIDTH = 30; // width of progress bar
-    constexpr int PROGBAR_THIN = 17;  // thinning of progress bar
-
     // deal with undefined or not available value stored as string
     bool is_na(const string &txt);
     void statistics(const vector<double> &data, double &avg, double &var);
 
     // output formatter
-    string percent(int num, int denom);
+    string percent(double num, double denom);
     string truth(bool condition);
 
     void print_stdout(const string &txt);
@@ -115,7 +111,7 @@ namespace basics
 
     // print progress bar to stdout
     void progress_bar_init(const string &txt, bool verbose = true);
-    void progress_bar_run(const string &txt, int progress, int total, bool verbose = true);
+    void progress_bar_run(const string &txt, ulong progress, ulong total, bool verbose = true);
     void progress_bar_end(const string &txt, bool verbose = true);
 
     // print warnings to stderr
@@ -188,8 +184,8 @@ private:
     double _range_max_ = INF_DOUBLE;  // init to +infty
 
     // alternative valid range methods
-    bool (Base_Function::*_valid_range_method_)(double) const = &Base_Function::_valid_range_dummy_;
-    bool _valid_range_dummy_(double x) const
+    bool (Base_Function::*_valid_range_method_)(double) const = &Base_Function::_valid_range_always_;
+    bool _valid_range_always_(double x) const
     {
         UNUSED(x);
         return true;

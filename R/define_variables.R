@@ -147,7 +147,7 @@ ParameterFrame <- setRefClass(
       
       hemi_dir <- system.file(package = attr(class(housepi_model), "package"))
       templ_params_file <- file.path(hemi_dir, "src", "templated_params")
-      initialize(definitions = dget(templ_params_file), housepi_model = NULL)
+      initialize(definitions = dget(templ_params_file))
     },
     
     #===== Method : check =====#
@@ -493,7 +493,7 @@ AugmentedFrame <- setRefClass(
         }
         
         if ("max" %in% names(range)) {
-          aux <- str_split_(range[names(range) == "max"])
+          tmp <- str_split_(range[names(range) == "max"])
           max_ <- tmp[["values"]]
           maxtype_ <- tmp[["types"]]
         } else {

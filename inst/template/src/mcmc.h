@@ -88,27 +88,27 @@ public:
 			   bool verbose = true);
 
 	//===== DATA =====//
-	double get_data(int h, int i, const string d) const { return househ[h].indiv[i].get_data(d); }
-	double get_data(int h, const string d) const { return househ[h].get_data(d); }
+	double get_data(int h, int i, const string &dataID) const { return househ[h].indiv[i].get_data(dataID); }
+	double get_data(int h, const string &dataID) const { return househ[h].get_data(dataID); }
 
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &this_indiv);
 	void set_rate_per_contact(int h);
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
-	double get_group_rate(int h, int i, const string r) const { return househ[h].indiv[i].get_group_rate(r); }
+	double get_group_rate(int h, int i, const string &rateID) const { return househ[h].indiv[i].get_group_rate(rateID); }
 	double get_contact_rate(int h, int from, int to) const { return househ[h].get_contact_rate(from, to); }
 	void update_report_data();
 
 	//===== AUGMENTED VARIABLES =====//
-	void set_augm(int h, int i, const string a, double new_value) { househ[h].indiv[i].set_augm(a, new_value); };
-	double get_augm(int h, int i, const string a) const { return househ[h].indiv[i].get_augm(a); }
+	void set_augm(int h, int i, const string &augmID, double new_value) { househ[h].indiv[i].set_augm(augmID, new_value); };
+	double get_augm(int h, int i, const string &augmID) const { return househ[h].indiv[i].get_augm(augmID); }
 	void assign_augmented_variables();
 	void init_augmented_variables(bool is_init = true);
 	virtual void update_first_case(int h);
 	virtual void augm_store_dependecies(int h, int i);
-	virtual void augm_update(int h, int i, string augmID, double new_val);
-	virtual double augm_propose(int h, int i, string augmID);
+	virtual void augm_update(int h, int i, const string &augmID, double new_val);
+	virtual double augm_propose(int h, int i, const string &augmID);
 	virtual double get_infec_time(int h, int i) const;
 
 	//===== EVALUATE =====//
@@ -146,7 +146,7 @@ public:
 	Rcpp::DataFrame export_data();
 	Rcpp::DataFrame export_traces();
 	Rcpp::NumericMatrix export_loglike_matrix();
-	
+
 #else
 	void show_results();
 
@@ -166,10 +166,10 @@ private:
 	//===== Internal =====//
 	ulong _n_contacts_ = 0; // number of contacts
 
-	ulong _chain_ = 0;			// current chain
-	ulong _sample_size_ = 0;	// sample size
-	ulong _mcmc_sweeps_ = 0;	// sweeps per chain
-	ulong _tot_num_sweeps_ = 0; // total number of sweeps
+	ulong _chain_ = 0;			 // current chain
+	ulong _sample_size_ = 0;	 // sample size
+	ulong _thin_sweeps_ = 0;	 // thin sweeps per simulation
+	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
 
 	ulong _rung_ = 0;	   // current thermodynamic rung
 	ulong _num_rungs_ = 0; // number of rungs
@@ -191,20 +191,20 @@ private:
 	dictargs_ptr typedict_to_sdargs_ext(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i);
 
 	//===== PRINTS =====//
-	string get_progtxt(const string txt);
+	string get_progtxt(const string &txt);
 
 	//===== INFER : Monte Carlo Markov Chain =====//
 	void init_move_counts();
 	void init_diagnostics();
 	void update_diagnostics();
 
-	void move_single_param(const string parID);
+	void move_single_param(const string &parID);
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();
 	void move_all_augm_variables();
 	long double move_single_house_augm(int h);
 
-	double get_augm_accept_rate(const string augmID);
+	double get_augm_accept_rate(const string &augmID);
 };
 
 #endif // MCMC__H

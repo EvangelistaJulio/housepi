@@ -186,8 +186,8 @@ void Individual::assign_augm(const string &augmID, double value,
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 {
-	int num_attempts = 0;
 	double init_value = augm_model_rand(augmID, prng);
+	int num_attempts = 0;
 
 	while ((!augm_valid(augmID, init_value)))
 	{

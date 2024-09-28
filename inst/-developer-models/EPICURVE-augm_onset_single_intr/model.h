@@ -90,7 +90,7 @@ public:
 	Infectivity_Profile_Function infec_profile_func;
 	double compute_infec_profile_inst(int h, int i, double t_transm);
 	double compute_infec_profile_cumul(int h, int i, double t_transm);
-	double hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles);
+	double force_of_infec(int h, int i, std::vector<squarematrix> &profiles);
 
 	//=====Override General Methods=====//
 	void initialize_model() override;

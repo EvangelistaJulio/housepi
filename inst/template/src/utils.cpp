@@ -13,7 +13,12 @@ namespace basics
     //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::chrono::steady_clock::time_point _Prog_Bar_Start_;
+    constexpr ulong DECOR_LEFT = 3;     // left size of decorator
+    constexpr ulong DECOR_WIDTH = 65;   // total size of decorator
+    constexpr ulong PROGBAR_WIDTH = 30; // total size of progress bar
+    ulong _ProgBar_Thin_;               // thinning of progress bar
+    std::chrono::steady_clock::time_point _ProgBar_Start_;
+    std::chrono::steady_clock::time_point _ProgBar_LastTime_;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
@@ -52,7 +57,7 @@ namespace basics
     }
 
     /* A formatted string for percent of num/denom */
-    string percent(int num, int den)
+    string percent(double num, double den)
     {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(1)
@@ -107,11 +112,9 @@ namespace basics
     {
         if (verbose)
         {
-            int sx = 3;
-            int dx = DECOR_WIDTH - title.length() - sx; // right half bar
             std::ostringstream oss;
-            oss << string(sx, decor) << " " << title << " "
-                << string(dx, decor) + "\n";
+            oss << string(DECOR_LEFT, decor) << " " << title << " "
+                << string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) << "\n";
             if (!is_na(txt))
             {
                 oss << txt << "\n";
@@ -181,7 +184,9 @@ namespace basics
                 << string(20, ' ');
             _helper_stderr_(oss.str());
 
-            _Prog_Bar_Start_ = steady_clock::now();
+            _ProgBar_Thin_ = 1;
+            _ProgBar_Start_ = steady_clock::now();
+            _ProgBar_LastTime_ = steady_clock::now();
         }
 
 #ifdef USE_RCPP
@@ -190,17 +195,19 @@ namespace basics
     }
 
     /* Percentual progress bar (progress/total). */
-    void progress_bar_run(const string &txt, int progress, int total, bool verbose)
+    void progress_bar_run(const string &txt, ulong progress, ulong total, bool verbose)
     {
         using namespace std::chrono;
 
         if (verbose)
         {
-            if ((total < PROGBAR_THIN) || (progress % PROGBAR_THIN == 0))
+            if (progress % _ProgBar_Thin_ == 0)
             {
-                int where = static_cast<double>(progress) * PROGBAR_WIDTH / total;
-                auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
-                double time_missing = static_cast<double>(time_elapsed) * (static_cast<double>(total) / progress - 1.);
+                ulong where = static_cast<double>(progress) * PROGBAR_WIDTH / total;
+                std::chrono::steady_clock::time_point now = steady_clock::now();
+                long long time_elapsed = duration_cast<milliseconds>(now - _ProgBar_Start_).count();
+                long long time_lastchecked = duration_cast<milliseconds>(now - _ProgBar_LastTime_).count();
+                long long time_missing = time_elapsed * (static_cast<double>(total) / progress - 1.);
 
                 std::ostringstream oss;
                 oss << "\r"
@@ -209,8 +216,20 @@ namespace basics
                     << " " << format_millisecs(time_elapsed) << "<" << format_millisecs(time_missing)
                     << string(20, ' ');
                 _helper_stderr_(oss.str());
+
+                // adapt progressbar thinning
+                if (time_lastchecked < 900)
+                {
+                    ++_ProgBar_Thin_;
+                }
+                else if (time_lastchecked > 1100)
+                {
+                    --_ProgBar_Thin_;
+                }
+                _ProgBar_LastTime_ = steady_clock::now();
             }
         }
+
 #ifdef USE_RCPP
         Rcpp::checkUserInterrupt();
 #endif
@@ -223,7 +242,7 @@ namespace basics
 
         if (verbose)
         {
-            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _Prog_Bar_Start_).count();
+            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _ProgBar_Start_).count();
             std::ostringstream oss;
             oss << "\r"
                 << txt << ": [" << string(PROGBAR_WIDTH, C_DECOR) << "] "
@@ -435,7 +454,7 @@ void Base_Function::set_range(dictargs new_range)
         if (is_max)
         {
             std::ostringstream oss;
-            oss << "Overwriting range max with argument max " << new_min << " in `" << get_name() << "`.";
+            oss << "Overwriting range max with argument max " << new_max << " in `" << get_name() << "`.";
             raise_warning(oss.str(), Unused_Range_Warning);
         }
         is_max = true;
@@ -458,7 +477,7 @@ void Base_Function::set_range(dictargs new_range)
     //----- Assign valid range functional method -----//
     if ((!is_min) && (!is_max))
     {
-        _valid_range_method_ = &Base_Function::_valid_range_dummy_;
+        _valid_range_method_ = &Base_Function::_valid_range_always_;
     }
     else if ((is_min) && (!is_max))
     {
@@ -472,7 +491,7 @@ void Base_Function::set_range(dictargs new_range)
     }
     else // ((is_min) && (is_max))
     {
-        if (_range_min_ > _range_max_)
+        if (_range_min_ >= _range_max_)
         {
             std::ostringstream oss;
             oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";

@@ -360,7 +360,7 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles)
+double Model::force_of_infec(int h, int i, std::vector<squarematrix> &profiles)
 {
 	double output = 0.0;
 
@@ -397,7 +397,7 @@ double Model::compute_single_house_loglike(int h)
 	// Contribution of healthy members
 	for (int i : househ[h].susceptibles_list)
 	{
-		loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + hazards_of_infec(h, i, cumul_profile_LUT));
+		loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
 	}
 
 	// Contribution of symptomatic members
@@ -417,8 +417,8 @@ double Model::compute_single_house_loglike(int h)
 #else
 			comm_risk_inst = get_param("alpha");
 #endif
-			loglike_house += log(househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + hazards_of_infec(h, i, inst_profile_LUT)));
-			loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + hazards_of_infec(h, i, cumul_profile_LUT));
+			loglike_house += log(househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)));
+			loglike_house -= househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
 		}
 	}
 
@@ -476,7 +476,7 @@ void Model::simulate_single_house(int h)
 			comm_risk_inst = get_param("alpha");
 #endif
 			// refuse according to Bernoulli process
-			esc_proba = exp(-househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + hazards_of_infec(h, i, inst_profile_LUT)) * dt);
+			esc_proba = exp(-househ[h].indiv[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)) * dt);
 
 			if (uniform() < esc_proba)
 			{

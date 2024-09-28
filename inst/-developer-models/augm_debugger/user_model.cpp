@@ -222,7 +222,7 @@ void Model::initialize_model()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::hazards_of_infec(int h, int i, std::vector<squarematrix> &profiles)
+double Model::force_of_infec(int h, int i, std::vector<squarematrix> &profiles)
 {
 	double output = 0.0;
 
@@ -253,7 +253,7 @@ double Model::compute_single_house_loglike(int h)
 
 	for (int i : househ[h].susceptibles_list)
 	{
-		loglike_house -= hazards_of_infec(h, i, cumul_profile_LUT);
+		loglike_house -= force_of_infec(h, i, cumul_profile_LUT);
 	}
 
 	//============================//
@@ -271,8 +271,8 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of secondary cases
 		if (i != househ[h].first_case)
 		{
-			loglike_house += log(hazards_of_infec(h, i, inst_profile_LUT));
-			loglike_house -= hazards_of_infec(h, i, cumul_profile_LUT);
+			loglike_house += log(force_of_infec(h, i, inst_profile_LUT));
+			loglike_house -= force_of_infec(h, i, cumul_profile_LUT);
 		}
 	}
 
@@ -323,7 +323,7 @@ void Model::simulate_single_house(int h)
 			augm_var_store_dependecies(h, i);
 
 			// refuse according to Bernoulli process
-			esc_proba = exp(-hazards_of_infec(h, i, inst_profile_LUT) * dt);
+			esc_proba = exp(-force_of_infec(h, i, inst_profile_LUT) * dt);
 
 			if (uniform() < esc_proba)
 			{

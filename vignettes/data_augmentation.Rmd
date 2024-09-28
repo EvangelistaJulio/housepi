@@ -100,7 +100,7 @@ We use the template model "augm_onset_single_intr", where surveys are conditione
 ```{r}
 hemi_2 <- housepi::generate_model("augm_onset_single_intr")
 ```
-This time we load the parameter definitions directly from the model template:
+This time we load the parameter definitions directly from the model template. 
 
 ```{r}
 par_2 <- housepi::ParameterFrame(housepi_model = hemi_2)
@@ -110,7 +110,7 @@ par_2 <- housepi::ParameterFrame(housepi_model = hemi_2)
 knitr::kable(head(par_2$df))
 ```
 
-We propose the following augmented variable definitions
+We propose the following definitions for the augmented variable 
 
 ```{r}
 augm_2 <- housepi::AugmentedFrame()
@@ -132,8 +132,14 @@ augm_2$add(name = "incub_period",
 
 # assign model arguments of incubation period from parameters
 # we use the inferred values from the first example
-par_2$add(name = "inc_shape", x = results_1$statistics["shape", "Mean"])
-par_2$add(name = "inc_scale", x = results_1$statistics["scale", "Mean"])
+
+par_2$add(name = "inc_shape", x = 2.0)
+par_2$add(name = "inc_scale", x = 1.1)
+
+# FLAG
+#par_2$add(name = "inc_shape", x = results_1$statistics["shape", "Mean"])
+#par_2$add(name = "inc_scale", x = results_1$statistics["scale", "Mean"])
+# FLAG-END
 ```
 
 ```{r}
@@ -153,6 +159,9 @@ We run a simulation with the method `simulate`.
 # override status of the dataset according to simulation 
 hemi_2$simulate()
 
+# show a summary of the data
+hemi_2$show_summary()
+
 # store the simulated dataset
 database <- hemi_2$data()
 
@@ -160,27 +169,26 @@ database <- hemi_2$data()
 head(database[c("status", "incub_period", "onset_date")])
 ```
 
-We can see that in addition to the status, the simulation also associates the values of the augmented variables: the incubation period and the onset time.
+In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
+Note that this simulation, as for all templated models, do not simulate a sampling process.
 
 ### Simulate an Outbreak
 
 As a sanity check, we can verify that inference returns the parameters used for the simulation.
 
 ```{r}
-mcmc_trace <- housepi::run_inference(hemi2)
-coda::traceplot(mcmc_trace)
-results <- summary(mcmc_trace)
-
-# collect the information for the check
-inames <- params[params["infer"] == TRUE, "name"]
-data.frame(Expec = params[params["infer"] == TRUE, "value"],
-           Mean = results[["statistics"]][inames, "Mean"],
-           Q2.5 = results[["quantiles"]][inames, "2.5%"],
-           Q97.5 = results[["quantiles"]][inames, "97.5%"])
+mcmc_trace <- housepi::run_inference(hemi_2)
 ```
 
-Remember that templated models do not simulate the sampling process.
-
 ```{r}
-p <- housepi::ParameterFrame(dget("parameters"))
+coda::traceplot(mcmc_trace, col="#CA1F63")
+results_2 <- summary(mcmc_trace)
+
+# collect the information for the check
+imask <- par_2$df["infer"] == TRUE
+inames <- par_2$df[imask, "name"]
+data.frame(Expec = par_2$df[imask, "value"],
+           Mean = results_2[["statistics"]][inames, "Mean"],
+           Q2.5 = results_2[["quantiles"]][inames, "2.5%"],
+           Q97.5 = results_2[["quantiles"]][inames, "97.5%"])
 ```

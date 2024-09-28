@@ -57,7 +57,7 @@ public:
 	//===== Model dependent methods =====//
 	double compute_infec_prof_inst(int h, int i, double t_transm);
 	double compute_infec_prof_cumul(int h, int i, double t_transm);
-	double hazards_of_infec(int h, int i, vector<squarematrix> &profiles);
+	double force_of_infec(int h, int i, const vector<squarematrix> &profiles);
 };
 
 #endif // MODEL__H

@@ -118,7 +118,7 @@ void MCMC::update_first_case(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::move_single_param(string parID)
+void MCMC::move_single_param(const string &parID)
 {
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_param_move(parID))
@@ -149,7 +149,7 @@ void MCMC::move_single_param(string parID)
     }
 }
 
-/* Sweep over all model parameters. */
+/* Move all model parameters. */
 void MCMC::move_all_parameters()
 {
     for (const string &parID : param_to_be_inferred)
@@ -158,7 +158,7 @@ void MCMC::move_all_parameters()
     }
 }
 
-/* Sweep over all model parameters plus adaptive step. */
+/* Move all model parameters and adapt their rule arguments. */
 void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / setup_num_adapt;
@@ -215,7 +215,7 @@ void MCMC::init_augmented_variables(bool is_init)
 }
 
 /* Update augmented variable `augmID` for individual `i` (). */
-void MCMC::augm_update(int h, int i, string augmID, double new_val)
+void MCMC::augm_update(int h, int i, const string &augmID, double new_val)
 {
     househ[h].indiv[i].set_augm(augmID, new_val);
     update_first_case(h);         // Update information of first cases
@@ -223,7 +223,7 @@ void MCMC::augm_update(int h, int i, string augmID, double new_val)
 }
 
 /* Propose augmented variable `augmID` for individual `i`. */
-double MCMC::augm_propose(int h, int i, string augmID)
+double MCMC::augm_propose(int h, int i, const string &augmID)
 {
     return househ[h].indiv[i].augm_propose(augmID, get_prng());
 }
@@ -280,7 +280,7 @@ long double MCMC::move_single_house_augm(int h)
     return delta_global_loglike;
 }
 
-/* Sweep over all households to move augmented variables. */
+/* Move augmented variables from all households. */
 void MCMC::move_all_augm_variables()
 {
     if (_is_data_augm_)
@@ -297,7 +297,7 @@ void MCMC::move_all_augm_variables()
 }
 
 /* Return the value of the acceptance rate of the given augmented variable */
-double MCMC::get_augm_accept_rate(string augmID)
+double MCMC::get_augm_accept_rate(const string &augmID)
 {
     int accept_count = 0, propos_count = 0;
 
@@ -394,7 +394,7 @@ void MCMC::update_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The text to print in the Markov chian progress bar. */
-string MCMC::get_progtxt(string txt)
+string MCMC::get_progtxt(const string &txt)
 {
     std::ostringstream oss;
     if (_is_power_post_)
@@ -409,7 +409,6 @@ string MCMC::get_progtxt(string txt)
     {
         oss << txt;
     }
-
     return oss.str();
 }
 
@@ -429,7 +428,7 @@ void MCMC::disable_assert()
 }
 
 /* Markov chain core, used for inference and power posteriors.
-    note: sweep is the number of previously completed mcmc sweeps. */
+    note: sweep is the number of previously completed thin sweeps. */
 void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
 {
     using namespace basics;
@@ -477,8 +476,8 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_all_augm_variables();
                 move_and_adapt_all_parameters(i + t);
             }
-            sweep += setup_thinning;
-            progress_bar_run(get_progtxt("adapt"), sweep, _tot_num_sweeps_, progbar);
+            ++sweep;
+            progress_bar_run(get_progtxt("adapt"), sweep, _tot_thin_sweeps_, progbar);
         }
 
         // reset the acceptance counts
@@ -499,8 +498,8 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_all_augm_variables();
                 move_all_parameters();
             }
-            sweep += setup_thinning;
-            progress_bar_run(get_progtxt("burn"), sweep, _tot_num_sweeps_, progbar);
+            ++sweep;
+            progress_bar_run(get_progtxt("burn"), sweep, _tot_thin_sweeps_, progbar);
         }
 
         //============================================//
@@ -515,11 +514,11 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
                 move_all_augm_variables();
                 move_all_parameters();
             }
-            sweep += setup_thinning;
+            ++sweep;
 
             // compute diagnostics for the previous iterations
             update_diagnostics();
-            progress_bar_run(get_progtxt("sample"), sweep, _tot_num_sweeps_, progbar);
+            progress_bar_run(get_progtxt("sample"), sweep, _tot_thin_sweeps_, progbar);
         }
     }
 }
@@ -539,7 +538,7 @@ void MCMC::infer(bool progbar)
     }
 
     //----- total number of mcmc sweeps -----//
-    _tot_num_sweeps_ = _mcmc_sweeps_;
+    _tot_thin_sweeps_ = _thin_sweeps_;
 
     //----- Start progress bar and chrono -----//
     basics::progress_bar_init("init", progbar);
@@ -587,7 +586,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     _is_power_post_ = true;
 
     //----- Total number of mcmc sweeps -----//
-    _tot_num_sweeps_ = _mcmc_sweeps_ * (_num_rungs_ + 1);
+    _tot_thin_sweeps_ = _thin_sweeps_ * (_num_rungs_ + 1);
 
     //----- Start progress bar and chrono -----//
     basics::progress_bar_init("init", progbar);
@@ -618,7 +617,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
         {
             setup_inv_T = std::pow(static_cast<long double>(_rung_) / (_num_rungs_ - 1), 5);
-            run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
+            run_monte_carlo(progbar, _rung_ * _thin_sweeps_, false);
             basics::statistics(dgn_glob_loglike, avg, var);
 
             inv_t.push_back(setup_inv_T);
@@ -636,7 +635,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         setup_rnd_init_params = false;
         _rung_ = 1;
         setup_inv_T = 1.;
-        run_monte_carlo(progbar, _mcmc_sweeps_, true);
+        run_monte_carlo(progbar, _thin_sweeps_, true);
         basics::statistics(dgn_glob_loglike, avg, var);
         
         inv_t.push_back(setup_inv_T);
@@ -660,7 +659,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
             }
 
             //----- power posterior sampling -----//
-            run_monte_carlo(progbar, _rung_ * _mcmc_sweeps_, false);
+            run_monte_carlo(progbar, _rung_ * _thin_sweeps_, false);
             basics::statistics(dgn_glob_loglike, avg, var);
 
             //----- find larger rectangular discretization error -----//
