@@ -313,12 +313,13 @@ void Model::simulate_single_house(int h)
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	double t0 = get_augm(h, househ[h].first_case, "onset_date");
-	double tf = t0 + get_param("study_period");
+	double t = get_augm(h, househ[h].first_case, "onset_date");
+	double tf = t + get_param("study_period");
 
-	// onset of secondary cases following the first case  
-	for (double t = t0 + Dt; (t < tf) && (househ[h].num_susceptible > 0); t += Dt)
+	// onset of secondary cases following the first case
+	while ((t < tf) && (househ[h].num_susceptible > 0))
 	{
+		t += Dt;
 		for (int i = 0; i < househ[h].house_size; i++)
 		{
 			if (househ[h].is_susceptible[i])
@@ -332,7 +333,6 @@ void Model::simulate_single_house(int h)
 				if (uniform() < exp(-force_of_infec(h, i, LUT_inst_profile) * Dt))
 				{
 					househ[h].change_status(i, SUSCEPTIBLE);
-					augm_store_dependecies(h, i);
 				}
 			}
 		}
