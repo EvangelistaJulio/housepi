@@ -51,8 +51,8 @@ protected:
 
 	//===== Household Data =====//
 	int num_indiv = 0;
-	int num_househ = 0;
-	vector<Household> househ = {};
+	int num_house = 0;
+	vector<Household> house = {};
 
 	//----- Reports -----//
 	std::map<string, int> report_data;
@@ -88,28 +88,26 @@ public:
 			   bool verbose = true);
 
 	//===== DATA =====//
-	double get_data(int h, int i, const string &dataID) const { return househ[h].indiv[i].get_data(dataID); }
-	double get_data(int h, const string &dataID) const { return househ[h].get_data(dataID); }
+	double get_data(int h, int i, const string &dataID) const { return house[h].indiv[i].get_data(dataID); }
+	double get_data(int h, const string &dataID) const { return house[h].get_data(dataID); }
 
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &this_indiv);
 	void set_rate_per_contact(int h);
 	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
-	double get_group_rate(int h, int i, const string &rateID) const { return househ[h].indiv[i].get_group_rate(rateID); }
-	double get_contact_rate(int h, int from, int to) const { return househ[h].get_contact_rate(from, to); }
+	double get_group_rate(int h, int i, const string &rateID) const { return house[h].indiv[i].get_group_rate(rateID); }
+	double get_contact_rate(int h, int from, int to) const { return house[h].get_contact_rate(from, to); }
 	void update_report_data();
 
 	//===== AUGMENTED VARIABLES =====//
-	void set_augm(int h, int i, const string &augmID, double new_value) { househ[h].indiv[i].set_augm(augmID, new_value); };
-	double get_augm(int h, int i, const string &augmID) const { return househ[h].indiv[i].get_augm(augmID); }
+	void set_augm(int h, int i, const string &augmID, double new_value) { house[h].indiv[i].set_augm(augmID, new_value); };
+	double get_augm(int h, int i, const string &augmID) const { return house[h].indiv[i].get_augm(augmID); }
 	void assign_augmented_variables();
 	void init_augmented_variables(bool is_init = true);
-	virtual void update_first_case(int h);
 	virtual void augm_store_dependecies(int h, int i);
 	virtual void augm_update(int h, int i, const string &augmID, double new_val);
 	virtual double augm_propose(int h, int i, const string &augmID);
-	virtual double get_infec_time(int h, int i) const;
 
 	//===== EVALUATE =====//
 	void set_global_loglike(long double x) { global_loglike = x; };

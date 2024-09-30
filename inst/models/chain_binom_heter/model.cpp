@@ -62,19 +62,19 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		househ[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
+		house[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		househ[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
+		house[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		househ[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
+		house[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		househ[h].assign_rate_per_contact(i, k, REFERENCE);
+		house[h].assign_rate_per_contact(i, k, REFERENCE);
 	}
 }
 
@@ -83,24 +83,24 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 void Model::fill_house_escape_matrix(int h, vector<double> &commu_esc_proba, squarematrix &p2p_esc_proba)
 {
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
-	int hh_size = househ[h].house_size;
+	int hh_size = house[h].house_size;
 	vector<double> susc_rate(hh_size, 1.);
 	vector<double> infec_rate(hh_size, 1.);
 	int count = 0;
 
 	// 1) ordered members group rates : infectious
-	for (int i : househ[h].infectious_set)
+	for (int i : house[h].infectious_set)
 	{
-		susc_rate[count] = househ[h].get_group_rate(i, "Susceptibility");
-		infec_rate[count] = househ[h].get_group_rate(i, "Infectivity");
+		susc_rate[count] = house[h].get_group_rate(i, "Susceptibility");
+		infec_rate[count] = house[h].get_group_rate(i, "Infectivity");
 		count++;
 	}
 
 	// 2) ordered members group rates : susceptibles
-	for (int i : househ[h].susceptible_set)
+	for (int i : house[h].susceptible_set)
 	{
-		susc_rate[count] = househ[h].get_group_rate(i, "Susceptibility");
-		infec_rate[count] = househ[h].get_group_rate(i, "Infectivity");
+		susc_rate[count] = house[h].get_group_rate(i, "Susceptibility");
+		infec_rate[count] = house[h].get_group_rate(i, "Infectivity");
 		count++;
 	}
 
@@ -160,8 +160,8 @@ void Model::init_model_for_inference()
 /* Compute the log-likelihood for a single household. */
 double Model::compute_house_loglike(int h)
 {
-	int hh_size = househ[h].house_size;
-	int num_infec = househ[h].num_infectious;
+	int hh_size = house[h].house_size;
+	int num_infec = house[h].num_infectious;
 
 	//=====Escape Matrix=====//
 	vector<double> commu_esc_proba(hh_size, 1.);
@@ -190,7 +190,7 @@ void Model::simulate_single_house(int h)
 	//===== ESCAPE MATRIX =====//
 	//=========================//
 
-	int hh_size = househ[h].house_size;
+	int hh_size = house[h].house_size;
 	vector<double> commu_esc_proba(hh_size, 1.);
 	vector<vector<double>> p2p_esc_proba(hh_size, vector<double>(hh_size, 1.));
 
@@ -200,15 +200,15 @@ void Model::simulate_single_house(int h)
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (int i = 0; i < househ[h].house_size; i++)
+	for (int i = 0; i < house[h].house_size; i++)
 	{
 		if (uniform() < commu_esc_proba[i])
 		{
-			househ[h].change_status(i, SUSCEPTIBLE);
+			house[h].change_status(i, SUSCEPTIBLE);
 		}
 		else
 		{
-			househ[h].change_status(i, INFECTIOUS);
+			house[h].change_status(i, INFECTIOUS);
 		}
 	}
 
@@ -217,22 +217,22 @@ void Model::simulate_single_house(int h)
 	//=============================================================//
 
 	std::set<int> old_gen_set = {};
-	std::set<int> new_gen_set = househ[h].infectious_set;
+	std::set<int> new_gen_set = house[h].infectious_set;
 
-	while ((househ[h].num_susceptible > 0) && (!new_gen_set.empty()))
+	while ((house[h].num_susceptible > 0) && (!new_gen_set.empty()))
 	{
 		old_gen_set = new_gen_set;
 		new_gen_set.clear();
 
-		for (int i = 0; i < househ[h].house_size; i++)
+		for (int i = 0; i < house[h].house_size; i++)
 		{
-			if (househ[h].is_susceptible[i])
+			if (house[h].is_susceptible[i])
 			{
 				for (int k : old_gen_set)
 				{
 					if (uniform() >= p2p_esc_proba[k][i])
 					{
-						househ[h].change_status(i, INFECTIOUS);
+						house[h].change_status(i, INFECTIOUS);
 						new_gen_set.insert(i);
 					}
 				}

@@ -69,8 +69,8 @@ double Model::compute_house_loglike(int h)
 {
 	double log_likelihood = 0.;
 
-	int hh_size = househ[h].house_size;
-	int n_positive = househ[h].num_infectious;
+	int hh_size = house[h].house_size;
+	int n_positive = house[h].num_infectious;
 
 	double log_commu_esc_proba = -community_risk_of_infection();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
@@ -144,15 +144,15 @@ void Model::simulate_single_house(int h)
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (int i = 0; i < househ[h].house_size; i++)
+	for (int i = 0; i < house[h].house_size; i++)
 	{
 		if (uniform() < commu_esc_proba)
 		{
-			househ[h].change_status(i, SUSCEPTIBLE);
+			house[h].change_status(i, SUSCEPTIBLE);
 		}
 		else
 		{
-			househ[h].change_status(i, INFECTIOUS);
+			house[h].change_status(i, INFECTIOUS);
 		}
 	}
 
@@ -161,21 +161,21 @@ void Model::simulate_single_house(int h)
 	//==============================================================//
 
 	int num_old_gen = 0;
-	int num_new_gen = househ[h].num_infectious;
+	int num_new_gen = house[h].num_infectious;
 
-	while ((househ[h].num_susceptible > 0) && (num_new_gen > 0))
+	while ((house[h].num_susceptible > 0) && (num_new_gen > 0))
 	{
 		num_old_gen = num_new_gen;
 		num_new_gen = 0;
 
 		// note : here househ[h].susceptible_set is not allowed because of change_status
-		for (int i = 0; i < househ[h].house_size; i++)
+		for (int i = 0; i < house[h].house_size; i++)
 		{
-			if (househ[h].is_susceptible[i])
+			if (house[h].is_susceptible[i])
 			{
 				if (uniform() >= exp(num_old_gen * log_p2p_esc_proba))
 				{
-					househ[h].change_status(i, INFECTIOUS);
+					house[h].change_status(i, INFECTIOUS);
 					num_new_gen++;
 				}
 			}

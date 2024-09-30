@@ -36,18 +36,17 @@ public:
 	//----- Attributes for Look-Up-Tables -----//
 	vector<squarematrix> LUT_inst_profile = {};
 	vector<squarematrix> LUT_cumul_profile = {};
+	vector<int> LUT_house_first_case = {};
 
 	//===== Model dependent methods =====//
 	double transmission_rate(int h) const;
 	double force_of_infec(int h, int i, const vector<squarematrix> &profiles) const;
 
 	//===== Override General Methods =====//
-	void common_init_model();
-	void init_model_for_inference() override { common_init_model(); };
-	void init_model_for_simulation() override { common_init_model(); };
+	void init_model_for_inference() override;
+	void init_model_for_simulation() override { init_model_for_inference(); };
 	
 	void augm_store_dependecies(int h, int i) override;
-	double get_infec_time(int h, int i) const override;
 
 	//----- Rate Choices -----//
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;

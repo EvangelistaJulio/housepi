@@ -338,7 +338,7 @@ void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
 /* Assign the contact patterns between a couple of individuals. */
 void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
 {
-    househ[h].assign_rate_per_contact(from, to, EMPTY_RATE);
+    house[h].assign_rate_per_contact(from, to, EMPTY_RATE);
 }
 
 /* Use the loaded data to fill-in the respective report. */
@@ -357,12 +357,12 @@ void MCMC::update_report_data()
                    {"n.HH.with.max.size", 0}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
-    for (int h = 0; h < num_househ; ++h)
+    for (int h = 0; h < num_house; ++h)
     {
-        int num_infec = househ[h].num_infectious;
+        int num_infec = house[h].num_infectious;
 
         report_data["n.cases"] += num_infec;
-        report_data["n.miss.stat"] += househ[h].num_missing_status;
+        report_data["n.miss.stat"] += house[h].num_missing_status;
 
         report_data["no.HH.case"] += (num_infec == 0);
         report_data["lst.1.case"] += (num_infec > 0);
@@ -380,23 +380,23 @@ void MCMC::update_report_data()
         }
 
         // minimum house number of members
-        if (report_data["min.HH.size"] > househ[h].house_size)
+        if (report_data["min.HH.size"] > house[h].house_size)
         {
             report_data["n.HH.with.min.size"] = 1;
-            report_data["min.HH.size"] = househ[h].house_size;
+            report_data["min.HH.size"] = house[h].house_size;
         }
-        else if (report_data["min.HH.size"] == househ[h].house_size)
+        else if (report_data["min.HH.size"] == house[h].house_size)
         {
             report_data["n.HH.with.min.size"] += 1;
         }
 
         // maximum house number of members
-        if (report_data["max.HH.size"] < househ[h].house_size)
+        if (report_data["max.HH.size"] < house[h].house_size)
         {
             report_data["n.HH.with.max.size"] = 1;
-            report_data["max.HH.size"] = househ[h].house_size;
+            report_data["max.HH.size"] = house[h].house_size;
         }
-        else if (report_data["max.HH.size"] == househ[h].house_size)
+        else if (report_data["max.HH.size"] == house[h].house_size)
         {
             report_data["n.HH.with.max.size"] += 1;
         }
@@ -414,7 +414,7 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
     if (is_na(pathtofile))
     {
         // error if nothing was previously defined
-        if (househ.empty())
+        if (house.empty())
         {
             raise_error("Undefined database.");
         }
@@ -445,8 +445,8 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
 
             //===== Drop all previous data =====//
             num_indiv = 0;
-            num_househ = 0;
-            househ.clear();
+            num_house = 0;
+            house.clear();
             report_group_classes.clear();
 
             //===== Load individuals from the row with values =====//
@@ -483,22 +483,22 @@ void MCMC::build_data(const string &pathtofile, bool verbose)
             for (Individual this_indiv : aux_individuals)
             {
                 // user provided structure or no structure
-                hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_househ;
+                hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_house;
 
                 // if household index doesn't exist, add new household
                 // note : this is redundant if no structure
                 if (aux_hh_idx.find(hh_idx) == aux_hh_idx.end())
                 {
-                    househ.emplace_back();                  // add a new empty household
-                    househ[num_househ].set_index(hh_idx);   // associate its index
-                    aux_hh_idx.emplace(hh_idx, num_househ); // map index to household number
-                    ++num_househ;                           // increment household number
+                    house.emplace_back();                  // add a new empty household
+                    house[num_house].set_index(hh_idx);   // associate its index
+                    aux_hh_idx.emplace(hh_idx, num_house); // map index to household number
+                    ++num_house;                           // increment household number
                 }
-                househ[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
+                house[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
             }
 
             //===== Set Contact Rates =====//
-            for (int h = 0; h < num_househ; ++h)
+            for (int h = 0; h < num_house; ++h)
             {
                 set_rate_per_contact(h);
             }
@@ -612,9 +612,9 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 void MCMC::set_rate_per_contact(int h)
 {
     // allocate contact patterns
-    int s = househ[h].house_size;
-    househ[h].which_rate.resize(s, vector<string>(s, UNDEFINED));
-    househ[h].contact_rates.resize(s, vector<const double *>(s, &REFERENCE_VALUE));
+    int s = house[h].house_size;
+    house[h].which_rate.resize(s, vector<string>(s, UNDEFINED));
+    house[h].contact_rates.resize(s, vector<const double *>(s, &REFERENCE_VALUE));
 
     if (h == 0)
     {
@@ -631,32 +631,32 @@ void MCMC::set_rate_per_contact(int h)
         }
     }
 
-    for (int k = 0; k < househ[h].house_size; ++k)
+    for (int k = 0; k < house[h].house_size; ++k)
     {
-        for (int i = 0; i < househ[h].house_size; ++i)
+        for (int i = 0; i < house[h].house_size; ++i)
         {
             // note : from `k` --> to `i`
             if (k != i)
             {
                 assign_rate_per_contact_to_household(h, k, i);
-                string parID = househ[h].which_rate[k][i];
+                string parID = house[h].which_rate[k][i];
 
                 if (is_na(parID))
                 {
                     std::ostringstream oss;
-                    oss << "Contact rate not provided for individuals " << househ[h].indiv[k].get_index()
-                        << " and " << househ[h].indiv[i].get_index() << " within household " << househ[h].get_index() << ".";
+                    oss << "Contact rate not provided for individuals " << house[h].indiv[k].get_index()
+                        << " and " << house[h].indiv[i].get_index() << " within household " << house[h].get_index() << ".";
                     raise_error(oss.str());
                 }
                 else if (parID == REFERENCE)
                 {
-                    househ[h].set_rate(k, i, get_reference()); // reference rate
+                    house[h].set_rate(k, i, get_reference()); // reference rate
                     report_group_classes.at(CONTACT_RATE).at("[reference]") += 1;
                 }
                 else if (parID != EMPTY_RATE)
                 {
                     assert_param(parID);
-                    househ[h].set_rate(k, i, get_param_pointer(parID)); // parameter rate
+                    house[h].set_rate(k, i, get_param_pointer(parID)); // parameter rate
                     if (report_group_classes.at(CONTACT_RATE).find(parID) == report_group_classes.at(CONTACT_RATE).end())
                     {
                         report_group_classes.at(CONTACT_RATE).emplace(parID, 1);
@@ -782,7 +782,7 @@ const double *MCMC::type_to_doubleptr(const string val, const string typ, int h,
     {
         if (typ == TYPE_DATA)
         {
-            output = househ[h].indiv[i].get_data_pointer(val);
+            output = house[h].indiv[i].get_data_pointer(val);
         }
         else if (typ == TYPE_PARAM)
         {
@@ -962,9 +962,9 @@ void MCMC::assign_augmented_variables()
     //===== Eventually assign augmented variables to each individual =====//
     if (!load_augm_definition.empty())
     {
-        for (int h = 0; h < num_househ; ++h)
+        for (int h = 0; h < num_house; ++h)
         {
-            for (int i = 0; i < househ[h].house_size; ++i)
+            for (int i = 0; i < house[h].house_size; ++i)
             {
                 for (ssargs loader : load_augm_definition)
                 {
@@ -983,7 +983,7 @@ void MCMC::assign_augmented_variables()
                     }
 
                     // assign augmented variable
-                    househ[h].indiv[i].assign_augm(
+                    house[h].indiv[i].assign_augm(
                         loader.at("name"),
                         type_to_double(loader.at("value"), loader.at("valuetype"), h, i),
                         loader.at("model"),

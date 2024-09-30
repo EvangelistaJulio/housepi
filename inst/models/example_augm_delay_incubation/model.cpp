@@ -56,8 +56,8 @@ void Model::init_model_for_inference()
 double Model::compute_house_loglike(int h)
 {
 	// incubation period = onset - exposure
-	double incub = househ[h].indiv[0].get_augm("onset");
-	incub -= househ[h].indiv[0].get_augm("exposure");
+	double incub = house[h].indiv[0].get_augm("onset");
+	incub -= house[h].indiv[0].get_augm("exposure");
 
 	if (incub <= 0)
 	{

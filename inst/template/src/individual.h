@@ -139,7 +139,6 @@ public:
 	int num_infectious = 0;
 	int num_susceptible = 0;
 	int num_missing_status = 0;
-	int first_case = -1;
 
 	// contact rate pointers
 	vector<vector<const double *>> contact_rates;

@@ -28,27 +28,27 @@ void MCMC::show_summary()
             << " " << percent(report_data["n.miss.stat"], num_indiv);
     }
 
-    oss << "\nn. of households: " << num_househ;
+    oss << "\nn. of households: " << num_house;
     if (report_data["no.HH.case"] > 0)
     {
         oss << "\n    * with no cases: " << report_data["no.HH.case"]
-            << " " << percent(report_data["no.HH.case"], num_househ);
+            << " " << percent(report_data["no.HH.case"], num_house);
     }
 
     oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
-        << " " << percent(report_data["lst.1.case"], num_househ);
+        << " " << percent(report_data["lst.1.case"], num_house);
     if (report_data["lst.1.case"] > 0)
     {
         oss << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
-            << " " << percent(report_data["lst.2.case"], num_househ);
+            << " " << percent(report_data["lst.2.case"], num_house);
     }
 
     oss << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
-        << " " << percent(report_data["n.HH.with.max.cases"], num_househ)
+        << " " << percent(report_data["n.HH.with.max.cases"], num_house)
         << "\nmin n. house members: " << report_data["min.HH.size"]
-        << " " << percent(report_data["n.HH.with.min.size"], num_househ)
+        << " " << percent(report_data["n.HH.with.min.size"], num_house)
         << "\nmax n. house members: " << report_data["max.HH.size"]
-        << " " << percent(report_data["n.HH.with.max.size"], num_househ);
+        << " " << percent(report_data["n.HH.with.max.size"], num_house);
 
     print_stdout(oss.str() + "\n");
 }
@@ -252,21 +252,21 @@ Rcpp::DataFrame MCMC::export_data()
     }
 
     size_t c = 0;
-    for (int h = 0; h < num_househ; ++h)
+    for (int h = 0; h < num_house; ++h)
     {
-        for (int i = 0; i < househ[h].house_size; ++i)
+        for (int i = 0; i < house[h].house_size; ++i)
         {
-            df_index[c] = househ[h].indiv[i].get_index();
-            df_house_index[c] = househ[h].get_index();
-            df_status[c] = househ[h].indiv[i].get_status();
+            df_index[c] = house[h].indiv[i].get_index();
+            df_house_index[c] = house[h].get_index();
+            df_status[c] = house[h].indiv[i].get_status();
 
             for (const string &dataID : _data_headers_)
             {
-                df_dbl.at(dataID)[c] = househ[h].indiv[i].get_data(dataID);
+                df_dbl.at(dataID)[c] = house[h].indiv[i].get_data(dataID);
             }
             for (const string &augmID : augm_full_set)
             {
-                df_dbl.at(augmID)[c] = househ[h].indiv[i].get_augm(augmID);
+                df_dbl.at(augmID)[c] = house[h].indiv[i].get_augm(augmID);
             }
 
             ++c;
@@ -327,11 +327,11 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix()
     sample_size *= setup_num_chains;
 
     // Create a NumericMatrix with N rows and K columns
-    NumericMatrix output(sample_size, num_househ);
+    NumericMatrix output(sample_size, num_house);
 
     // Assign each NumericVector to a column of the matrix
-    for (int h = 0; h < num_househ; ++h) {
-        NumericVector column = wrap(househ[h].get_dgn_loglike());
+    for (int h = 0; h < num_house; ++h) {
+        NumericVector column = wrap(house[h].get_dgn_loglike());
         output(_, h) = column;
     }
 
@@ -463,20 +463,20 @@ void MCMC::print_augm_variables(const string &save_augm_pathtofile)
             augm_ofstream << std::endl;
 
             //===== Print data and augmented variables =====//
-            for (int h = 0; h < num_househ; ++h)
+            for (int h = 0; h < num_house; ++h)
             {
-                for (int i = 0; i < househ[h].house_size; ++i)
+                for (int i = 0; i < house[h].house_size; ++i)
                 {
-                    augm_ofstream << househ[h].indiv[i].get_index()
-                                  << C_DELIM << househ[h].get_index()
-                                  << C_DELIM << househ[h].indiv[i].get_status();
+                    augm_ofstream << house[h].indiv[i].get_index()
+                                  << C_DELIM << house[h].get_index()
+                                  << C_DELIM << house[h].indiv[i].get_status();
                     for (const string &dataID : _data_headers_)
                     {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_data(dataID);
+                        augm_ofstream << C_DELIM << house[h].indiv[i].get_data(dataID);
                     }
                     for (const string &augmID : augm_full_set)
                     {
-                        augm_ofstream << C_DELIM << househ[h].indiv[i].get_augm(augmID);
+                        augm_ofstream << C_DELIM << house[h].indiv[i].get_augm(augmID);
                     }
                     augm_ofstream << std::endl;
                 }

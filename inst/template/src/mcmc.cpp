@@ -16,14 +16,6 @@ bool Large_p_WAIC_Warning = false; // unreliable WAIC
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Return the time of infection of a patient. */
-double MCMC::get_infec_time(int h, int i) const
-{
-    UNUSED(h);
-    UNUSED(i);
-    return INF_DOUBLE;
-}
-
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
 void MCMC::augm_store_dependecies(int h, int i)
 {
@@ -55,13 +47,13 @@ long double MCMC::compute_global_loglike()
     long double output = 0.0;
 
 #pragma omp parallel for reduction(+ : output)
-    for (int h = 0; h < num_househ; ++h)
+    for (int h = 0; h < num_house; ++h)
     {
         // UPDATE : household loglikelihood is not long double, just double
         // to modify this traces to parameter values,
         // i. e. all program doubles to be cast to long double
-        househ[h].set_loglike(compute_house_loglike(h));
-        output += househ[h].get_loglike();
+        house[h].set_loglike(compute_house_loglike(h));
+        output += house[h].get_loglike();
     }
 
     return output;
@@ -79,29 +71,9 @@ void MCMC::init_move_counts()
     // for augmented variables
     for (const string &augmID : augm_to_be_inferred)
     {
-        for (int h = 0; h < num_househ; ++h)
+        for (int h = 0; h < num_house; ++h)
         {
-            househ[h].reset_augm_accept_rate(augmID);
-        }
-    }
-}
-
-/* Update household first case and first infection time.
-Note: this structure assumes a single first infector.
-*/
-void MCMC::update_first_case(int h)
-{
-    double t_infec;
-    double new_t0 = INF_DOUBLE; // NOTE: init to impossible values
-    househ[h].first_case = -1;  // NOTE: init to impossible values
-
-    for (const int &i : househ[h].infectious_set)
-    {
-        t_infec = get_infec_time(h, i);
-        new_t0 = std::min(t_infec, new_t0);
-        if (t_infec == new_t0)
-        {
-            househ[h].first_case = i;
+            house[h].reset_augm_accept_rate(augmID);
         }
     }
 }
@@ -141,9 +113,9 @@ void MCMC::move_single_param(const string &parID)
             refuse_param_move(parID);
             // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
-            for (int h = 0; h < num_househ; ++h)
+            for (int h = 0; h < num_house; ++h)
             {
-                househ[h].refuse();
+                house[h].refuse();
             }
         }
     }
@@ -189,25 +161,20 @@ void MCMC::init_augmented_variables(bool is_init)
         //===== random initialization on demand =====//
         if (!augm_rand_init_set.empty())
         {
-            for (int h = 0; h < num_househ; ++h)
+            for (int h = 0; h < num_house; ++h)
             {
-                for (int i = 0; i < househ[h].house_size; ++i)
+                for (int i = 0; i < house[h].house_size; ++i)
                 {
                     for (const string &augmID : augm_rand_init_set)
                     {
-                        househ[h].indiv[i].init_augm(augmID, get_prng());
+                        house[h].indiv[i].init_augm(augmID, get_prng());
                     }
                 }
 
-                // associate a first case (if any)
-                update_first_case(h);
-                // initialization make sense only if a case is present
-                if (househ[h].first_case != -1)
+                // initialization of augmented variables for infectious
+                for (int i : house[h].infectious_set)
                 {
-                    for (int i = 0; i < househ[h].house_size; ++i)
-                    {
-                        augm_store_dependecies(h, i);
-                    }
+                    augm_store_dependecies(h, i);
                 }
             }
         }
@@ -217,15 +184,14 @@ void MCMC::init_augmented_variables(bool is_init)
 /* Update augmented variable `augmID` for individual `i` (). */
 void MCMC::augm_update(int h, int i, const string &augmID, double new_val)
 {
-    househ[h].indiv[i].set_augm(augmID, new_val);
-    update_first_case(h);         // Update information of first cases
+    house[h].indiv[i].set_augm(augmID, new_val);
     augm_store_dependecies(h, i); // Update infectivity profiles related to idx
 }
 
 /* Propose augmented variable `augmID` for individual `i`. */
 double MCMC::augm_propose(int h, int i, const string &augmID)
 {
-    return househ[h].indiv[i].augm_propose(augmID, get_prng());
+    return house[h].indiv[i].augm_propose(augmID, get_prng());
 }
 
 /* Move augmented variables for infectious members of a single household.
@@ -241,18 +207,18 @@ long double MCMC::move_single_house_augm(int h)
 
     // Loop over infectious residents of the househould
     // FIXME : only infectious are subject to data augmentation?
-    for (const int &i : househ[h].infectious_set)
+    for (const int &i : house[h].infectious_set)
     {
         // Loop over augmented variables of infectious
         for (const string &augmID : augm_to_be_inferred)
         {
             is_accepted = false;
-            old_value = househ[h].indiv[i].get_augm(augmID); // store old value
-            old_house_loglike = househ[h].get_loglike();     // store old loglike
+            old_value = house[h].indiv[i].get_augm(augmID); // store old value
+            old_house_loglike = house[h].get_loglike();     // store old loglike
             new_value = augm_propose(h, i, augmID);          // propose new value
 
             // proceed only if the new value is consistent
-            if (househ[h].indiv[i].augm_valid(augmID, new_value))
+            if (house[h].indiv[i].augm_valid(augmID, new_value))
             {
                 // update value to perform computations
                 augm_update(h, i, augmID, new_value);
@@ -260,12 +226,12 @@ long double MCMC::move_single_house_augm(int h)
 
                 // MetropolisHasting contribution
                 logQ = setup_inv_T * (new_house_loglike - old_house_loglike);
-                logQ -= househ[h].indiv[i].augm_propose_logratio(augmID, old_value, new_value);
+                logQ -= house[h].indiv[i].augm_propose_logratio(augmID, old_value, new_value);
 
                 if (uniform() < exp(logQ))
                 {
                     is_accepted = true;
-                    househ[h].set_loglike(new_house_loglike);
+                    house[h].set_loglike(new_house_loglike);
                     delta_global_loglike += new_house_loglike - old_house_loglike;
                 }
                 else
@@ -273,7 +239,7 @@ long double MCMC::move_single_house_augm(int h)
                     augm_update(h, i, augmID, old_value); // restore old value
                 }
             }
-            househ[h].update_augm_accept_rate(augmID, is_accepted);
+            house[h].update_augm_accept_rate(augmID, is_accepted);
         }
     }
 
@@ -288,7 +254,7 @@ void MCMC::move_all_augm_variables()
         long double variation = 0.;
 
 #pragma omp parallel for reduction(+ : variation)
-        for (int h = 0; h < num_househ; ++h)
+        for (int h = 0; h < num_house; ++h)
         {
             variation += move_single_house_augm(h);
         }
@@ -302,10 +268,10 @@ double MCMC::get_augm_accept_rate(const string &augmID)
     int accept_count = 0, propos_count = 0;
 
 #pragma omp parallel for reduction(+ : accept_count, propos_count)
-    for (int h = 0; h < num_househ; ++h)
+    for (int h = 0; h < num_house; ++h)
     {
-        accept_count += househ[h].get_augm_accept_counts(augmID);
-        propos_count += househ[h].get_augm_propos_counts(augmID);
+        accept_count += house[h].get_augm_accept_counts(augmID);
+        propos_count += house[h].get_augm_propos_counts(augmID);
     }
 
     return static_cast<double>(accept_count) / propos_count;
@@ -362,9 +328,9 @@ void MCMC::init_diagnostics()
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
-        for (int h = 0; h < num_househ; ++h)
+        for (int h = 0; h < num_house; ++h)
         {
-            househ[h].init_diagnostics(sample_size);
+            house[h].init_diagnostics(sample_size);
         }
     }
 }
@@ -382,9 +348,9 @@ void MCMC::update_diagnostics()
 
         // diagnostics over households
 #pragma omp parallel for default(shared)
-        for (int h = 0; h < num_househ; ++h)
+        for (int h = 0; h < num_house; ++h)
         {
-            househ[h].update_diagnostics();
+            house[h].update_diagnostics();
         }
     }
 }
@@ -418,11 +384,11 @@ void MCMC::disable_assert()
     disable_assert_param();
 
     // disable augmented variable assertion for all individuals
-    for (int h = 0; h < num_househ; ++h)
+    for (int h = 0; h < num_house; ++h)
     {
-        for (int i = 0; i < househ[h].house_size; ++i)
+        for (int i = 0; i < house[h].house_size; ++i)
         {
-            househ[h].indiv[i].disable_assert();
+            house[h].indiv[i].disable_assert();
         }
     }
 }
@@ -637,7 +603,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         setup_inv_T = 1.;
         run_monte_carlo(progbar, _thin_sweeps_, true);
         basics::statistics(dgn_glob_loglike, avg, var);
-        
+
         inv_t.push_back(setup_inv_T);
         vec_avg_ll.push_back(avg);
         vec_var_ll.push_back(var);
@@ -722,7 +688,7 @@ void MCMC::simulate()
     init_augmented_variables();
 
 #pragma omp parallel for default(shared)
-    for (int h = 0; h < num_househ; ++h)
+    for (int h = 0; h < num_house; ++h)
     {
         simulate_single_house(h);
     }
