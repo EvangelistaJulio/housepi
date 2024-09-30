@@ -31,16 +31,15 @@ class Model : public MCMC
 public:
 	//===== Global Variables =====//
 	//----- Infectivity Profile Functions -----//
-	Infec_Prof_Skew_Logistic *infec_prof_func_ptr;
+	Infec_Prof_Skew_Logistic *infec_prof_ptr;
 
 	//----- Attributes for Look-Up-Tables -----//
 	vector<squarematrix> LUT_inst_profile = {};
 	vector<squarematrix> LUT_cumul_profile = {};
 
 	//===== Model dependent methods =====//
-	double compute_infec_prof_inst(int h, int i, double t_transm);
-	double compute_infec_prof_cumul(int h, int i, double t_transm);
-	double force_of_infec(int h, int i, const vector<squarematrix> &profiles);
+	double transmission_rate(int h) const;
+	double force_of_infec(int h, int i, const vector<squarematrix> &profiles) const;
 
 	//===== Override General Methods =====//
 	void common_init_model();

@@ -78,6 +78,16 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Model : transmission rate  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Time of infection */
+double Model::transmission_rate(int h) const
+{
+	return get_param("beta") * pow(4.0 / househ[h].house_size, get_param("gamma"));
+}
+
 //------------------------------------------- /\ ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
@@ -105,7 +115,7 @@ void Model::common_init_model()
 					 {"mu", get_param("tost_mu")},
 					 {"sigma", get_param("tost_sigma")},
 					 {"tau", get_param("tost_tau")}};
-	infec_prof_func_ptr = new Infec_Prof_Skew_Logistic(args);
+	infec_prof_ptr = new Infec_Prof_Skew_Logistic(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)
 	LUT_inst_profile.clear();
@@ -142,30 +152,6 @@ double Model::get_infec_time(int h, int i) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////// Model : instantaneous infectivity profile  ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Instanteneous infectivity profile. */
-double Model::compute_infec_prof_inst(int h, int i, double t_transm)
-{
-	// tost : time from onset of symptoms to transmission
-	double tost = t_transm - get_augm(h, i, "onset_date");
-	return infec_prof_func_ptr->pdf(tost, get_augm(h, i, "incub_period"));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////// Model : cumulative infectivity profile  ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Cumulative infectivity profile. */
-double Model::compute_infec_prof_cumul(int h, int i, double t_transm)
-{
-	// tost : time from onset of symptoms to transmission
-	double tost = t_transm - get_augm(h, i, "onset_date");
-	return infec_prof_func_ptr->cdf(tost, get_augm(h, i, "incub_period"));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////// Model : store dependencies of augmented variables  ///////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -177,25 +163,32 @@ void Model::augm_store_dependecies(int h, int i)
 	//===== Infectious Members =====//
 	//==============================//
 
-	double t_infec_i = get_infec_time(h, i);
+	double onset_i = get_augm(h, i, "onset_date");
+	double incub_i = get_augm(h, i, "incub_period");
+	double t_infec_i = onset_i - incub_i;
 
+	double onset_k, incub_k, t_infec_k;
+
+	//----- Update Lookup Tables for infectious -----//
 	for (int k : househ[h].infectious_set)
 	{
-		double t_infec_k = get_infec_time(h, k);
+		onset_k = get_augm(h, k, "onset_date");
+		incub_k = get_augm(h, k, "incub_period");
+		t_infec_k = onset_k - incub_k;
 
 		if (t_infec_i < t_infec_k)
-		{ // `i` : infector, `k` : infectee
-			LUT_inst_profile[h][i][k] = compute_infec_prof_inst(h, i, t_infec_k);
-			LUT_cumul_profile[h][i][k] = compute_infec_prof_cumul(h, i, t_infec_k);
+		{ //----- `i` : infector, `k` : infectee -----//
+			LUT_inst_profile[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
+			LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
 			LUT_inst_profile[h][k][i] = 0.;
 			LUT_cumul_profile[h][k][i] = 0.;
 		}
 		else if (t_infec_k < t_infec_i)
-		{ // `k` : infector, `i` : infectee
+		{ //----- `k` : infector, `i` : infectee -----//
 			LUT_inst_profile[h][i][k] = 0.;
 			LUT_cumul_profile[h][i][k] = 0.;
-			LUT_inst_profile[h][k][i] = compute_infec_prof_inst(h, k, t_infec_i);
-			LUT_cumul_profile[h][k][i] = compute_infec_prof_cumul(h, k, t_infec_i);
+			LUT_inst_profile[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
+			LUT_cumul_profile[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
 		}
 		// NOTE : else is the case t_infec_i == t_infec_k, i. e. nothing to update
 	}
@@ -204,10 +197,10 @@ void Model::augm_store_dependecies(int h, int i)
 	//===== Susceptible Members =====//
 	//===============================//
 
-	double tf = get_augm(h, househ[h].first_case, "onset_date") + get_param("study_period");
+	t_infec_k = get_augm(h, househ[h].first_case, "onset_date") + get_param("study_period");
 	for (int k : househ[h].susceptible_set)
 	{
-		LUT_cumul_profile[h][i][k] = compute_infec_prof_cumul(h, i, tf);
+		LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
 	}
 }
 
@@ -223,7 +216,7 @@ void Model::augm_store_dependecies(int h, int i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles)
+double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles) const
 {
 	double output = 0.0;
 
@@ -236,8 +229,7 @@ double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles)
 		}
 	}
 
-	output *= get_group_rate(h, i, "Susceptibility") * get_param("beta");
-	output *= pow(4.0 / househ[h].house_size, get_param("gamma"));
+	output *= get_group_rate(h, i, "Susceptibility") * transmission_rate(h);
 
 	return output;
 }
