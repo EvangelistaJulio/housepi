@@ -92,7 +92,7 @@ Base_Proposer *proposer_switchboard(string rule_name, dictargs rule_args, double
     }
     else if (!basics::is_na(rule_name))
     {
-        raise_error("Unknown proposer rule `" + rule_name + "` for Metropolis-Hastings.");
+        raise_error("Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
     }
 
     return output;
@@ -204,17 +204,17 @@ void Monte_Carlo_Core::assign_param(
     // check that lists have equal sizes
     if (prior_args.find(IO_MISMATCH) != prior_args.end())
     {
-        raise_error("Lists of prior arguments and values of parameter `" + parID + "` should have equal size.");
+        raise_error("Lists of prior arguments and values of parameter '" + parID + "' should have equal size.");
     }
     if (rule_args.find(IO_MISMATCH) != rule_args.end())
     {
-        raise_error("Lists of rule arguments and values of parameter `" + parID + "` should have equal size.");
+        raise_error("Lists of rule arguments and values of parameter '" + parID + "' should have equal size.");
     }
 
     // create the new parameter if it's not already defined
     if (params.find(parID) != params.end())
     {
-        raise_error("Parameter `" + parID + "` has multiple definitions.");
+        raise_error("Parameter '" + parID + "' has multiple definitions.");
     }
     else
     {
@@ -294,6 +294,17 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
     }
 }
 
+/* Add a new scalar for augmented typedict FIXME : temporary. */
+const double *Monte_Carlo_Core::assign_scalar_pointer(double new_val)
+{
+    if (_scalar_type_params_.find(new_val) == _scalar_type_params_.end())
+    {
+        Parameter new_param(new_val, UNDEFINED, {}, UNDEFINED, {}, {});
+        _scalar_type_params_.emplace(new_val, new_param);
+    }
+    return _scalar_type_params_.at(new_val).get_pointer();
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -303,7 +314,7 @@ void Monte_Carlo_Core::assert_param(const string &parID) const
 {
     if (params.find(parID) == params.end())
     {
-        raise_error("Parameter `" + parID + "` not found. Check your model and your parameter definitions.");
+        raise_error("Parameter '" + parID + "' not found. Check your model and your parameter definitions.");
     }
 }
 
@@ -322,7 +333,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
             {
                 if (num_attempts >= MAX_NUMBER_ATTEMPTS)
                 {
-                    raise_error("Number of attempts exceeded in random initialization of `" + parID + "`.");
+                    raise_error("Number of attempts exceeded in random initialization of '" + parID + "'.");
                 }
                 new_value = params.at(parID).prior_rand(prng);
                 ++num_attempts;

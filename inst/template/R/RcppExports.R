@@ -24,11 +24,12 @@
 #'   \item Parameter: progbar - show the progress bar
 #'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 #' }
-#' @field setup Return the current setup as a List.
-#' @field params Return the current parameters as a DataFrame.
-#' @field traces Return the MCMC traces as a DataFrame.
-#' @field data Return the current database as a DataFrame.
-#' @field show_summary Show a summary of the database.
+#' @field setup Return a List with current setup.
+#' @field params Return a DataFrame with current parameters.
+#' @field traces Return a DataFrame with MCMC traces.
+#' @field loglike_matrix Return matrix with loglikelihood values.
+#' @field data Return a DataFrame with current database.
+#' @field show_summary Show a summary of the current database.
 #' @field show_group_classes Show the group classes.
 NULL
 

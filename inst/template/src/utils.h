@@ -69,7 +69,7 @@ const std::set<int> VALID_STATUS = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
 
 // FIXME :NaN and NA to be revised
 constexpr double INF_DOUBLE = 1e10;    // numerical infinity value
-const string UNDEFINED = "None";       // name for undefined choice
+const string UNDEFINED = "<NA>";       // name for undefined choice
 const string EMPTY_RATE = "__empty__"; // name for Contact rate
 
 // constants
@@ -205,8 +205,8 @@ private:
     {
         UNUSED(new_value);
         std::ostringstream oss;
-        oss << "Inconsistent change of pointer argument`" << _args_names_[i]
-            << "` within `" << get_name() << "`.";
+        oss << "Inconsistent change of pointer argument'" << _args_names_[i]
+            << "' within '" << get_name() << "'.";
         basics::raise_error(oss.str());
     }
 };

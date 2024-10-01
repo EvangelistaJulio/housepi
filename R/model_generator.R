@@ -4,24 +4,6 @@
 # Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
 #
 
-###################################
-####### Auxiliary Functions #######
-###################################
-
-# Get the system directory of a model.
-get_usr_tmp_file <- function(hemi, name) {
-  usr_dir <- system.file(package = attr(class(hemi), "package"))
-  output <- file.path(usr_dir, "tmp", paste0(name, ".csv"))
-  dir.create(dirname(output),
-             recursive = TRUE,
-             showWarnings = FALSE)
-  return(output)
-}
-
-#------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------#
-
 #' Copy a default model to a given directory.
 #' @param which default model name.
 #' @param path path where to copy implementation and header.
@@ -154,7 +136,7 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
   } else {
     # copy the package to the new directory
     dir.create(new_dir, recursive = TRUE, showWarnings = FALSE)
-    if(!dir.exists(new_dir)) {
+    if (!dir.exists(new_dir)) {
       stop(cli::format_error(
         c("Impossibile to create a temporary directory for the model.",
         i = "Check your user permissions.")))
@@ -164,7 +146,7 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     for (f in c("NAMESPACE", "DESCRIPTION")) {
       from_file <- file.path(housepi_dir, "template", f)
       to_file <- file.path(new_dir, f)
-      if(!file.copy(from_file, to_file, overwrite = TRUE)) {
+      if (!file.copy(from_file, to_file, overwrite = TRUE)) {
         stop(cli::format_error(
           c("Failed to setup internal files.",
           i = "Check your user permissions.")))
@@ -174,7 +156,7 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     # copy folders
     for (fldr in c("src", "R", "man")) {
       from_path <- file.path(housepi_dir, "template", fldr)
-      if(!file.copy(from_path, new_dir, recursive = TRUE, overwrite = TRUE)) {
+      if (!file.copy(from_path, new_dir, recursive = TRUE, overwrite = TRUE)) {
         stop(cli::format_error(
           c("Failed to setup internal files.",
           i = "Check your user permissions.")))
@@ -197,20 +179,20 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     }
 
     # copy implementation
-    if(!file.copy(cpp_file, file.path(new_dir, "src", "model.cpp"), overwrite = TRUE)) {
+    if (!file.copy(cpp_file, file.path(new_dir, "src", "model.cpp"), overwrite = TRUE)) {
       stop(cli::format_error(c("Failed to setup implementation file.",
                                i = "Check your user permissions.")))
     }
 
     # copy header
-    if(!file.copy(hpp_file, file.path(new_dir, "src", "model.h"), overwrite = TRUE)) {
+    if (!file.copy(hpp_file, file.path(new_dir, "src", "model.h"), overwrite = TRUE)) {
       stop(cli::format_error(c("Failed to setup header file.",
                                i = "Check your user permissions.")))
     }
     
     # copy templated parameters
     templ_pars_file <- file.path(housepi_dir, "models", model, "templated_params")
-    if(!file.copy(templ_pars_file, file.path(new_dir, "src", "templated_params"), overwrite = TRUE)) {
+    if (!file.copy(templ_pars_file, file.path(new_dir, "src", "templated_params"), overwrite = TRUE)) {
       cli::cli_alert_warning(cli::format_warning(c("Missing templated parameters.")))
     }
 
@@ -244,65 +226,70 @@ build_model <- function(hemi,
                         data = NULL,
                         augm = NULL,
                         verbose = FALSE) {
+  store_scipen <- options()$scipen
+  options(scipen = 500)
 
   #===== 1) SETUP =====#
   if (is.null(setup)) {
-    hemi$read_setup(setup, verbose)
+    hemi$read_setup("<NA>")
 
   } else if (is.character(setup)) {
-    hemi$read_setup(setup, verbose)
+    hemi$read_setup(setup)
 
-  } else if (is.data.frame(setup)) {
-    # FIXME
-
-  } else if (is.list(setup)) {
-    hemi$import_setup(setup, verbose)
+  } else if ((is.list(setup)) && (!is.data.frame(setup))) {
+    hemi$import_setup(lapply(setup, as.character))
 
   } else {
-    stop(cli::format_error("Unrecognized input for setup."))
+    stop(cli::format_error(c("Wrong type for setup.",
+    i = "It should be list or character (path/to/file).")))
   }
 
   #===== 2) PARAMETERS =====#
-  if (is.character(params)) {
-    hemi$read_params(params, verbose)
+  if (is.null(params)) {
+    hemi$read_params("<NA>")
+
+  } else if (is.character(params)) {
+    hemi$read_params(params)
 
   } else if (is.data.frame(params)) {
-    hemi$import_params(params, verbose)
-
-  } else if (is.list(params)) {
-    # FIXME
+    hemi$import_params(data.frame(lapply(params, as.character)))
 
   } else {
-    stop(cli::format_error("Unrecognized input for params."))
+    stop(cli::format_error(c("Wrong type for params",
+    i = "It should be datafram or character (path/to/file).")))
   }
   
   #===== 3) DATA =====#
-  if (is.character(data)) {
-    hemi$read_data(data, verbose)
+  if (is.null(data)) {
+    hemi$read_data("<NA>")
+
+  } else if (is.character(data)) {
+    hemi$read_data(data)
 
   } else if (is.data.frame(data)) {
-    hemi$import_data(data, verbose)
-
-  } else if (is.list(data)) {
-    # FIXME
+    hemi$import_data(data.frame(lapply(data, as.character)))
 
   } else {
-    stop(cli::format_error("Unrecognized input for data."))
+    stop(cli::format_error(c("Wrong type for data",
+    i = "It should be datafram or character (path/to/file).")))
   }
 
   #===== 4) AUGMENTED VARIABLES =====#
-  if (is.character(augm)) {
-    hemi$read_augm(augm, verbose)
+  if (is.null(augm)) {
+    hemi$read_augm("<NA>")
+
+  } else if (is.character(augm)) {
+    hemi$read_augm(augm)
 
   } else if (is.data.frame(augm)) {
-    hemi$import_augm(augm, verbose)
-
-  } else if (is.list(augm)) {
-    # FIXME
+    hemi$import_augm(data.frame(lapply(augm, as.character)))
 
   } else {
-    stop(cli::format_error("Unrecognized input for augm."))
+    stop(cli::format_error(c("Wrong type for augm",
+    i = "It should be datafram or character (path/to/file).")))
   }
+
+  options(scipen = store_scipen)
 }
 
 #' Run the inference.

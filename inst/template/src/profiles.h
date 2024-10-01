@@ -15,17 +15,17 @@
 /*
 
 The infectivity profile is considered equal to the distribution
-of the Time from Onset of Symptoms to Transmission `tost`:
+of the Time from Onset of Symptoms to Transmission 'tost':
 >	tost = <time infection infectee> - <time onset infector>
 Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-where the pre-symptomatic values are rescaled as a function of the incubation time `t_incub`.
+where the pre-symptomatic values are rescaled as a function of the incubation time 't_incub'.
 The arguments to provide are :
 	0) "alpha" : shape;
 	1) "mu" : location;
 	2) "sigma" : scale;
 	3) "tau" : mean incubation time;
 Note: symtoms can occur after infection (pre-symptomatic transmission),
-i. e. `tost` can be negative.
+i. e. 'tost' can be negative.
 ----
 Ref:
 ----

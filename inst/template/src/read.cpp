@@ -30,7 +30,7 @@ bool stobool(const string &tkn)
     }
     else
     {
-        raise_error("Unrecognized boolean value for `" + tkn + "`.");
+        raise_error("Unrecognized boolean value for '" + tkn + "'.");
     }
 
     return output;
@@ -66,13 +66,13 @@ void rlist_to_map(Rcpp::List list, std::map<string, string> &output)
 {
     using namespace Rcpp;
 
-    CharacterVector names = list.names();
+    CharacterVector keys = list.names();
 
     output.clear();
     for (int i = 0; i < list.size(); ++i)
     {
-        RObject element = input_list[i];
-        output[as<string>(names[i])] = as<string>(element);
+        RObject element = list[i];
+        output[as<string>(keys[i])] = as<string>(wrap(element));
     }
 }
 
@@ -80,14 +80,14 @@ void rdataframe_to_map(Rcpp::DataFrame df, std::map<string, vector<string>> &out
 {
     using namespace Rcpp;
 
-    CharacterVector col_names = df.names();
+    CharacterVector keys = df.names();
 
     output.clear();
     for (int i = 0; i < df.size(); ++i)
     {
         CharacterVector col_strings = as<CharacterVector>(df[i]);
         vector<string> col_data(col_strings.begin(), col_strings.end());
-        output[as<string>(col_names[i])] = std::move(col_data);
+        output[as<string>(keys[i])] = std::move(col_data);
     }
 }
 #endif
@@ -129,12 +129,12 @@ vector<string> read_column_headers(std::ifstream &input, const vector<string> &r
                 if (!is_missing)
                 {
                     // point to the faulty file
-                    oss << "Missing column(s): `" + req + "`";
+                    oss << "Missing column(s): '" + req + "'";
                     is_missing = true;
                 }
                 else
                 {
-                    oss << ", `" << req << "`";
+                    oss << ", '" << req << "'";
                 }
             }
         }
@@ -258,7 +258,7 @@ void read_csv_list(const string &pathtofile, std::map<string, string> &csv_parse
         }
         else
         {
-            raise_error("Impossible to open file `" + pathtofile + "`.");
+            raise_error("Impossible to open file '" + pathtofile + "'.");
         }
     }
 }
@@ -289,7 +289,7 @@ void read_csv_table(const string &pathtofile,
         }
         else
         {
-            raise_error("Impossible to open file `" + pathtofile + "`.");
+            raise_error("Impossible to open file '" + pathtofile + "'.");
         }
     }
 }

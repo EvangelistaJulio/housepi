@@ -6,28 +6,25 @@
 \usage{
 build_model(
   hemi,
-  setup = UNDEFINED,
-  params = UNDEFINED,
-  data = UNDEFINED,
-  augm = UNDEFINED,
-  extra = UNDEFINED,
+  setup = NULL,
+  params = NULL,
+  data = NULL,
+  augm = NULL,
   verbose = FALSE
 )
 }
 \arguments{
 \item{hemi}{household model object.}
 
-\item{setup}{file path for the setup configurations.}
+\item{setup}{list or file path with the setup definitions}
 
-\item{params}{file path for the model parameters.}
+\item{params}{dataframe or file path with parameters definitions.}
 
-\item{data}{file path for the input data.}
+\item{data}{dataframe or file path with input data.}
 
-\item{augm}{file path for augmented data.}
+\item{augm}{dataframe or file with augmented variable definitions.}
 
-\item{extra}{file path for any extra configurations.}
-
-\item{verbose}{boolean flag to suppress automatic prints.}
+\item{verbose}{boolean flag for automatic prints.}
 }
 \description{
 Build model to run inference or simulation.

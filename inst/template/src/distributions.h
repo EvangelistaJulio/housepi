@@ -339,7 +339,7 @@ Base_Distribution *distribution_ptr(const string &name = UNDEFINED, dictargs_val
     }
     else if (!basics::is_na(name))
     {
-        basics::raise_error("Unknown distribution `" + name + "`.");
+        basics::raise_error("Unknown distribution '" + name + "'.");
     }
 
     return output;

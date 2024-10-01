@@ -29,9 +29,9 @@ bool Unknown_Status_Warning = false; // unknown status
 Individual::Individual(dictargs new_data)
 {
 	// associate index
-	if (new_data.find("status") == new_data.end())
+	if (new_data.find("index") == new_data.end())
 	{
-		basics::raise_error("Class Individual requires an index");
+		basics::raise_error("Missing index for Individual object.");
 	}
 	else
 	{
@@ -53,7 +53,7 @@ Individual::Individual(dictargs new_data)
 			set_status(MISSING_STATUS);
 
 			std::ostringstream oss;
-			oss << "Status `" << new_status << "` of individual `" << get_index() << "` interpreted as missing."
+			oss << "Status '" << new_status << "' of individual '" << get_index() << "' interpreted as missing."
 				<< " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
 				<< " Use " << MISSING_STATUS << " for missing status.";
 			basics::raise_warning(oss.str(), Unknown_Status_Warning);
@@ -77,7 +77,7 @@ void Individual::assert_data(const string &dataID) const
 	if (data.find(dataID) == data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data `" << dataID << "` for individual " << get_index() << ".";
+		oss << "Unknown data '" << dataID << "' for individual " << get_index() << ".";
 		oss << " Check your model and your data definitions.";
 		raise_error(oss.str());
 	}
@@ -125,8 +125,8 @@ void Individual::assign_rate_per_group(const string &rateID, const string &parID
 	{
 		// rateID was previously declared
 		std::ostringstream oss;
-		oss << "Multiple definitions of group rate `" << rateID
-			<< "` for individual " << get_index() << "."
+		oss << "Multiple definitions of group rate '" << rateID
+			<< "' for individual " << get_index() << "."
 			<< " Check your model.";
 		raise_error(oss.str());
 	}
@@ -142,8 +142,8 @@ void Individual::assert_augm(const string &augmID) const
 	if (augm_var.find(augmID) == augm_var.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown augmented variable `" << augmID
-			<< "` for individual " << get_index() << "."
+		oss << "Unknown augmented variable '" << augmID
+			<< "' for individual " << get_index() << "."
 			<< " Check your model and your augmented variable definitions.";
 		raise_error(oss.str());
 	}
@@ -193,11 +193,11 @@ void Individual::assign_augm(const string &augmID, double value,
 	// check that lists have equal sizes
 	if (model_args_ext.find(IO_MISMATCH) != model_args_ext.end())
 	{
-		raise_error("Model arguments, values and types of augmented variable `" + augmID + "` should have equal size.");
+		raise_error("Model arguments, values and types of augmented variable '" + augmID + "' should have equal size.");
 	}
 	if (rule_args.find(IO_MISMATCH) != rule_args.end())
 	{
-		raise_error("Rule arguments, values and types of augmented variable `" + augmID + "` should have equal size.");
+		raise_error("Rule arguments, values and types of augmented variable '" + augmID + "' should have equal size.");
 	}
 
 	Augmented new_augm(value, model_name, model_args_ext,
@@ -223,12 +223,12 @@ void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 
 	while ((!augm_valid(augmID, init_value)))
 	{
-		if (num_attempts >= MAX_NUMBER_ATTEMPTS)
+		if (num_attempts > MAX_NUMBER_ATTEMPTS)
 		{
 			std::ostringstream oss;
-			oss << "Number of attempts exceeded (" << ">=" << MAX_NUMBER_ATTEMPTS << ")"
-				<< " in random initialization of `" << augmID << "`"
-				<< " for individual " << get_index();
+			oss << "Exceeded attempts  (" << ">" << MAX_NUMBER_ATTEMPTS << ")"
+				<< " in random initialization of '" << augmID << "'"
+				<< " for individual " << get_index() << ".";
 			raise_error(oss.str());
 		}
 		init_value = augm_model_rand(augmID, prng);
@@ -294,7 +294,7 @@ void Household::assert_data(const string &dataID) const
 	if (house_data.find(dataID) == house_data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data `" << dataID << "` for household " << get_index() << ".";
+		oss << "Unknown data '" << dataID << "' for household " << get_index() << ".";
 		raise_error(oss.str());
 	}
 }
@@ -335,8 +335,8 @@ void Household::assign_individual(Individual this_indiv)
 	else
 	{
 		std::ostringstream oss;
-		oss << "Impossibile to assign individual `" << this_indiv.get_index()
-			<< "` : unknown status `" << status << "`.";
+		oss << "Impossibile to assign individual '" << this_indiv.get_index()
+			<< "' : unknown status '" << status << "'.";
 		raise_error(oss.str());
 	}
 
@@ -376,7 +376,7 @@ void Household::change_status(int i, int new_status)
 		else
 		{
 			std::ostringstream oss;
-			oss << "Impossibile to change status: unknown old status `" << old_status << "`.";
+			oss << "Impossibile to change status: unknown old status '" << old_status << "'.";
 			raise_error(oss.str());
 		}
 
@@ -401,7 +401,7 @@ void Household::change_status(int i, int new_status)
 		else
 		{
 			std::ostringstream oss;
-			oss << "Impossibile to change status: unknown new status `" << new_status << "`.";
+			oss << "Impossibile to change status: unknown new status '" << new_status << "'.";
 			raise_error(oss.str());
 		}
 

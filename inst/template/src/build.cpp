@@ -47,7 +47,7 @@ void MCMC::show_build_details()
     {
         if (!is_na(report_pathtofile.at("setup")))
         {
-            add_file_info = ">>> import: " + report_pathtofile.at("setup");
+            add_file_info = "# import: " + report_pathtofile.at("setup");
         }
     }
     print_decorator("Setup", add_file_info);
@@ -59,7 +59,7 @@ void MCMC::show_build_details()
     {
         if (!is_na(report_pathtofile.at("params")))
         {
-            add_file_info = ">>> import: " + report_pathtofile.at("params");
+            add_file_info = "# import: " + report_pathtofile.at("params");
         }
     }
     print_decorator("Parameters", add_file_info);
@@ -71,7 +71,7 @@ void MCMC::show_build_details()
     {
         if (!is_na(report_pathtofile.at("data")))
         {
-            add_file_info = ">>> import: " + report_pathtofile.at("data");
+            add_file_info = "# import: " + report_pathtofile.at("data");
         }
     }
     print_decorator("Database", add_file_info);
@@ -83,7 +83,7 @@ void MCMC::show_build_details()
     {
         if (!is_na(report_pathtofile.at("augm")))
         {
-            add_file_info = ">>> import: " + report_pathtofile.at("augm");
+            add_file_info = "# import: " + report_pathtofile.at("augm");
         }
     }
     print_decorator("Augmented", add_file_info);
@@ -137,15 +137,15 @@ void MCMC::assign_setup()
         if (wrong_entries.size() > 0)
         {
             std::ostringstream oss;
-            oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
+            oss << "Unknown setup option(s): '" << wrong_entries[0] << "'";
             for (size_t k = 1; k < wrong_entries.size(); ++k)
             {
-                oss << ", `" << wrong_entries[k] << "`";
+                oss << ", '" << wrong_entries[k] << "'";
             }
-            oss << ". Available setup options are: `" << file_entries[0] << "`";
+            oss << ". Available setup options are: '" << file_entries[0] << "'";
             for (size_t k = 1; k < file_entries.size(); ++k)
             {
-                oss << ", `" << file_entries[k] << "`";
+                oss << ", '" << file_entries[k] << "'";
             }
             raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
         }
@@ -265,7 +265,7 @@ void MCMC::assign_setup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read parameter definitions and run assignment. */
-void MCMC::read_parameters(const string &pathtofile)
+void MCMC::read_params(const string &pathtofile)
 {
     read_csv_table(pathtofile, _param_deftable_, param_file_headers);
     assign_parameters();
@@ -403,7 +403,7 @@ void MCMC::assign_data(std::map<string, vector<string>> &datatable)
         if (!is_house_index)
         {
             std::ostringstream oss;
-            oss << "Impossible to associate a household structure: missing data column `house_index`."
+            oss << "Impossible to associate a household structure: missing data column 'house_index'."
                 << " If it was intentional, ignore this message.";
             raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
         }
@@ -553,7 +553,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         if (rateID == CONTACT_RATE)
         {
             std::ostringstream oss;
-            oss << "The group rate name `" << CONTACT_RATE << "` is reserved."
+            oss << "The group rate name '" << CONTACT_RATE << "' is reserved."
                 << "Please choose a different one.";
             raise_error(oss.str());
         }
@@ -570,7 +570,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         {
             // error : undefined rate
             std::ostringstream oss;
-            oss << "Rate `" << rateID << "` is not provided for individual " << this_indiv.get_index() << ".";
+            oss << "Rate '" << rateID << "' is not provided for individual " << this_indiv.get_index() << ".";
             raise_error(oss.str());
         }
         else if (parID == REFERENCE)
@@ -633,7 +633,7 @@ void MCMC::set_rate_per_contact(int h)
     {
         for (int i = 0; i < house[h].house_size; ++i)
         {
-            // note : from `k` --> to `i`
+            // note : from 'k' --> to 'i'
             if (k != i)
             {
                 assign_rate_per_contact_to_household(h, k, i);
@@ -684,7 +684,7 @@ void MCMC::set_rate_per_contact(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
-void MCMC::read_augmented(const string &pathtofile)
+void MCMC::read_augm(const string &pathtofile)
 {
     const vector<string> augm_file_headers = {
         "name", "value", "valuetype",
@@ -702,7 +702,7 @@ void MCMC::read_augmented(const string &pathtofile)
 void MCMC::import_augm(Rcpp::DataFrame augm)
 {
     rdataframe_to_map(augm, _augm_deftable_);
-    assign_data();
+    assign_augmented();
     if (report_pathtofile.find("augm") == report_pathtofile.end())
     {
         report_pathtofile.erase("augm");
@@ -742,7 +742,7 @@ void MCMC::assign_augmented()
             else
             {
                 std::ostringstream oss;
-                oss << "Ambigous definitions for augmented variable `" << augmID << "`."
+                oss << "Ambigous definitions for augmented variable '" << augmID << "'."
                     << " Check your augmented variable file.";
                 raise_error(oss.str());
             }
@@ -764,7 +764,7 @@ void MCMC::assign_augmented()
             {
                 if (is_init_rand)
                 {
-                    raise_error("Unknown random initialization without a model for `" + augmID + "`.");
+                    raise_error("Impossible to randomly initialize '" + augmID + "' without a model.");
                 }
             }
             else
@@ -856,7 +856,7 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
         catch (const std::invalid_argument &e)
         {
             std::ostringstream oss;
-            oss << "Value `" + val + "` can't be cast to scalar value. Provide the respective type.";
+            oss << "Value '" + val + "' can't be cast to scalar value. Provide the respective type.";
             raise_warning(oss.str(), Non_Specified_Type_Warning);
         }
     }
@@ -884,7 +884,7 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
             {
                 std::ostringstream oss;
                 // FIXME : this warning is not clear as exposed here
-                oss << "Non constant parameter `" << val << "` assigned as fixed argument."
+                oss << "Non constant parameter '" << val << "' assigned as fixed argument."
                     << " Changes of the parameter will not affect the argument.";
                 raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
             }
@@ -897,12 +897,12 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
             }
             else
             {
-                raise_error("Unknown command type `" + val + "`.");
+                raise_error("Unknown command type '" + val + "'.");
             }
         }
         else
         {
-            raise_error("Unknown variable type specifier `" + typ + "`.");
+            raise_error("Unknown variable type specifier '" + typ + "'.");
         }
     }
 
@@ -921,7 +921,7 @@ const double *MCMC::type_to_doubleptr(const string val, const string typ, int h,
     else if (!is_na(val) && is_na(typ))
     {
         std::ostringstream oss;
-        oss << "Impossible to interpret default value of  `" << val << "`. Please provide a type.";
+        oss << "Impossible to interpret default value of  '" << val << "'. Please provide a type.";
         raise_error(oss.str());
     }
     else if (is_na(val) && !is_na(typ))
@@ -941,11 +941,14 @@ const double *MCMC::type_to_doubleptr(const string val, const string typ, int h,
         {
             output = get_param_pointer(val);
         }
+        else if (typ == TYPE_SCALAR)
+        {
+            output = assign_scalar_pointer(std::stod(val));
+        }
         else
         {
             std::ostringstream oss;
-            oss << "Unsopported type specifier `" + typ + "` found while loading `" << val << "`. "
-                << "Expected type specifier `" << TYPE_PARAM << "` instead.";
+            oss << "Unsopported type '" + typ + "' found loading '" << val << "' for pointer value.";
             raise_error(oss.str());
         }
     }

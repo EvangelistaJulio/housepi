@@ -181,14 +181,14 @@ void MCMC::init_augmented_variables(bool is_init)
     }
 }
 
-/* Update augmented variable `augmID` for individual `i` (). */
+/* Update augmented variable 'augmID' for individual 'i' (). */
 void MCMC::augm_update(int h, int i, const string &augmID, double new_val)
 {
     house[h].indiv[i].set_augm(augmID, new_val);
     augm_store_dependecies(h, i); // Update infectivity profiles related to idx
 }
 
-/* Propose augmented variable `augmID` for individual `i`. */
+/* Propose augmented variable 'augmID' for individual 'i'. */
 double MCMC::augm_propose(int h, int i, const string &augmID)
 {
     return house[h].indiv[i].augm_propose(augmID, get_prng());

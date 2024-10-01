@@ -169,13 +169,13 @@ int main(int argc, char *argv[])
     user_model->read_setup(setup_file);
 
     // 2) Load Parameters and Check (required)
-    user_model->read_parameters(params_file);
+    user_model->read_params(params_file);
 
     // 3) Load Data and Check (required)
     user_model->read_data(data_file);
 
     // 4) Load Augmented Variables (optional)
-    user_model->read_augmented(augm_file);
+    user_model->read_augm(augm_file);
 
     if (verbose)
     {
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
         if (output_file != UNDEFINED)
         {
             print_decorator("Inference::infer state",
-                            ">>> save: " + save_augm_file,
+                            "# save: " + save_augm_file,
                             C_DECOR, verbose);
             user_model->print_infer_state(output_file);
         }
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
         if (save_augm_file != UNDEFINED)
         {
             print_decorator("Inference::augmented dataframe", 
-                            ">>> save: " + save_augm_file,
+                            "# save: " + save_augm_file,
                             C_DECOR, verbose);
             user_model->print_augm_variables(save_augm_file);
         }
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
         else
         {
             print_decorator("Simulation", 
-                            ">>> save: " + output_file,
+                            "# save: " + output_file,
                             C_DECOR, verbose);
             user_model->simulate();
             user_model->print_augm_variables(output_file);

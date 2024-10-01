@@ -35,15 +35,17 @@ Perform inference and simulation from the model housepi12345.
   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 }}
 
-\item{\code{setup}}{Return the current setup as a List.}
+\item{\code{setup}}{Return a List with current setup.}
 
-\item{\code{params}}{Return the current parameters as a DataFrame.}
+\item{\code{params}}{Return a DataFrame with current parameters.}
 
-\item{\code{traces}}{Return the MCMC traces as a DataFrame.}
+\item{\code{traces}}{Return a DataFrame with MCMC traces.}
 
-\item{\code{data}}{Return the current database as a DataFrame.}
+\item{\code{loglike_matrix}}{Return matrix with loglikelihood values.}
 
-\item{\code{show_summary}}{Show a summary of the database.}
+\item{\code{data}}{Return a DataFrame with current database.}
+
+\item{\code{show_summary}}{Show a summary of the current database.}
 
 \item{\code{show_group_classes}}{Show the group classes.}
 }}

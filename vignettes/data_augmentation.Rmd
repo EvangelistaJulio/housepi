@@ -95,7 +95,8 @@ results_1 <- summary(mcmc_trace_1)
 
 ## Augment Onset Times
 
-We use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
+For a more realistics example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset. 
+For simplicity the model assumes no asymptomatic cases. 
 
 ```{r}
 hemi_2 <- housepi::generate_model("augm_onset_single_intr")
@@ -113,42 +114,33 @@ knitr::kable(head(par_2$df))
 We propose the following definitions for the augmented variable 
 
 ```{r}
-augm_2 <- housepi::AugmentedFrame()
 
-# add 'onset_date' definition
-augm_2$add(name = "onset_date", 
-           x = 0,
-           rule = "norm", rule_args = list(sd = 0.25),
-           range = list(min = -3))
+# augmented variable definitions for simulation
+augm_2_simu <- housepi::AugmentedFrame()
 
-# add 'incub_period' definition
-augm_2$add(name = "incub_period", 
-           init_rand = TRUE,
-           model = "gamma", 
-           args = list(shape = "inc_shape@P", 
-                       scale = "inc_scale@P"),
-           rule = "model", 
-           range = list(min = 0, max = 14))
+# add 'onset_date'
+augm_2_simu$add(name = "onset_date",
+                init_rand = TRUE,
+                model = "lnorm", 
+                args = list(meanlog = 4, sdlog = 0.5),
+                range = list(max = 365))
+
+# add 'incub_period'
+augm_2_simu$add(name = "incub_period", 
+                init_rand = TRUE,
+                model = "gamma", 
+                args = list(shape = "inc_shape@P", 
+                            scale = "inc_scale@P"),
+                range = list(max = 14))
 
 # assign model arguments of incubation period from parameters
 # we use the inferred values from the first example
+par_2$add(name = "inc_shape", x = results_1$statistics["shape", "Mean"])
+par_2$add(name = "inc_scale", x = results_1$statistics["scale", "Mean"])
 
-par_2$add(name = "inc_shape", x = 2.0)
-par_2$add(name = "inc_scale", x = 1.1)
-
-# FLAG
-#par_2$add(name = "inc_shape", x = results_1$statistics["shape", "Mean"])
-#par_2$add(name = "inc_scale", x = results_1$statistics["scale", "Mean"])
-# FLAG-END
-```
-
-```{r}
-
-setup_2 <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
-              thinning = 25, seed = 576125013)
-
+# build the model
 housepi::build_model(hemi_2, data = "survey.csv", params = par_2$df, 
-                     setup = setup_2, augm = augm_2$df)
+                     setup = list(seed = 17), augm = augm_2_simu$df)
 ```
 
 ### Simulate an Outbreak
@@ -163,20 +155,50 @@ hemi_2$simulate()
 hemi_2$show_summary()
 
 # store the simulated dataset
-database <- hemi_2$data()
+simulation <- hemi_2$data()
 
 # show the results of the simulation 
-head(database[c("status", "incub_period", "onset_date")])
+head(simulation)
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
-Note that this simulation, as for all templated models, do not simulate a sampling process.
-
-### Simulate an Outbreak
-
-As a sanity check, we can verify that inference returns the parameters used for the simulation.
+This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
+df <- subset(simulation, select = -c(incub_period) )
+censor <- function(x) {
+  if ((x %% 1) > 0.875) ceiling(x) else floor(x)
+}
+df[["onset_date"]] <- sapply(df[["onset_date"]], censor)
+```
+
+### Validate the Simulation
+
+We can verify that inference returns the parameters used for the simulation.
+
+```{r}
+augm_2_infer <- housepi::AugmentedFrame()
+
+# add 'onset_date' definition
+augm_2_infer$add(name = "onset_date", 
+                 x = "onset_date@D",
+                 rule = "norm", rule_args = list(sd = 0.5),
+                 rule_from = "onset_date@D")
+
+# add 'incub_period' definition
+augm_2_infer$add(name = "incub_period", 
+                 init_rand = TRUE,
+                 model = "gamma", 
+                 args = list(shape = "inc_shape@P", 
+                             scale = "inc_scale@P"),
+                 rule = "norm", rule_args = list(sd = 0.5),
+                 range = list(max = 14))
+
+setup_2 <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
+              thinning = 25, seed = 57)
+
+housepi::build_model(hemi_2, data = df, setup = setup_2, augm = augm_2_infer$df)
+
 mcmc_trace <- housepi::run_inference(hemi_2)
 ```
 
@@ -188,7 +210,7 @@ results_2 <- summary(mcmc_trace)
 imask <- par_2$df["infer"] == TRUE
 inames <- par_2$df[imask, "name"]
 data.frame(Expec = par_2$df[imask, "value"],
-           Mean = results_2[["statistics"]][inames, "Mean"],
-           Q2.5 = results_2[["quantiles"]][inames, "2.5%"],
-           Q97.5 = results_2[["quantiles"]][inames, "97.5%"])
+           Estim = results_2[["statistics"]][inames, "Mean"],
+           CI2.5 = results_2[["quantiles"]][inames, "2.5%"],
+           CI97.5 = results_2[["quantiles"]][inames, "97.5%"])
 ```

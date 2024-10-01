@@ -77,9 +77,9 @@ public:
 
 	//===== READ =====//
 	void read_setup(const string &pathtofile = UNDEFINED);
-	void read_parameters(const string &pathtofile = UNDEFINED);
+	void read_params(const string &pathtofile = UNDEFINED);
 	void read_data(const string &pathtofile = UNDEFINED);
-	void read_augmented(const string &pathtofile = UNDEFINED);
+	void read_augm(const string &pathtofile = UNDEFINED);
 
 	//===== ASSIGN =====//
 	void assign_setup();
@@ -93,7 +93,6 @@ public:
 	void show_parameters();
 	void show_summary();
 	void show_group_classes();
-	void show_results();
 
 #ifdef USE_RCPP
 	//----- Rcpp imports -----//
@@ -110,6 +109,11 @@ public:
 	Rcpp::NumericMatrix export_loglike_matrix();
 
 #else
+	//----- cpp outputs -----//
+	void show_results();
+	void print_infer_state(const string &output_filename = UNDEFINED);
+	void print_augm_variables(const string &output_filename = UNDEFINED);
+#endif
 
 	//===== DATA =====//
 	double get_data(int h, int i, const string &dataID) const { return house[h].indiv[i].get_data(dataID); }
@@ -153,11 +157,6 @@ public:
 	virtual void init_model_for_simulation() {};
 	virtual void simulate_single_house(int h);
 	void simulate();
-
-	//----- Save outputs -----//
-	void print_infer_state(const string &output_filename = UNDEFINED);
-	void print_augm_variables(const string &output_filename = UNDEFINED);
-#endif
 
 private:
 	//===== Global Loglikelihood =====//

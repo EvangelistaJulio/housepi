@@ -10,6 +10,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <cmath>
 
@@ -428,6 +429,7 @@ public:
 					  const string &prior_name = UNDEFINED, const dictargs &prior_args = {},
 					  const string &rule_name = UNDEFINED, const dictargs &rule_args = {}, const dictargs &range = {});
 	void drop_all_params();
+	const double *assign_scalar_pointer(double new_val);
 
 	//===== Parallelization =====//
 	void set_num_threads(unsigned n = 1);
@@ -463,7 +465,8 @@ public:
 
 private:
 	//===== Internal Attributes =====//
-	std::unordered_map<string, Parameter> params = {}; // parameters dictionary
+	std::unordered_map<string, Parameter> params = {};	   // parameters dictionary
+	std::map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
 	double buffer_value = 0.0;								// buffer value of the current parameter
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter

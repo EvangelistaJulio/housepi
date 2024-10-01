@@ -25,6 +25,7 @@ bool stobool(const string &tkn);
 string string_cleaner(string tkn);
 
 #ifdef USE_RCPP
+void rlist_to_map(Rcpp::List list, std::map<string, string> &output);
 void rdataframe_to_map(Rcpp::DataFrame df, std::map<string, vector<string>> &output);
 #endif
 

@@ -25,17 +25,17 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* An internal check for string representing NA. */
-    bool is_na(const string &txt)
-    {
-        if ((txt == UNDEFINED) || (txt.size() == 0))
+        bool is_na(const string &txt)
         {
-            return true;
+            if ((txt == UNDEFINED) || (txt == "NA") || (txt.size() == 0))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        else
-        {
-            return false;
-        }
-    }
 
     /* Welford online algorithm for mean and variance. */
     void statistics(const vector<double> &data, double &avg, double &var)
@@ -108,7 +108,7 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void print_decorator(const string &title, char decor, const string &txt, bool verbose)
+    void print_decorator(const string &title, const string &txt, char decor, bool verbose)
     {
         if (verbose)
         {
@@ -218,11 +218,11 @@ namespace basics
                 _helper_stderr_(oss.str());
 
                 // adapt progressbar thinning
-                if (time_lastchecked < 900)
+                if (time_lastchecked < 925)
                 {
                     ++_ProgBar_Thin_;
                 }
-                else if (time_lastchecked > 1100)
+                else if (time_lastchecked > 1075)
                 {
                     --_ProgBar_Thin_;
                 }
@@ -364,7 +364,7 @@ void Base_Function::assign_args(dictargs dflt_args_val)
         if (it == _args_names_.end())
         {
             std::ostringstream oss;
-            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            oss << "Unknown argument '" << pair.first << "' for '" << get_name() << "'.";
             raise_error(oss.str());
         }
         else
@@ -383,7 +383,7 @@ void Base_Function::assign_args(dictargs_ptr dflt_args_ptr)
         if (it == _args_names_.end())
         {
             std::ostringstream oss;
-            oss << "Unknown argument `" << pair.first << "` for `" << get_name() << "`.";
+            oss << "Unknown argument '" << pair.first << "' for '" << get_name() << "'.";
             raise_error(oss.str());
         }
         else
@@ -408,7 +408,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             if (is_min)
             {
-                raise_error("Multiple definition for `min`.");
+                raise_error("Multiple definition for 'min'.");
             }
             else
             {
@@ -420,7 +420,7 @@ void Base_Function::set_range(dictargs new_range)
         {
             if (is_max)
             {
-                raise_error("Multiple definition for `max`.");
+                raise_error("Multiple definition for 'max'.");
             }
             else
             {
@@ -431,7 +431,7 @@ void Base_Function::set_range(dictargs new_range)
         else
         {
             std::ostringstream oss;
-            oss << "Invalid range keyword `" << x.first << "`. Provide only `min` and/or `max`.";
+            oss << "Invalid range keyword '" << x.first << "'. Provide only 'min' and/or 'max'.";
             raise_error(oss.str());
         }
     }
@@ -443,7 +443,7 @@ void Base_Function::set_range(dictargs new_range)
         if (is_min)
         {
             std::ostringstream oss;
-            oss << "Overwriting range min with argument min " << new_min << " in `" << get_name() << "`.";
+            oss << "Overwriting range min with argument min " << new_min << " in '" << get_name() << "'.";
             raise_warning(oss.str(), Unused_Range_Warning);
         }
         is_min = true;
@@ -454,23 +454,23 @@ void Base_Function::set_range(dictargs new_range)
         if (is_max)
         {
             std::ostringstream oss;
-            oss << "Overwriting range max with argument max " << new_max << " in `" << get_name() << "`.";
+            oss << "Overwriting range max with argument max " << new_max << " in '" << get_name() << "'.";
             raise_warning(oss.str(), Unused_Range_Warning);
         }
         is_max = true;
     }
 
     //----- Check compatibility with default range -----//
-    if (new_min < _range_min_)
+    if ((is_min) && (new_min < _range_min_))
     {
         std::ostringstream oss;
-        oss << "Invalid min value" << new_min << " for distribution `" << get_name() << "`.";
+        oss << "Invalid min value " << new_min << " for distribution '" << get_name() << "'.";
         raise_error(oss.str());
     }
-    if (new_max > _range_max_)
+    if ((is_max) && (new_max > _range_max_))
     {
         std::ostringstream oss;
-        oss << "Invalid max value" << new_max << " for distribution `" << get_name() << "`.";
+        oss << "Invalid max value" << new_max << " for distribution '" << get_name() << "'.";
         raise_error(oss.str());
     }
 
