@@ -211,7 +211,7 @@ namespace basics
 
                 std::ostringstream oss;
                 oss << "\r"
-                    << txt << ": [" << string(where, C_DECOR) << string(PROGBAR_WIDTH - where, '.') << "] "
+                    << txt << ": [" << string(where, C_PROG) << string(PROGBAR_WIDTH - where, '.') << "] "
                     << percent(progress, total)
                     << " " << format_millisecs(time_elapsed) << "<" << format_millisecs(time_missing)
                     << string(20, ' ');
@@ -245,7 +245,7 @@ namespace basics
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _ProgBar_Start_).count();
             std::ostringstream oss;
             oss << "\r"
-                << txt << ": [" << string(PROGBAR_WIDTH, C_DECOR) << "] "
+                << txt << ": [" << string(PROGBAR_WIDTH, C_PROG) << "] "
                 << format_millisecs(time_elapsed)
                 << string(25, ' ') << "\n";
             _helper_stderr_(oss.str());

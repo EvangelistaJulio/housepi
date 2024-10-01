@@ -3,12 +3,6 @@
 #
 # Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
 #
-  
-#################################
-#######  Global Variables #######
-#################################
-
-UNDEFINED <- "None"
 
 ###################################
 ####### Auxiliary Functions #######
@@ -24,31 +18,6 @@ get_usr_tmp_file <- function(hemi, name) {
   return(output)
 }
 
-
-# Create temporary csv file if input is a table (wrapper).
-# FIXME : this should be improved allowing dataframe I/O within Rcpp
-cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
-  options(scipen = 500)
-  if (is.character(input)) {
-    output <- input # in this case it is a path/to/file
-  } else if (is.data.frame(input)) {
-    output <- get_usr_tmp_file(hemi, name)
-    write.table(input, file = output,
-                row.names = FALSE, na = "", quote = FALSE, sep = ",")
-  } else if (is.list(input)) {
-    # note : a data.frame is a list in R
-    output <- get_usr_tmp_file(hemi, name)
-    my_table <- data.frame(k = names(input), v = unname(unlist(input)), 
-                           stringsAsFactors = FALSE)
-    write.table(my_table, file = output, col.names = FALSE, sep = ",",
-              row.names = FALSE, na = "", quote = FALSE)
-  } else {
-    stop(cli::format_error(paste0("Unrecognized input for ", name)))
-  }
-  options(scipen = 0)
-  return(output)
-}
-
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
@@ -57,17 +26,11 @@ cpp_csv_commuter <- function(hemi, input, name = UNDEFINED) {
 #' @param which default model name.
 #' @param path path where to copy implementation and header.
 #' @export
-template_model <- function(which = UNDEFINED, path = UNDEFINED) {
+template_model <- function(which = NULL, path = NULL) {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
-
-  # check if default exists
-  if (!is.character(which)) {
-    stop(cli::format_error(
-      c("Provided model is not a default model name.",
-      i = "To see the available default models, run: template_model()")))
-    
-  } else if (which == UNDEFINED) {
+  
+  if (is.null(which)) {
     cli::cli_alert_info("Default model names:")
     ulid <- cli::cli_ul()
     for (name in list.files(models_dir)) {
@@ -75,17 +38,17 @@ template_model <- function(which = UNDEFINED, path = UNDEFINED) {
     }
     cli::cli_end(ulid)
 
-  } else {
+  } else if (is.character(which)){
     if (which %in% list.files(models_dir)) {
       # create directory
-      if (path == UNDEFINED) {
+      if (is.null(path)) {
         new_dir <- file.path(getwd(), paste0("user_", which))
       } else {
         new_dir <- path
       }
 
       dir.create(new_dir, recursive = TRUE, showWarnings = TRUE)
-      if(!dir.exists(new_dir)) {
+      if (!dir.exists(new_dir)) {
         stop(cli::format_error(
           c("Impossibile to create a temporary directory for the model.",
           i = "Check your user permissions.")))
@@ -101,12 +64,16 @@ template_model <- function(which = UNDEFINED, path = UNDEFINED) {
     for (f in c("model.cpp", "model.h")) {
       from_file <- file.path(models_dir, which, f)
       to_file <- file.path(new_dir, f)
-      if(!file.copy(from_file, to_file, overwrite = TRUE)) {
+      if (!file.copy(from_file, to_file, overwrite = TRUE)) {
         stop(cli::format_error(
           c("Failed to setup internal files.",
           i = "Check your user permissions.")))
       }
     }
+  } else {
+    stop(cli::format_error(
+      c("Provided model is not a default model name.",
+      i = "To see the available default models, run: template_model()")))
   }
 }
 
@@ -115,10 +82,8 @@ template_model <- function(which = UNDEFINED, path = UNDEFINED) {
 #------------------------------------------------------------------------------#
 
 #' Generate a model
-#' 
 #' @description
 #' `generate_model` generates a model from a default or from a user script.
-#' 
 #' @param model a string.\itemize{
 #' \item default model name.
 #' \item path/to/folder with implementation model.cpp and header model.h.
@@ -267,26 +232,77 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
 
 #' Build model to run inference or simulation.
 #' @param hemi household model object.
-#' @param setup file path for the setup configurations.
-#' @param params file path for the model parameters.
-#' @param data file path for the input data.
-#' @param augm file path for augmented data.
-#' @param extra file path for any extra configurations.
-#' @param verbose boolean flag to suppress automatic prints.
+#' @param setup list or file path with the setup definitions
+#' @param params dataframe or file path with parameters definitions.
+#' @param data dataframe or file path with input data.
+#' @param augm dataframe or file with augmented variable definitions.
+#' @param verbose boolean flag for automatic prints.
 #' @export
 build_model <- function(hemi,
-                        setup = UNDEFINED,
-                        params = UNDEFINED,
-                        data = UNDEFINED,
-                        augm = UNDEFINED,
-                        extra = UNDEFINED,
+                        setup = NULL,
+                        params = NULL,
+                        data = NULL,
+                        augm = NULL,
                         verbose = FALSE) {
-  hemi$build(cpp_csv_commuter(hemi, setup, name = "setup"), 
-             cpp_csv_commuter(hemi, params, name = "params"),
-             cpp_csv_commuter(hemi, data, name = "data"), 
-             cpp_csv_commuter(hemi, augm, name = "augm"), 
-             cpp_csv_commuter(hemi, extra, name = "extra"), 
-             verbose)
+
+  #===== 1) SETUP =====#
+  if (is.null(setup)) {
+    hemi$read_setup(setup, verbose)
+
+  } else if (is.character(setup)) {
+    hemi$read_setup(setup, verbose)
+
+  } else if (is.data.frame(setup)) {
+    # FIXME
+
+  } else if (is.list(setup)) {
+    hemi$import_setup(setup, verbose)
+
+  } else {
+    stop(cli::format_error("Unrecognized input for setup."))
+  }
+
+  #===== 2) PARAMETERS =====#
+  if (is.character(params)) {
+    hemi$read_params(params, verbose)
+
+  } else if (is.data.frame(params)) {
+    hemi$import_params(params, verbose)
+
+  } else if (is.list(params)) {
+    # FIXME
+
+  } else {
+    stop(cli::format_error("Unrecognized input for params."))
+  }
+  
+  #===== 3) DATA =====#
+  if (is.character(data)) {
+    hemi$read_data(data, verbose)
+
+  } else if (is.data.frame(data)) {
+    hemi$import_data(data, verbose)
+
+  } else if (is.list(data)) {
+    # FIXME
+
+  } else {
+    stop(cli::format_error("Unrecognized input for data."))
+  }
+
+  #===== 4) AUGMENTED VARIABLES =====#
+  if (is.character(augm)) {
+    hemi$read_augm(augm, verbose)
+
+  } else if (is.data.frame(augm)) {
+    hemi$import_augm(augm, verbose)
+
+  } else if (is.list(augm)) {
+    # FIXME
+
+  } else {
+    stop(cli::format_error("Unrecognized input for augm."))
+  }
 }
 
 #' Run the inference.

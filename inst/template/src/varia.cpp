@@ -196,7 +196,7 @@ void Monte_Carlo_Core::drop_all_params()
 }
 
 /* Assign a new parameter to the dictionary. */
-void Monte_Carlo_Core::assign_parameter(
+void Monte_Carlo_Core::assign_param(
     const string &parID, double new_val,
     const string &prior_name, const dictargs &prior_args,
     const string &rule_name, const dictargs &rule_args, const dictargs &range)

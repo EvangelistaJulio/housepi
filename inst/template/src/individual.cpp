@@ -8,6 +8,12 @@
 
 using basics::raise_error;
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Unknown_Status_Warning = false; // unknown status
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -22,14 +28,40 @@ using basics::raise_error;
 /* Constructor with a database row. */
 Individual::Individual(dictargs new_data)
 {
-	// associate status if provided
+	// associate index
 	if (new_data.find("status") == new_data.end())
 	{
-		status = MISSING_STATUS;
+		basics::raise_error("Class Individual requires an index");
 	}
 	else
 	{
-		status = new_data.at("status");
+		set_index(new_data.at("index"));
+	}
+
+	// associate status if provided
+	if (new_data.find("status") == new_data.end())
+	{
+		set_status(MISSING_STATUS);
+	}
+	else
+	{
+		int new_status = new_data.at("status");
+
+		//----- Check for the validity of the status -----//
+		if (VALID_STATUS.find(new_status) == VALID_STATUS.end())
+		{
+			set_status(MISSING_STATUS);
+
+			std::ostringstream oss;
+			oss << "Status `" << new_status << "` of individual `" << get_index() << "` interpreted as missing."
+				<< " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
+				<< " Use " << MISSING_STATUS << " for missing status.";
+			basics::raise_warning(oss.str(), Unknown_Status_Warning);
+		}
+		else
+		{
+			status = new_status;
+		}
 	}
 
 	data = new_data;

@@ -15,7 +15,6 @@ using namespace basics;
 bool Param_Infer_Fixed_Move_Warning = false;
 bool Non_Specified_Type_Warning = false;
 bool Non_Specified_Value_Warning = false;
-bool Unknown_Status_Warning = false;       // unknown status
 bool Fix_Init_Mult_Chains_Warning = false; // fixed paramter values when multiple chains
 bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
 bool Unknown_Household_Data_Structure_Warning = false;
@@ -40,175 +39,203 @@ const string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+void MCMC::show_build_details()
+{
+    //----- SETUP -----//
+    string add_file_info = UNDEFINED;
+    if (report_pathtofile.find("setup") != report_pathtofile.end())
+    {
+        if (!is_na(report_pathtofile.at("setup")))
+        {
+            add_file_info = ">>> import: " + report_pathtofile.at("setup");
+        }
+    }
+    print_decorator("Setup", add_file_info);
+    show_setup();
+
+    //----- PARAMETERS -----//
+    add_file_info = UNDEFINED;
+    if (report_pathtofile.find("params") != report_pathtofile.end())
+    {
+        if (!is_na(report_pathtofile.at("params")))
+        {
+            add_file_info = ">>> import: " + report_pathtofile.at("params");
+        }
+    }
+    print_decorator("Parameters", add_file_info);
+    show_parameters();
+
+    //----- DATABASE -----//
+    add_file_info = UNDEFINED;
+    if (report_pathtofile.find("data") != report_pathtofile.end())
+    {
+        if (!is_na(report_pathtofile.at("data")))
+        {
+            add_file_info = ">>> import: " + report_pathtofile.at("data");
+        }
+    }
+    print_decorator("Database", add_file_info);
+    show_summary();
+    show_group_classes();
+
+    //----- AUGMENTED -----//
+    if (report_pathtofile.find("augm") != report_pathtofile.end())
+    {
+        if (!is_na(report_pathtofile.at("augm")))
+        {
+            add_file_info = ">>> import: " + report_pathtofile.at("augm");
+        }
+    }
+    print_decorator("Augmented", add_file_info);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Read Setup file */
-void MCMC::build_setup(const string &pathtofile, bool verbose)
+/* Read Setup file and produce a definition list. */
+void MCMC::read_setup(const string &pathtofile)
+{
+    read_csv_list(pathtofile, _setup_deflist_);
+    assign_setup();
+    report_pathtofile["setup"] = pathtofile;
+}
+
+#ifdef USE_RCPP
+void MCMC::import_setup(Rcpp::List setup)
+{
+    rlist_to_map(setup, _setup_deflist_);
+    assign_setup();
+    if (report_pathtofile.find("setup") == report_pathtofile.end())
+    {
+        report_pathtofile.erase("setup");
+    }
+}
+#endif
+
+/* Assign setup. */
+void MCMC::assign_setup()
 {
     // default number of threads
     unsigned num_threads = 1;
 
-    if (is_na(pathtofile))
+    if (!_setup_deflist_.empty())
     {
-        print_decorator("Setup", C_DECOR, UNDEFINED, verbose);
-    }
-    else
-    {
-        std::ifstream input(pathtofile.c_str());
-
-        if (input.is_open())
+        //===== Check that all provided setups are correct =====//
+        vector<string> file_entries = {"num_threads", "seed", "num_chains",
+                                       "num_iter", "num_adapt", "thinning",
+                                       "burn_in", "rnd_init_params",
+                                       "num_rungs", "inv_temper"};
+        vector<string> wrong_entries = {};
+        for (const auto &pair : _setup_deflist_)
         {
-            print_decorator("Setup", C_DECOR, "import: " + pathtofile, verbose);
-
-            // Create a stringstream of the current line
-            ssargs safe_load = {};
-            for (string line; getline(input, line);)
+            if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
             {
-                string name, choice;
-                std::istringstream iss(line);
-
-                //===== NAME =====//
-                if (!getline(iss, name, C_DELIM))
-                {
-                    raise_error("Unable to extract setup entry. Check file line: " + line);
-                }
-
-                //===== CHOICE =====//
-                if (!getline(iss, choice))
-                {
-                    raise_error("Unable to extract setup choice. Check file line: " + line);
-                }
-
-                // add the new setup
-                safe_load.emplace(string_cleaner(name), string_cleaner(choice));
-            }
-
-            //---- Check that all provided setups are correct -----//
-            vector<string> file_entries = {
-                "num_threads", "seed", "num_chains",
-                "num_iter", "num_adapt", "thinning",
-                "burn_in", "rnd_init_params",
-                "num_rungs", "inv_temper"};
-
-            vector<string> wrong_entries = {};
-            for (const auto &pair : safe_load)
-            {
-                if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
-                {
-                    wrong_entries.push_back(pair.first);
-                }
-            }
-            if (wrong_entries.size() > 0)
-            {
-                std::ostringstream oss;
-                oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
-                for (size_t k = 1; k < wrong_entries.size(); ++k)
-                {
-                    oss << ", `" << wrong_entries[k] << "`";
-                }
-                oss << ". Available setup options are: `" << file_entries[0] << "`";
-                for (size_t k = 1; k < file_entries.size(); ++k)
-                {
-                    oss << ", `" << file_entries[k] << "`";
-                }
-                raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
-            }
-
-            //===== NUMBER OF THREADS =====//
-            if (safe_load.find("num_threads") != safe_load.end())
-            {
-                num_threads = std::stoi(safe_load.at("num_threads"));
-            }
-
-            //===== PRNG SEED =====//
-            if ((safe_load.find("seed") != safe_load.end()) && (!is_na(safe_load.at("seed"))))
-            {
-                setup_seed = std::stoull(safe_load.at("seed"));
-            }
-
-            //===== NUMBER OF CHAINS =====//
-            if (safe_load.find("num_chains") != safe_load.end())
-            {
-                setup_num_chains = std::stoul(safe_load.at("num_chains"));
-                if (setup_num_iter < 1)
-                {
-                    raise_error(
-                        "number of chains must be greater than 0. Check your setup.");
-                }
-            }
-
-            //===== NUMBER OF ITERATIONS =====//
-            if (safe_load.find("num_iter") != safe_load.end())
-            {
-                setup_num_iter = std::stoul(safe_load.at("num_iter"));
-                if (setup_num_iter < 2)
-                {
-                    raise_error(
-                        "number of iterations must be greater than 1. Check your setup.");
-                }
-            }
-
-            //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-            if (safe_load.find("num_adapt") != safe_load.end())
-            {
-                setup_num_adapt = std::stoul(safe_load.at("num_adapt"));
-            }
-
-            //===== THINNING =====//
-            if (safe_load.find("thinning") != safe_load.end())
-            {
-                setup_thinning = std::stoul(safe_load.at("thinning"));
-                if (setup_thinning >= setup_num_iter)
-                {
-                    raise_error(
-                        "thinning must be smaller than number of iterations. Check your setup.");
-                }
-                else if (setup_thinning == 0)
-                {
-                    raise_error(
-                        "thinning must be greater than 0. Check your setup.");
-                }
-            }
-
-            //===== BURN-IN =====//
-            if (safe_load.find("burn_in") != safe_load.end())
-            {
-                setup_burn_in = std::stoul(safe_load.at("burn_in"));
-                if (setup_burn_in >= setup_num_iter)
-                {
-                    raise_error(
-                        "burn-in must be smaller than number of iterations. Check your setup.");
-                }
-            }
-
-            //===== RANDOM INITIALIZATION OF PARAMETERS =====//
-            if (safe_load.find("rnd_init_params") != safe_load.end())
-            {
-                setup_rnd_init_params = stobool(safe_load.at("rnd_init_params"));
-                if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
-                {
-                    raise_warning("Unable to fix initial parameters when running multiple chains.",
-                                  Fix_Init_Mult_Chains_Warning);
-                    setup_rnd_init_params = true;
-                }
-            }
-
-            //===== INVERSE TEMPERATURE =====//
-            if (safe_load.find("inv_temper") != safe_load.end())
-            {
-                setup_inv_T = std::stod(safe_load.at("inv_temper"));
-                if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
-                {
-                    raise_error(
-                        "Inverse temperature " + std::to_string(setup_inv_T) + " out of range [0, 1]. Check your setup.");
-                }
+                wrong_entries.push_back(pair.first);
             }
         }
-        else
+        if (wrong_entries.size() > 0)
         {
-            raise_error("Impossible to open setup file `" + pathtofile + "`.");
+            std::ostringstream oss;
+            oss << "Unknown setup option(s): `" << wrong_entries[0] << "`";
+            for (size_t k = 1; k < wrong_entries.size(); ++k)
+            {
+                oss << ", `" << wrong_entries[k] << "`";
+            }
+            oss << ". Available setup options are: `" << file_entries[0] << "`";
+            for (size_t k = 1; k < file_entries.size(); ++k)
+            {
+                oss << ", `" << file_entries[k] << "`";
+            }
+            raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
+        }
+
+        //===== ASSIGN SETUP CONFIGURATIONS =====//
+
+        //===== NUMBER OF THREADS =====//
+        if (_setup_deflist_.find("num_threads") != _setup_deflist_.end())
+        {
+            num_threads = std::stoi(_setup_deflist_.at("num_threads"));
+        }
+
+        //===== PRNG SEED =====//
+        if ((_setup_deflist_.find("seed") != _setup_deflist_.end()) && (!is_na(_setup_deflist_.at("seed"))))
+        {
+            setup_seed = std::stoull(_setup_deflist_.at("seed"));
+        }
+
+        //===== NUMBER OF CHAINS =====//
+        if (_setup_deflist_.find("num_chains") != _setup_deflist_.end())
+        {
+            setup_num_chains = std::stoul(_setup_deflist_.at("num_chains"));
+            if (setup_num_iter < 1)
+            {
+                raise_error("Number of chains must be greater than 0.");
+            }
+        }
+
+        //===== NUMBER OF ITERATIONS =====//
+        if (_setup_deflist_.find("num_iter") != _setup_deflist_.end())
+        {
+            setup_num_iter = std::stoul(_setup_deflist_.at("num_iter"));
+            if (setup_num_iter < 2)
+            {
+                raise_error("Number of iterations must be greater than 1.");
+            }
+        }
+
+        //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
+        if (_setup_deflist_.find("num_adapt") != _setup_deflist_.end())
+        {
+            setup_num_adapt = std::stoul(_setup_deflist_.at("num_adapt"));
+        }
+
+        //===== THINNING =====//
+        if (_setup_deflist_.find("thinning") != _setup_deflist_.end())
+        {
+            setup_thinning = std::stoul(_setup_deflist_.at("thinning"));
+            if (setup_thinning >= setup_num_iter)
+            {
+                raise_error("Thinning must be smaller than number of iterations. ");
+            }
+            else if (setup_thinning == 0)
+            {
+                raise_error("Thinning must be greater than 0.");
+            }
+        }
+
+        //===== BURN-IN =====//
+        if (_setup_deflist_.find("burn_in") != _setup_deflist_.end())
+        {
+            setup_burn_in = std::stoul(_setup_deflist_.at("burn_in"));
+            if (setup_burn_in >= setup_num_iter)
+            {
+                raise_error("Burn-in must be smaller than number of iterations.");
+            }
+        }
+
+        //===== RANDOM INITIALIZATION OF PARAMETERS =====//
+        if (_setup_deflist_.find("rnd_init_params") != _setup_deflist_.end())
+        {
+            setup_rnd_init_params = stobool(_setup_deflist_.at("rnd_init_params"));
+            if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
+            {
+                raise_warning("Unable to fix initial parameters when running multiple chains.",
+                              Fix_Init_Mult_Chains_Warning);
+                setup_rnd_init_params = true;
+            }
+        }
+
+        //===== INVERSE TEMPERATURE =====//
+        if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
+        {
+            setup_inv_T = std::stod(_setup_deflist_.at("inv_temper"));
+            if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
+            {
+                std::ostringstream oss;
+                oss << "Inverse temperature " << setup_inv_T << " out of range [0, 1]. Check your setup.";
+                raise_error(oss.str());
+            }
         }
     }
 
@@ -224,13 +251,6 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
     _thin_sweeps_ += setup_burn_in / setup_thinning;
     _thin_sweeps_ += (setup_num_iter - setup_burn_in) / setup_thinning;
     _thin_sweeps_ *= setup_num_chains;
-
-    //===== Display =====//
-    if (verbose)
-    {
-        print_decorator("Setup::definitions", '-');
-        show_setup();
-    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -244,10 +264,30 @@ void MCMC::build_setup(const string &pathtofile, bool verbose)
 //////////////////////////////////  MCMC : build parameters  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Read model parameter file and build paramerter dictionary. */
-void MCMC::build_parameters(const string &pathtofile, bool verbose)
+/* Read parameter definitions and run assignment. */
+void MCMC::read_parameters(const string &pathtofile)
 {
-    if (is_na(pathtofile))
+    read_csv_table(pathtofile, _param_deftable_, param_file_headers);
+    assign_parameters();
+    report_pathtofile["params"] = pathtofile;
+}
+
+#ifdef USE_RCPP
+void MCMC::import_params(Rcpp::DataFrame params)
+{
+    rdataframe_to_map(params, _param_deftable_);
+    assign_parameters();
+    if (report_pathtofile.find("params") == report_pathtofile.end())
+    {
+        report_pathtofile.erase("params");
+    }
+}
+#endif
+
+/* Assign parameter definitions to dictionary. */
+void MCMC::assign_parameters()
+{
+    if (_param_deftable_.empty())
     {
         // error if nothing was previously defined
         if (param_to_be_static.empty() && param_to_be_inferred.empty())
@@ -257,62 +297,43 @@ void MCMC::build_parameters(const string &pathtofile, bool verbose)
     }
     else
     {
-        // open input file stream
-        std::ifstream input(pathtofile.c_str());
+        //===== Read Parameter Definitions =====//
+        size_t table_length = _param_deftable_.at("infer").size();
 
-        if (input.is_open())
+        //===== Empty current list of parameters =====//
+        drop_all_params();
+
+        //===== Load parameters from the row with options =====//
+        for (size_t p = 0; p < table_length; ++p)
         {
-            print_decorator("Parameters", C_DECOR, "import: " + pathtofile, verbose);
-
-            //===== Load column headers =====//
-            vector<string> headers = read_column_headers(input, pathtofile, param_file_headers);
-
-            //===== Empty current list of parameters =====//
-            drop_all_params();
-
-            //===== Load parameters from the row with options =====//
-            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
+            // add entry to shared parameter dictionary
+            if (stobool(_param_deftable_.at("infer")[p]))
             {
-                // add entry to shared parameter dictionary
-                if (stobool(this_row["infer"]))
+                // load range
+                dictargs range = {};
+                if (!is_na(_param_deftable_.at("min")[p]))
                 {
-                    // load range
-                    dictargs range = {};
-                    if (!is_na(this_row["min"]))
-                    {
-                        range.emplace("min", std::stod(this_row["min"]));
-                    }
-                    if (!is_na(this_row["max"]))
-                    {
-                        range.emplace("max", std::stod(this_row["max"]));
-                    }
+                    range.emplace("min", std::stod(_param_deftable_.at("min")[p]));
+                }
+                if (!is_na(_param_deftable_.at("max")[p]))
+                {
+                    range.emplace("max", std::stod(_param_deftable_.at("max")[p]));
+                }
 
-                    // assign parameter to the set of variables
-                    assign_parameter(
-                        this_row["name"],
-                        std::stod(this_row["value"]),
-                        this_row["prior"],
-                        merge_list_args(this_row["args"], this_row["argsval"]),
-                        this_row["rule"],
-                        merge_list_args(this_row["rargs"], this_row["rargsval"]),
-                        range);
-                }
-                else
-                {
-                    assign_parameter(this_row["name"], stod(this_row["value"]));
-                }
+                // assign parameter to the set of variables
+                assign_param(
+                    _param_deftable_.at("name")[p],
+                    std::stod(_param_deftable_.at("value")[p]),
+                    _param_deftable_.at("prior")[p],
+                    merge_list_args(_param_deftable_.at("args")[p], _param_deftable_.at("argsval")[p]),
+                    _param_deftable_.at("rule")[p],
+                    merge_list_args(_param_deftable_.at("rargs")[p], _param_deftable_.at("rargsval")[p]),
+                    range);
             }
-
-            //===== Show a summary of the used parameters =====//
-            if (verbose)
+            else
             {
-                print_decorator("Parameters::definitions", '-');
-                show_parameters();
+                assign_param(_param_deftable_.at("name")[p], stod(_param_deftable_.at("value")[p]));
             }
-        }
-        else
-        {
-            raise_error("Impossible to open parameter file `" + pathtofile + "`.");
         }
     }
 }
@@ -328,18 +349,125 @@ void MCMC::build_parameters(const string &pathtofile, bool verbose)
 ////////////////////////////////////  MCMC : build data  //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign group rate to an individual  */
-void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
+/* Read data file and then run assignment. */
+void MCMC::read_data(const string &pathtofile)
 {
-    // this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
-    UNUSED(this_indiv);
+    std::map<string, vector<string>> datatable = {};
+    read_csv_table(pathtofile, datatable);
+    assign_data(datatable);
+
+    report_pathtofile["data"] = pathtofile;
 }
 
-/* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
+#ifdef USE_RCPP
+/* Import data from R DataFrame and then run assignment. */
+void MCMC::import_data(Rcpp::DataFrame data)
 {
-    house[h].assign_rate_per_contact(from, to, EMPTY_RATE);
+    std::map<string, vector<string>> datatable = {};
+    rdataframe_to_map(data, datatable);
+    assign_data(datatable);
+    if (report_pathtofile.find("data") == report_pathtofile.end())
+    {
+        report_pathtofile.erase("data");
+    }
 }
+#endif
+
+/* Assign data after pre-processing. */
+void MCMC::assign_data(std::map<string, vector<string>> &datatable)
+{
+    if (datatable.empty())
+    {
+        // If nothing was previously defined
+        if (house.empty())
+        {
+            raise_error("No database was found.");
+        }
+    }
+    else
+    {
+        //=====  Drop all Previous Data and Prepare for New  =====//
+        _data_headers_.clear();
+        for (const auto &x : datatable)
+        {
+            _data_headers_.push_back(x.first);
+        }
+        num_indiv = datatable.at(_data_headers_[0]).size();
+        num_house = 0;
+        house.clear();
+        report_group_classes.clear();
+
+        //===== Assess the presence of indexes =====//
+        bool is_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "index") != _data_headers_.end());
+        bool is_house_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "house_index") != _data_headers_.end());
+        if (!is_house_index)
+        {
+            std::ostringstream oss;
+            oss << "Impossible to associate a household structure: missing data column `house_index`."
+                << " If it was intentional, ignore this message.";
+            raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
+        }
+
+        //===== Safe Load of Households =====//
+        std::unordered_map<int, int> aux_hh_idx = {};
+        for (int i = 0; i < num_indiv; ++i)
+        {
+            dictargs args = {};
+            for (const string &key : _data_headers_)
+            {
+                args.emplace(key, stod(datatable.at(key)[i]));
+            }
+            if (!is_index)
+            {
+                args.emplace("index", i);
+            }
+
+            Individual this_indiv(args);
+
+            //----- Assign and set rate per group -----//
+            set_rate_per_group(this_indiv);
+
+            // user provided structure or no structure
+            int hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_house;
+
+            // if household index doesn't exist, add new household
+            // note : this is redundant if no structure
+            if (aux_hh_idx.find(hh_idx) == aux_hh_idx.end())
+            {
+                house.emplace_back();                  // add a new empty household
+                house[num_house].set_index(hh_idx);    // associate its index
+                aux_hh_idx.emplace(hh_idx, num_house); // map index to household number
+                ++num_house;                           // increment household number
+            }
+            house[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
+        }
+
+        //===== Set Contact Rates =====//
+        for (int h = 0; h < num_house; ++h)
+        {
+            set_rate_per_contact(h);
+        }
+
+        //===== Update Report for Data =====//
+        update_report_data();
+
+        //===== Clean up data entries for output files =====//
+        // eventually remove standard headers to reorder them at the end
+        for (const string &col : {"house_index", "index", "status"})
+        {
+            _data_headers_.erase(
+                std::remove(_data_headers_.begin(), _data_headers_.end(), col),
+                _data_headers_.end());
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 /* Use the loaded data to fill-in the respective report. */
 void MCMC::update_report_data()
@@ -403,147 +531,22 @@ void MCMC::update_report_data()
     }
 }
 
-/* Read data file and pre-process the data. */
-void MCMC::build_data(const string &pathtofile, bool verbose)
-{
-    // define valid status set
-    std::set<int> valid_statuses = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
-    // define standard headers set
-    std::set<string> standard_headers = {"house_index", "index", "status"};
-
-    if (is_na(pathtofile))
-    {
-        // error if nothing was previously defined
-        if (house.empty())
-        {
-            raise_error("Undefined database.");
-        }
-    }
-    else
-    {
-        // open input file stream
-        std::ifstream input(pathtofile.c_str());
-
-        if (input.is_open())
-        {
-            print_decorator("Database", C_DECOR, "import: " + pathtofile, verbose);
-
-            //===== Load Column Headers =====//
-            _data_headers_ = read_column_headers(input, pathtofile, {});
-
-            // boolean to assess the presence of indexes
-            bool is_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "index") != _data_headers_.end());
-            bool is_house_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "house_index") != _data_headers_.end());
-
-            if (!is_house_index)
-            {
-                std::ostringstream oss;
-                oss << "Impossible to associate a household structure: missing data column `house_index`."
-                    << " If it was intentional, ignore this message.";
-                raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
-            }
-
-            //===== Drop all previous data =====//
-            num_indiv = 0;
-            num_house = 0;
-            house.clear();
-            report_group_classes.clear();
-
-            //===== Load individuals from the row with values =====//
-
-            vector<Individual> aux_individuals = {};
-            for (ssargs this_row = {}; read_row_by_headers(input, _data_headers_, this_row); this_row.clear())
-            {
-                dictargs args = row_to_dictargs(this_row);
-                Individual this_indiv(args);
-                // associate data index or default provided index
-                this_indiv.set_index((is_index) ? args.at("index") : num_indiv);
-
-                assign_rate_per_group_to_individual(this_indiv);
-                set_rate_per_group(this_indiv);
-                aux_individuals.push_back(this_indiv);
-                ++num_indiv;
-
-                //===== Check for the validity of the status =====//
-                if (valid_statuses.find(this_indiv.get_status()) == valid_statuses.end())
-                {
-                    this_indiv.set_status(MISSING_STATUS);
-
-                    std::ostringstream oss;
-                    oss << "Status `" << this_indiv.get_status() << "` of individual `" << this_indiv.get_index() << "` interpreted as missing."
-                        << " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
-                        << " Use " << MISSING_STATUS << " for missing status.";
-                    raise_warning(oss.str(), Unknown_Status_Warning);
-                }
-            }
-
-            //===== Safe Load of Households =====//
-            int hh_idx;
-            std::unordered_map<int, int> aux_hh_idx = {};
-            for (Individual this_indiv : aux_individuals)
-            {
-                // user provided structure or no structure
-                hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_house;
-
-                // if household index doesn't exist, add new household
-                // note : this is redundant if no structure
-                if (aux_hh_idx.find(hh_idx) == aux_hh_idx.end())
-                {
-                    house.emplace_back();                  // add a new empty household
-                    house[num_house].set_index(hh_idx);   // associate its index
-                    aux_hh_idx.emplace(hh_idx, num_house); // map index to household number
-                    ++num_house;                           // increment household number
-                }
-                house[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
-            }
-
-            //===== Set Contact Rates =====//
-            for (int h = 0; h < num_house; ++h)
-            {
-                set_rate_per_contact(h);
-            }
-
-            //===== Update Report for Data =====//
-            update_report_data();
-
-            //===== Display Database and Model Reports =====//
-            if (verbose)
-            {
-                print_decorator("Database::summary", '-');
-                show_summary();
-                show_group_classes();
-            }
-
-            //===== Clean up data entries for output files =====//
-            // eventually remove standard headers to reorder them at the end
-            for (const string &col : standard_headers)
-            {
-                _data_headers_.erase(
-                    std::remove(_data_headers_.begin(), _data_headers_.end(), col),
-                    _data_headers_.end());
-            }
-        }
-        else
-        {
-            raise_error("Impossible to open data file `" + pathtofile + "`.");
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : set rate per group  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Assign group rate to an individual  */
+void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
+{
+    // this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
+    UNUSED(this_indiv);
+}
+
 /* Update model report and set group rates associate to new individual. */
 void MCMC::set_rate_per_group(Individual &this_indiv)
 {
+    assign_rate_per_group_to_individual(this_indiv);
+
     for (const auto &which : this_indiv.which_rate)
     {
         string rateID = which.first;
@@ -558,20 +561,9 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         string parID = which.second;
 
         //=====initialize model report=====//
-        if (num_indiv == 0)
-        {
-            // if first individual, initialize rateID-report
-            report_group_classes.emplace(rateID, std::map<string, int>());
-            report_group_classes.at(rateID).emplace("[reference]", 0);
-        }
-        else
-        {
-            // all individuals must have the same set of rates of first individual
-            if (report_group_classes.find(rateID) == report_group_classes.end())
-            {
-                raise_error("Group rate `" + rateID + "` has not been provided for all individuals.");
-            }
-        }
+        // if first individual, initialize rateID-report
+        report_group_classes.emplace(rateID, std::map<string, int>());
+        report_group_classes.at(rateID).emplace("[reference]", 0);
 
         //=====set rates and update report=====//
         if (is_na(parID))
@@ -607,6 +599,12 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign the contact patterns between a couple of individuals. */
+void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
+{
+    house[h].assign_rate_per_contact(from, to, EMPTY_RATE);
+}
 
 /* Set contact rate according to user assignement. */
 void MCMC::set_rate_per_contact(int h)
@@ -669,6 +667,161 @@ void MCMC::set_rate_per_contact(int h)
 
                 // count the total number of pairs
                 ++_n_contacts_;
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  MCMC : build augmented  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Model Augmented Variable file */
+void MCMC::read_augmented(const string &pathtofile)
+{
+    const vector<string> augm_file_headers = {
+        "name", "value", "valuetype",
+        "model", "args", "argsval", "argstype", "rule",
+        "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
+        "min", "mintype", "max", "maxtype", "init_rand"};
+
+    read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
+    assign_augmented();
+    report_pathtofile["augm"] = pathtofile;
+}
+
+#ifdef USE_RCPP
+/* Import data from R DataFrame and then run assignment. */
+void MCMC::import_augm(Rcpp::DataFrame augm)
+{
+    rdataframe_to_map(augm, _augm_deftable_);
+    assign_data();
+    if (report_pathtofile.find("augm") == report_pathtofile.end())
+    {
+        report_pathtofile.erase("augm");
+    }
+}
+#endif
+
+/* Assign augmented variables to all individuals. */
+void MCMC::assign_augmented()
+{
+    if (!_augm_deftable_.empty())
+    {
+        size_t table_length = _augm_deftable_.at("name").size();
+
+        //===== Drop previous definitions =====//
+        augm_full_set.clear();
+        augm_to_be_inferred.clear();
+        augm_with_model_set.clear();
+        augm_rand_init_set.clear();
+
+        //===== Augmented variables lists of usage =====//
+        for (size_t a = 0; a < table_length; ++a)
+        {
+            string augmID = _augm_deftable_.at("name")[a];
+            bool is_init_rand = false;
+
+            if (is_na(augmID))
+            {
+                std::ostringstream oss;
+                oss << "Augmented variable name can not be undefined.";
+                raise_error(oss.str());
+            }
+            else if (augm_full_set.find(augmID) == augm_full_set.end())
+            {
+                augm_full_set.emplace(augmID);
+            }
+            else
+            {
+                std::ostringstream oss;
+                oss << "Ambigous definitions for augmented variable `" << augmID << "`."
+                    << " Check your augmented variable file.";
+                raise_error(oss.str());
+            }
+
+            if (!is_na(_augm_deftable_.at("init_rand")[a]))
+            {
+                is_init_rand = stobool(_augm_deftable_.at("init_rand")[a]);
+            }
+
+            // list of augmented variables to be inferred
+            if (!is_na(_augm_deftable_.at("rule")[a]))
+            {
+                augm_to_be_inferred.emplace(augmID);
+            }
+
+            // list of augmented variables with a model
+            // note: no contribution of constant variables to Metropolis
+            if (is_na(_augm_deftable_.at("model")[a]))
+            {
+                if (is_init_rand)
+                {
+                    raise_error("Unknown random initialization without a model for `" + augmID + "`.");
+                }
+            }
+            else
+            {
+                augm_with_model_set.emplace(augmID);
+
+                if (is_init_rand)
+                {
+                    augm_rand_init_set.emplace(augmID);
+                }
+            }
+        }
+        _is_data_augm_ = !augm_to_be_inferred.empty();
+
+        //===== Eventually assign augmented variables to each individual =====//
+        if (table_length > 0)
+        {
+            for (int h = 0; h < num_house; ++h)
+            {
+                for (int i = 0; i < house[h].house_size; ++i)
+                {
+                    for (size_t a = 0; a < table_length; ++a)
+                    {
+                        // load range
+                        dictargs range = {};
+                        double aux_min = type_to_double(_augm_deftable_.at("min")[a],
+                                                        _augm_deftable_.at("mintype")[a], h, i);
+                        if (aux_min != INF_DOUBLE)
+                        {
+                            range.emplace("min", aux_min);
+                        }
+
+                        double aux_max = type_to_double(_augm_deftable_.at("max")[a],
+                                                        _augm_deftable_.at("maxtype")[a], h, i);
+                        if (aux_max != INF_DOUBLE)
+                        {
+                            range.emplace("max", aux_max);
+                        }
+
+                        // assign augmented variable
+                        house[h].indiv[i].assign_augm(
+                            _augm_deftable_.at("name")[a],
+                            type_to_double(_augm_deftable_.at("value")[a],
+                                           _augm_deftable_.at("valuetype")[a], h, i),
+                            _augm_deftable_.at("model")[a],
+                            typedict_to_sdargs_ext(_augm_deftable_.at("args")[a],
+                                                   _augm_deftable_.at("argsval")[a],
+                                                   _augm_deftable_.at("argstype")[a], h, i),
+                            _augm_deftable_.at("rule")[a],
+                            typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
+                                               _augm_deftable_.at("rargsval")[a],
+                                               _augm_deftable_.at("rargstype")[a], h, i),
+                            range,
+                            type_to_double(_augm_deftable_.at("rfrom")[a],
+                                           _augm_deftable_.at("rfromtype")[a], h, i));
+                    }
+                }
             }
         }
     }
@@ -848,195 +1001,4 @@ dictargs_ptr MCMC::typedict_to_sdargs_ext(const string tkn_key, const string tkn
     }
 
     return output;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : build augmented  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Model Augmented Variable file */
-void MCMC::build_augmented(const string &pathtofile, bool verbose)
-{
-    if (!is_na(pathtofile))
-    {
-        std::ifstream input(pathtofile.c_str());
-        const vector<string> required_headers = {
-            "name", "value", "valuetype",
-            "model", "args", "argsval", "argstype", "rule",
-            "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
-            "min", "mintype", "max", "maxtype", "init_rand"};
-
-        if (input.is_open())
-        {
-            print_decorator("Augmented", C_DECOR, "import: " + pathtofile, verbose);
-
-            //===== Load column headers =====//
-            vector<string> headers = read_column_headers(input, pathtofile, required_headers);
-
-            //===== Load augmented from the row with options =====//
-            load_augm_definition.clear();
-            augm_full_set.clear();
-            augm_to_be_inferred.clear();
-            augm_with_model_set.clear();
-            augm_rand_init_set.clear();
-            for (ssargs this_row = {}; read_row_by_headers(input, headers, this_row); this_row.clear())
-            {
-                load_augm_definition.push_back(this_row);
-            }
-
-            assign_augmented_variables();
-        }
-        else
-        {
-            raise_error("Impossible to open augmented file `" + pathtofile + "`.");
-        }
-    }
-}
-
-/* Assign augmented variables to all individuals. */
-void MCMC::assign_augmented_variables()
-{
-    // load the definitions of agumetned variablews and define lists of usage
-    for (ssargs loader : load_augm_definition)
-    {
-        string augmID = loader.at("name");
-        bool is_init_rand = false;
-
-        if (is_na(loader.at("name")))
-        {
-            std::ostringstream oss;
-            oss << "Augmented variable name can not be undefined.";
-            raise_error(oss.str());
-        }
-        else if (augm_full_set.find(augmID) == augm_full_set.end())
-        {
-            augm_full_set.emplace(augmID);
-        }
-        else
-        {
-            std::ostringstream oss;
-            oss << "Ambigous definitions for augmented variable `" << augmID << "`."
-                << " Check your augmented variable file.";
-            raise_error(oss.str());
-        }
-
-        if (!is_na(loader.at("init_rand")))
-        {
-            is_init_rand = stobool(loader.at("init_rand"));
-        }
-
-        // list of augmented variables to be inferred
-        if (!is_na(loader.at("rule")))
-        {
-            augm_to_be_inferred.emplace(augmID);
-        }
-
-        // list of augmented variables with a model
-        // note: no contribution of constant variables to Metropolis
-        if (is_na(loader.at("model")))
-        {
-            if (is_init_rand)
-            {
-                raise_error("Unknown random initialization without a model for `" + augmID + "`.");
-            }
-        }
-        else
-        {
-            augm_with_model_set.emplace(augmID);
-
-            if (is_init_rand)
-            {
-                augm_rand_init_set.emplace(augmID);
-            }
-        }
-    }
-    _is_data_augm_ = !augm_to_be_inferred.empty();
-
-    //===== Eventually assign augmented variables to each individual =====//
-    if (!load_augm_definition.empty())
-    {
-        for (int h = 0; h < num_house; ++h)
-        {
-            for (int i = 0; i < house[h].house_size; ++i)
-            {
-                for (ssargs loader : load_augm_definition)
-                {
-                    // load range
-                    dictargs range = {};
-                    double aux_min = type_to_double(loader.at("min"), loader.at("mintype"), h, i);
-                    if (aux_min != INF_DOUBLE)
-                    {
-                        range.emplace("min", aux_min);
-                    }
-
-                    double aux_max = type_to_double(loader.at("max"), loader.at("maxtype"), h, i);
-                    if (aux_max != INF_DOUBLE)
-                    {
-                        range.emplace("max", aux_max);
-                    }
-
-                    // assign augmented variable
-                    house[h].indiv[i].assign_augm(
-                        loader.at("name"),
-                        type_to_double(loader.at("value"), loader.at("valuetype"), h, i),
-                        loader.at("model"),
-                        typedict_to_sdargs_ext(loader.at("args"), loader.at("argsval"), loader.at("argstype"), h, i),
-                        loader.at("rule"),
-                        typedict_to_sdargs(loader.at("rargs"), loader.at("rargsval"), loader.at("rargstype"), h, i),
-                        range,
-                        type_to_double(loader.at("rfrom"), loader.at("rfromtype"), h, i));
-                }
-            }
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : build extra  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Extra File (default unused) */
-void MCMC::build_extra(const string &pathtofile, bool verbose)
-{
-    UNUSED(pathtofile);
-    UNUSED(verbose);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  MCMC : BUILD  ///////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::build(const string &setup_file, const string &params_file,
-                 const string &data_file, const string &augm_file,
-                 const string &extra_file, bool verbose)
-{
-    // 1) Load Setup (optional)
-    build_setup(setup_file, verbose);
-
-    // 2) Load Parameters and Check (required)
-    build_parameters(params_file, verbose);
-
-    // 3) Load Data and Check (required)
-    build_data(data_file, verbose);
-
-    // 4) Load Augmented Variables (optional)
-    build_augmented(augm_file, verbose);
-
-    // 5) Load Extra File (optional, user defined)
-    // UPDATE: there could be plenty extra files to be store somewhere
-    build_extra(extra_file, verbose);
 }

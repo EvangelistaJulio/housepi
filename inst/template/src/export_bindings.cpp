@@ -41,24 +41,31 @@
 // Expose the Model and MCMC classes to R using Rcpp
 RCPP_MODULE(modelhousepi12345_cpp)
 {
- using namespace Rcpp;
- 
- class_<MCMC>("MCMChousepi12345")
-   .constructor()
-   .method("build", &MCMC::build)
-   .method("infer", &MCMC::infer)
-   .method("simulate", &MCMC::simulate)
-   .method("evaluate", &MCMC::evaluate)
-   .method("evaluate_marginal", &MCMC::evaluate_marginal)
-   .method("setup", &MCMC::export_setup)
-   .method("params", &MCMC::export_params)
-   .method("data", &MCMC::export_data)
-   .method("traces", &MCMC::export_traces)
-   .method("loglike_matrix", &MCMC::export_loglike_matrix)   
-   .method("show_summary", &MCMC::show_summary)
-   .method("show_group_classes", &MCMC::show_group_classes);
- 
- class_<Model>("Modelhousepi12345")
-   .constructor()
-   .derives<MCMC>("MCMChousepi12345");
+  using namespace Rcpp;
+
+  class_<MCMC>("MCMChousepi12345")
+      .constructor()
+      .method("import_setup", &MCMC::import_setup)
+      .method("import_params", &MCMC::import_parameters)
+      .method("import_data", &MCMC::import_data)
+      .method("import_augm", &MCMC::import_augmented)
+      .method("read_setup", &MCMC::read_setup)
+      .method("read_params", &MCMC::read_parameters)
+      .method("read_data", &MCMC::read_data)
+      .method("read_augm", &MCMC::read_augmented)
+      .method("infer", &MCMC::infer)
+      .method("simulate", &MCMC::simulate)
+      .method("evaluate", &MCMC::evaluate)
+      .method("evaluate_marginal", &MCMC::evaluate_marginal)
+      .method("setup", &MCMC::export_setup)
+      .method("params", &MCMC::export_params)
+      .method("data", &MCMC::export_data)
+      .method("traces", &MCMC::export_traces)
+      .method("loglike_matrix", &MCMC::export_loglike_matrix)
+      .method("show_summary", &MCMC::show_summary)
+      .method("show_group_classes", &MCMC::show_group_classes);
+
+  class_<Model>("Modelhousepi12345")
+      .constructor()
+      .derives<MCMC>("MCMChousepi12345");
 }

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <set>
 #include <unordered_map>
 #include <cmath>
 #include <iomanip>
@@ -61,9 +62,10 @@ typedef vector<vector<double>> squarematrix;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // status aliases
-constexpr int SUSCEPTIBLE = 0;     // status of susceptible
 constexpr int INFECTIOUS = 1;      // status of infectious
 constexpr int MISSING_STATUS = -1; // missing status
+constexpr int SUSCEPTIBLE = 0;     // status of susceptible
+const std::set<int> VALID_STATUS = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
 
 // FIXME :NaN and NA to be revised
 constexpr double INF_DOUBLE = 1e10;    // numerical infinity value
@@ -93,7 +95,8 @@ namespace basics
 {
     constexpr char C_DELIM = ',';      // file delimiter
     constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
-    constexpr char C_DECOR = '=';      // decorator for prints
+    constexpr char C_DECOR = '-';      // decorator for prints
+    constexpr char C_PROG = '=';      // decorator for progress bar
 
     // deal with undefined or not available value stored as string
     bool is_na(const string &txt);
@@ -105,8 +108,8 @@ namespace basics
 
     void print_stdout(const string &txt);
     void print_decorator(const string &title,
-                         char decor,
                          const string &txt = UNDEFINED,
+                         char decor = C_DECOR,
                          bool verbose = true);
 
     // print progress bar to stdout

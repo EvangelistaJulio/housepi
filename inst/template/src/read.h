@@ -14,12 +14,6 @@
 
 #include "utils.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef std::map<string, string> ssargs;
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -30,9 +24,16 @@ typedef std::map<string, string> ssargs;
 bool stobool(const string &tkn);
 string string_cleaner(string tkn);
 
-vector<string> read_column_headers(std::ifstream &input, const string &pathtofile, const vector<string> &required_headers = {});
-bool read_row_by_headers(std::ifstream &input, const vector<string> &headers, ssargs &this_row);
-dictargs row_to_dictargs(const ssargs &this_row);
+#ifdef USE_RCPP
+void rdataframe_to_map(Rcpp::DataFrame df, std::map<string, vector<string>> &output);
+#endif
+
+vector<string> read_column_headers(std::ifstream &input, const vector<string> &required_headers);
+bool read_row_by_headers(std::ifstream &input, const vector<string> &headers, std::map<string, string> &this_row);
+void read_csv_list(const string &pathtofile, std::map<string, string> &csv_parsed_list);
+void read_csv_table(const string &pathtofile,
+                    std::map<string, vector<string>> &csv_parsed_table,
+                    const vector<string> &required_headers = {});
 
 vector<string> parse_list_args(const string &tkn, const char delim = basics::C_LIST_DELIM);
 dictargs merge_list_args(const string &tkn_keys, const string &tkn_vals);

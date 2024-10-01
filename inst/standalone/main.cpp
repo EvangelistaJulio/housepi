@@ -47,7 +47,6 @@ int main(int argc, char *argv[])
     std::string data_file = UNDEFINED;
     std::string augm_file = UNDEFINED;
     std::string setup_file = UNDEFINED;
-    std::string extra_file = UNDEFINED;
     std::string output_file = UNDEFINED;
     std::string save_augm_file = UNDEFINED;
 
@@ -119,11 +118,6 @@ int main(int argc, char *argv[])
             params_file = argv[++carg_i];
         }
 
-        else if (carg == std::string("-e") || carg == std::string("--extra"))
-        {
-            extra_file = argv[++carg_i];
-        }
-
         else if (carg == std::string("-d") || carg == std::string("--database"))
         {
             data_file = argv[++carg_i];
@@ -170,9 +164,23 @@ int main(int argc, char *argv[])
 
     //----- Initialize the custom Model object -----//
     Model *user_model = new Model();
-    user_model->build(setup_file, params_file,
-                      data_file, augm_file,
-                      extra_file, verbose);
+
+    // 1) Load Setup (optional)
+    user_model->read_setup(setup_file);
+
+    // 2) Load Parameters and Check (required)
+    user_model->read_parameters(params_file);
+
+    // 3) Load Data and Check (required)
+    user_model->read_data(data_file);
+
+    // 4) Load Augmented Variables (optional)
+    user_model->read_augmented(augm_file);
+
+    if (verbose)
+    {
+        user_model->show_build_details();
+    }
 
     //=====================//
     //===== EXECUTION =====//
@@ -180,28 +188,28 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        print_decorator("Inference", C_DECOR, UNDEFINED, verbose);
+        print_decorator("Inference", UNDEFINED, C_DECOR, verbose);
         user_model->infer(true);
 
         if (verbose)
         {
-            print_decorator("Inference::results", '-', UNDEFINED);
+            print_decorator("Inference::results", UNDEFINED);
             user_model->show_results();
         }
 
         if (output_file != UNDEFINED)
         {
-            print_decorator("Inference::infer state", '-',
-                            "save: " + save_augm_file,
-                            verbose);
+            print_decorator("Inference::infer state",
+                            ">>> save: " + save_augm_file,
+                            C_DECOR, verbose);
             user_model->print_infer_state(output_file);
         }
 
         if (save_augm_file != UNDEFINED)
         {
-            print_decorator("Inference::augmented dataframe", '-',
-                            "save: " + save_augm_file,
-                            verbose);
+            print_decorator("Inference::augmented dataframe", 
+                            ">>> save: " + save_augm_file,
+                            C_DECOR, verbose);
             user_model->print_augm_variables(save_augm_file);
         }
     }
@@ -214,15 +222,15 @@ int main(int argc, char *argv[])
         }
         else
         {
-            print_decorator("Simulation", C_DECOR,
-                            "save: " + output_file,
-                            verbose);
+            print_decorator("Simulation", 
+                            ">>> save: " + output_file,
+                            C_DECOR, verbose);
             user_model->simulate();
             user_model->print_augm_variables(output_file);
 
             if (verbose)
             {
-                print_decorator("Simulation::summary", '-');
+                print_decorator("Simulation::summary");
                 user_model->show_summary();
             }
         }
@@ -230,13 +238,13 @@ int main(int argc, char *argv[])
 
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
-        print_decorator("Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        print_decorator("Loglikelihood", UNDEFINED, C_DECOR, verbose);
         print_stdout(std::to_string(user_model->evaluate()) + "\n");
     }
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
-        print_decorator("Marginal Loglikelihood", C_DECOR, UNDEFINED, verbose);
+        print_decorator("Marginal Loglikelihood", UNDEFINED, C_DECOR, verbose);
         print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
     }
 

@@ -55,6 +55,7 @@ protected:
 	vector<Household> house = {};
 
 	//----- Reports -----//
+	std::map<string, string> report_pathtofile;
 	std::map<string, int> report_data;
 	std::map<string, std::map<string, int>> report_group_classes = {};
 
@@ -74,18 +75,41 @@ public:
 	};
 	virtual ~MCMC() {};
 
-	//===== BUILD =====//
-	void build_parameters(const string &pathtofile, bool verbose = true);
-	void build_data(const string &pathtofile, bool verbose = true);
-	void build_setup(const string &pathtofile, bool verbose = true);
-	void build_augmented(const string &pathtofile, bool verbose = true);
-	virtual void build_extra(const string &pathtofile, bool verbose = true);
-	void build(const string &setup_file = UNDEFINED,
-			   const string &params_file = UNDEFINED,
-			   const string &data_file = UNDEFINED,
-			   const string &augm_file = UNDEFINED,
-			   const string &extra_file = UNDEFINED,
-			   bool verbose = true);
+	//===== READ =====//
+	void read_setup(const string &pathtofile = UNDEFINED);
+	void read_parameters(const string &pathtofile = UNDEFINED);
+	void read_data(const string &pathtofile = UNDEFINED);
+	void read_augmented(const string &pathtofile = UNDEFINED);
+
+	//===== ASSIGN =====//
+	void assign_setup();
+	void assign_parameters();
+	void assign_data(std::map<string, vector<string>> &datatable);
+	void assign_augmented();
+
+	//===== SHOW =====//
+	void show_build_details();
+	void show_setup();
+	void show_parameters();
+	void show_summary();
+	void show_group_classes();
+	void show_results();
+
+#ifdef USE_RCPP
+	//----- Rcpp imports -----//
+	void import_setup(Rcpp::List setup);
+	void import_params(Rcpp::DataFrame params);
+	void import_data(Rcpp::DataFrame data);
+	void import_augm(Rcpp::DataFrame augm);
+
+	//----- Rcpp exports -----//
+	Rcpp::List export_setup();
+	Rcpp::DataFrame export_params();
+	Rcpp::DataFrame export_data();
+	Rcpp::DataFrame export_traces();
+	Rcpp::NumericMatrix export_loglike_matrix();
+
+#else
 
 	//===== DATA =====//
 	double get_data(int h, int i, const string &dataID) const { return house[h].indiv[i].get_data(dataID); }
@@ -103,7 +127,6 @@ public:
 	//===== AUGMENTED VARIABLES =====//
 	void set_augm(int h, int i, const string &augmID, double new_value) { house[h].indiv[i].set_augm(augmID, new_value); };
 	double get_augm(int h, int i, const string &augmID) const { return house[h].indiv[i].get_augm(augmID); }
-	void assign_augmented_variables();
 	void init_augmented_variables(bool is_init = true);
 	virtual void augm_store_dependecies(int h, int i);
 	virtual void augm_update(int h, int i, const string &augmID, double new_val);
@@ -130,23 +153,6 @@ public:
 	virtual void init_model_for_simulation() {};
 	virtual void simulate_single_house(int h);
 	void simulate();
-
-	//===== SHOW =====//
-	void show_setup();
-	void show_summary();
-	void show_group_classes();
-	void show_parameters();
-
-#ifdef USE_RCPP
-	//----- Rcpp exports -----//
-	Rcpp::List export_setup();
-	Rcpp::DataFrame export_params();
-	Rcpp::DataFrame export_data();
-	Rcpp::DataFrame export_traces();
-	Rcpp::NumericMatrix export_loglike_matrix();
-
-#else
-	void show_results();
 
 	//----- Save outputs -----//
 	void print_infer_state(const string &output_filename = UNDEFINED);
@@ -180,7 +186,9 @@ private:
 	//===== BUILD =====//
 
 	//----- build : auxiliary attributes -----//
-	vector<ssargs> load_augm_definition = {};
+	std::map<string, string> _setup_deflist_ = {};
+	std::map<string, vector<string>> _param_deftable_ = {};
+	std::map<string, vector<string>> _augm_deftable_ = {};
 
 	//----- build : type-specified variables -----//
 	double type_to_double(const string tkn_val, const string tkn_typ, int h, int i);

@@ -424,9 +424,9 @@ public:
 	void set_value(const string &parID, double new_val) { params.at(parID).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const string &parID) { params.at(parID).reset_accept_rate(); }
-	void assign_parameter(const string &parID, double new_val,
-						  const string &prior_name = UNDEFINED, const dictargs &prior_args = {},
-						  const string &rule_name = UNDEFINED, const dictargs &rule_args = {}, const dictargs &range = {});
+	void assign_param(const string &parID, double new_val,
+					  const string &prior_name = UNDEFINED, const dictargs &prior_args = {},
+					  const string &rule_name = UNDEFINED, const dictargs &rule_args = {}, const dictargs &range = {});
 	void drop_all_params();
 
 	//===== Parallelization =====//
