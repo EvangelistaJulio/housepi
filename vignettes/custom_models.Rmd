@@ -13,7 +13,7 @@ We'll walk through the process of associating augmented variable to individuals 
 
 To create a custom model without starting from scratch, we copy a template model to a custom path with the function `template_model`:
 
-```{r}
+```{r, eval=FALSE}
 # copy the heterogeneous chain binomial template to a custom directory
 
 my_model_path <- "custom_project"
@@ -30,11 +30,8 @@ hemi <- housepi::generate_model(my_model_path)
 
 
 
-```{r}
-
-
+```{r, eval=FALSE}
 housepi::build_model(hemi, data="survey.csv", params =  params$df)
-
 ```
 
 

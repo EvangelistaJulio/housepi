@@ -16,7 +16,7 @@
 #include "utils.h"
 
 // FIXME : this is all to avoid external libraries, but probably not worthy...
-namespace gammap
+namespace auxgammap
 {
     constexpr int GAMMAP_ITER = 10000;
     constexpr double GAMMAP_EPS = 1.e-12;
@@ -36,19 +36,25 @@ class Base_Distribution : public Base_Function
 public:
     using Base_Function::Base_Function;
 
-    virtual double pdf(double x)
+    virtual double pdf(double x) const
     {
         UNUSED(x);
-        basics::raise_error("Attempt to call a method of an undefined distribution.");
+        _undefined_call_error_();
         return std::numeric_limits<double>::quiet_NaN();
     }
-    virtual double log_pdf(double x)
+    virtual double cdf(double x) const
     {
         UNUSED(x);
-        basics::raise_error("Attempt to call a method of an undefined distribution.");
+        _undefined_call_error_();
         return std::numeric_limits<double>::quiet_NaN();
     }
-    virtual double logratio(double x, double y)
+    virtual double logpdf(double x) const
+    {
+        UNUSED(x);
+        _undefined_call_error_();
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    virtual double logratio(double x, double y) const
     {
         UNUSED(x);
         UNUSED(y);
@@ -57,8 +63,14 @@ public:
     virtual double rand(sys_rnd_gen &rng)
     {
         UNUSED(rng);
-        basics::raise_error("Attempt to call a method of an undefined distribution.");
+        _undefined_call_error_();
         return std::numeric_limits<double>::quiet_NaN();
+    }
+
+private:
+    void _undefined_call_error_() const
+    {
+        basics::raise_error("Attempt to call a method of an undefined distribution.");
     }
 };
 
@@ -69,13 +81,20 @@ public:
 class Uniform_Distribution : public Base_Distribution
 {
 public:
-    Uniform_Distribution(dictargs new_args = {}) : Base_Distribution("unif", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"}) { assign_args(new_args); }
-    Uniform_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("unif", new_args_ptr, {"min", "max"}) {}
+    Uniform_Distribution(
+        dictargs new_args = {}) : Base_Distribution("unif",
+                                                    {{"min", 0.0}, {"max", 1.0}},
+                                                    {"min", "max"}) { assign_args(new_args); }
+    Uniform_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("unif",
+                                                       new_args_ptr,
+                                                       {"min", "max"}) {}
     ~Uniform_Distribution() {}
 
-    double pdf(double x) override;
-    double log_pdf(double x) override;
-    double logratio(double x, double y) override;
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
     double rand(sys_rnd_gen &rng) override;
 };
 
@@ -86,26 +105,20 @@ public:
 class Normal_Distribution : public Base_Distribution
 {
 public:
-    Normal_Distribution(dictargs new_args = {}) : Base_Distribution("norm", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"}) { assign_args(new_args); }
-    Normal_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("norm", new_args_ptr, {"mean", "sd"}) {}
+    Normal_Distribution(
+        dictargs new_args = {}) : Base_Distribution("norm",
+                                                    {{"mean", 0.0}, {"sd", 1.0}},
+                                                    {"mean", "sd"}) { assign_args(new_args); }
+    Normal_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("norm",
+                                                       new_args_ptr,
+                                                       {"mean", "sd"}) {}
     ~Normal_Distribution() {};
 
-    virtual double pdf(double x) override;
-    virtual double log_pdf(double x) override;
-    virtual double logratio(double x, double y) override;
-    virtual double rand(sys_rnd_gen &rng) override;
-};
-
-class Discrete_Normal_Distribution : public Base_Distribution
-{
-public:
-    Discrete_Normal_Distribution(dictargs new_args = {}) : Base_Distribution("norm_discr", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"}) { assign_args(new_args); }
-    Discrete_Normal_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("norm_discr", new_args_ptr, {"mean", "sd"}) { set_range({{"min", 0}}); }
-    ~Discrete_Normal_Distribution() {};
-
-    double pdf(double x) override;
-    double log_pdf(double x) override { return log(pdf(x)); }
-    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
     double rand(sys_rnd_gen &rng) override;
 };
 
@@ -116,34 +129,24 @@ public:
 class Lognorm_Distribution : public Base_Distribution
 {
 public:
-    Lognorm_Distribution(dictargs new_args = {}) : Base_Distribution("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"})
+    Lognorm_Distribution(
+        dictargs new_args = {}) : Base_Distribution("lnorm",
+                                                    {{"meanlog", 0.0}, {"sdlog", 1.0}},
+                                                    {"meanlog", "sdlog"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Lognorm_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("lnorm", new_args_ptr, {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
+    Lognorm_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("lnorm",
+                                                       new_args_ptr,
+                                                       {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
     ~Lognorm_Distribution() {};
 
-    virtual double pdf(double x) override;
-    virtual double log_pdf(double x) override;
-    virtual double logratio(double x, double y) override;
-    virtual double rand(sys_rnd_gen &rng) override;
-};
-
-class Discrete_Lognorm_Distribution : public Base_Distribution
-{
-public:
-    Discrete_Lognorm_Distribution(dictargs new_args = {}) : Base_Distribution("lnorm_discr", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
-    Discrete_Lognorm_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("lnorm_discr", new_args_ptr, {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
-    ~Discrete_Lognorm_Distribution() {};
-
-    double pdf(double x) override;
-    double log_pdf(double x) override { return log(pdf(x)); }
-    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
     double rand(sys_rnd_gen &rng) override;
 };
 
@@ -154,21 +157,26 @@ public:
 class Gamma_Distribution : public Base_Distribution
 {
 public:
-    Gamma_Distribution(dictargs new_args = {}) : Base_Distribution("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"})
+    Gamma_Distribution(
+        dictargs new_args = {}) : Base_Distribution("gamma",
+                                                    {{"shape", 1.0}, {"scale", 1.0}},
+                                                    {"shape", "scale"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Gamma_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("gamma", new_args_ptr, {"shape", "scale"}) { set_range({{"min", 0}}); }
+    Gamma_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("gamma",
+                                                       new_args_ptr,
+                                                       {"shape", "scale"}) { set_range({{"min", 0}}); }
     ~Gamma_Distribution() {};
 
-    virtual double pdf(double x) override;
-    virtual double log_pdf(double x) override;
-    virtual double logratio(double x, double y) override;
-    virtual double rand(sys_rnd_gen &rng) override;
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
+    double rand(sys_rnd_gen &rng) override;
 };
-
-// FIXME : the discretization requires boost (for incomplete gamma function)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Weibull_Distr : class  /////////////////////////////////////
@@ -177,34 +185,25 @@ public:
 class Weibull_Distribution : public Base_Distribution
 {
 public:
-    Weibull_Distribution(dictargs new_args = {}) : Base_Distribution("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"})
+    Weibull_Distribution(
+        dictargs new_args = {}) : Base_Distribution("weibull",
+                                                    {{"shape", 1.0}, {"scale", 1.0}},
+                                                    {"shape", "scale"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Weibull_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("weibull", new_args_ptr, {"shape", "scale"}) { set_range({{"min", 0}}); }
+
+    Weibull_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("weibull",
+                                                       new_args_ptr,
+                                                       {"shape", "scale"}) { set_range({{"min", 0}}); }
     ~Weibull_Distribution() {};
 
-    virtual double pdf(double x) override;
-    virtual double log_pdf(double x) override;
-    virtual double logratio(double x, double y) override;
-    virtual double rand(sys_rnd_gen &rng) override;
-};
-
-class Discrete_Weibull_Distribution : public Base_Distribution
-{
-public:
-    Discrete_Weibull_Distribution(dictargs new_args = {}) : Base_Distribution("weibull_discr", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
-    Discrete_Weibull_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("weibull_discr", new_args_ptr, {"shape", "scale"}) { set_range({{"min", 0}}); }
-    ~Discrete_Weibull_Distribution() {};
-
-    double pdf(double x) override;
-    double log_pdf(double x) override { return log(pdf(x)); }
-    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
     double rand(sys_rnd_gen &rng) override;
 };
 
@@ -215,34 +214,24 @@ public:
 class Rayleigh_Distribution : public Base_Distribution
 {
 public:
-    Rayleigh_Distribution(dictargs new_args = {}) : Base_Distribution("rayleigh", {{"scale", 1.0}}, {"scale"})
+    Rayleigh_Distribution(
+        dictargs new_args = {}) : Base_Distribution("rayleigh",
+                                                    {{"scale", 1.0}},
+                                                    {"scale"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Rayleigh_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("rayleigh", new_args_ptr, {"scale"}) { set_range({{"min", 0}}); }
+    Rayleigh_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("rayleigh",
+                                                       new_args_ptr,
+                                                       {"scale"}) { set_range({{"min", 0}}); }
     ~Rayleigh_Distribution() {};
 
-    virtual double pdf(double x) override;
-    virtual double log_pdf(double x) override;
-    virtual double logratio(double x, double y) override;
-    virtual double rand(sys_rnd_gen &rng) override;
-};
-
-class Discrete_Rayleigh_Distribution : public Base_Distribution
-{
-public:
-    Discrete_Rayleigh_Distribution(dictargs new_args = {}) : Base_Distribution("rayleigh_discr", {{"scale", 1.0}}, {"scale"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
-    Discrete_Rayleigh_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("rayleigh_discr", new_args_ptr, {"scale"}) { set_range({{"min", 0}}); }
-    ~Discrete_Rayleigh_Distribution() {};
-
-    double pdf(double x) override;
-    double log_pdf(double x) override { return log(pdf(x)); }
-    double logratio(double x, double y) override { return log(pdf(y) / pdf(x)); }
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
     double rand(sys_rnd_gen &rng) override;
 };
 
@@ -253,34 +242,24 @@ public:
 class Exponential_Distribution : public Base_Distribution
 {
 public:
-    Exponential_Distribution(dictargs new_args = {}) : Base_Distribution("exp", {{"rate", 1.0}}, {"rate"})
+    Exponential_Distribution(
+        dictargs new_args = {}) : Base_Distribution("exp",
+                                                    {{"rate", 1.0}},
+                                                    {"rate"})
     {
         assign_args(new_args);
         set_range({{"min", 0}});
     }
-    Exponential_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("exp", new_args_ptr, {"rate"}) { set_range({{"min", 0}}); }
+    Exponential_Distribution(
+        dictargs_ptr new_args_ptr) : Base_Distribution("exp",
+                                                       new_args_ptr,
+                                                       {"rate"}) { set_range({{"min", 0}}); }
     ~Exponential_Distribution() {};
 
-    virtual double pdf(double x) override;
-    virtual double log_pdf(double x) override;
-    virtual double logratio(double x, double y) override;
-    virtual double rand(sys_rnd_gen &rng) override;
-};
-
-class Discrete_Exponential_Distribution : public Base_Distribution
-{
-public:
-    Discrete_Exponential_Distribution(dictargs new_args = {}) : Base_Distribution("exp_discr", {{"rate", 1.0}}, {"rate"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
-    Discrete_Exponential_Distribution(dictargs_ptr new_args_ptr) : Base_Distribution("exp_discr", new_args_ptr, {"rate"}) { set_range({{"min", 0}}); }
-    ~Discrete_Exponential_Distribution() {};
-
-    double pdf(double x) override;
-    double log_pdf(double x) override;
-    double logratio(double x, double y) override;
+    double pdf(double x) const override;
+    double cdf(double x) const override;
+    double logpdf(double x) const override;
+    double logratio(double x, double y) const override;
     double rand(sys_rnd_gen &rng) override;
 };
 
@@ -309,17 +288,9 @@ Base_Distribution *distribution_ptr(const string &name = UNDEFINED, dictargs_val
     {
         output = new Normal_Distribution(args);
     }
-    else if (name == "norm_discr")
-    {
-        output = new Discrete_Normal_Distribution(args);
-    }
     else if (name == "lnorm")
     {
         output = new Lognorm_Distribution(args);
-    }
-    else if (name == "lnorm_discr")
-    {
-        output = new Discrete_Lognorm_Distribution(args);
     }
     else if (name == "gamma")
     {
@@ -329,25 +300,13 @@ Base_Distribution *distribution_ptr(const string &name = UNDEFINED, dictargs_val
     {
         output = new Weibull_Distribution(args);
     }
-    else if (name == "weibull_discr")
-    {
-        output = new Discrete_Weibull_Distribution(args);
-    }
     else if (name == "rayleigh")
     {
         output = new Rayleigh_Distribution(args);
     }
-    else if (name == "rayleigh_discr")
-    {
-        output = new Discrete_Rayleigh_Distribution(args);
-    }
     else if (name == "exp")
     {
         output = new Exponential_Distribution(args);
-    }
-    else if (name == "exp_discr")
-    {
-        output = new Discrete_Exponential_Distribution(args);
     }
     else if (!basics::is_na(name))
     {

@@ -89,7 +89,7 @@ We run the inference and we extract the results
 
 ```{r}
 mcmc_trace_1 <- housepi::run_inference(hemi_1)
-plot(mcmc_trace_1, col="#0E86D4")
+coda::traceplot(mcmc_trace_1, col="#0E86D4")
 results_1 <- summary(mcmc_trace_1)
 ```
 
@@ -194,8 +194,8 @@ augm_2_infer$add(name = "incub_period",
                  rule = "norm", rule_args = list(sd = 0.5),
                  range = list(max = 14))
 
-setup_2 <- list(num_iter = 30000, num_adapt = 2500, burn_in = 2000,
-              thinning = 25, seed = 57)
+setup_2 <- list(num_iter = 30000, num_adapt = 2500, 
+                burn_in = 2000, thinning = 25, seed = 57)
 
 housepi::build_model(hemi_2, data = df, setup = setup_2, augm = augm_2_infer$df)
 

@@ -129,7 +129,7 @@ We can extract the log-likelihood matrix to perform model diagnostics with the R
 llmtx <- hemi$loglike_matrix()
 
 # WAIC (widely applicable information criterion)
-loo::waic(mtx)
+loo::waic(llmtx)
 
 # approximate LOO-CV
 loo::loo(llmtx)

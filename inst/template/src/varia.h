@@ -287,7 +287,7 @@ public:
 
 	//=====distr_ptr : methods=====//
 	double distr_rand(sys_rnd_gen &prng) { return distr_ptr->rand(prng); }
-	double distr_log_pdf(double x) const { return distr_ptr->log_pdf(x); }
+	double distr_log_pdf(double x) const { return distr_ptr->logpdf(x); }
 	double distr_logratio(double old_val, double new_val) const { return distr_ptr->logratio(old_val, new_val); }
 	bool valid(double x) const { return distr_ptr->valid(x); }
 

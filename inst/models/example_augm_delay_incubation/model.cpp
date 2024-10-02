@@ -65,6 +65,6 @@ double Model::compute_house_loglike(int h)
 	}
 	else
 	{
-		return distr_ptr->log_pdf(incub);
+		return distr_ptr->logpdf(incub);
 	}
 }
