@@ -7,6 +7,77 @@
 #include "distributions.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Incomplete gamma Function  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace gammap
+{
+    /* Lower incomplete gamma function using series expansion. */
+    double gamma_cdf_series(double scaled_x, double shape)
+    {
+        double sum = 1.0 / shape;
+        double term = sum;
+        for (int i = 1; (term > GAMMAP_EPS * sum) && (i < GAMMAP_ITER); ++i)
+        {
+            term *= scaled_x / (shape + i);
+            sum += term;
+        }
+        return sum * exp(-scaled_x + shape * log(scaled_x) - lgamma(shape));
+    }
+
+    /* Upper incomplete gamma function using continued fraction. */
+    double gamma_cdf_cf(double scaled_x, double shape)
+    {
+        double b = scaled_x + 1.0 - shape;
+        double c = 1.0 / GAMMAP_FPMIN;
+        double d = 1.0 / b;
+        double h = d;
+        double delta = 0.0;
+
+        for (int i = 1; ((fabs(delta - 1.0) > GAMMAP_EPS) && (i < GAMMAP_ITER)); ++i)
+        {
+            double an = -i * (i - shape);
+            b += 2.0;
+            d = an * d + b;
+            if (fabs(d) < GAMMAP_FPMIN)
+            {
+                d = GAMMAP_FPMIN;
+            }
+            c = b + an / c;
+            if (fabs(c) < GAMMAP_FPMIN)
+            {
+                c = GAMMAP_FPMIN;
+            }
+            d = 1.0 / d;
+            delta = c * d;
+            h *= delta;
+        }
+        return 1.0 - exp(-scaled_x + shape * log(scaled_x) - lgamma(shape)) * h;
+    }
+
+    /* Function to compute the gamma cumulative distribution function. */
+    double gamma_cdf(double x, double shape, double scale)
+    {
+        double scaled_x = x / scale;
+        if (scaled_x < shape + 10.)
+        {
+            return gamma_cdf_series(scaled_x, shape);
+        }
+        else
+        {
+            return gamma_cdf_cf(scaled_x, shape);
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Uniform Distribution : methods  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
