@@ -193,7 +193,7 @@ void Model::simulate_single_house(int h)
 		// note : here househ[h].susceptible_set is not allowed because of change_status
 		for (int i = 0; i < house[h].house_size; i++)
 		{
-			if (house[h].is_susceptible[i])
+			if (house[h].is_susceptible(i))
 			{
 				if (uniform() >= exp(log_p2p_esc_proba))
 				{

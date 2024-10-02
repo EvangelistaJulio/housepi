@@ -310,27 +310,27 @@ void Household::assign_individual(Individual this_indiv)
 		++num_infectious;
 		infectious_set.insert(house_size);
 
-		is_infectious.push_back(true);
-		is_susceptible.push_back(false);
-		is_missing_status.push_back(false);
+		_is_infectious_.push_back(true);
+		_is_susceptible_.push_back(false);
+		_is_missing_status_.push_back(false);
 	}
 	else if (status == SUSCEPTIBLE)
 	{
 		++num_susceptible;
 		susceptible_set.insert(house_size);
 
-		is_infectious.push_back(false);
-		is_susceptible.push_back(true);
-		is_missing_status.push_back(false);
+		_is_infectious_.push_back(false);
+		_is_susceptible_.push_back(true);
+		_is_missing_status_.push_back(false);
 	}
 	else if (status == MISSING_STATUS)
 	{
 		++num_missing_status;
 		missing_status_set.insert(house_size);
 
-		is_infectious.push_back(false);
-		is_susceptible.push_back(false);
-		is_missing_status.push_back(true);
+		_is_infectious_.push_back(false);
+		_is_susceptible_.push_back(false);
+		_is_missing_status_.push_back(true);
 	}
 	else
 	{
@@ -359,19 +359,19 @@ void Household::change_status(int i, int new_status)
 		{
 			num_infectious--;
 			infectious_set.erase(i);
-			is_infectious[i] = false;
+			_is_infectious_[i] = false;
 		}
 		else if (old_status == SUSCEPTIBLE)
 		{
 			num_susceptible--;
 			susceptible_set.erase(i);
-			is_susceptible[i] = false;
+			_is_susceptible_[i] = false;
 		}
 		else if (old_status == MISSING_STATUS)
 		{
 			num_missing_status--;
 			missing_status_set.erase(i);
-			is_missing_status[i] = false;
+			_is_missing_status_[i] = false;
 		}
 		else
 		{
@@ -384,19 +384,19 @@ void Household::change_status(int i, int new_status)
 		{
 			++num_infectious;
 			infectious_set.insert(i);
-			is_infectious[i] = true;
+			_is_infectious_[i] = true;
 		}
 		else if (new_status == SUSCEPTIBLE)
 		{
 			++num_susceptible;
 			susceptible_set.insert(i);
-			is_susceptible[i] = true;
+			_is_susceptible_[i] = true;
 		}
 		else if (new_status == MISSING_STATUS)
 		{
 			++num_missing_status;
 			missing_status_set.insert(i);
-			is_missing_status[i] = true;
+			_is_missing_status_[i] = true;
 		}
 		else
 		{

@@ -226,7 +226,7 @@ void Model::simulate_single_house(int h)
 
 		for (int i = 0; i < house[h].house_size; i++)
 		{
-			if (house[h].is_susceptible[i])
+			if (house[h].is_susceptible(i))
 			{
 				for (int k : old_gen_set)
 				{

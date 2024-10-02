@@ -317,7 +317,7 @@ void Model::simulate_single_house(int h)
 		t += Dt;
 		for (int i = 0; i < house[h].house_size; i++)
 		{
-			if (house[h].is_susceptible[i])
+			if (house[h].is_susceptible(i))
 			{
 				// set new status for computations
 				house[h].change_status(i, INFECTIOUS);

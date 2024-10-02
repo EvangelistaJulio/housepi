@@ -131,6 +131,11 @@ private:
 	// accpetance rates for augmented variables
 	std::unordered_map<string, int> num_accept_augm_moves = {};
 	std::unordered_map<string, int> num_propos_augm_moves = {};
+	
+	// wheter members correspond to a given status or not
+	vector<bool> _is_infectious_ = {};
+	vector<bool> _is_susceptible_ = {};
+	vector<bool> _is_missing_status_ = {};
 
 public:
 	//=====Attributes (public)=====//
@@ -143,11 +148,6 @@ public:
 	// contact rate pointers
 	vector<vector<const double *>> contact_rates;
 	vector<vector<string>> which_rate;
-
-	// wheter members correspond to a given status or not
-	vector<bool> is_infectious = {};
-	vector<bool> is_susceptible = {};
-	vector<bool> is_missing_status = {};
 
 	// list with ONLY indexes of members with a given status
 	std::set<int> infectious_set = {};
@@ -170,6 +170,12 @@ public:
 	void assert_data(const string &dataID) const;
 	double get_data(const string &dataID) const;
 	double get_group_rate(int i, const string &rateID) const { return indiv[i].get_group_rate(rateID); }
+
+
+	// wheter members correspond to a given status or not
+	bool is_infectious(int i) const { return _is_infectious_[i]; }
+	bool is_susceptible(int i) const { return _is_susceptible_[i]; }
+	bool is_missing_status(int i) const { return _is_missing_status_[i]; }
 
 	//====== Contact Rates ======//
 	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }

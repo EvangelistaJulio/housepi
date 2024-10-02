@@ -308,7 +308,8 @@ Rcpp::DataFrame MCMC::export_traces()
         ulong size = (setup_num_iter - setup_burn_in) / setup_thinning;
         IntegerVector df_chain(size * setup_num_chains);
         ulong k = 0;
-        for (ulong c = 1; c <= setup_num_chains; ++c) {
+        for (ulong c = 1; c <= setup_num_chains; ++c)
+        {
             std::fill(df_chain.begin() + k, df_chain.begin() + k + size, c);
             k += size;
         }
@@ -330,7 +331,8 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix()
     NumericMatrix output(sample_size, num_house);
 
     // Assign each NumericVector to a column of the matrix
-    for (int h = 0; h < num_house; ++h) {
+    for (int h = 0; h < num_house; ++h)
+    {
         NumericVector column = wrap(house[h].get_dgn_loglike());
         output(_, h) = column;
     }
@@ -476,7 +478,14 @@ void MCMC::print_augm_variables(const string &save_augm_pathtofile)
                     }
                     for (const string &augmID : augm_full_set)
                     {
-                        augm_ofstream << C_DELIM << house[h].indiv[i].get_augm(augmID);
+                        if (house[h].is_infectious(i))
+                        {
+                            augm_ofstream << C_DELIM << house[h].indiv[i].get_augm(augmID);
+                        }
+                        else
+                        {
+                            augm_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
+                        }
                     }
                     augm_ofstream << std::endl;
                 }
