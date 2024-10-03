@@ -172,7 +172,6 @@ void Individual::_set_augm_default_(const string &augmID, double new_value)
 void Individual::_set_augm_assert_(const string &augmID, double new_value)
 {
 	assert_augm(augmID);
-	augm_var.at(augmID).valid(new_value);
 	_set_augm_default_(augmID, new_value);
 }
 
@@ -188,41 +187,21 @@ void Individual::disable_assert()
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 {
-	double init_value = augm_model_rand(augmID, prng);
 	int num_attempts = 0;
 
-	while ((!augm_valid(augmID, init_value)))
+	augm_model_rand(augmID, prng);
+	while ((!augm_valid(augmID)))
 	{
 		if (num_attempts > MAX_NUMBER_ATTEMPTS)
 		{
 			std::ostringstream oss;
-			oss << "Exceeded attempts  (" << ">" << MAX_NUMBER_ATTEMPTS << ")"
-				<< " in random initialization of '" << augmID << "'"
+			oss << "Exceeded attempts in initialization of '" << augmID << "'"
 				<< " for individual " << get_index() << ".";
 			raise_error(oss.str());
 		}
-		init_value = augm_model_rand(augmID, prng);
+		augm_model_rand(augmID, prng);
 		++num_attempts;
 	}
-	set_augm(augmID, init_value);
-}
-
-/* Propose a new value for the augmented variable. */
-double Individual::augm_propose(const string &augmID, sys_rnd_gen &prng)
-{
-	return augm_var.at(augmID).propose(prng);
-}
-
-/* Log ratio of the proposal rule associated to the move old_value to new_value. */
-double Individual::augm_propose_logratio(const string &augmID, double old_value, double new_value) const
-{
-	return augm_var.at(augmID).propose_logratio(old_value, new_value);
-}
-
-/* Log ratio of the model associated to the move old_value to new_value.  */
-double Individual::augm_model_logratio(const string &augmID, double old_value, double new_value) const
-{
-	return augm_var.at(augmID).model_logratio(old_value, new_value);
 }
 
 //-----------------------------------------------------------------------------------------------//

@@ -262,10 +262,6 @@ double Model::compute_house_loglike(int h) const
 		}
 	}
 
-	// model of augmented variables
-	// FIXME : should be taken care by Gibbs in case...
-	loglike_house += compute_augm_loglike(h);
-
 	return loglike_house;
 }
 

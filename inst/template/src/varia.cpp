@@ -309,21 +309,19 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
     if (is_rand_params)
     {
         int num_attempts = 0;
-        double new_value;
 
         for (const string &parID : param_to_be_inferred)
         {
-            new_value = params.at(parID).prior_rand(prng);
-            while (params.at(parID).valid(new_value) == false)
+            params.at(parID).prior_rand(prng);
+            while (!params.at(parID).valid())
             {
-                if (num_attempts >= MAX_NUMBER_ATTEMPTS)
+                if (num_attempts > MAX_NUMBER_ATTEMPTS)
                 {
-                    raise_error("Number of attempts exceeded in random initialization of '" + parID + "'.");
+                    raise_error("Exceeded attempts in initialization of '" + parID + "'.");
                 }
-                new_value = params.at(parID).prior_rand(prng);
+                params.at(parID).prior_rand(prng);
                 ++num_attempts;
             }
-            set_value(parID, new_value);
         }
     }
 }
@@ -333,25 +331,27 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
+// FIXME : Gibbs sampling is missing here!
+// 1) always valid 2) move_logratio == 0
 bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
 {
-    double new_value = params.at(parID).propose(prng); // propose new value
+    // set new value of the parameter and store the old to buffer
+    params.at(parID).propose(prng);
 
     // proceed only if valid
-    if (params.at(parID).valid(new_value))
+    if (params.at(parID).valid())
     {
-        // store old value into buffer
-        buffer_value = get_param(parID);
         // add the prior logratio to buffer
-        buffer_logratio = params.at(parID).prior_logratio(buffer_value, new_value);
+        buffer_logratio = params.at(parID).prior_logratio();
         // add the proposal logratio to buffer
-        buffer_logratio -= params.at(parID).propose_logratio(buffer_value, new_value);
-        // set the new value of the parameter for computations
-        set_value(parID, new_value);
+        buffer_logratio -= params.at(parID).propose_logratio();
+
         return true;
     }
     else
     {
+        // reassign buffered value to param
+        params.at(parID).restore_value();
         // update accept rate with the refusal
         params.at(parID).update_accept_rate(false);
         return false;
@@ -367,7 +367,8 @@ void Monte_Carlo_Core::accept_param_move(const string &parID)
 /* move is refused: restore old value in the buffer */
 void Monte_Carlo_Core::refuse_param_move(const string &parID)
 {
-    set_value(parID, buffer_value);
+    // reassign buffered value to param
+    params.at(parID).restore_value();
     params.at(parID).update_accept_rate(false);
 }
 

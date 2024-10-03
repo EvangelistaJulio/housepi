@@ -73,7 +73,7 @@ const string UNDEFINED = "<NA>";       // name for undefined choice
 const string EMPTY_RATE = "__empty__"; // name for Contact rate
 
 // constants
-constexpr int MAX_NUMBER_ATTEMPTS = 20;       // max n. of attempts for initialization
+constexpr int MAX_NUMBER_ATTEMPTS = 50;       // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234;  // target acceptation rate for MCMC
 const string IO_MISMATCH = "__io_mismatch__"; // name for undefined choice
 constexpr double REFERENCE_VALUE = 1.0;       // auxiliary reference value for the parameters

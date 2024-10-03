@@ -49,10 +49,10 @@ double MCMC::compute_augm_loglike(int h) const
     // Contribution of model associated to augmented variables
     for (const string &augmID : augm_with_model_set)
     {
-
         for (int i : house[h].infectious_set)
         {
             hh_loglike += house[h].indiv[i].augm_model_logpdf(augmID);
+            // FIXME add augm_model_lognorm
         }
     }
 
@@ -68,7 +68,7 @@ double MCMC::compute_global_loglike()
     for (int h = 0; h < num_house; ++h)
     {
         house[h].set_loglike(compute_house_loglike(h));
-        output += house[h].get_loglike();
+        output += house[h].get_loglike() + compute_augm_loglike(h);
     }
 
     return output;
@@ -114,7 +114,8 @@ void MCMC::move_single_param(const string &parID)
         // set loglike in households and store old values in buffer
         double new_global_loglike = compute_global_loglike();
 
-        //===== METROPOLIS-HASTINGS =====//
+        //===== Metropolis-Hasting algorithm =====//
+
         double logQ = setup_inv_T * (new_global_loglike - get_global_loglike());
         logQ += get_move_logratio(); // logratio priors - logratio proposal
 
@@ -125,7 +126,9 @@ void MCMC::move_single_param(const string &parID)
         }
         else
         {
+            // restore buffered parameter valie
             refuse_param_move(parID);
+
             // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
             for (int h = 0; h < num_house; ++h)
@@ -164,8 +167,8 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Change the status and add augmented variable if infectious. 
-  NOTE: this approach slows down enormously. // FIXME 
+/* Change the status and add augmented variable if infectious.
+  NOTE: this approach slows down enormously. // FIXME
 */
 void MCMC::change_status_and_augm(int h, int i, int new_status)
 {
@@ -205,64 +208,64 @@ void MCMC::init_augmented_variables()
     }
 }
 
-/* Update augmented variable 'augmID' for individual 'i' (). */
-void MCMC::augm_update(int h, int i, const string &augmID, double new_val)
-{
-    house[h].indiv[i].set_augm(augmID, new_val);
-    augm_store_dependecies(h, i); // Update infectivity profiles related to idx
-}
-
-/* Propose augmented variable 'augmID' for individual 'i'. */
-double MCMC::augm_propose(int h, int i, const string &augmID)
-{
-    return house[h].indiv[i].augm_propose(augmID, get_prng());
-}
-
 /* Move augmented variables for infectious members of a single household.
 The move is performed one member at a time, one augmented variable at at time.
+// FIXME adjust with buffer as for param.
 */
 double MCMC::move_single_house_augm(int h)
 {
-    double old_value, new_value;
-    double logQ, old_house_loglike, new_house_loglike;
-    bool is_accepted = false;
-
     double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
-    // FIXME : only infectious are subject to data augmentation?
+    // FIXME : truncated model_logpdf are not taken into account
+    // FIXME : Gibbs sampling should be always valid but it's not now
     for (const int &i : house[h].infectious_set)
     {
         // Loop over augmented variables of infectious
         for (const string &augmID : augm_to_be_inferred)
         {
-            is_accepted = false;
-            old_value = house[h].indiv[i].get_augm(augmID); // store old value
-            old_house_loglike = house[h].get_loglike();     // store old loglike
-            new_value = augm_propose(h, i, augmID);         // propose new value
+            bool is_accepted = false;
+            double old_hh_ll = house[h].get_loglike();
+
+            // propose new value and store old in buffer
+            house[h].indiv[i].augm_propose(augmID, get_prng());
 
             // proceed only if the new value is consistent
-            if (house[h].indiv[i].augm_valid(augmID, new_value))
+            if (house[h].indiv[i].augm_valid(augmID))
             {
-                // update value to perform computations
-                augm_update(h, i, augmID, new_value);
-                new_house_loglike = compute_house_loglike(h);
+                // update dependencies to perform computations
+                augm_store_dependecies(h, i);
+                double new_hh_ll = compute_house_loglike(h);
 
-                // MetropolisHasting contribution
-                logQ = setup_inv_T * (new_house_loglike - old_house_loglike);
-                logQ -= house[h].indiv[i].augm_propose_logratio(augmID, old_value, new_value);
+                //===== Metropolis-Hasting algorithm =====//
+
+                // local change in loglikelihood
+                double delta_ll = new_hh_ll - old_hh_ll;
+                delta_ll += house[h].indiv[i].augm_model_logratio(augmID);
+
+                // total acceptance ratio
+                // FIXME : Gibbs sampling doesn't work here if inverse temperature...
+                double logQ = setup_inv_T * delta_ll;
+                logQ -= house[h].indiv[i].augm_propose_logratio(augmID);
 
                 if (uniform() < exp(logQ))
                 {
                     is_accepted = true;
-                    house[h].set_loglike(new_house_loglike); // FIXME
-                    delta_global_loglike += new_house_loglike - old_house_loglike;
+                    house[h].set_loglike(new_hh_ll);
+                    delta_global_loglike += delta_ll;
                 }
                 else
                 {
-                    augm_update(h, i, augmID, old_value); // restore old value
+                    // restore value and its dependencies
+                    house[h].indiv[i].augm_restore_value(augmID);
+                    augm_store_dependecies(h, i);
                 }
             }
+            else
+            {
+                house[h].indiv[i].augm_restore_value(augmID);
+            }
+
             house[h].update_augm_accept_rate(augmID, is_accepted);
         }
     }

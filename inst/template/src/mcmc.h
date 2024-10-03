@@ -135,8 +135,6 @@ public:
 	void set_augm(int h, int i, const string &augmID, double new_value) { house[h].indiv[i].set_augm(augmID, new_value); };
 	double get_augm(int h, int i, const string &augmID) const { return house[h].indiv[i].get_augm(augmID); }
 	virtual void augm_store_dependecies(int h, int i);
-	virtual void augm_update(int h, int i, const string &augmID, double new_val);
-	virtual double augm_propose(int h, int i, const string &augmID);
 
 	//===== EVALUATE =====//
 	virtual double compute_house_loglike(int h) const;

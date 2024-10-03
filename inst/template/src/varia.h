@@ -227,6 +227,7 @@ class Base_Variable
 protected:
 	string name = UNDEFINED;				// name of the variable
 	double value = INF_DOUBLE;				// value of the variable
+	double buffer = INF_DOUBLE;				// buffer of the variable
 	bool infer = false;						// to be inferred or immutable
 	Base_Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
 	Base_Proposer *prop_ptr = nullptr;		// proposer for Monte Carlo Markov Chain
@@ -312,17 +313,22 @@ public:
 
 	//=====Setter=====//
 	void set_name(const string &x) { name = x; }
-	void set_value(double x) { value = x; }
+	void set_value(double x)
+	{
+		buffer = value;
+		value = x;
+	}
+	void restore_value() { value = buffer; }
 
-	//=====distr_ptr : methods=====//
-	double distr_rand(sys_rnd_gen &prng) { return distr_ptr->rand(prng); }
-	double distr_logpdf(double x) const { return distr_ptr->logpdf(x); }
-	double distr_logratio(double old_val, double new_val) const { return distr_ptr->logratio(old_val, new_val); }
-	bool valid(double x) const { return distr_ptr->valid(x); }
+	//===== distr_ptr :  =====//
+	void distr_rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
+	double distr_logpdf() const { return distr_ptr->logpdf(value); }
+	double distr_logratio() const { return distr_ptr->logratio(buffer, value); }
+	bool valid() const { return distr_ptr->valid(value); }
 
-	//=====prop_ptr : propose methods=====//
-	double propose(sys_rnd_gen &prng) { return (this->*_propose_method_)(prng); }
-	double propose_logratio(double old_val, double new_val) const { return (prop_ptr->logratio)(old_val, new_val); }
+	//===== prop_ptr : propose methods =====//
+	void propose(sys_rnd_gen &prng) { return set_value((this->*_propose_method_)(prng)); }
+	double propose_logratio() const { return (prop_ptr->logratio)(buffer, value); }
 
 	//===== prop_ptr : adaptive methods =====//
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
@@ -384,11 +390,11 @@ public:
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {},
 			  dictargs range = {}) : Base_Variable(param_name, new_val, prior_name, prior_args,
 												   rule_name, rule_args, range) {};
-
-	//===== Aliases =====//
-	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
-	double prior_log_pdf(double new_val) { return distr_logpdf(new_val); }
-	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
+	
+	//===== Aliases for Readability =====//
+	void prior_rand(sys_rnd_gen &prng) { distr_rand(prng); }
+	double prior_log_pdf() { return distr_logpdf(); } // FIXME : is this ever used?
+	double prior_logratio() { return distr_logratio(); }
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;
@@ -406,16 +412,17 @@ public:
 class Augmented : public Base_Variable<dictargs_ptr>
 {
 public:
-	//=====Constructor=====//
+	//===== Constructor =====//
 	Augmented(const string &augm_name = UNDEFINED, double value = INF_DOUBLE,
 			  const string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
 			  double rule_from = INF_DOUBLE) : Base_Variable(augm_name, value, model_name, model_args_ptr,
 															 rule_name, rule_args, range, rule_from) {};
-	//=====Aliases=====//
-	double model_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
-	double model_logpdf(double new_val) const { return distr_logpdf(new_val); }
-	double model_logratio(double old_val, double new_val) const { return distr_logratio(old_val, new_val); }
+	
+	//===== Aliases for Readability =====//
+	void model_rand(sys_rnd_gen &prng) { distr_rand(prng); }
+	double model_logpdf() const { return distr_logpdf(); }
+	double model_logratio() const { return distr_logratio(); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -458,7 +465,6 @@ public:
 	double get_accept_rate(const string &parID) const { return params.at(parID).get_accept_rate(); }
 
 	//===== Setter =====//
-	void set_value(const string &parID, double new_val) { params.at(parID).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const string &parID) { params.at(parID).reset_accept_rate(); }
 	void assign_param(const string &parID, const Parameter &new_param);
@@ -502,7 +508,6 @@ private:
 	std::unordered_map<string, Parameter> params = {};	   // parameters dictionary
 	std::map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
-	double buffer_value = 0.0;								// buffer value of the current parameter
 	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
 	unsigned setup_num_threads = 1;							// number of OMP threads

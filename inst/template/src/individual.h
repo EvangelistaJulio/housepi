@@ -63,7 +63,7 @@ public:
 	void set_rate(const string &rateID, const double *x) { rate_ptr.emplace(rateID, x); }
 	double get_group_rate(const string &rateID) const { return *rate_ptr.at(rateID); }
 
-	//=====Augmented Variables=====//
+	//===== Augmented Variables =====//
 	void assign_augm(const Augmented &new_augm) { augm_var[new_augm.get_name()] = new_augm; }
 	void assert_augm(const string &augmID) const;
 	void init_augm(const string &augmID, sys_rnd_gen &prng);
@@ -71,15 +71,14 @@ public:
 	bool get_augm_infer(const string &augmID) const { return augm_var.at(augmID).get_infer(); }
 	double get_augm(const string &augmID) const { return (this->*_get_augm_method_)(augmID); }
 
-	//-----Augmented Variables: Model distribution-----//
-	double augm_model_rand(const string &augmID, sys_rnd_gen &prng) { return augm_var.at(augmID).model_rand(prng); }
-	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).model_logpdf(augm_var.at(augmID).get_value()); }
-	double augm_model_logratio(const string &augmID, double old_value, double new_value) const;
-
-	//-----Augmented Variables: Proposer-----//
-	double augm_propose(const string &augmID, sys_rnd_gen &prng);
-	double augm_propose_logratio(const string &augmID, double old_value, double new_value) const;
-	bool augm_valid(const string &augmID, double new_value) const { return augm_var.at(augmID).valid(new_value); }
+	//----- Wrappers -----//
+	void augm_model_rand(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).model_rand(prng); }
+	void augm_propose(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).propose(prng); }
+	bool augm_valid(const string &augmID) const { return augm_var.at(augmID).valid(); }
+	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).model_logpdf(); }
+	double augm_model_logratio(const string &augmID) const { return augm_var.at(augmID).model_logratio(); }
+	double augm_propose_logratio(const string &augmID) const { return augm_var.at(augmID).propose_logratio(); }
+	void augm_restore_value(const string &augmID) {augm_var.at(augmID).restore_value();}
 
 private:
 	dictargs_ptr rate_ptr = {};
