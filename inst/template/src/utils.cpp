@@ -25,17 +25,17 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* An internal check for string representing NA. */
-        bool is_na(const string &txt)
+    bool is_na(const string &txt)
+    {
+        if ((txt == UNDEFINED) || (txt == "NA") || (txt.size() == 0))
         {
-            if ((txt == UNDEFINED) || (txt == "NA") || (txt.size() == 0))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
+        else
+        {
+            return false;
+        }
+    }
 
     /* Welford online algorithm for mean and variance. */
     void statistics(const vector<double> &data, double &avg, double &var)
@@ -179,8 +179,7 @@ namespace basics
             std::ostringstream oss;
             oss << "\r"
                 << txt << ": [" + string(PROGBAR_WIDTH, '.') << "] "
-                << std::fixed << std::setprecision(2) << 0.0 << " %"
-                << " 00m00s<??m??s"
+                << percent(0., 1.) << " 00m00s<??m??s"
                 << string(20, ' ');
             _helper_stderr_(oss.str());
 
@@ -213,16 +212,17 @@ namespace basics
                 oss << "\r"
                     << txt << ": [" << string(where, C_PROG) << string(PROGBAR_WIDTH - where, '.') << "] "
                     << percent(progress, total)
-                    << " " << format_millisecs(time_elapsed) << "<" << format_millisecs(time_missing)
+                    << " " << format_millisecs(time_elapsed) << "<"
+                    << ((time_elapsed > 5000) ? format_millisecs(time_missing) : "??m??s")
                     << string(20, ' ');
                 _helper_stderr_(oss.str());
 
                 // adapt progressbar thinning
-                if (time_lastchecked < 925)
+                if (time_lastchecked < 1925)
                 {
                     ++_ProgBar_Thin_;
                 }
-                else if (time_lastchecked > 1075)
+                else if (time_lastchecked > 2075)
                 {
                     --_ProgBar_Thin_;
                 }

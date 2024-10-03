@@ -49,6 +49,7 @@ double MCMC::compute_augm_loglike(int h) const
     // Contribution of model associated to augmented variables
     for (const string &augmID : augm_with_model_set)
     {
+
         for (int i : house[h].infectious_set)
         {
             hh_loglike += house[h].indiv[i].augm_model_logpdf(augmID);
@@ -163,14 +164,26 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Change the status and add augmented variable if infectious. */
-void MCMC::change_status(int h, int i, int new_status)
+/* Change the status and add augmented variable if infectious. 
+  NOTE: this approach slows down enormously. // FIXME 
+*/
+void MCMC::change_status_and_augm(int h, int i, int new_status)
 {
     if (house[h].change_status(i, new_status))
     {
-        if ((!_augm_deftable_.empty()) && (house[h].is_infectious(i)))
+        if (_is_any_augm_)
         {
-            assign_augm(h, i);
+            if (house[h].is_infectious(i))
+            {
+                assign_augm(h, i);
+            }
+            /*
+            // note : this is probably not necessary.
+            else
+            {
+                clear_augm(h, i);
+            }
+            */
         }
     }
 }
@@ -182,23 +195,12 @@ void MCMC::change_status(int h, int i, int new_status)
 /* Initialize augmented variable for all individuals */
 void MCMC::init_augmented_variables()
 {
-    if (!augm_rand_init_set.empty())
+    for (int h = 0; h < num_house; ++h)
     {
-        for (int h = 0; h < num_house; ++h)
+        // initialization of augmented variables for infectious
+        for (int i : house[h].infectious_set)
         {
-            for (int i : house[h].infectious_set)
-            {
-                for (const string &augmID : augm_rand_init_set)
-                {
-                    house[h].indiv[i].init_augm(augmID, get_prng());
-                }
-            }
-
-            // initialization of augmented variables for infectious
-            for (int i : house[h].infectious_set)
-            {
-                augm_store_dependecies(h, i);
-            }
+            augm_store_dependecies(h, i);
         }
     }
 }
@@ -271,7 +273,7 @@ double MCMC::move_single_house_augm(int h)
 /* Move augmented variables from all households. */
 void MCMC::move_all_augm_variables()
 {
-    if (_is_data_augm_)
+    if (_is_move_augm_)
     {
         double variation = 0.;
 
@@ -706,11 +708,30 @@ void MCMC::simulate()
     //-----random initialization of augmented variables with model-----//
     init_augmented_variables();
 
+    bool progbar = true;
+    basics::progress_bar_init("simul", progbar);
+
+#ifdef _OPENMP
+    int thin_num_house = num_house / get_num_threads();
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_house; ++h)
     {
         simulate_single_house(h);
+
+        if (omp_get_thread_num() == 0)
+        {
+            basics::progress_bar_run("simul", h, thin_num_house, progbar);
+        }
     }
+#else
+    for (int h = 0; h < num_house; ++h)
+    {
+        simulate_single_house(h);
+        basics::progress_bar_run("simul", h, num_house, progbar);
+    }
+#endif
+
+    basics::progress_bar_end("simul", progbar);
 
     update_report_data();
 }

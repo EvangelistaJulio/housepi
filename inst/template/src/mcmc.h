@@ -63,7 +63,6 @@ protected:
 	std::set<string> augm_full_set = {};
 	std::set<string> augm_to_be_inferred = {};
 	std::set<string> augm_with_model_set = {};
-	std::set<string> augm_rand_init_set = {};
 
 public:
 	//===== CONSTRUCTOR =====//
@@ -120,9 +119,9 @@ public:
 	double get_data(int h, const string &dataID) const { return house[h].get_data(dataID); }
 
 	//===== GROUP CLASSES =====//
-	void set_rate_per_group(Individual &this_indiv);
+	void set_rate_per_group(Individual &new_indiv);
 	void set_rate_per_contact(int h);
-	virtual void assign_rate_per_group_to_individual(Individual &this_indiv);
+	virtual void assign_rate_per_group_to_individual(Individual &new_indiv);
 	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
 	double get_group_rate(int h, int i, const string &rateID) const { return house[h].indiv[i].get_group_rate(rateID); }
 	double get_contact_rate(int h, int from, int to) const { return house[h].get_contact_rate(from, to); }
@@ -131,7 +130,8 @@ public:
 	//===== AUGMENTED VARIABLES =====//
 	void init_augmented_variables();
 	void assign_augm(int h, int i);
-	void change_status(int h, int i, int new_status);
+	void clear_augm(int h, int i);
+	void change_status_and_augm(int h, int i, int new_status);
 	void set_augm(int h, int i, const string &augmID, double new_value) { house[h].indiv[i].set_augm(augmID, new_value); };
 	double get_augm(int h, int i, const string &augmID) const { return house[h].indiv[i].get_augm(augmID); }
 	virtual void augm_store_dependecies(int h, int i);
@@ -149,7 +149,7 @@ public:
 	//===== INFER =====//
 	virtual void init_model_for_inference() {};
 	void run_monte_carlo(bool progbar, ulong sweep = 0);
-	void infer(bool progbar = true);	
+	void infer(bool progbar = true);
 	void disable_assert();
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
@@ -180,7 +180,8 @@ private:
 	ulong _num_rungs_ = 0; // number of rungs
 
 	bool _is_power_post_ = false; // power posterior mode
-	bool _is_data_augm_ = false;  // data augmentation mode
+	bool _is_any_augm_ = false;	  // data augmentation mode
+	bool _is_move_augm_ = false;  // move augmented
 
 	vector<string> _data_headers_ = {};
 

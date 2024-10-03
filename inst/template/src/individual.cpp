@@ -185,36 +185,6 @@ void Individual::disable_assert()
 	_get_data_pointer_method_ = &Individual::_get_data_pointer_default_;
 }
 
-/* Assign an augmented variable to the individual. */
-void Individual::assign_augm(const string &augmID, double value,
-							 const string &model_name, const dictargs_ptr &model_args_ext,
-							 const string &rule_name, const dictargs &rule_args, const dictargs &range, double rule_from)
-{
-	// check that lists have equal sizes
-	if (model_args_ext.find(IO_MISMATCH) != model_args_ext.end())
-	{
-		raise_error("Model arguments, values and types of augmented variable '" + augmID + "' should have equal size.");
-	}
-	if (rule_args.find(IO_MISMATCH) != rule_args.end())
-	{
-		raise_error("Rule arguments, values and types of augmented variable '" + augmID + "' should have equal size.");
-	}
-
-	// FIXME : can I improve this with more neat assignment?
-	Augmented new_augm(value, model_name, model_args_ext,
-					   rule_name, rule_args, range, rule_from);
-
-	// overwrite augmented variable if it has multiple definitions
-	if (augm_var.find(augmID) == augm_var.end())
-	{
-		augm_var.emplace(augmID, new_augm);
-	}
-	else
-	{
-		augm_var.at(augmID) = new_augm;
-	}
-}
-
 /* Init augmented variable within a random initial value */
 void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 {
@@ -351,10 +321,13 @@ void Household::assign_individual(Individual this_indiv)
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
 bool Household::change_status(int i, int new_status)
 {
-	bool output = false;
 	int old_status = indiv[i].get_status();
 
-	if (new_status != old_status)
+	if (new_status == old_status)
+	{
+		return false;
+	}
+	else 
 	{
 		if (old_status == INFECTIOUS)
 		{
@@ -405,12 +378,10 @@ bool Household::change_status(int i, int new_status)
 			oss << "Impossibile to change status: unknown new status '" << new_status << "'.";
 			raise_error(oss.str());
 		}
-
 		indiv[i].set_status(new_status);
-		output = true;
-	}
 
-	return output;
+		return true;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -306,6 +306,8 @@ void MCMC::build_params()
         //===== Load parameters from the row with options =====//
         for (size_t p = 0; p < table_length; ++p)
         {
+            string parID = _param_deftable_.at("name")[p];
+
             // add entry to shared parameter dictionary
             if (stobool(_param_deftable_.at("infer")[p]))
             {
@@ -321,18 +323,23 @@ void MCMC::build_params()
                 }
 
                 // assign parameter to the set of variables
-                assign_param(
-                    _param_deftable_.at("name")[p],
-                    std::stod(_param_deftable_.at("value")[p]),
-                    _param_deftable_.at("prior")[p],
-                    merge_list_args(_param_deftable_.at("args")[p], _param_deftable_.at("argsval")[p]),
-                    _param_deftable_.at("rule")[p],
-                    merge_list_args(_param_deftable_.at("rargs")[p], _param_deftable_.at("rargsval")[p]),
-                    range);
+                Parameter new_param(parID,
+                                    std::stod(_param_deftable_.at("value")[p]),
+                                    _param_deftable_.at("prior")[p],
+                                    merge_list_args(_param_deftable_.at("args")[p],
+                                                    _param_deftable_.at("argsval")[p]),
+                                    _param_deftable_.at("rule")[p],
+                                    merge_list_args(_param_deftable_.at("rargs")[p],
+                                                    _param_deftable_.at("rargsval")[p]),
+                                    range);
+                assign_param(parID, new_param);
             }
             else
             {
-                assign_param(_param_deftable_.at("name")[p], stod(_param_deftable_.at("value")[p]));
+                // assign immutable parameter to the set of variables
+                Parameter new_param(parID,
+                                    std::stod(_param_deftable_.at("value")[p]));
+                assign_param(parID, new_param);
             }
         }
     }
@@ -710,46 +717,6 @@ void MCMC::import_augm(Rcpp::DataFrame augm)
 }
 #endif
 
-/* Assign augmented variables to single individual. */
-void MCMC::assign_augm(int h, int i)
-{
-    for (size_t a = 0; a < _augm_deftable_.at("name").size(); ++a)
-    {
-        // load range
-        dictargs range = {};
-        double aux_min = type_to_double(_augm_deftable_.at("min")[a],
-                                        _augm_deftable_.at("mintype")[a], h, i);
-        if (aux_min != INF_DOUBLE)
-        {
-            range.emplace("min", aux_min);
-        }
-
-        double aux_max = type_to_double(_augm_deftable_.at("max")[a],
-                                        _augm_deftable_.at("maxtype")[a], h, i);
-        if (aux_max != INF_DOUBLE)
-        {
-            range.emplace("max", aux_max);
-        }
-
-        // assign augmented variable
-        house[h].indiv[i].assign_augm(
-            _augm_deftable_.at("name")[a],
-            type_to_double(_augm_deftable_.at("value")[a],
-                           _augm_deftable_.at("valuetype")[a], h, i),
-            _augm_deftable_.at("model")[a],
-            typedict_to_sdargs_ext(_augm_deftable_.at("args")[a],
-                                   _augm_deftable_.at("argsval")[a],
-                                   _augm_deftable_.at("argstype")[a], h, i),
-            _augm_deftable_.at("rule")[a],
-            typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
-                               _augm_deftable_.at("rargsval")[a],
-                               _augm_deftable_.at("rargstype")[a], h, i),
-            range,
-            type_to_double(_augm_deftable_.at("rfrom")[a],
-                           _augm_deftable_.at("rfromtype")[a], h, i));
-    }
-}
-
 /* Assign augmented variables to all individuals. */
 void MCMC::build_augm()
 {
@@ -761,7 +728,6 @@ void MCMC::build_augm()
         augm_full_set.clear();
         augm_to_be_inferred.clear();
         augm_with_model_set.clear();
-        augm_rand_init_set.clear();
 
         //===== Augmented variables lists of usage =====//
         for (size_t a = 0; a < table_length; ++a)
@@ -810,23 +776,88 @@ void MCMC::build_augm()
             else
             {
                 augm_with_model_set.emplace(augmID);
+            }
+        }
+        _is_any_augm_ = !augm_full_set.empty();
+        _is_move_augm_ = !augm_to_be_inferred.empty();
 
-                if (is_init_rand)
+        //===== Assign augmented variables to each individual =====//
+        for (int h = 0; h < num_house; ++h)
+        {
+            for (int i = 0; i < house[h].house_size; ++i)
+            {
+                if (house[h].is_infectious(i))
                 {
-                    augm_rand_init_set.emplace(augmID);
+                    assign_augm(h, i);
+                }
+                else
+                {
+                    clear_augm(h, i);
                 }
             }
         }
-        _is_data_augm_ = !augm_to_be_inferred.empty();
+    }
+}
 
-        //===== Assign augmented variables to each infectious =====//
-        for (int h = 0; h < num_house; ++h)
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  MCMC : assign augmented variables  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign augmented variables to single individual. */
+void MCMC::assign_augm(int h, int i)
+{
+    for (size_t a = 0; a < augm_full_set.size(); ++a)
+    {
+        string augmID = _augm_deftable_.at("name")[a];
+
+        // load range
+        dictargs range = {};
+        double aux_min = type_to_double(_augm_deftable_.at("min")[a],
+                                        _augm_deftable_.at("mintype")[a], h, i);
+        if (aux_min != INF_DOUBLE)
         {
-            for (int i : house[h].infectious_set)
-            {
-                assign_augm(h, i);
-            }
+            range.emplace("min", aux_min);
         }
+
+        double aux_max = type_to_double(_augm_deftable_.at("max")[a],
+                                        _augm_deftable_.at("maxtype")[a], h, i);
+        if (aux_max != INF_DOUBLE)
+        {
+            range.emplace("max", aux_max);
+        }
+
+        // assign augmented variable
+        Augmented new_augm(augmID,
+                           type_to_double(_augm_deftable_.at("value")[a],
+                                          _augm_deftable_.at("valuetype")[a], h, i),
+                           _augm_deftable_.at("model")[a],
+                           typedict_to_sdargs_ext(_augm_deftable_.at("args")[a],
+                                                  _augm_deftable_.at("argsval")[a],
+                                                  _augm_deftable_.at("argstype")[a], h, i),
+                           _augm_deftable_.at("rule")[a],
+                           typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
+                                              _augm_deftable_.at("rargsval")[a],
+                                              _augm_deftable_.at("rargstype")[a], h, i),
+                           range,
+                           type_to_double(_augm_deftable_.at("rfrom")[a],
+                                          _augm_deftable_.at("rfromtype")[a], h, i));
+        house[h].indiv[i].assign_augm(new_augm);
+
+        // random initialization at assignment
+        if (stobool(_augm_deftable_.at("init_rand")[a]))
+        {
+            house[h].indiv[i].init_augm(augmID, get_prng());
+        }
+    }
+}
+
+/* Assign empty augmented variables as placeholders. */
+void MCMC::clear_augm(int h, int i)
+{
+    for (const string &augmID : augm_full_set)
+    {
+        Augmented new_augm(augmID);
+        house[h].indiv[i].assign_augm(new_augm);
     }
 }
 

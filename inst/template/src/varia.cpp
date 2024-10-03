@@ -196,21 +196,8 @@ void Monte_Carlo_Core::drop_all_params()
 }
 
 /* Assign a new parameter to the dictionary. */
-void Monte_Carlo_Core::assign_param(
-    const string &parID, double new_val,
-    const string &prior_name, const dictargs &prior_args,
-    const string &rule_name, const dictargs &rule_args, const dictargs &range)
+void Monte_Carlo_Core::assign_param(const string &parID, const Parameter &new_param)
 {
-    // check that lists have equal sizes
-    if (prior_args.find(IO_MISMATCH) != prior_args.end())
-    {
-        raise_error("Lists of prior arguments and values of parameter '" + parID + "' should have equal size.");
-    }
-    if (rule_args.find(IO_MISMATCH) != rule_args.end())
-    {
-        raise_error("Lists of rule arguments and values of parameter '" + parID + "' should have equal size.");
-    }
-
     // create the new parameter if it's not already defined
     if (params.find(parID) != params.end())
     {
@@ -219,8 +206,6 @@ void Monte_Carlo_Core::assign_param(
     else
     {
         // emplace the new parameter
-        Parameter new_param(new_val, prior_name, prior_args,
-                            rule_name, rule_args, range);
         params.emplace(parID, new_param);
 
         // update the lists of parameters to be inferred, and these to be static
@@ -299,7 +284,7 @@ const double *Monte_Carlo_Core::assign_scalar_pointer(double new_val)
 {
     if (_scalar_type_params_.find(new_val) == _scalar_type_params_.end())
     {
-        Parameter new_param(new_val, UNDEFINED, {}, UNDEFINED, {}, {});
+        Parameter new_param(UNDEFINED, new_val, UNDEFINED, {}, UNDEFINED, {}, {});
         _scalar_type_params_.emplace(new_val, new_param);
     }
     return _scalar_type_params_.at(new_val).get_pointer();

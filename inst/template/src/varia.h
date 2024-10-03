@@ -225,19 +225,35 @@ template <typename dictargs_val_or_ptr>
 class Base_Variable
 {
 protected:
-	double value = INF_DOUBLE;				// value of the parameter
-	bool infer = false;						// to be inferred or static
+	string name = UNDEFINED;				// name of the variable
+	double value = INF_DOUBLE;				// value of the variable
+	bool infer = false;						// to be inferred or immutable
 	Base_Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
 	Base_Proposer *prop_ptr = nullptr;		// proposer for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
-	Base_Variable(double value = INF_DOUBLE,
+	Base_Variable(const string &name = UNDEFINED, double value = INF_DOUBLE,
 				  const string &distr_name = UNDEFINED, dictargs_val_or_ptr distr_args = {},
 				  const string &rule_name = UNDEFINED, dictargs rule_args = {},
 				  dictargs range = {}, double rule_from = INF_DOUBLE)
 	{
-		// assing value
+		//----- Control options -----//
+		// check that distribution args have no mismatch
+		if (distr_args.find(IO_MISMATCH) != distr_args.end())
+		{
+			basics::raise_error("Mismatching definitions in arguments of '" + name + "'.");
+		}
+
+		// check that rule args have no mismatch
+		if (rule_args.find(IO_MISMATCH) != rule_args.end())
+		{
+			basics::raise_error("Mismatching definitions in rule arguments of '" + name + "'.");
+		}
+
+		//----- Assign options -----//
+		// set fundamental necessary values
+		set_name(name);
 		set_value(value);
 
 		// define distribution_ptr
@@ -246,38 +262,48 @@ public:
 		// assign its range of validity
 		distr_ptr->set_range(range);
 
-		// if no rule is defined, do not "infer"
-		infer = !basics::is_na(rule_name);
-
-		// define proposer rule : Gibbs or else with functional programming
-		if (rule_name == "gibbs")
+		// Assing proposer rule with associated state 'infer'.
+		if (basics::is_na(rule_name))
 		{
-			prop_ptr = new Prior_Proposer(distr_ptr);
-			_propose_method_ = &Base_Variable::_propose_with_gibbs_;
+			// immutable variable if no rule is defined
+			infer = false;
+			_propose_method_ = &Base_Variable::_propose_error_;
 		}
 		else
 		{
-			/*
-			// FIXME : this warning doesn't work in a template because global warning are forbidden in headers
-			// Waiting for throwing exception structure
-			if ((rule_from != INF_DOUBLE) && (!valid(rule_from)))
-			{
-				std::ostringstream oss;
-				oss << "Initial value " << rule_from << " outside of value range"
-					<< " {min:" << distr_ptr->get_range_min() << ", max:" << distr_ptr->get_range_max() << "}."
-					<< " If it was intentional, ignore this message.";
-				screen::raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
-			}
-			*/
+			infer = true;
 
-			// assigne the pointer to the proposer
-			prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from);
-			_propose_method_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
+			// define proposer rule with functional programming
+			if (rule_name == "gibbs")
+			{
+				prop_ptr = new Prior_Proposer(distr_ptr);
+				_propose_method_ = &Base_Variable::_propose_gibbs_sampl_;
+			}
+			else
+			{
+				/*
+				// FIXME : this warning doesn't work in a template because global warning are forbidden in headers
+				// Waiting for throwing exception structure
+				if ((rule_from != INF_DOUBLE) && (!valid(rule_from)))
+				{
+					std::ostringstream oss;
+					oss << "Initial value " << rule_from << " outside of value range"
+						<< " {min:" << distr_ptr->get_range_min() << ", max:" << distr_ptr->get_range_max() << "}."
+						<< " If it was intentional, ignore this message.";
+					screen::raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
+				}
+				*/
+
+				// assigne the pointer to the proposer
+				prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from);
+				_propose_method_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
+			}
 		}
 	}
 	virtual ~Base_Variable() {};
 
 	//=====Getter=====//
+	string get_name() const { return name; }
 	double get_value() const { return value; }
 	const double *get_pointer() const { return &value; }
 	bool get_infer() const { return infer; }
@@ -285,6 +311,7 @@ public:
 	double get_from_value() const { return (prop_ptr->get_from_value)(); }
 
 	//=====Setter=====//
+	void set_name(const string &x) { name = x; }
 	void set_value(double x) { value = x; }
 
 	//=====distr_ptr : methods=====//
@@ -332,7 +359,13 @@ public:
 private:
 	//=====Propose : functional methods=====//
 	double (Base_Variable::*_propose_method_)(sys_rnd_gen &);
-	double _propose_with_gibbs_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
+	double _propose_error_(sys_rnd_gen &prng)
+	{
+		UNUSED(prng);
+		basics::raise_error("Call to proposer of immutable variable '" + get_name() + "'.");
+		return 0.;
+	}
+	double _propose_gibbs_sampl_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
 	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
 	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
 };
@@ -345,12 +378,12 @@ class Parameter : public Base_Variable<dictargs>
 {
 public:
 	//===== Constructor =====//
-	Parameter(double new_val = INF_DOUBLE, const string &prior_name = UNDEFINED, dictargs prior_args = {},
+	// NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
+	Parameter(const string &param_name = UNDEFINED, double new_val = INF_DOUBLE,
+			  const string &prior_name = UNDEFINED, dictargs prior_args = {},
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {},
-			  dictargs range = {}) : Base_Variable(new_val, prior_name, prior_args,
+			  dictargs range = {}) : Base_Variable(param_name, new_val, prior_name, prior_args,
 												   rule_name, rule_args, range) {};
-
-	// NOTE : default rule_from = false
 
 	//===== Aliases =====//
 	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
@@ -374,9 +407,10 @@ class Augmented : public Base_Variable<dictargs_ptr>
 {
 public:
 	//=====Constructor=====//
-	Augmented(double value = INF_DOUBLE, const string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
+	Augmented(const string &augm_name = UNDEFINED, double value = INF_DOUBLE,
+			  const string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
-			  double rule_from = INF_DOUBLE) : Base_Variable(value, model_name, model_args_ptr,
+			  double rule_from = INF_DOUBLE) : Base_Variable(augm_name, value, model_name, model_args_ptr,
 															 rule_name, rule_args, range, rule_from) {};
 	//=====Aliases=====//
 	double model_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
@@ -427,9 +461,7 @@ public:
 	void set_value(const string &parID, double new_val) { params.at(parID).set_value(new_val); }
 	void init_rand_params(bool is_rand_params);
 	void reset_accept_rate(const string &parID) { params.at(parID).reset_accept_rate(); }
-	void assign_param(const string &parID, double new_val,
-					  const string &prior_name = UNDEFINED, const dictargs &prior_args = {},
-					  const string &rule_name = UNDEFINED, const dictargs &rule_args = {}, const dictargs &range = {});
+	void assign_param(const string &parID, const Parameter &new_param);
 	void drop_all_params();
 	const double *assign_scalar_pointer(double new_val);
 

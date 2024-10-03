@@ -64,10 +64,7 @@ public:
 	double get_group_rate(const string &rateID) const { return *rate_ptr.at(rateID); }
 
 	//=====Augmented Variables=====//
-	void assign_augm(const string &augmID, double value,
-					 const string &model_name, const dictargs_ptr &model_args,
-					 const string &rule_name, const dictargs &rule_args,
-					 const dictargs &range, double rule_from);
+	void assign_augm(const Augmented &new_augm) { augm_var[new_augm.get_name()] = new_augm; }
 	void assert_augm(const string &augmID) const;
 	void init_augm(const string &augmID, sys_rnd_gen &prng);
 	void set_augm(const string &augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
@@ -86,7 +83,7 @@ public:
 
 private:
 	dictargs_ptr rate_ptr = {};
-	std::unordered_map<string, Augmented> augm_var = {};
+	std::map<string, Augmented> augm_var = {};
 
 	//===== Setter (auxiliary methods) =====//
 	void (Individual::*_set_augm_method_)(const string &, double) = &Individual::_set_augm_assert_;
@@ -131,7 +128,7 @@ private:
 	// accpetance rates for augmented variables
 	std::unordered_map<string, int> num_accept_augm_moves = {};
 	std::unordered_map<string, int> num_propos_augm_moves = {};
-	
+
 	// wheter members correspond to a given status or not
 	vector<bool> _is_infectious_ = {};
 	vector<bool> _is_susceptible_ = {};
@@ -170,7 +167,6 @@ public:
 	void assert_data(const string &dataID) const;
 	double get_data(const string &dataID) const;
 	double get_group_rate(int i, const string &rateID) const { return indiv[i].get_group_rate(rateID); }
-
 
 	// wheter members correspond to a given status or not
 	bool is_infectious(int i) const { return _is_infectious_[i]; }

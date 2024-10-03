@@ -283,24 +283,28 @@ double Model::compute_house_loglike(int h) const
 /* Poisson point process to simulate outbreak in a single household. */
 void Model::simulate_single_house(int h)
 {
-	// note: incub periods are initialized according to option in augm file
-	// note: also simulation are conditioned on the the first cases
-
 	double Dt = 0.01;
 
 	//=================================================//
 	//===== GENERATION 0 : by single introduction =====//
 	//=================================================//
 
-	// set all cases to susceptible
+	//----- Preload incubation periods -----//
+	// note: incub_period are initialized according to definitions
+	// - set infectious to susceptible w/o dropping augm variables;
+	// - add augmented variables to all others (also missing);
 	for (int i = 0; i < house[h].house_size; i++)
 	{
-		change_status(h, i, SUSCEPTIBLE);
+		if (!house[h].is_infectious(i))
+		{
+			assign_augm(h, i);
+		}
+		house[h].change_status(i, SUSCEPTIBLE);
 	}
 
-	// pick a random introduction and leave user
+	// pick a random introduction and change it's status
 	LUT_house_first_case[h] = uniform() * house[h].house_size;
-	change_status(h, LUT_house_first_case[h], INFECTIOUS);
+	house[h].change_status(LUT_house_first_case[h], INFECTIOUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
@@ -318,14 +322,14 @@ void Model::simulate_single_house(int h)
 			if (house[h].is_susceptible(i))
 			{
 				// set new status for computations
-				change_status(h, i, INFECTIOUS);
+				house[h].change_status(i, INFECTIOUS);
 				set_augm(h, i, "onset_date", t);
 				augm_store_dependecies(h, i);
 
 				// restore status id escaped infection
 				if (uniform() < exp(-force_of_infec(h, i, LUT_inst_profile) * Dt))
 				{
-					change_status(h, i, SUSCEPTIBLE);
+					house[h].change_status(i, SUSCEPTIBLE);
 				}
 			}
 		}
