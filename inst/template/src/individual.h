@@ -76,7 +76,7 @@ public:
 
 	//-----Augmented Variables: Model distribution-----//
 	double augm_model_rand(const string &augmID, sys_rnd_gen &prng) { return augm_var.at(augmID).model_rand(prng); }
-	double augm_model_log_pdf(const string &augmID) const { return augm_var.at(augmID).model_log_pdf(augm_var.at(augmID).get_value()); }
+	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).model_logpdf(augm_var.at(augmID).get_value()); }
 	double augm_model_logratio(const string &augmID, double old_value, double new_value) const;
 
 	//-----Augmented Variables: Proposer-----//
@@ -163,7 +163,7 @@ public:
 	void set_index(int index) { house_index = index; }
 	void assign_data(const string &dataID, double value);
 	void assign_rate_per_contact(int from, int to, const string &parID) { which_rate[from][to] = parID; }
-	void change_status(int i, int new_status);
+	bool change_status(int i, int new_status);
 
 	//====== Getter ======//
 	int get_index() const { return house_index; }

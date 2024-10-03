@@ -232,8 +232,10 @@ protected:
 
 public:
 	//=====Constructor=====//
-	Base_Variable(double value, const string &distr_name = UNDEFINED, dictargs_val_or_ptr distr_args = {},
-				  const string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {}, double rule_from = INF_DOUBLE)
+	Base_Variable(double value = INF_DOUBLE,
+				  const string &distr_name = UNDEFINED, dictargs_val_or_ptr distr_args = {},
+				  const string &rule_name = UNDEFINED, dictargs rule_args = {},
+				  dictargs range = {}, double rule_from = INF_DOUBLE)
 	{
 		// assing value
 		set_value(value);
@@ -247,11 +249,11 @@ public:
 		// if no rule is defined, do not "infer"
 		infer = !basics::is_na(rule_name);
 
-		// define proposer rule : prior/model or else with functional programming
-		if (rule_name == "prior" || rule_name == "model")
+		// define proposer rule : Gibbs or else with functional programming
+		if (rule_name == "gibbs")
 		{
 			prop_ptr = new Prior_Proposer(distr_ptr);
-			_propose_method_ = &Base_Variable::_propose_from_prior_model_;
+			_propose_method_ = &Base_Variable::_propose_with_gibbs_;
 		}
 		else
 		{
@@ -287,7 +289,7 @@ public:
 
 	//=====distr_ptr : methods=====//
 	double distr_rand(sys_rnd_gen &prng) { return distr_ptr->rand(prng); }
-	double distr_log_pdf(double x) const { return distr_ptr->logpdf(x); }
+	double distr_logpdf(double x) const { return distr_ptr->logpdf(x); }
 	double distr_logratio(double old_val, double new_val) const { return distr_ptr->logratio(old_val, new_val); }
 	bool valid(double x) const { return distr_ptr->valid(x); }
 
@@ -330,7 +332,7 @@ public:
 private:
 	//=====Propose : functional methods=====//
 	double (Base_Variable::*_propose_method_)(sys_rnd_gen &);
-	double _propose_from_prior_model_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
+	double _propose_with_gibbs_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
 	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
 	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
 };
@@ -343,7 +345,7 @@ class Parameter : public Base_Variable<dictargs>
 {
 public:
 	//===== Constructor =====//
-	Parameter(double new_val, const string &prior_name = UNDEFINED, dictargs prior_args = {},
+	Parameter(double new_val = INF_DOUBLE, const string &prior_name = UNDEFINED, dictargs prior_args = {},
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {},
 			  dictargs range = {}) : Base_Variable(new_val, prior_name, prior_args,
 												   rule_name, rule_args, range) {};
@@ -352,7 +354,7 @@ public:
 
 	//===== Aliases =====//
 	double prior_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
-	double prior_log_pdf(double new_val) { return distr_log_pdf(new_val); }
+	double prior_log_pdf(double new_val) { return distr_logpdf(new_val); }
 	double prior_logratio(double old_val, double new_val) { return distr_logratio(old_val, new_val); }
 
 	//===== Diagnostics =====//
@@ -372,13 +374,13 @@ class Augmented : public Base_Variable<dictargs_ptr>
 {
 public:
 	//=====Constructor=====//
-	Augmented(double value, const string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
+	Augmented(double value = INF_DOUBLE, const string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
 			  double rule_from = INF_DOUBLE) : Base_Variable(value, model_name, model_args_ptr,
 															 rule_name, rule_args, range, rule_from) {};
 	//=====Aliases=====//
 	double model_rand(sys_rnd_gen &prng) { return distr_rand(prng); }
-	double model_log_pdf(double new_val) const { return distr_log_pdf(new_val); }
+	double model_logpdf(double new_val) const { return distr_logpdf(new_val); }
 	double model_logratio(double old_val, double new_val) const { return distr_logratio(old_val, new_val); }
 };
 

@@ -129,7 +129,7 @@ void MCMC::show_setup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Show the user model parameters */
-void MCMC::show_parameters()
+void MCMC::show_params()
 {
     std::ostringstream oss;
     oss << param_file_headers[0];

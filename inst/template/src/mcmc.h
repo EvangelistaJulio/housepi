@@ -81,18 +81,18 @@ public:
 	void read_data(const string &pathtofile = UNDEFINED);
 	void read_augm(const string &pathtofile = UNDEFINED);
 
-	//===== ASSIGN =====//
-	void assign_setup();
-	void assign_parameters();
-	void assign_data(std::map<string, vector<string>> &datatable);
-	void assign_augmented();
+	//===== BUILD =====//
+	void build_setup();
+	void build_params();
+	void build_data(const std::map<string, vector<string>> &datatable);
+	void build_augm();
 
 	//===== SHOW =====//
-	void show_build_details();
 	void show_setup();
-	void show_parameters();
+	void show_params();
 	void show_summary();
 	void show_group_classes();
+	void show_full_build();
 
 #ifdef USE_RCPP
 	//----- Rcpp imports -----//
@@ -129,26 +129,28 @@ public:
 	void update_report_data();
 
 	//===== AUGMENTED VARIABLES =====//
+	void init_augmented_variables();
+	void assign_augm(int h, int i);
+	void change_status(int h, int i, int new_status);
 	void set_augm(int h, int i, const string &augmID, double new_value) { house[h].indiv[i].set_augm(augmID, new_value); };
 	double get_augm(int h, int i, const string &augmID) const { return house[h].indiv[i].get_augm(augmID); }
-	void init_augmented_variables(bool is_init = true);
 	virtual void augm_store_dependecies(int h, int i);
 	virtual void augm_update(int h, int i, const string &augmID, double new_val);
 	virtual double augm_propose(int h, int i, const string &augmID);
 
 	//===== EVALUATE =====//
-	void set_global_loglike(long double x) { global_loglike = x; };
-	long double get_global_loglike() const { return global_loglike; };
-	virtual double compute_house_loglike(int h);
-	virtual long double compute_global_loglike();
-	long double evaluate();
+	virtual double compute_house_loglike(int h) const;
+	double compute_augm_loglike(int h) const;
+	double compute_global_loglike();
+	double get_global_loglike() const { return global_loglike; };
+	void set_global_loglike(double x) { global_loglike = x; };
+	double evaluate();
 
 	//===== INFER =====//
-	void disable_assert();
 	virtual void init_model_for_inference() {};
-	virtual void init_single_chain() {};
-	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_init_augm = true);
-	void infer(bool progbar = true);
+	void run_monte_carlo(bool progbar, ulong sweep = 0);
+	void infer(bool progbar = true);	
+	void disable_assert();
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
 	double evaluate_marginal(int num_rungs, bool progbar = true, bool power_fractions = false);
@@ -160,7 +162,7 @@ public:
 
 private:
 	//===== Global Loglikelihood =====//
-	long double global_loglike = 0.0;
+	double global_loglike = 0.0;
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;
@@ -207,7 +209,7 @@ private:
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();
 	void move_all_augm_variables();
-	long double move_single_house_augm(int h);
+	double move_single_house_augm(int h);
 
 	double get_augm_accept_rate(const string &augmID);
 };

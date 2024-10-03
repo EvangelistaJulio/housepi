@@ -180,15 +180,15 @@ We can verify that inference returns the parameters used for the simulation.
 augm_2_infer <- housepi::AugmentedFrame()
 
 # add 'onset_date' definition
-augm_2_infer$add(name = "onset_date", 
+augm_2_infer$add(name = "onset_date",
                  x = "onset_date@D",
                  rule = "norm", rule_args = list(sd = 0.5),
                  rule_from = "onset_date@D")
 
 # add 'incub_period' definition
-augm_2_infer$add(name = "incub_period", 
+augm_2_infer$add(name = "incub_period",
                  init_rand = TRUE,
-                 model = "gamma", 
+                 model = "gamma",
                  args = list(shape = "inc_shape@P", 
                              scale = "inc_scale@P"),
                  rule = "norm", rule_args = list(sd = 0.5),

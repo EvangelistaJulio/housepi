@@ -39,7 +39,7 @@ const string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-void MCMC::show_build_details()
+void MCMC::show_full_build()
 {
     //----- SETUP -----//
     string add_file_info = UNDEFINED;
@@ -63,7 +63,7 @@ void MCMC::show_build_details()
         }
     }
     print_decorator("Parameters", add_file_info);
-    show_parameters();
+    show_params();
 
     //----- DATABASE -----//
     add_file_info = UNDEFINED;
@@ -97,7 +97,7 @@ void MCMC::show_build_details()
 void MCMC::read_setup(const string &pathtofile)
 {
     read_csv_list(pathtofile, _setup_deflist_);
-    assign_setup();
+    build_setup();
     report_pathtofile["setup"] = pathtofile;
 }
 
@@ -105,7 +105,7 @@ void MCMC::read_setup(const string &pathtofile)
 void MCMC::import_setup(Rcpp::List setup)
 {
     rlist_to_map(setup, _setup_deflist_);
-    assign_setup();
+    build_setup();
     if (report_pathtofile.find("setup") == report_pathtofile.end())
     {
         report_pathtofile.erase("setup");
@@ -114,7 +114,7 @@ void MCMC::import_setup(Rcpp::List setup)
 #endif
 
 /* Assign setup. */
-void MCMC::assign_setup()
+void MCMC::build_setup()
 {
     // default number of threads
     unsigned num_threads = 1;
@@ -268,7 +268,7 @@ void MCMC::assign_setup()
 void MCMC::read_params(const string &pathtofile)
 {
     read_csv_table(pathtofile, _param_deftable_, param_file_headers);
-    assign_parameters();
+    build_params();
     report_pathtofile["params"] = pathtofile;
 }
 
@@ -276,7 +276,7 @@ void MCMC::read_params(const string &pathtofile)
 void MCMC::import_params(Rcpp::DataFrame params)
 {
     rdataframe_to_map(params, _param_deftable_);
-    assign_parameters();
+    build_params();
     if (report_pathtofile.find("params") == report_pathtofile.end())
     {
         report_pathtofile.erase("params");
@@ -285,7 +285,7 @@ void MCMC::import_params(Rcpp::DataFrame params)
 #endif
 
 /* Assign parameter definitions to dictionary. */
-void MCMC::assign_parameters()
+void MCMC::build_params()
 {
     if (_param_deftable_.empty())
     {
@@ -354,7 +354,7 @@ void MCMC::read_data(const string &pathtofile)
 {
     std::map<string, vector<string>> datatable = {};
     read_csv_table(pathtofile, datatable);
-    assign_data(datatable);
+    build_data(datatable);
 
     report_pathtofile["data"] = pathtofile;
 }
@@ -374,7 +374,7 @@ void MCMC::import_data(Rcpp::DataFrame data)
 #endif
 
 /* Assign data after pre-processing. */
-void MCMC::assign_data(std::map<string, vector<string>> &datatable)
+void MCMC::build_data(const std::map<string, vector<string>> &datatable)
 {
     if (datatable.empty())
     {
@@ -693,7 +693,7 @@ void MCMC::read_augm(const string &pathtofile)
         "min", "mintype", "max", "maxtype", "init_rand"};
 
     read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
-    assign_augmented();
+    build_augm();
     report_pathtofile["augm"] = pathtofile;
 }
 
@@ -702,7 +702,7 @@ void MCMC::read_augm(const string &pathtofile)
 void MCMC::import_augm(Rcpp::DataFrame augm)
 {
     rdataframe_to_map(augm, _augm_deftable_);
-    assign_augmented();
+    build_augm();
     if (report_pathtofile.find("augm") == report_pathtofile.end())
     {
         report_pathtofile.erase("augm");
@@ -710,8 +710,48 @@ void MCMC::import_augm(Rcpp::DataFrame augm)
 }
 #endif
 
+/* Assign augmented variables to single individual. */
+void MCMC::assign_augm(int h, int i)
+{
+    for (size_t a = 0; a < _augm_deftable_.at("name").size(); ++a)
+    {
+        // load range
+        dictargs range = {};
+        double aux_min = type_to_double(_augm_deftable_.at("min")[a],
+                                        _augm_deftable_.at("mintype")[a], h, i);
+        if (aux_min != INF_DOUBLE)
+        {
+            range.emplace("min", aux_min);
+        }
+
+        double aux_max = type_to_double(_augm_deftable_.at("max")[a],
+                                        _augm_deftable_.at("maxtype")[a], h, i);
+        if (aux_max != INF_DOUBLE)
+        {
+            range.emplace("max", aux_max);
+        }
+
+        // assign augmented variable
+        house[h].indiv[i].assign_augm(
+            _augm_deftable_.at("name")[a],
+            type_to_double(_augm_deftable_.at("value")[a],
+                           _augm_deftable_.at("valuetype")[a], h, i),
+            _augm_deftable_.at("model")[a],
+            typedict_to_sdargs_ext(_augm_deftable_.at("args")[a],
+                                   _augm_deftable_.at("argsval")[a],
+                                   _augm_deftable_.at("argstype")[a], h, i),
+            _augm_deftable_.at("rule")[a],
+            typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
+                               _augm_deftable_.at("rargsval")[a],
+                               _augm_deftable_.at("rargstype")[a], h, i),
+            range,
+            type_to_double(_augm_deftable_.at("rfrom")[a],
+                           _augm_deftable_.at("rfromtype")[a], h, i));
+    }
+}
+
 /* Assign augmented variables to all individuals. */
-void MCMC::assign_augmented()
+void MCMC::build_augm()
 {
     if (!_augm_deftable_.empty())
     {
@@ -779,49 +819,12 @@ void MCMC::assign_augmented()
         }
         _is_data_augm_ = !augm_to_be_inferred.empty();
 
-        //===== Eventually assign augmented variables to each individual =====//
-        if (table_length > 0)
+        //===== Assign augmented variables to each infectious =====//
+        for (int h = 0; h < num_house; ++h)
         {
-            for (int h = 0; h < num_house; ++h)
+            for (int i : house[h].infectious_set)
             {
-                for (int i = 0; i < house[h].house_size; ++i)
-                {
-                    for (size_t a = 0; a < table_length; ++a)
-                    {
-                        // load range
-                        dictargs range = {};
-                        double aux_min = type_to_double(_augm_deftable_.at("min")[a],
-                                                        _augm_deftable_.at("mintype")[a], h, i);
-                        if (aux_min != INF_DOUBLE)
-                        {
-                            range.emplace("min", aux_min);
-                        }
-
-                        double aux_max = type_to_double(_augm_deftable_.at("max")[a],
-                                                        _augm_deftable_.at("maxtype")[a], h, i);
-                        if (aux_max != INF_DOUBLE)
-                        {
-                            range.emplace("max", aux_max);
-                        }
-
-                        // assign augmented variable
-                        house[h].indiv[i].assign_augm(
-                            _augm_deftable_.at("name")[a],
-                            type_to_double(_augm_deftable_.at("value")[a],
-                                           _augm_deftable_.at("valuetype")[a], h, i),
-                            _augm_deftable_.at("model")[a],
-                            typedict_to_sdargs_ext(_augm_deftable_.at("args")[a],
-                                                   _augm_deftable_.at("argsval")[a],
-                                                   _augm_deftable_.at("argstype")[a], h, i),
-                            _augm_deftable_.at("rule")[a],
-                            typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
-                                               _augm_deftable_.at("rargsval")[a],
-                                               _augm_deftable_.at("rargstype")[a], h, i),
-                            range,
-                            type_to_double(_augm_deftable_.at("rfrom")[a],
-                                           _augm_deftable_.at("rfromtype")[a], h, i));
-                    }
-                }
+                assign_augm(h, i);
             }
         }
     }

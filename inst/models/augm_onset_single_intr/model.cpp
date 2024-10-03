@@ -241,7 +241,7 @@ double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(int h)
+double Model::compute_house_loglike(int h) const
 {
 	double loglike_house = 0.0;
 
@@ -254,12 +254,6 @@ double Model::compute_house_loglike(int h)
 	// Contribution of symptomatic members
 	for (int i : house[h].infectious_set)
 	{
-		// Contribution of model associated to augmented variables
-		for (string augmID : augm_with_model_set)
-		{
-			loglike_house += house[h].indiv[i].augm_model_log_pdf(augmID);
-		}
-
 		// Contribution of secondary cases
 		if (i != LUT_house_first_case[h])
 		{
@@ -267,6 +261,10 @@ double Model::compute_house_loglike(int h)
 			loglike_house -= force_of_infec(h, i, LUT_cumul_profile);
 		}
 	}
+
+	// model of augmented variables
+	// FIXME : should be taken care by Gibbs in case...
+	loglike_house += compute_augm_loglike(h);
 
 	return loglike_house;
 }
@@ -297,12 +295,12 @@ void Model::simulate_single_house(int h)
 	// set all cases to susceptible
 	for (int i = 0; i < house[h].house_size; i++)
 	{
-		house[h].change_status(i, SUSCEPTIBLE);
+		change_status(h, i, SUSCEPTIBLE);
 	}
 
 	// pick a random introduction and leave user
 	LUT_house_first_case[h] = uniform() * house[h].house_size;
-	house[h].change_status(LUT_house_first_case[h], INFECTIOUS);
+	change_status(h, LUT_house_first_case[h], INFECTIOUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
@@ -320,14 +318,14 @@ void Model::simulate_single_house(int h)
 			if (house[h].is_susceptible(i))
 			{
 				// set new status for computations
-				house[h].change_status(i, INFECTIOUS);
+				change_status(h, i, INFECTIOUS);
 				set_augm(h, i, "onset_date", t);
 				augm_store_dependecies(h, i);
 
 				// restore status id escaped infection
 				if (uniform() < exp(-force_of_infec(h, i, LUT_inst_profile) * Dt))
 				{
-					house[h].change_status(i, SUSCEPTIBLE);
+					change_status(h, i, SUSCEPTIBLE);
 				}
 			}
 		}

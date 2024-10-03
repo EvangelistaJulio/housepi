@@ -265,7 +265,7 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model_set)
 		{
-			loglike_house += house[h].indiv[i].augm_model_log_pdf(augmID);
+			loglike_house += house[h].indiv[i].augm_model_logpdf(augmID);
 		}
 
 		// Contribution of secondary cases

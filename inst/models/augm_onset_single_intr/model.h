@@ -53,7 +53,7 @@ public:
 	void assign_rate_per_contact_to_household(int h, int from, int to) override;
 
 	//----- Override Methods for Inference -----//
-	double compute_house_loglike(int h) override;
+	double compute_house_loglike(int h) const override;
 
 	//----- Override Methods for Simulations -----//
 	void simulate_single_house(int h) override;

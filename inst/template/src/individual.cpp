@@ -200,11 +200,11 @@ void Individual::assign_augm(const string &augmID, double value,
 		raise_error("Rule arguments, values and types of augmented variable '" + augmID + "' should have equal size.");
 	}
 
+	// FIXME : can I improve this with more neat assignment?
 	Augmented new_augm(value, model_name, model_args_ext,
 					   rule_name, rule_args, range, rule_from);
 
 	// overwrite augmented variable if it has multiple definitions
-	// FIXME : is this relevant?
 	if (augm_var.find(augmID) == augm_var.end())
 	{
 		augm_var.emplace(augmID, new_augm);
@@ -348,28 +348,29 @@ void Household::assign_individual(Individual this_indiv)
 }
 
 /* Change_status of individual i to new status (without controls).
-	WARNING : this introduces augmented variables -> it requires RJMCMC in case of inference.*/
-void Household::change_status(int i, int new_status)
+	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
+bool Household::change_status(int i, int new_status)
 {
+	bool output = false;
 	int old_status = indiv[i].get_status();
 
 	if (new_status != old_status)
 	{
 		if (old_status == INFECTIOUS)
 		{
-			num_infectious--;
+			--num_infectious;
 			infectious_set.erase(i);
 			_is_infectious_[i] = false;
 		}
 		else if (old_status == SUSCEPTIBLE)
 		{
-			num_susceptible--;
+			--num_susceptible;
 			susceptible_set.erase(i);
 			_is_susceptible_[i] = false;
 		}
 		else if (old_status == MISSING_STATUS)
 		{
-			num_missing_status--;
+			--num_missing_status;
 			missing_status_set.erase(i);
 			_is_missing_status_[i] = false;
 		}
@@ -406,7 +407,10 @@ void Household::change_status(int i, int new_status)
 		}
 
 		indiv[i].set_status(new_status);
+		output = true;
 	}
+
+	return output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

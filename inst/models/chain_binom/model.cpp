@@ -148,11 +148,11 @@ void Model::simulate_single_house(int h)
 	{
 		if (uniform() < commu_esc_proba)
 		{
-			house[h].change_status(i, SUSCEPTIBLE);
+			change_status(h, i, SUSCEPTIBLE);
 		}
 		else
 		{
-			house[h].change_status(i, INFECTIOUS);
+			change_status(h, i, INFECTIOUS);
 		}
 	}
 
@@ -175,7 +175,7 @@ void Model::simulate_single_house(int h)
 			{
 				if (uniform() >= exp(num_old_gen * log_p2p_esc_proba))
 				{
-					house[h].change_status(i, INFECTIOUS);
+					change_status(h, i, INFECTIOUS);
 					num_new_gen++;
 				}
 			}

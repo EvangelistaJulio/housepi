@@ -24,7 +24,7 @@ void MCMC::augm_store_dependecies(int h, int i)
 }
 
 /* Compute the loglikelihood for a single household. */
-double MCMC::compute_house_loglike(int h)
+double MCMC::compute_house_loglike(int h) const
 {
     UNUSED(h);
     return 0.;
@@ -41,17 +41,31 @@ double MCMC::compute_house_loglike(int h)
 ///////////////////////////////////  MCMC : methods (general)  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Compute global loglikelihood */
-long double MCMC::compute_global_loglike()
+/* House loglikelihood including augmented modl contribution. */
+double MCMC::compute_augm_loglike(int h) const
 {
-    long double output = 0.0;
+    double hh_loglike = 0.;
+
+    // Contribution of model associated to augmented variables
+    for (const string &augmID : augm_with_model_set)
+    {
+        for (int i : house[h].infectious_set)
+        {
+            hh_loglike += house[h].indiv[i].augm_model_logpdf(augmID);
+        }
+    }
+
+    return hh_loglike;
+}
+
+/* Compute global loglikelihood */
+double MCMC::compute_global_loglike()
+{
+    double output = 0.0;
 
 #pragma omp parallel for reduction(+ : output)
     for (int h = 0; h < num_house; ++h)
     {
-        // UPDATE : household loglikelihood is not long double, just double
-        // to modify this traces to parameter values,
-        // i. e. all program doubles to be cast to long double
         house[h].set_loglike(compute_house_loglike(h));
         output += house[h].get_loglike();
     }
@@ -97,10 +111,10 @@ void MCMC::move_single_param(const string &parID)
     {
         // Compute the new gobla loglikelihood
         // set loglike in households and store old values in buffer
-        long double new_global_loglike = compute_global_loglike();
+        double new_global_loglike = compute_global_loglike();
 
         //===== METROPOLIS-HASTINGS =====//
-        long double logQ = setup_inv_T * (new_global_loglike - get_global_loglike());
+        double logQ = setup_inv_T * (new_global_loglike - get_global_loglike());
         logQ += get_move_logratio(); // logratio priors - logratio proposal
 
         if (uniform() < exp(logQ))
@@ -149,33 +163,41 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Change the status and add augmented variable if infectious. */
+void MCMC::change_status(int h, int i, int new_status)
+{
+    if (house[h].change_status(i, new_status))
+    {
+        if ((!_augm_deftable_.empty()) && (house[h].is_infectious(i)))
+        {
+            assign_augm(h, i);
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize augmented variable for all individuals */
-void MCMC::init_augmented_variables(bool is_init)
+void MCMC::init_augmented_variables()
 {
-    if (is_init)
+    if (!augm_rand_init_set.empty())
     {
-        //===== random initialization on demand =====//
-        if (!augm_rand_init_set.empty())
+        for (int h = 0; h < num_house; ++h)
         {
-            for (int h = 0; h < num_house; ++h)
+            for (int i : house[h].infectious_set)
             {
-                for (int i = 0; i < house[h].house_size; ++i)
+                for (const string &augmID : augm_rand_init_set)
                 {
-                    for (const string &augmID : augm_rand_init_set)
-                    {
-                        house[h].indiv[i].init_augm(augmID, get_prng());
-                    }
+                    house[h].indiv[i].init_augm(augmID, get_prng());
                 }
+            }
 
-                // initialization of augmented variables for infectious
-                for (int i : house[h].infectious_set)
-                {
-                    augm_store_dependecies(h, i);
-                }
+            // initialization of augmented variables for infectious
+            for (int i : house[h].infectious_set)
+            {
+                augm_store_dependecies(h, i);
             }
         }
     }
@@ -197,13 +219,13 @@ double MCMC::augm_propose(int h, int i, const string &augmID)
 /* Move augmented variables for infectious members of a single household.
 The move is performed one member at a time, one augmented variable at at time.
 */
-long double MCMC::move_single_house_augm(int h)
+double MCMC::move_single_house_augm(int h)
 {
     double old_value, new_value;
-    long double logQ, old_house_loglike, new_house_loglike;
+    double logQ, old_house_loglike, new_house_loglike;
     bool is_accepted = false;
 
-    long double delta_global_loglike = 0.0;
+    double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
     // FIXME : only infectious are subject to data augmentation?
@@ -215,7 +237,7 @@ long double MCMC::move_single_house_augm(int h)
             is_accepted = false;
             old_value = house[h].indiv[i].get_augm(augmID); // store old value
             old_house_loglike = house[h].get_loglike();     // store old loglike
-            new_value = augm_propose(h, i, augmID);          // propose new value
+            new_value = augm_propose(h, i, augmID);         // propose new value
 
             // proceed only if the new value is consistent
             if (house[h].indiv[i].augm_valid(augmID, new_value))
@@ -231,7 +253,7 @@ long double MCMC::move_single_house_augm(int h)
                 if (uniform() < exp(logQ))
                 {
                     is_accepted = true;
-                    house[h].set_loglike(new_house_loglike);
+                    house[h].set_loglike(new_house_loglike); // FIXME
                     delta_global_loglike += new_house_loglike - old_house_loglike;
                 }
                 else
@@ -251,7 +273,7 @@ void MCMC::move_all_augm_variables()
 {
     if (_is_data_augm_)
     {
-        long double variation = 0.;
+        double variation = 0.;
 
 #pragma omp parallel for reduction(+ : variation)
         for (int h = 0; h < num_house; ++h)
@@ -288,7 +310,7 @@ double MCMC::get_augm_accept_rate(const string &augmID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-long double MCMC::evaluate()
+double MCMC::evaluate()
 {
     //===== Initialization =====//
 
@@ -395,7 +417,7 @@ void MCMC::disable_assert()
 
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
-void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
+void MCMC::run_monte_carlo(bool progbar, ulong sweep)
 {
     using namespace basics;
 
@@ -416,10 +438,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_init_augm)
         init_rand_params(setup_rnd_init_params);
 
         //-----Initialize augmented variables with model-----//
-        init_augmented_variables(is_init_augm);
-
-        //-----Initialize chain-----//
-        init_single_chain();
+        init_augmented_variables();
 
         // set the value of the global loglikelihood
         set_global_loglike(compute_global_loglike());
@@ -564,7 +583,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     setup_rnd_init_params = true;
     _rung_ = 0;
     setup_inv_T = 0.;
-    run_monte_carlo(progbar, 0, true);
+    run_monte_carlo(progbar, 0);
     basics::statistics(dgn_glob_loglike, avg, var);
 
     inv_t.push_back(setup_inv_T);
@@ -583,7 +602,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
         {
             setup_inv_T = std::pow(static_cast<long double>(_rung_) / (_num_rungs_ - 1), 5);
-            run_monte_carlo(progbar, _rung_ * _thin_sweeps_, false);
+            run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
             basics::statistics(dgn_glob_loglike, avg, var);
 
             inv_t.push_back(setup_inv_T);
@@ -601,7 +620,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         setup_rnd_init_params = false;
         _rung_ = 1;
         setup_inv_T = 1.;
-        run_monte_carlo(progbar, _thin_sweeps_, true);
+        run_monte_carlo(progbar, _thin_sweeps_);
         basics::statistics(dgn_glob_loglike, avg, var);
 
         inv_t.push_back(setup_inv_T);
@@ -625,7 +644,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
             }
 
             //----- power posterior sampling -----//
-            run_monte_carlo(progbar, _rung_ * _thin_sweeps_, false);
+            run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
             basics::statistics(dgn_glob_loglike, avg, var);
 
             //----- find larger rectangular discretization error -----//
@@ -642,7 +661,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     }
 
     //----- trapezoidal rule to compute marginal likelihood -----//
-    long double d_inv_t, output = 0.;
+    double d_inv_t, output = 0.;
     for (int k = 0; k < num_rungs; ++k)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];

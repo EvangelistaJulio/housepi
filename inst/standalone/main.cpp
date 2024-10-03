@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 
     if (verbose)
     {
-        user_model->show_build_details();
+        user_model->show_full_build();
     }
 
     //=====================//
