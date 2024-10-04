@@ -96,7 +96,7 @@ namespace basics
     constexpr char C_DELIM = ',';      // file delimiter
     constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
     constexpr char C_DECOR = '-';      // decorator for prints
-    constexpr char C_PROG = '=';      // decorator for progress bar
+    constexpr char C_PROG = '=';       // decorator for progress bar
 
     // deal with undefined or not available value stored as string
     bool is_na(const string &txt);
@@ -146,9 +146,16 @@ public:
     //=====Constructors=====//
     // NOTE : to provide a default order is the only way  I found to enforce an order
     // this is necessary if I want to access arguments by index and not by name (faster...?)
+    // FIXME : 1) check if by index faster; 2) collapse overloaded constructors
     Base_Function() {};
-    Base_Function(const string &dflt_name, const dictargs &dflt_args_val, const vector<string> &dflt_order);
-    Base_Function(const string &dflt_name, const dictargs_ptr &dflt_args_ptr, const vector<string> &dflt_order);
+    Base_Function(const string &name,
+                  const dictargs &args_val,
+                  const vector<string> &order,
+                  const dictargs &domain = {});
+    Base_Function(const string &name,
+                  const dictargs_ptr &args_ptr,
+                  const vector<string> &order,
+                  const dictargs &domain = {});
     virtual ~Base_Function() {};
 
     //===== Getter (functional) =====//
@@ -161,7 +168,7 @@ public:
 
     //===== Setter (for internal arguments) =====//
     void set_arg(int i, double new_value) { (this->*_set_arg_method_)(i, new_value); }
-    void set_range(dictargs new_range);
+    void set_range(dictargs new_range, bool is_domain = false);
 
     //===== Show =====//
     string show_arg_names() const;

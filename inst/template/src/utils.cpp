@@ -326,39 +326,53 @@ bool Unused_Range_Warning = false; // warning for invalid proposer range declara
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Overload constructor for argument VALUES. */
-Base_Function::Base_Function(const string &dflt_name, const dictargs &dflt_args_val, const vector<string> &dflt_order)
+Base_Function::Base_Function(const string &name,
+                             const dictargs &args_val,
+                             const vector<string> &order,
+                             const dictargs &domain)
 {
-    _name_ = dflt_name;
-    _args_names_ = dflt_order;
+    _name_ = name;
+    _args_names_ = order;
     _args_val_ = new double[_args_names_.size()];
     int i = 0;
-    for (const string &argID : dflt_order)
+    for (const string &argID : order)
     {
-        _args_val_[i++] = dflt_args_val.at(argID);
+        _args_val_[i++] = args_val.at(argID);
     }
-    _get_arg_method_ = &Base_Function::_get_arg_val_; // assign getter
-    _set_arg_method_ = &Base_Function::_set_arg_val_; // assign setter
+    // assign getter
+    _get_arg_method_ = &Base_Function::_get_arg_val_;
+    // assign setter
+    _set_arg_method_ = &Base_Function::_set_arg_val_;
+    // assign domain
+    set_range(domain, true);
 }
 
 /* Overload constructor for argument POINTERS. */
-Base_Function::Base_Function(const string &dflt_name, const dictargs_ptr &dflt_args_ptr, const vector<string> &dflt_order)
+Base_Function::Base_Function(const string &name,
+                             const dictargs_ptr &args_ptr,
+                             const vector<string> &order,
+                             const dictargs &domain)
 {
-    _name_ = dflt_name;
-    _args_names_ = dflt_order;
-    _args_ptr_ = new const double *[dflt_args_ptr.size()];
+    _name_ = name;
+    _args_names_ = order;
+    _args_ptr_ = new const double *[args_ptr.size()];
     int i = 0;
-    for (const string &argID : dflt_order)
+    for (const string &argID : order)
     {
-        _args_ptr_[i++] = dflt_args_ptr.at(argID);
+        _args_ptr_[i++] = args_ptr.at(argID);
     }
-    _get_arg_method_ = &Base_Function::_get_arg_ptr_; // assign getter
-    _set_arg_method_ = &Base_Function::_set_arg_ptr_; // assign setter
+    // assign getter
+    _get_arg_method_ = &Base_Function::_get_arg_ptr_;
+    // assign setter
+    _set_arg_method_ = &Base_Function::_set_arg_ptr_;
+    // assign domain
+    set_range(domain, true);
 }
 
 /* Overload assignment of non default POINTER arguments. */
-void Base_Function::assign_args(dictargs dflt_args_val)
+void Base_Function::assign_args(dictargs args_val)
 {
-    for (const auto &pair : dflt_args_val)
+    for (const auto &pair : args_val)
     {
         auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
         if (it == _args_names_.end())
@@ -375,9 +389,9 @@ void Base_Function::assign_args(dictargs dflt_args_val)
 }
 
 /* Overload assignment of non default POINTER arguments. */
-void Base_Function::assign_args(dictargs_ptr dflt_args_ptr)
+void Base_Function::assign_args(dictargs_ptr args_ptr)
 {
-    for (const auto &pair : dflt_args_ptr)
+    for (const auto &pair : args_ptr)
     {
         auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
         if (it == _args_names_.end())
@@ -394,7 +408,7 @@ void Base_Function::assign_args(dictargs_ptr dflt_args_ptr)
 }
 
 /* Set the range of validity of the value, and the corresponding validation function. */
-void Base_Function::set_range(dictargs new_range)
+void Base_Function::set_range(dictargs new_range, bool is_domain)
 {
     bool is_min = false;
     bool is_max = false;
@@ -436,42 +450,47 @@ void Base_Function::set_range(dictargs new_range)
         }
     }
 
-    //----- Overwrite min and max if they exist as arguments -----//
-    if (std::find(_args_names_.begin(), _args_names_.end(), "min") != _args_names_.end())
+    if (!is_domain)
     {
-        new_min = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
-        if (is_min)
+        //----- Overwrite min if it exists as argument -----//
+        if (std::find(_args_names_.begin(), _args_names_.end(), "min") != _args_names_.end())
         {
-            std::ostringstream oss;
-            oss << "Overwriting range min with argument min " << new_min << " in '" << get_name() << "'.";
-            raise_warning(oss.str(), Unused_Range_Warning);
+            new_min = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
+            if (is_min)
+            {
+                std::ostringstream oss;
+                oss << "Overwriting range min with argument min " << new_min << " in '" << get_name() << "'.";
+                raise_warning(oss.str(), Unused_Range_Warning);
+            }
+            is_min = true;
         }
-        is_min = true;
-    }
-    if (std::find(_args_names_.begin(), _args_names_.end(), "max") != _args_names_.end())
-    {
-        new_max = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
-        if (is_max)
-        {
-            std::ostringstream oss;
-            oss << "Overwriting range max with argument max " << new_max << " in '" << get_name() << "'.";
-            raise_warning(oss.str(), Unused_Range_Warning);
-        }
-        is_max = true;
-    }
 
-    //----- Check compatibility with default range -----//
-    if ((is_min) && (new_min < _range_min_))
-    {
-        std::ostringstream oss;
-        oss << "Invalid min value " << new_min << " for distribution '" << get_name() << "'.";
-        raise_error(oss.str());
-    }
-    if ((is_max) && (new_max > _range_max_))
-    {
-        std::ostringstream oss;
-        oss << "Invalid max value" << new_max << " for distribution '" << get_name() << "'.";
-        raise_error(oss.str());
+        //----- Overwrite max if it exists as argument -----//
+        if (std::find(_args_names_.begin(), _args_names_.end(), "max") != _args_names_.end())
+        {
+            new_max = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
+            if (is_max)
+            {
+                std::ostringstream oss;
+                oss << "Overwriting range max with argument max " << new_max << " in '" << get_name() << "'.";
+                raise_warning(oss.str(), Unused_Range_Warning);
+            }
+            is_max = true;
+        }
+
+        //----- Check compatibility with domain -----//
+        if ((is_min) && (new_min < _range_min_))
+        {
+            std::ostringstream oss;
+            oss << "Invalid min value " << new_min << " for distribution '" << get_name() << "'.";
+            raise_error(oss.str());
+        }
+        if ((is_max) && (new_max > _range_max_))
+        {
+            std::ostringstream oss;
+            oss << "Invalid max value" << new_max << " for distribution '" << get_name() << "'.";
+            raise_error(oss.str());
+        }
     }
 
     //----- Assign valid range functional method -----//

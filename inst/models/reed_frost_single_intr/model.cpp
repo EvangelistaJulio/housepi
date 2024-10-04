@@ -170,7 +170,7 @@ void Model::simulate_single_house(int h)
 	// set all cases to susceptible
 	for (int i = 0; i < house[h].house_size; i++)
 	{
-		change_status_and_augm(h, i, SUSCEPTIBLE);
+		house[h].change_status(i, SUSCEPTIBLE);
 	}
 
 	// pick a random introduction

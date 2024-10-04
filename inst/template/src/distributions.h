@@ -132,15 +132,13 @@ public:
     Lognorm_Distribution(
         dictargs new_args = {}) : Base_Distribution("lnorm",
                                                     {{"meanlog", 0.0}, {"sdlog", 1.0}},
-                                                    {"meanlog", "sdlog"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
+                                                    {"meanlog", "sdlog"},
+                                                    {{"min", 0}}) { assign_args(new_args); }
     Lognorm_Distribution(
         dictargs_ptr new_args_ptr) : Base_Distribution("lnorm",
                                                        new_args_ptr,
-                                                       {"meanlog", "sdlog"}) { set_range({{"min", 0}}); }
+                                                       {"meanlog", "sdlog"},
+                                                       {{"min", 0}}) {}
     ~Lognorm_Distribution() {};
 
     double pdf(double x) const override;
@@ -160,15 +158,13 @@ public:
     Gamma_Distribution(
         dictargs new_args = {}) : Base_Distribution("gamma",
                                                     {{"shape", 1.0}, {"scale", 1.0}},
-                                                    {"shape", "scale"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
+                                                    {"shape", "scale"},
+                                                    {{"min", 0}}) { assign_args(new_args); }
     Gamma_Distribution(
         dictargs_ptr new_args_ptr) : Base_Distribution("gamma",
                                                        new_args_ptr,
-                                                       {"shape", "scale"}) { set_range({{"min", 0}}); }
+                                                       {"shape", "scale"},
+                                                       {{"min", 0}}) {}
     ~Gamma_Distribution() {};
 
     double pdf(double x) const override;
@@ -188,16 +184,14 @@ public:
     Weibull_Distribution(
         dictargs new_args = {}) : Base_Distribution("weibull",
                                                     {{"shape", 1.0}, {"scale", 1.0}},
-                                                    {"shape", "scale"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
+                                                    {"shape", "scale"},
+                                                    {{"min", 0}}) { assign_args(new_args); }
 
     Weibull_Distribution(
         dictargs_ptr new_args_ptr) : Base_Distribution("weibull",
                                                        new_args_ptr,
-                                                       {"shape", "scale"}) { set_range({{"min", 0}}); }
+                                                       {"shape", "scale"},
+                                                       {{"min", 0}}) {}
     ~Weibull_Distribution() {};
 
     double pdf(double x) const override;
@@ -217,15 +211,13 @@ public:
     Rayleigh_Distribution(
         dictargs new_args = {}) : Base_Distribution("rayleigh",
                                                     {{"scale", 1.0}},
-                                                    {"scale"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
+                                                    {"scale"},
+                                                    {{"min", 0}}) { assign_args(new_args); }
     Rayleigh_Distribution(
         dictargs_ptr new_args_ptr) : Base_Distribution("rayleigh",
                                                        new_args_ptr,
-                                                       {"scale"}) { set_range({{"min", 0}}); }
+                                                       {"scale"},
+                                                       {{"min", 0}}) {}
     ~Rayleigh_Distribution() {};
 
     double pdf(double x) const override;
@@ -245,15 +237,13 @@ public:
     Exponential_Distribution(
         dictargs new_args = {}) : Base_Distribution("exp",
                                                     {{"rate", 1.0}},
-                                                    {"rate"})
-    {
-        assign_args(new_args);
-        set_range({{"min", 0}});
-    }
+                                                    {"rate"},
+                                                    {{"min", 0}}) { assign_args(new_args); }
     Exponential_Distribution(
         dictargs_ptr new_args_ptr) : Base_Distribution("exp",
                                                        new_args_ptr,
-                                                       {"rate"}) { set_range({{"min", 0}}); }
+                                                       {"rate"},
+                                                       {{"min", 0}}) {}
     ~Exponential_Distribution() {};
 
     double pdf(double x) const override;

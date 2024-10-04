@@ -171,7 +171,7 @@ void Model::simulate_single_house(int h)
 	// set all cases to susceptible
 	for (int i = 0; i < house[h].house_size; i++)
 	{
-		change_status_and_augm(h, i, SUSCEPTIBLE);
+		house[h].change_status(i, SUSCEPTIBLE);
 	}
 
 	// pick a random introduction
@@ -197,7 +197,7 @@ void Model::simulate_single_house(int h)
 			{
 				if (uniform() >= exp(log_p2p_esc_proba))
 				{
-					change_status_and_augm(h, i, INFECTIOUS);
+					house[h].change_status(i, INFECTIOUS);
 					num_new_gen++;
 				}
 			}
