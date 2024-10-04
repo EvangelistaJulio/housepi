@@ -15,13 +15,13 @@
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* Community risk of infection (-logarithm of community escape probability). */
-double Model::community_risk_of_infection()
+double Model::community_risk_of_infection() const
 {
 	return get_param("alpha");
 }
 
 /* Hazard of infection (-logarithm of person-to-person escape probability). */
-double Model::hazard_of_infection()
+double Model::hazard_of_infection() const
 {
 	return get_param("beta");
 }
@@ -65,16 +65,16 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(int h)
+double Model::compute_house_loglike(const Household &this_house) const
 {
-	double log_likelihood = 0.;
-
-	int hh_size = house[h].house_size;
-	int n_positive = house[h].num_infectious;
+	int hh_size = this_house.size();
+	int n_positive = this_house.num_infectious;
 
 	double log_commu_esc_proba = -community_risk_of_infection();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
 	double log_p2p_esc_proba = -hazard_of_infection();
+	
+	double log_likelihood = 0.;
 
 	//================================================//
 	//======== Contribution of Sero-Negatives ========//
@@ -135,7 +135,7 @@ double Model::compute_house_loglike(int h)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
-void Model::simulate_single_house(int h)
+void Model::simulate_single_house(Household &this_house)
 {
 	double commu_esc_proba = exp(-community_risk_of_infection());
 	double log_p2p_esc_proba = -hazard_of_infection();
@@ -144,15 +144,15 @@ void Model::simulate_single_house(int h)
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (int i = 0; i < house[h].house_size; i++)
+	for (int i = 0; i < this_house.size(); i++)
 	{
 		if (uniform() < commu_esc_proba)
 		{
-			house[h].change_status(i, SUSCEPTIBLE);
+			this_house.change_status(i, SUSCEPTIBLE);
 		}
 		else
 		{
-			house[h].change_status(i, INFECTIOUS);
+			this_house.change_status(i, INFECTIOUS);
 		}
 	}
 
@@ -161,21 +161,21 @@ void Model::simulate_single_house(int h)
 	//==============================================================//
 
 	int num_old_gen = 0;
-	int num_new_gen = house[h].num_infectious;
+	int num_new_gen = this_house.num_infectious;
 
-	while ((house[h].num_susceptible > 0) && (num_new_gen > 0))
+	while ((this_house.num_susceptible > 0) && (num_new_gen > 0))
 	{
 		num_old_gen = num_new_gen;
 		num_new_gen = 0;
 
 		// note : here househ[h].susceptible_set is not allowed because of change_status
-		for (int i = 0; i < house[h].house_size; i++)
+		for (int i = 0; i < this_house.size(); i++)
 		{
-			if (house[h].is_susceptible(i))
+			if (this_house.is_susceptible(i))
 			{
 				if (uniform() >= exp(num_old_gen * log_p2p_esc_proba))
 				{
-					house[h].change_status(i, INFECTIOUS);
+					this_house.change_status(i, INFECTIOUS);
 					num_new_gen++;
 				}
 			}

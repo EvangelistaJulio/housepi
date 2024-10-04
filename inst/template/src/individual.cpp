@@ -28,17 +28,13 @@ bool Unknown_Status_Warning = false; // unknown status
 /* Constructor with a database row. */
 Individual::Individual(dictargs new_data)
 {
-	// associate index
+	// check that an index has been associated by call to build
 	if (new_data.find("index") == new_data.end())
 	{
 		basics::raise_error("Missing index for Individual object.");
 	}
-	else
-	{
-		set_index(new_data.at("index"));
-	}
 
-	// associate status if provided
+	// associate the status if provided
 	if (new_data.find("status") == new_data.end())
 	{
 		set_status(MISSING_STATUS);
@@ -53,7 +49,7 @@ Individual::Individual(dictargs new_data)
 			set_status(MISSING_STATUS);
 
 			std::ostringstream oss;
-			oss << "Status '" << new_status << "' of individual '" << get_index() << "' interpreted as missing."
+			oss << "Status '" << new_status << "' of individual " << get_data("index") << " interpreted as missing."
 				<< " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
 				<< " Use " << MISSING_STATUS << " for missing status.";
 			basics::raise_warning(oss.str(), Unknown_Status_Warning);
@@ -77,7 +73,7 @@ void Individual::assert_data(const string &dataID) const
 	if (data.find(dataID) == data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data '" << dataID << "' for individual " << get_index() << ".";
+		oss << "Unknown data '" << dataID << "' for individual " << get_data("index") << ".";
 		oss << " Check your model and your data definitions.";
 		raise_error(oss.str());
 	}
@@ -126,7 +122,7 @@ void Individual::assign_rate_per_group(const string &rateID, const string &parID
 		// rateID was previously declared
 		std::ostringstream oss;
 		oss << "Multiple definitions of group rate '" << rateID
-			<< "' for individual " << get_index() << "."
+			<< "' for individual " << get_data("index") << "."
 			<< " Check your model.";
 		raise_error(oss.str());
 	}
@@ -143,7 +139,7 @@ void Individual::assert_augm(const string &augmID) const
 	{
 		std::ostringstream oss;
 		oss << "Unknown augmented variable '" << augmID
-			<< "' for individual " << get_index() << "."
+			<< "' for individual " << get_data("index") << "."
 			<< " Check your model and your augmented variable definitions.";
 		raise_error(oss.str());
 	}
@@ -196,7 +192,7 @@ void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 		{
 			std::ostringstream oss;
 			oss << "Exceeded attempts in initialization of '" << augmID << "'"
-				<< " for individual " << get_index() << ".";
+				<< " for individual " << get_data("index") << ".";
 			raise_error(oss.str());
 		}
 		augm_model_rand(augmID, prng);
@@ -243,7 +239,7 @@ void Household::assert_data(const string &dataID) const
 	if (house_data.find(dataID) == house_data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data '" << dataID << "' for household " << get_index() << ".";
+		oss << "Unknown data '" << dataID << "' for household " << get_data("index") << ".";
 		raise_error(oss.str());
 	}
 }
@@ -284,7 +280,7 @@ void Household::assign_individual(Individual this_indiv)
 	else
 	{
 		std::ostringstream oss;
-		oss << "Impossibile to assign individual '" << this_indiv.get_index()
+		oss << "Impossibile to assign individual '" << this_indiv.get_data("index")
 			<< "' : unknown status '" << status << "'.";
 		raise_error(oss.str());
 	}
@@ -386,7 +382,7 @@ void Household::init_diagnostics(ulong sample_size)
 {
 	dgn_count = 0;
 	dgn_loglike.clear();
-	dgn_loglike = vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
+	dgn_loglike = vector<double>(sample_size);
 }
 
 /* update the values for the Bayesian diagnostics */

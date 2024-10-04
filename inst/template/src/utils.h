@@ -98,7 +98,6 @@ namespace basics
     constexpr char C_DECOR = '-';      // decorator for prints
     constexpr char C_PROG = '=';       // decorator for progress bar
 
-    // deal with undefined or not available value stored as string
     bool is_na(const string &txt);
     void statistics(const vector<double> &data, double &avg, double &var);
 
@@ -168,7 +167,6 @@ public:
 
     //===== Setter (for internal arguments) =====//
     void set_arg(int i, double new_value) { (this->*_set_arg_method_)(i, new_value); }
-    void set_range(dictargs new_range, bool is_domain = false);
 
     //===== Show =====//
     string show_arg_names() const;
@@ -179,7 +177,6 @@ protected:
     void assign_args(dictargs new_args_val);
     void assign_args(dictargs_ptr new_args_ptr);
 
-private:
     string _name_ = UNDEFINED;
     vector<string> _args_names_ = {};    // ordered list of argument names
     double *_args_val_ = nullptr;        // internal arguments (fixed at initialization)
@@ -192,6 +189,7 @@ private:
     //===== Valid : functional methods =====//
     double _range_min_ = -INF_DOUBLE; // init to -infty
     double _range_max_ = INF_DOUBLE;  // init to +infty
+    int set_range(const dictargs &new_range);
 
     // alternative valid range methods
     bool (Base_Function::*_valid_range_method_)(double) const = &Base_Function::_valid_range_always_;

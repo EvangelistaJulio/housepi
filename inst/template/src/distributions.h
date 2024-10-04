@@ -31,47 +31,63 @@ namespace auxgammap
 ////////////////////////////////  Base Distribution : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* A parent class to all distributions. */
 class Base_Distribution : public Base_Function
 {
 public:
     using Base_Function::Base_Function;
 
-    virtual double pdf(double x) const
+    // set all relevant adjustment in case of truncation
+    void set_truncation(const dictargs &range);
+
+    double pdf(double x) const { return _trunc_(_pdf_(x)); }
+    double cdf(double x) const { return _trunc_(_shift_(_cdf_(x))); }
+    double logpdf(double x) const { return _logtrunc_(_logpdf_(x)); }
+
+    //----- Distribution specific methods -----//
+    virtual double logratio(double xold, double xnew) const
     {
-        UNUSED(x);
-        _undefined_call_error_();
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    virtual double cdf(double x) const
-    {
-        UNUSED(x);
-        _undefined_call_error_();
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    virtual double logpdf(double x) const
-    {
-        UNUSED(x);
-        _undefined_call_error_();
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    virtual double logratio(double x, double y) const
-    {
-        UNUSED(x);
-        UNUSED(y);
+        UNUSED(xold);
+        UNUSED(xnew);
         return 0.0;
     }
     virtual double rand(sys_rnd_gen &rng)
     {
         UNUSED(rng);
-        _undefined_call_error_();
-        return std::numeric_limits<double>::quiet_NaN();
+        return _undefined_call_error_();
     }
 
+protected:
+    //----- Distribution specific methods -----//
+    virtual double _pdf_(double x) const { return _undefined_call_error_(x); }
+    virtual double _logpdf_(double x) const { return _undefined_call_error_(x); }
+    virtual double _cdf_(double x) const { return _undefined_call_error_(x); }
+
 private:
-    void _undefined_call_error_() const
-    {
-        basics::raise_error("Attempt to call a method of an undefined distribution.");
-    }
+    //----- Internal error for calls to undefined -----//
+    double _undefined_call_error_(double x = 0, double y = 0) const;
+
+    //----- Functional methods for the truncation -----//
+    double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
+    double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
+    double _trunc_dummy_(double x) const { return x; }
+    double _trunc_min_(double x) const { return x / (1.0 - _cdf_(_range_min_)); }
+    double _trunc_max_(double x) const { return x / (_cdf_(_range_max_)); }
+    double _trunc_both_sides_(double x) const { return x / (_cdf_(_range_max_) - _cdf_(_range_min_)); }
+
+    //----- Functional methods for the (log) truncation -----//
+    double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
+    double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
+    double _logtrunc_dummy_(double x) const { return x; }
+    double _logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(_range_min_)); }
+    double _logtrunc_max_(double x) const { return x - log(_cdf_(_range_max_)); }
+    double _logtrunc_both_sides_(double x) const { return x - log(_cdf_(_range_max_) - _cdf_(_range_min_)); }
+
+    //----- Functional methods to shift cumulative -----//
+    double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
+    double _shift_(double x) const { return (this->*_shift_method_)(x); }
+    double _shift_dummy_(double x) const { return x; }
+    double _shift_min_(double x) const { return x - _cdf_(_range_min_); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,11 +107,13 @@ public:
                                                        {"min", "max"}) {}
     ~Uniform_Distribution() {}
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,11 +133,13 @@ public:
                                                        {"mean", "sd"}) {}
     ~Normal_Distribution() {};
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,11 +161,13 @@ public:
                                                        {{"min", 0}}) {}
     ~Lognorm_Distribution() {};
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,11 +189,13 @@ public:
                                                        {{"min", 0}}) {}
     ~Gamma_Distribution() {};
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,11 +218,13 @@ public:
                                                        {{"min", 0}}) {}
     ~Weibull_Distribution() {};
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,11 +246,13 @@ public:
                                                        {{"min", 0}}) {}
     ~Rayleigh_Distribution() {};
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -246,11 +274,13 @@ public:
                                                        {{"min", 0}}) {}
     ~Exponential_Distribution() {};
 
-    double pdf(double x) const override;
-    double cdf(double x) const override;
-    double logpdf(double x) const override;
-    double logratio(double x, double y) const override;
+    double logratio(double xold, double xnew) const override;
     double rand(sys_rnd_gen &rng) override;
+
+protected:
+    virtual double _pdf_(double x) const override;
+    virtual double _logpdf_(double x) const override;
+    virtual double _cdf_(double x) const override;
 };
 
 //-----------------------------------------------------------------------------------------------//

@@ -17,14 +17,15 @@
 
 class Model : public MCMC
 {
-	// Override MCMC methods
-	void init_model_for_inference() override;
-	double compute_house_loglike(int h) override;	
-	void simulate_single_house(int h) override;
+	//===== Model dependent methods =====//
+	double community_risk_of_infection() const;
+	double hazard_of_infection() const;
 
-	// Model dependent methods
-	double community_risk_of_infection();
-	double hazard_of_infection();
+	//===== Override MCMC methods =====//
+	void init_model_for_inference() override;
+	double compute_house_loglike(const Household &this_house) const override;	
+	void simulate_single_house(Household &this_house) override;
+
 };
 
 #endif // MODEL__H

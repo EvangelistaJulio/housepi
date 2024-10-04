@@ -10,7 +10,7 @@
 #include "utils.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// Infec_Prof_Skew_Logistic : class ////////////////////////////////
+///////////////////////////////// Infec_Prof_Ferretti20 : class ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*
 
@@ -36,13 +36,19 @@ medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
 */
 
 /* Define the Inf_Prof_Skew_Logistic class. */
-class Infec_Prof_Skew_Logistic : public Base_Function
+class Infec_Prof_Ferretti20 : public Base_Function
 {
 public:
 	// Constructors
-	Infec_Prof_Skew_Logistic(dictargs new_args = {}) : Base_Function("skew_logistic", {{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}}, {"alpha", "mu", "sigma", "tau"}) { assign_args(new_args); }
-	Infec_Prof_Skew_Logistic(dictargs_ptr new_args_ptr) : Base_Function("skew_logistic", new_args_ptr, {"alpha", "mu", "sigma", "tau"}) {}
-	~Infec_Prof_Skew_Logistic() {};
+	Infec_Prof_Ferretti20(
+		dictargs new_args = {}) : Base_Function("skew_logistic",
+												{{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}},
+												{"alpha", "mu", "sigma", "tau"}) { assign_args(new_args); }
+	Infec_Prof_Ferretti20(
+		dictargs_ptr new_args_ptr) : Base_Function("skew_logistic",
+												   new_args_ptr,
+												   {"alpha", "mu", "sigma", "tau"}) {}
+	~Infec_Prof_Ferretti20() {};
 
 	double pdf(double tost, double t_incub);
 	double cdf(double tost, double t_incub);

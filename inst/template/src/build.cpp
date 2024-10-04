@@ -39,7 +39,7 @@ const string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-void MCMC::show_full_build()
+void MCMC::show_full_build() const
 {
     //----- SETUP -----//
     string add_file_info = UNDEFINED;
@@ -307,10 +307,27 @@ void MCMC::build_params()
         for (size_t p = 0; p < table_length; ++p)
         {
             string parID = _param_deftable_.at("name")[p];
+            double value = INF_DOUBLE;
 
             // add entry to shared parameter dictionary
             if (stobool(_param_deftable_.at("infer")[p]))
             {
+                // load value
+                if (is_na(_param_deftable_.at("value")[p]))
+                {
+                    if (!setup_rnd_init_params)
+                    {
+                        std::ostringstream oss;
+                        oss << "Undefined value for parameter to infer '"
+                            << parID << "' without random initialization.";
+                        raise_error(oss.str());
+                    }
+                }
+                else
+                {
+                    value = std::stod(_param_deftable_.at("value")[p]);
+                }
+
                 // load range
                 dictargs range = {};
                 if (!is_na(_param_deftable_.at("min")[p]))
@@ -323,8 +340,7 @@ void MCMC::build_params()
                 }
 
                 // assign parameter to the set of variables
-                Parameter new_param(parID,
-                                    std::stod(_param_deftable_.at("value")[p]),
+                Parameter new_param(parID, value,
                                     _param_deftable_.at("prior")[p],
                                     merge_list_args(_param_deftable_.at("args")[p],
                                                     _param_deftable_.at("argsval")[p]),
@@ -336,9 +352,18 @@ void MCMC::build_params()
             }
             else
             {
+                // load value
+                if (is_na(_param_deftable_.at("value")[p]))
+                {
+                    raise_error("Undefined value for immutable parameter '" + parID + "'.");
+                }
+                else
+                {
+                    value = std::stod(_param_deftable_.at("value")[p]);
+                }
+
                 // assign immutable parameter to the set of variables
-                Parameter new_param(parID,
-                                    std::stod(_param_deftable_.at("value")[p]));
+                Parameter new_param(parID, value);
                 assign_param(parID, new_param);
             }
         }
@@ -422,7 +447,14 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
             dictargs args = {};
             for (const string &key : _data_headers_)
             {
-                args.emplace(key, stod(datatable.at(key)[i]));
+                if (is_na(datatable.at(key)[i]))
+                {
+                    args.emplace(key, std::numeric_limits<double>::quiet_NaN());
+                }
+                else
+                {
+                    args.emplace(key, std::stod(datatable.at(key)[i]));
+                }
             }
             if (!is_index)
             {
@@ -434,25 +466,32 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
             //----- Assign and set rate per group -----//
             set_rate_per_group(this_indiv);
 
-            // user provided structure or no structure
+            // user provided household index (to set structure or not)
             int hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_house;
 
             // if household index doesn't exist, add new household
             // note : this is redundant if no structure
             if (aux_hh_idx.find(hh_idx) == aux_hh_idx.end())
             {
-                house.emplace_back();                  // add a new empty household
-                house[num_house].set_index(hh_idx);    // associate its index
-                aux_hh_idx.emplace(hh_idx, num_house); // map index to household number
-                ++num_house;                           // increment household number
+                // map data index to household number
+                aux_hh_idx.emplace(hh_idx, num_house);
+                // create a new empty household
+                house.emplace_back();
+                // assign the data index
+                house[num_house].assign_data("house_index", hh_idx);
+                // set household number as its id
+                house[num_house].set_id(num_house);
+                // increment household number
+                ++num_house;
             }
+            // assign the individual the respective household
             house[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
         }
 
         //===== Set Contact Rates =====//
-        for (int h = 0; h < num_house; ++h)
+        for (Household &this_house : house)
         {
-            set_rate_per_contact(h);
+            set_rate_per_contact(this_house);
         }
 
         //===== Update Report for Data =====//
@@ -492,12 +531,13 @@ void MCMC::update_report_data()
                    {"n.HH.with.max.size", 0}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
-    for (int h = 0; h < num_house; ++h)
+    for (const Household &this_house : house)
     {
-        int num_infec = house[h].num_infectious;
+        int this_house_size = this_house.size();
+        int num_infec = this_house.num_infectious;
 
         report_data["n.cases"] += num_infec;
-        report_data["n.miss.stat"] += house[h].num_missing_status;
+        report_data["n.miss.stat"] += this_house.num_missing_status;
 
         report_data["no.HH.case"] += (num_infec == 0);
         report_data["lst.1.case"] += (num_infec > 0);
@@ -515,23 +555,23 @@ void MCMC::update_report_data()
         }
 
         // minimum house number of members
-        if (report_data["min.HH.size"] > house[h].house_size)
+        if (report_data["min.HH.size"] > this_house_size)
         {
             report_data["n.HH.with.min.size"] = 1;
-            report_data["min.HH.size"] = house[h].house_size;
+            report_data["min.HH.size"] = this_house_size;
         }
-        else if (report_data["min.HH.size"] == house[h].house_size)
+        else if (report_data["min.HH.size"] == this_house_size)
         {
             report_data["n.HH.with.min.size"] += 1;
         }
 
         // maximum house number of members
-        if (report_data["max.HH.size"] < house[h].house_size)
+        if (report_data["max.HH.size"] < this_house_size)
         {
             report_data["n.HH.with.max.size"] = 1;
-            report_data["max.HH.size"] = house[h].house_size;
+            report_data["max.HH.size"] = this_house_size;
         }
-        else if (report_data["max.HH.size"] == house[h].house_size)
+        else if (report_data["max.HH.size"] == this_house_size)
         {
             report_data["n.HH.with.max.size"] += 1;
         }
@@ -577,7 +617,8 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
         {
             // error : undefined rate
             std::ostringstream oss;
-            oss << "Rate '" << rateID << "' is not provided for individual " << this_indiv.get_index() << ".";
+            oss << "Rate '" << rateID << "' is not provided for individual "
+                << this_indiv.get_data("index") << ".";
             raise_error(oss.str());
         }
         else if (parID == REFERENCE)
@@ -608,20 +649,20 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_rate_per_contact_to_household(int h, int from, int to)
+void MCMC::assign_rate_per_contact_to_household(Household &this_house, int from, int to)
 {
-    house[h].assign_rate_per_contact(from, to, EMPTY_RATE);
+    this_house.assign_rate_per_contact(from, to, EMPTY_RATE);
 }
 
 /* Set contact rate according to user assignement. */
-void MCMC::set_rate_per_contact(int h)
+void MCMC::set_rate_per_contact(Household &this_house)
 {
     // allocate contact patterns
-    int s = house[h].house_size;
-    house[h].which_rate.resize(s, vector<string>(s, UNDEFINED));
-    house[h].contact_rates.resize(s, vector<const double *>(s, &REFERENCE_VALUE));
+    int hh_size = this_house.size();
+    this_house.which_rate.resize(hh_size, vector<string>(hh_size, UNDEFINED));
+    this_house.contact_rates.resize(hh_size, vector<const double *>(hh_size, &REFERENCE_VALUE));
 
-    if (h == 0)
+    if (this_house.get_id() == 0)
     {
         // if first household, initialize contact rate report
         report_group_classes.emplace(CONTACT_RATE, std::map<string, int>());
@@ -636,32 +677,33 @@ void MCMC::set_rate_per_contact(int h)
         }
     }
 
-    for (int k = 0; k < house[h].house_size; ++k)
+    // loop over all couples 
+    for (int k = 0; k < hh_size; ++k) // from
     {
-        for (int i = 0; i < house[h].house_size; ++i)
+        for (int i = 0; i < hh_size; ++i) // to
         {
             // note : from 'k' --> to 'i'
             if (k != i)
             {
-                assign_rate_per_contact_to_household(h, k, i);
-                string parID = house[h].which_rate[k][i];
+                assign_rate_per_contact_to_household(this_house, k, i);
+                string parID = this_house.which_rate[k][i];
 
                 if (is_na(parID))
                 {
                     std::ostringstream oss;
-                    oss << "Contact rate not provided for individuals " << house[h].indiv[k].get_index()
-                        << " and " << house[h].indiv[i].get_index() << " within household " << house[h].get_index() << ".";
+                    oss << "Contact rate not provided for individuals " << this_house.indiv[k].get_data("index")
+                        << " and " << this_house.indiv[i].get_data("index") << " within household " << this_house.get_data("house_index") << ".";
                     raise_error(oss.str());
                 }
                 else if (parID == REFERENCE)
                 {
-                    house[h].set_rate(k, i, get_reference()); // reference rate
+                    this_house.set_contact_rate(k, i, get_reference()); // reference rate
                     report_group_classes.at(CONTACT_RATE).at("[reference]") += 1;
                 }
                 else if (parID != EMPTY_RATE)
                 {
                     assert_param(parID);
-                    house[h].set_rate(k, i, get_param_pointer(parID)); // parameter rate
+                    this_house.set_contact_rate(k, i, get_param_pointer(parID)); // parameter rate
                     if (report_group_classes.at(CONTACT_RATE).find(parID) == report_group_classes.at(CONTACT_RATE).end())
                     {
                         report_group_classes.at(CONTACT_RATE).emplace(parID, 1);
@@ -782,17 +824,17 @@ void MCMC::build_augm()
         _is_move_augm_ = !augm_to_be_inferred.empty();
 
         //===== Assign augmented variables to each individual =====//
-        for (int h = 0; h < num_house; ++h)
+        for (Household &this_house : house)
         {
-            for (int i = 0; i < house[h].house_size; ++i)
+            for (Individual &this_indiv : this_house.indiv)
             {
-                if (house[h].is_infectious(i))
+                if (this_indiv.get_status() == INFECTIOUS)
                 {
-                    assign_augm(h, i);
+                    assign_augm(this_indiv);
                 }
                 else
                 {
-                    clear_augm(h, i);
+                    clear_augm(this_indiv);
                 }
             }
         }
@@ -804,7 +846,7 @@ void MCMC::build_augm()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
-void MCMC::assign_augm(int h, int i)
+void MCMC::assign_augm(Individual &this_indiv)
 {
     for (size_t a = 0; a < augm_full_set.size(); ++a)
     {
@@ -813,14 +855,14 @@ void MCMC::assign_augm(int h, int i)
         // load range
         dictargs range = {};
         double aux_min = type_to_double(_augm_deftable_.at("min")[a],
-                                        _augm_deftable_.at("mintype")[a], h, i);
+                                        _augm_deftable_.at("mintype")[a], this_indiv);
         if (aux_min != INF_DOUBLE)
         {
             range.emplace("min", aux_min);
         }
 
         double aux_max = type_to_double(_augm_deftable_.at("max")[a],
-                                        _augm_deftable_.at("maxtype")[a], h, i);
+                                        _augm_deftable_.at("maxtype")[a], this_indiv);
         if (aux_max != INF_DOUBLE)
         {
             range.emplace("max", aux_max);
@@ -829,35 +871,35 @@ void MCMC::assign_augm(int h, int i)
         // assign augmented variable
         Augmented new_augm(augmID,
                            type_to_double(_augm_deftable_.at("value")[a],
-                                          _augm_deftable_.at("valuetype")[a], h, i),
+                                          _augm_deftable_.at("valuetype")[a], this_indiv),
                            _augm_deftable_.at("model")[a],
-                           typedict_to_sdargs_ext(_augm_deftable_.at("args")[a],
+                           typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
                                                   _augm_deftable_.at("argsval")[a],
-                                                  _augm_deftable_.at("argstype")[a], h, i),
+                                                  _augm_deftable_.at("argstype")[a], this_indiv),
                            _augm_deftable_.at("rule")[a],
                            typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
                                               _augm_deftable_.at("rargsval")[a],
-                                              _augm_deftable_.at("rargstype")[a], h, i),
+                                              _augm_deftable_.at("rargstype")[a], this_indiv),
                            range,
                            type_to_double(_augm_deftable_.at("rfrom")[a],
-                                          _augm_deftable_.at("rfromtype")[a], h, i));
-        house[h].indiv[i].assign_augm(new_augm);
+                                          _augm_deftable_.at("rfromtype")[a], this_indiv));
+        this_indiv.assign_augm(new_augm);
 
         // random initialization at assignment
         if (stobool(_augm_deftable_.at("init_rand")[a]))
         {
-            house[h].indiv[i].init_augm(augmID, get_prng());
+            this_indiv.init_augm(augmID, get_prng());
         }
     }
 }
 
 /* Assign empty augmented variables as placeholders. */
-void MCMC::clear_augm(int h, int i)
+void MCMC::clear_augm(Individual &this_indiv)
 {
     for (const string &augmID : augm_full_set)
     {
         Augmented new_augm(augmID);
-        house[h].indiv[i].assign_augm(new_augm);
+        this_indiv.assign_augm(new_augm);
     }
 }
 
@@ -873,7 +915,7 @@ void MCMC::clear_augm(int h, int i)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed string to a double */
-double MCMC::type_to_double(const string val, const string typ, int h, int i)
+double MCMC::type_to_double(const string val, const string typ, const Individual &this_indiv)
 {
     double output = INF_DOUBLE;
 
@@ -909,7 +951,7 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
         }
         else if (typ == TYPE_DATA)
         {
-            output = get_data(h, i, val);
+            output = this_indiv.get_data(val);
         }
         else if (typ == TYPE_PARAM)
         {
@@ -944,7 +986,7 @@ double MCMC::type_to_double(const string val, const string typ, int h, int i)
 }
 
 /* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(const string val, const string typ, int h, int i)
+const double *MCMC::type_to_doubleptr(const string val, const string typ, const Individual &this_indiv)
 {
     const double *output = nullptr;
 
@@ -969,7 +1011,7 @@ const double *MCMC::type_to_doubleptr(const string val, const string typ, int h,
     {
         if (typ == TYPE_DATA)
         {
-            output = house[h].indiv[i].get_data_pointer(val);
+            output = this_indiv.get_data_pointer(val);
         }
         else if (typ == TYPE_PARAM)
         {
@@ -991,7 +1033,7 @@ const double *MCMC::type_to_doubleptr(const string val, const string typ, int h,
 }
 
 /* Convert a string with type-dictionary to string-to-double */
-dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i)
+dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv)
 {
     vector<string> keys = parse_list_args(tkn_key);
     vector<string> vals = parse_list_args(tkn_val);
@@ -1008,7 +1050,7 @@ dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, co
     {
         for (size_t x = 0; x < keys.size(); ++x)
         {
-            output.emplace(keys[x], type_to_double(vals[x], typs[x], h, i));
+            output.emplace(keys[x], type_to_double(vals[x], typs[x], this_indiv));
         }
     }
 
@@ -1016,7 +1058,7 @@ dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, co
 }
 
 /* Convert a string with type-dictionary to string-to-double-pointer */
-dictargs_ptr MCMC::typedict_to_sdargs_ext(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i)
+dictargs_ptr MCMC::typedict_to_sdargs_ptr(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv)
 {
     vector<string> keys = parse_list_args(tkn_key);
     vector<string> vals = parse_list_args(tkn_val);
@@ -1033,7 +1075,7 @@ dictargs_ptr MCMC::typedict_to_sdargs_ext(const string tkn_key, const string tkn
     {
         for (size_t x = 0; x < keys.size(); ++x)
         {
-            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], h, i));
+            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], this_indiv));
         }
     }
 

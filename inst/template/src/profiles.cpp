@@ -7,11 +7,11 @@
 #include "profiles.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////// Infec_Prof_Skew_Logistic : probability distribution  ///////////////////////
+////////////////////// Infec_Prof_Ferretti20 : probability distribution  ///////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Probability distribution function for the Infectivity Profile. */
-double Infec_Prof_Skew_Logistic::pdf(double tost, double t_incub)
+double Infec_Prof_Ferretti20::pdf(double tost, double t_incub)
 {
 	double a = get_arg(0); // shape argument
 	double m = get_arg(1); // location argument
@@ -28,11 +28,11 @@ double Infec_Prof_Skew_Logistic::pdf(double tost, double t_incub)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////// Infec_Prof_Skew_Logistic : cumulative distribution  ///////////////////////
+/////////////////////// Infec_Prof_Ferretti20 : cumulative distribution  ///////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Cumulative distribution function forthe Infectivity Profile. */
-double Infec_Prof_Skew_Logistic::cdf(double tost, double t_incub)
+double Infec_Prof_Ferretti20::cdf(double tost, double t_incub)
 {
 	double a = get_arg(0); // shape argument
 	double m = get_arg(1); // location argument

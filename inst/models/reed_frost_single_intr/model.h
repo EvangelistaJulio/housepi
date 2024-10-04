@@ -24,13 +24,13 @@ Hum Biol. 1952 Sep;24(3):201-33. PMID: 12990130.
 
 class Model : public MCMC
 {
-	// Override MCMC methods
-	void init_model_for_inference() override;
-	double compute_house_loglike(int h) override;	
-	void simulate_single_house(int h) override;
+	//===== Model dependent methods =====//
+	double hazard_of_infection() const;
 
-	// Model dependent methods
-	double hazard_of_infection();
+	//===== Override MCMC methods =====//
+	void init_model_for_inference() override;
+	double compute_house_loglike(const Household &this_hosue) const override;	
+	void simulate_single_house(Household &this_house) override;
 };
 
 #endif // MODEL__H

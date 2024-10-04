@@ -50,31 +50,34 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_rate_per_contact_to_household(int h, int i, int k)
+void Model::assign_rate_per_contact_to_household(Household &this_house, int from, int to)
 {
+	Individual &from_indiv = this_house.indiv[from];
+	Individual &to_indiv = this_house.indiv[to];
+
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (get_data(h, i, "age") < get_param("child_age"));
+	bool i_is_child = (from_indiv.get_data("age") < get_param("child_age"));
 	bool i_is_adult = (i_is_child == false);
 
-	bool k_is_child = (get_data(h, k, "age") < get_param("child_age"));
+	bool k_is_child = (to_indiv.get_data("age") < get_param("child_age"));
 	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		house[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
+		this_house.assign_rate_per_contact(from, to, "c_kid_to_kid");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		house[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
+		this_house.assign_rate_per_contact(from, to, "c_kid_to_adu");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		house[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
+		this_house.assign_rate_per_contact(from, to, "c_adu_to_kid");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		house[h].assign_rate_per_contact(i, k, REFERENCE);
+		this_house.assign_rate_per_contact(from, to, REFERENCE);
 	}
 }
 
@@ -83,9 +86,9 @@ void Model::assign_rate_per_contact_to_household(int h, int i, int k)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Time of infection */
-double Model::transmission_rate(int h) const
+double Model::transmission_rate(const Household &this_house) const
 {
-	return get_param("beta") * pow(4.0 / house[h].house_size, get_param("gamma"));
+	return get_param("beta") * pow(4.0 / this_house.size(), get_param("gamma"));
 }
 
 //------------------------------------------- /\ ------------------------------------------------//
@@ -115,7 +118,7 @@ void Model::init_model_for_inference()
 					 {"mu", get_param("tost_mu")},
 					 {"sigma", get_param("tost_sigma")},
 					 {"tau", get_param("tost_tau")}};
-	infec_prof_ptr = new Infec_Prof_Skew_Logistic(args);
+	infec_prof_ptr = new Infec_Prof_Ferretti20(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)
 	LUT_inst_profile.clear();
@@ -129,7 +132,7 @@ void Model::init_model_for_inference()
 	// produce the empty matrix for the infectivity profiles look-up-tables
 	for (int h = 0; h < num_house; h++)
 	{
-		int h_size = house[h].house_size;
+		int h_size = house[h].size();
 		LUT_inst_profile.emplace_back(h_size, vector<double>(h_size, 0.));
 		LUT_cumul_profile.emplace_back(h_size, vector<double>(h_size, 0.));
 	}
@@ -148,62 +151,74 @@ void Model::init_model_for_inference()
 
 /* Store cumulative and instantaneous infectivity profiles according to an infector.
    WARNING: unpredictable behavior if i is not an infector. */
-void Model::augm_store_dependecies(int h, int i)
+void Model::augm_store_dependecies(Household &this_house, int i)
 {
 	//==============================//
 	//===== Infectious Members =====//
 	//==============================//
 
-	double onset_i = get_augm(h, i, "onset_date");
-	double incub_i = get_augm(h, i, "incub_period");
+	int h = this_house.get_id();
+	Individual &this_indiv = this_house.indiv[i];
+
+	double onset_i = this_indiv.get_augm("onset_date");
+	double incub_i = this_indiv.get_augm("incub_period");
 	double t_infec_i = onset_i - incub_i;
 
 	// init new first case to i
 	double new_t0 = t_infec_i;
-	LUT_house_first_case[h] = i;
+	int hh_first_case = i;
 
 	double onset_k, incub_k, t_infec_k;
 
 	//----- Update Lookup Tables for infectious -----//
-	for (int k : house[h].infectious_set)
+	for (int k : this_house.infectious_set)
 	{
-		onset_k = get_augm(h, k, "onset_date");
-		incub_k = get_augm(h, k, "incub_period");
-		t_infec_k = onset_k - incub_k;
+		if (k != i)
+		{
+			Individual &other_indiv = this_house.indiv[k];
+			onset_k = other_indiv.get_augm("onset_date");
+			incub_k = other_indiv.get_augm("incub_period");
+			t_infec_k = onset_k - incub_k;
 
-		if (t_infec_i < t_infec_k)
-		{ //----- `i` : infector, `k` : infectee -----//
-			LUT_inst_profile[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
-			LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
-			LUT_inst_profile[h][k][i] = 0.;
-			LUT_cumul_profile[h][k][i] = 0.;
-		}
-		else if (t_infec_k < t_infec_i)
-		{ //----- `k` : infector, `i` : infectee -----//
-			LUT_inst_profile[h][i][k] = 0.;
-			LUT_cumul_profile[h][i][k] = 0.;
-			LUT_inst_profile[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
-			LUT_cumul_profile[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
-
-			// update first case
-			if (t_infec_k < new_t0)
-			{
-				LUT_house_first_case[h] = k;
-				new_t0 = t_infec_k;
+			if (t_infec_i < t_infec_k)
+			{ //----- `i` : infector, `k` : infectee -----//
+				LUT_inst_profile[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
+				LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+				LUT_inst_profile[h][k][i] = 0.;
+				LUT_cumul_profile[h][k][i] = 0.;
 			}
+			else if (t_infec_k < t_infec_i)
+			{ //----- `k` : infector, `i` : infectee -----//
+				LUT_inst_profile[h][i][k] = 0.;
+				LUT_cumul_profile[h][i][k] = 0.;
+				LUT_inst_profile[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
+				LUT_cumul_profile[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
+
+				// update first case
+				if (t_infec_k < new_t0)
+				{
+					hh_first_case = k;
+					new_t0 = t_infec_k;
+				}
+			}
+			// FIXME : else is the case t_infec_i == t_infec_k
 		}
-		// NOTE : else is the case t_infec_i == t_infec_k, i. e. nothing to update
 	}
 
 	//===============================//
 	//===== Susceptible Members =====//
 	//===============================//
 
-	t_infec_k = get_augm(h, LUT_house_first_case[h], "onset_date") + get_param("study_period");
-	for (int k : house[h].susceptible_set)
+	t_infec_k = this_house.indiv[hh_first_case].get_augm("onset_date") + get_param("study_period");
+	for (int k : this_house.susceptible_set)
 	{
 		LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
 	}
+
+	//==================================//
+	//===== Store house first case =====//
+	//==================================//
+	LUT_house_first_case[h] = hh_first_case;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -218,20 +233,21 @@ void Model::augm_store_dependecies(int h, int i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles) const
+double Model::force_of_infec(const Household &this_house, int i, const vector<squarematrix> &profiles) const
 {
+	int h = this_house.get_id();
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (int k : house[h].infectious_set)
+	for (int k : this_house.infectious_set)
 	{
 		if (k != i)
 		{
-			output += get_contact_rate(h, k, i) * get_group_rate(h, k, "Infectivity") * profiles[h][k][i];
+			output += get_contact_rate(this_house, k, i) * get_group_rate(this_house.indiv[k], "Infectivity") * profiles[h][k][i];
 		}
 	}
 
-	output *= get_group_rate(h, i, "Susceptibility") * transmission_rate(h);
+	output *= get_group_rate(this_house.indiv[i], "Susceptibility") * transmission_rate(this_house);
 
 	return output;
 }
@@ -241,24 +257,24 @@ double Model::force_of_infec(int h, int i, const vector<squarematrix> &profiles)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(int h) const
+double Model::compute_house_loglike(const Household &this_house) const
 {
+	int h = this_house.get_id();
 	double loglike_house = 0.0;
 
 	// Contribution of healthy members
-	for (int i : house[h].susceptible_set)
+	for (int i : this_house.susceptible_set)
 	{
-		loglike_house -= force_of_infec(h, i, LUT_cumul_profile);
+		loglike_house -= cumul_FOI(this_house, i);
 	}
 
 	// Contribution of symptomatic members
-	for (int i : house[h].infectious_set)
+	for (int i : this_house.infectious_set)
 	{
 		// Contribution of secondary cases
 		if (i != LUT_house_first_case[h])
 		{
-			loglike_house += log(force_of_infec(h, i, LUT_inst_profile));
-			loglike_house -= force_of_infec(h, i, LUT_cumul_profile);
+			loglike_house += log(inst_FOI(this_house, i)) - cumul_FOI(this_house, i);
 		}
 	}
 
@@ -277,7 +293,7 @@ double Model::compute_house_loglike(int h) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Poisson point process to simulate outbreak in a single household. */
-void Model::simulate_single_house(int h)
+void Model::simulate_single_house(Household &this_house)
 {
 	double Dt = 0.01;
 
@@ -289,52 +305,51 @@ void Model::simulate_single_house(int h)
 	// note: incub_period are initialized according to definitions
 	// - set infectious to susceptible w/o dropping augm variables;
 	// - add augmented variables to all others (also missing);
-	for (int i = 0; i < house[h].house_size; i++)
+	for (int i = 0; i < this_house.size(); i++)
 	{
-		if (!house[h].is_infectious(i))
+		if (!this_house.is_infectious(i))
 		{
-			assign_augm(h, i);
+			assign_augm(this_house.indiv[i]);
 		}
-		house[h].change_status(i, SUSCEPTIBLE);
+		this_house.change_status(i, SUSCEPTIBLE);
 	}
 
 	// pick a random introduction and change it's status
-	LUT_house_first_case[h] = uniform() * house[h].house_size;
-	house[h].change_status(LUT_house_first_case[h], INFECTIOUS);
+	int hh_first_case = uniform() * this_house.size();
+	this_house.change_status(hh_first_case, INFECTIOUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	double t = get_augm(h, LUT_house_first_case[h], "onset_date");
+	double t = this_house.indiv[hh_first_case].get_augm("onset_date");
 	double tf = t + get_param("study_period");
 
 	// onset of secondary cases following the first case
-	while ((t < tf) && (house[h].num_susceptible > 0))
+	while ((t < tf) && (this_house.num_susceptible > 0))
 	{
 		t += Dt;
-		for (int i = 0; i < house[h].house_size; i++)
+		for (int i = 0; i < this_house.size(); i++)
 		{
-			if (house[h].is_susceptible(i))
+			if (this_house.is_susceptible(i))
 			{
 				// set new status for computations
-				house[h].change_status(i, INFECTIOUS);
-				set_augm(h, i, "onset_date", t);
-				augm_store_dependecies(h, i);
+				this_house.change_status(i, INFECTIOUS);
+				this_house.indiv[i].set_augm("onset_date", t);
+				augm_store_dependecies(this_house, i);
 
 				// restore status id escaped infection
-				if (uniform() < exp(-force_of_infec(h, i, LUT_inst_profile) * Dt))
+				if (uniform() < exp(-inst_FOI(this_house, i) * Dt))
 				{
-					house[h].change_status(i, SUSCEPTIBLE);
+					this_house.change_status(i, SUSCEPTIBLE);
 				}
 			}
 		}
 	}
 
-	// format onset times of susceptible
-	for (int i : house[h].susceptible_set)
+	// remove augmented of susceptibles
+	for (int i : this_house.susceptible_set)
 	{
-		set_augm(h, i, "incub_period", 0.);
-		set_augm(h, i, "onset_date", 1000.);
+		clear_augm(this_house.indiv[i]);
 	}
 }

@@ -7,10 +7,10 @@
 #ifndef MCMC__H
 #define MCMC__H
 
-#include <set>
 #include <map>
 #include <cmath>
 #include <random>
+#include <unordered_set>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -60,9 +60,9 @@ protected:
 	std::map<string, std::map<string, int>> report_group_classes = {};
 
 	//===== Augmented Variables =====//
-	std::set<string> augm_full_set = {};
-	std::set<string> augm_to_be_inferred = {};
-	std::set<string> augm_with_model_set = {};
+	std::unordered_set<string> augm_full_set = {};
+	std::unordered_set<string> augm_to_be_inferred = {};
+	std::unordered_set<string> augm_with_model_set = {};
 
 public:
 	//===== CONSTRUCTOR =====//
@@ -87,11 +87,11 @@ public:
 	void build_augm();
 
 	//===== SHOW =====//
-	void show_setup();
-	void show_params();
-	void show_summary();
-	void show_group_classes();
-	void show_full_build();
+	void show_setup() const;
+	void show_params() const;
+	void show_summary() const;
+	void show_group_classes() const;
+	void show_full_build() const;
 
 #ifdef USE_RCPP
 	//----- Rcpp imports -----//
@@ -101,47 +101,36 @@ public:
 	void import_augm(Rcpp::DataFrame augm);
 
 	//----- Rcpp exports -----//
-	Rcpp::List export_setup();
-	Rcpp::DataFrame export_params();
-	Rcpp::DataFrame export_data();
-	Rcpp::DataFrame export_traces();
-	Rcpp::NumericMatrix export_loglike_matrix();
+	Rcpp::List export_setup() const;
+	Rcpp::DataFrame export_params() const;
+	Rcpp::DataFrame export_data() const;
+	Rcpp::DataFrame export_traces() const;
+	Rcpp::NumericMatrix export_loglike_matrix() const;
 
 #else
 	//----- cpp outputs -----//
-	void show_results();
-	void print_infer_state(const string &output_filename = UNDEFINED);
-	void print_augm_variables(const string &output_filename = UNDEFINED);
+	void show_results() const;
+	void print_infer_state(const string &output_filename = UNDEFINED) const;
+	void print_augm_variables(const string &output_filename = UNDEFINED) const;
 #endif
-
-	//===== DATA =====//
-	double get_data(int h, int i, const string &dataID) const { return house[h].indiv[i].get_data(dataID); }
-	double get_data(int h, const string &dataID) const { return house[h].get_data(dataID); }
 
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &new_indiv);
-	void set_rate_per_contact(int h);
+	void set_rate_per_contact(Household &this_house);
 	virtual void assign_rate_per_group_to_individual(Individual &new_indiv);
-	virtual void assign_rate_per_contact_to_household(int h, int from, int to);
-	double get_group_rate(int h, int i, const string &rateID) const { return house[h].indiv[i].get_group_rate(rateID); }
-	double get_contact_rate(int h, int from, int to) const { return house[h].get_contact_rate(from, to); }
+	virtual void assign_rate_per_contact_to_household(Household &this_house, int from, int to);
+	double get_group_rate(const Individual &this_indiv, const string &rateID) const { return this_indiv.get_group_rate(rateID); }
+	double get_contact_rate(const Household &this_house, int from, int to) const { return this_house.get_contact_rate(from, to); }
 	void update_report_data();
 
 	//===== AUGMENTED VARIABLES =====//
 	void init_augmented_variables();
-	void assign_augm(int h, int i);
-	void clear_augm(int h, int i);
-	void change_status_and_augm(int h, int i, int new_status);
-	void set_augm(int h, int i, const string &augmID, double new_value) { house[h].indiv[i].set_augm(augmID, new_value); };
-	double get_augm(int h, int i, const string &augmID) const { return house[h].indiv[i].get_augm(augmID); }
-	virtual void augm_store_dependecies(int h, int i);
+	void assign_augm(Individual &this_indiv);
+	void clear_augm(Individual &this_indiv);
+	virtual void augm_store_dependecies(Household &this_house, int i);
 
 	//===== EVALUATE =====//
-	virtual double compute_house_loglike(int h) const;
-	double compute_augm_loglike(int h) const;
-	double compute_global_loglike();
-	double get_global_loglike() const { return global_loglike; };
-	void set_global_loglike(double x) { global_loglike = x; };
+	virtual double compute_house_loglike(const Household &this_house) const;
 	double evaluate();
 
 	//===== INFER =====//
@@ -155,11 +144,12 @@ public:
 
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};
-	virtual void simulate_single_house(int h);
-	void simulate();
+	virtual void simulate_single_house(Household &this_house);
+	void simulate(bool progbar = true);
 
 private:
 	//===== Global Loglikelihood =====//
+	double buffer = INF_DOUBLE;
 	double global_loglike = 0.0;
 
 	//===== Diagnostics =====//
@@ -191,26 +181,36 @@ private:
 	std::map<string, vector<string>> _augm_deftable_ = {};
 
 	//----- build : type-specified variables -----//
-	double type_to_double(const string tkn_val, const string tkn_typ, int h, int i);
-	const double *type_to_doubleptr(const string tkn_val, const string tkn_typ, int h, int i);
-	dictargs typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i);
-	dictargs_ptr typedict_to_sdargs_ext(const string tkn_key, const string tkn_val, const string tkn_typ, int h, int i);
+	double type_to_double(const string tkn_val, const string tkn_typ, const Individual &this_indiv);
+	const double *type_to_doubleptr(const string tkn_val, const string tkn_typ, const Individual &this_indiv);
+	dictargs typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv);
+	dictargs_ptr typedict_to_sdargs_ptr(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv);
 
 	//===== PRINTS =====//
 	string get_progtxt(const string &txt);
 
-	//===== INFER : Monte Carlo Markov Chain =====//
-	void init_move_counts();
-	void init_diagnostics();
-	void update_diagnostics();
+	//===== EVALUATE =====//
+	void update_house_loglike(Household &this_house) { this_house.set_loglike(compute_house_loglike(this_house)); }
+	double compute_augm_loglike(const Household &this_house) const;
+	double get_global_loglike() const { return global_loglike; };
+	void set_global_loglike(double x) { global_loglike = x; };
+	double compute_global_loglike();
 
+	//===== INFER =====//
+
+	//----- Monte Carlo -----//
 	void move_single_param(const string &parID);
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();
 	void move_all_augm_variables();
-	double move_single_house_augm(int h);
+	double move_single_house_augm(Household &this_house);
 
-	double get_augm_accept_rate(const string &augmID);
+	void init_diagnostics();
+	void update_diagnostics();
+	void init_move_counts();
+
+	// FIXME : to be redefined
+	// double get_augm_accept_rate(const string &augmID);
 };
 
 #endif // MCMC__H

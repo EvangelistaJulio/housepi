@@ -341,11 +341,6 @@ bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
     // proceed only if valid
     if (params.at(parID).valid())
     {
-        // add the prior logratio to buffer
-        buffer_logratio = params.at(parID).prior_logratio();
-        // add the proposal logratio to buffer
-        buffer_logratio -= params.at(parID).propose_logratio();
-
         return true;
     }
     else
@@ -356,6 +351,12 @@ bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
         params.at(parID).update_accept_rate(false);
         return false;
     }
+}
+
+/* Logratio associated to the parameter move. */
+double Monte_Carlo_Core::get_move_logratio(const string &parID) const
+{
+    return params.at(parID).prior_logratio() - params.at(parID).propose_logratio();
 }
 
 /* move is accepted */

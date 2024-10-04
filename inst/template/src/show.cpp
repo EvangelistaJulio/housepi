@@ -13,42 +13,42 @@ using namespace basics;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the report of the database and of the model group rates. */
-void MCMC::show_summary()
+void MCMC::show_summary() const
 {
     //===== PRINT =====//
 
     std::ostringstream oss;
 
     oss << "n. of individuals: " << num_indiv
-        << "\n    * n. of cases: " << report_data["n.cases"]
-        << " " << percent(report_data["n.cases"], num_indiv);
-    if (report_data["n.miss.stat"] > 0)
+        << "\n    * n. of cases: " << report_data.at("n.cases")
+        << " " << percent(report_data.at("n.cases"), num_indiv);
+    if (report_data.at("n.miss.stat") > 0)
     {
-        oss << "\n    * n. of missing status : " << report_data["n.miss.stat"]
-            << " " << percent(report_data["n.miss.stat"], num_indiv);
+        oss << "\n    * n. of missing status : " << report_data.at("n.miss.stat")
+            << " " << percent(report_data.at("n.miss.stat"), num_indiv);
     }
 
     oss << "\nn. of households: " << num_house;
-    if (report_data["no.HH.case"] > 0)
+    if (report_data.at("no.HH.case") > 0)
     {
-        oss << "\n    * with no cases: " << report_data["no.HH.case"]
-            << " " << percent(report_data["no.HH.case"], num_house);
+        oss << "\n    * with no cases: " << report_data.at("no.HH.case")
+            << " " << percent(report_data.at("no.HH.case"), num_house);
     }
 
-    oss << "\n    * with at least 1 case: " << report_data["lst.1.case"]
-        << " " << percent(report_data["lst.1.case"], num_house);
-    if (report_data["lst.1.case"] > 0)
+    oss << "\n    * with at least 1 case: " << report_data.at("lst.1.case")
+        << " " << percent(report_data.at("lst.1.case"), num_house);
+    if (report_data.at("lst.1.case") > 0)
     {
-        oss << "\n    * with at least 2 cases: " << report_data["lst.2.case"]
-            << " " << percent(report_data["lst.2.case"], num_house);
+        oss << "\n    * with at least 2 cases: " << report_data.at("lst.2.case")
+            << " " << percent(report_data.at("lst.2.case"), num_house);
     }
 
-    oss << "\nmax n. house cases: " << report_data["max.n.HH.cases"]
-        << " " << percent(report_data["n.HH.with.max.cases"], num_house)
-        << "\nmin n. house members: " << report_data["min.HH.size"]
-        << " " << percent(report_data["n.HH.with.min.size"], num_house)
-        << "\nmax n. house members: " << report_data["max.HH.size"]
-        << " " << percent(report_data["n.HH.with.max.size"], num_house);
+    oss << "\nmax n. house cases: " << report_data.at("max.n.HH.cases")
+        << " " << percent(report_data.at("n.HH.with.max.cases"), num_house)
+        << "\nmin n. house members: " << report_data.at("min.HH.size")
+        << " " << percent(report_data.at("n.HH.with.min.size"), num_house)
+        << "\nmax n. house members: " << report_data.at("max.HH.size")
+        << " " << percent(report_data.at("n.HH.with.max.size"), num_house);
 
     print_stdout(oss.str() + "\n");
 }
@@ -58,7 +58,7 @@ void MCMC::show_summary()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Show model group classes. */
-void MCMC::show_group_classes()
+void MCMC::show_group_classes() const
 {
     std::ostringstream oss;
 
@@ -101,7 +101,7 @@ void MCMC::show_group_classes()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Show the complete choices for the setup. */
-void MCMC::show_setup()
+void MCMC::show_setup() const
 {
     // common setup variables
     std::ostringstream oss;
@@ -129,7 +129,7 @@ void MCMC::show_setup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Show the user model parameters */
-void MCMC::show_params()
+void MCMC::show_params() const
 {
     std::ostringstream oss;
     oss << param_file_headers[0];
@@ -177,7 +177,7 @@ Rcpp::String stoRString(const string &x)
 }
 
 /* Export current setup configurations to R List. */
-Rcpp::List MCMC::export_setup()
+Rcpp::List MCMC::export_setup() const
 {
     using namespace Rcpp;
 
@@ -194,7 +194,7 @@ Rcpp::List MCMC::export_setup()
 }
 
 /* Export current parameter configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::export_params()
+Rcpp::DataFrame MCMC::export_params() const
 {
     using namespace Rcpp;
 
@@ -231,7 +231,7 @@ Rcpp::DataFrame MCMC::export_params()
 }
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::export_data()
+Rcpp::DataFrame MCMC::export_data() const
 {
     using namespace Rcpp;
 
@@ -252,21 +252,21 @@ Rcpp::DataFrame MCMC::export_data()
     }
 
     size_t c = 0;
-    for (int h = 0; h < num_house; ++h)
+    for (const Household &this_house : house)
     {
-        for (int i = 0; i < house[h].house_size; ++i)
+        for (const Individual &this_indiv : indiv)
         {
-            df_index[c] = house[h].indiv[i].get_index();
-            df_house_index[c] = house[h].get_index();
-            df_status[c] = house[h].indiv[i].get_status();
+            df_index[c] = this_indiv.get_data("index");
+            df_house_index[c] = this_house.get_data("house_index");
+            df_status[c] = this_indiv.get_status();
 
             for (const string &dataID : _data_headers_)
             {
-                df_dbl.at(dataID)[c] = house[h].indiv[i].get_data(dataID);
+                df_dbl.at(dataID)[c] = this_indiv.get_data(dataID);
             }
             for (const string &augmID : augm_full_set)
             {
-                df_dbl.at(augmID)[c] = house[h].indiv[i].get_augm(augmID);
+                df_dbl.at(augmID)[c] = this_indiv.get_augm(augmID);
             }
 
             ++c;
@@ -290,7 +290,7 @@ Rcpp::DataFrame MCMC::export_data()
 }
 
 /* Export MCMC traces with posterior samples. */
-Rcpp::DataFrame MCMC::export_traces()
+Rcpp::DataFrame MCMC::export_traces() const
 {
     using namespace Rcpp;
 
@@ -320,7 +320,7 @@ Rcpp::DataFrame MCMC::export_traces()
 }
 
 /* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix MCMC::export_loglike_matrix()
+Rcpp::NumericMatrix MCMC::export_loglike_matrix() const
 {
     using namespace Rcpp;
 
@@ -354,7 +354,7 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Show the results of the paramters. */
-void MCMC::show_results()
+void MCMC::show_results() const
 {
     std::ostringstream oss;
     oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
@@ -376,7 +376,7 @@ void MCMC::show_results()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the output file with inferred parameters with column names and initial values */
-void MCMC::print_infer_state(const string &output_filename)
+void MCMC::print_infer_state(const string &output_filename) const
 {
     if (!is_na(output_filename))
     {
@@ -385,6 +385,9 @@ void MCMC::print_infer_state(const string &output_filename)
 
         if (inferstate_ofstream.is_open())
         {
+            ulong numsweeps = (setup_num_iter - setup_burn_in) / setup_thinning;
+
+            //----- HEADERS -----//
             // header : loglikelihood
             inferstate_ofstream << "loglikelihood";
             // header : parameters
@@ -399,21 +402,28 @@ void MCMC::print_infer_state(const string &output_filename)
             }
             inferstate_ofstream << std::endl;
 
+            //----- VALUES -----//
+
             // FIXME : // FLAG : // HERE :
+            for (size_t c = 0; c < setup_num_chains; ++c)
             {
-                // print : loglikelihood
-                inferstate_ofstream << std::setprecision(2) << std::fixed << get_global_loglike();
-                // print : parameter values
-                for (const string &parID : param_to_be_inferred)
+                for (size_t k = 0; k < numsweeps; k++)
                 {
-                    inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_param(parID);
+                    size_t i = k + c * numsweeps;
+                    // print : loglikelihood
+                    inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
+                    // print : parameter values
+                    for (const string &parID : param_to_be_inferred)
+                    {
+                        inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << get_dgn_value(parID)[i];
+                    }
+                    // print : which chain
+                    if (setup_num_chains > 1)
+                    {
+                        inferstate_ofstream << C_DELIM << (c + 1);
+                    }
+                    inferstate_ofstream << std::endl;
                 }
-                // print : which chain
-                if (setup_num_chains > 1)
-                {
-                    inferstate_ofstream << C_DELIM << _chain_;
-                }
-                inferstate_ofstream << std::endl;
             }
 
             inferstate_ofstream.close();
@@ -437,7 +447,7 @@ void MCMC::print_infer_state(const string &output_filename)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::print_augm_variables(const string &save_augm_pathtofile)
+void MCMC::print_augm_variables(const string &save_augm_pathtofile) const
 {
     if (!is_na(save_augm_pathtofile))
     {
@@ -465,22 +475,22 @@ void MCMC::print_augm_variables(const string &save_augm_pathtofile)
             augm_ofstream << std::endl;
 
             //===== Print data and augmented variables =====//
-            for (int h = 0; h < num_house; ++h)
+            for (const Household &this_house : house)
             {
-                for (int i = 0; i < house[h].house_size; ++i)
+                for (const Individual &this_indiv : this_house.indiv)
                 {
-                    augm_ofstream << house[h].indiv[i].get_index()
-                                  << C_DELIM << house[h].get_index()
-                                  << C_DELIM << house[h].indiv[i].get_status();
+                    augm_ofstream << this_indiv.get_data("index")
+                                  << C_DELIM << this_house.get_data("house_index")
+                                  << C_DELIM << this_indiv.get_status();
                     for (const string &dataID : _data_headers_)
                     {
-                        augm_ofstream << C_DELIM << house[h].indiv[i].get_data(dataID);
+                        augm_ofstream << C_DELIM << this_indiv.get_data(dataID);
                     }
                     for (const string &augmID : augm_full_set)
                     {
-                        if (house[h].is_infectious(i))
+                        if (this_indiv.get_status() == INFECTIOUS)
                         {
-                            augm_ofstream << C_DELIM << house[h].indiv[i].get_augm(augmID);
+                            augm_ofstream << C_DELIM << this_indiv.get_augm(augmID);
                         }
                         else
                         {

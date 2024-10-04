@@ -8,9 +8,9 @@
 #define INDIVIDUAL__H
 
 #include <algorithm>
+#include <cmath>
 #include <set>
 #include <unordered_map>
-#include <cmath>
 
 #include "varia.h"
 
@@ -34,7 +34,6 @@ class Individual
 private:
 	//=====Attributes (private)=====//
 	int status = 0;		// status of the individual
-	int index = 0;		// database index of the individual
 	dictargs data = {}; // database associated to individual
 
 public:
@@ -48,11 +47,7 @@ public:
 
 	//===== Basic Methods =====//
 	int get_status() const { return status; }
-	int get_index() const { return index; }
-
 	void set_status(int s) { status = s; }
-	void set_index(int i) { index = i; }
-
 	void disable_assert();
 	void assert_data(const string &dataID) const;
 	double get_data(const string &dataID) const { return (this->*_get_data_method_)(dataID); }
@@ -78,11 +73,11 @@ public:
 	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).model_logpdf(); }
 	double augm_model_logratio(const string &augmID) const { return augm_var.at(augmID).model_logratio(); }
 	double augm_propose_logratio(const string &augmID) const { return augm_var.at(augmID).propose_logratio(); }
-	void augm_restore_value(const string &augmID) {augm_var.at(augmID).restore_value();}
+	void augm_restore_value(const string &augmID) { augm_var.at(augmID).restore_value(); }
 
 private:
 	dictargs_ptr rate_ptr = {};
-	std::map<string, Augmented> augm_var = {};
+	std::unordered_map<string, Augmented> augm_var = {};
 
 	//===== Setter (auxiliary methods) =====//
 	void (Individual::*_set_augm_method_)(const string &, double) = &Individual::_set_augm_assert_;
@@ -117,9 +112,10 @@ private:
 class Household
 {
 private:
-	//=====Attributes (private)=====//
-	int house_index = -1;	  // database index of household
-	dictargs house_data = {}; // database associated to household (manual)
+	//===== Attributes (private) =====//
+	int index = -1;		// index of household
+	dictargs house_data = {};	// database associated to household (manual)
+	int house_size = 0;
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
 	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
@@ -136,7 +132,6 @@ private:
 public:
 	//=====Attributes (public)=====//
 	vector<Individual> indiv = {};
-	int house_size = 0;
 	int num_infectious = 0;
 	int num_susceptible = 0;
 	int num_missing_status = 0;
@@ -156,16 +151,16 @@ public:
 
 	//====== Setter ======//
 	void assign_individual(Individual this_indiv);
-	void set_index(int index) { house_index = index; }
+	void set_id(int id) { index = id; }
 	void assign_data(const string &dataID, double value);
 	void assign_rate_per_contact(int from, int to, const string &parID) { which_rate[from][to] = parID; }
 	bool change_status(int i, int new_status);
 
 	//====== Getter ======//
-	int get_index() const { return house_index; }
+	int size() const { return house_size; }
+	int get_id() const { return index; }
 	void assert_data(const string &dataID) const;
 	double get_data(const string &dataID) const;
-	double get_group_rate(int i, const string &rateID) const { return indiv[i].get_group_rate(rateID); }
 
 	// wheter members correspond to a given status or not
 	bool is_infectious(int i) const { return _is_infectious_[i]; }
@@ -173,7 +168,7 @@ public:
 	bool is_missing_status(int i) const { return _is_missing_status_[i]; }
 
 	//====== Contact Rates ======//
-	void set_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
+	void set_contact_rate(int from, int to, const double *x) { contact_rates[from][to] = x; }
 	double get_contact_rate(int from, int to) const { return (*contact_rates[from][to]); }
 
 	//====== Loglikelihood ======//
@@ -184,6 +179,7 @@ public:
 		house_loglike = new_loglike;
 	}
 	void refuse() { house_loglike = buffer; }
+	double get_delta_loglike() const { return house_loglike - buffer; }
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;

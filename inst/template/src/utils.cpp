@@ -27,14 +27,23 @@ namespace basics
     /* An internal check for string representing NA. */
     bool is_na(const string &txt)
     {
-        if ((txt == UNDEFINED) || (txt == "NA") || (txt.size() == 0))
+        if (txt.size() == 0)
         {
             return true;
         }
         else
         {
-            return false;
+            vector<string> forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
+            for (const string &txtnan : forbidden)
+            {
+                if (txt == txtnan)
+                {
+                    return true;
+                }
+            }
         }
+
+        return false;
     }
 
     /* Welford online algorithm for mean and variance. */
@@ -271,7 +280,7 @@ namespace basics
     // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
     void raise_warning(const string &txt, bool &is_raised_once)
     {
-        if (is_raised_once == false)
+        if (!is_raised_once)
         {
 #pragma omp critical
             {
@@ -344,7 +353,7 @@ Base_Function::Base_Function(const string &name,
     // assign setter
     _set_arg_method_ = &Base_Function::_set_arg_val_;
     // assign domain
-    set_range(domain, true);
+    set_range(domain);
 }
 
 /* Overload constructor for argument POINTERS. */
@@ -366,7 +375,7 @@ Base_Function::Base_Function(const string &name,
     // assign setter
     _set_arg_method_ = &Base_Function::_set_arg_ptr_;
     // assign domain
-    set_range(domain, true);
+    set_range(domain);
 }
 
 /* Overload assignment of non default POINTER arguments. */
@@ -407,39 +416,51 @@ void Base_Function::assign_args(dictargs_ptr args_ptr)
     }
 }
 
-/* Set the range of validity of the value, and the corresponding validation function. */
-void Base_Function::set_range(dictargs new_range, bool is_domain)
-{
-    bool is_min = false;
-    bool is_max = false;
-    double new_min = -INF_DOUBLE;
-    double new_max = INF_DOUBLE;
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
-    //----- Read the range -----//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Base Function : set range  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Set the range of validity of the value, and the corresponding validation function. */
+int Base_Function::set_range(const dictargs &new_range)
+{
+    double min_val = _range_min_;
+    double max_val = _range_max_;
+    bool is_new_min = false;
+    bool is_new_max = false;
+    int output = 0;
+
+    //===== Read the new range =====//
     for (auto const &x : new_range)
     {
         if (x.first == "min")
         {
-            if (is_min)
+            if (is_new_min)
             {
-                raise_error("Multiple definition for 'min'.");
+                raise_error("Multiple definition for 'min' in '" + get_name() + "'.");
             }
             else
             {
-                new_min = x.second;
-                is_min = true;
+                min_val = x.second;
+                is_new_min = true;
             }
         }
         else if (x.first == "max")
         {
-            if (is_max)
+            if (is_new_max)
             {
-                raise_error("Multiple definition for 'max'.");
+                raise_error("Multiple definition for 'max' in '" + get_name() + "'.");
             }
             else
             {
-                new_max = x.second;
-                is_max = true;
+                max_val = x.second;
+                is_new_max = true;
             }
         }
         else
@@ -450,66 +471,81 @@ void Base_Function::set_range(dictargs new_range, bool is_domain)
         }
     }
 
-    if (!is_domain)
+    //===== Adjust new min value and domain =====//
+    if (std::find(_args_names_.begin(), _args_names_.end(), "min") != _args_names_.end())
     {
-        //----- Overwrite min if it exists as argument -----//
-        if (std::find(_args_names_.begin(), _args_names_.end(), "min") != _args_names_.end())
-        {
-            new_min = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
-            if (is_min)
-            {
-                std::ostringstream oss;
-                oss << "Overwriting range min with argument min " << new_min << " in '" << get_name() << "'.";
-                raise_warning(oss.str(), Unused_Range_Warning);
-            }
-            is_min = true;
-        }
-
-        //----- Overwrite max if it exists as argument -----//
-        if (std::find(_args_names_.begin(), _args_names_.end(), "max") != _args_names_.end())
-        {
-            new_max = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
-            if (is_max)
-            {
-                std::ostringstream oss;
-                oss << "Overwriting range max with argument max " << new_max << " in '" << get_name() << "'.";
-                raise_warning(oss.str(), Unused_Range_Warning);
-            }
-            is_max = true;
-        }
-
-        //----- Check compatibility with domain -----//
-        if ((is_min) && (new_min < _range_min_))
+        //----- Overwrite min if it exists as argument (e .g. uniform distribution) -----//
+        min_val = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
+        if (is_new_min)
         {
             std::ostringstream oss;
-            oss << "Invalid min value " << new_min << " for distribution '" << get_name() << "'.";
-            raise_error(oss.str());
+            oss << "Overwriting range min with argument min " << min_val << " in '" << get_name() << "'.";
+            raise_warning(oss.str(), Unused_Range_Warning);
         }
-        if ((is_max) && (new_max > _range_max_))
+        is_new_min = true;
+    }
+    else if (is_new_min)
+    {
+        //----- Check compatibility with min from domain (e .g. uniform distribution) -----//
+        if (min_val < _range_min_)
         {
             std::ostringstream oss;
-            oss << "Invalid max value" << new_max << " for distribution '" << get_name() << "'.";
+            oss << "Invalid min value " << min_val << " for distribution '" << get_name() << "'.";
             raise_error(oss.str());
         }
     }
 
-    //----- Assign valid range functional method -----//
-    if ((!is_min) && (!is_max))
+    //===== Adjust new max value and domain =====//
+    if (std::find(_args_names_.begin(), _args_names_.end(), "max") != _args_names_.end())
     {
+        //----- Overwrite max if it exists as argument -----//
+        max_val = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
+        if (is_new_max)
+        {
+            std::ostringstream oss;
+            oss << "Overwriting range max with argument max " << max_val << " in '" << get_name() << "'.";
+            raise_warning(oss.str(), Unused_Range_Warning);
+        }
+        is_new_max = true;
+    }
+    else if (is_new_max)
+    {
+        //----- Check compatibility with max from domain -----//
+        if (max_val > _range_max_)
+        {
+            std::ostringstream oss;
+            oss << "Invalid max value" << max_val << " for distribution '" << get_name() << "'.";
+            raise_error(oss.str());
+        }
+    }
+
+    //===== Assign range and respective validation method =====//
+
+    // at least one from previous range (domain) should be finite
+    // FIXME : to be moved to NA...
+    is_new_min = (is_new_min != -INF_DOUBLE) || (_range_min_ != -INF_DOUBLE);
+    is_new_max = (is_new_max != INF_DOUBLE) || (_range_max_ != INF_DOUBLE);
+
+    if ((!is_new_min) && (!is_new_max))
+    {
+        output = 0;
         _valid_range_method_ = &Base_Function::_valid_range_always_;
     }
-    else if ((is_min) && (!is_max))
+    else if ((is_new_min) && (!is_new_max))
     {
-        _range_min_ = new_min;
+        output = 1;
+        _range_min_ = min_val;
         _valid_range_method_ = &Base_Function::_valid_range_min_;
     }
-    else if ((!is_min) && (is_max))
+    else if ((!is_new_min) && (is_new_max))
     {
-        _range_max_ = new_max;
+        output = 2;
+        _range_max_ = max_val;
         _valid_range_method_ = &Base_Function::_valid_range_max_;
     }
-    else // ((is_min) && (is_max))
+    else // ((is_new_min) && (is_new_max))
     {
+        output = 3;
         if (_range_min_ >= _range_max_)
         {
             std::ostringstream oss;
@@ -518,12 +554,25 @@ void Base_Function::set_range(dictargs new_range, bool is_domain)
         }
         else
         {
-            _range_min_ = new_min;
-            _range_max_ = new_max;
+            _range_min_ = min_val;
+            _range_max_ = max_val;
             _valid_range_method_ = &Base_Function::_valid_range_both_;
         }
     }
+
+    return output;
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Base Function : show args  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return formatted argument names of the distribution. */
 string Base_Function::show_arg_names() const

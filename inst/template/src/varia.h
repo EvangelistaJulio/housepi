@@ -260,8 +260,8 @@ public:
 		// define distribution_ptr
 		distr_ptr = distribution_ptr(distr_name, distr_args);
 
-		// assign its range of validity
-		distr_ptr->set_range(range);
+		// truncate the distribution
+		distr_ptr->set_truncation(range);
 
 		// Assing proposer rule with associated state 'infer'.
 		if (basics::is_na(rule_name))
@@ -393,8 +393,8 @@ public:
 	
 	//===== Aliases for Readability =====//
 	void prior_rand(sys_rnd_gen &prng) { distr_rand(prng); }
-	double prior_log_pdf() { return distr_logpdf(); } // FIXME : is this ever used?
-	double prior_logratio() { return distr_logratio(); }
+	double prior_log_pdf() const { return distr_logpdf(); } // FIXME : is this ever used?
+	double prior_logratio() const { return distr_logratio(); }
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;
@@ -477,7 +477,7 @@ public:
 
 	//===== Metropolis-Hastings moves =====//
 	bool propose_valid_param_move(const string &parID);
-	double get_move_logratio() const { return buffer_logratio; }
+	double get_move_logratio(const string &parID) const;
 	void accept_param_move(const string &parID);
 	void refuse_param_move(const string &parID);
 	void adapt(const string &parID, double ratio) { params.at(parID).adapt(ratio); }
@@ -508,7 +508,6 @@ private:
 	std::unordered_map<string, Parameter> params = {};	   // parameters dictionary
 	std::map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
-	double buffer_logratio = 0.0;							// buffer logratio (prior+proposal) of the current parameter
 	std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
 	unsigned setup_num_threads = 1;							// number of OMP threads
 

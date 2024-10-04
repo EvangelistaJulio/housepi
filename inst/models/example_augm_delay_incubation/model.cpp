@@ -53,11 +53,12 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(int h)
+double Model::compute_house_loglike(const Household &this_house) const
 {
-	// incubation period = onset - exposure
-	double incub = house[h].indiv[0].get_augm("onset");
-	incub -= house[h].indiv[0].get_augm("exposure");
+	const Individual &single = this_house.indiv[0];
+	
+	// note : incubation period = onset - exposure
+	double incub = single.get_augm("onset") - single.get_augm("exposure");
 
 	if (incub <= 0)
 	{
