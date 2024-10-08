@@ -606,16 +606,16 @@ void MCMC::update_report_data()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign group rate to an individual  */
-void MCMC::assign_rate_per_group_to_individual(Individual &this_indiv)
+void MCMC::assign_group_rate_to_individual(Individual &this_indiv)
 {
-    // this_indiv.assign_rate_per_group(EMPTY_RATE, EMPTY_RATE);
+    // this_indiv.assign_group_rate(EMPTY_RATE, EMPTY_RATE);
     UNUSED(this_indiv);
 }
 
 /* Update model report and set group rates associate to new individual. */
 void MCMC::set_rate_per_group(Individual &this_indiv)
 {
-    assign_rate_per_group_to_individual(this_indiv);
+    assign_group_rate_to_individual(this_indiv);
 
     for (const auto &which : this_indiv.which_rate)
     {
@@ -672,7 +672,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_rate_per_contact_to_household(Household &this_house, int from, int to)
+void MCMC::assign_contact_rate_to_household(Household &this_house, int from, int to)
 {
     this_house.assign_rate_per_contact(from, to, EMPTY_RATE);
 }
@@ -708,7 +708,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
             // note : from 'k' --> to 'i'
             if (k != i)
             {
-                assign_rate_per_contact_to_household(this_house, k, i);
+                assign_contact_rate_to_household(this_house, k, i);
                 string parID = this_house.which_rate[k][i];
 
                 if (is_na(parID))
@@ -911,7 +911,7 @@ void MCMC::assign_augm(Individual &this_indiv)
         // random initialization at assignment
         if (stobool(_augm_deftable_.at("init_rand")[a]))
         {
-            this_indiv.init_augm(augmID, get_prng());
+            this_indiv.augm_model_rand(augmID, get_prng());
         }
     }
 }

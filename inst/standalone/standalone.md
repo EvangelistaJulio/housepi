@@ -5,8 +5,8 @@ Here a quick tutorial of the basic commands as if they where run within the fold
 ### Compile a model
 ```
 MODEL=../models/augm_onset_single_intr
-make clean MODEL=$MODEL
-make debug MODEL=$MODEL
+make clean -s MODEL=$MODEL
+make debug -s MODEL=$MODEL
 ```
 If you don't want to compile with debug flags (same used by R package compiler), use `make` instead. 
 Load your configuration from files, e. g. create temporary files:

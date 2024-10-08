@@ -55,7 +55,7 @@ public:
 	double rand(sys_rnd_gen &prng) { return (distr_ptr->rand)(prng); }
 
 	virtual double propose(sys_rnd_gen &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
-	virtual double logratio(double old_val, double new_val) const { return (this->*_logratio_method_)(old_val, new_val); }
+	virtual double logratio(double xold, double xnew) const { return (this->*_logratio_method_)(xold, xnew); }
 
 	//=====Finite Adaptive=====//
 	double get_accept_rate() const { return accept_rate; };
@@ -195,19 +195,19 @@ public:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Prior_Proposer : class  ////////////////////////////////////
+///////////////////////////////////  Gibbs_Proposer : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Prior_Proposer : public Base_Proposer
+class Gibbs_Proposer : public Base_Proposer
 {
 public:
 	//=====Constructor=====//
-	Prior_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
+	Gibbs_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
 	{
-		_propose_method_ = &Prior_Proposer::_propose_draw_rand_;
-		_logratio_method_ = &Prior_Proposer::_logratio_pdf_;
+		_propose_method_ = &Gibbs_Proposer::_propose_draw_rand_;
+		_logratio_method_ = &Gibbs_Proposer::_logratio_pdf_;
 	}
-	~Prior_Proposer() {}
+	~Gibbs_Proposer() {}
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -274,8 +274,9 @@ public:
 			// define proposer rule with functional programming
 			if (rule_name == "gibbs")
 			{
-				prop_ptr = new Prior_Proposer(distr_ptr);
-				_propose_method_ = &Base_Variable::_propose_gibbs_sampl_;
+				prop_ptr = new Gibbs_Proposer(distr_ptr);
+				_propose_method_ = &Base_Variable::_propose_gibbs_sample_;
+				_move_logratio_method_ = &Base_Variable::_move_logratio_gibbs_;
 			}
 			else
 			{
@@ -319,13 +320,14 @@ public:
 
 	//===== Metropolis-Hastings =====//
 
-	double get_move_logratio() const { return distr_logratio() - propose_logratio(); }
+	double get_move_logratio() const { return (this->*_move_logratio_method_)(); }
+	bool valid_move() const { return (this->*_valid_move_method_)(); }
 
 	//----- distr_ptr : prior/model methods -----//
 	void rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
+
 	double distr_logpdf() const { return distr_ptr->logpdf(value); }
 	double distr_logratio() const { return distr_ptr->logratio(buffer, value); }
-	bool valid() const { return distr_ptr->valid(value); }
 
 	//----- prop_ptr : propose methods -----//
 	void propose(sys_rnd_gen &prng) { return set_value((this->*_propose_method_)(prng)); }
@@ -364,7 +366,17 @@ public:
 	}
 
 private:
-	//=====Propose : functional methods=====//
+	//===== Valid move : functional methods =====//
+	bool (Base_Variable::*_valid_move_method_)() const = &Base_Variable::_valid_move_default_;
+	bool _valid_move_default_() const { return distr_ptr->valid(value); }
+	bool _valid_move_gibbs_() const { return true; }
+
+	//===== Move logratio : functional methods =====//
+	double (Base_Variable::*_move_logratio_method_)() const = &Base_Variable::_move_logratio_default_;
+	double _move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
+	double _move_logratio_gibbs_() const { return 0.0; }
+
+	//===== Propose : functional methods =====//
 	double (Base_Variable::*_propose_method_)(sys_rnd_gen &);
 	double _propose_error_(sys_rnd_gen &prng)
 	{
@@ -372,7 +384,7 @@ private:
 		basics::raise_error("Call to proposer of immutable variable '" + get_name() + "'.");
 		return 0.;
 	}
-	double _propose_gibbs_sampl_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
+	double _propose_gibbs_sample_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
 	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
 	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
 };
@@ -468,9 +480,9 @@ public:
 
 	//===== Metropolis-Hastings moves =====//
 	bool propose_valid_param_move(const string &parID);
+	void restore_param_value(const string &parID) { params.at(parID).restore_value(); }
+	void update_param_accept_rate(const string &parID, bool is_accepted) { params.at(parID).update_accept_rate(is_accepted); }
 	double param_move_logratio(const string &parID) const { return params.at(parID).get_move_logratio(); }
-	void accept_param_move(const string &parID);
-	void refuse_param_move(const string &parID);
 	void adapt(const string &parID, double ratio) { params.at(parID).adapt(ratio); }
 	void init_param_diagnostics(ulong sample_size);
 	void update_param_diagnostics();

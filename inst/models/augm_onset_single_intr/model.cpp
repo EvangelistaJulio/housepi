@@ -22,26 +22,26 @@
 ////////////////////////  Model : assign rate per group to individual  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
+void Model::assign_group_rate_to_individual(Individual &this_indiv)
 {
 	//===== rate n.0 : Infectivity =====//
 	if (this_indiv.get_data("vacc_status") == 0)
 	{ // naive : Infectivity [REFERENCE]
-		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
+		this_indiv.assign_group_rate("Infectivity", REFERENCE);
 	}
 	else
 	{ // fully vaccinated : Infectivity
-		this_indiv.assign_rate_per_group("Infectivity", "i_vacc");
+		this_indiv.assign_group_rate("Infectivity", "i_vacc");
 	}
 
 	//===== rate n.1 : Susceptibility =====//
 	if (this_indiv.get_data("vacc_status") == 0)
 	{ // naive : Susceptibility [REFERENCE]
-		this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
+		this_indiv.assign_group_rate("Susceptibility", REFERENCE);
 	}
 	else
 	{ // fully vaccinated : Infectivity
-		this_indiv.assign_rate_per_group("Susceptibility", "s_vacc");
+		this_indiv.assign_group_rate("Susceptibility", "s_vacc");
 	}
 }
 
@@ -50,7 +50,7 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_rate_per_contact_to_household(Household &this_house, int from, int to)
+void Model::assign_contact_rate_to_household(Household &this_house, int from, int to)
 {
 	Individual &from_indiv = this_house.indiv[from];
 	Individual &to_indiv = this_house.indiv[to];

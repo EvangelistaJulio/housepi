@@ -105,12 +105,14 @@ void MCMC::init_move_counts()
 /* Attempt to move a single parameter for the given inverse temperature. */
 void MCMC::move_single_param(const string &parID)
 {
+    bool is_accepted = false;
+
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_param_move(parID))
     {
         if (metropolis_param_move(parID))
         {
-            accept_param_move(parID);
+            is_accepted = true;
         }
         else
         {
@@ -118,7 +120,7 @@ void MCMC::move_single_param(const string &parID)
             restore_global_loglike();
 
             // restore buffered value of parameter
-            refuse_param_move(parID);
+            restore_param_value(parID);
 
             // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
@@ -128,6 +130,9 @@ void MCMC::move_single_param(const string &parID)
             }
         }
     }
+
+    // update counts for acceptance rate
+    update_param_accept_rate(parID, is_accepted);
 }
 
 bool MCMC::_param_metropolis_1_(const string &parID)
@@ -203,12 +208,11 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 ////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize augmented variable for all individuals */
+/* Initialize augmented dependecies for all households. */
 void MCMC::init_augmented_variables()
 {
     for (Household &this_house : house)
     {
-        // initialization of augmented variables for infectious
         for (int i : this_house.infectious_set)
         {
             update_augm_dependecies(this_house, i);
@@ -216,54 +220,24 @@ void MCMC::init_augmented_variables()
     }
 }
 
-// FIXME developing
-bool MCMC::_augm_metropolis_1_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
+/* Move augmented variables from all households. */
+void MCMC::move_all_augm_variables()
 {
-    double D_hh_ll = this_house.get_delta_loglike();
-    double D_model_ll = 0.0; // store model D_ll in case
-    if (uniform() < exp(D_hh_ll + this_indiv.augm_move_logratio(augmID, D_model_ll)))
+    if (_is_move_augm_)
     {
-        delta += D_hh_ll + D_model_ll;
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
+        double delta_ll = 0.;
 
-// FIXME developing
-bool MCMC::_augm_metropolis_0_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
-{
-    if (uniform() < exp(-this_indiv.augm_propose_logratio(augmID)))
-    {
-        delta += this_house.get_delta_loglike() + this_indiv.augm_model_logratio(augmID);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-// FIXME developing
-bool MCMC::_augm_metropolis_T_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
-{
-    double D_ll = this_house.get_delta_loglike() + this_indiv.augm_model_logratio(augmID);
-    if (uniform() < exp(setup_inv_T * D_ll - this_indiv.augm_propose_logratio(augmID)))
-    {
-        delta += D_ll;
-        return true;
-    }
-    else
-    {
-        return false;
+#pragma omp parallel for reduction(+ : delta_ll)
+        for (Household &this_house : house)
+        {
+            delta_ll += move_single_house_augm(this_house);
+        }
+        increment_global_loglike(delta_ll);
     }
 }
 
 /* Move augmented variables for infectious members of a single household.
-The move is performed one member at a time, one augmented variable at at time.
-// FIXME adjust with buffer as for param.
+The move is performed one member at a time, one augmented variable at a time.
 */
 double MCMC::move_single_house_augm(Household &this_house)
 {
@@ -288,7 +262,7 @@ double MCMC::move_single_house_augm(Household &this_house)
                 update_house_loglike(this_house);
 
                 // Metropolis-Hasting algorithm
-                if (metropolis_augm_move(this_house, this_indiv, augmID, delta_global_loglike))
+                if (metropolis_augm_move(this_house, i, augmID, delta_global_loglike))
                 {
                     is_accepted = true;
                 }
@@ -308,19 +282,47 @@ double MCMC::move_single_house_augm(Household &this_house)
     return delta_global_loglike;
 }
 
-/* Move augmented variables from all households. */
-void MCMC::move_all_augm_variables()
+// FIXME developing
+bool MCMC::_augm_metropolis_1_(const Household &this_house, int i, const string &augmID, double &delta)
 {
-    if (_is_move_augm_)
+    double D_hh_ll = this_house.get_delta_loglike();
+    if (uniform() < exp(D_hh_ll + this_house.indiv[i].augm_move_logratio(augmID)))
     {
-        double variation = 0.;
+        delta += D_hh_ll + this_house.indiv[i].augm_model_logratio(augmID);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
-#pragma omp parallel for reduction(+ : variation)
-        for (Household &this_house : house)
-        {
-            variation += move_single_house_augm(this_house);
-        }
-        set_global_loglike(get_global_loglike() + variation);
+// FIXME developing
+bool MCMC::_augm_metropolis_0_(const Household &this_house, int i, const string &augmID, double &delta)
+{
+    if (uniform() < exp(-this_house.indiv[i].augm_propose_logratio(augmID)))
+    {
+        delta += this_house.get_delta_loglike() + this_house.indiv[i].augm_model_logratio(augmID);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+// FIXME developing
+bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const string &augmID, double &delta)
+{
+    double D_ll = this_house.get_delta_loglike() + this_house.indiv[i].augm_model_logratio(augmID);
+    if (uniform() < exp(setup_inv_T * D_ll - this_house.indiv[i].augm_propose_logratio(augmID)))
+    {
+        delta += D_ll;
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
@@ -359,9 +361,10 @@ double MCMC::evaluate()
     //----- Initialize model -----//
     init_model_for_inference();
 
-    //-----random initialization of augmented variables with model-----//
+    //----- Initialize augmented dependencies -----//
     init_augmented_variables();
 
+    //----- Initialize global loglikelihood -----//
     update_global_loglike();
 
     return get_global_loglike();
@@ -481,10 +484,10 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep)
         //-----Initialize parameter inference-----//
         init_rand_params(setup_rnd_init_params);
 
-        //-----Initialize augmented variables with model-----//
+        //----- Initialize augmented dependencies -----//
         init_augmented_variables();
 
-        // set the value of the global loglikelihood
+        //----- Initialize global loglikelihood -----//
         update_global_loglike();
 
         // avoid asserting user definitions after first round
@@ -607,7 +610,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
     double avg, var;
-    vector<double> inv_t = {};      // inverse temperature
+    vector<double> inv_t = {};   // inverse temperature
     vector<double> avg_vec = {}; // mean loglikelihood
     vector<double> var_vec = {}; // variance loglikelihood
 
@@ -686,7 +689,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
             {
                 new_inv_T = inv_t[k] + var_vec[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_vec[k] + var_vec[k + 1]);
             }
-    
+
             //----- power posterior sampling -----//
             set_inver_temper(new_inv_T);
             run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
@@ -748,7 +751,7 @@ void MCMC::simulate(bool progbar)
     //----- Initialize model -----//
     init_model_for_simulation();
 
-    //-----random initialization of augmented variables with model-----//
+    //----- Initialize augmented dependencies -----//
     init_augmented_variables();
 
     basics::progress_bar_init("simul", progbar);

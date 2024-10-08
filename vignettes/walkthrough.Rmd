@@ -73,11 +73,11 @@ housepi::build_model(hemi, setup = setup)
 
 ## Simulation
 
-To produce a simulated database according to the model, we execute the method `simulate`. This requires to have already loaded a database to provide the household compositions.
+To produce a simulated database according to the model, we execute the command `run_simulation`. This requires a pre-loaded database to provide the household compositions.
 
 ```{r}
 # override status of the database according to simulation 
-hemi$simulate()
+housepi::run_simulation(hemi)
 
 # show a summary of the current simulated database 
 hemi$show_summary()
@@ -137,6 +137,6 @@ loo::loo(llmtx)
 
 Another feature of the `housepi` package is the possibility to estimate the marginal loglikelihood with the method of the power posteriors:
 
-```{r}
+```{r, eval=FALSE}
 hemi$evaluate_marginal(30, TRUE, FALSE)
 ```

@@ -292,26 +292,26 @@ void Model::initialize_model()
 ////////////////////////  Model : assign rate_per group to individual  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
+void Model::assign_group_rate_to_individual(Individual &this_indiv)
 {
 	//=====rate 0 : Infectivity=====//
 	if ((this_indiv.get_data("recov") == false) && (this_indiv.get_data("vacc_status") == 0))
 	{ // unrecovered unvaccinated
-		this_indiv.assign_rate_per_group("Infectivity", "i_naive");
+		this_indiv.assign_group_rate("Infectivity", "i_naive");
 	}
 	else
 	{ // vaccinated o recovered : Infectivity [REFERENCE]
-		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
+		this_indiv.assign_group_rate("Infectivity", REFERENCE);
 	}
 
 	//=====rate 1 : Susceptibility=====//
 	if (this_indiv.get_data("vacc_status") == 0)
 	{ // naive : Susceptibility [REFERENCE]
-		this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
+		this_indiv.assign_group_rate("Susceptibility", REFERENCE);
 	}
 	else
 	{ // 1 dose
-		this_indiv.assign_rate_per_group("Susceptibility", "s_vacc");
+		this_indiv.assign_group_rate("Susceptibility", "s_vacc");
 	}
 }
 
@@ -320,7 +320,7 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_rate_per_contact_to_household(int h, int i, int k)
+void Model::assign_contact_rate_to_household(int h, int i, int k)
 {
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise

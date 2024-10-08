@@ -110,7 +110,7 @@ const double *Individual::_get_data_pointer_assert_(const string &dataID) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a model rate r */
-void Individual::assign_rate_per_group(const string &rateID, const string &parID)
+void Individual::assign_group_rate(const string &rateID, const string &parID)
 {
 	if (which_rate.find(rateID) == which_rate.end())
 	{
@@ -180,34 +180,14 @@ void Individual::disable_assert()
 	_get_data_pointer_method_ = &Individual::_get_data_pointer_default_;
 }
 
-/* Init augmented variable within a random initial value */
-void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
-{
-	int num_attempts = 0;
-
-	augm_model_rand(augmID, prng);
-	while ((!augm_valid(augmID)))
-	{
-		if (num_attempts > MAX_NUMBER_ATTEMPTS)
-		{
-			std::ostringstream oss;
-			oss << "Exceeded attempts in initialization of '" << augmID << "'"
-				<< " for individual " << get_data("index") << ".";
-			raise_error(oss.str());
-		}
-		augm_model_rand(augmID, prng);
-		++num_attempts;
-	}
-}
-
-/* Init augmented variable within a random initial value */
+/* Propose augmented and return true if valid move, otherwise restore buffer.  */
 bool Individual::propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng)
 {
 	// propose new augmented value and store old in buffer
 	augm_propose(augmID, prng);
 
 	// proceed only if valid
-	if (augm_valid(augmID))
+	if (augm_valid_move(augmID))
 	{
 		return true;
 	}
@@ -217,13 +197,6 @@ bool Individual::propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng
 		augm_restore_value(augmID);
 		return false;
 	}
-}
-
-/* Init augmented variable within a random initial value */
-double Individual::augm_move_logratio(const string &augmID, double &store_model_logratio) const
-{
-	store_model_logratio = augm_var.at(augmID).distr_logratio();
-	return store_model_logratio - augm_var.at(augmID).propose_logratio();
 }
 
 //-----------------------------------------------------------------------------------------------//

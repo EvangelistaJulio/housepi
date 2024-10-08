@@ -7,15 +7,15 @@
 #include "profiles.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////// Infec_Prof_Ferretti20 : probability distribution  ///////////////////////
+//////////////////////// Infec_Prof_Ferretti20 : probability distribution  ////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Probability distribution function for the Infectivity Profile. */
-double Infec_Prof_Ferretti20::pdf(double tost, double t_incub)
+double Infec_Prof_Ferretti20::pdf(double tost, double t_incub) const
 {
 	double a = get_arg(0); // shape argument
 	double m = get_arg(1); // location argument
-	double s = get_arg(2); // shape argument
+	double s = get_arg(2); // scale argument
 	double T = get_arg(3); // mean incubation period argument
 
 	double norm_pdf = (s / a) * (1. + (t_incub / T - 1.) * pow(1 + exp(m / s), -a) - (t_incub / T) * (pow(1. + exp((m + T) / s), -a)));
@@ -28,15 +28,15 @@ double Infec_Prof_Ferretti20::pdf(double tost, double t_incub)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////// Infec_Prof_Ferretti20 : cumulative distribution  ///////////////////////
+///////////////////////// Infec_Prof_Ferretti20 : cumulative distribution  ////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Cumulative distribution function forthe Infectivity Profile. */
-double Infec_Prof_Ferretti20::cdf(double tost, double t_incub)
+double Infec_Prof_Ferretti20::cdf(double tost, double t_incub) const
 {
 	double a = get_arg(0); // shape argument
 	double m = get_arg(1); // location argument
-	double s = get_arg(2); // shape argument
+	double s = get_arg(2); // scale argument
 	double T = get_arg(3); // mean incubation period argument
 
 	double norm_cdf = (1. + (t_incub / T - 1.) * pow(1 + exp(m / s), -a) - (t_incub / T) * (pow(1. + exp((m + T) / s), -a)));
@@ -53,4 +53,31 @@ double Infec_Prof_Ferretti20::cdf(double tost, double t_incub)
 		// Integrate from 0 to tost
 		return (tmp + pow(1. + exp((m - tost) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
 	}
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////// Infec_Prof_Ashcroft20 : probability distribution  ////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Probability distribution function for the Infectivity Profile. */
+double Infec_Prof_Ashcroft20::pdf(double tost) const
+{
+	double shift = get_arg(2); // shift argument
+
+	return gamma_distr_ptr->pdf(shift + tost);
+}
+
+/* Cumulative distribution function for the Infectivity Profile. */
+double Infec_Prof_Ashcroft20::cdf(double tost) const
+{
+	double shift = get_arg(2); // shift argument
+
+	return gamma_distr_ptr->cdf(shift + tost);
 }

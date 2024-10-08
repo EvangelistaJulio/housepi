@@ -101,8 +101,8 @@ public:
 	double compute_single_house_loglike(int h) override;
 
 	//=====Rate Choices=====//
-	void assign_rate_per_group_to_individual(Individual &this_indiv) override;
-	void assign_rate_per_contact_to_household(int h, int from, int to) override;
+	void assign_group_rate_to_individual(Individual &this_indiv) override;
+	void assign_contact_rate_to_household(int h, int from, int to) override;
 
 	//=====Override Methods for Simulations=====//
 	void simulate_single_house(int h) override;

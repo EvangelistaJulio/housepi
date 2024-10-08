@@ -117,8 +117,8 @@ public:
 	//===== GROUP CLASSES =====//
 	void set_rate_per_group(Individual &new_indiv);
 	void set_rate_per_contact(Household &this_house);
-	virtual void assign_rate_per_group_to_individual(Individual &new_indiv);
-	virtual void assign_rate_per_contact_to_household(Household &this_house, int from, int to);
+	virtual void assign_group_rate_to_individual(Individual &new_indiv);
+	virtual void assign_contact_rate_to_household(Household &this_house, int from, int to);
 	double get_group_rate(const Individual &this_indiv, const string &rateID) const { return this_indiv.get_group_rate(rateID); }
 	double get_contact_rate(const Household &this_house, int from, int to) const { return this_house.get_contact_rate(from, to); }
 	void update_report_data();
@@ -194,10 +194,10 @@ private:
 	void update_house_loglike(Household &this_house) { this_house.set_loglike(compute_house_loglike(this_house)); }
 	double compute_augm_loglike(const Household &this_house) const;
 	double get_global_loglike() const { return global_loglike; };
-	void set_global_loglike(double x) { global_loglike = x; };
-	void update_global_loglike();
 	double get_delta_global_loglike() const { return global_loglike - buffer; }
 	void restore_global_loglike() { global_loglike = buffer; }
+	void increment_global_loglike(double delta) { global_loglike += delta; };
+	void update_global_loglike();
 
 	//===== INFER =====//
 
@@ -217,14 +217,14 @@ private:
 	bool _param_metropolis_T_(const string &parID);
 
 	//----- Metropolis : augmented moves -----//
-	bool metropolis_augm_move(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
+	bool metropolis_augm_move(const Household &this_house, int i, const string &augmID, double &delta)
 	{
-		return (this->*_augm_metropolis_method_)(this_house, this_indiv, augmID, delta);
+		return (this->*_augm_metropolis_method_)(this_house, i, augmID, delta);
 	}
-	bool (MCMC::*_augm_metropolis_method_)(const Household &, const Individual &, const string &, double &) = &MCMC::_augm_metropolis_1_;
-	bool _augm_metropolis_1_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta);
-	bool _augm_metropolis_0_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta);
-	bool _augm_metropolis_T_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta);
+	bool (MCMC::*_augm_metropolis_method_)(const Household &, int, const string &, double &) = &MCMC::_augm_metropolis_1_;
+	bool _augm_metropolis_1_(const Household &this_house, int i, const string &augmID, double &delta);
+	bool _augm_metropolis_0_(const Household &this_house, int i, const string &augmID, double &delta);
+	bool _augm_metropolis_T_(const Household &this_house, int i, const string &augmID, double &delta);
 
 	//----- Values for Diagnostics and Results -----//
 	void init_diagnostics();

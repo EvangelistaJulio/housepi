@@ -81,12 +81,27 @@ namespace auxgammap
 /////////////////////////////  Base Distribution : methods  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Base_Distribution::_undefined_call_error_(double x, double y) const
+/* Internal error for calls to undefined distribution. */
+double Base_Distribution::_undefined_call_error_(const string &txt, double x, double y) const
 {
     UNUSED(x);
     UNUSED(y);
-    basics::raise_error("Attempt to call method of undefined distribution.");
+    basics::raise_error("Attempt to call method '" + txt + "' of undefined distribution.");
     return std::numeric_limits<double>::quiet_NaN();
+}
+
+/* Error for. */
+void Base_Distribution::check_rand_attempts(int &num_attempts) const
+{
+    if (num_attempts > MAX_NUMBER_ATTEMPTS)
+    {
+        std::ostringstream oss;
+        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
+            << " in initialization of '" << get_name() << "' "
+            << " within range {" << get_range_min() << ", " << get_range_max() << "}.";
+        basics::raise_error(oss.str());
+    }
+    ++num_attempts;
 }
 
 /* Truncate distribution at declaration.  */
@@ -154,10 +169,12 @@ double Uniform_Distribution::logratio(double xold, double xnew) const
     return 0.0;
 }
 
-double Uniform_Distribution::rand(sys_rnd_gen &rng)
+double Uniform_Distribution::rand(sys_rnd_gen &prng)
 {
     std::uniform_real_distribution<double> distr_gen(get_arg(0), get_arg(1));
-    return distr_gen(rng);
+
+    // NOTE : uniform always within range
+    return distr_gen(prng);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -192,12 +209,17 @@ double Normal_Distribution::logratio(double xold, double xnew) const
     return 0.5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
 }
 
-double Normal_Distribution::rand(sys_rnd_gen &rng)
+double Normal_Distribution::rand(sys_rnd_gen &prng)
 {
-    double mean = get_arg(0);
-    double sd = get_arg(1);
-    std::normal_distribution<double> distr_gen(mean, sd);
-    return distr_gen(rng);
+    std::normal_distribution<double> distr_gen(get_arg(0), get_arg(1));
+    double new_value = distr_gen(prng);
+    int num_attempts = 0;
+    while (!valid(new_value))
+    {
+        check_rand_attempts(num_attempts);
+        new_value = distr_gen(prng);
+    }
+    return new_value;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,10 +254,17 @@ double Lognorm_Distribution::logratio(double xold, double xnew) const
     return 0.5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
 }
 
-double Lognorm_Distribution::rand(sys_rnd_gen &rng)
+double Lognorm_Distribution::rand(sys_rnd_gen &prng)
 {
     std::lognormal_distribution<double> distr_gen(get_arg(0), get_arg(1));
-    return distr_gen(rng);
+    double new_value = distr_gen(prng);
+    int num_attempts = 0;
+    while (!valid(new_value))
+    {
+        check_rand_attempts(num_attempts);
+        new_value = distr_gen(prng);
+    }
+    return new_value;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -270,10 +299,17 @@ double Gamma_Distribution::logratio(double xold, double xnew) const
     return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
 }
 
-double Gamma_Distribution::rand(sys_rnd_gen &rng)
+double Gamma_Distribution::rand(sys_rnd_gen &prng)
 {
     std::gamma_distribution<double> distr_gen(get_arg(0), get_arg(1));
-    return distr_gen(rng);
+    double new_value = distr_gen(prng);
+    int num_attempts = 0;
+    while (!valid(new_value))
+    {
+        check_rand_attempts(num_attempts);
+        new_value = distr_gen(prng);
+    }
+    return new_value;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -308,10 +344,17 @@ double Weibull_Distribution::logratio(double xold, double xnew) const
     return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
 }
 
-double Weibull_Distribution::rand(sys_rnd_gen &rng)
+double Weibull_Distribution::rand(sys_rnd_gen &prng)
 {
     std::weibull_distribution<double> distr_gen(get_arg(0), get_arg(1));
-    return distr_gen(rng);
+    double new_value = distr_gen(prng);
+    int num_attempts = 0;
+    while (!valid(new_value))
+    {
+        check_rand_attempts(num_attempts);
+        new_value = distr_gen(prng);
+    }
+    return new_value;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -347,10 +390,17 @@ double Rayleigh_Distribution::logratio(double xold, double xnew) const
 }
 
 /* Rayleigh : random generator. */
-double Rayleigh_Distribution::rand(sys_rnd_gen &rng)
+double Rayleigh_Distribution::rand(sys_rnd_gen &prng)
 {
     std::uniform_real_distribution<double> unif_gen(0, 1);
-    return get_arg(0) * sqrt(-2 * unif_gen(rng));
+    double new_value = get_arg(0) * sqrt(-2 * unif_gen(prng));
+    int num_attempts = 0;
+    while (!valid(new_value))
+    {
+        check_rand_attempts(num_attempts);
+        new_value = get_arg(0) * sqrt(-2 * unif_gen(prng));
+    }
+    return new_value;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -386,8 +436,15 @@ double Exponential_Distribution::logratio(double xold, double xnew) const
 }
 
 /* Exponential : random generator. */
-double Exponential_Distribution::rand(sys_rnd_gen &rng)
+double Exponential_Distribution::rand(sys_rnd_gen &prng)
 {
     std::exponential_distribution<double> distr_gen(get_arg(0));
-    return distr_gen(rng);
+    double new_value = distr_gen(prng);
+    int num_attempts = 0;
+    while (!valid(new_value))
+    {
+        check_rand_attempts(num_attempts);
+        new_value = distr_gen(prng);
+    }
+    return new_value;
 }

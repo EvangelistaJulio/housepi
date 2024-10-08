@@ -48,24 +48,26 @@ public:
         UNUSED(xnew);
         return 0.0;
     }
-    virtual double rand(sys_rnd_gen &rng)
+    virtual double rand(sys_rnd_gen &prng)
     {
-        UNUSED(rng);
-        return _undefined_call_error_();
+        UNUSED(prng);
+        return _undefined_call_error_("rand");
     }
 
 protected:
     //----- Distribution specific methods -----//
-    virtual double _pdf_(double x) const { return _undefined_call_error_(x); }
-    virtual double _logpdf_(double x) const { return _undefined_call_error_(x); }
-    virtual double _cdf_(double x) const { return _undefined_call_error_(x); }
+    virtual double _pdf_(double x) const { return _undefined_call_error_("pdf", x); }
+    virtual double _logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+    virtual double _cdf_(double x) const { return _undefined_call_error_("cdf", x); }
 
     //----- Adjust methods for truncation -----//
     void set_truncation(const dictargs &range);
+    void check_rand_attempts(int &num_attempts) const;
 
 private:
     //----- Internal error for calls to undefined -----//
-    double _undefined_call_error_(double x = 0, double y = 0) const;
+    double _undefined_call_error_(const string &txt, double x = 0, double y = 0) const;
+
 
     //----- Functional methods for the truncation -----//
     double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
@@ -114,7 +116,7 @@ public:
     ~Uniform_Distribution() {}
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;
@@ -146,7 +148,7 @@ public:
     ~Normal_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;
@@ -180,7 +182,7 @@ public:
     ~Lognorm_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;
@@ -214,7 +216,7 @@ public:
     ~Gamma_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;
@@ -249,7 +251,7 @@ public:
     ~Weibull_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;
@@ -283,7 +285,7 @@ public:
     ~Rayleigh_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;
@@ -317,7 +319,7 @@ public:
     ~Exponential_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
-    double rand(sys_rnd_gen &rng) override;
+    double rand(sys_rnd_gen &prng) override;
 
 protected:
     virtual double _pdf_(double x) const override;

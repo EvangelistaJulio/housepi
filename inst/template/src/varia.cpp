@@ -308,20 +308,9 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 {
     if (is_rand_params)
     {
-        int num_attempts = 0;
-
         for (const string &parID : param_to_be_inferred)
         {
             params.at(parID).rand(prng);
-            while (!params.at(parID).valid())
-            {
-                if (num_attempts > MAX_NUMBER_ATTEMPTS)
-                {
-                    raise_error("Exceeded attempts in initialization of '" + parID + "'.");
-                }
-                params.at(parID).rand(prng);
-                ++num_attempts;
-            }
         }
     }
 }
@@ -338,33 +327,17 @@ bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
     // set new value of the parameter and store the old to buffer
     params.at(parID).propose(prng);
 
-    // proceed only if valid
-    if (params.at(parID).valid())
+    // proceed only if valid move, otherwise restore buffer
+    if (params.at(parID).valid_move())
     {
         return true;
     }
     else
     {
         // reassign buffered value to param
-        params.at(parID).restore_value();
-        // update accept rate with the refusal
-        params.at(parID).update_accept_rate(false);
+        restore_param_value(parID);
         return false;
     }
-}
-
-/* move is accepted */
-void Monte_Carlo_Core::accept_param_move(const string &parID)
-{
-    params.at(parID).update_accept_rate(true);
-}
-
-/* move is refused: restore old value in the buffer */
-void Monte_Carlo_Core::refuse_param_move(const string &parID)
-{
-    // reassign buffered value to param
-    params.at(parID).restore_value();
-    params.at(parID).update_accept_rate(false);
 }
 
 /* Init diagnostics for all parameters */

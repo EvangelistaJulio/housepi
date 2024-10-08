@@ -15,33 +15,33 @@
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* Assign the parameters controlling infectivity for each individual */
-void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
+void Model::assign_group_rate_to_individual(Individual &this_indiv)
 {
 	//=====Susceptibility=====//
 	if (this_indiv.get_data("age") <= get_param("child_age"))
 	{ // child
-		this_indiv.assign_rate_per_group("Susceptibility", "s_child");
+		this_indiv.assign_group_rate("Susceptibility", "s_child");
 	}
 	else
 	{ // adult
 		if (this_indiv.get_data("sex") == 0)
 		{ // adult women
-			this_indiv.assign_rate_per_group("Susceptibility", "s_women");
+			this_indiv.assign_group_rate("Susceptibility", "s_women");
 		}
 		else
 		{ // adult men : Susceptibility [REFERENCE]
-			this_indiv.assign_rate_per_group("Susceptibility", REFERENCE);
+			this_indiv.assign_group_rate("Susceptibility", REFERENCE);
 		}
 	}
 
 	//=====Infectivity=====//
 	if (this_indiv.get_data("age") > get_param("child_age"))
 	{ // adult : Susceptiblity [REFERENCE]
-		this_indiv.assign_rate_per_group("Infectivity", REFERENCE);
+		this_indiv.assign_group_rate("Infectivity", REFERENCE);
 	}
 	else
 	{ // child
-		this_indiv.assign_rate_per_group("Infectivity", "i_child");
+		this_indiv.assign_group_rate("Infectivity", "i_child");
 	}
 }
 
@@ -50,7 +50,7 @@ void Model::assign_rate_per_group_to_individual(Individual &this_indiv)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_rate_per_contact_to_household(Household &this_house, int from, int to)
+void Model::assign_contact_rate_to_household(Household &this_house, int from, int to)
 {
 	Individual &from_indiv = this_house.indiv[from];
 	Individual &to_indiv = this_house.indiv[to];

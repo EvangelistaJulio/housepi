@@ -116,17 +116,17 @@ We propose the following definitions for the augmented variable
 ```{r}
 
 # augmented variable definitions for simulation
-augm_2_simu <- housepi::AugmentedFrame()
+augm_2_sim <- housepi::AugmentedFrame()
 
 # add 'onset_date'
-augm_2_simu$add(name = "onset_date",
+augm_2_sim$add(name = "onset_date",
                 init_rand = TRUE,
                 model = "lnorm", 
                 args = list(meanlog = 4, sdlog = 0.5),
                 range = list(max = 365))
 
 # add 'incub_period'
-augm_2_simu$add(name = "incub_period", 
+augm_2_sim$add(name = "incub_period", 
                 init_rand = TRUE,
                 model = "gamma", 
                 args = list(shape = "inc_shape@P", 
@@ -140,7 +140,7 @@ par_2$add(name = "inc_scale", x = results_1$statistics["scale", "Mean"])
 
 # build the model
 housepi::build_model(hemi_2, data = "survey.csv", params = par_2$df, 
-                     setup = list(seed = 17), augm = augm_2_simu$df)
+                     setup = list(seed = 17), augm = augm_2_sim$df)
 ```
 
 ### Simulate an Outbreak
@@ -162,39 +162,43 @@ In addition to the final status, the simulation associates the values of the aug
 This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
-df <- subset(simulation, select = -c(incub_period) )
-censor <- function(x) {
-  if ((x %% 1) > 0.875) ceiling(x) else floor(x)
-}
-df[["onset_date"]] <- sapply(df[["onset_date"]], censor)
+# remove incubation period from data
+df <- subset(sim_data, select = -c(incub_period) )
+
+# change all onsets after 9 PM to next day
+df[["onset_date"]] <- sapply(
+  df[["onset_date"]], 
+  function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
+  )
 ```
 
 ### Validate the Simulation
 
-We can verify that inference returns the parameters used for the simulation.
+We can check that inference returns the parameters used for the simulation.
 
 ```{r}
-augm_2_infer <- housepi::AugmentedFrame()
+# new augmented definitions for the inference
+augm_2_inf <- housepi::AugmentedFrame()
 
 # add 'onset_date' definition
-augm_2_infer$add(name = "onset_date",
-                 x = "onset_date@D",
-                 rule = "norm", rule_args = list(sd = 0.5),
-                 rule_from = "onset_date@D")
+augm_2_inf$add(name = "onset_date",
+               x = "onset_date@D",
+               rule = "norm", rule_args = list(sd = 0.5),
+               rule_from = "onset_date@D")
 
 # add 'incub_period' definition
-augm_2_infer$add(name = "incub_period",
-                 init_rand = TRUE,
-                 model = "gamma",
-                 args = list(shape = "inc_shape@P", 
-                             scale = "inc_scale@P"),
-                 rule = "norm", rule_args = list(sd = 0.5),
-                 range = list(max = 14))
+augm_2_inf$add(name = "incub_period",
+               init_rand = TRUE,
+               model = "gamma",
+               args = list(shape = "inc_shape@P", scale = "inc_scale@P"),
+               rule = "gibbs",
+               range = list(max = 14))
 
-setup_2 <- list(num_iter = 30000, num_adapt = 2500, 
-                burn_in = 2000, thinning = 25, seed = 57)
+# the number of iterations has been limited for brevity
+setup_2 <- list(num_iter = 5000, num_adapt = 500, 
+                burn_in = 500, thinning = 10, seed = 57)
 
-housepi::build_model(hemi_2, data = df, setup = setup_2, augm = augm_2_infer$df)
+housepi::build_model(hemi_2, data = df, setup = setup_2, augm = augm_2_inf$df)
 
 mcmc_trace <- housepi::run_inference(hemi_2)
 ```

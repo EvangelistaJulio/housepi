@@ -14,10 +14,6 @@
 
 #include "varia.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -54,30 +50,29 @@ public:
 	const double *get_data_pointer(const string &dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
 
 	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
-	void assign_rate_per_group(const string &rateID, const string &parID);
+	void assign_group_rate(const string &rateID, const string &parID);
 	void set_rate(const string &rateID, const double *x) { rate_ptr.emplace(rateID, x); }
 	double get_group_rate(const string &rateID) const { return *rate_ptr.at(rateID); }
 
 	//===== Augmented Variables =====//
 	void assign_augm(const Augmented &new_augm) { augm_var[new_augm.get_name()] = new_augm; }
 	void assert_augm(const string &augmID) const;
-	void init_augm(const string &augmID, sys_rnd_gen &prng);
+	void augm_model_rand(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).rand(prng); }
 	void set_augm(const string &augmID, double new_value) { augm_var.at(augmID).set_value(new_value); }
 	bool get_augm_infer(const string &augmID) const { return augm_var.at(augmID).get_infer(); }
 	double get_augm(const string &augmID) const { return (this->*_get_augm_method_)(augmID); }
 
 	//===== Metropolis-Hastings =====//
-	void augm_model_rand(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).rand(prng); }
 	void augm_propose(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).propose(prng); }
-	bool augm_valid(const string &augmID) const { return augm_var.at(augmID).valid(); }
+	bool augm_valid_move(const string &augmID) const { return augm_var.at(augmID).valid_move(); }
 	bool propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng);
 
 	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).distr_logpdf(); }
 	double augm_model_logratio(const string &augmID) const { return augm_var.at(augmID).distr_logratio(); }
 	double augm_propose_logratio(const string &augmID) const { return augm_var.at(augmID).propose_logratio(); }
 	void augm_restore_value(const string &augmID) { augm_var.at(augmID).restore_value(); }
-	double augm_move_logratio(const string &augmID, double &store_model_logratio) const;
-	
+	double augm_move_logratio(const string &augmID) const { return augm_var.at(augmID).get_move_logratio(); };
+
 private:
 	dictargs_ptr rate_ptr = {};
 	std::unordered_map<string, Augmented> augm_var = {};
@@ -116,8 +111,8 @@ class Household
 {
 private:
 	//===== Attributes (private) =====//
-	int index = -1;		// index of household
-	dictargs house_data = {};	// database associated to household (manual)
+	int index = -1;			  // index of household
+	dictargs house_data = {}; // database associated to household (manual)
 	int house_size = 0;
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
