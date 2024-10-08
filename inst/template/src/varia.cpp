@@ -312,14 +312,14 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 
         for (const string &parID : param_to_be_inferred)
         {
-            params.at(parID).prior_rand(prng);
+            params.at(parID).rand(prng);
             while (!params.at(parID).valid())
             {
                 if (num_attempts > MAX_NUMBER_ATTEMPTS)
                 {
                     raise_error("Exceeded attempts in initialization of '" + parID + "'.");
                 }
-                params.at(parID).prior_rand(prng);
+                params.at(parID).rand(prng);
                 ++num_attempts;
             }
         }
@@ -351,12 +351,6 @@ bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
         params.at(parID).update_accept_rate(false);
         return false;
     }
-}
-
-/* Logratio associated to the parameter move. */
-double Monte_Carlo_Core::get_move_logratio(const string &parID) const
-{
-    return params.at(parID).prior_logratio() - params.at(parID).propose_logratio();
 }
 
 /* move is accepted */

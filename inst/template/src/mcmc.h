@@ -127,7 +127,7 @@ public:
 	void init_augmented_variables();
 	void assign_augm(Individual &this_indiv);
 	void clear_augm(Individual &this_indiv);
-	virtual void augm_store_dependecies(Household &this_house, int i);
+	virtual void update_augm_dependecies(Household &this_house, int i);
 
 	//===== EVALUATE =====//
 	virtual double compute_house_loglike(const Household &this_house) const;
@@ -135,6 +135,7 @@ public:
 
 	//===== INFER =====//
 	virtual void init_model_for_inference() {};
+
 	void run_monte_carlo(bool progbar, ulong sweep = 0);
 	void infer(bool progbar = true);
 	void disable_assert();
@@ -194,7 +195,9 @@ private:
 	double compute_augm_loglike(const Household &this_house) const;
 	double get_global_loglike() const { return global_loglike; };
 	void set_global_loglike(double x) { global_loglike = x; };
-	double compute_global_loglike();
+	void update_global_loglike();
+	double get_delta_global_loglike() const { return global_loglike - buffer; }
+	void restore_global_loglike() { global_loglike = buffer; }
 
 	//===== INFER =====//
 
@@ -204,7 +207,26 @@ private:
 	void move_all_parameters();
 	void move_all_augm_variables();
 	double move_single_house_augm(Household &this_house);
+	void set_inver_temper(double inv_T);
 
+	//----- Metropolis : parameter moves -----//
+	bool metropolis_param_move(const string &parID) { return (this->*_param_metropolis_method_)(parID); }
+	bool (MCMC::*_param_metropolis_method_)(const string &) = &MCMC::_param_metropolis_1_;
+	bool _param_metropolis_1_(const string &parID);
+	bool _param_metropolis_0_(const string &parID);
+	bool _param_metropolis_T_(const string &parID);
+
+	//----- Metropolis : augmented moves -----//
+	bool metropolis_augm_move(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
+	{
+		return (this->*_augm_metropolis_method_)(this_house, this_indiv, augmID, delta);
+	}
+	bool (MCMC::*_augm_metropolis_method_)(const Household &, const Individual &, const string &, double &) = &MCMC::_augm_metropolis_1_;
+	bool _augm_metropolis_1_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta);
+	bool _augm_metropolis_0_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta);
+	bool _augm_metropolis_T_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta);
+
+	//----- Values for Diagnostics and Results -----//
 	void init_diagnostics();
 	void update_diagnostics();
 	void init_move_counts();

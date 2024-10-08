@@ -17,7 +17,7 @@ bool Large_p_WAIC_Warning = false; // unreliable WAIC
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::augm_store_dependecies(Household &this_house, int i)
+void MCMC::update_augm_dependecies(Household &this_house, int i)
 {
     UNUSED(this_house);
     UNUSED(i);
@@ -49,7 +49,7 @@ double MCMC::compute_augm_loglike(const Household &this_house) const
     // Contribution of model associated to augmented variables
     for (const string &augmID : augm_with_model_set)
     {
-        for (const int &i : this_house.infectious_set)
+        for (int i : this_house.infectious_set)
         {
             hh_loglike += this_house.indiv[i].augm_model_logpdf(augmID);
         }
@@ -58,19 +58,18 @@ double MCMC::compute_augm_loglike(const Household &this_house) const
     return hh_loglike;
 }
 
-/* Compute global loglikelihood */
-double MCMC::compute_global_loglike()
+/* Compute new loglikelihood, store old value in buffer. Same for households. */
+void MCMC::update_global_loglike()
 {
-    double output = 0.0;
+    buffer = global_loglike;
+    global_loglike = 0.0;
 
-#pragma omp parallel for reduction(+ : output)
+#pragma omp parallel for reduction(+ : global_loglike)
     for (Household &this_house : house)
     {
         update_house_loglike(this_house);
-        output += this_house.get_loglike() + compute_augm_loglike(this_house);
+        global_loglike += this_house.get_loglike() + compute_augm_loglike(this_house);
     }
-
-    return output;
 }
 
 /* Set accept rates to zero. */
@@ -109,32 +108,66 @@ void MCMC::move_single_param(const string &parID)
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (propose_valid_param_move(parID))
     {
-        // Compute the new gobla loglikelihood
-        // set loglike in households and store old values in buffer
-        double new_global_loglike = compute_global_loglike();
-
-        //===== Metropolis-Hasting algorithm =====//
-
-        double logQ = setup_inv_T * (new_global_loglike - get_global_loglike());
-        logQ += get_move_logratio(parID); // logratio priors - logratio proposal
-
-        if (uniform() < exp(logQ))
+        if (metropolis_param_move(parID))
         {
             accept_param_move(parID);
-            set_global_loglike(new_global_loglike);
         }
         else
         {
-            // restore buffered parameter valie
+            // restore buffered value of global loglike
+            restore_global_loglike();
+
+            // restore buffered value of parameter
             refuse_param_move(parID);
 
             // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
             for (Household &this_house : house)
             {
-                this_house.refuse();
+                this_house.restore_loglike();
             }
         }
+    }
+}
+
+bool MCMC::_param_metropolis_1_(const string &parID)
+{
+    update_global_loglike();
+
+    if (uniform() < exp(get_delta_global_loglike() + param_move_logratio(parID)))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool MCMC::_param_metropolis_0_(const string &parID)
+{
+    if (uniform() < exp(param_move_logratio(parID)))
+    {
+        update_global_loglike();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool MCMC::_param_metropolis_T_(const string &parID)
+{
+    update_global_loglike();
+
+    if (uniform() < exp(setup_inv_T * get_delta_global_loglike() + param_move_logratio(parID)))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
@@ -178,8 +211,53 @@ void MCMC::init_augmented_variables()
         // initialization of augmented variables for infectious
         for (int i : this_house.infectious_set)
         {
-            augm_store_dependecies(this_house, i);
+            update_augm_dependecies(this_house, i);
         }
+    }
+}
+
+// FIXME developing
+bool MCMC::_augm_metropolis_1_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
+{
+    double D_hh_ll = this_house.get_delta_loglike();
+    double D_model_ll = 0.0; // store model D_ll in case
+    if (uniform() < exp(D_hh_ll + this_indiv.augm_move_logratio(augmID, D_model_ll)))
+    {
+        delta += D_hh_ll + D_model_ll;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+// FIXME developing
+bool MCMC::_augm_metropolis_0_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
+{
+    if (uniform() < exp(-this_indiv.augm_propose_logratio(augmID)))
+    {
+        delta += this_house.get_delta_loglike() + this_indiv.augm_model_logratio(augmID);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+// FIXME developing
+bool MCMC::_augm_metropolis_T_(const Household &this_house, const Individual &this_indiv, const string &augmID, double &delta)
+{
+    double D_ll = this_house.get_delta_loglike() + this_indiv.augm_model_logratio(augmID);
+    if (uniform() < exp(setup_inv_T * D_ll - this_indiv.augm_propose_logratio(augmID)))
+    {
+        delta += D_ll;
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
@@ -201,44 +279,26 @@ double MCMC::move_single_house_augm(Household &this_house)
         {
             bool is_accepted = false;
 
-            // propose new value and store old in buffer
-            this_indiv.augm_propose(augmID, get_prng());
-
             // proceed only if the new value is consistent
             // FIXME : Gibbs sampling should be always valid but it's not now
-            if (this_indiv.augm_valid(augmID))
+            if (this_indiv.propose_valid_augm_move(augmID, get_prng()))
             {
                 // update dependencies to perform computations
-                augm_store_dependecies(this_house, i);
+                update_augm_dependecies(this_house, i);
                 update_house_loglike(this_house);
 
-                //===== Metropolis-Hasting algorithm =====//
-
-                // local change in loglikelihood
-                double delta_ll = this_house.get_delta_loglike();
-                delta_ll += this_indiv.augm_model_logratio(augmID);
-
-                // total acceptance ratio
-                // FIXME : Gibbs sampling doesn't work here if inverse temperature...
-                double logQ = setup_inv_T * delta_ll;
-                logQ -= this_indiv.augm_propose_logratio(augmID);
-
-                if (uniform() < exp(logQ))
+                // Metropolis-Hasting algorithm
+                if (metropolis_augm_move(this_house, this_indiv, augmID, delta_global_loglike))
                 {
                     is_accepted = true;
-                    delta_global_loglike += delta_ll;
                 }
                 else
                 {
                     // restore value and its dependencies
                     this_indiv.augm_restore_value(augmID);
-                    augm_store_dependecies(this_house, i);
-                    this_house.refuse();
+                    update_augm_dependecies(this_house, i);
+                    this_house.restore_loglike();
                 }
-            }
-            else
-            {
-                this_indiv.augm_restore_value(augmID);
             }
 
             this_house.update_augm_accept_rate(augmID, is_accepted);
@@ -302,7 +362,9 @@ double MCMC::evaluate()
     //-----random initialization of augmented variables with model-----//
     init_augmented_variables();
 
-    return compute_global_loglike();
+    update_global_loglike();
+
+    return get_global_loglike();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -423,7 +485,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep)
         init_augmented_variables();
 
         // set the value of the global loglikelihood
-        set_global_loglike(compute_global_loglike());
+        update_global_loglike();
 
         // avoid asserting user definitions after first round
         // UPDATE : this can be improved, e. g. with a debug mode
@@ -546,8 +608,8 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     bool is_right = false;
     double avg, var;
     vector<double> inv_t = {};      // inverse temperature
-    vector<double> vec_avg_ll = {}; // mean loglikelihood
-    vector<double> vec_var_ll = {}; // variance loglikelihood
+    vector<double> avg_vec = {}; // mean loglikelihood
+    vector<double> var_vec = {}; // variance loglikelihood
 
     //----- Fix internal states -----//
     _is_power_post_ = true;
@@ -564,13 +626,13 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
     setup_rnd_init_params = true;
     _rung_ = 0;
-    setup_inv_T = 0.;
+    set_inver_temper(0.0);
     run_monte_carlo(progbar, 0);
     basics::statistics(dgn_glob_loglike, avg, var);
 
     inv_t.push_back(setup_inv_T);
-    vec_avg_ll.push_back(avg);
-    vec_var_ll.push_back(var);
+    avg_vec.push_back(avg);
+    var_vec.push_back(var);
 
     // thermodynamic ladder: use modified power fractions or adaptive scheme
     if (power_fractions)
@@ -583,13 +645,13 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         setup_rnd_init_params = false;
         for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
         {
-            setup_inv_T = std::pow(static_cast<long double>(_rung_) / (_num_rungs_ - 1), 5);
+            set_inver_temper(std::pow(static_cast<double>(_rung_) / (_num_rungs_ - 1), 5));
             run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
             basics::statistics(dgn_glob_loglike, avg, var);
 
             inv_t.push_back(setup_inv_T);
-            vec_avg_ll.push_back(avg);
-            vec_var_ll.push_back(var);
+            avg_vec.push_back(avg);
+            var_vec.push_back(var);
         }
     }
     else
@@ -601,13 +663,13 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
         //----- Inverse Temperature 1 -----//
         setup_rnd_init_params = false;
         _rung_ = 1;
-        setup_inv_T = 1.;
+        set_inver_temper(1.0);
         run_monte_carlo(progbar, _thin_sweeps_);
         basics::statistics(dgn_glob_loglike, avg, var);
 
         inv_t.push_back(setup_inv_T);
-        vec_avg_ll.push_back(avg);
-        vec_var_ll.push_back(var);
+        avg_vec.push_back(avg);
+        var_vec.push_back(var);
 
         //----- Inverse Temperatures (0, 1) -----//
         size_t k = 0; // index to interval lower bound
@@ -617,25 +679,26 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
             //----- adaptive choice of inverse temperature -----//
             // intersection between tangents
-            setup_inv_T = (vec_avg_ll[k + 1] - inv_t[k + 1] * vec_var_ll[k + 1] - vec_avg_ll[k] + inv_t[k] * vec_var_ll[k]) / (vec_var_ll[k] - vec_var_ll[k + 1]);
+            double new_inv_T = (avg_vec[k + 1] - inv_t[k + 1] * var_vec[k + 1] - avg_vec[k] + inv_t[k] * var_vec[k]) / (var_vec[k] - var_vec[k + 1]);
 
             // otherwise weighted average
-            if ((setup_inv_T <= inv_t[k]) || (setup_inv_T >= inv_t[k + 1]))
+            if ((new_inv_T <= inv_t[k]) || (new_inv_T >= inv_t[k + 1]))
             {
-                setup_inv_T = inv_t[k] + vec_var_ll[k + 1] * (inv_t[k + 1] - inv_t[k]) / (vec_var_ll[k] + vec_var_ll[k + 1]);
+                new_inv_T = inv_t[k] + var_vec[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_vec[k] + var_vec[k + 1]);
             }
-
+    
             //----- power posterior sampling -----//
+            set_inver_temper(new_inv_T);
             run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
             basics::statistics(dgn_glob_loglike, avg, var);
 
             //----- find larger rectangular discretization error -----//
-            is_right = (inv_t[k + 1] - setup_inv_T) * (vec_avg_ll[k + 1] - avg) > (setup_inv_T - inv_t[k]) * (avg - vec_avg_ll[k]);
+            is_right = (inv_t[k + 1] - setup_inv_T) * (avg_vec[k + 1] - avg) > (new_inv_T - inv_t[k]) * (avg - avg_vec[k]);
 
             //----- insert in-between for all lists -----//
             inv_t.insert(inv_t.begin() + k + 1, setup_inv_T);
-            vec_avg_ll.insert(vec_avg_ll.begin() + k + 1, avg);
-            vec_var_ll.insert(vec_var_ll.begin() + k + 1, var);
+            avg_vec.insert(avg_vec.begin() + k + 1, avg);
+            var_vec.insert(var_vec.begin() + k + 1, var);
 
             // if right interval is chosen, index points to inserted as lower bound
             k += (is_right);
@@ -647,14 +710,14 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     for (int k = 0; k < num_rungs; ++k)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];
-        output += (vec_avg_ll[k + 1] + vec_avg_ll[k]) * d_inv_t / 2. - (vec_var_ll[k + 1] - vec_var_ll[k]) * std::pow(d_inv_t, 2) / 12.;
+        output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_t / 2. - (var_vec[k + 1] - var_vec[k]) * std::pow(d_inv_t, 2) / 12.;
     }
 
     //----- Close progress bar -----//
     basics::progress_bar_end("end", progbar);
 
     //----- Restore user setup -----//
-    setup_inv_T = bkp_inv_T;
+    set_inver_temper(bkp_inv_T);
     setup_rnd_init_params = bkp_rnd_init_params;
 
     return output;

@@ -151,7 +151,7 @@ void Model::init_model_for_inference()
 
 /* Store cumulative and instantaneous infectivity profiles according to an infector.
    WARNING: unpredictable behavior if i is not an infector. */
-void Model::augm_store_dependecies(Household &this_house, int i)
+void Model::update_augm_dependecies(Household &this_house, int i)
 {
 	//==============================//
 	//===== Infectious Members =====//
@@ -336,7 +336,7 @@ void Model::simulate_single_house(Household &this_house)
 				// set new status for computations
 				this_house.change_status(i, INFECTIOUS);
 				this_house.indiv[i].set_augm("onset_date", t);
-				augm_store_dependecies(this_house, i);
+				update_augm_dependecies(this_house, i);
 
 				// restore status id escaped infection
 				if (uniform() < exp(-inst_FOI(this_house, i) * Dt))

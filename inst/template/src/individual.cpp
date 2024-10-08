@@ -200,6 +200,32 @@ void Individual::init_augm(const string &augmID, sys_rnd_gen &prng)
 	}
 }
 
+/* Init augmented variable within a random initial value */
+bool Individual::propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng)
+{
+	// propose new augmented value and store old in buffer
+	augm_propose(augmID, prng);
+
+	// proceed only if valid
+	if (augm_valid(augmID))
+	{
+		return true;
+	}
+	else
+	{
+		// reassign buffered value
+		augm_restore_value(augmID);
+		return false;
+	}
+}
+
+/* Init augmented variable within a random initial value */
+double Individual::augm_move_logratio(const string &augmID, double &store_model_logratio) const
+{
+	store_model_logratio = augm_var.at(augmID).distr_logratio();
+	return store_model_logratio - augm_var.at(augmID).propose_logratio();
+}
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -302,7 +328,7 @@ bool Household::change_status(int i, int new_status)
 	{
 		return false;
 	}
-	else 
+	else
 	{
 		if (old_status == INFECTIOUS)
 		{

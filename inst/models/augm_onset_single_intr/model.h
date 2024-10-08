@@ -48,7 +48,7 @@ public:
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
 	void init_model_for_simulation() override { init_model_for_inference(); };
-	void augm_store_dependecies(Household &this_house, int i) override;
+	void update_augm_dependecies(Household &this_house, int i) override;
 
 	//----- Rate Choices -----//
 	void assign_rate_per_group_to_individual(Individual &this_indiv) override;

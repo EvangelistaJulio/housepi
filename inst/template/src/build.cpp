@@ -229,13 +229,7 @@ void MCMC::build_setup()
         //===== INVERSE TEMPERATURE =====//
         if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
         {
-            setup_inv_T = std::stod(_setup_deflist_.at("inv_temper"));
-            if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
-            {
-                std::ostringstream oss;
-                oss << "Inverse temperature " << setup_inv_T << " out of range [0, 1]. Check your setup.";
-                raise_error(oss.str());
-            }
+            set_inver_temper(std::stod(_setup_deflist_.at("inv_temper")));
         }
     }
 
@@ -251,6 +245,35 @@ void MCMC::build_setup()
     _thin_sweeps_ += setup_burn_in / setup_thinning;
     _thin_sweeps_ += (setup_num_iter - setup_burn_in) / setup_thinning;
     _thin_sweeps_ *= setup_num_chains;
+}
+
+/* Set inverse temperature and its relative functional methods. */
+void MCMC::set_inver_temper(double inv_T)
+{
+    if ((inv_T < 0.) || (inv_T > 1.))
+    {
+        std::ostringstream oss;
+        oss << "Inverse temperature " << inv_T << " out of range [0, 1]. Check your setup.";
+        raise_error(oss.str());
+    }
+    else if (inv_T == 1.0)
+    {
+        setup_inv_T = 1.0;
+        _param_metropolis_method_ = &MCMC::_param_metropolis_1_;
+        _augm_metropolis_method_ = &MCMC::_augm_metropolis_1_;
+    }
+    else if (inv_T == 0.0)
+    {
+        setup_inv_T = 0.0;
+        _param_metropolis_method_ = &MCMC::_param_metropolis_0_;
+        _augm_metropolis_method_ = &MCMC::_augm_metropolis_0_;
+    }
+    else
+    {
+        setup_inv_T = inv_T;
+        _param_metropolis_method_ = &MCMC::_param_metropolis_T_;
+        _augm_metropolis_method_ = &MCMC::_augm_metropolis_T_;
+    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -677,7 +700,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
         }
     }
 
-    // loop over all couples 
+    // loop over all couples
     for (int k = 0; k < hh_size; ++k) // from
     {
         for (int i = 0; i < hh_size; ++i) // to

@@ -66,15 +66,18 @@ public:
 	bool get_augm_infer(const string &augmID) const { return augm_var.at(augmID).get_infer(); }
 	double get_augm(const string &augmID) const { return (this->*_get_augm_method_)(augmID); }
 
-	//----- Wrappers -----//
-	void augm_model_rand(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).model_rand(prng); }
+	//===== Metropolis-Hastings =====//
+	void augm_model_rand(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).rand(prng); }
 	void augm_propose(const string &augmID, sys_rnd_gen &prng) { augm_var.at(augmID).propose(prng); }
 	bool augm_valid(const string &augmID) const { return augm_var.at(augmID).valid(); }
-	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).model_logpdf(); }
-	double augm_model_logratio(const string &augmID) const { return augm_var.at(augmID).model_logratio(); }
+	bool propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng);
+
+	double augm_model_logpdf(const string &augmID) const { return augm_var.at(augmID).distr_logpdf(); }
+	double augm_model_logratio(const string &augmID) const { return augm_var.at(augmID).distr_logratio(); }
 	double augm_propose_logratio(const string &augmID) const { return augm_var.at(augmID).propose_logratio(); }
 	void augm_restore_value(const string &augmID) { augm_var.at(augmID).restore_value(); }
-
+	double augm_move_logratio(const string &augmID, double &store_model_logratio) const;
+	
 private:
 	dictargs_ptr rate_ptr = {};
 	std::unordered_map<string, Augmented> augm_var = {};
@@ -178,7 +181,7 @@ public:
 		buffer = house_loglike;
 		house_loglike = new_loglike;
 	}
-	void refuse() { house_loglike = buffer; }
+	void restore_loglike() { house_loglike = buffer; }
 	double get_delta_loglike() const { return house_loglike - buffer; }
 
 	//===== Diagnostics =====//

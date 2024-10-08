@@ -300,7 +300,7 @@ public:
 	}
 	virtual ~Base_Variable() {};
 
-	//=====Getter=====//
+	//===== Getter =====//
 	string get_name() const { return name; }
 	double get_value() const { return value; }
 	const double *get_pointer() const { return &value; }
@@ -308,7 +308,7 @@ public:
 	bool is_from_zero() const { return (prop_ptr->is_rule_start_from_zero)(); }
 	double get_from_value() const { return (prop_ptr->get_from_value)(); }
 
-	//=====Setter=====//
+	//===== Setter =====//
 	void set_name(const string &x) { name = x; }
 	void set_value(double x)
 	{
@@ -317,17 +317,21 @@ public:
 	}
 	void restore_value() { value = buffer; }
 
-	//===== distr_ptr :  =====//
-	void distr_rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
+	//===== Metropolis-Hastings =====//
+
+	double get_move_logratio() const { return distr_logratio() - propose_logratio(); }
+
+	//----- distr_ptr : prior/model methods -----//
+	void rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
 	double distr_logpdf() const { return distr_ptr->logpdf(value); }
 	double distr_logratio() const { return distr_ptr->logratio(buffer, value); }
 	bool valid() const { return distr_ptr->valid(value); }
 
-	//===== prop_ptr : propose methods =====//
+	//----- prop_ptr : propose methods -----//
 	void propose(sys_rnd_gen &prng) { return set_value((this->*_propose_method_)(prng)); }
 	double propose_logratio() const { return (prop_ptr->logratio)(buffer, value); }
 
-	//===== prop_ptr : adaptive methods =====//
+	//----- prop_ptr : adaptive methods -----//
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
@@ -387,11 +391,6 @@ public:
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {},
 			  dictargs range = {}) : Base_Variable(param_name, new_val, prior_name, prior_args,
 												   rule_name, rule_args, range) {};
-	
-	//===== Aliases for Readability =====//
-	void prior_rand(sys_rnd_gen &prng) { distr_rand(prng); }
-	double prior_log_pdf() const { return distr_logpdf(); } // FIXME : is this ever used?
-	double prior_logratio() const { return distr_logratio(); }
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;
@@ -415,11 +414,6 @@ public:
 			  const string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
 			  double rule_from = INF_DOUBLE) : Base_Variable(augm_name, value, model_name, model_args_ptr,
 															 rule_name, rule_args, range, rule_from) {};
-	
-	//===== Aliases for Readability =====//
-	void model_rand(sys_rnd_gen &prng) { distr_rand(prng); }
-	double model_logpdf() const { return distr_logpdf(); }
-	double model_logratio() const { return distr_logratio(); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -474,7 +468,7 @@ public:
 
 	//===== Metropolis-Hastings moves =====//
 	bool propose_valid_param_move(const string &parID);
-	double get_move_logratio(const string &parID) const;
+	double param_move_logratio(const string &parID) const { return params.at(parID).get_move_logratio(); }
 	void accept_param_move(const string &parID);
 	void refuse_param_move(const string &parID);
 	void adapt(const string &parID, double ratio) { params.at(parID).adapt(ratio); }
