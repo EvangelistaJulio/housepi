@@ -37,9 +37,6 @@ class Base_Distribution : public Base_Function
 public:
     using Base_Function::Base_Function;
 
-    // set all relevant adjustment in case of truncation
-    void set_truncation(const dictargs &range);
-
     double pdf(double x) const { return _trunc_(_pdf_(x)); }
     double cdf(double x) const { return _trunc_(_shift_(_cdf_(x))); }
     double logpdf(double x) const { return _logtrunc_(_logpdf_(x)); }
@@ -62,6 +59,9 @@ protected:
     virtual double _pdf_(double x) const { return _undefined_call_error_(x); }
     virtual double _logpdf_(double x) const { return _undefined_call_error_(x); }
     virtual double _cdf_(double x) const { return _undefined_call_error_(x); }
+
+    //----- Adjust methods for truncation -----//
+    void set_truncation(const dictargs &range);
 
 private:
     //----- Internal error for calls to undefined -----//
@@ -98,13 +98,19 @@ class Uniform_Distribution : public Base_Distribution
 {
 public:
     Uniform_Distribution(
-        dictargs new_args = {}) : Base_Distribution("unif",
-                                                    {{"min", 0.0}, {"max", 1.0}},
-                                                    {"min", "max"}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("unif",
+                                                 {{"min", 0.0}, {"max", 1.0}},
+                                                 {"min", "max"})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
     Uniform_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("unif",
-                                                       new_args_ptr,
-                                                       {"min", "max"}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("unif",
+                                                 new_args_ptr,
+                                                 {"min", "max"}) { set_truncation(range); }
     ~Uniform_Distribution() {}
 
     double logratio(double xold, double xnew) const override;
@@ -124,13 +130,19 @@ class Normal_Distribution : public Base_Distribution
 {
 public:
     Normal_Distribution(
-        dictargs new_args = {}) : Base_Distribution("norm",
-                                                    {{"mean", 0.0}, {"sd", 1.0}},
-                                                    {"mean", "sd"}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("norm",
+                                                 {{"mean", 0.0}, {"sd", 1.0}},
+                                                 {"mean", "sd"})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
     Normal_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("norm",
-                                                       new_args_ptr,
-                                                       {"mean", "sd"}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("norm",
+                                                 new_args_ptr,
+                                                 {"mean", "sd"}) { set_truncation(range); }
     ~Normal_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
@@ -150,15 +162,21 @@ class Lognorm_Distribution : public Base_Distribution
 {
 public:
     Lognorm_Distribution(
-        dictargs new_args = {}) : Base_Distribution("lnorm",
-                                                    {{"meanlog", 0.0}, {"sdlog", 1.0}},
-                                                    {"meanlog", "sdlog"},
-                                                    {{"min", 0}}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("lnorm",
+                                                 {{"meanlog", 0.0}, {"sdlog", 1.0}},
+                                                 {"meanlog", "sdlog"},
+                                                 {{"min", 0}})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
     Lognorm_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("lnorm",
-                                                       new_args_ptr,
-                                                       {"meanlog", "sdlog"},
-                                                       {{"min", 0}}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("lnorm",
+                                                 new_args_ptr,
+                                                 {"meanlog", "sdlog"},
+                                                 {{"min", 0}}) { set_truncation(range); }
     ~Lognorm_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
@@ -178,15 +196,21 @@ class Gamma_Distribution : public Base_Distribution
 {
 public:
     Gamma_Distribution(
-        dictargs new_args = {}) : Base_Distribution("gamma",
-                                                    {{"shape", 1.0}, {"scale", 1.0}},
-                                                    {"shape", "scale"},
-                                                    {{"min", 0}}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("gamma",
+                                                 {{"shape", 1.0}, {"scale", 1.0}},
+                                                 {"shape", "scale"},
+                                                 {{"min", 0}})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
     Gamma_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("gamma",
-                                                       new_args_ptr,
-                                                       {"shape", "scale"},
-                                                       {{"min", 0}}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("gamma",
+                                                 new_args_ptr,
+                                                 {"shape", "scale"},
+                                                 {{"min", 0}}) { set_truncation(range); }
     ~Gamma_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
@@ -206,16 +230,22 @@ class Weibull_Distribution : public Base_Distribution
 {
 public:
     Weibull_Distribution(
-        dictargs new_args = {}) : Base_Distribution("weibull",
-                                                    {{"shape", 1.0}, {"scale", 1.0}},
-                                                    {"shape", "scale"},
-                                                    {{"min", 0}}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("weibull",
+                                                 {{"shape", 1.0}, {"scale", 1.0}},
+                                                 {"shape", "scale"},
+                                                 {{"min", 0}})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
 
     Weibull_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("weibull",
-                                                       new_args_ptr,
-                                                       {"shape", "scale"},
-                                                       {{"min", 0}}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("weibull",
+                                                 new_args_ptr,
+                                                 {"shape", "scale"},
+                                                 {{"min", 0}}) { set_truncation(range); }
     ~Weibull_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
@@ -235,15 +265,21 @@ class Rayleigh_Distribution : public Base_Distribution
 {
 public:
     Rayleigh_Distribution(
-        dictargs new_args = {}) : Base_Distribution("rayleigh",
-                                                    {{"scale", 1.0}},
-                                                    {"scale"},
-                                                    {{"min", 0}}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("rayleigh",
+                                                 {{"scale", 1.0}},
+                                                 {"scale"},
+                                                 {{"min", 0}})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
     Rayleigh_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("rayleigh",
-                                                       new_args_ptr,
-                                                       {"scale"},
-                                                       {{"min", 0}}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("rayleigh",
+                                                 new_args_ptr,
+                                                 {"scale"},
+                                                 {{"min", 0}}) { set_truncation(range); }
     ~Rayleigh_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
@@ -263,15 +299,21 @@ class Exponential_Distribution : public Base_Distribution
 {
 public:
     Exponential_Distribution(
-        dictargs new_args = {}) : Base_Distribution("exp",
-                                                    {{"rate", 1.0}},
-                                                    {"rate"},
-                                                    {{"min", 0}}) { assign_args(new_args); }
+        dictargs new_args = {},
+        dictargs range = {}) : Base_Distribution("exp",
+                                                 {{"rate", 1.0}},
+                                                 {"rate"},
+                                                 {{"min", 0}})
+    {
+        assign_args(new_args);
+        set_truncation(range);
+    }
     Exponential_Distribution(
-        dictargs_ptr new_args_ptr) : Base_Distribution("exp",
-                                                       new_args_ptr,
-                                                       {"rate"},
-                                                       {{"min", 0}}) {}
+        dictargs_ptr new_args_ptr,
+        dictargs range = {}) : Base_Distribution("exp",
+                                                 new_args_ptr,
+                                                 {"rate"},
+                                                 {{"min", 0}}) { set_truncation(range); }
     ~Exponential_Distribution() {};
 
     double logratio(double xold, double xnew) const override;
@@ -296,37 +338,37 @@ protected:
 
 /* Return the chosen distribution. */
 template <typename dictargs_val_or_ptr>
-Base_Distribution *distribution_ptr(const string &name = UNDEFINED, dictargs_val_or_ptr args = {})
+Base_Distribution *distribution_ptr(const string &name = UNDEFINED, const dictargs_val_or_ptr &args = {}, const dictargs &range = {})
 {
     Base_Distribution *output = new Base_Distribution();
 
     if (name == "unif")
     {
-        output = new Uniform_Distribution(args);
+        output = new Uniform_Distribution(args, range);
     }
     else if (name == "norm")
     {
-        output = new Normal_Distribution(args);
+        output = new Normal_Distribution(args, range);
     }
     else if (name == "lnorm")
     {
-        output = new Lognorm_Distribution(args);
+        output = new Lognorm_Distribution(args, range);
     }
     else if (name == "gamma")
     {
-        output = new Gamma_Distribution(args);
+        output = new Gamma_Distribution(args, range);
     }
     else if (name == "weibull")
     {
-        output = new Weibull_Distribution(args);
+        output = new Weibull_Distribution(args, range);
     }
     else if (name == "rayleigh")
     {
-        output = new Rayleigh_Distribution(args);
+        output = new Rayleigh_Distribution(args, range);
     }
     else if (name == "exp")
     {
-        output = new Exponential_Distribution(args);
+        output = new Exponential_Distribution(args, range);
     }
     else if (!basics::is_na(name))
     {

@@ -397,7 +397,7 @@ void MCMC::import_data(Rcpp::DataFrame data)
 {
     std::map<string, vector<string>> datatable = {};
     rdataframe_to_map(data, datatable);
-    assign_data(datatable);
+    build_data(datatable);
     if (report_pathtofile.find("data") == report_pathtofile.end())
     {
         report_pathtofile.erase("data");

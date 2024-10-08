@@ -324,3 +324,15 @@ run_inference <- function(hemi, progbar = TRUE) {
   
   return(output)
 }
+
+#' Run the simulation.
+#' @param hemi household model object.
+#' @param progbar boolean flag to suppress progress bar.
+#' @returns Returns a data.frame.
+#' @export
+run_simulation <- function(hemi, progbar = TRUE) {
+
+  hemi$simulate(progbar)
+
+  return(hemi$data())
+}

@@ -89,37 +89,33 @@ double Base_Distribution::_undefined_call_error_(double x, double y) const
     return std::numeric_limits<double>::quiet_NaN();
 }
 
-// truncate distribution
+/* Truncate distribution at declaration.  */
 void Base_Distribution::set_truncation(const dictargs &range)
 {
-    // FIXME : ensure single truncation.
-    if (!range.empty())
+    int trunc_cases = set_range(range);
+    if (trunc_cases == 0) // no truncation
     {
-        int trunc_cases = set_range(range);
-        if (trunc_cases == 0) // nothing changed
-        {
-            _trunc_method_ = &Base_Distribution::_trunc_dummy_;
-            _logtrunc_method_ = &Base_Distribution::_logtrunc_dummy_;
-            _shift_method_ = &Base_Distribution::_shift_dummy_;
-        }
-        else if (trunc_cases == 1) // only min changed
-        {
-            _trunc_method_ = &Base_Distribution::_trunc_min_;
-            _logtrunc_method_ = &Base_Distribution::_logtrunc_min_;
-            _shift_method_ = &Base_Distribution::_shift_min_;
-        }
-        else if (trunc_cases == 2) // only max changed
-        {
-            _trunc_method_ = &Base_Distribution::_trunc_max_;
-            _logtrunc_method_ = &Base_Distribution::_logtrunc_max_;
-            _shift_method_ = &Base_Distribution::_shift_dummy_;
-        }
-        else // both changed
-        {
-            _trunc_method_ = &Base_Distribution::_trunc_both_sides_;
-            _logtrunc_method_ = &Base_Distribution::_logtrunc_both_sides_   ;
-            _shift_method_ = &Base_Distribution::_shift_dummy_;
-        }
+        _trunc_method_ = &Base_Distribution::_trunc_dummy_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_dummy_;
+        _shift_method_ = &Base_Distribution::_shift_dummy_;
+    }
+    else if (trunc_cases == 1) // lower range truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_min_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_min_;
+        _shift_method_ = &Base_Distribution::_shift_min_;
+    }
+    else if (trunc_cases == 2) // upper range truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_max_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_max_;
+        _shift_method_ = &Base_Distribution::_shift_dummy_;
+    }
+    else // both sides truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_both_sides_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_both_sides_;
+        _shift_method_ = &Base_Distribution::_shift_dummy_;
     }
 }
 

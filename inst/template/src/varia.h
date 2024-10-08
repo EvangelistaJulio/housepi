@@ -258,10 +258,7 @@ public:
 		set_value(value);
 
 		// define distribution_ptr
-		distr_ptr = distribution_ptr(distr_name, distr_args);
-
-		// truncate the distribution
-		distr_ptr->set_truncation(range);
+		distr_ptr = distribution_ptr(distr_name, distr_args, range);
 
 		// Assing proposer rule with associated state 'infer'.
 		if (basics::is_na(rule_name))

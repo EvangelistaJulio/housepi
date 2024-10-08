@@ -254,7 +254,7 @@ Rcpp::DataFrame MCMC::export_data() const
     size_t c = 0;
     for (const Household &this_house : house)
     {
-        for (const Individual &this_indiv : indiv)
+        for (const Individual &this_indiv : this_house.indiv)
         {
             df_index[c] = this_indiv.get_data("index");
             df_house_index[c] = this_house.get_data("house_index");

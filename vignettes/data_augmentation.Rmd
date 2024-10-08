@@ -44,7 +44,7 @@ par_1 <- housepi::ParameterFrame(list(
   ))
 
 # general setup
-setup_1 <- list(num_iter = 100000, num_adapt = 2500, burn_in = 5000,
+setup_1 <- list(num_iter = 100000, num_adapt = 2500, burn_in = 10000,
               thinning = 10, seed = 4815162342, num_chains = 1)
 
 # associate data, parameters and setup
@@ -149,16 +149,13 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation 
-hemi_2$simulate()
+sim_data <- housepi::run_simulation(hemi_2)
 
 # show a summary of the data
 hemi_2$show_summary()
 
-# store the simulated dataset
-simulation <- hemi_2$data()
-
 # show the results of the simulation 
-head(simulation)
+head(sim_data)
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
