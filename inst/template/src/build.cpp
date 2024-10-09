@@ -759,7 +759,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
 void MCMC::read_augm(const string &pathtofile)
 {
     const vector<string> augm_file_headers = {
-        "name", "value", "valuetype",
+        "name", "status", "value", "valuetype",
         "model", "args", "argsval", "argstype", "rule",
         "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
         "min", "mintype", "max", "maxtype", "init_rand"};
@@ -790,6 +790,8 @@ void MCMC::build_augm()
         size_t table_length = _augm_deftable_.at("name").size();
 
         //===== Drop previous definitions =====//
+        std::map<string, vector<string>> augm_name_status_check = {};
+
         augm_full_set.clear();
         augm_to_be_inferred.clear();
         augm_with_model_set.clear();
@@ -798,6 +800,7 @@ void MCMC::build_augm()
         for (size_t a = 0; a < table_length; ++a)
         {
             string augmID = _augm_deftable_.at("name")[a];
+            string status = _augm_deftable_.at("status")[a];
             bool is_init_rand = false;
 
             if (is_na(augmID))
@@ -809,15 +812,25 @@ void MCMC::build_augm()
             else if (augm_full_set.find(augmID) == augm_full_set.end())
             {
                 augm_full_set.emplace(augmID);
+                augm_name_status_check[augmID].push_back(status);
             }
             else
             {
-                std::ostringstream oss;
-                oss << "Ambigous definitions for augmented variable '" << augmID << "'."
-                    << " Check your augmented variable file.";
-                raise_error(oss.str());
+                const vector<string> &mylist = augm_name_status_check.at(augmID);
+                if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
+                {
+                    augm_name_status_check.at(augmID).push_back(status);
+                }
+                else
+                {
+                    std::ostringstream oss;
+                    oss << "Multiple definitions for augmented variable '" << augmID << "'."
+                        << " Check your augmented variable file.";
+                    raise_error(oss.str());
+                }
             }
 
+            // option for random initialization
             if (!is_na(_augm_deftable_.at("init_rand")[a]))
             {
                 is_init_rand = stobool(_augm_deftable_.at("init_rand")[a]);
@@ -835,7 +848,7 @@ void MCMC::build_augm()
             {
                 if (is_init_rand)
                 {
-                    raise_error("Impossible to randomly initialize '" + augmID + "' without a model.");
+                    raise_error("Impossible to initialize '" + augmID + "' without a model.");
                 }
             }
             else
@@ -843,7 +856,37 @@ void MCMC::build_augm()
                 augm_with_model_set.emplace(augmID);
             }
         }
-        _is_any_augm_ = !augm_full_set.empty();
+
+        //===== Check Univocal Definitions =====//
+        for (const auto &pair : augm_name_status_check)
+        {
+            const vector<string> &mylist = pair.second;
+
+            if (std::find(mylist.begin(), mylist.end(), UNDEFINED) == mylist.end())
+            { // non default
+                for (const string &z : mylist)
+                {
+                    if (std::stoi(z) < INFECTIOUS)
+                    {
+                        std::ostringstream oss;
+                        oss << "Impossible to associate augmented '" << pair.first << "' for non infectious status.";
+                        raise_error(oss.str());
+                    }
+                }
+            }
+            else
+            { // default for all infectious
+                if (mylist.size() > 1)
+                {
+                    std::ostringstream oss;
+                    oss << "Forbidden default and status definitions for augmented variable '"
+                        << pair.first << "'.";
+                    raise_error(oss.str());
+                }
+            }
+        }
+
+        //===== Set internal state variable =====//
         _is_move_augm_ = !augm_to_be_inferred.empty();
 
         //===== Assign augmented variables to each individual =====//
@@ -851,14 +894,7 @@ void MCMC::build_augm()
         {
             for (Individual &this_indiv : this_house.indiv)
             {
-                if (this_indiv.get_status() == INFECTIOUS)
-                {
-                    assign_augm(this_indiv);
-                }
-                else
-                {
-                    clear_augm(this_indiv);
-                }
+                assign_augm(this_indiv);
             }
         }
     }
@@ -871,52 +907,69 @@ void MCMC::build_augm()
 /* Assign augmented variables to single individual. */
 void MCMC::assign_augm(Individual &this_indiv)
 {
-    for (size_t a = 0; a < augm_full_set.size(); ++a)
+    for (size_t a = 0; a < _augm_deftable_.at("name").size(); ++a)
     {
-        string augmID = _augm_deftable_.at("name")[a];
-
-        // load range
-        dictargs range = {};
-        double aux_min = type_to_double(_augm_deftable_.at("min")[a],
-                                        _augm_deftable_.at("mintype")[a], this_indiv);
-        if (aux_min != INF_DOUBLE)
+        // assign augmented variable of the corresponding status
+        string augm_status = _augm_deftable_.at("status")[a];
+        if ((is_na(augm_status)) || (this_indiv.get_status() == std::stoi(augm_status)))
         {
-            range.emplace("min", aux_min);
-        }
+            string augmID = _augm_deftable_.at("name")[a];
 
-        double aux_max = type_to_double(_augm_deftable_.at("max")[a],
-                                        _augm_deftable_.at("maxtype")[a], this_indiv);
-        if (aux_max != INF_DOUBLE)
+            //----- load range -----//
+            dictargs range = {};
+            // min value
+            double aux_min = type_to_double(_augm_deftable_.at("min")[a],
+                                            _augm_deftable_.at("mintype")[a], this_indiv);
+            if (aux_min != INF_DOUBLE)
+            {
+                range.emplace("min", aux_min);
+            }
+
+            // max value
+            double aux_max = type_to_double(_augm_deftable_.at("max")[a],
+                                            _augm_deftable_.at("maxtype")[a], this_indiv);
+            if (aux_max != INF_DOUBLE)
+            {
+                range.emplace("max", aux_max);
+            }
+
+            // assign augmented variable
+            Augmented new_augm(augmID,
+                               type_to_double(_augm_deftable_.at("value")[a],
+                                              _augm_deftable_.at("valuetype")[a], this_indiv),
+                               _augm_deftable_.at("model")[a],
+                               typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
+                                                      _augm_deftable_.at("argsval")[a],
+                                                      _augm_deftable_.at("argstype")[a], this_indiv),
+                               _augm_deftable_.at("rule")[a],
+                               typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
+                                                  _augm_deftable_.at("rargsval")[a],
+                                                  _augm_deftable_.at("rargstype")[a], this_indiv),
+                               range,
+                               type_to_double(_augm_deftable_.at("rfrom")[a],
+                                              _augm_deftable_.at("rfromtype")[a], this_indiv));
+            this_indiv.assign_augm(new_augm);
+
+            // random initialization at assignment
+            if (stobool(_augm_deftable_.at("init_rand")[a]))
+            {
+                this_indiv.augm_model_rand(augmID, get_prng());
+            }
+        }
+        else if (this_indiv.get_status() < INFECTIOUS)
         {
-            range.emplace("max", aux_max);
+            // placeholders for non infectious
+            clear_augm(this_indiv);
         }
+    }
 
-        // assign augmented variable
-        Augmented new_augm(augmID,
-                           type_to_double(_augm_deftable_.at("value")[a],
-                                          _augm_deftable_.at("valuetype")[a], this_indiv),
-                           _augm_deftable_.at("model")[a],
-                           typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
-                                                  _augm_deftable_.at("argsval")[a],
-                                                  _augm_deftable_.at("argstype")[a], this_indiv),
-                           _augm_deftable_.at("rule")[a],
-                           typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
-                                              _augm_deftable_.at("rargsval")[a],
-                                              _augm_deftable_.at("rargstype")[a], this_indiv),
-                           range,
-                           type_to_double(_augm_deftable_.at("rfrom")[a],
-                                          _augm_deftable_.at("rfromtype")[a], this_indiv));
-        this_indiv.assign_augm(new_augm);
-
-        // random initialization at assignment
-        if (stobool(_augm_deftable_.at("init_rand")[a]))
-        {
-            this_indiv.augm_model_rand(augmID, get_prng());
-        }
+    // assert that individual has all definitions
+    for (const string &augmID : augm_full_set)
+    {
+        this_indiv.assert_augm(augmID);
     }
 }
 
-/* Assign empty augmented variables as placeholders. */
 void MCMC::clear_augm(Individual &this_indiv)
 {
     for (const string &augmID : augm_full_set)

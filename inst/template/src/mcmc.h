@@ -169,7 +169,6 @@ private:
 	ulong _num_rungs_ = 0; // number of rungs
 
 	bool _is_power_post_ = false; // power posterior mode
-	bool _is_any_augm_ = false;	  // data augmentation mode
 	bool _is_move_augm_ = false;  // move augmented
 
 	vector<string> _data_headers_ = {};

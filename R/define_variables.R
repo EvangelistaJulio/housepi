@@ -79,7 +79,7 @@ str_join_ <- function(x) {
 #'     prior = "lnorm",                # choose a lognormal prior
 #'     args = list(meanlog = 0,        # meanlog of lognormal prior
 #'                 sdlog = 1),         # sdlog of lognormal prior
-#'     rule = "prior"                  # sample from the prior
+#'     rule = "gibbs"                  # sample from the prior
 #'  )
 #' ))
 #'
@@ -353,8 +353,9 @@ AugmentedFrame <- setRefClass(
     #===== Method : initialize/new =====#
     initialize = function(definitions = list()) {
       df <<- data.frame(
-        name = character(), value = character(), valuetype = character(),
-        model = character(), 
+        name = character(), status = character(),
+        value = character(), valuetype = character(),
+        model = character(),
         args = character(),  argsval = character(), argstype = character(),
         rule = character(),
         rargs = character(), rargsval = character(), rargstype = character(),
@@ -364,10 +365,11 @@ AugmentedFrame <- setRefClass(
         init_rand = logical(),
         stringsAsFactors = FALSE
       )
-      
+      # add each entry of the list
       for (a in names(definitions)) {
         this <- definitions[[a]]
         add(name = a,
+            status = get_val_(this, "status"),
             x = get_val_(this, "x"),
             model = get_val_(this, "model"),
             args = get_val_(this, "args", default = list()),
@@ -377,13 +379,12 @@ AugmentedFrame <- setRefClass(
             range = get_val_(this, "range", default = list()),
             init_rand = get_val_(this, "init_rand", default = FALSE))
       }
-      
     },
     
     #===== Method : add =====#
     add = function(name = NA, x = NA, model = NA, args = list(),
                    rule = NA, rule_args = list(), rule_from = NA,
-                   range = list(), init_rand = FALSE) {
+                   range = list(), init_rand = FALSE, status = NA) {
       "Add a new parameter to data frame
       \\itemize{
       \\item Parameter: name - String with name of the parameter.
@@ -395,8 +396,10 @@ AugmentedFrame <- setRefClass(
       \\item Parameter: rule_from - Scalar/string with addtional rule options.
       \\item Parameter: range - List with `min` and/or `max` values (or none).
       \\item Parameter: init_rand - Logical to randomly initialize with model.
+      \\item Parameter: status - Integer of the associated status.
       }"
       
+      #----- name -----#
       if (is.na(name)) {
         stop(cli::format_error("Incomplete definition: missing name."))
       } else {
@@ -456,13 +459,11 @@ AugmentedFrame <- setRefClass(
       rargstype_ <- NA
       rfrom_ <- NA
       rfromtype_ <- NA
-      
       if (!is.na(rule)) {
-        if ((rule != "model") && (length(rule_args) == 0)) {
+        if ((rule != "gibbs") && (length(rule_args) == 0)) {
           cli::cli_alert_warning(cli::format_warning(c(
             paste0("Missing rule_args for augmented variable `", name, "`.")
           )))
-          
         } else {
           rargs_ <- str_join_(names(rule_args))
           tmp <- str_split_(rule_args)
@@ -476,13 +477,13 @@ AugmentedFrame <- setRefClass(
       
       #----- range -----#
       if (length(range) == 0) {
+        # empty range
         min_ <- NA
         mintype_ <- NA
         max_ <- NA
         maxtype_ <- NA
-        
       } else {
-        
+        # minimum value
         if ("min" %in% names(range)) {
           tmp <- str_split_(range[names(range) == "min"])
           min_ <- tmp[["values"]]
@@ -491,7 +492,7 @@ AugmentedFrame <- setRefClass(
           min_ <- NA
           mintype_ <- NA
         }
-        
+        # maximum value
         if ("max" %in% names(range)) {
           tmp <- str_split_(range[names(range) == "max"])
           max_ <- tmp[["values"]]
@@ -503,15 +504,15 @@ AugmentedFrame <- setRefClass(
       }
       
       df <<- rbind(df,
-                   data.frame(name = name, 
+                   data.frame(name = name, status = status,
                               value = value_, valuetype = valuetype_,
-                              model = model, args = args_, 
+                              model = model, args = args_,
                               argsval = argsval_, argstype = argstype_,
-                              rule = rule, rargs = rargs_, 
+                              rule = rule, rargs = rargs_,
                               rargsval = rargsval_, rargstype = rargstype_,
                               rfrom = rfrom_, rfromtype = rfromtype_,
                               min = min_, mintype = mintype_,
-                              max = max_, maxtype = maxtype_, 
+                              max = max_, maxtype = maxtype_,
                               init_rand = init_rand,
                               stringsAsFactors = FALSE))
     }

@@ -61,12 +61,6 @@ typedef vector<vector<double>> squarematrix;
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// status aliases
-constexpr int INFECTIOUS = 1;      // status of infectious
-constexpr int MISSING_STATUS = -1; // missing status
-constexpr int SUSCEPTIBLE = 0;     // status of susceptible
-const std::set<int> VALID_STATUS = {INFECTIOUS, MISSING_STATUS, SUSCEPTIBLE};
-
 // FIXME :NaN and NA to be revised
 constexpr double INF_DOUBLE = 1e10;    // numerical infinity value
 const string UNDEFINED = "<NA>";       // name for undefined choice

@@ -43,15 +43,14 @@ Individual::Individual(dictargs new_data)
 	{
 		int new_status = new_data.at("status");
 
-		//----- Check for the validity of the status -----//
-		if (VALID_STATUS.find(new_status) == VALID_STATUS.end())
+		if (new_status < MISSING_STATUS)
 		{
 			set_status(MISSING_STATUS);
 
 			std::ostringstream oss;
 			oss << "Status '" << new_status << "' of individual " << get_data("index") << " interpreted as missing."
-				<< " Use " << SUSCEPTIBLE << "/" << INFECTIOUS << " for susceptible/infectious status."
-				<< " Use " << MISSING_STATUS << " for missing status.";
+				<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
+				<< " and (=) " << MISSING_STATUS << " for missing status.";
 			basics::raise_warning(oss.str(), Unknown_Status_Warning);
 		}
 		else
@@ -140,7 +139,7 @@ void Individual::assert_augm(const string &augmID) const
 		std::ostringstream oss;
 		oss << "Unknown augmented variable '" << augmID
 			<< "' for individual " << get_data("index") << "."
-			<< " Check your model and your augmented variable definitions.";
+			<< " Check your augmented variable definitions.";
 		raise_error(oss.str());
 	}
 }
@@ -249,7 +248,7 @@ void Household::assign_individual(Individual this_indiv)
 	int status = this_indiv.get_status();
 
 	//----- update status lists within the household -----//
-	if (status == INFECTIOUS)
+	if (status >= INFECTIOUS)
 	{
 		++num_infectious;
 		infectious_set.insert(house_size);
@@ -279,8 +278,8 @@ void Household::assign_individual(Individual this_indiv)
 	else
 	{
 		std::ostringstream oss;
-		oss << "Impossibile to assign individual '" << this_indiv.get_data("index")
-			<< "' : unknown status '" << status << "'.";
+		oss << "Unknown status '" << status << "' of individual "
+			<< this_indiv.get_data("index") << ".";
 		raise_error(oss.str());
 	}
 
@@ -295,7 +294,8 @@ void Household::assign_individual(Individual this_indiv)
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
 bool Household::change_status(int i, int new_status)
 {
-	int old_status = indiv[i].get_status();
+	Individual &this_indiv = indiv[i];
+	int old_status = this_indiv.get_status();
 
 	if (new_status == old_status)
 	{
@@ -303,7 +303,7 @@ bool Household::change_status(int i, int new_status)
 	}
 	else
 	{
-		if (old_status == INFECTIOUS)
+		if (old_status >= INFECTIOUS)
 		{
 			--num_infectious;
 			infectious_set.erase(i);
@@ -324,11 +324,12 @@ bool Household::change_status(int i, int new_status)
 		else
 		{
 			std::ostringstream oss;
-			oss << "Impossibile to change status: unknown old status '" << old_status << "'.";
+			oss << "While changing status: unknown old status '"
+				<< old_status << "' of individual " << this_indiv.get_data("index") << ".";
 			raise_error(oss.str());
 		}
 
-		if (new_status == INFECTIOUS)
+		if (new_status >= INFECTIOUS)
 		{
 			++num_infectious;
 			infectious_set.insert(i);
@@ -349,7 +350,8 @@ bool Household::change_status(int i, int new_status)
 		else
 		{
 			std::ostringstream oss;
-			oss << "Impossibile to change status: unknown new status '" << new_status << "'.";
+			oss << "Impossibile to change status: unknown new status '"
+				<< new_status << "' for individual " << this_indiv.get_data("index") << ".";
 			raise_error(oss.str());
 		}
 		indiv[i].set_status(new_status);
