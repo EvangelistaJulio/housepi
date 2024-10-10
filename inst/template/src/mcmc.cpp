@@ -47,7 +47,7 @@ double MCMC::compute_augm_loglike(const Household &this_house) const
     double hh_loglike = 0.;
 
     // Contribution of model associated to augmented variables
-    for (const string &augmID : augm_with_model_set)
+    for (const std::string &augmID : augm_with_model_set)
     {
         for (int i : this_house.infectious_set)
         {
@@ -65,8 +65,9 @@ void MCMC::update_global_loglike()
     global_loglike = 0.0;
 
 #pragma omp parallel for reduction(+ : global_loglike)
-    for (Household &this_house : house)
+    for (int h = 0; h < num_house; ++h)
     {
+        Household &this_house = house[h];
         update_house_loglike(this_house);
         global_loglike += this_house.get_loglike() + compute_augm_loglike(this_house);
     }
@@ -76,7 +77,7 @@ void MCMC::update_global_loglike()
 void MCMC::init_move_counts()
 {
     // ... for parameters
-    for (const string &parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         reset_accept_rate(parID);
     }
@@ -84,7 +85,7 @@ void MCMC::init_move_counts()
     // ... for augmented variables
     for (Household &this_house : house)
     {
-        for (const string &augmID : augm_to_be_inferred)
+        for (const std::string &augmID : augm_to_be_inferred)
         {
             this_house.reset_augm_accept_rate(augmID);
         }
@@ -103,7 +104,7 @@ void MCMC::init_move_counts()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::move_single_param(const string &parID)
+void MCMC::move_single_param(const std::string &parID)
 {
     bool is_accepted = false;
 
@@ -124,9 +125,9 @@ void MCMC::move_single_param(const string &parID)
 
             // restore buffered loglikelihood in households
 #pragma omp parallel for default(shared)
-            for (Household &this_house : house)
+            for (int h = 0; h < num_house; ++h)
             {
-                this_house.restore_loglike();
+                house[h].restore_loglike();
             }
         }
     }
@@ -135,7 +136,7 @@ void MCMC::move_single_param(const string &parID)
     update_param_accept_rate(parID, is_accepted);
 }
 
-bool MCMC::_param_metropolis_1_(const string &parID)
+bool MCMC::_param_metropolis_1_(const std::string &parID)
 {
     update_global_loglike();
 
@@ -149,7 +150,7 @@ bool MCMC::_param_metropolis_1_(const string &parID)
     }
 }
 
-bool MCMC::_param_metropolis_0_(const string &parID)
+bool MCMC::_param_metropolis_0_(const std::string &parID)
 {
     if (uniform() < exp(param_move_logratio(parID)))
     {
@@ -162,7 +163,7 @@ bool MCMC::_param_metropolis_0_(const string &parID)
     }
 }
 
-bool MCMC::_param_metropolis_T_(const string &parID)
+bool MCMC::_param_metropolis_T_(const std::string &parID)
 {
     update_global_loglike();
 
@@ -179,7 +180,7 @@ bool MCMC::_param_metropolis_T_(const string &parID)
 /* Move all model parameters. */
 void MCMC::move_all_parameters()
 {
-    for (const string &parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
     }
@@ -190,7 +191,7 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / setup_num_adapt;
 
-    for (const string &parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         move_single_param(parID);
         adapt(parID, adapt_ratio);
@@ -228,9 +229,9 @@ void MCMC::move_all_augm_variables()
         double delta_ll = 0.;
 
 #pragma omp parallel for reduction(+ : delta_ll)
-        for (Household &this_house : house)
+        for (int h = 0; h < num_house; ++h)
         {
-            delta_ll += move_single_house_augm(this_house);
+            delta_ll += move_single_house_augm(house[h]);
         }
         increment_global_loglike(delta_ll);
     }
@@ -249,7 +250,7 @@ double MCMC::move_single_house_augm(Household &this_house)
         Individual &this_indiv = this_house.indiv[i];
 
         // Loop over augmented variables of infectious
-        for (const string &augmID : augm_to_be_inferred)
+        for (const std::string &augmID : augm_to_be_inferred)
         {
             bool is_accepted = false;
 
@@ -283,7 +284,7 @@ double MCMC::move_single_house_augm(Household &this_house)
 }
 
 // FIXME developing
-bool MCMC::_augm_metropolis_1_(const Household &this_house, int i, const string &augmID, double &delta)
+bool MCMC::_augm_metropolis_1_(const Household &this_house, int i, const std::string &augmID, double &delta)
 {
     double D_hh_ll = this_house.get_delta_loglike();
     if (uniform() < exp(D_hh_ll + this_house.indiv[i].augm_move_logratio(augmID)))
@@ -298,7 +299,7 @@ bool MCMC::_augm_metropolis_1_(const Household &this_house, int i, const string 
 }
 
 // FIXME developing
-bool MCMC::_augm_metropolis_0_(const Household &this_house, int i, const string &augmID, double &delta)
+bool MCMC::_augm_metropolis_0_(const Household &this_house, int i, const std::string &augmID, double &delta)
 {
     if (uniform() < exp(-this_house.indiv[i].augm_propose_logratio(augmID)))
     {
@@ -312,7 +313,7 @@ bool MCMC::_augm_metropolis_0_(const Household &this_house, int i, const string 
 }
 
 // FIXME developing
-bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const string &augmID, double &delta)
+bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const std::string &augmID, double &delta)
 {
     double D_ll = this_house.get_delta_loglike() + this_house.indiv[i].augm_model_logratio(augmID);
     if (uniform() < exp(setup_inv_T * D_ll - this_house.indiv[i].augm_propose_logratio(augmID)))
@@ -327,7 +328,7 @@ bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const string 
 }
 
 /* Return the value of the acceptance rate of the given augmented variable
-double MCMC::get_augm_accept_rate(const string &augmID)
+double MCMC::get_augm_accept_rate(const std::string &augmID)
 {
     int accept_count = 0, propos_count = 0;
 
@@ -388,7 +389,7 @@ void MCMC::init_diagnostics()
     sample_size *= setup_num_chains;
 
     dgn_count = 0;
-    dgn_glob_loglike = vector<double>(sample_size);
+    dgn_glob_loglike = std::vector<double>(sample_size);
 
     if (!_is_power_post_)
     {
@@ -397,9 +398,9 @@ void MCMC::init_diagnostics()
 
 // diagnostics over households
 #pragma omp parallel for default(shared)
-        for (Household &this_house : house)
+        for (int h = 0; h < num_house; ++h)
         {
-            this_house.init_diagnostics(sample_size);
+            house[h].init_diagnostics(sample_size);
         }
     }
 }
@@ -417,9 +418,9 @@ void MCMC::update_diagnostics()
 
         // diagnostics over households
 #pragma omp parallel for default(shared)
-        for (Household &this_house : house)
+        for (int h = 0; h < num_house; ++h)
         {
-            this_house.update_diagnostics();
+            house[h].update_diagnostics();
         }
     }
 }
@@ -429,7 +430,7 @@ void MCMC::update_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The text to print in the Markov chian progress bar. */
-string MCMC::get_progtxt(const string &txt)
+std::string MCMC::get_progtxt(const std::string &txt)
 {
     std::ostringstream oss;
     if (_is_power_post_)
@@ -610,9 +611,9 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
     double avg, var;
-    vector<double> inv_t = {};   // inverse temperature
-    vector<double> avg_vec = {}; // mean loglikelihood
-    vector<double> var_vec = {}; // variance loglikelihood
+    std::vector<double> inv_t = {};   // inverse temperature
+    std::vector<double> avg_vec = {}; // mean loglikelihood
+    std::vector<double> var_vec = {}; // variance loglikelihood
 
     //----- Fix internal states -----//
     _is_power_post_ = true;

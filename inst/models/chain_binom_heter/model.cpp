@@ -83,27 +83,27 @@ void Model::assign_contact_rate_to_household(Household &this_house, int from, in
 
 /* The person-to-person escape probabilities stored inside a matrix.
 	Important: it must be re-ordered to have seropositives first. */
-void Model::fill_house_escape_matrix(const Household &this_house, vector<double> &commu_esc_proba, squarematrix &p2p_esc_proba) const
+void Model::fill_house_escape_matrix(const Household &this_house, std::vector<double> &commu_esc_proba, squarematrix &p2p_esc_proba) const
 {
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
 	int hh_size = this_house.size();
-	vector<double> susc_rate(hh_size, 1.);
-	vector<double> infec_rate(hh_size, 1.);
+	std::vector<double> susc_rate(hh_size, 1.);
+	std::vector<double> infec_rate(hh_size, 1.);
 	int count = 0;
 
 	// 1) ordered members group rates : infectious
 	for (int i : this_house.infectious_set)
 	{
-		susc_rate[count] = this_house.get_group_rate(i, "Susceptibility");
-		infec_rate[count] = this_house.get_group_rate(i, "Infectivity");
+		susc_rate[count] = this_house.indiv[i].get_group_rate("Susceptibility");
+		infec_rate[count] = this_house.indiv[i].get_group_rate("Infectivity");
 		count++;
 	}
 
 	// 2) ordered members group rates : susceptibles
 	for (int i : this_house.susceptible_set)
 	{
-		susc_rate[count] = this_house.get_group_rate(i, "Susceptibility");
-		infec_rate[count] = this_house.get_group_rate(i, "Infectivity");
+		susc_rate[count] = this_house.indiv[i].get_group_rate("Susceptibility");
+		infec_rate[count] = this_house.indiv[i].get_group_rate("Infectivity");
 		count++;
 	}
 
@@ -165,8 +165,8 @@ double Model::compute_house_loglike(const Household &this_house) const
 	int num_infec = this_house.num_infectious;
 
 	//=====Escape Matrix=====//
-	vector<double> commu_esc_proba(hh_size, 1.);
-	vector<vector<double>> p2p_esc_proba(hh_size, vector<double>(hh_size, 1.));
+	std::vector<double> commu_esc_proba(hh_size, 1.);
+	squarematrix p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
 	fill_house_escape_matrix(this_house, commu_esc_proba, p2p_esc_proba);
 
 	//=====compute the loglikelihood=====//
@@ -192,8 +192,8 @@ void Model::simulate_single_house(Household &this_house)
 	//=========================//
 
 	int hh_size = this_house.size();
-	vector<double> commu_esc_proba(hh_size, 1.);
-	vector<vector<double>> p2p_esc_proba(hh_size, vector<double>(hh_size, 1.));
+	std::vector<double> commu_esc_proba(hh_size, 1.);
+	squarematrix p2p_esc_proba(hh_size, std::vector<double>(hh_size, 1.));
 
 	fill_house_escape_matrix(this_house, commu_esc_proba, p2p_esc_proba);
 

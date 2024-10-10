@@ -29,7 +29,7 @@ bool Unknown_Status_Warning = false; // unknown status
 Individual::Individual(dictargs new_data)
 {
 	// check that an index has been associated by call to build
-	if (new_data.find("index") == new_data.end())
+	if (new_data.find("id") == new_data.end())
 	{
 		basics::raise_error("Missing index for Individual object.");
 	}
@@ -48,7 +48,7 @@ Individual::Individual(dictargs new_data)
 			set_status(MISSING_STATUS);
 
 			std::ostringstream oss;
-			oss << "Status '" << new_status << "' of individual " << get_data("index") << " interpreted as missing."
+			oss << "Status '" << new_status << "' of individual " << get_data("id") << " interpreted as missing."
 				<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
 				<< " and (=) " << MISSING_STATUS << " for missing status.";
 			basics::raise_warning(oss.str(), Unknown_Status_Warning);
@@ -67,38 +67,38 @@ Individual::Individual(dictargs new_data)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the individal has the data defined */
-void Individual::assert_data(const string &dataID) const
+void Individual::assert_data(const std::string &dataID) const
 {
 	if (data.find(dataID) == data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data '" << dataID << "' for individual " << get_data("index") << ".";
+		oss << "Unknown data '" << dataID << "' for individual " << get_data("id") << ".";
 		oss << " Check your model and your data definitions.";
 		raise_error(oss.str());
 	}
 }
 
 /* Default method to get the value of data. */
-double Individual::_get_data_default_(const string &dataID) const
+double Individual::_get_data_default_(const std::string &dataID) const
 {
 	return data.at(dataID);
 }
 
 /* Safe method to get the value of data with previous assertion. */
-double Individual::_get_data_assert_(const string &dataID) const
+double Individual::_get_data_assert_(const std::string &dataID) const
 {
 	assert_data(dataID);
 	return _get_data_default_(dataID);
 }
 
 /* Safe method to get a data pointer with previous assertion. */
-const double *Individual::_get_data_pointer_default_(const string &dataID) const
+const double *Individual::_get_data_pointer_default_(const std::string &dataID) const
 {
 	return &(data.find(dataID)->second);
 }
 
 /* Safe method to get a data pointer with previous assertion. */
-const double *Individual::_get_data_pointer_assert_(const string &dataID) const
+const double *Individual::_get_data_pointer_assert_(const std::string &dataID) const
 {
 	assert_data(dataID);
 	return _get_data_pointer_default_(dataID);
@@ -109,7 +109,7 @@ const double *Individual::_get_data_pointer_assert_(const string &dataID) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a model rate r */
-void Individual::assign_group_rate(const string &rateID, const string &parID)
+void Individual::assign_group_rate(const std::string &rateID, const std::string &parID)
 {
 	if (which_rate.find(rateID) == which_rate.end())
 	{
@@ -121,7 +121,7 @@ void Individual::assign_group_rate(const string &rateID, const string &parID)
 		// rateID was previously declared
 		std::ostringstream oss;
 		oss << "Multiple definitions of group rate '" << rateID
-			<< "' for individual " << get_data("index") << "."
+			<< "' for individual " << get_data("id") << "."
 			<< " Check your model.";
 		raise_error(oss.str());
 	}
@@ -132,39 +132,39 @@ void Individual::assign_group_rate(const string &rateID, const string &parID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise raise error. */
-void Individual::assert_augm(const string &augmID) const
+void Individual::assert_augm(const std::string &augmID) const
 {
 	if (augm_var.find(augmID) == augm_var.end())
 	{
 		std::ostringstream oss;
 		oss << "Unknown augmented variable '" << augmID
-			<< "' for individual " << get_data("index") << "."
+			<< "' for individual " << get_data("id") << "."
 			<< " Check your augmented variable definitions.";
 		raise_error(oss.str());
 	}
 }
 
 /* Default method to get the value of an augmented variable. */
-double Individual::_get_augm_default_(const string &augmID) const
+double Individual::_get_augm_default_(const std::string &augmID) const
 {
 	return augm_var.at(augmID).get_value();
 }
 
 /* Safe method to get the value of an augmented variable with previous assertion. */
-double Individual::_get_augm_assert_(const string &augmID) const
+double Individual::_get_augm_assert_(const std::string &augmID) const
 {
 	assert_augm(augmID);
 	return _get_augm_default_(augmID);
 }
 
 /* Default method to set the value of an augmented variable. */
-void Individual::_set_augm_default_(const string &augmID, double new_value)
+void Individual::_set_augm_default_(const std::string &augmID, double new_value)
 {
 	augm_var.at(augmID).set_value(new_value);
 }
 
 /* Safe method to set the value of an augmented variable with previous assertion. */
-void Individual::_set_augm_assert_(const string &augmID, double new_value)
+void Individual::_set_augm_assert_(const std::string &augmID, double new_value)
 {
 	assert_augm(augmID);
 	_set_augm_default_(augmID, new_value);
@@ -180,7 +180,7 @@ void Individual::disable_assert()
 }
 
 /* Propose augmented and return true if valid move, otherwise restore buffer.  */
-bool Individual::propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng)
+bool Individual::propose_valid_augm_move(const std::string &augmID, sys_rnd_gen &prng)
 {
 	// propose new augmented value and store old in buffer
 	augm_propose(augmID, prng);
@@ -210,7 +210,7 @@ bool Individual::propose_valid_augm_move(const string &augmID, sys_rnd_gen &prng
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a data feature to the household */
-void Household::assign_data(const string &dataID, double value)
+void Household::assign_data(const std::string &dataID, double value)
 {
 	if (house_data.find(dataID) == house_data.end())
 	{
@@ -225,19 +225,19 @@ void Household::assign_data(const string &dataID, double value)
 }
 
 /* Return a feature of the Household which must be provided during initialization. */
-double Household::get_data(const string &dataID) const
+double Household::get_data(const std::string &dataID) const
 {
 	assert_data(dataID);
 	return house_data.at(dataID);
 }
 
 /* Check if the data is defined for the Household. */
-void Household::assert_data(const string &dataID) const
+void Household::assert_data(const std::string &dataID) const
 {
 	if (house_data.find(dataID) == house_data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data '" << dataID << "' for household " << get_data("index") << ".";
+		oss << "Unknown data '" << dataID << "' for household " << get_data("id") << ".";
 		raise_error(oss.str());
 	}
 }
@@ -279,7 +279,7 @@ void Household::assign_individual(Individual this_indiv)
 	{
 		std::ostringstream oss;
 		oss << "Unknown status '" << status << "' of individual "
-			<< this_indiv.get_data("index") << ".";
+			<< this_indiv.get_data("id") << ".";
 		raise_error(oss.str());
 	}
 
@@ -325,7 +325,7 @@ bool Household::change_status(int i, int new_status)
 		{
 			std::ostringstream oss;
 			oss << "While changing status: unknown old status '"
-				<< old_status << "' of individual " << this_indiv.get_data("index") << ".";
+				<< old_status << "' of individual " << this_indiv.get_data("id") << ".";
 			raise_error(oss.str());
 		}
 
@@ -351,7 +351,7 @@ bool Household::change_status(int i, int new_status)
 		{
 			std::ostringstream oss;
 			oss << "Impossibile to change status: unknown new status '"
-				<< new_status << "' for individual " << this_indiv.get_data("index") << ".";
+				<< new_status << "' for individual " << this_indiv.get_data("id") << ".";
 			raise_error(oss.str());
 		}
 		indiv[i].set_status(new_status);
@@ -365,14 +365,14 @@ bool Household::change_status(int i, int new_status)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set to zero the counts of given augmented variables moves. */
-void Household::reset_augm_accept_rate(const string &augmID)
+void Household::reset_augm_accept_rate(const std::string &augmID)
 {
 	num_accept_augm_moves[augmID] = 0;
 	num_propos_augm_moves[augmID] = 0;
 }
 
 /* Update counts for acceptance rate of given augemented variable. */
-void Household::update_augm_accept_rate(const string &augmID, bool is_accepted)
+void Household::update_augm_accept_rate(const std::string &augmID, bool is_accepted)
 {
 	num_accept_augm_moves[augmID] += is_accepted;
 	num_propos_augm_moves[augmID]++;
@@ -383,7 +383,7 @@ void Household::init_diagnostics(ulong sample_size)
 {
 	dgn_count = 0;
 	dgn_loglike.clear();
-	dgn_loglike = vector<double>(sample_size);
+	dgn_loglike = std::vector<double>(sample_size);
 }
 
 /* update the values for the Bayesian diagnostics */

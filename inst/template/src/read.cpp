@@ -15,8 +15,8 @@ using namespace basics;
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Convert string to boolean variable. */
-bool stobool(const string &tkn)
+/* Convert std::string to boolean variable. */
+bool stobool(const std::string &tkn)
 {
     bool output = false;
 
@@ -36,8 +36,8 @@ bool stobool(const string &tkn)
     return output;
 }
 
-/* Clean string from forbidden characters and convert to UNDEFINED. */
-string string_cleaner(string tkn)
+/* Clean std::string from forbidden characters and convert to UNDEFINED. */
+std::string strcleaner(std::string tkn)
 {
     // forbidden characters
     for (char r : {'"', '\r', '\n'})
@@ -62,7 +62,7 @@ string string_cleaner(string tkn)
 //-----------------------------------------------------------------------------------------------//
 
 #ifdef USE_RCPP
-void rlist_to_map(Rcpp::List list, std::map<string, string> &output)
+void rlist_to_map(Rcpp::List list, std::map<std::string, std::string> &output)
 {
     using namespace Rcpp;
 
@@ -72,11 +72,11 @@ void rlist_to_map(Rcpp::List list, std::map<string, string> &output)
     for (int i = 0; i < list.size(); ++i)
     {
         RObject element = list[i];
-        output[as<string>(keys[i])] = as<string>(wrap(element));
+        output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
     }
 }
 
-void rdataframe_to_map(Rcpp::DataFrame df, std::map<string, vector<string>> &output)
+void rdataframe_to_map(Rcpp::DataFrame df, std::map<std::string, std::vector<std::string>> &output)
 {
     using namespace Rcpp;
 
@@ -85,9 +85,9 @@ void rdataframe_to_map(Rcpp::DataFrame df, std::map<string, vector<string>> &out
     output.clear();
     for (int i = 0; i < df.size(); ++i)
     {
-        CharacterVector col_strings = as<CharacterVector>(df[i]);
-        vector<string> col_data(col_strings.begin(), col_strings.end());
-        output[as<string>(keys[i])] = std::move(col_data);
+        CharacterVector col_str = as<CharacterVector>(df[i]);
+        std::vector<std::string> col_data(col_str.begin(), col_str.end());
+        output[as<std::string>(keys[i])] = std::move(col_data);
     }
 }
 #endif
@@ -99,20 +99,20 @@ void rdataframe_to_map(Rcpp::DataFrame df, std::map<string, vector<string>> &out
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-vector<string> read_column_headers(std::ifstream &input, const vector<string> &required_headers)
+std::vector<std::string> read_column_headers(std::ifstream &input, const std::vector<std::string> &required_headers)
 {
     // clean headers
-    vector<string> headers = {};
+    std::vector<std::string> headers = {};
 
     // read first line
-    string line, tkn;
+    std::string line, tkn;
     getline(input, line);
     std::istringstream iss(line);
 
     // get headers from first line
     while (getline(iss, tkn, C_DELIM))
     {
-        headers.push_back(string_cleaner(tkn));
+        headers.push_back(strcleaner(tkn));
     }
 
     // check that all required headers are present
@@ -122,7 +122,7 @@ vector<string> read_column_headers(std::ifstream &input, const vector<string> &r
         std::ostringstream oss;
 
         // check the validity of the headers
-        for (const string &req : required_headers)
+        for (const std::string &req : required_headers)
         {
             if (std::find(headers.begin(), headers.end(), req) == headers.end())
             {
@@ -150,9 +150,9 @@ vector<string> read_column_headers(std::ifstream &input, const vector<string> &r
 }
 
 /* Load files from the row with headers */
-bool read_row_by_headers(std::ifstream &input, const vector<string> &headers, std::map<string, string> &this_row)
+bool read_row_by_headers(std::ifstream &input, const std::vector<std::string> &headers, std::map<std::string, std::string> &this_row)
 {
-    string line, tkn;
+    std::string line, tkn;
 
     if (getline(input, line))
     {
@@ -161,7 +161,7 @@ bool read_row_by_headers(std::ifstream &input, const vector<string> &headers, st
 
         while (getline(iss, tkn, C_DELIM))
         {
-            this_row.emplace(headers[num_cols++], string_cleaner(tkn));
+            this_row.emplace(headers[num_cols++], strcleaner(tkn));
         }
 
         // last column is empty
@@ -185,12 +185,12 @@ bool read_row_by_headers(std::ifstream &input, const vector<string> &headers, st
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Parse the list from the string. */
-vector<string> parse_list_args(const string &tkn, const char delim)
+/* Parse the list from the std::string. */
+std::vector<std::string> parse_list_args(const std::string &tkn, const char delim)
 {
     std::istringstream args_ss(tkn);
-    vector<string> output = {};
-    string tmp;
+    std::vector<std::string> output = {};
+    std::string tmp;
 
     // rea the entries of the dictionary
     while (getline(args_ss, tmp, delim))
@@ -202,10 +202,10 @@ vector<string> parse_list_args(const string &tkn, const char delim)
 }
 
 /* Combine after control two lists into a dictionary */
-dictargs merge_list_args(const string &tkn_keys, const string &tkn_vals)
+dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
 {
-    vector<string> keys = parse_list_args(tkn_keys);
-    vector<string> vals = parse_list_args(tkn_vals);
+    std::vector<std::string> keys = parse_list_args(tkn_keys);
+    std::vector<std::string> vals = parse_list_args(tkn_vals);
     dictargs output = {};
 
     if (keys.size() != vals.size())
@@ -224,7 +224,7 @@ dictargs merge_list_args(const string &tkn_keys, const string &tkn_vals)
 }
 
 /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
-void read_csv_list(const string &pathtofile, std::map<string, string> &csv_parsed_list)
+void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
 {
     if (!is_na(pathtofile))
     {
@@ -234,10 +234,10 @@ void read_csv_list(const string &pathtofile, std::map<string, string> &csv_parse
         {
             csv_parsed_list.clear();
 
-            // Create a stringstream of the current line
-            for (string line; getline(input, line);)
+            // Create a std::stringstream of the current line
+            for (std::string line; getline(input, line);)
             {
-                string name, choice;
+                std::string name, choice;
                 std::istringstream iss(line);
 
                 //===== NAME =====//
@@ -253,7 +253,7 @@ void read_csv_list(const string &pathtofile, std::map<string, string> &csv_parse
                 }
 
                 // add the new setup
-                csv_parsed_list.emplace(string_cleaner(name), string_cleaner(choice));
+                csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
             }
         }
         else
@@ -264,9 +264,9 @@ void read_csv_list(const string &pathtofile, std::map<string, string> &csv_parse
 }
 
 /* Read csv table store in pathtofile and store it parsed in csv_parsed_table. */
-void read_csv_table(const string &pathtofile,
-                    std::map<string, vector<string>> &csv_parsed_table,
-                    const vector<string> &required_headers)
+void read_csv_table(const std::string &pathtofile,
+                    std::map<std::string, std::vector<std::string>> &csv_parsed_table,
+                    const std::vector<std::string> &required_headers)
 {
     if (!is_na(pathtofile))
     {
@@ -274,8 +274,8 @@ void read_csv_table(const string &pathtofile,
 
         if (input.is_open())
         {
-            std::vector<string> headers = read_column_headers(input, required_headers);
-            std::map<string, string> this_row = {};
+            std::vector<std::string> headers = read_column_headers(input, required_headers);
+            std::map<std::string, std::string> this_row = {};
 
             csv_parsed_table.clear(); // FIXME: is this correct?
             while (read_row_by_headers(input, headers, this_row))

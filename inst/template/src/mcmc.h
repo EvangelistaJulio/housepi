@@ -52,17 +52,17 @@ protected:
 	//===== Household Data =====//
 	int num_indiv = 0;
 	int num_house = 0;
-	vector<Household> house = {};
+	std::vector<Household> house = {};
 
 	//----- Reports -----//
-	std::map<string, string> report_pathtofile;
-	std::map<string, int> report_data;
-	std::map<string, std::map<string, int>> report_group_classes = {};
+	std::map<std::string, std::string> report_pathtofile;
+	std::map<std::string, int> report_data;
+	std::map<std::string, std::map<std::string, int>> report_group_classes = {};
 
 	//===== Augmented Variables =====//
-	std::unordered_set<string> augm_full_set = {};
-	std::unordered_set<string> augm_to_be_inferred = {};
-	std::unordered_set<string> augm_with_model_set = {};
+	std::unordered_set<std::string> augm_full_set = {};
+	std::unordered_set<std::string> augm_to_be_inferred = {};
+	std::unordered_set<std::string> augm_with_model_set = {};
 
 public:
 	//===== CONSTRUCTOR =====//
@@ -75,15 +75,15 @@ public:
 	virtual ~MCMC() {};
 
 	//===== READ =====//
-	void read_setup(const string &pathtofile = UNDEFINED);
-	void read_params(const string &pathtofile = UNDEFINED);
-	void read_data(const string &pathtofile = UNDEFINED);
-	void read_augm(const string &pathtofile = UNDEFINED);
+	void read_setup(const std::string &pathtofile = UNDEFINED);
+	void read_params(const std::string &pathtofile = UNDEFINED);
+	void read_data(const std::string &pathtofile = UNDEFINED);
+	void read_augm(const std::string &pathtofile = UNDEFINED);
 
 	//===== BUILD =====//
 	void build_setup();
 	void build_params();
-	void build_data(const std::map<string, vector<string>> &datatable);
+	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
 	void build_augm();
 
 	//===== SHOW =====//
@@ -110,8 +110,8 @@ public:
 #else
 	//----- cpp outputs -----//
 	void show_results() const;
-	void print_infer_state(const string &output_filename = UNDEFINED) const;
-	void print_augm_variables(const string &output_filename = UNDEFINED) const;
+	void print_infer_state(const std::string &output_filename = UNDEFINED) const;
+	void print_augm_variables(const std::string &output_filename = UNDEFINED) const;
 #endif
 
 	//===== GROUP CLASSES =====//
@@ -119,7 +119,7 @@ public:
 	void set_rate_per_contact(Household &this_house);
 	virtual void assign_group_rate_to_individual(Individual &new_indiv);
 	virtual void assign_contact_rate_to_household(Household &this_house, int from, int to);
-	double get_group_rate(const Individual &this_indiv, const string &rateID) const { return this_indiv.get_group_rate(rateID); }
+	double get_group_rate(const Individual &this_indiv, const std::string &rateID) const { return this_indiv.get_group_rate(rateID); }
 	double get_contact_rate(const Household &this_house, int from, int to) const { return this_house.get_contact_rate(from, to); }
 	void update_report_data();
 
@@ -155,7 +155,7 @@ private:
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;
-	vector<double> dgn_glob_loglike = {};
+	std::vector<double> dgn_glob_loglike = {};
 
 	//===== Internal =====//
 	ulong _n_contacts_ = 0; // number of contacts
@@ -171,23 +171,23 @@ private:
 	bool _is_power_post_ = false; // power posterior mode
 	bool _is_move_augm_ = false;  // move augmented
 
-	vector<string> _data_headers_ = {};
+	std::vector<std::string> _data_headers_ = {};
 
 	//===== BUILD =====//
 
 	//----- build : auxiliary attributes -----//
-	std::map<string, string> _setup_deflist_ = {};
-	std::map<string, vector<string>> _param_deftable_ = {};
-	std::map<string, vector<string>> _augm_deftable_ = {};
+	std::map<std::string, std::string> _setup_deflist_ = {};
+	std::map<std::string, std::vector<std::string>> _param_deftable_ = {};
+	std::map<std::string, std::vector<std::string>> _augm_deftable_ = {};
 
 	//----- build : type-specified variables -----//
-	double type_to_double(const string tkn_val, const string tkn_typ, const Individual &this_indiv);
-	const double *type_to_doubleptr(const string tkn_val, const string tkn_typ, const Individual &this_indiv);
-	dictargs typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv);
-	dictargs_ptr typedict_to_sdargs_ptr(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv);
+	double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
+	const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
+	dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
+	dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
 
 	//===== PRINTS =====//
-	string get_progtxt(const string &txt);
+	std::string get_progtxt(const std::string &txt);
 
 	//===== EVALUATE =====//
 	void update_house_loglike(Household &this_house) { this_house.set_loglike(compute_house_loglike(this_house)); }
@@ -201,7 +201,7 @@ private:
 	//===== INFER =====//
 
 	//----- Monte Carlo -----//
-	void move_single_param(const string &parID);
+	void move_single_param(const std::string &parID);
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();
 	void move_all_augm_variables();
@@ -209,21 +209,21 @@ private:
 	void set_inver_temper(double inv_T);
 
 	//----- Metropolis : parameter moves -----//
-	bool metropolis_param_move(const string &parID) { return (this->*_param_metropolis_method_)(parID); }
-	bool (MCMC::*_param_metropolis_method_)(const string &) = &MCMC::_param_metropolis_1_;
-	bool _param_metropolis_1_(const string &parID);
-	bool _param_metropolis_0_(const string &parID);
-	bool _param_metropolis_T_(const string &parID);
+	bool metropolis_param_move(const std::string &parID) { return (this->*_param_metropolis_method_)(parID); }
+	bool (MCMC::*_param_metropolis_method_)(const std::string &) = &MCMC::_param_metropolis_1_;
+	bool _param_metropolis_1_(const std::string &parID);
+	bool _param_metropolis_0_(const std::string &parID);
+	bool _param_metropolis_T_(const std::string &parID);
 
 	//----- Metropolis : augmented moves -----//
-	bool metropolis_augm_move(const Household &this_house, int i, const string &augmID, double &delta)
+	bool metropolis_augm_move(const Household &this_house, int i, const std::string &augmID, double &delta)
 	{
 		return (this->*_augm_metropolis_method_)(this_house, i, augmID, delta);
 	}
-	bool (MCMC::*_augm_metropolis_method_)(const Household &, int, const string &, double &) = &MCMC::_augm_metropolis_1_;
-	bool _augm_metropolis_1_(const Household &this_house, int i, const string &augmID, double &delta);
-	bool _augm_metropolis_0_(const Household &this_house, int i, const string &augmID, double &delta);
-	bool _augm_metropolis_T_(const Household &this_house, int i, const string &augmID, double &delta);
+	bool (MCMC::*_augm_metropolis_method_)(const Household &, int, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
+	bool _augm_metropolis_1_(const Household &this_house, int i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_0_(const Household &this_house, int i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_T_(const Household &this_house, int i, const std::string &augmID, double &delta);
 
 	//----- Values for Diagnostics and Results -----//
 	void init_diagnostics();
@@ -231,7 +231,7 @@ private:
 	void init_move_counts();
 
 	// FIXME : to be redefined
-	// double get_augm_accept_rate(const string &augmID);
+	// double get_augm_accept_rate(const std::string &augmID);
 };
 
 #endif // MCMC__H

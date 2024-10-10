@@ -7,6 +7,10 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
 This tutorial introduces to data augmentation with the package `housepi`. We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference. 
 
 ## Estimate Incubation Periods Distribution
@@ -149,25 +153,23 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation 
-sim_data <- housepi::run_simulation(hemi_2)
+housepi::run_simulation(hemi_2)
 
-# show a summary of the data
+# show a summary of the current dataset
 hemi_2$show_summary()
-
-# show the results of the simulation 
-head(sim_data)
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
 This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
-# remove incubation period from data
-df <- subset(sim_data, select = -c(incub_period) )
+# remove incubation period from simulated data
+df <- subset(hemi_2$data(), select = -c(incub_period) )
 
 # change all onsets after 9 PM to next day
-df[["onset_date"]] <- sapply(
-  df[["onset_date"]], 
+is_infec <- df$status == 1
+df[is_infec, "onset_date"] <- sapply(
+  df[is_infec, "onset_date"], 
   function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
   )
 ```
@@ -195,8 +197,8 @@ augm_2_inf$add(name = "incub_period",
                range = list(max = 14))
 
 # the number of iterations has been limited for brevity
-setup_2 <- list(num_iter = 5000, num_adapt = 500, 
-                burn_in = 500, thinning = 10, seed = 57)
+setup_2 <- list(num_iter = 8000,  burn_in = 2000, thinning = 10, 
+                num_adapt = 2000, seed = 57)
 
 housepi::build_model(hemi_2, data = df, setup = setup_2, augm = augm_2_inf$df)
 

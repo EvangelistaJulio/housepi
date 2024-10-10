@@ -20,5 +20,5 @@ generate_model(model, quiet = TRUE, force = FALSE)
 Return the household model object.
 }
 \description{
-`generate_model` generates a model from a default or from a user script.
+'generate_model' generates a model from a default or from a user script.
 }

@@ -27,10 +27,10 @@ bool Unknown_Household_Data_Structure_Warning = false;
 //-----------------------------------------------------------------------------------------------//
 
 // declaration for type in data file
-const string TYPE_PARAM = "P";   // Parameter type declaration
-const string TYPE_DATA = "D";    // Data type declaration
-const string TYPE_SCALAR = "S";  // Scalar type declaration
-const string TYPE_COMMAND = "C"; // Command type declaration
+const std::string TYPE_PARAM = "P";   // Parameter type declaration
+const std::string TYPE_DATA = "D";    // Data type declaration
+const std::string TYPE_SCALAR = "S";  // Scalar type declaration
+const std::string TYPE_COMMAND = "C"; // Command type declaration
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -42,7 +42,7 @@ const string TYPE_COMMAND = "C"; // Command type declaration
 void MCMC::show_full_build() const
 {
     //----- SETUP -----//
-    string add_file_info = UNDEFINED;
+    std::string add_file_info = UNDEFINED;
     if (report_pathtofile.find("setup") != report_pathtofile.end())
     {
         if (!is_na(report_pathtofile.at("setup")))
@@ -94,7 +94,7 @@ void MCMC::show_full_build() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Setup file and produce a definition list. */
-void MCMC::read_setup(const string &pathtofile)
+void MCMC::read_setup(const std::string &pathtofile)
 {
     read_csv_list(pathtofile, _setup_deflist_);
     build_setup();
@@ -122,11 +122,11 @@ void MCMC::build_setup()
     if (!_setup_deflist_.empty())
     {
         //===== Check that all provided setups are correct =====//
-        vector<string> file_entries = {"num_threads", "seed", "num_chains",
-                                       "num_iter", "num_adapt", "thinning",
-                                       "burn_in", "rnd_init_params",
-                                       "num_rungs", "inv_temper"};
-        vector<string> wrong_entries = {};
+        std::vector<std::string> file_entries = {"num_threads", "seed", "num_chains",
+                                                 "num_iter", "num_adapt", "thinning",
+                                                 "burn_in", "rnd_init_params",
+                                                 "num_rungs", "inv_temper"};
+        std::vector<std::string> wrong_entries = {};
         for (const auto &pair : _setup_deflist_)
         {
             if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
@@ -288,7 +288,7 @@ void MCMC::set_inver_temper(double inv_T)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read parameter definitions and run assignment. */
-void MCMC::read_params(const string &pathtofile)
+void MCMC::read_params(const std::string &pathtofile)
 {
     read_csv_table(pathtofile, _param_deftable_, param_file_headers);
     build_params();
@@ -329,7 +329,7 @@ void MCMC::build_params()
         //===== Load parameters from the row with options =====//
         for (size_t p = 0; p < table_length; ++p)
         {
-            string parID = _param_deftable_.at("name")[p];
+            std::string parID = _param_deftable_.at("name")[p];
             double value = INF_DOUBLE;
 
             // add entry to shared parameter dictionary
@@ -405,9 +405,9 @@ void MCMC::build_params()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read data file and then run assignment. */
-void MCMC::read_data(const string &pathtofile)
+void MCMC::read_data(const std::string &pathtofile)
 {
-    std::map<string, vector<string>> datatable = {};
+    std::map<std::string, std::vector<std::string>> datatable = {};
     read_csv_table(pathtofile, datatable);
     build_data(datatable);
 
@@ -418,7 +418,7 @@ void MCMC::read_data(const string &pathtofile)
 /* Import data from R DataFrame and then run assignment. */
 void MCMC::import_data(Rcpp::DataFrame data)
 {
-    std::map<string, vector<string>> datatable = {};
+    std::map<std::string, std::vector<std::string>> datatable = {};
     rdataframe_to_map(data, datatable);
     build_data(datatable);
     if (report_pathtofile.find("data") == report_pathtofile.end())
@@ -429,7 +429,7 @@ void MCMC::import_data(Rcpp::DataFrame data)
 #endif
 
 /* Assign data after pre-processing. */
-void MCMC::build_data(const std::map<string, vector<string>> &datatable)
+void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &datatable)
 {
     if (datatable.empty())
     {
@@ -453,8 +453,8 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
         report_group_classes.clear();
 
         //===== Assess the presence of indexes =====//
-        bool is_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "index") != _data_headers_.end());
-        bool is_house_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "house_index") != _data_headers_.end());
+        bool is_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "id") != _data_headers_.end());
+        bool is_house_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "house_id") != _data_headers_.end());
         if (!is_house_index)
         {
             std::ostringstream oss;
@@ -468,7 +468,7 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
         for (int i = 0; i < num_indiv; ++i)
         {
             dictargs args = {};
-            for (const string &key : _data_headers_)
+            for (const std::string &key : _data_headers_)
             {
                 if (is_na(datatable.at(key)[i]))
                 {
@@ -481,7 +481,7 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
             }
             if (!is_index)
             {
-                args.emplace("index", i);
+                args.emplace("id", i);
             }
 
             Individual this_indiv(args);
@@ -490,7 +490,7 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
             set_rate_per_group(this_indiv);
 
             // user provided household index (to set structure or not)
-            int hh_idx = (is_house_index) ? this_indiv.get_data("house_index") : num_house;
+            int hh_idx = (is_house_index) ? this_indiv.get_data("house_id") : num_house;
 
             // if household index doesn't exist, add new household
             // note : this is redundant if no structure
@@ -501,7 +501,7 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
                 // create a new empty household
                 house.emplace_back();
                 // assign the data index
-                house[num_house].assign_data("house_index", hh_idx);
+                house[num_house].assign_data("house_id", hh_idx);
                 // set household number as its id
                 house[num_house].set_id(num_house);
                 // increment household number
@@ -522,7 +522,7 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
 
         //===== Clean up data entries for output files =====//
         // eventually remove standard headers to reorder them at the end
-        for (const string &col : {"house_index", "index", "status"})
+        for (const std::string &col : {"house_id", "id", "status"})
         {
             _data_headers_.erase(
                 std::remove(_data_headers_.begin(), _data_headers_.end(), col),
@@ -619,7 +619,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
 
     for (const auto &which : this_indiv.which_rate)
     {
-        string rateID = which.first;
+        std::string rateID = which.first;
         if (rateID == CONTACT_RATE)
         {
             std::ostringstream oss;
@@ -628,11 +628,11 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             raise_error(oss.str());
         }
 
-        string parID = which.second;
+        std::string parID = which.second;
 
         //=====initialize model report=====//
         // if first individual, initialize rateID-report
-        report_group_classes.emplace(rateID, std::map<string, int>());
+        report_group_classes.emplace(rateID, std::map<std::string, int>());
         report_group_classes.at(rateID).emplace("[reference]", 0);
 
         //=====set rates and update report=====//
@@ -641,7 +641,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             // error : undefined rate
             std::ostringstream oss;
             oss << "Rate '" << rateID << "' is not provided for individual "
-                << this_indiv.get_data("index") << ".";
+                << this_indiv.get_data("id") << ".";
             raise_error(oss.str());
         }
         else if (parID == REFERENCE)
@@ -682,13 +682,13 @@ void MCMC::set_rate_per_contact(Household &this_house)
 {
     // allocate contact patterns
     int hh_size = this_house.size();
-    this_house.which_rate.resize(hh_size, vector<string>(hh_size, UNDEFINED));
-    this_house.contact_rates.resize(hh_size, vector<const double *>(hh_size, &REFERENCE_VALUE));
+    this_house.which_rate.resize(hh_size, std::vector<std::string>(hh_size, UNDEFINED));
+    this_house.contact_rates.resize(hh_size, std::vector<const double *>(hh_size, &REFERENCE_VALUE));
 
     if (this_house.get_id() == 0)
     {
         // if first household, initialize contact rate report
-        report_group_classes.emplace(CONTACT_RATE, std::map<string, int>());
+        report_group_classes.emplace(CONTACT_RATE, std::map<std::string, int>());
         report_group_classes.at(CONTACT_RATE).emplace("[reference]", 0);
     }
     else
@@ -709,13 +709,13 @@ void MCMC::set_rate_per_contact(Household &this_house)
             if (k != i)
             {
                 assign_contact_rate_to_household(this_house, k, i);
-                string parID = this_house.which_rate[k][i];
+                std::string parID = this_house.which_rate[k][i];
 
                 if (is_na(parID))
                 {
                     std::ostringstream oss;
-                    oss << "Contact rate not provided for individuals " << this_house.indiv[k].get_data("index")
-                        << " and " << this_house.indiv[i].get_data("index") << " within household " << this_house.get_data("house_index") << ".";
+                    oss << "Contact rate not provided for individuals " << this_house.indiv[k].get_data("id")
+                        << " and " << this_house.indiv[i].get_data("id") << " within household " << this_house.get_data("house_id") << ".";
                     raise_error(oss.str());
                 }
                 else if (parID == REFERENCE)
@@ -756,9 +756,9 @@ void MCMC::set_rate_per_contact(Household &this_house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file */
-void MCMC::read_augm(const string &pathtofile)
+void MCMC::read_augm(const std::string &pathtofile)
 {
-    const vector<string> augm_file_headers = {
+    const std::vector<std::string> augm_file_headers = {
         "name", "status", "value", "valuetype",
         "model", "args", "argsval", "argstype", "rule",
         "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
@@ -790,7 +790,7 @@ void MCMC::build_augm()
         size_t table_length = _augm_deftable_.at("name").size();
 
         //===== Drop previous definitions =====//
-        std::map<string, vector<string>> augm_name_status_check = {};
+        std::map<std::string, std::vector<std::string>> augm_name_status_check = {};
 
         augm_full_set.clear();
         augm_to_be_inferred.clear();
@@ -799,8 +799,8 @@ void MCMC::build_augm()
         //===== Augmented variables lists of usage =====//
         for (size_t a = 0; a < table_length; ++a)
         {
-            string augmID = _augm_deftable_.at("name")[a];
-            string status = _augm_deftable_.at("status")[a];
+            std::string augmID = _augm_deftable_.at("name")[a];
+            std::string status = _augm_deftable_.at("status")[a];
             bool is_init_rand = false;
 
             if (is_na(augmID))
@@ -816,7 +816,7 @@ void MCMC::build_augm()
             }
             else
             {
-                const vector<string> &mylist = augm_name_status_check.at(augmID);
+                const std::vector<std::string> &mylist = augm_name_status_check.at(augmID);
                 if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
                 {
                     augm_name_status_check.at(augmID).push_back(status);
@@ -860,27 +860,24 @@ void MCMC::build_augm()
         //===== Check Univocal Definitions =====//
         for (const auto &pair : augm_name_status_check)
         {
-            const vector<string> &mylist = pair.second;
+            const std::vector<std::string> &mylist = pair.second;
 
-            if (std::find(mylist.begin(), mylist.end(), UNDEFINED) == mylist.end())
-            { // non default
-                for (const string &z : mylist)
+            for (const std::string &z : mylist)
+            {
+                if (is_na(z))
                 {
-                    if (std::stoi(z) < INFECTIOUS)
+                    if (mylist.size() > 1)
                     {
                         std::ostringstream oss;
-                        oss << "Impossible to associate augmented '" << pair.first << "' for non infectious status.";
+                        oss << "Forbidden default and status definitions for augmented variable '"
+                            << pair.first << "'.";
                         raise_error(oss.str());
                     }
                 }
-            }
-            else
-            { // default for all infectious
-                if (mylist.size() > 1)
+                else if (std::stoi(z) < INFECTIOUS)
                 {
                     std::ostringstream oss;
-                    oss << "Forbidden default and status definitions for augmented variable '"
-                        << pair.first << "'.";
+                    oss << "Impossible to associate augmented '" << pair.first << "' for non infectious status.";
                     raise_error(oss.str());
                 }
             }
@@ -910,10 +907,11 @@ void MCMC::assign_augm(Individual &this_indiv)
     for (size_t a = 0; a < _augm_deftable_.at("name").size(); ++a)
     {
         // assign augmented variable of the corresponding status
-        string augm_status = _augm_deftable_.at("status")[a];
+        std::string augm_status = _augm_deftable_.at("status")[a];
+
         if ((is_na(augm_status)) || (this_indiv.get_status() == std::stoi(augm_status)))
         {
-            string augmID = _augm_deftable_.at("name")[a];
+            std::string augmID = _augm_deftable_.at("name")[a];
 
             //----- load range -----//
             dictargs range = {};
@@ -964,7 +962,7 @@ void MCMC::assign_augm(Individual &this_indiv)
     }
 
     // assert that individual has all definitions
-    for (const string &augmID : augm_full_set)
+    for (const std::string &augmID : augm_full_set)
     {
         this_indiv.assert_augm(augmID);
     }
@@ -972,7 +970,7 @@ void MCMC::assign_augm(Individual &this_indiv)
 
 void MCMC::clear_augm(Individual &this_indiv)
 {
-    for (const string &augmID : augm_full_set)
+    for (const std::string &augmID : augm_full_set)
     {
         Augmented new_augm(augmID);
         this_indiv.assign_augm(new_augm);
@@ -990,8 +988,8 @@ void MCMC::clear_augm(Individual &this_indiv)
 //////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Convert a typed string to a double */
-double MCMC::type_to_double(const string val, const string typ, const Individual &this_indiv)
+/* Convert a typed std::string to a double */
+double MCMC::type_to_double(const std::string val, const std::string typ, const Individual &this_indiv)
 {
     double output = INF_DOUBLE;
 
@@ -1061,8 +1059,8 @@ double MCMC::type_to_double(const string val, const string typ, const Individual
     return output;
 }
 
-/* Convert a type-string to a double-pointer */
-const double *MCMC::type_to_doubleptr(const string val, const string typ, const Individual &this_indiv)
+/* Convert a type-std::string to a double-pointer */
+const double *MCMC::type_to_doubleptr(const std::string val, const std::string typ, const Individual &this_indiv)
 {
     const double *output = nullptr;
 
@@ -1108,12 +1106,12 @@ const double *MCMC::type_to_doubleptr(const string val, const string typ, const 
     return output;
 }
 
-/* Convert a string with type-dictionary to string-to-double */
-dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv)
+/* Convert a std::string with type-dictionary to std::string-to-double */
+dictargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
 {
-    vector<string> keys = parse_list_args(tkn_key);
-    vector<string> vals = parse_list_args(tkn_val);
-    vector<string> typs = parse_list_args(tkn_typ);
+    std::vector<std::string> keys = parse_list_args(tkn_key);
+    std::vector<std::string> vals = parse_list_args(tkn_val);
+    std::vector<std::string> typs = parse_list_args(tkn_typ);
 
     dictargs output = {};
 
@@ -1133,12 +1131,12 @@ dictargs MCMC::typedict_to_sdargs(const string tkn_key, const string tkn_val, co
     return output;
 }
 
-/* Convert a string with type-dictionary to string-to-double-pointer */
-dictargs_ptr MCMC::typedict_to_sdargs_ptr(const string tkn_key, const string tkn_val, const string tkn_typ, const Individual &this_indiv)
+/* Convert a std::string with type-dictionary to std::string-to-double-pointer */
+dictargs_ptr MCMC::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
 {
-    vector<string> keys = parse_list_args(tkn_key);
-    vector<string> vals = parse_list_args(tkn_val);
-    vector<string> typs = parse_list_args(tkn_typ);
+    std::vector<std::string> keys = parse_list_args(tkn_key);
+    std::vector<std::string> vals = parse_list_args(tkn_val);
+    std::vector<std::string> typs = parse_list_args(tkn_typ);
 
     dictargs_ptr output = {};
 

@@ -14,23 +14,23 @@ namespace bax
 
 	//===== Transmission Generations : Lookup Tables =====//
 	// numbers of generations
-	vector<ulong> Num_Gener_LookupTable;
+	std::vector<ulong> Num_Gener_LookupTable;
 	// n. of multiplicites per generation
-	vector<vector<ulong>> Multipl_Gener_LookupTable;
-	// generation vectors
-	vector<vector<gentype>> Generations_LookupTable;
+	std::vector<std::vector<ulong>> Multipl_Gener_LookupTable;
+	// generation std::vectors
+	std::vector<std::vector<gentype>> Generations_LookupTable;
 
 	//===== Combinations : Lookup Tables =====//
 	// lookup-table to store the number of combinations
-	vector<vector<ulong>> Num_Combin_LookupTable;
+	std::vector<std::vector<ulong>> Num_Combin_LookupTable;
 	// lookup-table to store combinations and complements
-	vector<vector<vector<vector<ushort>>>> Combinations_LookupTable;
+	std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
 
 	//===== EscapePatterns : Lookup Tables =====//
 	// lookup-table to store the number of combinations
-	vector<EscapePattern> ChainBinomial_LookupTable;
+	std::vector<EscapePattern> ChainBinomial_LookupTable;
 	// lookup-table to store combinations and complements
-	vector<vector<EscapePattern>> EscapePatterns_LookupTable;
+	std::vector<std::vector<EscapePattern>> EscapePatterns_LookupTable;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
@@ -86,7 +86,7 @@ namespace bax
 
 	/* Compute the loglikelihood starting from the current escape pattern.
 		Important : it requires initialization of the lookup table. */
-	double EscapePattern::likelihood(vector<double> &esc_mtx)
+	double EscapePattern::likelihood(std::vector<double> &esc_mtx)
 	{
 		double output = 1.;
 
@@ -104,7 +104,7 @@ namespace bax
 	}
 
 	/* Print the formula of the loglikelihood. */
-	string EscapePattern::show()
+	std::string EscapePattern::show()
 	{
 		std::ostringstream oss;
 
@@ -159,10 +159,10 @@ namespace bax
 		n_infec = 3
 		return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
 	*/
-	vector<gentype> recursive_span_generation(ushort n)
+	std::vector<gentype> recursive_span_generation(ushort n)
 	{
 		ushort root = n - 1;
-		vector<gentype> output(1, gentype(n, 0));
+		std::vector<gentype> output(1, gentype(n, 0));
 
 		while (root > 0)
 		{
@@ -203,8 +203,8 @@ namespace bax
 
 		// Count-compression of all possible ranked offpsring generations.
 		size_t tot_num_gen = 0;
-		vector<ulong> aux_num_lut;
-		vector<gentype> aux_gen_lut;
+		std::vector<ulong> aux_num_lut;
+		std::vector<gentype> aux_gen_lut;
 
 		for (int n = 1; n <= max_N; ++n)
 		{
@@ -249,7 +249,7 @@ namespace bax
 			Multipl_Gener_LookupTable[n].resize(tot_num_gen);
 			Generations_LookupTable[n].resize(tot_num_gen);
 
-			// copy from auxiliary vectors
+			// copy from auxiliary std::vectors
 			for (size_t c = 0; c < tot_num_gen; ++c)
 			{
 				Multipl_Gener_LookupTable[n][c] = aux_num_lut[c];
@@ -276,13 +276,13 @@ namespace bax
 	Daniel Angel Jimenez
 	https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
 	*/
-	void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, vector<vec_ushort> &results, ushort start, ushort loop)
+	void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, std::vector<vec_ushort> &results, ushort start, ushort loop)
 	{
 		if (loop > k - 1)
 		{
 			//----- complement of the combination -----//
 			// Mark elements present in the list
-			vector<bool> missing(N, true);
+			std::vector<bool> missing(N, true);
 			for (ushort i = 0; i < k; ++i)
 			{
 				missing[current[i]] = false;
@@ -313,7 +313,7 @@ namespace bax
 	void store_combinations(ushort N, ushort k)
 	{
 		// Generate combinations with the recurisve algorithm
-		vector<vec_ushort> results;
+		std::vector<vec_ushort> results;
 		vec_ushort current(N);
 		recursive_span_combinations(N, k, current, results, 0, 0);
 
@@ -376,7 +376,7 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 
 	/*  */
-	void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, vector<EscapePattern> &results)
+	void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
 	{
 		for (ushort k = 0; k < N; ++k)
 		{
@@ -385,7 +385,7 @@ namespace bax
 				EscapePattern new_child(N_star);
 
 				// associate entries for this pattern
-				vector<ushort> &indidx = Combinations_LookupTable[N][k][c];
+				std::vector<ushort> &indidx = Combinations_LookupTable[N][k][c];
 				for (ushort i = k; i < N; ++i)
 				{
 					//  community
@@ -439,7 +439,7 @@ namespace bax
 		//----- lookuptable with escape patterns linked to chain-binomial -----//
 		// case N_star == 0, for consistency
 		ChainBinomial_LookupTable.emplace_back(0);
-		EscapePatterns_LookupTable.push_back(vector<EscapePattern>());
+		EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
 
 		// case N_star > 0
 		for (ushort N_star = 1; N_star <= max_N; ++N_star)
@@ -452,7 +452,7 @@ namespace bax
 
 			// store to lookup table
 			ChainBinomial_LookupTable.emplace_back(N_star);
-			EscapePatterns_LookupTable.push_back(vector<EscapePattern>());
+			EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
 
 			recursive_escape_patterns_function(N_star, N_star, access_matrix,
 											   ChainBinomial_LookupTable[N_star],
@@ -479,8 +479,8 @@ namespace bax
 		p2p_esc_proba : ordered person-to-person escape probabilities
 	*/
 	double chain_binomial_heter_loglikelihood(ushort N_star,
-											  vector<double> &commu_esc_proba,
-											  vector<vector<double>> &p2p_esc_proba)
+											  std::vector<double> &commu_esc_proba,
+											  std::vector<std::vector<double>> &p2p_esc_proba)
 
 	{
 		ushort hh_size = commu_esc_proba.size();
@@ -507,7 +507,7 @@ namespace bax
 		{ //----- seropositives contribution -----//
 
 			// flatten sub-matrix with only seropositives
-			vector<double> escape_matrix((N_star + 1) * N_star, 1.);
+			std::vector<double> escape_matrix((N_star + 1) * N_star, 1.);
 
 			for (ushort i = 0; i < N_star; ++i)
 			{
@@ -546,7 +546,7 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 					<< " n.terms = " << ((num_patterns == 0) ? 0 : 1 + (num_patterns - 1) / 2) << std::endl;
 
 		//----- elements for the escape matrix -----//
-		vector<double> commu_esc_proba(N_star);
+		std::vector<double> commu_esc_proba(N_star);
 		for (ushort i = 0; i < N_star; ++i)
 		{
 			commu_esc_proba[i] = 0.15 + 0.025 * i;
@@ -555,7 +555,7 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 				std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
 			}
 		}
-		vector<vector<double>> p2p_esc_proba(N_star);
+		std::vector<std::vector<double>> p2p_esc_proba(N_star);
 		for (ushort row = 0; row < N_star; ++row)
 		{
 			p2p_esc_proba[row].resize(N_star);

@@ -82,7 +82,7 @@ namespace auxgammap
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Internal error for calls to undefined distribution. */
-double Base_Distribution::_undefined_call_error_(const string &txt, double x, double y) const
+double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
 {
     UNUSED(x);
     UNUSED(y);

@@ -65,7 +65,7 @@ template_model <- function(which = NULL, path = NULL) {
 
 #' Generate a model
 #' @description
-#' `generate_model` generates a model from a default or from a user script.
+#' 'generate_model' generates a model from a default or from a user script.
 #' @param model a string.\itemize{
 #' \item default model name.
 #' \item path/to/folder with implementation model.cpp and header model.h.
@@ -87,13 +87,13 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
     # implementation file
     cpp_file <- file.path(model, "model.cpp")
     if (!file.exists(cpp_file)) {
-      stop(cli::format_error(paste0("A file `", cpp_file, "` does not exist.")))
+      stop(cli::format_error(paste0("A file '", cpp_file, "' does not exist.")))
     }
 
     # header file
     hpp_file <- file.path(model, "model.h")
     if (!file.exists(hpp_file)) {
-      stop(cli::format_error(paste0("A file `", hpp_file, "` does not exist.")))
+      stop(cli::format_error(paste0("A file '", hpp_file, "' does not exist.")))
     }
 
     # temporary folder
@@ -114,7 +114,7 @@ generate_model <- function(model, quiet = TRUE, force = FALSE) {
 
   } else {
     stop(cli::format_error(
-      c(paste0("`", model, "` is not an existing folder nor a default model."),
+      c(paste0("'", model, "' is not an existing folder nor a default model."),
       i = "To see available default models, run: template_model()")))
   }
 
@@ -328,11 +328,7 @@ run_inference <- function(hemi, progbar = TRUE) {
 #' Run the simulation.
 #' @param hemi household model object.
 #' @param progbar boolean flag to suppress progress bar.
-#' @returns Returns a data.frame.
 #' @export
 run_simulation <- function(hemi, progbar = TRUE) {
-
   hemi$simulate(progbar)
-
-  return(hemi$data())
 }

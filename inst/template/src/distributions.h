@@ -66,7 +66,7 @@ protected:
 
 private:
     //----- Internal error for calls to undefined -----//
-    double _undefined_call_error_(const string &txt, double x = 0, double y = 0) const;
+    double _undefined_call_error_(const std::string &txt, double x = 0, double y = 0) const;
 
 
     //----- Functional methods for the truncation -----//
@@ -340,7 +340,7 @@ protected:
 
 /* Return the chosen distribution. */
 template <typename dictargs_val_or_ptr>
-Base_Distribution *distribution_ptr(const string &name = UNDEFINED, const dictargs_val_or_ptr &args = {}, const dictargs &range = {})
+Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED, const dictargs_val_or_ptr &args = {}, const dictargs &range = {})
 {
     Base_Distribution *output = new Base_Distribution();
 

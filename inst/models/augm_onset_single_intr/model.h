@@ -15,13 +15,6 @@
 #include "profiles.h"
 #include "mcmc.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////// Model : class //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,21 +22,9 @@
 class Model : public MCMC
 {
 public:
-	//===== Global Variables =====//
-	//----- Infectivity Profile Functions -----//
-	Infec_Prof_Ferretti20 *infec_prof_ptr;
-
-	//----- Attributes for Look-Up-Tables -----//
-	vector<squarematrix> LUT_inst_profile = {};
-	vector<squarematrix> LUT_cumul_profile = {};
-	vector<int> LUT_house_first_case = {};
-
 	//===== Model dependent methods =====//
 	double transmission_rate(const Household &this_house) const;
-	double force_of_infec(const Household &this_house, int i, const vector<squarematrix> &profiles) const;
-
-	double inst_FOI(const Household &this_house, int i) const { return force_of_infec(this_house, i, LUT_inst_profile); }
-	double cumul_FOI(const Household &this_house, int i) const { return force_of_infec(this_house, i, LUT_cumul_profile); }
+	double foi(const Household &this_house, int i, const std::vector<squarematrix> &profiles) const;
 
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;

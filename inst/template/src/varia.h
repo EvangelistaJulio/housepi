@@ -40,11 +40,11 @@ class Base_Proposer
 public:
 	//=====Constructors=====//
 	Base_Proposer(Base_Distribution *, double rule_start_value = INF_DOUBLE,
-				  vector<int> args_to_adapt = {});
+				  std::vector<int> args_to_adapt = {});
 	virtual ~Base_Proposer() {};
 
 	//===== Getter =====//
-	string get_name() const { return distr_ptr->get_name(); }
+	std::string get_name() const { return distr_ptr->get_name(); }
 	double get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
 	double get_from_value() const { return from_value; }
 	bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
@@ -64,8 +64,8 @@ public:
 	void adapt(double ratio);
 
 	//===== Show =====//
-	string show_arg_names() const { return distr_ptr->show_arg_names(); }
-	string show_arg_values() const { return distr_ptr->show_arg_values(); }
+	std::string show_arg_names() const { return distr_ptr->show_arg_names(); }
+	std::string show_arg_values() const { return distr_ptr->show_arg_values(); }
 
 protected:
 	//===== Attributes =====//
@@ -121,7 +121,7 @@ protected:
 
 private:
 	//===== State Attributes =====//
-	vector<int> _args_to_adapt_ = {};
+	std::vector<int> _args_to_adapt_ = {};
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +129,7 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer *proposer_switchboard(
-	string rule_name = UNDEFINED,
+	std::string rule_name = UNDEFINED,
 	dictargs rule_args = {},
 	double rule_from = INF_DOUBLE);
 
@@ -225,7 +225,7 @@ template <typename dictargs_val_or_ptr>
 class Base_Variable
 {
 protected:
-	string name = UNDEFINED;				// name of the variable
+	std::string name = UNDEFINED;				// name of the variable
 	double value = INF_DOUBLE;				// value of the variable
 	double buffer = INF_DOUBLE;				// buffer of the variable
 	bool infer = false;						// to be inferred or immutable
@@ -234,9 +234,9 @@ protected:
 
 public:
 	//=====Constructor=====//
-	Base_Variable(const string &name = UNDEFINED, double value = INF_DOUBLE,
-				  const string &distr_name = UNDEFINED, dictargs_val_or_ptr distr_args = {},
-				  const string &rule_name = UNDEFINED, dictargs rule_args = {},
+	Base_Variable(const std::string &name = UNDEFINED, double value = INF_DOUBLE,
+				  const std::string &distr_name = UNDEFINED, dictargs_val_or_ptr distr_args = {},
+				  const std::string &rule_name = UNDEFINED, dictargs rule_args = {},
 				  dictargs range = {}, double rule_from = INF_DOUBLE)
 	{
 		//----- Control options -----//
@@ -285,7 +285,7 @@ public:
 				// Waiting for throwing exception structure
 				if ((rule_from != INF_DOUBLE) && (!valid(rule_from)))
 				{
-					std::ostringstream oss;
+					std::osstringstream oss;
 					oss << "Initial value " << rule_from << " outside of value range"
 						<< " {min:" << distr_ptr->get_range_min() << ", max:" << distr_ptr->get_range_max() << "}."
 						<< " If it was intentional, ignore this message.";
@@ -302,7 +302,7 @@ public:
 	virtual ~Base_Variable() {};
 
 	//===== Getter =====//
-	string get_name() const { return name; }
+	std::string get_name() const { return name; }
 	double get_value() const { return value; }
 	const double *get_pointer() const { return &value; }
 	bool get_infer() const { return infer; }
@@ -310,7 +310,7 @@ public:
 	double get_from_value() const { return (prop_ptr->get_from_value)(); }
 
 	//===== Setter =====//
-	void set_name(const string &x) { name = x; }
+	void set_name(const std::string &x) { name = x; }
 	void set_value(double x)
 	{
 		buffer = value;
@@ -340,18 +340,18 @@ public:
 	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//===== Show =====//
-	string show_distr_name() const { return distr_ptr->get_name(); }
-	string show_distr_arg_names() const { return distr_ptr->show_arg_names(); }
-	string show_distr_arg_values() const { return distr_ptr->show_arg_values(); }
+	std::string show_distr_name() const { return distr_ptr->get_name(); }
+	std::string show_distr_arg_names() const { return distr_ptr->show_arg_names(); }
+	std::string show_distr_arg_values() const { return distr_ptr->show_arg_values(); }
 
-	string show_prop_name() const { return prop_ptr->get_name(); }
-	string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
-	string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
+	std::string show_prop_name() const { return prop_ptr->get_name(); }
+	std::string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
+	std::string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
 
 	double get_range_min() const { return distr_ptr->get_range_min(); }
 	double get_range_max() const { return distr_ptr->get_range_max(); }
 
-	string show() const
+	std::string show() const
 	{
 		using namespace basics;
 		std::ostringstream oss;
@@ -398,19 +398,19 @@ class Parameter : public Base_Variable<dictargs>
 public:
 	//===== Constructor =====//
 	// NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
-	Parameter(const string &param_name = UNDEFINED, double new_val = INF_DOUBLE,
-			  const string &prior_name = UNDEFINED, dictargs prior_args = {},
-			  const string &rule_name = UNDEFINED, dictargs rule_args = {},
+	Parameter(const std::string &param_name = UNDEFINED, double new_val = INF_DOUBLE,
+			  const std::string &prior_name = UNDEFINED, dictargs prior_args = {},
+			  const std::string &rule_name = UNDEFINED, dictargs rule_args = {},
 			  dictargs range = {}) : Base_Variable(param_name, new_val, prior_name, prior_args,
 												   rule_name, rule_args, range) {};
 
 	//===== Diagnostics =====//
 	ulong dgn_count = 0;
-	vector<double> dgn_value = {};
+	std::vector<double> dgn_value = {};
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
-	string show_diagnostics() const;
-	vector<double> get_dgn_value() const { return dgn_value; }
+	std::string show_diagnostics() const;
+	std::vector<double> get_dgn_value() const { return dgn_value; }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -421,9 +421,9 @@ class Augmented : public Base_Variable<dictargs_ptr>
 {
 public:
 	//===== Constructor =====//
-	Augmented(const string &augm_name = UNDEFINED, double value = INF_DOUBLE,
-			  const string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
-			  const string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
+	Augmented(const std::string &augm_name = UNDEFINED, double value = std::numeric_limits<double>::quiet_NaN(),
+			  const std::string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
+			  const std::string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
 			  double rule_from = INF_DOUBLE) : Base_Variable(augm_name, value, model_name, model_args_ptr,
 															 rule_name, rule_args, range, rule_from) {};
 };
@@ -443,11 +443,11 @@ public:
 class Monte_Carlo_Core
 {
 public:
-	vector<string> param_file_headers = {"name", "value", "infer",
+	std::vector<std::string> param_file_headers = {"name", "value", "infer",
 										 "prior", "args", "argsval",
 										 "rule", "rargs", "rargsval", "min", "max"};
-	vector<string> param_to_be_inferred = {};
-	vector<string> param_to_be_static = {};
+	std::vector<std::string> param_to_be_inferred = {};
+	std::vector<std::string> param_to_be_static = {};
 
 	//===== Constructors =====//
 	Monte_Carlo_Core() : _uniform_distr_(0., 1.)
@@ -460,17 +460,17 @@ public:
 
 	//===== Getter =====//
 	void disable_assert_param();
-	void assert_param(const string &parID) const;
-	double get_param(const string &parID) const { return (this->*_get_param_method_)(parID); }
-	const double *get_param_pointer(const string &parID) const { return (this->*_get_param_pointer_method_)(parID); }
+	void assert_param(const std::string &parID) const;
+	double get_param(const std::string &parID) const { return (this->*_get_param_method_)(parID); }
+	const double *get_param_pointer(const std::string &parID) const { return (this->*_get_param_pointer_method_)(parID); }
 	const double *get_reference() const { return &REFERENCE_VALUE; }
-	bool get_infer(const string &parID) const { return params.at(parID).get_infer(); }
-	double get_accept_rate(const string &parID) const { return params.at(parID).get_accept_rate(); }
+	bool get_infer(const std::string &parID) const { return params.at(parID).get_infer(); }
+	double get_accept_rate(const std::string &parID) const { return params.at(parID).get_accept_rate(); }
 
 	//===== Setter =====//
 	void init_rand_params(bool is_rand_params);
-	void reset_accept_rate(const string &parID) { params.at(parID).reset_accept_rate(); }
-	void assign_param(const string &parID, const Parameter &new_param);
+	void reset_accept_rate(const std::string &parID) { params.at(parID).reset_accept_rate(); }
+	void assign_param(const std::string &parID, const Parameter &new_param);
 	void drop_all_params();
 	const double *assign_scalar_pointer(double new_val);
 
@@ -479,11 +479,11 @@ public:
 	int get_num_threads() const { return setup_num_threads; };
 
 	//===== Metropolis-Hastings moves =====//
-	bool propose_valid_param_move(const string &parID);
-	void restore_param_value(const string &parID) { params.at(parID).restore_value(); }
-	void update_param_accept_rate(const string &parID, bool is_accepted) { params.at(parID).update_accept_rate(is_accepted); }
-	double param_move_logratio(const string &parID) const { return params.at(parID).get_move_logratio(); }
-	void adapt(const string &parID, double ratio) { params.at(parID).adapt(ratio); }
+	bool propose_valid_param_move(const std::string &parID);
+	void restore_param_value(const std::string &parID) { params.at(parID).restore_value(); }
+	void update_param_accept_rate(const std::string &parID, bool is_accepted) { params.at(parID).update_accept_rate(is_accepted); }
+	double param_move_logratio(const std::string &parID) const { return params.at(parID).get_move_logratio(); }
+	void adapt(const std::string &parID, double ratio) { params.at(parID).adapt(ratio); }
 	void init_param_diagnostics(ulong sample_size);
 	void update_param_diagnostics();
 
@@ -493,40 +493,40 @@ public:
 	double uniform() { return _uniform_distr_(get_prng()); }
 
 	//===== Show =====//
-	string show_param_distr_name(const string &parID) const { return params.at(parID).show_distr_name(); }
-	string show_param_distr_arg_names(const string &parID) const { return params.at(parID).show_distr_arg_names(); }
-	string show_param_distr_arg_values(const string &parID) const { return params.at(parID).show_distr_arg_values(); }
-	string show_param_prop_name(const string &parID) const { return params.at(parID).show_prop_name(); }
-	string show_param_prop_arg_names(const string &parID) const { return params.at(parID).show_prop_arg_names(); }
-	string show_param_prop_arg_values(const string &parID) const { return params.at(parID).show_prop_arg_values(); }
-	double get_param_range_min(const string &parID) const { return params.at(parID).get_range_min(); }
-	double get_param_range_max(const string &parID) const { return params.at(parID).get_range_max(); }
+	std::string show_param_distr_name(const std::string &parID) const { return params.at(parID).show_distr_name(); }
+	std::string show_param_distr_arg_names(const std::string &parID) const { return params.at(parID).show_distr_arg_names(); }
+	std::string show_param_distr_arg_values(const std::string &parID) const { return params.at(parID).show_distr_arg_values(); }
+	std::string show_param_prop_name(const std::string &parID) const { return params.at(parID).show_prop_name(); }
+	std::string show_param_prop_arg_names(const std::string &parID) const { return params.at(parID).show_prop_arg_names(); }
+	std::string show_param_prop_arg_values(const std::string &parID) const { return params.at(parID).show_prop_arg_values(); }
+	double get_param_range_min(const std::string &parID) const { return params.at(parID).get_range_min(); }
+	double get_param_range_max(const std::string &parID) const { return params.at(parID).get_range_max(); }
 
-	string show_param(const string &parID) const;
-	string show_param_diagnostics(const string &parID) const;
-	vector<double> get_dgn_value(const string &parID) const { return params.at(parID).get_dgn_value(); }
+	std::string show_param(const std::string &parID) const;
+	std::string show_param_diagnostics(const std::string &parID) const;
+	std::vector<double> get_dgn_value(const std::string &parID) const { return params.at(parID).get_dgn_value(); }
 
 private:
 	//===== Internal Attributes =====//
-	std::unordered_map<string, Parameter> params = {};	   // parameters dictionary
+	std::unordered_map<std::string, Parameter> params = {};	   // parameters dictionary
 	std::map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
 	std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
 	unsigned setup_num_threads = 1;							// number of OMP threads
 
 	//===== Getter (auxiliary methods) =====//
-	double (Monte_Carlo_Core::*_get_param_method_)(const string &) const = &Monte_Carlo_Core::_get_param_assert_;
-	double _get_param_assert_(const string &parID) const;
-	double _get_param_default_(const string &parID) const;
+	double (Monte_Carlo_Core::*_get_param_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
+	double _get_param_assert_(const std::string &parID) const;
+	double _get_param_default_(const std::string &parID) const;
 
-	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
-	const double *_get_param_pointer_assert_(const string &parID) const;
-	const double *_get_param_pointer_default_(const string &parID) const;
+	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
+	const double *_get_param_pointer_assert_(const std::string &parID) const;
+	const double *_get_param_pointer_default_(const std::string &parID) const;
 
 	//===== Pseudo Random Number Generator (auxiliary methods) =====//
 	// FIXME : this should change if Rcpp according to developer guides
 	sys_rnd_gen prng;						// Mersenne Twister 19937 generator (32 or 64 bit)
-	vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
+	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
 	sys_rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP

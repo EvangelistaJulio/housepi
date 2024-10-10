@@ -11,6 +11,18 @@
 
 #include "model.h"
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+//----- Infectivity Profile Functions -----//
+Infec_Prof_Ferretti20 *infec_prof_ptr;
+
+//----- Attributes for Look-Up-Tables -----//
+std::vector<squarematrix> LUT_inst_prof;
+std::vector<squarematrix> LUT_cumul_prof;
+std::vector<int> LUT_hh_first_case;
+
 //-----------------------------------------------------------------------------------------------//
 //---------------------------------- - - - CHANGE-ME - - - --------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
@@ -113,7 +125,6 @@ double Model::transmission_rate(const Household &this_house) const
 void Model::init_model_for_inference()
 {
 	//===== Initialize Lookup Tables (infectivity profiles) =====//
-
 	dictargs args = {{"alpha", get_param("tost_alpha")},
 					 {"mu", get_param("tost_mu")},
 					 {"sigma", get_param("tost_sigma")},
@@ -121,20 +132,20 @@ void Model::init_model_for_inference()
 	infec_prof_ptr = new Infec_Prof_Ferretti20(args);
 
 	// clear the Lookup Tables (in case of multiple initializations)
-	LUT_inst_profile.clear();
-	LUT_cumul_profile.clear();
+	LUT_inst_prof.clear();
+	LUT_cumul_prof.clear();
 
 	//===== Initialize household features =====//
 
-	// vector with index of first infector
-	LUT_house_first_case = vector<int>(num_house, -1);
+	// std::vector with index of first infector
+	LUT_hh_first_case = std::vector<int>(num_house, -1);
 
 	// produce the empty matrix for the infectivity profiles look-up-tables
 	for (int h = 0; h < num_house; h++)
 	{
 		int h_size = house[h].size();
-		LUT_inst_profile.emplace_back(h_size, vector<double>(h_size, 0.));
-		LUT_cumul_profile.emplace_back(h_size, vector<double>(h_size, 0.));
+		LUT_inst_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
+		LUT_cumul_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
 	}
 }
 
@@ -182,17 +193,17 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 
 			if (t_infec_i < t_infec_k)
 			{ //----- `i` : infector, `k` : infectee -----//
-				LUT_inst_profile[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
-				LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
-				LUT_inst_profile[h][k][i] = 0.;
-				LUT_cumul_profile[h][k][i] = 0.;
+				LUT_inst_prof[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
+				LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+				LUT_inst_prof[h][k][i] = 0.;
+				LUT_cumul_prof[h][k][i] = 0.;
 			}
 			else if (t_infec_k < t_infec_i)
 			{ //----- `k` : infector, `i` : infectee -----//
-				LUT_inst_profile[h][i][k] = 0.;
-				LUT_cumul_profile[h][i][k] = 0.;
-				LUT_inst_profile[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
-				LUT_cumul_profile[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
+				LUT_inst_prof[h][i][k] = 0.;
+				LUT_cumul_prof[h][i][k] = 0.;
+				LUT_inst_prof[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
+				LUT_cumul_prof[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
 
 				// update first case
 				if (t_infec_k < new_t0)
@@ -212,13 +223,13 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	t_infec_k = this_house.indiv[hh_first_case].get_augm("onset_date") + get_param("study_period");
 	for (int k : this_house.susceptible_set)
 	{
-		LUT_cumul_profile[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+		LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
 	}
 
 	//==================================//
 	//===== Store house first case =====//
 	//==================================//
-	LUT_house_first_case[h] = hh_first_case;
+	LUT_hh_first_case[h] = hh_first_case;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -233,7 +244,7 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::force_of_infec(const Household &this_house, int i, const vector<squarematrix> &profiles) const
+double Model::foi(const Household &this_house, int i, const std::vector<squarematrix> &profiles) const
 {
 	int h = this_house.get_id();
 	double output = 0.0;
@@ -265,16 +276,16 @@ double Model::compute_house_loglike(const Household &this_house) const
 	// Contribution of healthy members
 	for (int i : this_house.susceptible_set)
 	{
-		loglike_house -= cumul_FOI(this_house, i);
+		loglike_house -= foi(this_house, i, LUT_cumul_prof);
 	}
 
 	// Contribution of symptomatic members
 	for (int i : this_house.infectious_set)
 	{
 		// Contribution of secondary cases
-		if (i != LUT_house_first_case[h])
+		if (i != LUT_hh_first_case[h])
 		{
-			loglike_house += log(inst_FOI(this_house, i)) - cumul_FOI(this_house, i);
+			loglike_house += log(foi(this_house, i, LUT_inst_prof)) - foi(this_house, i, LUT_cumul_prof);
 		}
 	}
 
@@ -339,7 +350,7 @@ void Model::simulate_single_house(Household &this_house)
 				update_augm_dependecies(this_house, i);
 
 				// restore status id escaped infection
-				if (uniform() < exp(-inst_FOI(this_house, i) * Dt))
+				if (uniform() < exp(-foi(this_house, i, LUT_inst_prof) * Dt))
 				{
 					this_house.change_status(i, SUSCEPTIBLE);
 				}

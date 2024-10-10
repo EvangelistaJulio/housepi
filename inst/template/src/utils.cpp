@@ -24,8 +24,8 @@ namespace basics
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* An internal check for string representing NA. */
-    bool is_na(const string &txt)
+    /* An internal check for std::string representing NA. */
+    bool is_na(const std::string &txt)
     {
         if (txt.size() == 0)
         {
@@ -33,8 +33,8 @@ namespace basics
         }
         else
         {
-            vector<string> forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
-            for (const string &txtnan : forbidden)
+            std::vector<std::string> forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
+            for (const std::string &txtnan : forbidden)
             {
                 if (txt == txtnan)
                 {
@@ -47,7 +47,7 @@ namespace basics
     }
 
     /* Welford online algorithm for mean and variance. */
-    void statistics(const vector<double> &data, double &avg, double &var)
+    void statistics(const std::vector<double> &data, double &avg, double &var)
     {
         size_t N = data.size();
         double x, delta, delta2;
@@ -65,8 +65,8 @@ namespace basics
         var = sqr_diff / (N - 1);
     }
 
-    /* A formatted string for percent of num/denom */
-    string percent(double num, double den)
+    /* A formatted std::string for percent of num/denom */
+    std::string percent(double num, double den)
     {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(1)
@@ -74,8 +74,8 @@ namespace basics
         return oss.str();
     }
 
-    /* A formatted string for TRUE/FALSE values. */
-    string truth(bool condition)
+    /* A formatted std::string for TRUE/FALSE values. */
+    std::string truth(bool condition)
     {
 #ifdef USE_RCPP
         return (condition ? "true" : "false");
@@ -89,7 +89,7 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Function to change stdout in case of RCPP. */
-    void print_stdout(const string &txt)
+    void print_stdout(const std::string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::Rcout << txt;
@@ -101,7 +101,7 @@ namespace basics
     }
 
     /* Internal helper function to change stderr in case of RCPP. */
-    void _helper_stderr_(const string &txt)
+    void _helper_stderr_(const std::string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::Rcerr << txt;
@@ -117,13 +117,13 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display a decorator for a section (if VERBOSE) */
-    void print_decorator(const string &title, const string &txt, char decor, bool verbose)
+    void print_decorator(const std::string &title, const std::string &txt, char decor, bool verbose)
     {
         if (verbose)
         {
             std::ostringstream oss;
-            oss << string(DECOR_LEFT, decor) << " " << title << " "
-                << string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) << "\n";
+            oss << std::string(DECOR_LEFT, decor) << " " << title << " "
+                << std::string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) << "\n";
             if (!is_na(txt))
             {
                 oss << txt << "\n";
@@ -144,7 +144,7 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Format the  */
-    string format_millisecs(long long elapsed)
+    std::string format_millisecs(long long elapsed)
     {
         using namespace std::chrono;
 
@@ -179,7 +179,7 @@ namespace basics
     }
 
     /* Initialize progress bar. */
-    void progress_bar_init(const string &txt, bool verbose)
+    void progress_bar_init(const std::string &txt, bool verbose)
     {
         using namespace std::chrono;
 
@@ -187,9 +187,9 @@ namespace basics
         {
             std::ostringstream oss;
             oss << "\r"
-                << txt << ": [" + string(PROGBAR_WIDTH, '.') << "] "
+                << txt << ": [" + std::string(PROGBAR_WIDTH, '.') << "] "
                 << percent(0., 1.) << " 00m00s<??m??s"
-                << string(20, ' ');
+                << std::string(20, ' ');
             _helper_stderr_(oss.str());
 
             _ProgBar_Thin_ = 1;
@@ -203,7 +203,7 @@ namespace basics
     }
 
     /* Percentual progress bar (progress/total). */
-    void progress_bar_run(const string &txt, ulong progress, ulong total, bool verbose)
+    void progress_bar_run(const std::string &txt, ulong progress, ulong total, bool verbose)
     {
         using namespace std::chrono;
 
@@ -219,11 +219,11 @@ namespace basics
 
                 std::ostringstream oss;
                 oss << "\r"
-                    << txt << ": [" << string(where, C_PROG) << string(PROGBAR_WIDTH - where, '.') << "] "
+                    << txt << ": [" << std::string(where, C_PROG) << std::string(PROGBAR_WIDTH - where, '.') << "] "
                     << percent(progress, total)
                     << " " << format_millisecs(time_elapsed) << "<"
                     << ((time_elapsed > 5000) ? format_millisecs(time_missing) : "??m??s")
-                    << string(20, ' ');
+                    << std::string(20, ' ');
                 _helper_stderr_(oss.str());
 
                 // adapt progressbar thinning
@@ -245,7 +245,7 @@ namespace basics
     }
 
     /*  End the progress bar. */
-    void progress_bar_end(const string &txt, bool verbose)
+    void progress_bar_end(const std::string &txt, bool verbose)
     {
         using namespace std::chrono;
 
@@ -254,9 +254,9 @@ namespace basics
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _ProgBar_Start_).count();
             std::ostringstream oss;
             oss << "\r"
-                << txt << ": [" << string(PROGBAR_WIDTH, C_PROG) << "] "
+                << txt << ": [" << std::string(PROGBAR_WIDTH, C_PROG) << "] "
                 << format_millisecs(time_elapsed)
-                << string(25, ' ') << "\n";
+                << std::string(25, ' ') << "\n";
             _helper_stderr_(oss.str());
         }
 
@@ -278,7 +278,7 @@ namespace basics
 
     /* Raise a warning if it wasn't raised before. */
     // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
-    void raise_warning(const string &txt, bool &is_raised_once)
+    void raise_warning(const std::string &txt, bool &is_raised_once)
     {
         if (!is_raised_once)
         {
@@ -300,7 +300,7 @@ namespace basics
 
     /* Display an error message. */
     // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
-    void raise_error(const string &txt)
+    void raise_error(const std::string &txt)
     {
 #pragma omp critical
         {
@@ -335,16 +335,16 @@ bool Unused_Range_Warning = false; // warning for invalid proposer range declara
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Overload constructor for argument VALUES. */
-Base_Function::Base_Function(const string &name,
+Base_Function::Base_Function(const std::string &name,
                              const dictargs &args_val,
-                             const vector<string> &order,
+                             const std::vector<std::string> &order,
                              const dictargs &domain)
 {
     _name_ = name;
     _args_names_ = order;
     _args_val_ = new double[_args_names_.size()];
     int i = 0;
-    for (const string &argID : order)
+    for (const std::string &argID : order)
     {
         _args_val_[i++] = args_val.at(argID);
     }
@@ -357,16 +357,16 @@ Base_Function::Base_Function(const string &name,
 }
 
 /* Overload constructor for argument POINTERS. */
-Base_Function::Base_Function(const string &name,
+Base_Function::Base_Function(const std::string &name,
                              const dictargs_ptr &args_ptr,
-                             const vector<string> &order,
+                             const std::vector<std::string> &order,
                              const dictargs &domain)
 {
     _name_ = name;
     _args_names_ = order;
     _args_ptr_ = new const double *[args_ptr.size()];
     int i = 0;
-    for (const string &argID : order)
+    for (const std::string &argID : order)
     {
         _args_ptr_[i++] = args_ptr.at(argID);
     }
@@ -575,7 +575,7 @@ int Base_Function::set_range(const dictargs &new_range)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return formatted argument names of the distribution. */
-string Base_Function::show_arg_names() const
+std::string Base_Function::show_arg_names() const
 {
     if (_args_names_.empty())
     {
@@ -594,7 +594,7 @@ string Base_Function::show_arg_names() const
 }
 
 /* Return formatted argument names of the distribution. */
-string Base_Function::show_arg_values() const
+std::string Base_Function::show_arg_values() const
 {
     if (_args_names_.empty())
     {

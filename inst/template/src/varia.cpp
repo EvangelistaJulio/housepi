@@ -29,7 +29,7 @@ bool Above_Max_Threads_Warning = false; // warning for over the threshold n. of 
 
 Base_Proposer::Base_Proposer(Base_Distribution *distr,
                              double rule_start,
-                             vector<int> args_to_adapt) : distr_ptr(distr)
+                             std::vector<int> args_to_adapt) : distr_ptr(distr)
 {
     _args_to_adapt_ = args_to_adapt;
 
@@ -74,7 +74,7 @@ void Base_Proposer::update_accept_rate(bool is_accepted)
 }
 
 /* Switchboard to select the custom metropolis proposer rule. */
-Base_Proposer *proposer_switchboard(string rule_name, dictargs rule_args, double rule_from)
+Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, double rule_from)
 {
     Base_Proposer *output = new Base_Proposer(new Base_Distribution());
 
@@ -114,7 +114,7 @@ void Parameter::init_diagnostics(ulong sample_size)
 {
     dgn_count = 0;
     dgn_value.clear();
-    dgn_value = vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
+    dgn_value = std::vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
 }
 
 /* Update the values for the Bayesian diagnostics. */
@@ -124,7 +124,7 @@ void Parameter::update_diagnostics()
 }
 
 /* Message to be used at the moment of display diagnostics. */
-string Parameter::show_diagnostics() const
+std::string Parameter::show_diagnostics() const
 {
     using namespace basics;
     std::ostringstream oss;
@@ -151,26 +151,26 @@ string Parameter::show_diagnostics() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to get a value. */
-double Monte_Carlo_Core::_get_param_default_(const string &parID) const
+double Monte_Carlo_Core::_get_param_default_(const std::string &parID) const
 {
     return params.at(parID).get_value();
 }
 
 /* Safe method to get a value with previous assertion. */
-double Monte_Carlo_Core::_get_param_assert_(const string &parID) const
+double Monte_Carlo_Core::_get_param_assert_(const std::string &parID) const
 {
     assert_param(parID);
     return _get_param_default_(parID);
 }
 
 /* Default method to get a pointer to a parameter. */
-const double *Monte_Carlo_Core::_get_param_pointer_default_(const string &parID) const
+const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string &parID) const
 {
     return params.at(parID).get_pointer();
 }
 
 /* Safe method to get a pointer to a parameter with previous assertion. */
-const double *Monte_Carlo_Core::_get_param_pointer_assert_(const string &parID) const
+const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string &parID) const
 {
     assert_param(parID);
     return _get_param_pointer_default_(parID);
@@ -196,7 +196,7 @@ void Monte_Carlo_Core::drop_all_params()
 }
 
 /* Assign a new parameter to the dictionary. */
-void Monte_Carlo_Core::assign_param(const string &parID, const Parameter &new_param)
+void Monte_Carlo_Core::assign_param(const std::string &parID, const Parameter &new_param)
 {
     // create the new parameter if it's not already defined
     if (params.find(parID) != params.end())
@@ -295,7 +295,7 @@ const double *Monte_Carlo_Core::assign_scalar_pointer(double new_val)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise raise error. */
-void Monte_Carlo_Core::assert_param(const string &parID) const
+void Monte_Carlo_Core::assert_param(const std::string &parID) const
 {
     if (params.find(parID) == params.end())
     {
@@ -308,7 +308,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 {
     if (is_rand_params)
     {
-        for (const string &parID : param_to_be_inferred)
+        for (const std::string &parID : param_to_be_inferred)
         {
             params.at(parID).rand(prng);
         }
@@ -322,7 +322,7 @@ void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
 // FIXME : Gibbs sampling is missing here!
 // 1) always valid 2) move_logratio == 0
-bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
+bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
 {
     // set new value of the parameter and store the old to buffer
     params.at(parID).propose(prng);
@@ -343,7 +343,7 @@ bool Monte_Carlo_Core::propose_valid_param_move(const string &parID)
 /* Init diagnostics for all parameters */
 void Monte_Carlo_Core::init_param_diagnostics(ulong sample_size)
 {
-    for (const string &parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         params.at(parID).init_diagnostics(sample_size);
     }
@@ -352,14 +352,14 @@ void Monte_Carlo_Core::init_param_diagnostics(ulong sample_size)
 /* Update diagnostics for all parameters */
 void Monte_Carlo_Core::update_param_diagnostics()
 {
-    for (const string &parID : param_to_be_inferred)
+    for (const std::string &parID : param_to_be_inferred)
     {
         params.at(parID).update_diagnostics();
     }
 }
 
 /* Format parameter to show. */
-string Monte_Carlo_Core::show_param(const string &parID) const
+std::string Monte_Carlo_Core::show_param(const std::string &parID) const
 {
     std::ostringstream oss;
     oss << parID << basics::C_DELIM << params.at(parID).show();
@@ -367,7 +367,7 @@ string Monte_Carlo_Core::show_param(const string &parID) const
 }
 
 /* Format parameter diagnostics to show. */
-string Monte_Carlo_Core::show_param_diagnostics(const string &parID) const
+std::string Monte_Carlo_Core::show_param_diagnostics(const std::string &parID) const
 {
     std::ostringstream oss;
     oss << parID << basics::C_DELIM << params.at(parID).show_diagnostics();

@@ -63,7 +63,7 @@ str_join_ <- function(x) {
 #' @examples
 #' # example for the parameters of a gamma distribution
 #' params <- ParameterFrame(list(
-#'   # define the `shape` parameter
+#'   # define the 'shape' parameter
 #'   shape = list(
 #'     x = 1,                          # initial value
 #'     prior = "unif",                 # choose a uniform prior
@@ -72,7 +72,7 @@ str_join_ <- function(x) {
 #'     rule = "norm",                  # Monte Carlo normal move
 #'     rule_args = list(sd = 0.5)      # initial sd of the move (later adapted)
 #'   ),
-#'   # define the `scale` parameter
+#'   # define the 'scale' parameter
 #'   scale = list(
 #'     x = 0.5,                        # initial value
 #'     infer = FALSE,                  # do to infer scale
@@ -181,7 +181,7 @@ ParameterFrame <- setRefClass(
       model_params_set <- c(model_params_set, unique(aux[!is.na(aux)]))
       
       # from : assign_rate_per_group(, "string")
-      regular_expr <- '\\.assign_rate_per_group\\s*\\(.*?,\\s*["\'](.*?)["\']'
+      regular_expr <- '\\.assign_group_rate\\s*\\(.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       aux <- unlist(lapply(matches, function(x)
         x[, 2]))
@@ -207,9 +207,9 @@ ParameterFrame <- setRefClass(
         }
       }
       if (length(unused) > 0) {
-        oss <- paste0("Parameter(s) not declared within model: `", unused[[1]], "`")
+        oss <- paste0("Parameter(s) not declared within model: '", unused[[1]], "'")
         for (name in unused[-1]) {
-          oss <- paste0(oss, ", `", name, "`")
+          oss <- paste0(oss, ", '", name, "'")
         }
         cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
       }
@@ -229,18 +229,18 @@ ParameterFrame <- setRefClass(
       \\item Parameter: args - List of arguments for the prior distribution.
       \\item Parameter: rule - String with the inference rule.
       \\item Parameter: rule_args - List of arguments for the inference rule.
-      \\item Parameter: range - List with `min` and/or `max` values (or none).
+      \\item Parameter: range - List with 'min' and/or 'max' values (or none).
       }"
       
-      if (is.na(name) || is.na(x)) {
+      if (is.na(name)) {
         stop(cli::format_error(c(
-          "Incomplete definition: provide both name and value x."
+          "Missing parameter name."
         )))
       }
       
       if (name %in% df[["name"]]) {
         cli::cli_alert_warning(cli::format_warning(c(
-          paste0("Overwriting existing `", name, "` definition.")
+          paste0("Overwriting existing '", name, "' definition.")
         )))
         df <<- df[df$name != name, ]
       }
@@ -250,7 +250,7 @@ ParameterFrame <- setRefClass(
         infer <- !is.na(rule)
         if (is.na(rule) && (!is.na(prior))) {
           cli::cli_alert_warning(cli::format_warning(
-            c(paste0("`", name, "` interpreted as if infer = FALSE."),
+            c(paste0("'", name, "' interpreted as if infer = FALSE."),
               i = "Provide one between rule/infer to silence this warning.")
           ))
         }
@@ -260,7 +260,7 @@ ParameterFrame <- setRefClass(
         #----- prior -----#
         if (is.na(prior)) {
           stop(cli::format_error(c(
-            paste0("Provide a prior name for `", name, "`.")
+            paste0("Provide a prior name for '", name, "'.")
           )))
         }
         
@@ -275,7 +275,7 @@ ParameterFrame <- setRefClass(
         #----- rule -----#
         if (is.na(rule)) {
           stop(cli::format_error(c(
-            paste0("Provide a rule name for `", name, "`.")
+            paste0("Provide a rule name for '", name, "'.")
           )))
         } else if (length(rule_args) == 0) {
           rargs_ <- NA
@@ -298,6 +298,12 @@ ParameterFrame <- setRefClass(
                                 stringsAsFactors = FALSE))
         
       } else {
+
+        if (is.na(x)) {
+          stop(cli::format_error(
+            paste0("Missing value for constant parameter '", name, "'.")
+          ))
+        }
         df <<- rbind(df,
                      data.frame(name = name, value = x, infer = FALSE,
                                 prior = NA, args = NA, argsval = NA,
@@ -394,7 +400,7 @@ AugmentedFrame <- setRefClass(
       \\item Parameter: rule - String with the inference rule.
       \\item Parameter: rule_args - List of arguments for the inference rule.
       \\item Parameter: rule_from - Scalar/string with addtional rule options.
-      \\item Parameter: range - List with `min` and/or `max` values (or none).
+      \\item Parameter: range - List with 'min' and/or 'max' values (or none).
       \\item Parameter: init_rand - Logical to randomly initialize with model.
       \\item Parameter: status - Integer of the associated status.
       }"
@@ -406,7 +412,7 @@ AugmentedFrame <- setRefClass(
         if (name %in% df[["name"]])
         {
           cli::cli_alert_warning(cli::format_warning(c(
-            paste0("Existing `", name, "` definition has been overwritten.")
+            paste0("Existing '", name, "' definition has been overwritten.")
           )))
           df <<- df[df$name != name, ]
         }
@@ -442,7 +448,7 @@ AugmentedFrame <- setRefClass(
         if (length(args) == 0)
         {
           cli::cli_alert_warning(cli::format_warning(c(
-            paste0("Missing args for augmented variable `", name, "`.")
+            paste0("Missing args for augmented variable '", name, "'.")
           )))
           
         } else {
@@ -462,7 +468,7 @@ AugmentedFrame <- setRefClass(
       if (!is.na(rule)) {
         if ((rule != "gibbs") && (length(rule_args) == 0)) {
           cli::cli_alert_warning(cli::format_warning(c(
-            paste0("Missing rule_args for augmented variable `", name, "`.")
+            paste0("Missing rule_args for augmented variable '", name, "'.")
           )))
         } else {
           rargs_ <- str_join_(names(rule_args))

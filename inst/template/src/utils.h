@@ -49,30 +49,28 @@ using sys_rnd_gen = std::mt19937;
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-using std::string;
-using std::vector;
 typedef unsigned short int ushort;
 typedef unsigned long int ulong;
-typedef std::unordered_map<string, double> dictargs;
-typedef std::unordered_map<string, const double *> dictargs_ptr;
-typedef vector<vector<double>> squarematrix;
+typedef std::unordered_map<std::string, double> dictargs;
+typedef std::unordered_map<std::string, const double *> dictargs_ptr;
+typedef std::vector<std::vector<double>> squarematrix;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME :NaN and NA to be revised
-constexpr double INF_DOUBLE = 1e10;    // numerical infinity value
-const string UNDEFINED = "<NA>";       // name for undefined choice
-const string EMPTY_RATE = "__empty__"; // name for Contact rate
+constexpr double INF_DOUBLE = 1e10;         // numerical infinity value
+const std::string UNDEFINED = "<NA>";       // name for undefined choice
+const std::string EMPTY_RATE = "__empty__"; // name for Contact rate
 
 // constants
-constexpr int MAX_NUMBER_ATTEMPTS = 50;       // max n. of attempts for initialization
-constexpr double TARGET_ACCEPT_RATE = 0.234;  // target acceptation rate for MCMC
-const string IO_MISMATCH = "__io_mismatch__"; // name for undefined choice
-constexpr double REFERENCE_VALUE = 1.0;       // auxiliary reference value for the parameters
-const string REFERENCE = "__reference__";     // name for reference choice
-const string CONTACT_RATE = "Contact";        // name for Contact rate
+constexpr int MAX_NUMBER_ATTEMPTS = 50;            // max n. of attempts for initialization
+constexpr double TARGET_ACCEPT_RATE = 0.234;       // target acceptation rate for MCMC
+const std::string IO_MISMATCH = "__io_mismatch__"; // name for undefined choice
+constexpr double REFERENCE_VALUE = 1.0;            // auxiliary reference value for the parameters
+const std::string REFERENCE = "__reference__";     // name for reference choice
+const std::string CONTACT_RATE = "Contact";        // name for Contact rate
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -92,29 +90,29 @@ namespace basics
     constexpr char C_DECOR = '-';      // decorator for prints
     constexpr char C_PROG = '=';       // decorator for progress bar
 
-    bool is_na(const string &txt);
-    void statistics(const vector<double> &data, double &avg, double &var);
+    bool is_na(const std::string &txt);
+    void statistics(const std::vector<double> &data, double &avg, double &var);
 
     // output formatter
-    string percent(double num, double denom);
-    string truth(bool condition);
+    std::string percent(double num, double denom);
+    std::string truth(bool condition);
 
-    void print_stdout(const string &txt);
-    void print_decorator(const string &title,
-                         const string &txt = UNDEFINED,
+    void print_stdout(const std::string &txt);
+    void print_decorator(const std::string &title,
+                         const std::string &txt = UNDEFINED,
                          char decor = C_DECOR,
                          bool verbose = true);
 
     // print progress bar to stdout
-    void progress_bar_init(const string &txt, bool verbose = true);
-    void progress_bar_run(const string &txt, ulong progress, ulong total, bool verbose = true);
-    void progress_bar_end(const string &txt, bool verbose = true);
+    void progress_bar_init(const std::string &txt, bool verbose = true);
+    void progress_bar_run(const std::string &txt, ulong progress, ulong total, bool verbose = true);
+    void progress_bar_end(const std::string &txt, bool verbose = true);
 
     // print warnings to stderr
-    void raise_warning(const string &txt, bool &is_raised_once);
+    void raise_warning(const std::string &txt, bool &is_raised_once);
 
     // print error message to stderr
-    void raise_error(const string &txt);
+    void raise_error(const std::string &txt);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -141,18 +139,18 @@ public:
     // this is necessary if I want to access arguments by index and not by name (faster...?)
     // FIXME : 1) check if by index faster; 2) collapse overloaded constructors
     Base_Function() {};
-    Base_Function(const string &name,
+    Base_Function(const std::string &name,
                   const dictargs &args_val,
-                  const vector<string> &order,
+                  const std::vector<std::string> &order,
                   const dictargs &domain = {});
-    Base_Function(const string &name,
+    Base_Function(const std::string &name,
                   const dictargs_ptr &args_ptr,
-                  const vector<string> &order,
+                  const std::vector<std::string> &order,
                   const dictargs &domain = {});
     virtual ~Base_Function() {};
 
     //===== Getter (functional) =====//
-    string get_name() const { return _name_; }
+    std::string get_name() const { return _name_; }
     bool valid(double x) const { return (this->*_valid_range_method_)(x); }
     double get_range_min() const { return (_range_min_ > -INF_DOUBLE) ? _range_min_ : std::numeric_limits<double>::quiet_NaN(); }
     double get_range_max() const { return (_range_max_ < INF_DOUBLE) ? _range_max_ : std::numeric_limits<double>::quiet_NaN(); }
@@ -163,16 +161,16 @@ public:
     void set_arg(int i, double new_value) { (this->*_set_arg_method_)(i, new_value); }
 
     //===== Show =====//
-    string show_arg_names() const;
-    string show_arg_values() const;
+    std::string show_arg_names() const;
+    std::string show_arg_values() const;
 
 protected:
     //===== Initial non default arguments =====//
     void assign_args(dictargs new_args_val);
     void assign_args(dictargs_ptr new_args_ptr);
 
-    string _name_ = UNDEFINED;
-    vector<string> _args_names_ = {};    // ordered list of argument names
+    std::string _name_ = UNDEFINED;
+    std::vector<std::string> _args_names_ = {};    // ordered list of argument names
     double *_args_val_ = nullptr;        // internal arguments (fixed at initialization)
     const double **_args_ptr_ = nullptr; // external arguments (pointer to variable)
 

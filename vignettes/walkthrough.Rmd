@@ -1,118 +1,111 @@
 ---
 title: "Walkthrough"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
   %\VignetteIndexEntry{Walkthrough}
-  %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
-We introduce `housepi`, a toolkit for the study of epidemiological data from household outbreaks. We'll walk through the process of loading the model, building it with necessary data and running inference.
+We introduce `housepi`, a toolkit for the study of epidemiological data from household outbreaks.
+We'll walk through the process of loading the model, building it with necessary data and running inference.
 
-```{r, echo=FALSE, out.width = "100%"}
-knitr::include_graphics("images/cover-light.png")
-```
+## The Model Class
 
-## Model Generation
-
-We initialize our model objects with the function `generate_model`. We show how it works with the template chain binomial model:
+The central element of the package is the class associated to the model.
+We generate the class and produce an object from it with the function `generate_model`.
+For simplicity, we show how it works with a template model, the chain binomial:
 
 ```{r}
-# generate a chain binomial model
-hemi <- housepi::generate_model("chain_binom")
+# generate an object from the chain binomial model class
+chabi <- housepi::generate_model("chain_binom")
 ```
 
 *Note:* this process can take a few minutes because it compiles the full template.
 
-To see the list of template model names run `housepi::template_model()`. To create a custom model refer to the vignette [custom_models](custom_models.html).
+To see the complete list of template models, run `housepi::template_model()`.
+Alternatively we can create a custom, but we will talk about it in the vignette [custom_models](custom_models.html).
 
-## Build the Model
+To proceed any further, a model requires a database and the definitions to its parameters.
 
-Every model requires its parameter definitions and a database.
+### Database
 
-1.  **parameters:** a DataFrame (or a csv file) with the parameters priors and proposer rules needed for the Bayesian Monte Carlo. Constants can be provided by putting the *infer* column to `FALSE`. To help formatting data frame with the respectful definitions, we provide a class `ParameterFrame` which can be used as follows:
+In housepi, data can be provided with a numerical DataFrame (or a path to a csv file) where each row contains a single individual information.
+Individuals with equal `house_id` will then be associated to the same household.
+A column `status` must be provided if to perform inference: ${\geq}1$ if infectious, $0$ if susceptible, $-1$ if missing.
+Additionally, an individual identifier can be provided with the column `id`.
+
+```{r}
+database <- read.csv("survey.csv")
+```
+
+```{r, echo=FALSE}
+knitr::kable(head(database[c("id", "house_id", "status")]))
+```
+
+### Parameter Definitions (TEMPORARY)
+
+Parameter definitions are organized in DataFrame with the priors and proposer rules needed for the Bayesian Monte Carlo.
+At any moment, a parameter can be considered as a constant by putting the *infer* option to `FALSE`.
+To format a data frame with definitions, we provide a class `ParameterFrame` which can be used as follows:
 
 ```{r, echo=TRUE}
-params <- housepi::ParameterFrame(list(
-  alpha = list(x = 0.15, 
-               prior = "unif", args = list(min = 0, max = 5),
-               rule = "lnorm", rule_args = list(sdlog = 5)),
-  beta = list(x = 0.25, 
-              prior = "unif", args = list(min = 0, max = 5),
-              rule = "lnorm", rule_args = list(sdlog = 5))
+pars <- housepi::ParameterFrame(list(
+  alpha = list(prior = "unif", args = list(min = 0, max = 5),
+               rule = "lnorm", rule_args = list(sdlog = 1)),
+  beta = list(prior = "unif", args = list(min = 0, max = 5),
+              rule = "lnorm", rule_args = list(sdlog = 1))
   ))
 ```
 
-2.  **database:** a numerical DataFrame (or a csv file) with the individual data organised by rows. Individuals with equal `house_index` are associated to the same household. A column `status` must be provided if to perform inference, 0 if negative, 1 if positive, -1 if missing. Additionally, an `index` can be provided.
+### Setup Definitions
 
-```{r, echo=FALSE}
-knitr::kable(head(read.csv("survey.csv")))
+We can pass the Monte Carlo general configurations with a list containing the number of iterations, seed, etc.
+
+```{r}
+setup <- list(num_adapt = 2500, num_iter = 10000, burn_in = 2500,
+              thinning = 15, num_chains = 4, seed = 5, num_threads = 4)
 ```
 
 We build our model with these information using the function `build_model`.
+Definitions can be changed at any time by using the same function.
 
 ```{r}
-# associate database and parameters
-housepi::build_model(hemi, data = "survey.csv", params = params$df)
+# associate all
+housepi::build_model(chabi, data = database, params = pars$df, setup = setup)
 ```
 
-Additional definitions can be provided at any time by using the same function. E. g. we can pass the Monte Carlo general configurations with the argument:
-
--   **setup:** a list (or a csv file) with the number of iterations, seed, etc.
+*Note:* parallelization is implemtented with openMP which is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
 
 ```{r}
-setup <- list(num_iter = 5000, num_adapt = 1000, burn_in = 500,
-              thinning = 10, num_chains = 4, rnd_init_params = TRUE,
-              seed = 576125013, num_threads = 4)
-
-# associate setup
-housepi::build_model(hemi, setup = setup)
-```
-
-*Note:* openMP is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
-
-## Simulation
-
-To produce a simulated database according to the model, we execute the command `run_simulation`. This requires a pre-loaded database to provide the household compositions.
-
-```{r}
-# override status of the database according to simulation 
-housepi::run_simulation(hemi)
-
-# show a summary of the current simulated database 
-hemi$show_summary()
-```
-
-For the full results of the simulation, we can use the method `data` which returns the DataFrame with the current database.
-
-```{r, eval=TRUE}
-head(hemi$data())
+# show a summary of the current database 
+chabi$show_summary()
 ```
 
 ## Inference
 
-Before proceeding any further, it can be useful to check with the method `evaluate` if the model can evaluate the loglikelihood without errors:
-
-```{r}
-hemi$evaluate()
-```
-
 Now we can safely perform inference with the function `run_inference`.
 
 ```{r}
-mcmc_traces <- housepi::run_inference(hemi)
+mcmc_traces <- housepi::run_inference(chabi)
 ```
 
-This method returns a `coda` mcmc object (or mcmc.list) which can then be used to analyze the results as follows:
+This method returns a `coda` mcmc object (or mcmc.list if multiple chains) which can then be used to analyze the results as follows:
 
 ```{r}
-# Visualize the traces of the first MCMC chain
-coda::traceplot(mcmc_traces[1])
+# visualize the traces of the first MCMC chain
+coda::traceplot(mcmc_traces[1], col="#B1A12C")
 
-# Print summary of the posterior estimates
-summary(mcmc_traces)
+# print summary of the posterior estimates
+results <- summary(mcmc_traces)
 
-# Compute effective sample size
+# compute effective sample size
 coda::effectiveSize(mcmc_traces)
 
 # Gelman-Rubin diagnostic
@@ -126,7 +119,7 @@ See [coda CRAN documentation](https://cran.r-project.org/web/packages/coda/index
 We can extract the log-likelihood matrix to perform model diagnostics with the R package `loo` ([CRAN documentation](https://cloud.r-project.org/web/packages/loo/index.html)) :
 
 ```{r}
-llmtx <- hemi$loglike_matrix()
+llmtx <- chabi$loglike_matrix()
 
 # WAIC (widely applicable information criterion)
 loo::waic(llmtx)
@@ -138,5 +131,56 @@ loo::loo(llmtx)
 Another feature of the `housepi` package is the possibility to estimate the marginal loglikelihood with the method of the power posteriors:
 
 ```{r, eval=FALSE}
-hemi$evaluate_marginal(30, TRUE, FALSE)
+# FIXME : I   need a wrapper
+chabi$evaluate_marginal(30, TRUE, FALSE)
+```
+
+## Simulation
+
+To produce a simulated database according to the model, we execute the command `run_simulation`.
+Simulation requires a pre-loaded database with the household compositions.
+
+```{r}
+# generate a new object for the simulation
+sim_chabi <- housepi::generate_model("chain_binom")
+
+# define parameters from the inference results
+sim_pars <- housepi::ParameterFrame(list(
+  alpha = list(x = results$statistics["alpha", "Mean"]), 
+  beta = list(x = results$statistics["beta", "Mean"])
+  ))
+
+# build the new model using same household compositions
+housepi::build_model(sim_chabi, data = "survey.csv",
+                     params = sim_pars$df, 
+                     setup = list(seed = 51))
+
+# override status of the database according to simulation 
+housepi::run_simulation(sim_chabi)
+
+# extract current database
+sim_data <- sim_chabi$data()
+```
+
+The command returns a DataFrame which also corresponds to the current loaded database.
+
+```{r, eval=TRUE}
+head(sim_data)
+```
+
+### Simulation Study
+
+We can challenge the inference process used at the beginning on the new simulated data. 
+```{r}
+# change data in the previous object and keep other definitions
+housepi::build_model(chabi, data = sim_data)
+
+# run the inference
+simu_traces <- housepi::run_inference(chabi)
+
+# visualize the traces of the first MCMC chain
+coda::traceplot(simu_traces[1], col="#21943E")
+
+# print summary of the posterior estimates
+sim_results <- summary(simu_traces)
 ```
