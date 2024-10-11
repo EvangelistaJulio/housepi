@@ -175,8 +175,7 @@ IndividualSampler <- setRefClass(
 ##########  Class : Brew Household Composition  ##########
 ##########################################################
 
-#' FIXME
-#' @export
+# FIXME
 HouseholdSampler  <- setRefClass(
   #===== NAME =====#
   "HouseholdSampler",

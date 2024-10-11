@@ -7,8 +7,9 @@ Maintainer: <francesco.camaglia@pasteur.fr>
 Description: A platform for household surveys epidemiological modeling.
 License: GPL-3
 Encoding: UTF-8
-Imports: utils, devtools, pkgbuild, cli, coda, loo, stringr, methods, Rcpp (>= 1.0.0)
+Imports: utils, R6, devtools, pkgbuild, cli, coda, loo, stringr, methods, Rcpp (>= 1.0.0)
 RcppModules: user_model_module
+Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.1
 Suggests: knitr, rmarkdown, Rcpp
 VignetteBuilder: knitr

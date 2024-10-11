@@ -39,11 +39,11 @@
 #include "model.h"
 
 // Expose the Model and MCMC classes to R using Rcpp
-RCPP_MODULE(modelhousepi12345_cpp)
+RCPP_MODULE(model_housepi_rcpp)
 {
   using namespace Rcpp;
 
-  class_<MCMC>("MCMChousepi12345")
+  class_<MCMC>("McmcHousepi")
       .constructor()
       .method("import_setup", &MCMC::import_setup)
       .method("import_params", &MCMC::import_params)
@@ -65,7 +65,7 @@ RCPP_MODULE(modelhousepi12345_cpp)
       .method("show_summary", &MCMC::show_summary)
       .method("show_group_classes", &MCMC::show_group_classes);
 
-  class_<Model>("Modelhousepi12345")
+  class_<Model>("ModelHousepi")
       .constructor()
-      .derives<MCMC>("MCMChousepi12345");
+      .derives<MCMC>("McmcHousepi");
 }
