@@ -1,5 +1,5 @@
 #
-# model_class.R
+# household_model_class.R
 #
 # Copyright (C) 2024 Francesco Camaglia, Institut Pasteur, Paris (France).
 #
@@ -61,7 +61,7 @@ str_join_ <- function(x) {
 
 #' @title Household Model Class
 #' @description 
-#' Manage your compiled household model, your data and definitions from a single class.
+#' Compile household model, manage your data and definitions from a single class.
 #' @export HouseholdModelClass
 #' @docType class
 HouseholdModelClass <- R6::R6Class(
@@ -225,8 +225,10 @@ HouseholdModelClass <- R6::R6Class(
   
     #' @description 
     #' Copy a default model to a given directory.  
-    #' @param which - String with default model name.
-    #' @param path - String with path to where to copy template scripts.
+    #' @param which (`character(1)`)\cr 
+    #' Name of template model. If NULL, list of available templates.
+    #' @param path (`character(1)`)\cr
+    #' Where to copy the template scripts.
     template = function(which = NULL, path = NULL) {
   
       # system path to housepi
@@ -291,9 +293,11 @@ HouseholdModelClass <- R6::R6Class(
   
     #' @description
     #' Associate data and definitions to the model.
-    #' @param data - Dataframe or String with path to data file.
-    #' @param verbose - Boolean flag for automatic prints.
-    build = function(data = NULL, verbose = FALSE) {
+    #' @param data (`character(1)` | `data.frame`)\cr
+    #' Dataframe or String with path to data file.
+    #' @param verbose (`logicla(1)`)\cr
+    #' If `TRUE` prints automatic build information.
+    build = function(data = NULL, verbose = FALSE, ...) {
       
       # change scientific notation
       store_scipen <- options()$scipen
@@ -330,9 +334,10 @@ HouseholdModelClass <- R6::R6Class(
     
     #' @description
     #' Run the inference.
-    #' @param progbar - Boolean flag to suppress progress bar.
+    #' @param progbar (`logical(1)`)\cr
+    #' If `FALSE` suppress the inference progress bar.
     #' @return A coda mcmc object.
-    infer = function(progbar = TRUE) {
+    infer = function(progbar = TRUE, ...) {
       # call infer method from cpp model object
       private$obj$infer(progbar)      
       # load traces from last inference
@@ -370,8 +375,11 @@ HouseholdModelClass <- R6::R6Class(
   
     #' @description
     #' Run the simulation.  
-    #' @param progbar - Boolean flag to suppress progress bar.
-    simulate = function(progbar = TRUE) {
+    #' @param progbar (`logical(1)`)\cr
+    #' If `FALSE` suppress the simulation progress bar.
+    #' @param ... (any)\cr
+    #' Named build options.
+    simulate = function(progbar = TRUE, ...) {
   
       private$obj$simulate(progbar)
       invisible(self)
@@ -384,7 +392,7 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     
     #' @description
-    #' Remove all current definitions.
+    #' Clear all current parameter definitions.
     param.clear = function() {
       private$param.frame <- data.frame(
         name = character(),
@@ -404,8 +412,9 @@ HouseholdModelClass <- R6::R6Class(
     },
   
     #' @description
-    #' Append a data frame of parameter definitions.
-    #' @param definitions - List of parameter names with respective list of definitions.
+    #' Append a list of parameter definitions.
+    #' @param definitions (named `list()` of `list()`s)\cr
+    #' Parameter names with respective list of definitions.
     param.append = function(definitions = list()) {
       
       if (length(definitions) == 0) {
@@ -435,7 +444,7 @@ HouseholdModelClass <- R6::R6Class(
     },
     
     #' @description
-    #' Overwrite current parmater definitions with template definitions.
+    #' Overwrite current parameter definitions with template definitions.
     param.template = function() {
       # retrieve the template parameters file
       hemi_dir <- system.file(package = attr(class(private$obj), "package"))
@@ -517,14 +526,22 @@ HouseholdModelClass <- R6::R6Class(
     
     #' @description
     #' Add a new parameter definition.
-    #' @param name - String with name of the parameter.
-    #' @param x - Scalar with value of the parameter.
-    #' @param infer - Logical value indicating whether to infer.
-    #' @param prior - String with the prior distribution name.
-    #' @param args - List of arguments for the prior distribution.
-    #' @param rule - String with the inference rule.
-    #' @param rule_args - List of arguments for the inference rule.
-    #' @param range - List with 'min' and/or 'max' values (or none).
+    #' @param name (`character(1)`)\cr
+    #' Name of the parameter.
+    #' @param x (`double(1)`)\cr
+    #' Initial value of the parameter.
+    #' @param infer (`logical(1)`)\cr
+    #' If `FALSE` the parameter is treated as a constant.
+    #' @param prior (`character(1)`)\cr
+    #' Name of the prior distribution.
+    #' @param args (named `list()` of `double(1)`)\cr
+    #' Arguments for the prior distribution.
+    #' @param rule (`character(1)`)\cr
+    #' Name of the inference rule.
+    #' @param rule_args (named `list()` of `double(1)`)\cr
+    #' Arguments for the inference rule. They can be changed automatically during iterations with adaptation.
+    #' @param range (named `list()` of `double(1)`)\cr
+    #' The prior truncation 'min', 'max' or no bound for the parameter value.
     param.add = function(name = NA,
                          x = NA,
                          infer = NA,
@@ -643,7 +660,7 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     
     #' @description
-    #' Remove all current definitions.
+    #' Remove all current augmented variable definitions.
     augm.clear = function() {
       private$augm.frame <- data.frame(
         name = character(),
@@ -672,7 +689,8 @@ HouseholdModelClass <- R6::R6Class(
     
     #' @description
     #' Append a data frame of augmented variable definitions.
-    #' @param definitions - List of augmented variable names with respective list of definitions.
+    #' @param definitions (named `list()` of `list()`s)\cr
+    #' Augmented variable names with respective list of definitions.
     augm.append = function(definitions = list()) { 
       # add each entry of the list
       for (a in names(definitions)) {
@@ -693,17 +711,25 @@ HouseholdModelClass <- R6::R6Class(
       invisible(self)
     },
   
-    #' @description Add a new augmented variable to definitions.
-    #' @param name - String with name of the parameter.
-    #' @param x - Scalar/string with value of the parameter.
-    #' @param model - String with the model distribution name.
+    #' @description Add a new augmented variable definition.
+    #' @param name (`character(1)` )\cr 
+    #' Name of the augmented variable.
+    #' @param x (`double(1)` | `character(1)`)\cr 
+    #' Scalar value or parameter name (followed by `@P`) or data name (followed by `@D`).
+    #' @param model (`character(1)` )\cr
+    #' Name of the model distribution.
     #' @param args - List of arguments for the prior distribution.
-    #' @param rule - String with the inference rule.
-    #' @param rule_args - List of arguments for the inference rule.
-    #' @param rule_from - Scalar/string with addtional rule options.
+    #' @param rule (`character(1)` )\cr
+    #' Name of the inference rule.
+    #' @param rule_args (named `list()` of `double(1)` | `character(1)`)\cr
+    #' Arguments for the inference rule.
+    #' @param rule_from (`double(1)` | `character(1)`)\cr 
+    #' Advanced options for non random walk moves.
     #' @param range - List with 'min' and/or 'max' values (or none).
-    #' @param init_rand - Logical to randomly initialize with model.
-    #' @param status - Integer of the associated status.
+    #' @param init_rand (`character(1)` )\cr
+    #' If `TRUE` draw initial vale from model distribution.
+    #' @param status (`integer(1)` )\cr
+    #' The associated status of the definition. Default NA is for all infectious.
     augm.add = function(name = NA,
                         x = NA,
                         model = NA,

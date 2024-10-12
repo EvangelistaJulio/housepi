@@ -16,27 +16,27 @@ editor_options:
 We introduce `housepi`, a toolkit for the study of epidemiological data from household outbreaks.
 We'll walk through the process of loading the model, building it with necessary data and running inference.
 
-## The Model Class
+## The Household Model Class
 
-The central element of the package is the class associated to the model.
-We generate the class and produce an object from it with the function `generate_model`.
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to the model.
+We produce an instance a class and produce an object from it with the function `generate_model`.
 For simplicity, we show how it works with a template model, the chain binomial:
 
 ```{r}
-# generate an object from the chain binomial model class
-chabi <- housepi::generate_model("chain_binom")
+# generate an instance of the chain binomial model
+chabi <- housepi::HouseholdModelClass("chain_binom")
 ```
 
 *Note:* this process can take a few minutes because it compiles the full template.
 
-To see the complete list of template models, run `housepi::template_model()`.
-Alternatively we can create a custom, but we will talk about it in the vignette [custom_models](custom_models.html).
+To see the list of available template models, just run `housepi::HouseholdModelClass()`.
+Alternatively we can create a custom model, but we will talk about it in the vignette [custom_models](custom_models.html).
 
 To proceed any further, a model requires a database and the definitions to its parameters.
 
 ### Database
 
-In housepi, data can be provided with a numerical DataFrame (or a path to a csv file) where each row contains a single individual information.
+In housepi, data can be provided with a numerical DataFrame (or a path to a csv file) where individual information are organised by row.
 Individuals with equal `house_id` will then be associated to the same household.
 A column `status` must be provided if to perform inference: ${\geq}1$ if infectious, $0$ if susceptible, $-1$ if missing.
 Additionally, an individual identifier can be provided with the column `id`.
@@ -49,14 +49,13 @@ database <- read.csv("survey.csv")
 knitr::kable(head(database[c("id", "house_id", "status")]))
 ```
 
-### Parameter Definitions (TEMPORARY)
+### Parameter Definitions
 
-Parameter definitions are organized in DataFrame with the priors and proposer rules needed for the Bayesian Monte Carlo.
-At any moment, a parameter can be considered as a constant by putting the *infer* option to `FALSE`.
-To format a data frame with definitions, we provide a class `ParameterFrame` which can be used as follows:
+Parameter definitions are stored internaly in a hidden data.frame with the priors and proposer rules needed for the Bayesian Monte Carlo.
+To format parameter definitions, we provide use the method `param.append` which can be used as follows:
 
 ```{r, echo=TRUE}
-pars <- housepi::ParameterFrame(list(
+chabi$param.append(list(
   alpha = list(prior = "unif", args = list(min = 0, max = 5),
                rule = "lnorm", rule_args = list(sdlog = 1)),
   beta = list(prior = "unif", args = list(min = 0, max = 5),
@@ -64,7 +63,9 @@ pars <- housepi::ParameterFrame(list(
   ))
 ```
 
-### Setup Definitions
+At any moment, a parameter can be considered as a constant by putting the *infer* option to `FALSE`.
+
+### Setup Definitions (TEMPORARY)
 
 We can pass the Monte Carlo general configurations with a list containing the number of iterations, seed, etc.
 
@@ -73,27 +74,27 @@ setup <- list(num_adapt = 2500, num_iter = 10000, burn_in = 2500,
               thinning = 15, num_chains = 4, seed = 5, num_threads = 4)
 ```
 
-We build our model with these information using the function `build_model`.
-Definitions can be changed at any time by using the same function.
+We build our model with these information using the method `build`.
+Definitions can be changed at any time, just remember to build the model after.
 
 ```{r}
-# associate all
-housepi::build_model(chabi, data = database, params = pars$df, setup = setup)
+# associate data and previous definitions
+chabi$build(data = database)
 ```
 
-*Note:* parallelization is implemtented with openMP which is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
+*Note:* parallelization is implemented with openMP which is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
 
 ```{r}
-# show a summary of the current database 
+# show a summary of the loaded database 
 chabi$show_summary()
 ```
 
 ## Inference
 
-Now we can safely perform inference with the function `run_inference`.
+Now we can safely perform inference with the method `infer`.
 
 ```{r}
-mcmc_traces <- housepi::run_inference(chabi)
+mcmc_traces <- chabi$infer()
 ```
 
 This method returns a `coda` mcmc object (or mcmc.list if multiple chains) which can then be used to analyze the results as follows:
@@ -142,30 +143,30 @@ Simulation requires a pre-loaded database with the household compositions.
 
 ```{r}
 # generate a new object for the simulation
-sim_chabi <- housepi::generate_model("chain_binom")
+sim_chabi <- housepi::HouseholdModelClass("chain_binom")
 
 # define parameters from the inference results
-sim_pars <- housepi::ParameterFrame(list(
+sim_chabi$param.append(list(
   alpha = list(x = results$statistics["alpha", "Mean"]), 
   beta = list(x = results$statistics["beta", "Mean"])
   ))
 
 # build the new model using same household compositions
-housepi::build_model(sim_chabi, data = "survey.csv",
-                     params = sim_pars$df, 
-                     setup = list(seed = 51))
+sim_chabi$build(data = "survey.csv")
 
 # override status of the database according to simulation 
-housepi::run_simulation(sim_chabi)
-
-# extract current database
-sim_data <- sim_chabi$data()
+sim_chabi$simulate(seed = 51)
 ```
 
 The command returns a DataFrame which also corresponds to the current loaded database.
 
-```{r, eval=TRUE}
-head(sim_data)
+# extract current database
+```{r}
+sim_data <- sim_chabi$data()
+```
+
+```{r, echo=FALSE}
+knitr::kable(head(sim_data))
 ```
 
 ### Simulation Study
@@ -173,10 +174,10 @@ head(sim_data)
 We can challenge the inference process used at the beginning on the new simulated data. 
 ```{r}
 # change data in the previous object and keep other definitions
-housepi::build_model(chabi, data = sim_data)
+chabi$build(data = sim_data)
 
 # run the inference
-simu_traces <- housepi::run_inference(chabi)
+simu_traces <- habi$infer()
 
 # visualize the traces of the first MCMC chain
 coda::traceplot(simu_traces[1], col="#21943E")
