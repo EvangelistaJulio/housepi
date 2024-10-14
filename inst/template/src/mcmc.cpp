@@ -588,7 +588,7 @@ void MCMC::infer(bool progbar)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Evaluate the logarithm of marginal likelihood with power posteriors. */
-double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions)
+double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
 {
     /* Ref: Friel, N., Hurn, M. & Wyse, J.
     Improving power posterior estimation of statistical evidence.
@@ -639,26 +639,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
     var_vec.push_back(var);
 
     // thermodynamic ladder: use modified power fractions or adaptive scheme
-    if (power_fractions)
-    {
-        //==================================//
-        //===== POWER FRACTIONS LADDER =====//
-        //==================================//
-
-        //----- Inverse Temperatures (0, 1] -----//
-        setup_rnd_init_params = false;
-        for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
-        {
-            set_inver_temper(std::pow(static_cast<double>(_rung_) / (_num_rungs_ - 1), 5));
-            run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
-            basics::statistics(dgn_glob_loglike, avg, var);
-
-            inv_t.push_back(setup_inv_T);
-            avg_vec.push_back(avg);
-            var_vec.push_back(var);
-        }
-    }
-    else
+    if (adaptive)
     {
         //===========================//
         //===== ADAPTIVE LADDER =====//
@@ -706,6 +687,25 @@ double MCMC::evaluate_marginal(int num_rungs, bool progbar, bool power_fractions
 
             // if right interval is chosen, index points to inserted as lower bound
             k += (is_right);
+        }
+    }
+    else
+    {
+        //==================================//
+        //===== POWER FRACTIONS LADDER =====//
+        //==================================//
+        
+        //----- Inverse Temperatures (0, 1] -----//
+        setup_rnd_init_params = false;
+        for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
+        {
+          set_inver_temper(std::pow(static_cast<double>(_rung_) / (_num_rungs_ - 1), 5));
+          run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
+          basics::statistics(dgn_glob_loglike, avg, var);
+          
+          inv_t.push_back(setup_inv_T);
+          avg_vec.push_back(avg);
+          var_vec.push_back(var);
         }
     }
 

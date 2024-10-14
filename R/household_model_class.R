@@ -1,7 +1,7 @@
 #
 # household_model_class.R
 #
-# Copyright (C) 2024 Francesco Camaglia, Institut Pasteur, Paris (France).
+# Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
 # Define a custom get function (like in Python dictionaries)
@@ -60,7 +60,7 @@ str_join_ <- function(x) {
 ################################################################################
 
 #' @title Household Model Class
-#' @description 
+#' @description
 #' Compile household model, manage your data and definitions from a single class.
 #' @export HouseholdModelClass
 #' @docType class
@@ -70,27 +70,72 @@ HouseholdModelClass <- R6::R6Class(
     setup = NULL,
     param.frame = NULL,
     augm.frame = NULL,
-    obj = NULL
-  ),
-
-  public = list(
-
+    obj = NULL,
+    environment_path = NULL,
+    
     #' @description
-    #' Creates a new instance of class [ModelClass][housepi::HouseholdModelClass].
-    #' @param model (`character(1)`)\cr 
-    #' Template name or path to model folder.
-    #' @param quiet (`logical(1)`)\cr 
-    #' Hide compilation commands.
+    #' Associate data and definitions to the model.
+    #' @param data (`character(1)` | `data.frame`)\cr
+    #' Path to a csv data file or a data.frame.
+    #' @param verbose (`logical(1)`)\cr
+    #' If `TRUE` prints automatic build information.
+    build = function(data = NULL, verbose = FALSE) {
+      
+      # change scientific notation
+      store_scipen <- options()$scipen
+      options(scipen = 500)
+      
+      #----- 1) SETUP -----#
+      private$obj$import_setup(lapply(private$setup, as.character))
+      
+      #----- 2) PARAMETERS -----#
+      private$obj$import_params(data.frame(lapply(private$param.frame, as.character)))
+      
+      #----- 3) DATA -----#
+      if (is.null(data)) {
+        private$obj$read_data("<NA>")
+        
+      } else if (is.character(data)) {
+        private$obj$read_data(data)
+        
+      } else if (is.data.frame(data)) {
+        private$obj$import_data(data.frame(lapply(data, as.character)))
+        
+      } else {
+        stop(cli::format_error(
+          c("Wrong type for data", i = "It should be data.frame or path/to/file.")
+        ))
+      }
+      
+      #----- 4) AUGMENTED VARIABLES -----#
+      private$obj$import_augm(data.frame(lapply(private$augm.frame, as.character)))
+      
+      options(scipen = store_scipen)
+    }
+  ),
+  
+  ############################################################################
+  ############################################################################
+  ############################################################################
+  ############################################################################
+  ############################################################################
+  
+  public = list(
+    #' @description
+    #' Creates a new instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
+    #' @param model (`character(1)`)\cr
+    #' Template name or path to the model folder.
+    #' @param quiet (`logical(1)`)\cr
+    #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
-    #' Compile even if a cached model already exists.
+    #' If `TRUE` compile even if a cached model already exists.
     #' @param debug (`logical(1)`)\cr
-    #' Use debug compilation flags.
+    #' If `TRUE` use debug compilation flags.
     initialize = function(model = NA,
                           quiet = TRUE,
                           force = FALSE,
                           debug = FALSE) {
-
-      if (is.na(model) ) {
+      if (is.na(model)) {
         # print available templates
         self$template()
         
@@ -210,8 +255,14 @@ HouseholdModelClass <- R6::R6Class(
         
         #----- assign fields -----#
         
+        # assign the path to model environment source
+        private$environment_path <- exec_dir
+        
         # assign the model object
         private$obj <- m$ModelHousepi$new()
+        
+        # assign the empty setup list
+        self$setup.clear()
         
         # assign the empty parameter data.frame
         self$param.clear()
@@ -219,18 +270,17 @@ HouseholdModelClass <- R6::R6Class(
         # assign the empty augmented data.frame
         self$augm.clear()
       }
-
+      
       invisible(self)
     },
-  
-    #' @description 
-    #' Copy a default model to a given directory.  
-    #' @param which (`character(1)`)\cr 
+    
+    #' @description
+    #' Copy a default model to a given directory.
+    #' @param which (`character(1)`)\cr
     #' Name of template model. If NULL, list of available templates.
     #' @param path (`character(1)`)\cr
     #' Where to copy the template scripts.
     template = function(which = NULL, path = NULL) {
-  
       # system path to housepi
       models_dir <- file.path(system.file(package = "housepi"), "models")
       
@@ -290,63 +340,30 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     ############################################################################
     ############################################################################
-  
-    #' @description
-    #' Associate data and definitions to the model.
-    #' @param data (`character(1)` | `data.frame`)\cr
-    #' Dataframe or String with path to data file.
-    #' @param verbose (`logicla(1)`)\cr
-    #' If `TRUE` prints automatic build information.
-    build = function(data = NULL, verbose = FALSE, ...) {
-      
-      # change scientific notation
-      store_scipen <- options()$scipen
-      options(scipen = 500)
-      
-      #----- 1) SETUP -----#
-      private$obj$import_setup(lapply(private$setup, as.character))
-      
-      #----- 2) PARAMETERS -----#
-      private$obj$import_params(data.frame(lapply(private$param.frame, as.character)))
-      
-      #----- 3) DATA -----#
-      if (is.null(data)) {
-        private$obj$read_data("<NA>")
-        
-      } else if (is.character(data)) {
-        private$obj$read_data(data)
-        
-      } else if (is.data.frame(data)) {
-        private$obj$import_data(data.frame(lapply(data, as.character)))
-        
-      } else {
-        stop(cli::format_error(
-          c("Wrong type for data", i = "It should be data.frame or path/to/file.")
-        ))
-      }
-      
-      #----- 4) AUGMENTED VARIABLES -----#
-      private$obj$import_augm(data.frame(lapply(private$augm.frame, as.character)))
-      
-      options(scipen = store_scipen)
-      invisible(self)
-    },
-    
+
     #' @description
     #' Run the inference.
+    #' @param data (`character(1)` | `data.frame`)\cr
+    #' Path to a csv data file or a data.frame.
     #' @param progbar (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
+    #' @param ... further arguments passed to \code{setup.list}.
     #' @return A coda mcmc object.
-    infer = function(progbar = TRUE, ...) {
-      # call infer method from cpp model object
-      private$obj$infer(progbar)      
+    infer = function(data = NULL, progbar = TRUE, ...) {
+      
+      # assign setup
+      do.call(self$setup.list, list(...))
+      
+      # internal build function
+      private$build(data = data)
+      
+      # infer method from cpp model object
+      private$obj$infer(progbar)
       # load traces from last inference
       df <- private$obj$traces()
       
       # extract setup information for coda
-      # FIXME : this should be the internal one
-      # FIXME : to be safe, build should be run automatically before infer?
-      S <- private$obj$setup()
+      S <- private$obj$export_setup()
       
       # Check if multiple chains
       if ("CHAIN__" %in% colnames(df)) {
@@ -372,16 +389,135 @@ HouseholdModelClass <- R6::R6Class(
       return(output)
       invisible(self)
     },
-  
+    
     #' @description
-    #' Run the simulation.  
+    #' Run the simulation.
+    #' @param data (`character(1)` | `data.frame`)\cr
+    #' Path to a csv data file or a data.frame.
     #' @param progbar (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
-    #' @param ... (any)\cr
+    #' @param ... further arguments passed to \code{setup.list}.
     #' Named build options.
-    simulate = function(progbar = TRUE, ...) {
-  
+    simulate = function(data = NULL, progbar = TRUE, ...) {
+      
+      # assign setup
+      do.call(self$setup.list, list(...))
+      
+      # internal build function
+      private$build(data = data)
+      
+      # simulate method from internal Rcpp object
       private$obj$simulate(progbar)
+      invisible(self)
+    },
+    
+    #' @description
+    #' Export the loaded database at current state.
+    #' If the case, it also return the associated augmented variables.
+    #' @return (`data.frame`)\cr
+    #' A data.frame with individual data. 
+    data.export = function() {
+      return(private$obj$export_data())
+    },
+    
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    
+    #' @description
+    #' Use loo package to compute the leave-one-out cross-validation (PSIS-LOO CV).
+    #' @param ... arguments passed to [loo][loo::loo].
+    #' For arguments and further details type ?loo::loo.
+    loo = function(...){
+      return(loo::loo(private$obj$export_loglike_matrix(), ...))
+    },
+    
+    #' @description
+    #' Use loo package to compute the widely applicable information criterion (WAIC).
+    #' @param ... arguments passed to [loo][loo::waic].
+    #' #' For arguments and further details type ?loo::waic.
+    waic = function(...){
+      return(loo::waic(private$obj$export_loglike_matrix(), ...))
+    },
+    
+    #' @description
+    #' Estimate the model evidence (or marginal likelihood) with the method of power posteriors.
+    #' @param data (`character(1)` | `data.frame`)\cr
+    #' Path to a csv data file or a data.frame.
+    #' @param num_rungs (`integer`)\cr
+    #' The number of rungs in the thermodynamic ladder.
+    #' @param adaptive (`logical(1)`)\cr
+    #' If `TRUE` uses the adaptive scheme for the thermodynamic ladder. Else use power fractions.
+    #' @param progbar (`logical(1)`)\cr
+    #' If `FALSE` suppress the simulation progress bar.
+    #' @return (`double(1)`)\cr
+    #' The value of the model evidence.
+    #' @param ... further arguments passed to  \code{setup.list}.
+    evidence = function(data = NULL, num_rungs = 40, adaptive = TRUE, progbar = TRUE, ...) {
+      
+      # assign setup
+      do.call(self$setup.list, list(...))
+      
+      # internal build function
+      private$build(data = data)
+      
+      # evaluate marginal from the internal Rcpp object
+      return(private$obj$evaluate_marginal(num_rungs, adaptive, progbar))
+    },
+    
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    
+    #' @description
+    #' Clear all current setup definitions.
+    setup.clear = function() {
+      private$setup <- list()
+      invisible(self)
+    },
+    
+    #' @description
+    #' Setup the list of configurations for the different analysis.
+    #' @param seed (`integer(1)`)\cr
+    #' Seed of the random number generator. 
+    #' @param num_iter (`integer(1)`)\cr
+    #' Number of iterations.
+    #' @param burn_in (`integer(1)`)\cr
+    #' Number of iterations to discard.
+    #' @param thinning (`integer(1)`)\cr
+    #' Name of the parameter.
+    #' @param num_chains (`integer(1)`)\cr
+    #' Name of the parameter.
+    #' @param num_adapt (`integer(1)`)\cr
+    #' Name of the parameter.
+    #' @param num_threads (`integer(1)`)\cr
+    #' Name of the parameter.
+    #' @param rnd_init_params (`logical(1)`)\cr
+    #' Name of the parameter.
+    #' @param inv_temper (`double(1)`)\cr
+    #' Name of the parameter.
+    setup.list = function(seed = NA,
+                          num_iter = NA,
+                          burn_in = NA,
+                          thinning = NA,
+                          num_chains = NA,
+                          num_adapt = NA,
+                          num_threads = NA,
+                          rnd_init_params = TRUE,
+                          inv_temper = 1.0) {
+      private$setup[["seed"]] <- seed
+      private$setup[["num_iter"]] <- num_iter
+      private$setup[["burn_in"]] <- burn_in
+      private$setup[["thinning"]] <- thinning
+      private$setup[["num_chains"]] <- num_chains
+      private$setup[["num_adapt"]] <- num_adapt
+      private$setup[["num_threads"]] <- num_threads
+      private$setup[["rnd_init_params"]] <- rnd_init_params
+      private$setup[["inv_temper"]] <- inv_temper
       invisible(self)
     },
     
@@ -390,6 +526,14 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     ############################################################################
     ############################################################################
+    
+    #' @description
+    #' Export the parameter definitions at current state.
+    #' @return (`data.frame`)\cr
+    #' A data.frame with formatted parameter definitions.
+    param.export = function() {
+      return(private$obj$export_params())
+    },
     
     #' @description
     #' Clear all current parameter definitions.
@@ -410,16 +554,20 @@ HouseholdModelClass <- R6::R6Class(
       )
       invisible(self)
     },
-  
+    
     #' @description
     #' Append a list of parameter definitions.
-    #' @param definitions (named `list()` of `list()`s)\cr
+    #' @param ... (named `list()`s)\cr
     #' Parameter names with respective list of definitions.
-    param.append = function(definitions = list()) {
+    param.append = function(...) {
+      
+      # convert definitions to list
+      definitions = list(...)
       
       if (length(definitions) == 0) {
         # reinitialize according to templated parameters
-        self$param.template(private$obj)
+        self$param.template()
+        cli::cli_alert_warning(cli::format_warning(c("No definitions provided.", i = "Falling back to template definitions.")))
         
       } else {
         # user definitions
@@ -438,7 +586,7 @@ HouseholdModelClass <- R6::R6Class(
         }
         
         # check if definitions match the model
-        self$param.check(private$obj)
+        self$param.check()
       }
       invisible(self)
     },
@@ -447,21 +595,19 @@ HouseholdModelClass <- R6::R6Class(
     #' Overwrite current parameter definitions with template definitions.
     param.template = function() {
       # retrieve the template parameters file
-      hemi_dir <- system.file(package = attr(class(private$obj), "package"))
-      templ_params_file <- file.path(hemi_dir, "src", "templated_params")
+      templ_params_file <- file.path(private$environment_path, "src", "templated_params")
       # remove previous definitions
       self$param.clear()
       # append definitions
-      self$param.append(dget(templ_params_file))
+      do.call(self$param.append, dget(templ_params_file))
       invisible(self)
     },
     
     #' @description
     #' Check if parameter definitions are missing and pre-load them.
     param.check = function() {
-      
-      hemi_dir <- system.file(package = attr(class(private$obj), "package"))
-      model_path <- file.path(hemi_dir, "src", "model.cpp")
+      # retrieve the model script
+      model_path <- file.path(private$environment_path, "src", "model.cpp")
       
       # read the script and extract parameters
       script <- readChar(model_path, file.info(model_path)$size)
@@ -550,7 +696,6 @@ HouseholdModelClass <- R6::R6Class(
                          rule = NA,
                          rule_args = list(),
                          range = list()) {
-      
       if (is.na(name)) {
         stop(cli::format_error(c("Missing parameter name.")))
       }
@@ -660,6 +805,16 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     
     #' @description
+    #' Export the augmented variable definitions at current state.
+    #' @return (`data.frame`)\cr
+    #' A data.frame with formatted augmented variable definitions.
+    augm.export = function() {
+      # FIXME 
+      stop("'augm.export' yet to be coded. Sorry for the Inconvenience.")
+      #return(private$obj$export_augm())
+    },
+    
+    #' @description
     #' Remove all current augmented variable definitions.
     augm.clear = function() {
       private$augm.frame <- data.frame(
@@ -689,9 +844,13 @@ HouseholdModelClass <- R6::R6Class(
     
     #' @description
     #' Append a data frame of augmented variable definitions.
-    #' @param definitions (named `list()` of `list()`s)\cr
+    #' @param ... (named `list()`s)\cr
     #' Augmented variable names with respective list of definitions.
-    augm.append = function(definitions = list()) { 
+    augm.append = function(...) {
+      
+      # convert definitions to list
+      definitions = list(...)
+      
       # add each entry of the list
       for (a in names(definitions)) {
         this <- definitions[[a]]
@@ -710,11 +869,11 @@ HouseholdModelClass <- R6::R6Class(
       }
       invisible(self)
     },
-  
+    
     #' @description Add a new augmented variable definition.
-    #' @param name (`character(1)` )\cr 
+    #' @param name (`character(1)` )\cr
     #' Name of the augmented variable.
-    #' @param x (`double(1)` | `character(1)`)\cr 
+    #' @param x (`double(1)` | `character(1)`)\cr
     #' Scalar value or parameter name (followed by `@P`) or data name (followed by `@D`).
     #' @param model (`character(1)` )\cr
     #' Name of the model distribution.
@@ -723,7 +882,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Name of the inference rule.
     #' @param rule_args (named `list()` of `double(1)` | `character(1)`)\cr
     #' Arguments for the inference rule.
-    #' @param rule_from (`double(1)` | `character(1)`)\cr 
+    #' @param rule_from (`double(1)` | `character(1)`)\cr
     #' Advanced options for non random walk moves.
     #' @param range - List with 'min' and/or 'max' values (or none).
     #' @param init_rand (`character(1)` )\cr
@@ -740,7 +899,6 @@ HouseholdModelClass <- R6::R6Class(
                         range = list(),
                         init_rand = FALSE,
                         status = NA) {
-  
       #----- name -----#
       if (is.na(name)) {
         stop(cli::format_error("Incomplete definition: missing name."))

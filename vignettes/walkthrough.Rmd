@@ -24,80 +24,59 @@ For simplicity, we show how it works with a template model, the chain binomial:
 
 ```{r}
 # generate an instance of the chain binomial model
-chabi <- housepi::HouseholdModelClass("chain_binom")
+chabi <- housepi::HouseholdModelClass$new("chain_binom")
 ```
 
 *Note:* this process can take a few minutes because it compiles the full template.
 
-To see the list of available template models, just run `housepi::HouseholdModelClass()`.
+To see the list of available template models, just run `housepi::HouseholdModelClass$new()`.
 Alternatively we can create a custom model, but we will talk about it in the vignette [custom_models](custom_models.html).
 
 To proceed any further, a model requires a database and the definitions to its parameters.
 
 ### Database
 
-In housepi, data can be provided with a numerical DataFrame (or a path to a csv file) where individual information are organised by row.
+In housepi, data can be provided with a numerical data.frame (or a path to a csv file) where individual information are organised by row.
 Individuals with equal `house_id` will then be associated to the same household.
 A column `status` must be provided if to perform inference: ${\geq}1$ if infectious, $0$ if susceptible, $-1$ if missing.
 Additionally, an individual identifier can be provided with the column `id`.
 
-```{r}
-database <- read.csv("survey.csv")
-```
-
 ```{r, echo=FALSE}
-knitr::kable(head(database[c("id", "house_id", "status")]))
+X <- read.csv("survey.csv")
+knitr::kable(head(X[c("id", "house_id", "status")]))
 ```
 
 ### Parameter Definitions
 
-Parameter definitions are stored internaly in a hidden data.frame with the priors and proposer rules needed for the Bayesian Monte Carlo.
-To format parameter definitions, we provide use the method `param.append` which can be used as follows:
+Parameter definitions, like the respective priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param.append` as follows:
 
 ```{r, echo=TRUE}
-chabi$param.append(list(
-  alpha = list(prior = "unif", args = list(min = 0, max = 5),
-               rule = "lnorm", rule_args = list(sdlog = 1)),
-  beta = list(prior = "unif", args = list(min = 0, max = 5),
-              rule = "lnorm", rule_args = list(sdlog = 1))
-  ))
+chabi$param.append(
+  alpha = list(
+    prior = "unif", args = list(min = 0, max = 2),
+    rule = "lnorm", rule_args = list(sdlog = 1)
+  ),
+  beta = list(
+    prior = "unif", args = list(min = 0, max = 2),
+    rule = "lnorm", rule_args = list(sdlog = 1)
+  )
+)
 ```
 
-At any moment, a parameter can be considered as a constant by putting the *infer* option to `FALSE`.
-
-### Setup Definitions (TEMPORARY)
-
-We can pass the Monte Carlo general configurations with a list containing the number of iterations, seed, etc.
-
-```{r}
-setup <- list(num_adapt = 2500, num_iter = 10000, burn_in = 2500,
-              thinning = 15, num_chains = 4, seed = 5, num_threads = 4)
-```
-
-We build our model with these information using the method `build`.
-Definitions can be changed at any time, just remember to build the model after.
-
-```{r}
-# associate data and previous definitions
-chabi$build(data = database)
-```
-
-*Note:* parallelization is implemented with openMP which is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
-
-```{r}
-# show a summary of the loaded database 
-chabi$show_summary()
-```
+Regardless of other options, a parameter is considered as a constant if the *infer* option to `FALSE`. In a similar way can also associate augmented variable definitions. We show how to do it in the vignette [data_augmentation](data_augmentation.html).
 
 ## Inference
 
-Now we can safely perform inference with the method `infer`.
+Now we can safely perform inference with the method `infer`. This method returns a `coda` mcmc object (or mcmc.list if multiple chains) which can then be used to analyze the results.
 
 ```{r}
-mcmc_traces <- chabi$infer()
+# run the Monte Carlo with setup options like number of iterations, seed, etc.
+mcmc_traces <- chabi$infer(data = "survey.csv", num_iter = 10000, burn_in = 2500,
+                           thinning = 15, num_adapt = 2500, num_chains = 4, 
+                           seed = 5, num_threads = 4)
 ```
 
-This method returns a `coda` mcmc object (or mcmc.list if multiple chains) which can then be used to analyze the results as follows:
+*Note:* parallelization is implemented with openMP which is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
 
 ```{r}
 # visualize the traces of the first MCMC chain
@@ -115,25 +94,22 @@ coda::gelman.diag(mcmc_traces)
 
 See [coda CRAN documentation](https://cran.r-project.org/web/packages/coda/index.html) for further details.
 
-## Model Diagnostic
+### Model Diagnostic
 
 We can extract the log-likelihood matrix to perform model diagnostics with the R package `loo` ([CRAN documentation](https://cloud.r-project.org/web/packages/loo/index.html)) :
 
 ```{r}
-llmtx <- chabi$loglike_matrix()
-
 # WAIC (widely applicable information criterion)
-loo::waic(llmtx)
+chabi$waic()
 
-# approximate LOO-CV
-loo::loo(llmtx)
+# approximate PSIS-LOO cross validation
+chabi$loo()
 ```
 
-Another feature of the `housepi` package is the possibility to estimate the marginal loglikelihood with the method of the power posteriors:
+Another feature of the `housepi` package is the possibility to estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
 
 ```{r, eval=FALSE}
-# FIXME : I   need a wrapper
-chabi$evaluate_marginal(30, TRUE, FALSE)
+chabi$evidence(num_rungs = 30)
 ```
 
 ## Simulation
@@ -146,42 +122,38 @@ Simulation requires a pre-loaded database with the household compositions.
 sim_chabi <- housepi::HouseholdModelClass("chain_binom")
 
 # define parameters from the inference results
-sim_chabi$param.append(list(
+sim_chabi$param.append(
   alpha = list(x = results$statistics["alpha", "Mean"]), 
   beta = list(x = results$statistics["beta", "Mean"])
-  ))
+)
 
-# build the new model using same household compositions
-sim_chabi$build(data = "survey.csv")
-
+# build the new model using same household compositions :
 # override status of the database according to simulation 
-sim_chabi$simulate(seed = 51)
+sim_chabi$simulate(data = "survey.csv", seed = 51)
 ```
 
-The command returns a DataFrame which also corresponds to the current loaded database.
+To return the simulated database, which also corresponds to the current loaded database, we use the method 
 
-# extract current database
 ```{r}
-sim_data <- sim_chabi$data()
+# export current database
+df <- sim_chabi$data.export()
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(head(sim_data))
+knitr::kable(head(df[c("id", "house_id", "status")]))
 ```
 
 ### Simulation Study
 
 We can challenge the inference process used at the beginning on the new simulated data. 
 ```{r}
-# change data in the previous object and keep other definitions
-chabi$build(data = sim_data)
-
+# we change data in the 'chabi' object keeping other definitions
 # run the inference
-simu_traces <- habi$infer()
+mcmc_traces <- chabi$infer(data = df)
 
 # visualize the traces of the first MCMC chain
-coda::traceplot(simu_traces[1], col="#21943E")
+coda::traceplot(mcmc_traces[1], col="#21943E")
 
 # print summary of the posterior estimates
-sim_results <- summary(simu_traces)
+sim_results <- summary(mcmc_traces)
 ```

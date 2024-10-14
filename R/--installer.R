@@ -52,13 +52,6 @@ compile_dll <- function(path = ".",
   }
 }
 
-#' Remove compiled objects from /src/ directory
-#'
-#' Invisibly returns the names of the deleted files.
-#'
-#' @inheritParams build
-#' @seealso [compile_dll()]
-#' @export
 clean_dll <- function(path = ".") {
   path <- pkg_path(path)
   
@@ -138,11 +131,6 @@ headers <- function(path = ".") {
 }
 
 
-#' Does the package need recompiling?
-#' (i.e. is there a source or header file newer than the dll)
-#' @inheritParams build
-#' @keywords internal
-#' @export
 needs_compile <- function(path = ".") {
   source <- mtime(c(sources(path), headers(path)))
   # no source files, so doesn't need compile

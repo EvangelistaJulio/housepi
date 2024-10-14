@@ -141,7 +141,7 @@ public:
 	void disable_assert();
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
-	double evaluate_marginal(int num_rungs, bool progbar = true, bool power_fractions = false);
+	double evaluate_marginal(int num_rungs, bool adaptive = true, bool progbar = true);
 
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};

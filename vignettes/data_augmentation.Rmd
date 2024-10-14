@@ -18,7 +18,6 @@ This tutorial introduces to data augmentation with the package `housepi`. We'll 
 
 ## Estimate Incubation Periods Distribution
 
-For simplicity, we start testing data augmentation on a database which is not a household survey. Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
 Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges. 
 We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
@@ -38,19 +37,15 @@ We generate the model as showed in the [walkthrough](walkthrough.html):
 
 ```{r}
 # generate the model
-hemi_1 <- housepi::HouseholdModelClass("example_augm_delay_incubation")
+hemi_1 <- housepi::HouseholdModelClass$new("example_augm_delay_incubation")
 
 # gamma distribution parameter definitions
-hemi_1$param.append(list(
+hemi_1$param.append(
   shape = list(prior = "unif", args = list(min = 0, max = 5),
                rule = "norm", rule_args = list(sd = 1)),
   scale = list(prior = "unif", args = list(min = 0, max = 5),
                rule = "norm", rule_args = list(sd = 1))
-  ))
-
-# general setup (FIXME)
-setup_1 <- list(num_iter = 100000, num_adapt = 2500, burn_in = 10000,
-              thinning = 10, seed = 4815162342, num_chains = 1)
+)
 ```
 
 ### Build Augmented Variables
@@ -58,7 +53,7 @@ setup_1 <- list(num_iter = 100000, num_adapt = 2500, burn_in = 10000,
 Similarly to parameter definitions, for augmented variables we provide definitions with the models and proposer rules needed for the Bayesian Monte Carlo. However, augmented variable definitions are more delicate, since they can depend on data or parameters. We state which value should be imported from data formatting it as a string "<value-name>`@D`". Here we associate to each individual an exposure and an onset time.
 
 ```{r}
-hemi_1$augm.append(list(
+hemi_1$augm.append(
   # define 'exposure' time
   exposure = list(
     x = "exposure_min@D", # start from data 'exposure_min'
@@ -78,10 +73,7 @@ hemi_1$augm.append(list(
     rule = "norm",
     rule_args = list(sd = 0.25)
   )
-))
-
-# associate data and other definitions
-hemi_1$build(data = delays)
+)
 ```
 
 *Note:* The warning is telling us that the database has been interpreted as composed of single individuals, i .e. living in separate households.
@@ -89,27 +81,34 @@ hemi_1$build(data = delays)
 We run the inference and we extract the results as usual:
 
 ```{r}
-mcmc_trace_1 <- hemi_1$infer()
+# perform the inference on the delays data.frame
+mcmc_trace_1 <- hemi_1$infer(data = delays, num_iter = 100000, burn_in = 10000,
+                             thinning = 10, num_adapt = 2500, seed = 4815162342)
 coda::traceplot(mcmc_trace_1, col="#0E86D4")
 results_1 <- summary(mcmc_trace_1)
 ```
 
 ## Augment Onset Times
 
-For a more realistics example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset. 
+For a more realistic example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset. 
 For simplicity the model assumes no asymptomatic cases. 
 
 ```{r}
-hemi_2 <- housepi::HouseholdModelClass("augm_onset_single_intr")
+hemi_2 <- housepi::HouseholdModelClass$new("augm_onset_single_intr")
 ```
+
 This time we load the parameter definitions directly from the model template. 
 
 ```{r}
+# use example parameters associated to the templated model
 hemi_2$param.template()
+
+# export current parameter definitions
+par_2 <- hemi_2$param.export()
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(head(par_2$df)) # FIXME
+knitr::kable(head(par_2)) 
 ```
 
 We propose the following definitions for the augmented variable 
@@ -136,9 +135,6 @@ hemi_2$param.add(name = "inc_shape",
                  x = results_1$statistics["shape", "Mean"])
 hemi_2$param.add(name = "inc_scale", 
                  x = results_1$statistics["scale", "Mean"])
-
-# build the model
-hemi_2$build(data = "survey.csv", setup = list(seed = 17))
 ```
 
 ### Simulate an Outbreak
@@ -147,7 +143,7 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation 
-hemi_2$simulate()
+hemi_2$simulate(data = "survey.csv", seed = 17)
 
 # show a summary of the current dataset 
 hemi_2$show_summary() # FIXME
@@ -158,7 +154,7 @@ This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
 # remove incubation period from simulated data
-df <- subset(hemi_2$data(), select = -c(incub_period) )
+df <- subset(hemi_2$data.export(), select = -c(incub_period) )
 
 # change all onsets after 9 PM to next day
 is_infec <- df$status == 1
@@ -190,23 +186,23 @@ hemi_2$augm.add(name = "incub_period",
                 rule = "gibbs",
                 range = list(max = 14))
 
-# the number of iterations has been limited for brevity
-setup_2 <- list(num_iter = 8000,  burn_in = 2000, thinning = 10, 
-                num_adapt = 2000, seed = 57)
-
-hemi_2$build(data = df)
-
-mcmc_trace <- hemi_2$infer()
+# run the inference # note : we limit the iterations for brevity
+mcmc_trace <- hemi_2$infer(data = df, num_iter = 8000,  burn_in = 2000, 
+                           thinning = 10, num_adapt = 2000, seed = 57)
 ```
 
+
 ```{r}
+# plot the traces of the Markov chains
 coda::traceplot(mcmc_trace, col="#CA1F63")
+
+# extract the results 
 results_2 <- summary(mcmc_trace)
 
 # collect the information for the check
-imask <- par_2$df["infer"] == TRUE
-inames <- par_2$df[imask, "name"]
-data.frame(Expec = par_2$df[imask, "value"],
+imask <- par_2["infer"] == TRUE
+inames <- par_2[imask, "name"]
+data.frame(Expec = par_2[imask, "value"],
            Estim = results_2[["statistics"]][inames, "Mean"],
            CI2.5 = results_2[["quantiles"]][inames, "2.5%"],
            CI97.5 = results_2[["quantiles"]][inames, "97.5%"])
