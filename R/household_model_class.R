@@ -70,6 +70,7 @@ HouseholdModelClass <- R6::R6Class(
     setup = NULL,
     param.frame = NULL,
     augm.frame = NULL,
+    traces.frame = NULL,
     obj = NULL,
     environment_path = NULL,
     
@@ -80,16 +81,17 @@ HouseholdModelClass <- R6::R6Class(
     #' @param verbose (`logical(1)`)\cr
     #' If `TRUE` prints automatic build information.
     build = function(data = NULL, verbose = FALSE) {
-      
       # change scientific notation
       store_scipen <- options()$scipen
       options(scipen = 500)
       
       #----- 1) SETUP -----#
-      private$obj$import_setup(lapply(private$setup, as.character))
+      char_setup <- lapply(private$setup[!is.na(private$setup)], as.character)
+      private$obj$import_setup(char_setup)
       
       #----- 2) PARAMETERS -----#
-      private$obj$import_params(data.frame(lapply(private$param.frame, as.character)))
+      char_params <- data.frame(lapply(private$param.frame, as.character))
+      private$obj$import_params(char_params)
       
       #----- 3) DATA -----#
       if (is.null(data)) {
@@ -99,7 +101,8 @@ HouseholdModelClass <- R6::R6Class(
         private$obj$read_data(data)
         
       } else if (is.data.frame(data)) {
-        private$obj$import_data(data.frame(lapply(data, as.character)))
+        char_data <- data.frame(lapply(data, as.character))
+        private$obj$import_data(char_data)
         
       } else {
         stop(cli::format_error(
@@ -108,7 +111,8 @@ HouseholdModelClass <- R6::R6Class(
       }
       
       #----- 4) AUGMENTED VARIABLES -----#
-      private$obj$import_augm(data.frame(lapply(private$augm.frame, as.character)))
+      char_augm <- data.frame(lapply(private$augm.frame, as.character))
+      private$obj$import_augm(char_augm)
       
       options(scipen = store_scipen)
     }
@@ -340,17 +344,15 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     ############################################################################
     ############################################################################
-
+    
     #' @description
-    #' Run the inference.
+    #' Run Bayesian MCMC inference and store internally the chain traces.
     #' @param data (`character(1)` | `data.frame`)\cr
     #' Path to a csv data file or a data.frame.
     #' @param progbar (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
     #' @param ... further arguments passed to \code{setup.list}.
-    #' @return A coda mcmc object.
     infer = function(data = NULL, progbar = TRUE, ...) {
-      
       # assign setup
       do.call(self$setup.list, list(...))
       
@@ -360,7 +362,7 @@ HouseholdModelClass <- R6::R6Class(
       # infer method from cpp model object
       private$obj$infer(progbar)
       # load traces from last inference
-      df <- private$obj$traces()
+      df <- private$obj$export_traces()
       
       # extract setup information for coda
       S <- private$obj$export_setup()
@@ -375,10 +377,10 @@ HouseholdModelClass <- R6::R6Class(
             thin = S[["thinning"]]
           )
         })
-        output <- coda::as.mcmc.list(df_list)
+        private$traces.frame <- coda::as.mcmc.list(df_list)
         
       } else {
-        output <- coda::mcmc(
+        private$traces.frame <- coda::mcmc(
           data = df,
           start = S[["burn_in"]] + S[["thinning"]],
           end = S[["num_iter"]],
@@ -386,7 +388,58 @@ HouseholdModelClass <- R6::R6Class(
         )
       }
       
+      invisible(self)
+    },
+    
+    #' @description
+    #' Export the traces of last inference call as a coda object.
+    #' @return
+    #' (`coda::mcmc` | `coda::mcmc.list`)
+    traces.export = function() {
+      return(private$traces.frame)
+    },
+    
+    #' @description
+    #' Export the traces of last inference call as a coda object.
+    #' @return
+    #' (`data.frame`)
+    traces.summary = function() {
+      res <- summary(private$traces.frame)
+      imask <- private$param.frame["infer"] == TRUE
+      inames <- private$param.frame[imask, "name"]
+      output <- data.frame(
+        Mean = res[["statistics"]][inames, "Mean"],
+        Std.Dev = res[["statistics"]][inames, "SD"],
+        Q2.5 = res[["quantiles"]][inames, "2.5%"],
+        Q97.5 = res[["quantiles"]][inames, "97.5%"]
+      )
       return(output)
+    },
+    
+    #' @description
+    #' Calls `coda` traceplot function to plot traces of a single chain.
+    #' @param chain (`integer(1)`)
+    #' Option to specifiy which chain to plot if multiple chains.
+    #' @param col (`character(1)`)
+    #' Name of the color or RGB hex value.
+    #' @param ...
+    #' Further arguments pass to [coda][coda::traceplot].
+    traces.traceplot = function(chain = NA,
+                                col = "dodgerblue",
+                                ...) {
+      if (is.null(private$traces.frame))
+      {
+        stop("No traces found.")
+      } else if (coda::is.mcmc.list(private$traces.frame)) {
+        if (is.na(chain)) {
+          coda::traceplot(private$traces.frame, col = col, ...)
+        } else {
+          coda::traceplot(private$traces.frame[chain], col = col, ...)
+        }
+      } else {
+        coda::traceplot(private$traces.frame, col = col, ...)
+      }
+      
       invisible(self)
     },
     
@@ -399,7 +452,6 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... further arguments passed to \code{setup.list}.
     #' Named build options.
     simulate = function(data = NULL, progbar = TRUE, ...) {
-      
       # assign setup
       do.call(self$setup.list, list(...))
       
@@ -415,9 +467,15 @@ HouseholdModelClass <- R6::R6Class(
     #' Export the loaded database at current state.
     #' If the case, it also return the associated augmented variables.
     #' @return (`data.frame`)\cr
-    #' A data.frame with individual data. 
+    #' A data.frame with individual data.
     data.export = function() {
       return(private$obj$export_data())
+    },
+    
+    #' @description
+    #' Print a summary of the loaded database.
+    data.summary = function() {
+      return(private$obj$show_summary())
     },
     
     ############################################################################
@@ -430,7 +488,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Use loo package to compute the leave-one-out cross-validation (PSIS-LOO CV).
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
-    loo = function(...){
+    loo = function(...) {
       return(loo::loo(private$obj$export_loglike_matrix(), ...))
     },
     
@@ -438,7 +496,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Use loo package to compute the widely applicable information criterion (WAIC).
     #' @param ... arguments passed to [loo][loo::waic].
     #' #' For arguments and further details type ?loo::waic.
-    waic = function(...){
+    waic = function(...) {
       return(loo::waic(private$obj$export_loglike_matrix(), ...))
     },
     
@@ -455,8 +513,11 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`double(1)`)\cr
     #' The value of the model evidence.
     #' @param ... further arguments passed to  \code{setup.list}.
-    evidence = function(data = NULL, num_rungs = 40, adaptive = TRUE, progbar = TRUE, ...) {
-      
+    evidence = function(data = NULL,
+                        num_rungs = 40,
+                        adaptive = TRUE,
+                        progbar = TRUE,
+                        ...) {
       # assign setup
       do.call(self$setup.list, list(...))
       
@@ -483,7 +544,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Setup the list of configurations for the different analysis.
     #' @param seed (`integer(1)`)\cr
-    #' Seed of the random number generator. 
+    #' Seed of the random number generator.
     #' @param num_iter (`integer(1)`)\cr
     #' Number of iterations.
     #' @param burn_in (`integer(1)`)\cr
@@ -532,7 +593,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted parameter definitions.
     param.export = function() {
-      return(private$obj$export_params())
+      return(private$param.frame)
     },
     
     #' @description
@@ -560,14 +621,15 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... (named `list()`s)\cr
     #' Parameter names with respective list of definitions.
     param.append = function(...) {
-      
       # convert definitions to list
       definitions = list(...)
       
       if (length(definitions) == 0) {
         # reinitialize according to templated parameters
         self$param.template()
-        cli::cli_alert_warning(cli::format_warning(c("No definitions provided.", i = "Falling back to template definitions.")))
+        cli::cli_alert_warning(cli::format_warning(
+          c("No definitions provided.", i = "Falling back to template definitions.")
+        ))
         
       } else {
         # user definitions
@@ -809,9 +871,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted augmented variable definitions.
     augm.export = function() {
-      # FIXME 
-      stop("'augm.export' yet to be coded. Sorry for the Inconvenience.")
-      #return(private$obj$export_augm())
+      return(augm.frame)
     },
     
     #' @description
@@ -847,7 +907,6 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... (named `list()`s)\cr
     #' Augmented variable names with respective list of definitions.
     augm.append = function(...) {
-      
       # convert definitions to list
       definitions = list(...)
       

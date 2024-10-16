@@ -1,0 +1,6 @@
+> rmarkdown::pandoc_version()
+[1] ‘3.1.11’
+> packageVersion("knitr")
+[1] ‘1.45’
+> packageVersion("rmarkdown")
+[1] ‘2.25’

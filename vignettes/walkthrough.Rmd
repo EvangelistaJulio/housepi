@@ -3,24 +3,27 @@ title: "Walkthrough"
 output: 
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 2
+    toc_depth: 3
 vignette: >
   %\VignetteIndexEntry{Walkthrough}
-  %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 editor_options: 
   markdown: 
     wrap: sentence
 ---
 
-We introduce `housepi`, a toolkit for the study of epidemiological data from household outbreaks.
-We'll walk through the process of loading the model, building it with necessary data and running inference.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+We introduce `housepi`, a package for the study of epidemiological data from household outbreaks.
+We'll walk through the process of loading a model, associating necessary definitions to perform the inference and a simulation study.
 
 ## The Household Model Class
 
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to the model.
-We produce an instance a class and produce an object from it with the function `generate_model`.
-For simplicity, we show how it works with a template model, the chain binomial:
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
+We show how to produce a new instance of such a class and its functionalities with a template model, the chain binomial:
 
 ```{r}
 # generate an instance of the chain binomial model
@@ -29,74 +32,83 @@ chabi <- housepi::HouseholdModelClass$new("chain_binom")
 
 *Note:* this process can take a few minutes because it compiles the full template.
 
-To see the list of available template models, just run `housepi::HouseholdModelClass$new()`.
-Alternatively we can create a custom model, but we will talk about it in the vignette [custom_models](custom_models.html).
+To see the complete list of available template models, just run `HouseholdModelClass$new()` without arguments.
+We explain how to create a custom model in the vignette [Custom Models](custom_models.html).
 
-To proceed any further, a model requires a database and the definitions to its parameters.
+### Database Format
 
-### Database
+Data can be provided as a numerical data.frame (or a path to a csv file) where individual information are organised by row.
+Individuals with equal values in the column `house_id` are considered to belong to same household.
+Additionally, an individual identifier `id` can be provided within the respective column.
 
-In housepi, data can be provided with a numerical data.frame (or a path to a csv file) where individual information are organised by row.
-Individuals with equal `house_id` will then be associated to the same household.
-A column `status` must be provided if to perform inference: ${\geq}1$ if infectious, $0$ if susceptible, $-1$ if missing.
-Additionally, an individual identifier can be provided with the column `id`.
+To provide the `status` of each individual (required to perform inference), each value must satisfy the following convention:
+
+-   infectious status: $1$ (or $>{1}$).
+-   susceptible status: $0$.
+-   missing status: $-1$.
 
 ```{r, echo=FALSE}
-X <- read.csv("survey.csv")
-knitr::kable(head(X[c("id", "house_id", "status")]))
+X <- read.csv("survey.csv")[c("id", "house_id", "status")]
+knitr::kable(head(X))
 ```
 
 ### Parameter Definitions
 
-Parameter definitions, like the respective priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param.append` as follows:
+Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param.append`.
 
 ```{r, echo=TRUE}
 chabi$param.append(
   alpha = list(
-    prior = "unif", args = list(min = 0, max = 2),
+    prior = "unif", args = list(min = 0, max = 3),
     rule = "lnorm", rule_args = list(sdlog = 1)
   ),
   beta = list(
-    prior = "unif", args = list(min = 0, max = 2),
+    prior = "unif", args = list(min = 0, max = 3),
     rule = "lnorm", rule_args = list(sdlog = 1)
   )
 )
 ```
 
-Regardless of other options, a parameter is considered as a constant if the *infer* option to `FALSE`. In a similar way can also associate augmented variable definitions. We show how to do it in the vignette [data_augmentation](data_augmentation.html).
+In a similar way we can also associate augmented variable definitions.
+We show how to do it in the vignette [Data Augmentation](data_augmentation.html).
 
 ## Inference
 
-Now we can safely perform inference with the method `infer`. This method returns a `coda` mcmc object (or mcmc.list if multiple chains) which can then be used to analyze the results.
+Now we can safely perform inference with the method `infer`.
 
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
-mcmc_traces <- chabi$infer(data = "survey.csv", num_iter = 10000, burn_in = 2500,
-                           thinning = 15, num_adapt = 2500, num_chains = 4, 
-                           seed = 5, num_threads = 4)
+chabi$infer(data = "survey.csv", num_iter = 50000, burn_in = 5000,
+            thinning = 15, num_adapt = 300, num_chains = 4,
+            seed = 5, num_threads = 4)
 ```
 
-*Note:* parallelization is implemented with openMP which is not supported on latest macOS distributions, thus the option `num_threads` is non granted on such systems.
+*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `num_threads` is not granted on such systems.
 
 ```{r}
-# visualize the traces of the first MCMC chain
-coda::traceplot(mcmc_traces[1], col="#B1A12C")
+# visualize the traces of the first chain
+chabi$traces.traceplot(chain = 1)
 
-# print summary of the posterior estimates
-results <- summary(mcmc_traces)
-
-# compute effective sample size
-coda::effectiveSize(mcmc_traces)
-
-# Gelman-Rubin diagnostic
-coda::gelman.diag(mcmc_traces)
+# store summary of the posterior estimates
+results <- chabi$traces.summary()
 ```
 
-See [coda CRAN documentation](https://cran.r-project.org/web/packages/coda/index.html) for further details.
+For advanced analysis on the inference results, we can extract the traces with method `traces.export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
+
+```{r}
+# export coda object
+mctraces <- chabi$traces.export()
+
+# e. g. compute effective sample size
+coda::effectiveSize(mctraces)
+
+# e. g. Gelman-Rubin criterion for convergence
+coda::gelman.diag(mctraces)
+```
 
 ### Model Diagnostic
 
-We can extract the log-likelihood matrix to perform model diagnostics with the R package `loo` ([CRAN documentation](https://cloud.r-project.org/web/packages/loo/index.html)) :
+To perform model diagnostics, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/index.html) :
 
 ```{r}
 # WAIC (widely applicable information criterion)
@@ -106,54 +118,60 @@ chabi$waic()
 chabi$loo()
 ```
 
-Another feature of the `housepi` package is the possibility to estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
+Another possibility is to estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
 
 ```{r, eval=FALSE}
+# return the estimate of the model evidence
 chabi$evidence(num_rungs = 30)
 ```
 
 ## Simulation
 
-To produce a simulated database according to the model, we execute the command `run_simulation`.
-Simulation requires a pre-loaded database with the household compositions.
+In order to produce a simulation, our models require a pre-loaded database with the household compositions. The rest is analogous to the inference case, except we habe to call the `simulate` method:
 
 ```{r}
-# generate a new object for the simulation
-sim_chabi <- housepi::HouseholdModelClass("chain_binom")
+# generate a new model object for the simulation
+simu_cb <- housepi::HouseholdModelClass$new("chain_binom")
 
-# define parameters from the inference results
-sim_chabi$param.append(
-  alpha = list(x = results$statistics["alpha", "Mean"]), 
-  beta = list(x = results$statistics["beta", "Mean"])
+# define constant parameters from the inference results
+simu_cb$param.append(
+  alpha = list(x = results["alpha", "Mean"]), 
+  beta = list(x = results["beta", "Mean"])
 )
 
-# build the new model using same household compositions :
+# build the new model using the same household compositions
 # override status of the database according to simulation 
-sim_chabi$simulate(data = "survey.csv", seed = 51)
+simu_cb$simulate(data = "survey.csv", seed = 51)
 ```
 
-To return the simulated database, which also corresponds to the current loaded database, we use the method 
+To return the simulated database, which also corresponds to the current loaded database, we use the method
 
 ```{r}
 # export current database
-df <- sim_chabi$data.export()
-```
-
-```{r, echo=FALSE}
-knitr::kable(head(df[c("id", "house_id", "status")]))
+df <- simu_cb$data.export()
 ```
 
 ### Simulation Study
 
-We can challenge the inference process used at the beginning on the new simulated data. 
+We can challenge the inference process used at the beginning with the new simulated database.
+
 ```{r}
-# we change data in the 'chabi' object keeping other definitions
-# run the inference
-mcmc_traces <- chabi$infer(data = df)
+# run the inference on the new data keeping previous definitions
+chabi$infer(data = df)
 
-# visualize the traces of the first MCMC chain
-coda::traceplot(mcmc_traces[1], col="#21943E")
+# visualize the traces of the first chain
+chabi$traces.traceplot(chain = 1)
 
-# print summary of the posterior estimates
-sim_results <- summary(mcmc_traces)
+# collect the results
+results_2 <- chabi$traces.summary()
+
+# export parameters used for the simulations
+params <- simu_cb$param.export()
+
+# compare results to parameters used for inference
+results_2[params[["name"]], "Simul"] <- params["value"]
+```
+
+```{r, echo=FALSE}
+knitr::kable(results_2)
 ```

@@ -3,29 +3,35 @@ title: "Data Augmentation"
 output: 
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 2
+    toc_depth: 3
 vignette: >
   %\VignetteIndexEntry{Data Augmentation}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 ```
 
-This tutorial introduces to data augmentation with the package `housepi`. We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference. 
+This tutorial introduces to data augmentation with the package `housepi`.
+We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
 
 ## Estimate Incubation Periods Distribution
 
+For simplicity, we start testing data augmentation on a database which is not a household survey.
+Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
-Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges. 
+Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges.
 We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
 
 ```{r}
 delays <- read.csv("delays.csv")
-delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-5
-delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-5
+delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-4
+delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-4
 delays[["status"]] <- 1
 ```
 
@@ -33,7 +39,7 @@ delays[["status"]] <- 1
 knitr::kable(head(delays))
 ```
 
-We generate the model as showed in the [walkthrough](walkthrough.html):
+We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate the model
@@ -41,16 +47,23 @@ hemi_1 <- housepi::HouseholdModelClass$new("example_augm_delay_incubation")
 
 # gamma distribution parameter definitions
 hemi_1$param.append(
-  shape = list(prior = "unif", args = list(min = 0, max = 5),
-               rule = "norm", rule_args = list(sd = 1)),
-  scale = list(prior = "unif", args = list(min = 0, max = 5),
-               rule = "norm", rule_args = list(sd = 1))
+  shape = list(
+    prior = "unif", args = list(min = 0, max = 5),
+    rule = "norm", rule_args = list(sd = 1)
+  ),
+  scale = list(
+    prior = "unif", args = list(min = 0, max = 5),
+    rule = "norm", rule_args = list(sd = 1)
+  )
 )
 ```
 
 ### Build Augmented Variables
 
-Similarly to parameter definitions, for augmented variables we provide definitions with the models and proposer rules needed for the Bayesian Monte Carlo. However, augmented variable definitions are more delicate, since they can depend on data or parameters. We state which value should be imported from data formatting it as a string "<value-name>`@D`". Here we associate to each individual an exposure and an onset time.
+Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo.
+However, augmented variable definitions are more delicate, since they can depend on data or parameters.
+We state which value should be imported from data formatting it as a string "*value_name*`@D`".
+Here we associate to each individual an exposure and an onset time.
 
 ```{r}
 hemi_1$augm.append(
@@ -66,62 +79,61 @@ hemi_1$augm.append(
   
   # define 'onset' time
   onset = list(
-    x = "onset_max@D", # start from 'onset_max'
-    model = "unif",    # ...
-    args = list(min = "onset_min@D", 
-                max = "onset_max@D"),
-    rule = "norm",
-    rule_args = list(sd = 0.25)
+    x = "onset_max@D",
+    model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
+    rule = "norm", rule_args = list(sd = 0.25)
   )
 )
 ```
 
-*Note:* The warning is telling us that the database has been interpreted as composed of single individuals, i .e. living in separate households.
-
-We run the inference and we extract the results as usual:
+We run the inference and we extract the results
 
 ```{r}
-# perform the inference on the delays data.frame
-mcmc_trace_1 <- hemi_1$infer(data = delays, num_iter = 100000, burn_in = 10000,
-                             thinning = 10, num_adapt = 2500, seed = 4815162342)
-coda::traceplot(mcmc_trace_1, col="#0E86D4")
-results_1 <- summary(mcmc_trace_1)
+hemi_1$infer(data = delays, num_iter = 100000, burn_in = 10000,
+             thinning = 10, num_adapt = 2500, seed = 4342)
+# Note: The warning is telling us that the database is interpreted as composed of single individuals living in separate households.
+
+# show traces of chains
+hemi_1$traces.traceplot()
+
+# collect results
+results_1 <- hemi_1$traces.summary()
 ```
 
 ## Augment Onset Times
 
-For a more realistic example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset. 
-For simplicity the model assumes no asymptomatic cases. 
+For a more realistics example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
+For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
 hemi_2 <- housepi::HouseholdModelClass$new("augm_onset_single_intr")
 ```
 
-This time we load the parameter definitions directly from the model template. 
+This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
 hemi_2$param.template()
 
-# export current parameter definitions
+# export the data.frame with parameter definitions
 par_2 <- hemi_2$param.export()
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(head(par_2)) 
+knitr::kable(par_2)
 ```
 
-We propose the following definitions for the augmented variable 
+We propose the following definitions for the augmented variable
 
 ```{r}
-# add 'onset_date'
+# add augmented variable definition 'onset_date'
 hemi_2$augm.add(name = "onset_date",
                 init_rand = TRUE,
-                model = "lnorm",
+                model = "lnorm", 
                 args = list(meanlog = 4, sdlog = 0.5),
                 range = list(max = 365))
 
-# add 'incub_period'
+# add augmented variable definition 'incub_period'
 hemi_2$augm.add(name = "incub_period", 
                 init_rand = TRUE,
                 model = "gamma", 
@@ -129,12 +141,10 @@ hemi_2$augm.add(name = "incub_period",
                             scale = "inc_scale@P"),
                 range = list(max = 14))
 
-# assign model arguments of incubation period from parameters
+# assign arguments of incubation period as constant parameters
 # we use the inferred values from the first example
-hemi_2$param.add(name = "inc_shape", 
-                 x = results_1$statistics["shape", "Mean"])
-hemi_2$param.add(name = "inc_scale", 
-                 x = results_1$statistics["scale", "Mean"])
+hemi_2$param.add(name = "inc_shape", x = results_1["shape","Mean"])
+hemi_2$param.add(name = "inc_scale", x = results_1["scale","Mean"])
 ```
 
 ### Simulate an Outbreak
@@ -143,10 +153,10 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation 
-hemi_2$simulate(data = "survey.csv", seed = 17)
+hemi_2$simulate(data = "survey.csv", seed = 3731)
 
-# show a summary of the current dataset 
-hemi_2$show_summary() # FIXME
+# show a summary of the current dataset
+hemi_2$data.summary()
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
@@ -164,18 +174,22 @@ df[is_infec, "onset_date"] <- sapply(
   )
 ```
 
+```{r, echo=FALSE}
+knitr::kable(head(df))
+```
+
 ### Validate the Simulation
 
 We can check that inference returns the parameters used for the simulation.
 
 ```{r}
-# new augmented definitions for the inference
+# clear previous augmented definitions
 hemi_2$augm.clear()
 
 # add 'onset_date' definition
 hemi_2$augm.add(name = "onset_date",
                 x = "onset_date@D",
-                rule = "norm", rule_args = list(sd = 0.5),
+                rule = "norm", rule_args = list(sd = 0.25),
                 rule_from = "onset_date@D")
 
 # add 'incub_period' definition
@@ -186,24 +200,24 @@ hemi_2$augm.add(name = "incub_period",
                 rule = "gibbs",
                 range = list(max = 14))
 
-# run the inference # note : we limit the iterations for brevity
-mcmc_trace <- hemi_2$infer(data = df, num_iter = 8000,  burn_in = 2000, 
-                           thinning = 10, num_adapt = 2000, seed = 57)
+# perform the inference
+hemi_2$infer(data = df, num_iter = 30000, burn_in = 5000, 
+             thinning = 25, num_adapt = 2500, seed = 57)
+
+# plot the traces
+hemi_2$traces.traceplot()
 ```
 
-
 ```{r}
-# plot the traces of the Markov chains
-coda::traceplot(mcmc_trace, col="#CA1F63")
+# collect the results
+results_2 <- hemi_2$traces.summary()
 
-# extract the results 
-results_2 <- summary(mcmc_trace)
-
-# collect the information for the check
+# compare results to parameters used for inference
 imask <- par_2["infer"] == TRUE
 inames <- par_2[imask, "name"]
-data.frame(Expec = par_2[imask, "value"],
-           Estim = results_2[["statistics"]][inames, "Mean"],
-           CI2.5 = results_2[["quantiles"]][inames, "2.5%"],
-           CI97.5 = results_2[["quantiles"]][inames, "97.5%"])
+results_2[inames, "Simul"] <- par_2[imask, "value"]
+```
+
+```{r, echo=FALSE}
+knitr::kable(results_2)
 ```
