@@ -43,7 +43,7 @@ void Model::assign_group_rate_to_individual(Individual &this_indiv)
 	}
 	else
 	{ // fully vaccinated : Infectivity
-		this_indiv.assign_group_rate("Infectivity", "i_vacc");
+		this_indiv.assign_group_rate("Infectivity", "inf_vacc");
 	}
 
 	//===== rate n.1 : Susceptibility =====//
@@ -53,7 +53,7 @@ void Model::assign_group_rate_to_individual(Individual &this_indiv)
 	}
 	else
 	{ // fully vaccinated : Infectivity
-		this_indiv.assign_group_rate("Susceptibility", "s_vacc");
+		this_indiv.assign_group_rate("Susceptibility", "sus_vacc");
 	}
 }
 
@@ -77,15 +77,15 @@ void Model::assign_contact_rate_to_household(Household &this_house, int from, in
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		this_house.assign_rate_per_contact(from, to, "c_kid_to_kid");
+		this_house.assign_rate_per_contact(from, to, "cont_child_child");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		this_house.assign_rate_per_contact(from, to, "c_kid_to_adu");
+		this_house.assign_rate_per_contact(from, to, "cont_child_adult");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		this_house.assign_rate_per_contact(from, to, "c_adu_to_kid");
+		this_house.assign_rate_per_contact(from, to, "cont_adult_child");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]

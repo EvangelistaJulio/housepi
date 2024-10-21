@@ -15,9 +15,10 @@ using namespace basics;
 bool Param_Infer_Fixed_Move_Warning = false;
 bool Non_Specified_Type_Warning = false;
 bool Non_Specified_Value_Warning = false;
-bool Fix_Init_Mult_Chains_Warning = false; // fixed paramter values when multiple chains
-bool Unkown_Setup_Entry_Warning = false;   // wrong entries in setup file
+bool Fix_Init_Mult_Chains_Warning = false;
+bool Unknown_Setup_Entry_Warning = false;
 bool Unknown_Household_Data_Structure_Warning = false;
+bool Unknown_Individual_Data_Warning = false;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -147,7 +148,7 @@ void MCMC::build_setup()
             {
                 oss << ", '" << file_entries[k] << "'";
             }
-            raise_warning(oss.str() + ".", Unkown_Setup_Entry_Warning);
+            raise_warning(oss.str() + ".", Unknown_Setup_Entry_Warning);
         }
 
         //===== ASSIGN SETUP CONFIGURATIONS =====//
@@ -155,19 +156,19 @@ void MCMC::build_setup()
         //===== NUMBER OF THREADS =====//
         if (_setup_deflist_.find("num_threads") != _setup_deflist_.end())
         {
-            num_threads = std::stoi(_setup_deflist_.at("num_threads"));
+            num_threads = safe_stoi(_setup_deflist_.at("num_threads"), "number of threads");
         }
 
         //===== PRNG SEED =====//
         if ((_setup_deflist_.find("seed") != _setup_deflist_.end()) && (!is_na(_setup_deflist_.at("seed"))))
         {
-            setup_seed = std::stoull(_setup_deflist_.at("seed"));
+            setup_seed = safe_stoull(_setup_deflist_.at("seed"), "random seed");
         }
 
         //===== NUMBER OF CHAINS =====//
         if (_setup_deflist_.find("num_chains") != _setup_deflist_.end())
         {
-            setup_num_chains = std::stoul(_setup_deflist_.at("num_chains"));
+            setup_num_chains = safe_stoul(_setup_deflist_.at("num_chains"), "number of chains");
             if (setup_num_iter < 1)
             {
                 raise_error("Number of chains must be greater than 0.");
@@ -177,7 +178,7 @@ void MCMC::build_setup()
         //===== NUMBER OF ITERATIONS =====//
         if (_setup_deflist_.find("num_iter") != _setup_deflist_.end())
         {
-            setup_num_iter = std::stoul(_setup_deflist_.at("num_iter"));
+            setup_num_iter = safe_stoul(_setup_deflist_.at("num_iter"), "number of iterations");
             if (setup_num_iter < 2)
             {
                 raise_error("Number of iterations must be greater than 1.");
@@ -187,13 +188,13 @@ void MCMC::build_setup()
         //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
         if (_setup_deflist_.find("num_adapt") != _setup_deflist_.end())
         {
-            setup_num_adapt = std::stoul(_setup_deflist_.at("num_adapt"));
+            setup_num_adapt = safe_stoul(_setup_deflist_.at("num_adapt"), "number of adaptive steps");
         }
 
         //===== THINNING =====//
         if (_setup_deflist_.find("thinning") != _setup_deflist_.end())
         {
-            setup_thinning = std::stoul(_setup_deflist_.at("thinning"));
+            setup_thinning = safe_stoul(_setup_deflist_.at("thinning"), "thinning");
             if (setup_thinning >= setup_num_iter)
             {
                 raise_error("Thinning must be smaller than number of iterations. ");
@@ -207,7 +208,7 @@ void MCMC::build_setup()
         //===== BURN-IN =====//
         if (_setup_deflist_.find("burn_in") != _setup_deflist_.end())
         {
-            setup_burn_in = std::stoul(_setup_deflist_.at("burn_in"));
+            setup_burn_in = safe_stoul(_setup_deflist_.at("burn_in"), "burn-in");
             if (setup_burn_in >= setup_num_iter)
             {
                 raise_error("Burn-in must be smaller than number of iterations.");
@@ -229,7 +230,7 @@ void MCMC::build_setup()
         //===== INVERSE TEMPERATURE =====//
         if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
         {
-            set_inver_temper(std::stod(_setup_deflist_.at("inv_temper")));
+            set_inver_temper(safe_stod(_setup_deflist_.at("inv_temper"), "inverse temperature"));
         }
     }
 
@@ -348,18 +349,18 @@ void MCMC::build_params()
                 }
                 else
                 {
-                    value = std::stod(_param_deftable_.at("value")[p]);
+                    value = safe_stod(_param_deftable_.at("value")[p], "parameter");
                 }
 
                 // load range
                 dictargs range = {};
                 if (!is_na(_param_deftable_.at("min")[p]))
                 {
-                    range.emplace("min", std::stod(_param_deftable_.at("min")[p]));
+                    range.emplace("min", safe_stod(_param_deftable_.at("min")[p], "parameter minimum"));
                 }
                 if (!is_na(_param_deftable_.at("max")[p]))
                 {
-                    range.emplace("max", std::stod(_param_deftable_.at("max")[p]));
+                    range.emplace("max", safe_stod(_param_deftable_.at("max")[p], "parameter maximum"));
                 }
 
                 // assign parameter to the set of variables
@@ -368,8 +369,8 @@ void MCMC::build_params()
                                     merge_list_args(_param_deftable_.at("args")[p],
                                                     _param_deftable_.at("argsval")[p]),
                                     _param_deftable_.at("rule")[p],
-                                    merge_list_args(_param_deftable_.at("rargs")[p],
-                                                    _param_deftable_.at("rargsval")[p]),
+                                    merge_list_args(_param_deftable_.at("rule_args")[p],
+                                                    _param_deftable_.at("rule_argsval")[p]),
                                     range);
                 assign_param(parID, new_param);
             }
@@ -382,7 +383,7 @@ void MCMC::build_params()
                 }
                 else
                 {
-                    value = std::stod(_param_deftable_.at("value")[p]);
+                    value = safe_stod(_param_deftable_.at("value")[p], "parameter");
                 }
 
                 // assign immutable parameter to the set of variables
@@ -452,63 +453,91 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
         house.clear();
         report_group_classes.clear();
 
-        //===== Assess the presence of indexes =====//
-        bool is_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "id") != _data_headers_.end());
-        bool is_house_index = (std::find(_data_headers_.begin(), _data_headers_.end(), "house_id") != _data_headers_.end());
-        if (!is_house_index)
+        //===== Assess the presence of house IDs =====//
+        if (std::find(_data_headers_.begin(), _data_headers_.end(), "house_id") == _data_headers_.end())
         {
             std::ostringstream oss;
-            oss << "Impossible to associate a household structure: missing data column 'house_index'."
+            oss << "Impossible to associate a household structure: missing data column 'house_id'."
                 << " If it was intentional, ignore this message.";
             raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
         }
 
         //===== Safe Load of Households =====//
-        std::unordered_map<int, int> aux_hh_idx = {};
+        std::unordered_map<std::string, int> aux_hh_idx = {};
         for (int i = 0; i < num_indiv; ++i)
         {
+            //----- Read individual data -----//
+            std::string this_indiv_id = std::to_string(i);
+            std::string this_house_id = std::to_string(num_house);
+            int this_status = MISSING_STATUS;
             dictargs args = {};
             for (const std::string &key : _data_headers_)
             {
-                if (is_na(datatable.at(key)[i]))
+                if (key == "id")
+                {
+                    if (is_na(datatable.at("id")[i]))
+                    {
+                        raise_error("Missing id for individual in row n." + std::to_string(i) + ".");
+                    }
+                    else
+                    {
+                        this_indiv_id = datatable.at("id")[i];
+                    }
+                }
+                else if (key == "house_id")
+                {
+                    if (is_na(datatable.at("house_id")[i]))
+                    {
+                        raise_error("Missing house_id for individual in row n." + std::to_string(i) + ".");
+                    }
+                    else
+                    {
+                        this_house_id = datatable.at("house_id")[i];
+                    }
+                }
+                else if (key == "status")
+                {
+                    // NA status is a missing status
+                    if (!is_na(datatable.at("status")[i]))
+                    {
+                        this_status = safe_stoul(datatable.at("status")[i], "individual status");
+                    }
+                }
+                else if (is_na(datatable.at(key)[i]))
                 {
                     args.emplace(key, std::numeric_limits<double>::quiet_NaN());
+                    std::ostringstream oss;
+                    oss << "Found NA value in database. If intentional, ignore this warning.";
+                    raise_warning(oss.str(), Unknown_Individual_Data_Warning);
                 }
                 else
                 {
-                    args.emplace(key, std::stod(datatable.at(key)[i]));
+                    args.emplace(key, safe_stod(datatable.at(key)[i], "data '" + key + "'"));
                 }
             }
-            if (!is_index)
-            {
-                args.emplace("id", i);
-            }
-
-            Individual this_indiv(args);
+            // create individual instance
+            Individual this_indiv(this_indiv_id, this_status, args);
 
             //----- Assign and set rate per group -----//
             set_rate_per_group(this_indiv);
 
-            // user provided household index (to set structure or not)
-            int hh_idx = (is_house_index) ? this_indiv.get_data("house_id") : num_house;
-
             // if household index doesn't exist, add new household
             // note : this is redundant if no structure
-            if (aux_hh_idx.find(hh_idx) == aux_hh_idx.end())
+            if (aux_hh_idx.find(this_house_id) == aux_hh_idx.end())
             {
                 // map data index to household number
-                aux_hh_idx.emplace(hh_idx, num_house);
+                aux_hh_idx.emplace(this_house_id, num_house);
                 // create a new empty household
                 house.emplace_back();
-                // assign the data index
-                house[num_house].assign_data("house_id", hh_idx);
-                // set household number as its id
-                house[num_house].set_id(num_house);
+                // assign the user data id
+                house[num_house].set_ID(this_house_id);
+                // set household number as its index
+                house[num_house].set_index(num_house);
                 // increment household number
                 ++num_house;
             }
             // assign the individual the respective household
-            house[aux_hh_idx.at(hh_idx)].assign_individual(this_indiv);
+            house[aux_hh_idx.at(this_house_id)].assign_individual(this_indiv);
         }
 
         //===== Set Contact Rates =====//
@@ -641,7 +670,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             // error : undefined rate
             std::ostringstream oss;
             oss << "Rate '" << rateID << "' is not provided for individual "
-                << this_indiv.get_data("id") << ".";
+                << this_indiv.get_ID() << ".";
             raise_error(oss.str());
         }
         else if (parID == REFERENCE)
@@ -685,7 +714,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
     this_house.which_rate.resize(hh_size, std::vector<std::string>(hh_size, UNDEFINED));
     this_house.contact_rates.resize(hh_size, std::vector<const double *>(hh_size, &REFERENCE_VALUE));
 
-    if (this_house.get_id() == 0)
+    if (this_house.get_index() == 0)
     {
         // if first household, initialize contact rate report
         report_group_classes.emplace(CONTACT_RATE, std::map<std::string, int>());
@@ -714,8 +743,8 @@ void MCMC::set_rate_per_contact(Household &this_house)
                 if (is_na(parID))
                 {
                     std::ostringstream oss;
-                    oss << "Contact rate not provided for individuals " << this_house.indiv[k].get_data("id")
-                        << " and " << this_house.indiv[i].get_data("id") << " within household " << this_house.get_data("house_id") << ".";
+                    oss << "Contact rate not provided for individuals " << this_house.indiv[k].get_ID()
+                        << " and " << this_house.indiv[i].get_ID() << " within household " << this_house.get_ID() << ".";
                     raise_error(oss.str());
                 }
                 else if (parID == REFERENCE)
@@ -761,7 +790,7 @@ void MCMC::read_augm(const std::string &pathtofile)
     const std::vector<std::string> augm_file_headers = {
         "name", "status", "value", "valuetype",
         "model", "args", "argsval", "argstype", "rule",
-        "rargs", "rargsval", "rargstype", "rfrom", "rfromtype",
+        "rule_args", "rule_argsval", "rule_argstype", "rule_from", "rule_fromtype",
         "min", "mintype", "max", "maxtype", "init_rand"};
 
     read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
@@ -874,7 +903,7 @@ void MCMC::build_augm()
                         raise_error(oss.str());
                     }
                 }
-                else if (std::stoi(z) < INFECTIOUS)
+                else if (safe_stoi(z, "augmented status") < INFECTIOUS)
                 {
                     std::ostringstream oss;
                     oss << "Impossible to associate augmented '" << pair.first << "' for non infectious status.";
@@ -909,7 +938,7 @@ void MCMC::assign_augm(Individual &this_indiv)
         // assign augmented variable of the corresponding status
         std::string augm_status = _augm_deftable_.at("status")[a];
 
-        if ((is_na(augm_status)) || (this_indiv.get_status() == std::stoi(augm_status)))
+        if ((is_na(augm_status)) || (this_indiv.get_status() == safe_stoi(augm_status, "augmented status")))
         {
             std::string augmID = _augm_deftable_.at("name")[a];
 
@@ -940,12 +969,12 @@ void MCMC::assign_augm(Individual &this_indiv)
                                                       _augm_deftable_.at("argsval")[a],
                                                       _augm_deftable_.at("argstype")[a], this_indiv),
                                _augm_deftable_.at("rule")[a],
-                               typedict_to_sdargs(_augm_deftable_.at("rargs")[a],
-                                                  _augm_deftable_.at("rargsval")[a],
-                                                  _augm_deftable_.at("rargstype")[a], this_indiv),
+                               typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
+                                                  _augm_deftable_.at("rule_argsval")[a],
+                                                  _augm_deftable_.at("rule_argstype")[a], this_indiv),
                                range,
-                               type_to_double(_augm_deftable_.at("rfrom")[a],
-                                              _augm_deftable_.at("rfromtype")[a], this_indiv));
+                               type_to_double(_augm_deftable_.at("rule_from")[a],
+                                              _augm_deftable_.at("rule_fromtype")[a], this_indiv));
             this_indiv.assign_augm(new_augm);
 
             // random initialization at assignment
@@ -998,17 +1027,8 @@ double MCMC::type_to_double(const std::string val, const std::string typ, const 
         output = INF_DOUBLE; // default value
     }
     else if (!is_na(val) && is_na(typ))
-    {
-        try
-        {
-            output = std::stod(val);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            std::ostringstream oss;
-            oss << "Value '" + val + "' can't be cast to scalar value. Provide the respective type.";
-            raise_warning(oss.str(), Non_Specified_Type_Warning);
-        }
+    { 
+        output = safe_stod(val, "argument without type");
     }
     else if (is_na(val) && !is_na(typ))
     {
@@ -1021,7 +1041,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, const 
     {
         if (typ == TYPE_SCALAR)
         {
-            output = std::stod(val);
+            output = safe_stod(val, "argument with scalar type");
         }
         else if (typ == TYPE_DATA)
         {
@@ -1093,7 +1113,7 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
         }
         else if (typ == TYPE_SCALAR)
         {
-            output = assign_scalar_pointer(std::stod(val));
+            output = assign_scalar_pointer(safe_stod(val, "argument with scalar type"));
         }
         else
         {

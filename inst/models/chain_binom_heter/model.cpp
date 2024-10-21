@@ -20,13 +20,13 @@ void Model::assign_group_rate_to_individual(Individual &this_indiv)
 	//=====Susceptibility=====//
 	if (this_indiv.get_data("age") <= get_param("child_age"))
 	{ // child
-		this_indiv.assign_group_rate("Susceptibility", "s_child");
+		this_indiv.assign_group_rate("Susceptibility", "sus_child");
 	}
 	else
 	{ // adult
 		if (this_indiv.get_data("sex") == 0)
 		{ // adult women
-			this_indiv.assign_group_rate("Susceptibility", "s_women");
+			this_indiv.assign_group_rate("Susceptibility", "sus_women");
 		}
 		else
 		{ // adult men : Susceptibility [REFERENCE]
@@ -41,7 +41,7 @@ void Model::assign_group_rate_to_individual(Individual &this_indiv)
 	}
 	else
 	{ // child
-		this_indiv.assign_group_rate("Infectivity", "i_child");
+		this_indiv.assign_group_rate("Infectivity", "inf_child");
 	}
 }
 
@@ -65,15 +65,15 @@ void Model::assign_contact_rate_to_household(Household &this_house, int from, in
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		this_house.assign_rate_per_contact(from, to, "c_kid_to_kid");
+		this_house.assign_rate_per_contact(from, to, "cont_child_child");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		this_house.assign_rate_per_contact(from, to, "c_kid_to_adu");
+		this_house.assign_rate_per_contact(from, to, "cont_child_adult");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		this_house.assign_rate_per_contact(from, to, "c_adu_to_kid");
+		this_house.assign_rate_per_contact(from, to, "cont_adult_child");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]

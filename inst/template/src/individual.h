@@ -19,8 +19,8 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // status aliases
-constexpr int INFECTIOUS = 1;      // status of infectious (>=)
-constexpr int SUSCEPTIBLE = 0;     // status of susceptible (==)
+constexpr int INFECTIOUS = 1;	   // status of infectious (>=)
+constexpr int SUSCEPTIBLE = 0;	   // status of susceptible (==)
 constexpr int MISSING_STATUS = -1; // missing status (==)
 
 //-----------------------------------------------------------------------------------------------//
@@ -38,8 +38,12 @@ class Individual
 {
 private:
 	//=====Attributes (private)=====//
-	int status = 0;		// status of the individual
-	dictargs data = {}; // database associated to individual
+	std::string ID = UNDEFINED; // user ID
+	int index = -1;				// index of individual
+	int status = 0;				// status of the individual
+	dictargs data = {};			// database associated to individual
+
+	// NOTE : for the moment, I can't retrieve house from individual
 
 public:
 	//=====Attributes (public)=====//
@@ -47,18 +51,24 @@ public:
 
 	//===== Constructors =====//
 	Individual() = default;
-	Individual(dictargs data);
+	Individual(const std::string &new_ID, int new_status, const dictargs &data);
 	~Individual() {};
 
-	//===== Basic Methods =====//
+	//===== Getter Methods =====//
+	std::string get_ID() const { return ID; }
 	int get_status() const { return status; }
-	void set_status(int s) { status = s; }
-	void disable_assert();
-	void assert_data(const std::string &dataID) const;
 	double get_data(const std::string &dataID) const { return (this->*_get_data_method_)(dataID); }
 	const double *get_data_pointer(const std::string &dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
 
-	//=====Rate Methods (e.g. Infectivity, Susceptibility, ...)=====//
+	//===== Assert Methods =====//
+	void disable_assert();
+	void assert_data(const std::string &dataID) const;
+
+	//===== Setter Methods =====//
+	void set_ID(const std::string &new_ID) { ID = new_ID; }
+	void set_status(int s) { status = s; }
+
+	//===== Rate Methods (e.g. Infectivity, Susceptibility, ...) =====//
 	void assign_group_rate(const std::string &rateID, const std::string &parID);
 	void set_rate(const std::string &rateID, const double *x) { rate_ptr.emplace(rateID, x); }
 	double get_group_rate(const std::string &rateID) const { return *rate_ptr.at(rateID); }
@@ -120,9 +130,9 @@ class Household
 {
 private:
 	//===== Attributes (private) =====//
-	int index = -1;			  // index of household
-	dictargs house_data = {}; // database associated to household (manual)
-	int house_size = 0;
+	std::string ID = UNDEFINED; // user ID
+	int index = -1;				// index of household
+	int house_size = 0;			// number of house members
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
 	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
@@ -158,16 +168,15 @@ public:
 
 	//====== Setter ======//
 	void assign_individual(Individual this_indiv);
-	void set_id(int id) { index = id; }
-	void assign_data(const std::string &dataID, double value);
+	void set_ID(const std::string &new_ID) { ID = new_ID; }
+	void set_index(int h) { index = h; }
 	void assign_rate_per_contact(int from, int to, const std::string &parID) { which_rate[from][to] = parID; }
 	bool change_status(int i, int new_status);
 
 	//====== Getter ======//
+	std::string get_ID() const { return ID; }
+	int get_index() const { return index; }
 	int size() const { return house_size; }
-	int get_id() const { return index; }
-	void assert_data(const std::string &dataID) const;
-	double get_data(const std::string &dataID) const;
 
 	// wheter members correspond to a given status or not
 	bool is_infectious(int i) const { return _is_infectious_[i]; }

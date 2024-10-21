@@ -204,7 +204,7 @@ Rcpp::DataFrame MCMC::export_params() const
     NumericVector V_value = {};
     LogicalVector V_infer = {};
     CharacterVector V_prior = {}, V_args = {}, V_argsval = {};
-    CharacterVector V_rule = {}, V_rargs = {}, V_rargsval = {};
+    CharacterVector V_rule = {}, V_rule_args = {}, V_rule_argsval = {};
     NumericVector V_min = {}, V_max = {};
 
     for (const std::string &parID : V_names)
@@ -217,8 +217,8 @@ Rcpp::DataFrame MCMC::export_params() const
         V_argsval.push_back(stoRString(show_param_distr_arg_values(parID)));
 
         V_rule.push_back(stoRString(show_param_prop_name(parID)));
-        V_rargs.push_back(stoRString(show_param_prop_arg_names(parID)));
-        V_rargsval.push_back(stoRString(show_param_prop_arg_values(parID)));
+        V_rule_args.push_back(stoRString(show_param_prop_arg_names(parID)));
+        V_rule_argsval.push_back(stoRString(show_param_prop_arg_values(parID)));
 
         V_min.push_back(std::isnan(get_param_range_min(parID)) ? NA_REAL : get_param_range_min(parID));
         V_max.push_back(std::isnan(get_param_range_max(parID)) ? NA_REAL : get_param_range_max(parID));
@@ -226,7 +226,7 @@ Rcpp::DataFrame MCMC::export_params() const
 
     return DataFrame::create(_["name"] = V_names, _["value"] = V_value, _["infer"] = V_infer,
                              _["prior"] = V_prior, _["args"] = V_args, _["argsval"] = V_argsval,
-                             _["rule"] = V_rule, _["rargs"] = V_rargs, _["rargsval"] = V_rargsval,
+                             _["rule"] = V_rule, _["rule_args"] = V_rule_args, _["rule_argsval"] = V_rule_argsval,
                              _["min"] = V_min, _["max"] = V_max);
 }
 
@@ -256,8 +256,8 @@ Rcpp::DataFrame MCMC::export_data() const
     {
         for (const Individual &this_indiv : this_house.indiv)
         {
-            df_index[c] = this_indiv.get_data("id");
-            df_house_index[c] = this_house.get_data("house_id");
+            df_index[c] = this_indiv.get_ID();
+            df_house_index[c] = this_house.get_ID();
             df_status[c] = this_indiv.get_status();
 
             for (const std::string &dataID : _data_headers_)
@@ -479,8 +479,8 @@ void MCMC::print_augm_variables(const std::string &save_augm_pathtofile) const
             {
                 for (const Individual &this_indiv : this_house.indiv)
                 {
-                    augm_ofstream << this_indiv.get_data("id")
-                                  << C_DELIM << this_house.get_data("house_id")
+                    augm_ofstream << this_indiv.get_ID()
+                                  << C_DELIM << this_house.get_ID()
                                   << C_DELIM << this_indiv.get_status();
                     for (const std::string &dataID : _data_headers_)
                     {

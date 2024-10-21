@@ -48,8 +48,8 @@ To provide the `status` of each individual (required to perform inference), each
 -   missing status: $-1$.
 
 ```{r, echo=FALSE}
-X <- read.csv("survey.csv")[c("id", "house_id", "status")]
-knitr::kable(head(X))
+aux_ <- read.csv("survey.csv")[c("id", "house_id", "status")]
+knitr::kable(head(aux_))
 ```
 
 ### Parameter Definitions
@@ -69,8 +69,8 @@ chabi$param.append(
 )
 ```
 
-In a similar way we can also associate augmented variable definitions.
-We show how to do it in the vignette [Data Augmentation](data_augmentation.html).
+At any moment we can turn a parameter definition into a constant parameter definitions: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
+Similarly we can also associate augmented variable definitions (see the vignette [Data Augmentation](data_augmentation.html)).
 
 ## Inference
 
@@ -127,7 +127,7 @@ chabi$evidence(num_rungs = 30)
 
 ## Simulation
 
-In order to produce a simulation, our models require a pre-loaded database with the household compositions. The rest is analogous to the inference case, except we habe to call the `simulate` method:
+In order to produce a simulation, our models require a pre-loaded database for the demographic structure of the households. The rest is analogous to the inference case, except we habe to call the `simulate` method:
 
 ```{r}
 # generate a new model object for the simulation
@@ -135,12 +135,12 @@ simu_cb <- housepi::HouseholdModelClass$new("chain_binom")
 
 # define constant parameters from the inference results
 simu_cb$param.append(
-  alpha = list(x = results["alpha", "Mean"]), 
+  alpha = list(x = results["alpha", "Mean"]),
   beta = list(x = results["beta", "Mean"])
 )
 
 # build the new model using the same household compositions
-# override status of the database according to simulation 
+# override status of the database according to simulation
 simu_cb$simulate(data = "survey.csv", seed = 51)
 ```
 

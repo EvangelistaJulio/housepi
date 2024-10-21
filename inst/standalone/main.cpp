@@ -106,14 +106,7 @@ int main(int argc, char *argv[])
         else if (carg == std::string("--marginal"))
         {
             is_marginal = true;
-            try
-            {
-                num_rungs = std::stoul(argv[++carg_i]);
-            }
-            catch (...)
-            {
-                raise_error("Unrecognized number of rungs. Declare it as: --marginal <num_rungs>");
-            }
+            num_rungs = safe_stoul(argv[++carg_i], "number of rungs");
         }
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))

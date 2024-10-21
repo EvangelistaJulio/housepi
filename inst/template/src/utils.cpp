@@ -216,26 +216,26 @@ namespace basics
                 long long time_elapsed = duration_cast<milliseconds>(now - _ProgBar_Start_).count();
                 long long time_lastchecked = duration_cast<milliseconds>(now - _ProgBar_LastTime_).count();
                 long long time_missing = time_elapsed * (static_cast<double>(total) / progress - 1.);
+                _ProgBar_LastTime_ = steady_clock::now();
 
                 std::ostringstream oss;
                 oss << "\r"
                     << txt << ": [" << std::string(where, C_PROG) << std::string(PROGBAR_WIDTH - where, '.') << "] "
                     << percent(progress, total)
                     << " " << format_millisecs(time_elapsed) << "<"
-                    << ((time_elapsed > 5000) ? format_millisecs(time_missing) : "??m??s")
+                    << ((time_elapsed > 4000) ? format_millisecs(time_missing) : "??m??s")
                     << std::string(20, ' ');
                 _helper_stderr_(oss.str());
 
                 // adapt progressbar thinning
-                if (time_lastchecked < 1925)
+                if (time_lastchecked < 950)
                 {
                     ++_ProgBar_Thin_;
                 }
-                else if (time_lastchecked > 2075)
+                else if (time_lastchecked > 1050)
                 {
                     --_ProgBar_Thin_;
                 }
-                _ProgBar_LastTime_ = steady_clock::now();
             }
         }
 

@@ -17,13 +17,10 @@ get_val_ <- function(lst, key, default = NA) {
 default_types_ <- function(typs, vals) {
   for (i in which(is.na(typs))) {
     y <- vals[[i]]
-    
     if (is.na(y)) {
       typs[i] <- NA
-      
     } else if (is.numeric(y)) {
       typs[i] <- "S"
-      
     } else if (is.character(y)) {
       if (is.na(suppressWarnings(as.numeric(y)))) {
         typs[i] <- "D"
@@ -34,17 +31,17 @@ default_types_ <- function(typs, vals) {
       typs[i] <- "D"
     }
   }
-  
   return(typs)
 }
 
 # Split a typed string or character vector
 str_split_ <- function(lst) {
-  vals <- sapply(strsplit(as.character(lst), "\\@"), function(x)
-    x[1])
-  types <- sapply(strsplit(as.character(lst), "\\@"), function(x)
-    x[2])
-  
+  vals <- sapply(
+    strsplit(as.character(lst), "\\@"), function(x) x[1]
+  )
+  types <- sapply(
+    strsplit(as.character(lst), "\\@"), function(x) x[2]
+  )
   return(list(values = vals, types = default_types_(types, vals)))
 }
 
@@ -59,13 +56,80 @@ str_join_ <- function(x) {
 ################################################################################
 ################################################################################
 
+#' @description
+#' Copy a default model to a given directory.
+#' @param which (`character(1)`)\cr
+#' Name of template model. If NULL, list of available templates.
+#' @param path (`character(1)`)\cr
+#' Where to copy the template scripts.
+household_model_template <- function(which = NULL, path = NULL) {
+  # system path to housepi
+  models_dir <- file.path(system.file(package = "housepi"), "models")
+  
+  if (is.null(which)) {
+    cli::cli_alert_info("Default model names:")
+    ulid <- cli::cli_ul()
+    for (name in list.files(models_dir)) {
+      cli::cli_li(name)
+    }
+    cli::cli_end(ulid)
+    
+  } else if (is.character(which)) {
+    if (which %in% list.files(models_dir)) {
+      # create directory
+      if (is.null(path)) {
+        new_dir <- file.path(getwd(), paste0("user_", which))
+      } else {
+        new_dir <- path
+      }
+      dir.create(new_dir, recursive = TRUE, showWarnings = TRUE)
+      if (!dir.exists(new_dir)) {
+        stop(cli::format_error(
+          c(
+            "Impossibile to create a temporary directory for the model.",
+            i = "Check your user permissions."
+          )
+        ))
+      }
+      
+    } else {
+      stop(cli::format_error(
+        c(
+          "Provided model is not a default model name.",
+          i = "To see the available default models, run: template_model()"
+        )
+      ))
+    }
+    
+    #----- copy files ----#
+    for (f in c("model.cpp", "model.h", "templated_params")) {
+      from_file <- file.path(models_dir, which, f)
+      to_file <- file.path(new_dir, f)
+      if (!file.copy(from_file, to_file, overwrite = TRUE)) {
+        stop(cli::format_error(
+          c(
+            "Failed to setup internal files.",
+            i = "Check your user permissions."
+          )
+        ))
+      }
+    }
+  } else {
+    stop(cli::format_error(
+      c("Provided model is not a default model name.",
+        i = "To see the available default models, run: template_model()")
+    ))
+  }
+}
+
 #' @title Household Model Class
 #' @description
-#' Compile household model, manage your data and definitions from a single class.
+#' Compile household model, manage your data and parameters from a single class.
 #' @export HouseholdModelClass
 #' @docType class
 HouseholdModelClass <- R6::R6Class(
-  "HouseholdModelClass",
+  classname = "HouseholdModelClass",
+  cloneable = FALSE,
   private = list(
     setup = NULL,
     param.frame = NULL,
@@ -88,32 +152,30 @@ HouseholdModelClass <- R6::R6Class(
       #----- 1) SETUP -----#
       char_setup <- lapply(private$setup[!is.na(private$setup)], as.character)
       private$obj$import_setup(char_setup)
-      
       #----- 2) PARAMETERS -----#
       char_params <- data.frame(lapply(private$param.frame, as.character))
       private$obj$import_params(char_params)
-      
       #----- 3) DATA -----#
       if (is.null(data)) {
         private$obj$read_data("<NA>")
-        
       } else if (is.character(data)) {
         private$obj$read_data(data)
-        
       } else if (is.data.frame(data)) {
         char_data <- data.frame(lapply(data, as.character))
         private$obj$import_data(char_data)
-        
       } else {
         stop(cli::format_error(
-          c("Wrong type for data", i = "It should be data.frame or path/to/file.")
+          c(
+            "Wrong type for data", 
+            i = "It should be data.frame or path/to/file."
+          )
         ))
       }
-      
       #----- 4) AUGMENTED VARIABLES -----#
       char_augm <- data.frame(lapply(private$augm.frame, as.character))
       private$obj$import_augm(char_augm)
       
+      # restore scientific notation option
       options(scipen = store_scipen)
     }
   ),
@@ -195,9 +257,10 @@ HouseholdModelClass <- R6::R6Class(
         
         # deal with existing version
         if (file.exists(executable)) {
-          # use cached version
-          cli::cli_alert_info("Using cached {.pkg {pkgload::pkg_name(exec_dir)}}")
-          
+          # use cached version # TODO: to be tuned with phgbuild compile_dll
+          cli::cli_alert_info(
+            "Using cached {.pkg {pkgload::pkg_name(exec_dir)}}"
+          )
         } else {
           # copy the package to the new directory
           dir.create(exec_dir,
@@ -211,18 +274,19 @@ HouseholdModelClass <- R6::R6Class(
               )
             ))
           }
-          
           # copy single package files
           for (f in c("NAMESPACE", "DESCRIPTION")) {
             from_file <- file.path(housepi_dir, "template", f)
             to_file <- file.path(exec_dir, f)
             if (!file.copy(from_file, to_file, overwrite = TRUE)) {
               stop(cli::format_error(
-                c("Failed to setup internal files.", i = "Check your user permissions.")
+                c(
+                  "Failed to setup internal files.",
+                  i = "Check your user permissions."
+                )
               ))
             }
           }
-          
           # copy folders from template
           for (fldr in c("src", "R")) {
             from_path <- file.path(housepi_dir, "template", fldr)
@@ -231,111 +295,49 @@ HouseholdModelClass <- R6::R6Class(
                            recursive = TRUE,
                            overwrite = TRUE)) {
               stop(cli::format_error(
-                c("Failed to setup internal files.", i = "Check your user permissions.")
+                c(
+                  "Failed to setup internal files.",
+                  i = "Check your user permissions."
+                )
               ))
             }
           }
-          
           # copy source files in the new folder
           for (from_file in source_files) {
             to_file <- file.path(exec_dir, "src", basename(from_file))
             if (!file.copy(from_file, to_file, overwrite = TRUE)) {
               stop(cli::format_error(
-                c("Failed to setup implementation files.", i = "Check your user permissions.")
+                c(
+                  "Failed to setup implementation files.", 
+                  i = "Check your user permissions."
+                )
               ))
             }
           }
           
           # ----- compile package ----- #
-          # FIXME : how to enhance pre-compilation?
+          # TODO : how to enhance pre-compilation?
           pkgbuild::compile_dll(exec_dir, quiet = quiet, debug = debug)
         }
         
         # load shared library
         dyn.load(executable)
-        
         # expose internally the module
         m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = "housepienvironment")
         
         #----- assign fields -----#
-        
         # assign the path to model environment source
         private$environment_path <- exec_dir
-        
         # assign the model object
         private$obj <- m$ModelHousepi$new()
-        
         # assign the empty setup list
         self$setup.clear()
-        
         # assign the empty parameter data.frame
         self$param.clear()
-        
         # assign the empty augmented data.frame
         self$augm.clear()
       }
       
-      invisible(self)
-    },
-    
-    #' @description
-    #' Copy a default model to a given directory.
-    #' @param which (`character(1)`)\cr
-    #' Name of template model. If NULL, list of available templates.
-    #' @param path (`character(1)`)\cr
-    #' Where to copy the template scripts.
-    template = function(which = NULL, path = NULL) {
-      # system path to housepi
-      models_dir <- file.path(system.file(package = "housepi"), "models")
-      
-      if (is.null(which)) {
-        cli::cli_alert_info("Default model names:")
-        ulid <- cli::cli_ul()
-        for (name in list.files(models_dir)) {
-          cli::cli_li(name)
-        }
-        cli::cli_end(ulid)
-        
-      } else if (is.character(which)) {
-        if (which %in% list.files(models_dir)) {
-          # create directory
-          if (is.null(path)) {
-            new_dir <- file.path(getwd(), paste0("user_", which))
-          } else {
-            new_dir <- path
-          }
-          
-          dir.create(new_dir, recursive = TRUE, showWarnings = TRUE)
-          if (!dir.exists(new_dir)) {
-            stop(cli::format_error(
-              c(
-                "Impossibile to create a temporary directory for the model.",
-                i = "Check your user permissions."
-              )
-            ))
-          }
-          
-        } else {
-          stop(cli::format_error(
-            c("Provided model is not a default model name.", i = "To see the available default models, run: template_model()")
-          ))
-        }
-        
-        # copy files
-        for (f in c("model.cpp", "model.h")) {
-          from_file <- file.path(models_dir, which, f)
-          to_file <- file.path(new_dir, f)
-          if (!file.copy(from_file, to_file, overwrite = TRUE)) {
-            stop(cli::format_error(
-              c("Failed to setup internal files.", i = "Check your user permissions.")
-            ))
-          }
-        }
-      } else {
-        stop(cli::format_error(
-          c("Provided model is not a default model name.", i = "To see the available default models, run: template_model()")
-        ))
-      }
       invisible(self)
     },
     
@@ -355,39 +357,33 @@ HouseholdModelClass <- R6::R6Class(
     infer = function(data = NULL, progbar = TRUE, ...) {
       # assign setup
       do.call(self$setup.list, list(...))
-      
       # internal build function
       private$build(data = data)
-      
       # infer method from cpp model object
       private$obj$infer(progbar)
       # load traces from last inference
       df <- private$obj$export_traces()
-      
       # extract setup information for coda
-      S <- private$obj$export_setup()
-      
+      load_setup <- private$obj$export_setup()
       # Check if multiple chains
       if ("CHAIN__" %in% colnames(df)) {
         df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
           coda::mcmc(
             data = x[, !names(x) %in% "CHAIN__"],
-            start = S[["burn_in"]] + S[["thinning"]],
-            end = S[["num_iter"]],
-            thin = S[["thinning"]]
+            start = load_setup[["burn_in"]] + load_setup[["thinning"]],
+            end = load_setup[["num_iter"]],
+            thin = load_setup[["thinning"]]
           )
         })
         private$traces.frame <- coda::as.mcmc.list(df_list)
-        
       } else {
         private$traces.frame <- coda::mcmc(
           data = df,
-          start = S[["burn_in"]] + S[["thinning"]],
-          end = S[["num_iter"]],
-          thin = S[["thinning"]]
+          start = load_setup[["burn_in"]] + load_setup[["thinning"]],
+          end = load_setup[["num_iter"]],
+          thin = load_setup[["thinning"]]
         )
       }
-      
       invisible(self)
     },
     
@@ -398,7 +394,15 @@ HouseholdModelClass <- R6::R6Class(
     traces.export = function() {
       return(private$traces.frame)
     },
-    
+
+    #' @description
+    #' Export the correlations between traces values of last inference call.
+    #' @return
+    #' A (`matrix` | 3d `array`)
+    traces.crosscorr = function() {
+      return(coda::crosscorr(private$traces.frame))
+    },
+
     #' @description
     #' Export the traces of last inference call as a coda object.
     #' @return
@@ -427,8 +431,7 @@ HouseholdModelClass <- R6::R6Class(
     traces.traceplot = function(chain = NA,
                                 col = "dodgerblue",
                                 ...) {
-      if (is.null(private$traces.frame))
-      {
+      if (is.null(private$traces.frame)) {
         stop("No traces found.")
       } else if (coda::is.mcmc.list(private$traces.frame)) {
         if (is.na(chain)) {
@@ -454,10 +457,8 @@ HouseholdModelClass <- R6::R6Class(
     simulate = function(data = NULL, progbar = TRUE, ...) {
       # assign setup
       do.call(self$setup.list, list(...))
-      
       # internal build function
       private$build(data = data)
-      
       # simulate method from internal Rcpp object
       private$obj$simulate(progbar)
       invisible(self)
@@ -507,7 +508,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param num_rungs (`integer`)\cr
     #' The number of rungs in the thermodynamic ladder.
     #' @param adaptive (`logical(1)`)\cr
-    #' If `TRUE` uses the adaptive scheme for the thermodynamic ladder. Else use power fractions.
+    #' If `TRUE` uses adaptive scheme for thermodynamic ladder. Else use power fractions.
     #' @param progbar (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
     #' @return (`double(1)`)\cr
@@ -520,10 +521,8 @@ HouseholdModelClass <- R6::R6Class(
                         ...) {
       # assign setup
       do.call(self$setup.list, list(...))
-      
       # internal build function
       private$build(data = data)
-      
       # evaluate marginal from the internal Rcpp object
       return(private$obj$evaluate_marginal(num_rungs, adaptive, progbar))
     },
@@ -562,12 +561,12 @@ HouseholdModelClass <- R6::R6Class(
     #' @param inv_temper (`double(1)`)\cr
     #' Name of the parameter.
     setup.list = function(seed = NA,
-                          num_iter = NA,
-                          burn_in = NA,
-                          thinning = NA,
-                          num_chains = NA,
-                          num_adapt = NA,
-                          num_threads = NA,
+                          num_iter = 1000,
+                          burn_in = 0,
+                          thinning = 1,
+                          num_chains = 1,
+                          num_adapt = 0,
+                          num_threads = 1,
                           rnd_init_params = TRUE,
                           inv_temper = 1.0) {
       private$setup[["seed"]] <- seed
@@ -607,8 +606,8 @@ HouseholdModelClass <- R6::R6Class(
         args = character(),
         argsval = character(),
         rule = character(),
-        rargs = character(),
-        rargsval = character(),
+        rule_args = character(),
+        rule_argsval = character(),
         min = numeric(),
         max = numeric(),
         stringsAsFactors = FALSE
@@ -622,13 +621,16 @@ HouseholdModelClass <- R6::R6Class(
     #' Parameter names with respective list of definitions.
     param.append = function(...) {
       # convert definitions to list
-      definitions = list(...)
+      definitions <- list(...)
       
       if (length(definitions) == 0) {
         # reinitialize according to templated parameters
         self$param.template()
         cli::cli_alert_warning(cli::format_warning(
-          c("No definitions provided.", i = "Falling back to template definitions.")
+          c(
+            "No definitions provided.", 
+            i = "Falling back to template definitions."
+          )
         ))
         
       } else {
@@ -658,6 +660,9 @@ HouseholdModelClass <- R6::R6Class(
     param.template = function() {
       # retrieve the template parameters file
       templ_params_file <- file.path(private$environment_path, "src", "templated_params")
+      if (!file.exists((templ_params_file))) {
+        stop(cli::format_error("Impossible to automatically initialize parameters. No template parameters were found."))
+      }
       # remove previous definitions
       self$param.clear()
       # append definitions
@@ -679,42 +684,51 @@ HouseholdModelClass <- R6::R6Class(
       matches <- stringr::str_match_all(script, regular_expr)
       model_params_set <- unique(unlist(matches[[1]][, 2]))
       
-      # from : get_param_pointer("string") or get_param_pointer('string')
+      # param from : get_param_pointer("string") or get_param_pointer('string')
       regular_expr <- 'get_param_pointer\\(\\s*["\'](.*?)["\']\\s*\\)'
       matches <- stringr::str_match_all(script, regular_expr)
       model_params_set <- c(model_params_set, unique(unlist(matches[[1]][, 2])))
       
-      # from : assign_rate_per_contact(, , "string")
+      # param from : assign_rate_per_contact(, , "string")
       regular_expr <- '\\.assign_rate_per_contact\\s*\\(.*?,.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
-      aux <- unlist(lapply(matches, function(x)
-        x[, 2]))
+      aux <- unlist(lapply(matches, function(x) x[, 2]))
       model_params_set <- c(model_params_set, unique(aux[!is.na(aux)]))
       
-      # from : assign_rate_per_group(, "string")
+      # param from : assign_rate_per_group(, "string")
       regular_expr <- '\\.assign_group_rate\\s*\\(.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
-      aux <- unlist(lapply(matches, function(x)
-        x[, 2]))
+      aux <- unlist(lapply(matches, function(x) x[, 2]))
       model_params_set <- c(model_params_set, unique(aux[!is.na(aux)]))
       
       # re-order alphabetically
       model_params_set <- model_params_set[order(model_params_set)]
       
       # add missing parameters with standard options
+      # FIXME : they should be added as templates maybe
+      miss_params <- c()
       for (name in model_params_set) {
         if (!(name %in% private$param.frame[["name"]])) {
+          miss_params <- c(miss_params, name)
           self$param.add(
             name = name,
             x = 1,
             infer = FALSE,
             prior = "unif",
-            args = list(min = 0, max = 10),
+            args = list(min = -500, max = 500),
             rule = "norm",
             rule_args = list(sd = 1)
           )
         }
       }
+      if (length(miss_params) > 0) {
+        oss <- paste0("Added missing parameter(s): '", miss_params[[1]], "'")
+        for (name in miss_params[-1]) {
+          oss <- paste0(oss, ", '", name, "'")
+        }
+        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+      }
+
       # point out parameters that are not used
       unused <- c()
       for (name in private$param.frame[["name"]]) {
@@ -723,7 +737,7 @@ HouseholdModelClass <- R6::R6Class(
         }
       }
       if (length(unused) > 0) {
-        oss <- paste0("Parameter(s) not declared within model: '", unused[[1]], "'")
+        oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
         for (name in unused[-1]) {
           oss <- paste0(oss, ", '", name, "'")
         }
@@ -803,11 +817,11 @@ HouseholdModelClass <- R6::R6Class(
             paste0("Provide a rule name for '", name, "'.")
           )))
         } else if (length(rule_args) == 0) {
-          rargs_ <- NA
-          rargsval_ <- NA
+          rule_args_ <- NA
+          rule_argsval_ <- NA
         } else {
-          rargs_ <- str_join_(names(rule_args))
-          rargsval_ <- str_join_(unname(unlist(rule_args)))
+          rule_args_ <- str_join_(names(rule_args))
+          rule_argsval_ <- str_join_(unname(unlist(rule_args)))
         }
         
         #----- range -----#
@@ -825,8 +839,8 @@ HouseholdModelClass <- R6::R6Class(
             args = args_,
             argsval = argsval_,
             rule = rule,
-            rargs = rargs_,
-            rargsval = rargsval_,
+            rule_args = rule_args_,
+            rule_argsval = rule_argsval_,
             min = min_,
             max = max_,
             stringsAsFactors = FALSE
@@ -849,8 +863,8 @@ HouseholdModelClass <- R6::R6Class(
             args = NA,
             argsval = NA,
             rule = NA,
-            rargs = NA,
-            rargsval = NA,
+            rule_args = NA,
+            rule_argsval = NA,
             min = NA,
             max = NA,
             stringsAsFactors = FALSE
@@ -887,11 +901,11 @@ HouseholdModelClass <- R6::R6Class(
         argsval = character(),
         argstype = character(),
         rule = character(),
-        rargs = character(),
-        rargsval = character(),
-        rargstype = character(),
-        rfrom = character(),
-        rfromtype = character(),
+        rule_args = character(),
+        rule_argsval = character(),
+        rule_argstype = character(),
+        rule_from = character(),
+        rule_fromtype = character(),
         min = character(),
         mintype = character(),
         max = character(),
@@ -908,8 +922,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Augmented variable names with respective list of definitions.
     augm.append = function(...) {
       # convert definitions to list
-      definitions = list(...)
-      
+      definitions <- list(...)
       # add each entry of the list
       for (a in names(definitions)) {
         this <- definitions[[a]]
@@ -962,8 +975,7 @@ HouseholdModelClass <- R6::R6Class(
       if (is.na(name)) {
         stop(cli::format_error("Incomplete definition: missing name."))
       } else {
-        if (name %in% private$augm.frame[["name"]])
-        {
+        if (name %in% private$augm.frame[["name"]]) {
           cli::cli_alert_warning(cli::format_warning(c(
             paste0("Existing '", name, "' definition has been overwritten.")
           )))
@@ -982,7 +994,10 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         if (is.na(x)) {
           stop(cli::format_error(
-            c("Incomplete definition: missing value x.", i = "Alternatively provide a model and set init_rand = TRUE")
+            c(
+              "Incomplete definition: missing value x.",
+              i = "Alternatively provide a model and set init_rand = TRUE"
+            )
           ))
         } else {
           value_ <- str_split_(x)[["values"]]
@@ -994,15 +1009,12 @@ HouseholdModelClass <- R6::R6Class(
       args_ <- NA
       argsval_ <- NA
       argstype_ <- NA
-      
       # assign method only if arguments are provided
       if (!is.na(model))  {
-        if (length(args) == 0)
-        {
+        if (length(args) == 0) {
           cli::cli_alert_warning(cli::format_warning(c(
             paste0("Missing args for augmented variable '", name, "'.")
           )))
-          
         } else {
           args_ <- str_join_(names(args))
           tmp <- str_split_(args)
@@ -1012,24 +1024,23 @@ HouseholdModelClass <- R6::R6Class(
       }
       
       #----- rule -----#
-      rargs_ <- NA
-      rargsval_ <- NA
-      rargstype_ <- NA
-      rfrom_ <- NA
-      rfromtype_ <- NA
+      rule_args_ <- NA
+      rule_argsval_ <- NA
+      rule_argstype_ <- NA
+      rule_from_ <- NA
+      rule_fromtype_ <- NA
       if (!is.na(rule)) {
         if ((rule != "gibbs") && (length(rule_args) == 0)) {
           cli::cli_alert_warning(cli::format_warning(c(
             paste0("Missing rule_args for augmented variable '", name, "'.")
           )))
         } else {
-          rargs_ <- str_join_(names(rule_args))
+          rule_args_ <- str_join_(names(rule_args))
           tmp <- str_split_(rule_args)
-          rargsval_ <- str_join_(tmp[["values"]])
-          rargstype_ <- str_join_(tmp[["types"]])
-          
-          rfrom_ <- str_split_(rule_from)[["values"]]
-          rfromtype_ <- str_split_(rule_from)[["types"]]
+          rule_argsval_ <- str_join_(tmp[["values"]])
+          rule_argstype_ <- str_join_(tmp[["types"]])
+          rule_from_ <- str_split_(rule_from)[["values"]]
+          rule_fromtype_ <- str_split_(rule_from)[["types"]]
         }
       }
       
@@ -1060,7 +1071,8 @@ HouseholdModelClass <- R6::R6Class(
           maxtype_ <- NA
         }
       }
-      
+
+      #----- append the new definitions -----#
       private$augm.frame <- rbind(
         private$augm.frame,
         data.frame(
@@ -1073,11 +1085,11 @@ HouseholdModelClass <- R6::R6Class(
           argsval = argsval_,
           argstype = argstype_,
           rule = rule,
-          rargs = rargs_,
-          rargsval = rargsval_,
-          rargstype = rargstype_,
-          rfrom = rfrom_,
-          rfromtype = rfromtype_,
+          rule_args = rule_args_,
+          rule_argsval = rule_argsval_,
+          rule_argstype = rule_argstype_,
+          rule_from = rule_from_,
+          rule_fromtype = rule_fromtype_,
           min = min_,
           mintype = mintype_,
           max = max_,

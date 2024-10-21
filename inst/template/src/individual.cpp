@@ -25,41 +25,30 @@ bool Unknown_Status_Warning = false; // unknown status
 ///////////////////////////////////  Individual : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Constructor with a database row. */
-Individual::Individual(dictargs new_data)
+/* Constructor with a database row. Note: for the moment I am not associating 'house_id'. */
+Individual::Individual(const std::string &new_ID, int new_status, const dictargs &other_data)
 {
-	// check that an index has been associated by call to build
-	if (new_data.find("id") == new_data.end())
-	{
-		basics::raise_error("Missing index for Individual object.");
-	}
+	// associate the new ID
+	set_ID(new_ID);
 
-	// associate the status if provided
-	if (new_data.find("status") == new_data.end())
+	// associate the new status
+	if (new_status < MISSING_STATUS)
 	{
 		set_status(MISSING_STATUS);
+
+		std::ostringstream oss;
+		oss << "Status '" << new_status << "' of individual " << get_ID() << " interpreted as missing."
+			<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
+			<< " and (=) " << MISSING_STATUS << " for missing status.";
+		basics::raise_warning(oss.str(), Unknown_Status_Warning);
 	}
 	else
 	{
-		int new_status = new_data.at("status");
-
-		if (new_status < MISSING_STATUS)
-		{
-			set_status(MISSING_STATUS);
-
-			std::ostringstream oss;
-			oss << "Status '" << new_status << "' of individual " << get_data("id") << " interpreted as missing."
-				<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
-				<< " and (=) " << MISSING_STATUS << " for missing status.";
-			basics::raise_warning(oss.str(), Unknown_Status_Warning);
-		}
-		else
-		{
-			status = new_status;
-		}
+		status = new_status;
 	}
 
-	data = new_data;
+	// associate the new data
+	data = other_data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +61,7 @@ void Individual::assert_data(const std::string &dataID) const
 	if (data.find(dataID) == data.end())
 	{
 		std::ostringstream oss;
-		oss << "Unknown data '" << dataID << "' for individual " << get_data("id") << ".";
+		oss << "Unknown data '" << dataID << "' for individual " << get_ID() << ".";
 		oss << " Check your model and your data definitions.";
 		raise_error(oss.str());
 	}
@@ -121,7 +110,7 @@ void Individual::assign_group_rate(const std::string &rateID, const std::string 
 		// rateID was previously declared
 		std::ostringstream oss;
 		oss << "Multiple definitions of group rate '" << rateID
-			<< "' for individual " << get_data("id") << "."
+			<< "' for individual " << get_ID() << "."
 			<< " Check your model.";
 		raise_error(oss.str());
 	}
@@ -138,7 +127,7 @@ void Individual::assert_augm(const std::string &augmID) const
 	{
 		std::ostringstream oss;
 		oss << "Unknown augmented variable '" << augmID
-			<< "' for individual " << get_data("id") << "."
+			<< "' for individual " << get_ID() << "."
 			<< " Check your augmented variable definitions.";
 		raise_error(oss.str());
 	}
@@ -209,39 +198,6 @@ bool Individual::propose_valid_augm_move(const std::string &augmID, sys_rnd_gen 
 ///////////////////////////////  Household : methods (general)  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign a data feature to the household */
-void Household::assign_data(const std::string &dataID, double value)
-{
-	if (house_data.find(dataID) == house_data.end())
-	{
-		// if rateID was undeclared, add it
-		house_data.emplace(dataID, value);
-	}
-	else
-	{
-		// rateID was previously declared, overwrite it
-		house_data.at(dataID) = value;
-	}
-}
-
-/* Return a feature of the Household which must be provided during initialization. */
-double Household::get_data(const std::string &dataID) const
-{
-	assert_data(dataID);
-	return house_data.at(dataID);
-}
-
-/* Check if the data is defined for the Household. */
-void Household::assert_data(const std::string &dataID) const
-{
-	if (house_data.find(dataID) == house_data.end())
-	{
-		std::ostringstream oss;
-		oss << "Unknown data '" << dataID << "' for household " << get_data("id") << ".";
-		raise_error(oss.str());
-	}
-}
-
 /* Link an individual to the household */
 void Household::assign_individual(Individual this_indiv)
 {
@@ -279,7 +235,7 @@ void Household::assign_individual(Individual this_indiv)
 	{
 		std::ostringstream oss;
 		oss << "Unknown status '" << status << "' of individual "
-			<< this_indiv.get_data("id") << ".";
+			<< this_indiv.get_ID() << ".";
 		raise_error(oss.str());
 	}
 
@@ -325,7 +281,7 @@ bool Household::change_status(int i, int new_status)
 		{
 			std::ostringstream oss;
 			oss << "While changing status: unknown old status '"
-				<< old_status << "' of individual " << this_indiv.get_data("id") << ".";
+				<< old_status << "' of individual " << this_indiv.get_ID() << ".";
 			raise_error(oss.str());
 		}
 
@@ -351,7 +307,7 @@ bool Household::change_status(int i, int new_status)
 		{
 			std::ostringstream oss;
 			oss << "Impossibile to change status: unknown new status '"
-				<< new_status << "' for individual " << this_indiv.get_data("id") << ".";
+				<< new_status << "' for individual " << this_indiv.get_ID() << ".";
 			raise_error(oss.str());
 		}
 		indiv[i].set_status(new_status);
