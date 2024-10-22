@@ -115,47 +115,11 @@ namespace basics
     // print error message to stderr
     void raise_error(const std::string &txt);
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  Converter Functions ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // Template function to wrap conversion functions with try-catch
-    template <typename Func, typename... Args>
-    auto _safe_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
-    {
-        try
-        {
-            return func(input, std::forward<Args>(args)...);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            raise_error("Impossible to import " + errtxt + ": invalid value '" + input + "'.");
-        }
-    }
-
-    // Converter to int using std::stoi with function pointer casting
-    int safe_stoi(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
-    }
-
-    // Converter to double using std::stod with function pointer casting
-    double safe_stod(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
-    }
-
-    // Converter to unsigned long using std::stoul with function pointer casting
-    unsigned long safe_stoul(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
-    }
-
-    // Converter to unsigned long long using std::stoull with function pointer casting
-    unsigned long long safe_stoull(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter_(static_cast<unsigned long long (*)(const std::string &, std::size_t *, int)>(std::stoull), input, errtxt, nullptr, 10);
-    }
+    // converter functions
+    int safe_stoi(const std::string &input, const std::string &errtxt);
+    double safe_stod(const std::string &input, const std::string &errtxt);
+    unsigned long safe_stoul(const std::string &input, const std::string &errtxt);
+    unsigned long long safe_stoull(const std::string &input, const std::string &errtxt);
 }
 
 //-----------------------------------------------------------------------------------------------//

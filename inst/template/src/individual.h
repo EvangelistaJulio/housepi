@@ -39,7 +39,6 @@ class Individual
 private:
 	//=====Attributes (private)=====//
 	std::string ID = UNDEFINED; // user ID
-	int index = -1;				// index of individual
 	int status = 0;				// status of the individual
 	dictargs data = {};			// database associated to individual
 

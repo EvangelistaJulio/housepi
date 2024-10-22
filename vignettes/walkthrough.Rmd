@@ -23,7 +23,7 @@ We'll walk through the process of loading a model, associating necessary definit
 ## The Household Model Class
 
 The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
-We show how to produce a new instance of such a class and its functionalities with a template model, the chain binomial:
+We show how to produce a new instance of such a class and its methods with a template model, the chain binomial:
 
 ```{r}
 # generate an instance of the chain binomial model
@@ -79,7 +79,7 @@ Now we can safely perform inference with the method `infer`.
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
 chabi$infer(data = "survey.csv", num_iter = 50000, burn_in = 5000,
-            thinning = 15, num_adapt = 300, num_chains = 4,
+            thinning = "A", num_adapt = 300, num_chains = 4,
             seed = 5, num_threads = 4)
 ```
 

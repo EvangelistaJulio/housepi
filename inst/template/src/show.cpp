@@ -237,8 +237,8 @@ Rcpp::DataFrame MCMC::export_data() const
 
     // pre-allocate memories
     // initialize the dataframe as a list of named std::vectors
-    IntegerVector df_index(num_indiv);
-    IntegerVector df_house_index(num_indiv);
+    CharacterVector df_index(num_indiv);
+    CharacterVector df_house_index(num_indiv);
     IntegerVector df_status(num_indiv);
     std::map<std::string, NumericVector> df_dbl;
 

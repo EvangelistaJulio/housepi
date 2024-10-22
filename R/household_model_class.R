@@ -56,12 +56,14 @@ str_join_ <- function(x) {
 ################################################################################
 ################################################################################
 
+#' @title household model template
 #' @description
 #' Copy a default model to a given directory.
 #' @param which (`character(1)`)\cr
 #' Name of template model. If NULL, list of available templates.
 #' @param path (`character(1)`)\cr
 #' Where to copy the template scripts.
+#' @export
 household_model_template <- function(which = NULL, path = NULL) {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
