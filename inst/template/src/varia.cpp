@@ -6,8 +6,7 @@
 
 #include "varia.h"
 
-using basics::raise_error;
-using basics::raise_warning;
+using namespace basics;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
@@ -92,7 +91,7 @@ Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, d
     }
     else if (!basics::is_na(rule_name))
     {
-        raise_error("Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
+        throw std::invalid_argument("Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
     }
 
     return output;
@@ -201,7 +200,7 @@ void Monte_Carlo_Core::assign_param(const std::string &parID, const Parameter &n
     // create the new parameter if it's not already defined
     if (params.find(parID) != params.end())
     {
-        raise_error("Parameter '" + parID + "' has multiple definitions.");
+        throw std::invalid_argument("Parameter '" + parID + "' has multiple definitions.");
     }
     else
     {
@@ -225,7 +224,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
 {
     if (n == 0)
     {
-        raise_error("Number of threads must be equal or greater than 1.");
+        throw std::invalid_argument("Number of threads must be equal or greater than 1.");
     }
 
 #ifdef _OPENMP
@@ -299,7 +298,7 @@ void Monte_Carlo_Core::assert_param(const std::string &parID) const
 {
     if (params.find(parID) == params.end())
     {
-        raise_error("Parameter '" + parID + "' not found. Check your model and your parameter definitions.");
+        throw std::out_of_range("Parameter '" + parID + "' not found. Check your model and parameter definitions.");
     }
 }
 

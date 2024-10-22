@@ -6,7 +6,8 @@
 
 #include "read.h"
 
-using namespace basics;
+using basics::is_na;
+using basics::C_DELIM;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -18,22 +19,18 @@ using namespace basics;
 /* Convert std::string to boolean variable. */
 bool stobool(const std::string &tkn)
 {
-    bool output = false;
-
     if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
     {
-        output = true;
+        return true;
     }
     else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
     {
-        output = false;
+        return false;
     }
     else
     {
-        raise_error("Unrecognized boolean value for '" + tkn + "'.");
+        throw std::invalid_argument("Unrecognized boolean value for '" + tkn + "'.");
     }
-
-    return output;
 }
 
 /* Clean std::string from forbidden characters and convert to UNDEFINED. */
@@ -142,7 +139,7 @@ std::vector<std::string> read_column_headers(std::ifstream &input, const std::ve
         // raise the error if something was missing
         if (is_missing)
         {
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
     }
 
@@ -243,13 +240,13 @@ void read_csv_list(const std::string &pathtofile, std::map<std::string, std::str
                 //===== NAME =====//
                 if (!getline(iss, name, C_DELIM))
                 {
-                    raise_error("Unable to extract list name. Check file line: " + line);
+                    throw std::runtime_error("Unable to extract list name. Check file line: " + line);
                 }
 
                 //===== CHOICE =====//
                 if (!getline(iss, choice))
                 {
-                    raise_error("Unable to extract list value. Check file line: " + line);
+                    throw std::runtime_error("Unable to extract list value. Check file line: " + line);
                 }
 
                 // add the new setup
@@ -258,7 +255,7 @@ void read_csv_list(const std::string &pathtofile, std::map<std::string, std::str
         }
         else
         {
-            raise_error("Impossible to open file '" + pathtofile + "'.");
+            throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
         }
     }
 }
@@ -289,7 +286,7 @@ void read_csv_table(const std::string &pathtofile,
         }
         else
         {
-            raise_error("Impossible to open file '" + pathtofile + "'.");
+            throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
         }
     }
 }

@@ -282,15 +282,12 @@ namespace basics
     {
         if (!is_raised_once)
         {
-#pragma omp critical
-            {
 #ifdef USE_RCPP
-                Rcpp::warning(txt);
+            Rcpp::warning(txt);
 #else
-                std::cerr << "\nWarning: " + txt << std::endl;
+            std::cerr << "\nWarning: " + txt << std::endl;
 #endif
-                is_raised_once = true;
-            }
+            is_raised_once = true;
         }
     }
 
@@ -299,19 +296,16 @@ namespace basics
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display an error message. */
-    // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
+    // FIXME : omp critical is wrong! Throw and check exceptions instead depending on Rcpp
     void raise_error(const std::string &txt)
     {
-#pragma omp critical
-        {
 #ifdef USE_RCPP
-            Rcpp::stop(txt);
+        Rcpp::stop(txt);
 #else
-            std::cerr << "\nError: " + txt + "\nExit...\n"
-                      << std::endl;
-            std::exit(EXIT_FAILURE);
+        std::cerr << "\nError: " + txt + "\nExit...\n"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
 #endif
-        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,32 +322,31 @@ namespace basics
         }
         catch (const std::invalid_argument &e)
         {
-            raise_error("Impossible to import " + errtxt + ": invalid value '" + input + "'.");
+            throw std::invalid_argument("Invalid value '" + input + "'. Impossible to import " + errtxt + ".");
         }
-        
-        throw std::runtime_error("Unhandled error in safe_converter");
+        //throw std::runtime_error("Unhandled error in safe_converter");
     }
 
     // Converter to int using std::stoi with function pointer casting
-    int safe_stoi(const std::string &input, const std::string &errtxt)
+    int stoi(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
     }
 
     // Converter to double using std::stod with function pointer casting
-    double safe_stod(const std::string &input, const std::string &errtxt)
+    double stod(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
     // Converter to unsigned long using std::stoul with function pointer casting
-    unsigned long safe_stoul(const std::string &input, const std::string &errtxt)
+    unsigned long stoul(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
 
     // Converter to unsigned long long using std::stoull with function pointer casting
-    unsigned long long safe_stoull(const std::string &input, const std::string &errtxt)
+    unsigned long long stoull(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<unsigned long long (*)(const std::string &, std::size_t *, int)>(std::stoull), input, errtxt, nullptr, 10);
     }

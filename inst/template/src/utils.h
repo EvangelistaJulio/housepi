@@ -116,10 +116,10 @@ namespace basics
     void raise_error(const std::string &txt);
 
     // converter functions
-    int safe_stoi(const std::string &input, const std::string &errtxt);
-    double safe_stod(const std::string &input, const std::string &errtxt);
-    unsigned long safe_stoul(const std::string &input, const std::string &errtxt);
-    unsigned long long safe_stoull(const std::string &input, const std::string &errtxt);
+    int stoi(const std::string &input, const std::string &errtxt = "");
+    double stod(const std::string &input, const std::string &errtxt = "");
+    unsigned long stoul(const std::string &input, const std::string &errtxt = "");
+    unsigned long long stoull(const std::string &input, const std::string &errtxt = "");
 }
 
 //-----------------------------------------------------------------------------------------------//
