@@ -6,8 +6,6 @@
 
 #include "mcmc.h"
 
-using namespace basics;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,36 +19,36 @@ void MCMC::show_summary() const
 
     oss << "n. of individuals: " << num_indiv
         << "\n    * n. of cases: " << report_data.at("n.cases")
-        << " " << percent(report_data.at("n.cases"), num_indiv);
+        << " " << tools::percent(report_data.at("n.cases"), num_indiv);
     if (report_data.at("n.miss.stat") > 0)
     {
         oss << "\n    * n. of missing status : " << report_data.at("n.miss.stat")
-            << " " << percent(report_data.at("n.miss.stat"), num_indiv);
+            << " " << tools::percent(report_data.at("n.miss.stat"), num_indiv);
     }
 
     oss << "\nn. of households: " << num_house;
     if (report_data.at("no.HH.case") > 0)
     {
         oss << "\n    * with no cases: " << report_data.at("no.HH.case")
-            << " " << percent(report_data.at("no.HH.case"), num_house);
+            << " " << tools::percent(report_data.at("no.HH.case"), num_house);
     }
 
     oss << "\n    * with at least 1 case: " << report_data.at("lst.1.case")
-        << " " << percent(report_data.at("lst.1.case"), num_house);
+        << " " << tools::percent(report_data.at("lst.1.case"), num_house);
     if (report_data.at("lst.1.case") > 0)
     {
         oss << "\n    * with at least 2 cases: " << report_data.at("lst.2.case")
-            << " " << percent(report_data.at("lst.2.case"), num_house);
+            << " " << tools::percent(report_data.at("lst.2.case"), num_house);
     }
 
     oss << "\nmax n. house cases: " << report_data.at("max.n.HH.cases")
-        << " " << percent(report_data.at("n.HH.with.max.cases"), num_house)
+        << " " << tools::percent(report_data.at("n.HH.with.max.cases"), num_house)
         << "\nmin n. house members: " << report_data.at("min.HH.size")
-        << " " << percent(report_data.at("n.HH.with.min.size"), num_house)
+        << " " << tools::percent(report_data.at("n.HH.with.min.size"), num_house)
         << "\nmax n. house members: " << report_data.at("max.HH.size")
-        << " " << percent(report_data.at("n.HH.with.max.size"), num_house);
+        << " " << tools::percent(report_data.at("n.HH.with.max.size"), num_house);
 
-    print_stdout(oss.str() + "\n");
+    tools::print_stdout(oss.str() + "\n");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +69,7 @@ void MCMC::show_group_classes() const
             for (const auto &x : entry.second)
             {
                 oss << "\n    * " << x.first << ": " << x.second
-                    << " " << percent(x.second, num_indiv);
+                    << " " << tools::percent(x.second, num_indiv);
             }
             oss << "\n";
         }
@@ -84,7 +82,7 @@ void MCMC::show_group_classes() const
         for (const auto &x : report_group_classes.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
-                << " " << percent(x.second, _n_contacts_);
+                << " " << tools::percent(x.second, _n_contacts_);
         }
         oss << "\n";
     }
@@ -92,7 +90,7 @@ void MCMC::show_group_classes() const
     // print only if there's something to print
     if (oss.str().size() > 0)
     {
-        print_stdout(oss.str());
+        tools::print_stdout(oss.str());
     }
 }
 
@@ -103,6 +101,8 @@ void MCMC::show_group_classes() const
 /* Show the complete choices for the setup. */
 void MCMC::show_setup() const
 {
+    using tools::C_DELIM;
+
     // common setup variables
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
@@ -112,7 +112,7 @@ void MCMC::show_setup() const
         << "\nburn_in" << C_DELIM << setup_burn_in
         << "\nnum_iter" << C_DELIM << setup_num_iter
         << "\nthinning" << C_DELIM << setup_thinning
-        << "\nrnd_init_params" << C_DELIM << truth(setup_rnd_init_params);
+        << "\nrnd_init_params" << C_DELIM << tools::truth(setup_rnd_init_params);
 
     // if an inverse temperature has been selected print it
     if (setup_inv_T != 1.)
@@ -121,7 +121,7 @@ void MCMC::show_setup() const
     }
     oss << "\n";
 
-    print_stdout(oss.str());
+    tools::print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +135,7 @@ void MCMC::show_params() const
     oss << param_file_headers[0];
     for (size_t k = 1; k < param_file_headers.size(); ++k)
     {
-        oss << C_DELIM << param_file_headers[k];
+        oss << tools::C_DELIM << param_file_headers[k];
     }
     oss << "\n";
 
@@ -148,7 +148,7 @@ void MCMC::show_params() const
         oss << show_param(parID) << "\n";
     }
 
-    print_stdout(oss.str());
+    tools::print_stdout(oss.str());
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -166,7 +166,7 @@ void MCMC::show_params() const
 
 Rcpp::String stoRString(const std::string &x)
 {
-    if (is_na(x))
+    if (tools::is_na(x))
     {
         return NA_STRING;
     }
@@ -356,6 +356,8 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix() const
 /* Show the results of the paramters. */
 void MCMC::show_results() const
 {
+    using tools::C_DELIM;
+
     std::ostringstream oss;
     oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
     for (size_t k = 2; k < param_file_headers.size(); ++k)
@@ -368,7 +370,7 @@ void MCMC::show_results() const
         oss << show_param_diagnostics(parID) << "\n";
     }
 
-    print_stdout(oss.str());
+    tools::print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -378,7 +380,9 @@ void MCMC::show_results() const
 /* Initialize the output file with inferred parameters with column names and initial values */
 void MCMC::print_infer_state(const std::string &output_filename) const
 {
-    if (!is_na(output_filename))
+    using tools::C_DELIM;
+
+    if (!tools::is_na(output_filename))
     {
         std::ofstream inferstate_ofstream;
         inferstate_ofstream.open(output_filename.c_str());
@@ -430,7 +434,7 @@ void MCMC::print_infer_state(const std::string &output_filename) const
         }
         else
         {
-            raise_error("Unable to open file: " + output_filename);
+            tools::error("Unable to open file: " + output_filename);
         }
     }
 }
@@ -449,7 +453,9 @@ void MCMC::print_infer_state(const std::string &output_filename) const
 /* Print all augmented variables of each individual */
 void MCMC::print_augm_variables(const std::string &save_augm_pathtofile) const
 {
-    if (!is_na(save_augm_pathtofile))
+    using tools::C_DELIM;
+
+    if (!tools::is_na(save_augm_pathtofile))
     {
         std::ofstream augm_ofstream;
         augm_ofstream.open(save_augm_pathtofile.c_str());
@@ -505,7 +511,7 @@ void MCMC::print_augm_variables(const std::string &save_augm_pathtofile) const
         }
         else
         {
-            raise_error("Unable to open file: " + save_augm_pathtofile);
+            tools::error("Unable to open file: " + save_augm_pathtofile);
         }
     }
 }

@@ -43,7 +43,7 @@ using sys_rnd_gen = std::mt19937;
 //////////////////////////////////////////  MACROS  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define UNUSED(x) (void)(x) // MACRO to avoid unused warnings
+#define UNUSED(x) (void)(x) // MACRO to avoid unused compiler warnings
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
@@ -83,7 +83,7 @@ const std::string CONTACT_RATE = "Contact";        // name for Contact rate
 /////////////////////////////////  Input/Output Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace basics
+namespace tools
 {
     constexpr char C_DELIM = ',';      // file delimiter
     constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
@@ -110,10 +110,10 @@ namespace basics
     void progress_bar_end(const std::string &txt, bool verbose = true);
 
     // print warnings to stderr
-    void raise_warning(const std::string &txt, bool &is_raised_once);
+    void warning(const std::string &txt);
 
     // print error message to stderr
-    void raise_error(const std::string &txt);
+    void error(const std::string &txt);
 
     // converter functions
     int stoi(const std::string &input, const std::string &errtxt = "");
@@ -211,7 +211,7 @@ protected:
         std::ostringstream oss;
         oss << "Inconsistent change of pointer argument'" << _args_names_[i]
             << "' within '" << get_name() << "'.";
-        basics::raise_error(oss.str());
+        tools::error(oss.str());
     }
 };
 

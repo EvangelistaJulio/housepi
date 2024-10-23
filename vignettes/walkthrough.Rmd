@@ -79,7 +79,7 @@ Now we can safely perform inference with the method `infer`.
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
 chabi$infer(data = "survey.csv", num_iter = 50000, burn_in = 5000,
-            thinning = "A", num_adapt = 300, num_chains = 4,
+            thinning = 15, num_adapt = 300, num_chains = 4,
             seed = 5, num_threads = 4)
 ```
 

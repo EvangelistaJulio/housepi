@@ -6,15 +6,6 @@
 
 #include "varia.h"
 
-using namespace basics;
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Disabled_OpenMP_Warning = false;   // warning for attempt to use openmp while disabled
-bool Above_Max_Threads_Warning = false; // warning for over the threshold n. of threads
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -89,7 +80,7 @@ Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, d
     {
         output = new Lognorm_Proposer(rule_args, rule_from);
     }
-    else if (!basics::is_na(rule_name))
+    else if (!tools::is_na(rule_name))
     {
         throw std::invalid_argument("Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
     }
@@ -125,7 +116,7 @@ void Parameter::update_diagnostics()
 /* Message to be used at the moment of display diagnostics. */
 std::string Parameter::show_diagnostics() const
 {
-    using namespace basics;
+    using namespace tools;
     std::ostringstream oss;
 
     double avg = 0, var = 0;
@@ -232,7 +223,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     {
         std::ostringstream oss;
         oss << "Number of threads (" << n << ") changed to number of available threads (" << _max_num_available_threads << ").";
-        raise_warning(oss.str(), Above_Max_Threads_Warning);
+        warning(oss.str());
         n = _max_num_available_threads;
     }
 
@@ -254,7 +245,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
 #else
     if (n != 1)
     {
-        raise_warning("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
+        tools::warning("Parallelization with OpenMP not supported.");
     }
     setup_num_threads = 1;
     _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
@@ -361,7 +352,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 std::string Monte_Carlo_Core::show_param(const std::string &parID) const
 {
     std::ostringstream oss;
-    oss << parID << basics::C_DELIM << params.at(parID).show();
+    oss << parID << tools::C_DELIM << params.at(parID).show();
     return oss.str();
 }
 
@@ -369,6 +360,6 @@ std::string Monte_Carlo_Core::show_param(const std::string &parID) const
 std::string Monte_Carlo_Core::show_param_diagnostics(const std::string &parID) const
 {
     std::ostringstream oss;
-    oss << parID << basics::C_DELIM << params.at(parID).show_diagnostics();
+    oss << parID << tools::C_DELIM << params.at(parID).show_diagnostics();
     return oss.str();
 }

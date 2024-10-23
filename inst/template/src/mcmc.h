@@ -173,6 +173,10 @@ private:
 
 	std::vector<std::string> _data_headers_ = {};
 
+	// errors
+	std::atomic<bool> _error_occurred_ = false;
+	std::string _error_message_ = "";
+
 	//===== BUILD =====//
 
 	//----- build : auxiliary attributes -----//

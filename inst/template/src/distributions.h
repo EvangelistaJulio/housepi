@@ -372,9 +372,9 @@ Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED, const d
     {
         output = new Exponential_Distribution(args, range);
     }
-    else if (!basics::is_na(name))
+    else if (!tools::is_na(name))
     {
-        basics::raise_error("Unknown distribution '" + name + "'.");
+        tools::error("Unknown distribution '" + name + "'.");
     }
 
     return output;

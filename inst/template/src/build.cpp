@@ -6,20 +6,8 @@
 
 #include "mcmc.h"
 
-using basics::is_na;
-using basics::raise_warning;
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Param_Infer_Fixed_Move_Warning = false;
-bool Non_Specified_Type_Warning = false;
-bool Non_Specified_Value_Warning = false;
-bool Fix_Init_Mult_Chains_Warning = false;
-bool Unknown_Setup_Entry_Warning = false;
-bool Unknown_Household_Data_Structure_Warning = false;
-bool Unknown_Individual_Data_Warning = false;
+using tools::is_na;
+using tools::warning;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -52,7 +40,7 @@ void MCMC::show_full_build() const
             add_file_info = "# import: " + report_pathtofile.at("setup");
         }
     }
-    basics::print_decorator("Setup", add_file_info);
+    tools::print_decorator("Setup", add_file_info);
     show_setup();
 
     //----- PARAMETERS -----//
@@ -64,7 +52,7 @@ void MCMC::show_full_build() const
             add_file_info = "# import: " + report_pathtofile.at("params");
         }
     }
-    basics::print_decorator("Parameters", add_file_info);
+    tools::print_decorator("Parameters", add_file_info);
     show_params();
 
     //----- DATABASE -----//
@@ -76,7 +64,7 @@ void MCMC::show_full_build() const
             add_file_info = "# import: " + report_pathtofile.at("data");
         }
     }
-    basics::print_decorator("Database", add_file_info);
+    tools::print_decorator("Database", add_file_info);
     show_summary();
     show_group_classes();
 
@@ -88,7 +76,7 @@ void MCMC::show_full_build() const
             add_file_info = "# import: " + report_pathtofile.at("augm");
         }
     }
-    basics::print_decorator("Augmented", add_file_info);
+    tools::print_decorator("Augmented", add_file_info);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -151,7 +139,7 @@ void MCMC::build_setup()
                 {
                     oss << ", '" << file_entries[k] << "'";
                 }
-                raise_warning(oss.str() + ".", Unknown_Setup_Entry_Warning);
+                warning(oss.str() + ".");
             }
 
             //===== ASSIGN SETUP CONFIGURATIONS =====//
@@ -159,19 +147,19 @@ void MCMC::build_setup()
             //===== NUMBER OF THREADS =====//
             if (_setup_deflist_.find("num_threads") != _setup_deflist_.end())
             {
-                num_threads = basics::stoi(_setup_deflist_.at("num_threads"), "number of threads");
+                num_threads = tools::stoi(_setup_deflist_.at("num_threads"), "number of threads");
             }
 
             //===== PRNG SEED =====//
             if ((_setup_deflist_.find("seed") != _setup_deflist_.end()) && (!is_na(_setup_deflist_.at("seed"))))
             {
-                setup_seed = basics::stoull(_setup_deflist_.at("seed"), "random seed");
+                setup_seed = tools::stoull(_setup_deflist_.at("seed"), "random seed");
             }
 
             //===== NUMBER OF CHAINS =====//
             if (_setup_deflist_.find("num_chains") != _setup_deflist_.end())
             {
-                setup_num_chains = basics::stoul(_setup_deflist_.at("num_chains"), "number of chains");
+                setup_num_chains = tools::stoul(_setup_deflist_.at("num_chains"), "number of chains");
                 if (setup_num_iter < 1)
                 {
                     throw std::out_of_range("Number of chains must be greater than 0.");
@@ -181,7 +169,7 @@ void MCMC::build_setup()
             //===== NUMBER OF ITERATIONS =====//
             if (_setup_deflist_.find("num_iter") != _setup_deflist_.end())
             {
-                setup_num_iter = basics::stoul(_setup_deflist_.at("num_iter"), "number of iterations");
+                setup_num_iter = tools::stoul(_setup_deflist_.at("num_iter"), "number of iterations");
                 if (setup_num_iter < 2)
                 {
                     throw std::out_of_range("Number of iterations must be greater than 1.");
@@ -191,13 +179,13 @@ void MCMC::build_setup()
             //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
             if (_setup_deflist_.find("num_adapt") != _setup_deflist_.end())
             {
-                setup_num_adapt = basics::stoul(_setup_deflist_.at("num_adapt"), "number of adaptive steps");
+                setup_num_adapt = tools::stoul(_setup_deflist_.at("num_adapt"), "number of adaptive steps");
             }
 
             //===== THINNING =====//
             if (_setup_deflist_.find("thinning") != _setup_deflist_.end())
             {
-                setup_thinning = basics::stoul(_setup_deflist_.at("thinning"), "thinning");
+                setup_thinning = tools::stoul(_setup_deflist_.at("thinning"), "thinning");
                 if (setup_thinning >= setup_num_iter)
                 {
                     throw std::out_of_range("Thinning must be smaller than number of iterations. ");
@@ -211,7 +199,7 @@ void MCMC::build_setup()
             //===== BURN-IN =====//
             if (_setup_deflist_.find("burn_in") != _setup_deflist_.end())
             {
-                setup_burn_in = basics::stoul(_setup_deflist_.at("burn_in"), "burn-in");
+                setup_burn_in = tools::stoul(_setup_deflist_.at("burn_in"), "burn-in");
                 if (setup_burn_in >= setup_num_iter)
                 {
                     throw std::out_of_range("Burn-in must be smaller than number of iterations.");
@@ -224,8 +212,7 @@ void MCMC::build_setup()
                 setup_rnd_init_params = stobool(_setup_deflist_.at("rnd_init_params"));
                 if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
                 {
-                    raise_warning("Unable to fix initial parameters when running multiple chains.",
-                                  Fix_Init_Mult_Chains_Warning);
+                    warning("Unable to fix initial parameters when running multiple chains.");
                     setup_rnd_init_params = true;
                 }
             }
@@ -233,7 +220,7 @@ void MCMC::build_setup()
             //===== INVERSE TEMPERATURE =====//
             if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
             {
-                double inv_T = basics::stod(_setup_deflist_.at("inv_temper"), "inverse temperature");
+                double inv_T = tools::stod(_setup_deflist_.at("inv_temper"), "inverse temperature");
                 if ((inv_T < 0.) || (inv_T > 1.))
                 {
                     std::ostringstream oss;
@@ -262,7 +249,7 @@ void MCMC::build_setup()
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 }
 
@@ -368,18 +355,18 @@ void MCMC::build_params()
                     }
                     else
                     {
-                        value = basics::stod(_param_deftable_.at("value")[p], "parameter");
+                        value = tools::stod(_param_deftable_.at("value")[p], "parameter");
                     }
 
                     // load range
                     dictargs range = {};
                     if (!is_na(_param_deftable_.at("min")[p]))
                     {
-                        range.emplace("min", basics::stod(_param_deftable_.at("min")[p], "parameter minimum"));
+                        range.emplace("min", tools::stod(_param_deftable_.at("min")[p], "parameter minimum"));
                     }
                     if (!is_na(_param_deftable_.at("max")[p]))
                     {
-                        range.emplace("max", basics::stod(_param_deftable_.at("max")[p], "parameter maximum"));
+                        range.emplace("max", tools::stod(_param_deftable_.at("max")[p], "parameter maximum"));
                     }
 
                     // assign parameter to the set of variables
@@ -402,7 +389,7 @@ void MCMC::build_params()
                     }
                     else
                     {
-                        value = basics::stod(_param_deftable_.at("value")[p], "parameter");
+                        value = tools::stod(_param_deftable_.at("value")[p], "parameter");
                     }
 
                     // assign immutable parameter to the set of variables
@@ -484,7 +471,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                 std::ostringstream oss;
                 oss << "Impossible to associate a household structure: missing data column 'house_id'."
                     << " If it was intentional, ignore this message.";
-                raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
+                warning(oss.str());
             }
 
             //===== Safe Load of Households =====//
@@ -525,19 +512,17 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                         // NA status is a missing status
                         if (!is_na(datatable.at("status")[i]))
                         {
-                            this_status = basics::stoul(datatable.at("status")[i], "individual status");
+                            this_status = tools::stoul(datatable.at("status")[i], "individual status");
                         }
                     }
                     else if (is_na(datatable.at(key)[i]))
                     {
                         args.emplace(key, std::numeric_limits<double>::quiet_NaN());
-                        std::ostringstream oss;
-                        oss << "Found NA value in database. If intentional, ignore this warning.";
-                        raise_warning(oss.str(), Unknown_Individual_Data_Warning);
+                        warning("Found NA value in database. If intentional, ignore this warning.");
                     }
                     else
                     {
-                        args.emplace(key, basics::stod(datatable.at(key)[i], "data '" + key + "'"));
+                        args.emplace(key, tools::stod(datatable.at(key)[i], "data '" + key + "'"));
                     }
                 }
                 // create individual instance
@@ -586,7 +571,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 }
 
@@ -723,7 +708,7 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 }
 
@@ -807,7 +792,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 }
 
@@ -943,7 +928,7 @@ void MCMC::build_augm()
                             throw std::invalid_argument(oss.str());
                         }
                     }
-                    else if (basics::stoi(z, "augmented status") < INFECTIOUS)
+                    else if (tools::stoi(z, "augmented status") < INFECTIOUS)
                     {
                         std::ostringstream oss;
                         oss << "Impossible to associate augmented '" << pair.first << "' for non infectious status.";
@@ -967,7 +952,7 @@ void MCMC::build_augm()
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 }
 
@@ -985,7 +970,7 @@ void MCMC::assign_augm(Individual &this_indiv)
             // assign augmented variable of the corresponding status
             std::string augm_status = _augm_deftable_.at("status")[a];
 
-            if ((is_na(augm_status)) || (this_indiv.get_status() == basics::stoi(augm_status, "augmented status")))
+            if ((is_na(augm_status)) || (this_indiv.get_status() == tools::stoi(augm_status, "augmented status")))
             {
                 std::string augmID = _augm_deftable_.at("name")[a];
 
@@ -1045,7 +1030,7 @@ void MCMC::assign_augm(Individual &this_indiv)
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 }
 
@@ -1083,12 +1068,11 @@ double MCMC::type_to_double(const std::string val, const std::string typ, const 
         }
         else if (!is_na(val) && is_na(typ))
         {
-            output = basics::stod(val, "argument without type");
+            output = tools::stod(val, "argument without type");
         }
         else if (is_na(val) && !is_na(typ))
         {
-            raise_warning("Ignoring value type without a paired value.",
-                          Non_Specified_Value_Warning);
+            warning("Ignoring value type without a paired value.");
 
             output = INF_DOUBLE; // FIXME default value
         }
@@ -1096,7 +1080,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, const 
         {
             if (typ == TYPE_SCALAR)
             {
-                output = basics::stod(val, "argument with scalar type");
+                output = tools::stod(val, "argument with scalar type");
             }
             else if (typ == TYPE_DATA)
             {
@@ -1111,7 +1095,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, const 
                     // FIXME : this warning is not clear as exposed here
                     oss << "Non constant parameter '" << val << "' assigned as fixed argument."
                         << " Changes of the parameter will not affect the argument.";
-                    raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
+                    warning(oss.str());
                 }
             }
             else if (typ == TYPE_COMMAND)
@@ -1133,7 +1117,7 @@ double MCMC::type_to_double(const std::string val, const std::string typ, const 
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 
     return output;
@@ -1156,8 +1140,7 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
         }
         else if (is_na(val) && !is_na(typ))
         {
-            raise_warning("Found a type without a paired value. Falling back to default.",
-                          Non_Specified_Value_Warning);
+            warning("Found a type without a paired value. Falling back to default.");
 
             output = nullptr; // default value
         }
@@ -1173,7 +1156,7 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
             }
             else if (typ == TYPE_SCALAR)
             {
-                output = assign_scalar_pointer(basics::stod(val, "argument with scalar type"));
+                output = assign_scalar_pointer(tools::stod(val, "argument with scalar type"));
             }
             else
             {
@@ -1183,7 +1166,7 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
     }
     catch (const std::exception &e)
     {
-        basics::raise_error(e.what());
+        tools::error(e.what());
     }
 
     return output;

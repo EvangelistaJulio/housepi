@@ -6,9 +6,6 @@
 
 #include "read.h"
 
-using basics::is_na;
-using basics::C_DELIM;
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -43,7 +40,7 @@ std::string strcleaner(std::string tkn)
     }
 
     // check for undefined
-    if (is_na(tkn))
+    if (tools::is_na(tkn))
     {
         tkn = UNDEFINED;
     }
@@ -107,7 +104,7 @@ std::vector<std::string> read_column_headers(std::ifstream &input, const std::ve
     std::istringstream iss(line);
 
     // get headers from first line
-    while (getline(iss, tkn, C_DELIM))
+    while (getline(iss, tkn, tools::C_DELIM))
     {
         headers.push_back(strcleaner(tkn));
     }
@@ -156,7 +153,7 @@ bool read_row_by_headers(std::ifstream &input, const std::vector<std::string> &h
         std::istringstream iss(line);
         size_t num_cols = 0;
 
-        while (getline(iss, tkn, C_DELIM))
+        while (getline(iss, tkn, tools::C_DELIM))
         {
             this_row.emplace(headers[num_cols++], strcleaner(tkn));
         }
@@ -223,7 +220,7 @@ dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_val
 /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
 void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
 {
-    if (!is_na(pathtofile))
+    if (!tools::is_na(pathtofile))
     {
         std::ifstream input(pathtofile.c_str());
 
@@ -238,7 +235,7 @@ void read_csv_list(const std::string &pathtofile, std::map<std::string, std::str
                 std::istringstream iss(line);
 
                 //===== NAME =====//
-                if (!getline(iss, name, C_DELIM))
+                if (!getline(iss, name, tools::C_DELIM))
                 {
                     throw std::runtime_error("Unable to extract list name. Check file line: " + line);
                 }
@@ -265,7 +262,7 @@ void read_csv_table(const std::string &pathtofile,
                     std::map<std::string, std::vector<std::string>> &csv_parsed_table,
                     const std::vector<std::string> &required_headers)
 {
-    if (!is_na(pathtofile))
+    if (!tools::is_na(pathtofile))
     {
         std::ifstream input(pathtofile.c_str());
 

@@ -16,12 +16,6 @@
 
 #include "distributions.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-// bool Invalid_Proposer_Range_Warning = false; // warning for invalid proposer range declaration
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -84,7 +78,7 @@ protected:
 	// alternative proposer methods
 	double _propose_undefined_(sys_rnd_gen &prng, double start)
 	{
-		basics::raise_error("Attempt to call a method of an undefined proposer.");
+		tools::error("Attempt to call a method of an undefined proposer.");
 		UNUSED(prng);
 		UNUSED(start);
 		return std::numeric_limits<double>::quiet_NaN();
@@ -243,13 +237,13 @@ public:
 		// check that distribution args have no mismatch
 		if (distr_args.find(IO_MISMATCH) != distr_args.end())
 		{
-			basics::raise_error("Mismatching definitions in arguments of '" + name + "'.");
+			tools::error("Mismatching definitions in arguments of '" + name + "'.");
 		}
 
 		// check that rule args have no mismatch
 		if (rule_args.find(IO_MISMATCH) != rule_args.end())
 		{
-			basics::raise_error("Mismatching definitions in rule arguments of '" + name + "'.");
+			tools::error("Mismatching definitions in rule arguments of '" + name + "'.");
 		}
 
 		//----- Assign options -----//
@@ -261,7 +255,7 @@ public:
 		distr_ptr = distribution_ptr(distr_name, distr_args, range);
 
 		// Assing proposer rule with associated state 'infer'.
-		if (basics::is_na(rule_name))
+		if (tools::is_na(rule_name))
 		{
 			// immutable variable if no rule is defined
 			infer = false;
@@ -280,18 +274,14 @@ public:
 			}
 			else
 			{
-				/*
-				// FIXME : this warning doesn't work in a template because global warning are forbidden in headers
-				// Waiting for throwing exception structure
 				if ((rule_from != INF_DOUBLE) && (!valid(rule_from)))
 				{
 					std::osstringstream oss;
 					oss << "Initial value " << rule_from << " outside of value range"
 						<< " {min:" << distr_ptr->get_range_min() << ", max:" << distr_ptr->get_range_max() << "}."
 						<< " If it was intentional, ignore this message.";
-					screen::raise_warning(oss.str(), Invalid_Proposer_Range_Warning);
+					screen::warning(oss.str());
 				}
-				*/
 
 				// assigne the pointer to the proposer
 				prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from);
@@ -353,7 +343,7 @@ public:
 
 	std::string show() const
 	{
-		using namespace basics;
+		using namespace tools;
 		std::ostringstream oss;
 		oss << get_value() << C_DELIM << truth(infer);
 		if (infer)
@@ -381,7 +371,7 @@ private:
 	double _propose_error_(sys_rnd_gen &prng)
 	{
 		UNUSED(prng);
-		basics::raise_error("Call to proposer of immutable variable '" + get_name() + "'.");
+		tools::error("Call to proposer of immutable variable '" + get_name() + "'.");
 		return 0.;
 	}
 	double _propose_gibbs_sample_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }

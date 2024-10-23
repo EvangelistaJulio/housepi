@@ -6,12 +6,6 @@
 
 #include "mcmc.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Large_p_WAIC_Warning = false; // unreliable WAIC
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,15 +55,40 @@ double MCMC::compute_augm_loglike(const Household &this_house) const
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
 void MCMC::update_global_loglike()
 {
+    std::atomic<bool> error_occurred = false;
+    std::string error_message;
+
     buffer = global_loglike;
     global_loglike = 0.0;
 
 #pragma omp parallel for reduction(+ : global_loglike)
     for (int h = 0; h < num_house; ++h)
     {
-        Household &this_house = house[h];
-        update_house_loglike(this_house);
-        global_loglike += this_house.get_loglike() + compute_augm_loglike(this_house);
+        if (_error_occurred_)
+        {
+            continue;
+        }
+        try
+        {
+            Household &this_house = house[h];
+            update_house_loglike(this_house);
+            global_loglike += this_house.get_loglike() + compute_augm_loglike(this_house);
+        }
+        catch (const std::exception &e)
+        {
+#pragma omp critical
+            {
+                if (!_error_occurred_)
+                {
+                    _error_occurred_ = true;
+                    _error_message_ = e.what();
+                }
+            }
+        }
+    }
+    if (_error_occurred_)
+    {
+        tools::error(_error_message_);
     }
 }
 
@@ -124,7 +143,6 @@ void MCMC::move_single_param(const std::string &parID)
             restore_param_value(parID);
 
             // restore buffered loglikelihood in households
-#pragma omp parallel for default(shared)
             for (int h = 0; h < num_house; ++h)
             {
                 house[h].restore_loglike();
@@ -231,9 +249,34 @@ void MCMC::move_all_augm_variables()
 #pragma omp parallel for reduction(+ : delta_ll)
         for (int h = 0; h < num_house; ++h)
         {
-            delta_ll += move_single_house_augm(house[h]);
+            if (_error_occurred_)
+            {
+                continue;
+            }
+            try
+            {
+                delta_ll += move_single_house_augm(house[h]);
+            }
+            catch (const std::exception &e)
+            {
+#pragma omp critical
+                {
+                    if (!_error_occurred_)
+                    {
+                        _error_occurred_ = true;
+                        _error_message_ = e.what();
+                    }
+                }
+            }
         }
-        increment_global_loglike(delta_ll);
+        if (_error_occurred_)
+        {
+            tools::error(_error_message_);
+        }
+        else
+        {
+            increment_global_loglike(delta_ll);
+        }
     }
 }
 
@@ -327,22 +370,6 @@ bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const std::st
     }
 }
 
-/* Return the value of the acceptance rate of the given augmented variable
-double MCMC::get_augm_accept_rate(const std::string &augmID)
-{
-    int accept_count = 0, propos_count = 0;
-
-#pragma omp parallel for reduction(+ : accept_count, propos_count)
-    for (int h = 0; h < num_house; ++h)
-    {
-        accept_count += house[h].get_augm_accept_counts(augmID);
-        propos_count += house[h].get_augm_propos_counts(augmID);
-    }
-
-    return static_cast<double>(accept_count) / propos_count;
-}
- */
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -396,8 +423,7 @@ void MCMC::init_diagnostics()
         // diagnostics for all parameters
         init_param_diagnostics(sample_size);
 
-// diagnostics over households
-#pragma omp parallel for default(shared)
+        // diagnostics over households
         for (int h = 0; h < num_house; ++h)
         {
             house[h].init_diagnostics(sample_size);
@@ -417,7 +443,6 @@ void MCMC::update_diagnostics()
         update_param_diagnostics();
 
         // diagnostics over households
-#pragma omp parallel for default(shared)
         for (int h = 0; h < num_house; ++h)
         {
             house[h].update_diagnostics();
@@ -467,7 +492,7 @@ void MCMC::disable_assert()
     note: sweep is the number of previously completed thin sweeps. */
 void MCMC::run_monte_carlo(bool progbar, ulong sweep)
 {
-    using namespace basics;
+    using namespace tools;
 
     //==========================//
     //===== Initialization =====//
@@ -567,20 +592,20 @@ void MCMC::infer(bool progbar)
     //----- Check if data is meaningful -----//
     if (report_data["n.miss.stat"] == num_indiv)
     {
-        basics::raise_error("No infectious status has been provided in the data file.");
+        tools::error("No infectious status has been provided in the data file.");
     }
 
     //----- total number of mcmc sweeps -----//
     _tot_thin_sweeps_ = _thin_sweeps_;
 
     //----- Start progress bar and chrono -----//
-    basics::progress_bar_init("init", progbar);
+    tools::progress_bar_init("init", progbar);
 
     //----- Run Markov Chain -----//
     run_monte_carlo(progbar);
 
     //----- Close progress bar -----//
-    basics::progress_bar_end("end", progbar);
+    tools::progress_bar_end("end", progbar);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -596,7 +621,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
 
     if (num_rungs < 2)
     {
-        basics::raise_error("Number of rungs must be greater than 1.");
+        tools::error("Number of rungs must be greater than 1.");
     }
     else
     {
@@ -622,7 +647,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
     _tot_thin_sweeps_ = _thin_sweeps_ * (_num_rungs_ + 1);
 
     //----- Start progress bar and chrono -----//
-    basics::progress_bar_init("init", progbar);
+    tools::progress_bar_init("init", progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
@@ -632,7 +657,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
     _rung_ = 0;
     set_inver_temper(0.0);
     run_monte_carlo(progbar, 0);
-    basics::statistics(dgn_glob_loglike, avg, var);
+    tools::statistics(dgn_glob_loglike, avg, var);
 
     inv_t.push_back(setup_inv_T);
     avg_vec.push_back(avg);
@@ -650,7 +675,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
         _rung_ = 1;
         set_inver_temper(1.0);
         run_monte_carlo(progbar, _thin_sweeps_);
-        basics::statistics(dgn_glob_loglike, avg, var);
+        tools::statistics(dgn_glob_loglike, avg, var);
 
         inv_t.push_back(setup_inv_T);
         avg_vec.push_back(avg);
@@ -675,7 +700,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
             //----- power posterior sampling -----//
             set_inver_temper(new_inv_T);
             run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
-            basics::statistics(dgn_glob_loglike, avg, var);
+            tools::statistics(dgn_glob_loglike, avg, var);
 
             //----- find larger rectangular discretization error -----//
             is_right = (inv_t[k + 1] - setup_inv_T) * (avg_vec[k + 1] - avg) > (new_inv_T - inv_t[k]) * (avg - avg_vec[k]);
@@ -694,18 +719,18 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
         //==================================//
         //===== POWER FRACTIONS LADDER =====//
         //==================================//
-        
+
         //----- Inverse Temperatures (0, 1] -----//
         setup_rnd_init_params = false;
         for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
         {
-          set_inver_temper(std::pow(static_cast<double>(_rung_) / (_num_rungs_ - 1), 5));
-          run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
-          basics::statistics(dgn_glob_loglike, avg, var);
-          
-          inv_t.push_back(setup_inv_T);
-          avg_vec.push_back(avg);
-          var_vec.push_back(var);
+            set_inver_temper(std::pow(static_cast<double>(_rung_) / (_num_rungs_ - 1), 5));
+            run_monte_carlo(progbar, _rung_ * _thin_sweeps_);
+            tools::statistics(dgn_glob_loglike, avg, var);
+
+            inv_t.push_back(setup_inv_T);
+            avg_vec.push_back(avg);
+            var_vec.push_back(var);
         }
     }
 
@@ -718,7 +743,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
     }
 
     //----- Close progress bar -----//
-    basics::progress_bar_end("end", progbar);
+    tools::progress_bar_end("end", progbar);
 
     //----- Restore user setup -----//
     set_inver_temper(bkp_inv_T);
@@ -747,6 +772,7 @@ void MCMC::simulate_single_house(Household &this_house)
 /* Perform simulation as provided by the user */
 void MCMC::simulate(bool progbar)
 {
+
     //===== Initialization =====//
 
     //----- Initialize model -----//
@@ -755,29 +781,64 @@ void MCMC::simulate(bool progbar)
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
 
-    basics::progress_bar_init("simul", progbar);
+    tools::progress_bar_init("simul", progbar);
 
 #ifdef _OPENMP
     int thin_num_house = num_house / get_num_threads();
 #pragma omp parallel for default(shared)
     for (int h = 0; h < num_house; ++h)
     {
-        simulate_single_house(house[h]);
-
-        if (omp_get_thread_num() == 0)
+        if (_error_occurred_)
         {
-            basics::progress_bar_run("simul", h, thin_num_house, progbar);
+            continue;
+        }
+        try
+        {
+            simulate_single_house(house[h]);
+            if (omp_get_thread_num() == 0)
+            {
+                tools::progress_bar_run("simul", h, thin_num_house, progbar);
+            }
+        }
+        catch (const std::exception &e)
+        {
+#pragma omp critical
+            {
+                if (!_error_occurred_)
+                {
+                    _error_occurred_ = true;
+                    _error_message_ = e.what();
+                }
+            }
         }
     }
 #else
     for (int h = 0; h < num_house; ++h)
     {
-        simulate_single_house(house[h]);
-        basics::progress_bar_run("simul", h, num_house, progbar);
+        if (_error_occurred_)
+        {
+            continue;
+        }
+        try
+        {
+            simulate_single_house(house[h]);
+            tools::progress_bar_run("simul", h, num_house, progbar);
+        }
+        catch (const std::exception &e)
+        {
+            _error_occurred_ = true;
+            _error_message_ = e.what();
+        }
     }
 #endif
 
-    basics::progress_bar_end("simul", progbar);
-
-    update_report_data();
+    if (_error_occurred_)
+    {
+        tools::error(_error_message_);
+    }
+    else
+    {
+        tools::progress_bar_end("simul", progbar);
+        update_report_data();
+    }
 }

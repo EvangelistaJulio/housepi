@@ -147,7 +147,7 @@ void Model::init_model_for_inference()
 	// Unknown status are not modeled
 	if (report_data["n.unk.stat"] > 0)
 	{
-		basics::raise_error("A missing status was found : incompatible with the model.");
+		tools::error("A missing status was found : incompatible with the model.");
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//

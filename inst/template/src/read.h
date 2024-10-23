@@ -36,7 +36,7 @@ void read_csv_table(const std::string &pathtofile,
                     std::map<std::string, std::vector<std::string>> &csv_parsed_table,
                     const std::vector<std::string> &required_headers = {});
 
-std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = basics::C_LIST_DELIM);
+std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = tools::C_LIST_DELIM);
 dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals);
 
 #endif // READ__H

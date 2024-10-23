@@ -86,7 +86,7 @@ double Base_Distribution::_undefined_call_error_(const std::string &txt, double 
 {
     UNUSED(x);
     UNUSED(y);
-    basics::raise_error("Attempt to call method '" + txt + "' of undefined distribution.");
+    tools::error("Attempt to call method '" + txt + "' of undefined distribution.");
     return std::numeric_limits<double>::quiet_NaN();
 }
 
@@ -99,7 +99,7 @@ void Base_Distribution::check_rand_attempts(int &num_attempts) const
         oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
             << " in initialization of '" << get_name() << "' "
             << " within range {" << get_range_min() << ", " << get_range_max() << "}.";
-        basics::raise_error(oss.str());
+        tools::error(oss.str());
     }
     ++num_attempts;
 }

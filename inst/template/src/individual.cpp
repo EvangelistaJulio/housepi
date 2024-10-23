@@ -6,14 +6,6 @@
 
 #include "individual.h"
 
-using basics::raise_error;
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Unknown_Status_Warning = false; // unknown status
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -40,7 +32,7 @@ Individual::Individual(const std::string &new_ID, int new_status, const dictargs
 		oss << "Status '" << new_status << "' of individual " << get_ID() << " interpreted as missing."
 			<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
 			<< " and (=) " << MISSING_STATUS << " for missing status.";
-		basics::raise_warning(oss.str(), Unknown_Status_Warning);
+		tools::warning(oss.str());
 	}
 	else
 	{
@@ -63,7 +55,7 @@ void Individual::assert_data(const std::string &dataID) const
 		std::ostringstream oss;
 		oss << "Unknown data '" << dataID << "' for individual " << get_ID() << ".";
 		oss << " Check your model and your data definitions.";
-		raise_error(oss.str());
+		throw std::invalid_argument(oss.str());
 	}
 }
 
@@ -112,7 +104,7 @@ void Individual::assign_group_rate(const std::string &rateID, const std::string 
 		oss << "Multiple definitions of group rate '" << rateID
 			<< "' for individual " << get_ID() << "."
 			<< " Check your model.";
-		raise_error(oss.str());
+		throw std::invalid_argument(oss.str());
 	}
 }
 
@@ -129,7 +121,7 @@ void Individual::assert_augm(const std::string &augmID) const
 		oss << "Unknown augmented variable '" << augmID
 			<< "' for individual " << get_ID() << "."
 			<< " Check your augmented variable definitions.";
-		raise_error(oss.str());
+		throw std::invalid_argument(oss.str());
 	}
 }
 
@@ -236,7 +228,7 @@ void Household::assign_individual(Individual this_indiv)
 		std::ostringstream oss;
 		oss << "Unknown status '" << status << "' of individual "
 			<< this_indiv.get_ID() << ".";
-		raise_error(oss.str());
+		throw std::invalid_argument(oss.str());
 	}
 
 	//----- add the new individual object -----//
@@ -282,7 +274,7 @@ bool Household::change_status(int i, int new_status)
 			std::ostringstream oss;
 			oss << "While changing status: unknown old status '"
 				<< old_status << "' of individual " << this_indiv.get_ID() << ".";
-			raise_error(oss.str());
+			throw std::runtime_error(oss.str());
 		}
 
 		if (new_status >= INFECTIOUS)
@@ -306,9 +298,9 @@ bool Household::change_status(int i, int new_status)
 		else
 		{
 			std::ostringstream oss;
-			oss << "Impossibile to change status: unknown new status '"
+			oss << "While changing status: unknown new status '"
 				<< new_status << "' for individual " << this_indiv.get_ID() << ".";
-			raise_error(oss.str());
+			throw std::runtime_error(oss.str());
 		}
 		indiv[i].set_status(new_status);
 

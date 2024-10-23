@@ -7,7 +7,7 @@
 #include "utils.h"
 
 // auxiliary namespace for I/O custom functions
-namespace basics
+namespace tools
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
@@ -276,19 +276,16 @@ namespace basics
     //////////////////////////////////////  Warning Functions  //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Raise a warning if it wasn't raised before. */
-    // FIXME : omp critical is so wrong! Throw and check exceptions instead depending on Rcpp
-    void raise_warning(const std::string &txt, bool &is_raised_once)
+    /* Raise a warning. */
+    // FIXME : Throw and check exceptions instead depending on Rcpp
+    void warning(const std::string &txt)
     {
-        if (!is_raised_once)
-        {
+
 #ifdef USE_RCPP
-            Rcpp::warning(txt);
+        Rcpp::warning(txt);
 #else
-            std::cerr << "\nWarning: " + txt << std::endl;
+        std::cerr << "\nWarning: " + txt << std::endl;
 #endif
-            is_raised_once = true;
-        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -297,7 +294,7 @@ namespace basics
 
     /* Display an error message. */
     // FIXME : omp critical is wrong! Throw and check exceptions instead depending on Rcpp
-    void raise_error(const std::string &txt)
+    void error(const std::string &txt)
     {
 #ifdef USE_RCPP
         Rcpp::stop(txt);
@@ -324,7 +321,7 @@ namespace basics
         {
             throw std::invalid_argument("Invalid value '" + input + "'. Impossible to import " + errtxt + ".");
         }
-        //throw std::runtime_error("Unhandled error in safe_converter");
+        // throw std::runtime_error("Unhandled error in safe_converter");
     }
 
     // Converter to int using std::stoi with function pointer casting
@@ -351,14 +348,6 @@ namespace basics
         return _safe_converter_(static_cast<unsigned long long (*)(const std::string &, std::size_t *, int)>(std::stoull), input, errtxt, nullptr, 10);
     }
 }
-
-using namespace basics;
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Unused_Range_Warning = false; // warning for invalid proposer range declaration
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -425,7 +414,7 @@ void Base_Function::assign_args(dictargs args_val)
         {
             std::ostringstream oss;
             oss << "Unknown argument '" << pair.first << "' for '" << get_name() << "'.";
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
         else
         {
@@ -444,7 +433,7 @@ void Base_Function::assign_args(dictargs_ptr args_ptr)
         {
             std::ostringstream oss;
             oss << "Unknown argument '" << pair.first << "' for '" << get_name() << "'.";
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
         else
         {
@@ -480,7 +469,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             if (is_new_min)
             {
-                raise_error("Multiple definition for 'min' in '" + get_name() + "'.");
+                throw std::invalid_argument("Multiple definition for 'min' in '" + get_name() + "'.");
             }
             else
             {
@@ -492,7 +481,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             if (is_new_max)
             {
-                raise_error("Multiple definition for 'max' in '" + get_name() + "'.");
+                throw std::invalid_argument("Multiple definition for 'max' in '" + get_name() + "'.");
             }
             else
             {
@@ -504,7 +493,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             std::ostringstream oss;
             oss << "Invalid range keyword '" << x.first << "'. Provide only 'min' and/or 'max'.";
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
     }
 
@@ -517,7 +506,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             std::ostringstream oss;
             oss << "Overwriting range min with argument min " << min_val << " in '" << get_name() << "'.";
-            raise_warning(oss.str(), Unused_Range_Warning);
+            tools::warning(oss.str());
         }
         is_new_min = true;
     }
@@ -528,7 +517,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             std::ostringstream oss;
             oss << "Invalid min value " << min_val << " for distribution '" << get_name() << "'.";
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
     }
 
@@ -541,7 +530,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             std::ostringstream oss;
             oss << "Overwriting range max with argument max " << max_val << " in '" << get_name() << "'.";
-            raise_warning(oss.str(), Unused_Range_Warning);
+            tools::warning(oss.str());
         }
         is_new_max = true;
     }
@@ -552,7 +541,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             std::ostringstream oss;
             oss << "Invalid max value" << max_val << " for distribution '" << get_name() << "'.";
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
     }
 
@@ -587,7 +576,7 @@ int Base_Function::set_range(const dictargs &new_range)
         {
             std::ostringstream oss;
             oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            raise_error(oss.str());
+            throw std::invalid_argument(oss.str());
         }
         else
         {
@@ -624,7 +613,7 @@ std::string Base_Function::show_arg_names() const
         oss << _args_names_[0];
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << C_LIST_DELIM << _args_names_[i];
+            oss << tools::C_LIST_DELIM << _args_names_[i];
         }
         return oss.str();
     }
@@ -643,7 +632,7 @@ std::string Base_Function::show_arg_values() const
         oss << get_arg(0);
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << C_LIST_DELIM << get_arg(i);
+            oss << tools::C_LIST_DELIM << get_arg(i);
         }
         return oss.str();
     }
