@@ -37,18 +37,6 @@
 class MCMC : public Monte_Carlo_Core
 {
 protected:
-	//===== Setup =====//
-	ulong setup_num_chains = 1;	  // n. chains
-	ulong setup_num_iter = 10000; // n. iterations
-	ulong setup_num_adapt = 0;	  // n. (finite) adaptive steps
-	ulong setup_thinning = 1;	  // n. thinning iterations
-	ulong setup_burn_in = 0;	  // n. burnin iterations
-
-	bool setup_rnd_init_params = true; // random initialization of parameters
-	unsigned long long setup_seed = 1; // random generator seed
-
-	double setup_inv_T = 1.0; // inverse temperature
-
 	//===== Household Data =====//
 	int num_indiv = 0;
 	int num_house = 0;
@@ -59,11 +47,6 @@ protected:
 	std::map<std::string, int> report_data;
 	std::map<std::string, std::map<std::string, int>> report_group_classes = {};
 
-	//===== Augmented Variables =====//
-	std::unordered_set<std::string> augm_full_set = {};
-	std::unordered_set<std::string> augm_to_be_inferred = {};
-	std::unordered_set<std::string> augm_with_model_set = {};
-
 public:
 	//===== CONSTRUCTOR =====//
 	MCMC()
@@ -72,7 +55,6 @@ public:
 		auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
 		setup_seed = static_cast<unsigned long long>(time_now);
 	};
-	virtual ~MCMC() {};
 
 	//===== READ =====//
 	void read_setup(const std::string &pathtofile = UNDEFINED);
@@ -157,6 +139,23 @@ private:
 	ulong dgn_count = 0;
 	std::vector<double> dgn_glob_loglike = {};
 
+	//===== Setup =====//
+	ulong setup_num_chains = 1;	  // n. chains
+	ulong setup_num_iter = 10000; // n. iterations
+	ulong setup_num_adapt = 0;	  // n. (finite) adaptive steps
+	ulong setup_thinning = 1;	  // n. thinning iterations
+	ulong setup_burn_in = 0;	  // n. burnin iterations
+
+	bool setup_rnd_init_params = true; // random initialization of parameters
+	unsigned long long setup_seed = 1; // random generator seed
+
+	double setup_inv_T = 1.0; // inverse temperature
+
+	//===== Augmented Variables =====//
+	std::unordered_set<std::string> augm_full_set = {};
+	std::unordered_set<std::string> augm_to_be_inferred = {};
+	std::unordered_set<std::string> augm_with_model_set = {};
+
 	//===== Internal =====//
 	ulong _n_contacts_ = 0; // number of contacts
 
@@ -168,13 +167,14 @@ private:
 	ulong _rung_ = 0;	   // current thermodynamic rung
 	ulong _num_rungs_ = 0; // number of rungs
 
-	bool _is_power_post_ = false; // power posterior mode
-	bool _is_move_augm_ = false;  // move augmented
+	bool _is_undef_params_ = false; // undefined parameters valid only if infer
+	bool _is_power_post_ = false;	// power posterior mode
+	bool _is_move_augm_ = false;	// move augmented
 
 	std::vector<std::string> _data_headers_ = {};
 
 	// errors
-	std::atomic<bool> _error_occurred_ = false;
+	bool _error_occurred_ = false;
 	std::string _error_message_ = "";
 
 	//===== BUILD =====//
@@ -233,9 +233,6 @@ private:
 	void init_diagnostics();
 	void update_diagnostics();
 	void init_move_counts();
-
-	// FIXME : to be redefined
-	// double get_augm_accept_rate(const std::string &augmID);
 };
 
 #endif // MCMC__H

@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <unordered_set>
 #include <unordered_map>
 #include <cmath>
 #include <iomanip>
@@ -72,6 +73,11 @@ constexpr double REFERENCE_VALUE = 1.0;            // auxiliary reference value 
 const std::string REFERENCE = "__reference__";     // name for reference choice
 const std::string CONTACT_RATE = "Contact";        // name for Contact rate
 
+constexpr char C_DELIM = ',';      // file delimiter
+constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
+constexpr char C_DECOR = '-';      // decorator for prints
+constexpr char C_PROG = '=';       // decorator for progress bar
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -85,10 +91,6 @@ const std::string CONTACT_RATE = "Contact";        // name for Contact rate
 
 namespace tools
 {
-    constexpr char C_DELIM = ',';      // file delimiter
-    constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
-    constexpr char C_DECOR = '-';      // decorator for prints
-    constexpr char C_PROG = '=';       // decorator for progress bar
 
     bool is_na(const std::string &txt);
     void statistics(const std::vector<double> &data, double &avg, double &var);

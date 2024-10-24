@@ -104,7 +104,7 @@ std::vector<std::string> read_column_headers(std::ifstream &input, const std::ve
     std::istringstream iss(line);
 
     // get headers from first line
-    while (getline(iss, tkn, tools::C_DELIM))
+    while (getline(iss, tkn, C_DELIM))
     {
         headers.push_back(strcleaner(tkn));
     }
@@ -153,7 +153,7 @@ bool read_row_by_headers(std::ifstream &input, const std::vector<std::string> &h
         std::istringstream iss(line);
         size_t num_cols = 0;
 
-        while (getline(iss, tkn, tools::C_DELIM))
+        while (getline(iss, tkn, C_DELIM))
         {
             this_row.emplace(headers[num_cols++], strcleaner(tkn));
         }
@@ -235,7 +235,7 @@ void read_csv_list(const std::string &pathtofile, std::map<std::string, std::str
                 std::istringstream iss(line);
 
                 //===== NAME =====//
-                if (!getline(iss, name, tools::C_DELIM))
+                if (!getline(iss, name, C_DELIM))
                 {
                     throw std::runtime_error("Unable to extract list name. Check file line: " + line);
                 }

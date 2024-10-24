@@ -274,13 +274,13 @@ public:
 			}
 			else
 			{
-				if ((rule_from != INF_DOUBLE) && (!valid(rule_from)))
+				if ((rule_from != INF_DOUBLE) && (!distr_ptr->valid(rule_from)))
 				{
-					std::osstringstream oss;
+					std::ostringstream oss;
 					oss << "Initial value " << rule_from << " outside of value range"
 						<< " {min:" << distr_ptr->get_range_min() << ", max:" << distr_ptr->get_range_max() << "}."
-						<< " If it was intentional, ignore this message.";
-					screen::warning(oss.str());
+						<< " If intentional, ignore this message.";
+					tools::warning(oss.str());
 				}
 
 				// assigne the pointer to the proposer
@@ -451,8 +451,8 @@ public:
 	//===== Getter =====//
 	void disable_assert_param();
 	void assert_param(const std::string &parID) const;
-	double get_param(const std::string &parID) const { return (this->*_get_param_method_)(parID); }
-	const double *get_param_pointer(const std::string &parID) const { return (this->*_get_param_pointer_method_)(parID); }
+	double get_param(const std::string &parID) const;
+	const double *get_param_pointer(const std::string &parID) const;
 	const double *get_reference() const { return &REFERENCE_VALUE; }
 	bool get_infer(const std::string &parID) const { return params.at(parID).get_infer(); }
 	double get_accept_rate(const std::string &parID) const { return params.at(parID).get_accept_rate(); }

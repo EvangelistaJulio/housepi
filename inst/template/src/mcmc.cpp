@@ -55,9 +55,6 @@ double MCMC::compute_augm_loglike(const Household &this_house) const
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
 void MCMC::update_global_loglike()
 {
-    std::atomic<bool> error_occurred = false;
-    std::string error_message;
-
     buffer = global_loglike;
     global_loglike = 0.0;
 
@@ -298,7 +295,6 @@ double MCMC::move_single_house_augm(Household &this_house)
             bool is_accepted = false;
 
             // proceed only if the new value is consistent
-            // FIXME : Gibbs sampling should be always valid but it's not now
             if (this_indiv.propose_valid_augm_move(augmID, get_prng()))
             {
                 // update dependencies to perform computations
@@ -326,7 +322,7 @@ double MCMC::move_single_house_augm(Household &this_house)
     return delta_global_loglike;
 }
 
-// FIXME developing
+/* Metropolis algorithm for single augmented variable move (default, inverse temperature 1). */
 bool MCMC::_augm_metropolis_1_(const Household &this_house, int i, const std::string &augmID, double &delta)
 {
     double D_hh_ll = this_house.get_delta_loglike();
@@ -341,7 +337,7 @@ bool MCMC::_augm_metropolis_1_(const Household &this_house, int i, const std::st
     }
 }
 
-// FIXME developing
+/* Metropolis algorithm for single augmented variable move (inverse temperature 0). */
 bool MCMC::_augm_metropolis_0_(const Household &this_house, int i, const std::string &augmID, double &delta)
 {
     if (uniform() < exp(-this_house.indiv[i].augm_propose_logratio(augmID)))
@@ -355,7 +351,7 @@ bool MCMC::_augm_metropolis_0_(const Household &this_house, int i, const std::st
     }
 }
 
-// FIXME developing
+/* Metropolis algorithm for single augmented variable move (all inverse temperatures). */
 bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const std::string &augmID, double &delta)
 {
     double D_ll = this_house.get_delta_loglike() + this_house.indiv[i].augm_model_logratio(augmID);
@@ -385,6 +381,10 @@ bool MCMC::_augm_metropolis_T_(const Household &this_house, int i, const std::st
 double MCMC::evaluate()
 {
     //===== Initialization =====//
+    if (_is_undef_params_)
+    {
+        tools::error("Parameters with undefined values are not supported when evaluating loglikelihood.");
+    }
 
     //----- Initialize model -----//
     init_model_for_inference();
@@ -517,7 +517,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep)
         update_global_loglike();
 
         // avoid asserting user definitions after first round
-        // UPDATE : this can be improved, e. g. with a debug mode
+        // TODO : this can be improved, e. g. with a debug mode
         disable_assert();
 
         // initialize the acceptance counts
@@ -586,7 +586,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings. */
-// FIXME : Gelman Rubin could be integrated
 void MCMC::infer(bool progbar)
 {
     //----- Check if data is meaningful -----//
@@ -772,8 +771,11 @@ void MCMC::simulate_single_house(Household &this_house)
 /* Perform simulation as provided by the user */
 void MCMC::simulate(bool progbar)
 {
-
     //===== Initialization =====//
+    if (_is_undef_params_)
+    {
+        tools::error("Parameters with undefined values are not supported when running simulations.");
+    }
 
     //----- Initialize model -----//
     init_model_for_simulation();
@@ -795,10 +797,6 @@ void MCMC::simulate(bool progbar)
         try
         {
             simulate_single_house(house[h]);
-            if (omp_get_thread_num() == 0)
-            {
-                tools::progress_bar_run("simul", h, thin_num_house, progbar);
-            }
         }
         catch (const std::exception &e)
         {
@@ -811,6 +809,10 @@ void MCMC::simulate(bool progbar)
                 }
             }
         }
+        if (omp_get_thread_num() == 0)
+        {
+            tools::progress_bar_run("simul", h, thin_num_house, progbar);
+        }
     }
 #else
     for (int h = 0; h < num_house; ++h)
@@ -822,13 +824,13 @@ void MCMC::simulate(bool progbar)
         try
         {
             simulate_single_house(house[h]);
-            tools::progress_bar_run("simul", h, num_house, progbar);
         }
         catch (const std::exception &e)
         {
             _error_occurred_ = true;
             _error_message_ = e.what();
         }
+        tools::progress_bar_run("simul", h, num_house, progbar);
     }
 #endif
 

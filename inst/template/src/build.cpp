@@ -346,7 +346,11 @@ void MCMC::build_params()
                     // load value
                     if (is_na(_param_deftable_.at("value")[p]))
                     {
-                        if (!setup_rnd_init_params)
+                        if (setup_rnd_init_params)
+                        {
+                            _is_undef_params_ = true;
+                        }
+                        else
                         {
                             std::ostringstream oss;
                             oss << "Undefined value without random initialization for parameter to infer '" << parID << "'.";
@@ -470,7 +474,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             {
                 std::ostringstream oss;
                 oss << "Impossible to associate a household structure: missing data column 'house_id'."
-                    << " If it was intentional, ignore this message.";
+                    << " If intentional, ignore this message.";
                 warning(oss.str());
             }
 
@@ -489,7 +493,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     {
                         if (is_na(datatable.at("id")[i]))
                         {
-                            throw std::invalid_argument("Missing id for individual in row n." + std::to_string(i+2) + ".");
+                            throw std::invalid_argument("Missing id for individual in row n." + std::to_string(i + 2) + ".");
                         }
                         else
                         {
@@ -500,7 +504,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     {
                         if (is_na(datatable.at("house_id")[i]))
                         {
-                            throw std::invalid_argument("Missing house_id for individual in row n." + std::to_string(i+2) + ".");
+                            throw std::invalid_argument("Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
                         }
                         else
                         {

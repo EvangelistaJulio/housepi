@@ -13,6 +13,7 @@ namespace tools
     //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
+    std::unordered_set<std::string> _issued_warnings_;
     constexpr ulong DECOR_LEFT = 3;     // left size of decorator
     constexpr ulong DECOR_WIDTH = 65;   // total size of decorator
     constexpr ulong PROGBAR_WIDTH = 30; // total size of progress bar
@@ -192,7 +193,7 @@ namespace tools
                 << std::string(20, ' ');
             _helper_stderr_(oss.str());
 
-            _ProgBar_Thin_ = 1;
+            _ProgBar_Thin_ = 5;
             _ProgBar_Start_ = steady_clock::now();
             _ProgBar_LastTime_ = steady_clock::now();
         }
@@ -228,13 +229,13 @@ namespace tools
                 _helper_stderr_(oss.str());
 
                 // adapt progressbar thinning
-                if (time_lastchecked < 950)
+                if (time_lastchecked < 900)
                 {
-                    ++_ProgBar_Thin_;
+                    _ProgBar_Thin_ *= 2;
                 }
-                else if (time_lastchecked > 1050)
+                else if (time_lastchecked > 1100)
                 {
-                    --_ProgBar_Thin_;
+                    _ProgBar_Thin_ /= 3;
                 }
             }
         }
@@ -280,12 +281,15 @@ namespace tools
     // FIXME : Throw and check exceptions instead depending on Rcpp
     void warning(const std::string &txt)
     {
-
+        if (_issued_warnings_.find(txt) == _issued_warnings_.end())
+        {
 #ifdef USE_RCPP
-        Rcpp::warning(txt);
+            Rcpp::warning(txt);
 #else
-        std::cerr << "\nWarning: " + txt << std::endl;
+            std::cerr << "\nWarning: " + txt << std::endl;
 #endif
+            _issued_warnings_.insert(txt);
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -613,7 +617,7 @@ std::string Base_Function::show_arg_names() const
         oss << _args_names_[0];
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << tools::C_LIST_DELIM << _args_names_[i];
+            oss << C_LIST_DELIM << _args_names_[i];
         }
         return oss.str();
     }
@@ -632,7 +636,7 @@ std::string Base_Function::show_arg_values() const
         oss << get_arg(0);
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << tools::C_LIST_DELIM << get_arg(i);
+            oss << C_LIST_DELIM << get_arg(i);
         }
         return oss.str();
     }

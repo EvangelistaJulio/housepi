@@ -4,6 +4,7 @@
 # Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+
 # Define a custom get function (like in Python dictionaries)
 get_val_ <- function(lst, key, default = NA) {
   if (key %in% names(lst)) {
@@ -60,16 +61,16 @@ str_join_ <- function(x) {
 #' @description
 #' Copy a default model to a given directory.
 #' @param which (`character(1)`)\cr
-#' Name of template model. If NULL, list of available templates.
+#' Name of template model. If `NULL`, list of available templates.
 #' @param path (`character(1)`)\cr
-#' Where to copy the template scripts.
+#' Where to copy the template scripts. If `NULL`, show template model description.
 #' @export
 household_model_template <- function(which = NULL, path = NULL) {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
   
   if (is.null(which)) {
-    cli::cli_alert_info("Default model names:")
+    cli::cli_alert_info("Template model names:")
     ulid <- cli::cli_ul()
     for (name in list.files(models_dir)) {
       cli::cli_li(name)
@@ -77,50 +78,55 @@ household_model_template <- function(which = NULL, path = NULL) {
     cli::cli_end(ulid)
     
   } else if (is.character(which)) {
+    
     if (which %in% list.files(models_dir)) {
-      # create directory
       if (is.null(path)) {
-        new_dir <- file.path(getwd(), paste0("user_", which))
+        #----- show model description -----#
+        templ_info_file <- file.path(models_dir, which, "template_info.Rd")
+        if (!file.exists((templ_info_file))) {
+          stop(cli::format_error("Impossible to show model description. No template info were found."))
+        }
+        rstudioapi::previewRd(templ_info_file)
       } else {
-        new_dir <- path
-      }
-      dir.create(new_dir, recursive = TRUE, showWarnings = TRUE)
-      if (!dir.exists(new_dir)) {
-        stop(cli::format_error(
-          c(
-            "Impossibile to create a temporary directory for the model.",
-            i = "Check your user permissions."
-          )
-        ))
+        
+        #----- copy files -----#
+        dir.create(path, recursive = TRUE, showWarnings = TRUE)
+        if (dir.exists(path)) {
+          # FIXME : maybe don't copy the copyright section
+          for (f in c("model.cpp", "model.h", "template_params.R", "template_info.Rd")) {
+            from_file <- file.path(models_dir, which, f)
+            to_file <- file.path(new_dir, f)
+            if (!file.copy(from_file, to_file, overwrite = TRUE)) {
+              stop(cli::format_error(
+                c(
+                  "Failed to copy model files.",
+                  i = "Check your user permissions."
+                )
+              ))
+            }
+          }
+          
+        } else {
+          stop(cli::format_error(
+            c(
+              paste0("Impossibile to create directory `", path, "`."),
+              i = "Check your user permissions."
+            )
+          ))
+        }
       }
       
     } else {
       stop(cli::format_error(
         c(
-          "Provided model is not a default model name.",
-          i = "To see the available default models, run: template_model()"
+          "Provided model is not a template.",
+          i = "To see the available template models, run: template_model()"
         )
       ))
     }
-    
-    #----- copy files ----#
-    for (f in c("model.cpp", "model.h", "templated_params")) {
-      from_file <- file.path(models_dir, which, f)
-      to_file <- file.path(new_dir, f)
-      if (!file.copy(from_file, to_file, overwrite = TRUE)) {
-        stop(cli::format_error(
-          c(
-            "Failed to setup internal files.",
-            i = "Check your user permissions."
-          )
-        ))
-      }
-    }
-  } else {
-    stop(cli::format_error(
-      c("Provided model is not a default model name.",
-        i = "To see the available default models, run: template_model()")
-    ))
+
+  } else {    
+    stop(cli::format_error("Template name should be a character."))
   }
 }
 
@@ -205,7 +211,7 @@ HouseholdModelClass <- R6::R6Class(
                           debug = FALSE) {
       if (is.na(model)) {
         # print available templates
-        self$template()
+        household_model_template()
         
       } else {
         # system path to housepi
@@ -229,7 +235,7 @@ HouseholdModelClass <- R6::R6Class(
           source_files <- file.path(housepi_dir,
                                     "models",
                                     model,
-                                    c("model.cpp", "model.h", "templated_params"))
+                                    c("model.cpp", "model.h", "template_params.R", "template_info.Rd"))
           
         } else {
           #----- error -----#
@@ -343,11 +349,39 @@ HouseholdModelClass <- R6::R6Class(
       invisible(self)
     },
     
+    #' @description
+    #' Print model description to R console.
+    model_info = function() {
+      templ_info_file <- file.path(private$environment_path, "src", "template_info.Rd")
+      if (!file.exists((templ_info_file))) {
+        stop(cli::format_error("Impossible to show model description. No template info were found."))
+      }
+      rstudioapi::previewRd(templ_info_file)
+      invisible(self)
+    },
+    
     ############################################################################
     ############################################################################
     ############################################################################
     ############################################################################
     ############################################################################
+
+    #' @description
+    #' Estimate the loglikelihood for the given parameters.
+    #' @param data (`character(1)` | `data.frame`)\cr
+    #' Path to a csv data file or a data.frame.
+    #' @param ... 
+    #' further arguments passed to  \code{setup.list}.
+    #' @return (`double(1)`)\cr
+    #' The value of the loglikelihood.
+    loglikelihood = function(data = NULL, ...) {
+      # assign setup
+      do.call(self$setup.list, list(...))
+      # internal build function
+      private$build(data = data)
+      # evaluate marginal from the internal Rcpp object
+      return(private$obj$evaluate())
+    },
     
     #' @description
     #' Run Bayesian MCMC inference and store internally the chain traces.
@@ -415,7 +449,7 @@ HouseholdModelClass <- R6::R6Class(
       inames <- private$param.frame[imask, "name"]
       output <- data.frame(
         Mean = res[["statistics"]][inames, "Mean"],
-        Std.Dev = res[["statistics"]][inames, "SD"],
+        SD = res[["statistics"]][inames, "SD"],
         Q2.5 = res[["quantiles"]][inames, "2.5%"],
         Q97.5 = res[["quantiles"]][inames, "97.5%"]
       )
@@ -661,7 +695,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Overwrite current parameter definitions with template definitions.
     param.template = function() {
       # retrieve the template parameters file
-      templ_params_file <- file.path(private$environment_path, "src", "templated_params")
+      templ_params_file <- file.path(private$environment_path, "src", "template_params.R")
       if (!file.exists((templ_params_file))) {
         stop(cli::format_error("Impossible to automatically initialize parameters. No template parameters were found."))
       }
@@ -674,7 +708,9 @@ HouseholdModelClass <- R6::R6Class(
     
     #' @description
     #' Check if parameter definitions are missing and pre-load them.
-    param.check = function() {
+    #' @param fill_template (`logical(1)`)\cr
+    #' If `TRUE` fills the missing parameter definitions with template definitions.
+    param.check = function(fill_template = FALSE) {
       # retrieve the model script
       model_path <- file.path(private$environment_path, "src", "model.cpp")
       
@@ -707,24 +743,27 @@ HouseholdModelClass <- R6::R6Class(
       model_params_set <- model_params_set[order(model_params_set)]
       
       # add missing parameters with standard options
-      # FIXME : they should be added as templates maybe
       miss_params <- c()
       for (name in model_params_set) {
         if (!(name %in% private$param.frame[["name"]])) {
           miss_params <- c(miss_params, name)
-          self$param.add(
-            name = name,
-            x = 1,
-            infer = FALSE,
-            prior = "unif",
-            args = list(min = -500, max = 500),
-            rule = "norm",
-            rule_args = list(sd = 1)
-          )
         }
       }
+
+      # eventually fill with template definitions
       if (length(miss_params) > 0) {
-        oss <- paste0("Added missing parameter(s): '", miss_params[[1]], "'")
+        if (fill_template) {
+          # retrieve the template parameters file
+          templ_params_file <- file.path(private$environment_path, "src", "template_params.R")
+          if (!file.exists((templ_params_file))) {
+            stop(cli::format_error("Impossible to automatically initialize parameters. No template parameters were found."))
+          }
+          templ_params_list <- dget(templ_params_file)[miss_params]
+          do.call(self$param.append, templ_params_list)
+          oss <- paste0("Added missing parameter(s) from template: '", miss_params[[1]], "'")
+        } else {
+          oss <- paste0("Missing parameter(s): '", miss_params[[1]], "'")
+        }
         for (name in miss_params[-1]) {
           oss <- paste0(oss, ", '", name, "'")
         }

@@ -69,12 +69,12 @@ Here we associate to each individual an exposure and an onset time.
 hemi_1$augm.append(
   # define 'exposure' time
   exposure = list(
-    x = "exposure_min@D", # start from data 'exposure_min'
+    x = "exposure_min@D",                # start from data 'exposure_min'
     model = "unif",                      # associate a uniform model
     args = list(min = "exposure_min@D",  # within the range 'exposure_min' 
                 max = "exposure_max@D"), # and 'exposure_max'
-    rule = "norm",              # choose normal rule for the Monte Carlo
-    rule_args = list(sd = 0.25) # with a std. dev. of 0.25
+    rule = "norm",                       # normal rule for the Monte Carlo
+    rule_args = list(sd = 0.25)          # with a std. dev. of 0.25
   ),
   
   # define 'onset' time
@@ -90,7 +90,7 @@ We run the inference and we extract the results
 
 ```{r}
 hemi_1$infer(data = delays, num_iter = 100000, burn_in = 10000,
-             thinning = 10, num_adapt = 2500, seed = 4342)
+             thinning = 10, num_adapt = 2500, seed = 4349)
 # Note: The warning is telling us that the database is interpreted as composed of single individuals living in separate households.
 
 # show traces of chains
@@ -120,7 +120,9 @@ par_2 <- hemi_2$param.export()
 ```
 
 ```{r, echo=FALSE}
+options(knitr.kable.NA = '')
 knitr::kable(par_2)
+options(knitr.kable.NA = 'NA')
 ```
 
 We propose the following definitions for the augmented variable
@@ -153,7 +155,7 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation 
-hemi_2$simulate(data = "survey.csv", seed = 3731)
+hemi_2$simulate(data = "survey.csv", seed = 3733)
 
 # show a summary of the current dataset
 hemi_2$data.summary()
@@ -201,23 +203,31 @@ hemi_2$augm.add(name = "incub_period",
                 range = list(max = 14))
 
 # perform the inference
+# note: NA onset dates of healthy individuals will raise a warning
 hemi_2$infer(data = df, num_iter = 30000, burn_in = 5000, 
-             thinning = 25, num_adapt = 2500, seed = 57)
+             thinning = 25, num_adapt = 2500, seed = 3413)
 
 # plot the traces
 hemi_2$traces.traceplot()
-```
 
-```{r}
 # collect the results
 results_2 <- hemi_2$traces.summary()
 
-# compare results to parameters used for inference
+# compare results to parameter values used for inference
 imask <- par_2["infer"] == TRUE
 inames <- par_2[imask, "name"]
 results_2[inames, "Simul"] <- par_2[imask, "value"]
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(results_2)
+knitr::kable(results_2, digits = 3)
+```
+
+### Model Comparison
+
+We can estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
+
+```{r, eval=FALSE}
+# return the estimate of the model evidence
+chabi$evidence(num_rungs = 30)
 ```

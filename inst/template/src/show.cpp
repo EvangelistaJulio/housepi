@@ -13,40 +13,41 @@
 /* Print the report of the database and of the model group rates. */
 void MCMC::show_summary() const
 {
+    using tools::percent;
     //===== PRINT =====//
 
     std::ostringstream oss;
 
     oss << "n. of individuals: " << num_indiv
         << "\n    * n. of cases: " << report_data.at("n.cases")
-        << " " << tools::percent(report_data.at("n.cases"), num_indiv);
+        << " " << percent(report_data.at("n.cases"), num_indiv);
     if (report_data.at("n.miss.stat") > 0)
     {
         oss << "\n    * n. of missing status : " << report_data.at("n.miss.stat")
-            << " " << tools::percent(report_data.at("n.miss.stat"), num_indiv);
+            << " " << percent(report_data.at("n.miss.stat"), num_indiv);
     }
 
     oss << "\nn. of households: " << num_house;
     if (report_data.at("no.HH.case") > 0)
     {
         oss << "\n    * with no cases: " << report_data.at("no.HH.case")
-            << " " << tools::percent(report_data.at("no.HH.case"), num_house);
+            << " " << percent(report_data.at("no.HH.case"), num_house);
     }
 
     oss << "\n    * with at least 1 case: " << report_data.at("lst.1.case")
-        << " " << tools::percent(report_data.at("lst.1.case"), num_house);
+        << " " << percent(report_data.at("lst.1.case"), num_house);
     if (report_data.at("lst.1.case") > 0)
     {
         oss << "\n    * with at least 2 cases: " << report_data.at("lst.2.case")
-            << " " << tools::percent(report_data.at("lst.2.case"), num_house);
+            << " " << percent(report_data.at("lst.2.case"), num_house);
     }
 
     oss << "\nmax n. house cases: " << report_data.at("max.n.HH.cases")
-        << " " << tools::percent(report_data.at("n.HH.with.max.cases"), num_house)
+        << " " << percent(report_data.at("n.HH.with.max.cases"), num_house)
         << "\nmin n. house members: " << report_data.at("min.HH.size")
-        << " " << tools::percent(report_data.at("n.HH.with.min.size"), num_house)
+        << " " << percent(report_data.at("n.HH.with.min.size"), num_house)
         << "\nmax n. house members: " << report_data.at("max.HH.size")
-        << " " << tools::percent(report_data.at("n.HH.with.max.size"), num_house);
+        << " " << percent(report_data.at("n.HH.with.max.size"), num_house);
 
     tools::print_stdout(oss.str() + "\n");
 }
@@ -101,8 +102,6 @@ void MCMC::show_group_classes() const
 /* Show the complete choices for the setup. */
 void MCMC::show_setup() const
 {
-    using tools::C_DELIM;
-
     // common setup variables
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
@@ -135,7 +134,7 @@ void MCMC::show_params() const
     oss << param_file_headers[0];
     for (size_t k = 1; k < param_file_headers.size(); ++k)
     {
-        oss << tools::C_DELIM << param_file_headers[k];
+        oss << C_DELIM << param_file_headers[k];
     }
     oss << "\n";
 
@@ -356,8 +355,6 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix() const
 /* Show the results of the paramters. */
 void MCMC::show_results() const
 {
-    using tools::C_DELIM;
-
     std::ostringstream oss;
     oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
     for (size_t k = 2; k < param_file_headers.size(); ++k)
@@ -380,8 +377,6 @@ void MCMC::show_results() const
 /* Initialize the output file with inferred parameters with column names and initial values */
 void MCMC::print_infer_state(const std::string &output_filename) const
 {
-    using tools::C_DELIM;
-
     if (!tools::is_na(output_filename))
     {
         std::ofstream inferstate_ofstream;
@@ -453,8 +448,6 @@ void MCMC::print_infer_state(const std::string &output_filename) const
 /* Print all augmented variables of each individual */
 void MCMC::print_augm_variables(const std::string &save_augm_pathtofile) const
 {
-    using tools::C_DELIM;
-
     if (!tools::is_na(save_augm_pathtofile))
     {
         std::ofstream augm_ofstream;

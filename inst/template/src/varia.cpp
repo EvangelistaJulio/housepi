@@ -140,6 +140,12 @@ std::string Parameter::show_diagnostics() const
 //////////////////////////////  Monte_Carlo_Core : methods (getter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Functional method to get a parameter value. */
+double Monte_Carlo_Core::get_param(const std::string &parID) const
+{
+    return (this->*_get_param_method_)(parID);
+}
+
 /* Default method to get a value. */
 double Monte_Carlo_Core::_get_param_default_(const std::string &parID) const
 {
@@ -151,6 +157,12 @@ double Monte_Carlo_Core::_get_param_assert_(const std::string &parID) const
 {
     assert_param(parID);
     return _get_param_default_(parID);
+}
+
+/* Functional method to get a pointer to a parameter. */
+const double *Monte_Carlo_Core::get_param_pointer(const std::string &parID) const
+{
+    return (this->*_get_param_pointer_method_)(parID);
 }
 
 /* Default method to get a pointer to a parameter. */
@@ -289,7 +301,7 @@ void Monte_Carlo_Core::assert_param(const std::string &parID) const
 {
     if (params.find(parID) == params.end())
     {
-        throw std::out_of_range("Parameter '" + parID + "' not found. Check your model and parameter definitions.");
+        throw std::invalid_argument("Parameter '" + parID + "' not found. Check your model and parameter definitions.");
     }
 }
 
@@ -352,7 +364,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 std::string Monte_Carlo_Core::show_param(const std::string &parID) const
 {
     std::ostringstream oss;
-    oss << parID << tools::C_DELIM << params.at(parID).show();
+    oss << parID << C_DELIM << params.at(parID).show();
     return oss.str();
 }
 
@@ -360,6 +372,6 @@ std::string Monte_Carlo_Core::show_param(const std::string &parID) const
 std::string Monte_Carlo_Core::show_param_diagnostics(const std::string &parID) const
 {
     std::ostringstream oss;
-    oss << parID << tools::C_DELIM << params.at(parID).show_diagnostics();
+    oss << parID << C_DELIM << params.at(parID).show_diagnostics();
     return oss.str();
 }
