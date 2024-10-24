@@ -167,15 +167,12 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	int h = this_house.get_index();
 	Individual &this_indiv = this_house.indiv[i];
 
-	double onset_i = this_indiv.get_augm("onset_date");
-	double incub_i = this_indiv.get_augm("incub_period");
-	double t_infec_i = onset_i - incub_i;
+	double t_infec_i = this_indiv.get_augm("onset_date") - this_indiv.get_augm("incub_period");
+	double t_infec_k;
 
 	// init new first case to i
 	double new_t0 = t_infec_i;
 	int hh_first_case = i;
-
-	double onset_k, incub_k, t_infec_k;
 
 	//----- Update Lookup Tables for infectious -----//
 	for (int k : this_house.infectious_set)
@@ -183,14 +180,12 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 		if (k != i)
 		{
 			Individual &other_indiv = this_house.indiv[k];
-			onset_k = other_indiv.get_augm("onset_date");
-			incub_k = other_indiv.get_augm("incub_period");
-			t_infec_k = onset_k - incub_k;
+			t_infec_k = other_indiv.get_augm("onset_date") - other_indiv.get_augm("incub_period");
 
 			if (t_infec_i < t_infec_k)
 			{ //----- `i` : infector, `k` : infectee -----//
-				LUT_inst_prof[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
-				LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+				LUT_inst_prof[h][i][k] = infec_prof_ptr->pdf(t_infec_k, this_indiv);
+				LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k, this_indiv);
 				LUT_inst_prof[h][k][i] = 0.;
 				LUT_cumul_prof[h][k][i] = 0.;
 			}
@@ -198,8 +193,8 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 			{ //----- `k` : infector, `i` : infectee -----//
 				LUT_inst_prof[h][i][k] = 0.;
 				LUT_cumul_prof[h][i][k] = 0.;
-				LUT_inst_prof[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
-				LUT_cumul_prof[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
+				LUT_inst_prof[h][k][i] = infec_prof_ptr->pdf(t_infec_i, other_indiv);
+				LUT_cumul_prof[h][k][i] = infec_prof_ptr->cdf(t_infec_i, other_indiv);
 
 				// update first case
 				if (t_infec_k < new_t0)
@@ -219,7 +214,7 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	t_infec_k = this_house.indiv[hh_first_case].get_augm("onset_date") + get_param("study_period");
 	for (int k : this_house.susceptible_set)
 	{
-		LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+		LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k, this_indiv);
 	}
 
 	//==================================//

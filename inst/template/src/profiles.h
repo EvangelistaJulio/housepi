@@ -9,6 +9,7 @@
 
 #include "utils.h"
 #include "distributions.h"
+#include "individual.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Infec_Prof_Ferretti20 : class ////////////////////////////////
@@ -51,8 +52,8 @@ public:
     */                                               
     ~Infec_Prof_Ferretti20() {};
 
-    double pdf(double tost, double t_incub) const;
-    double cdf(double tost, double t_incub) const;
+    double pdf(double t_transm, const Individual &this_indiv) const;
+    double cdf(double t_transm, const Individual &this_indiv) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,8 +98,8 @@ public:
 
     ~Infec_Prof_Ashcroft20() {};
 
-    double pdf(double tost) const;
-    double cdf(double tost) const;
+    double pdf(double t_transm, const Individual &this_indiv) const;
+    double cdf(double t_transm, const Individual &this_indiv) const;
 };
 
 #endif // PROFILES__H
