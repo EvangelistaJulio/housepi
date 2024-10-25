@@ -1,10 +1,12 @@
 list(
-  shape = list(
-    x = 2, prior = "unif", args = list(min = 0, max = 5),
-    rule = "norm", rule_args = list(sd = 1)
+  exposure = list(
+    x = "exposure_min@D",
+    model = "unif", args = list(min = "exposure_min@D", max = "exposure_max@D"),
+    rule = "norm", rule_args = list(sd = 0.25)
   ),
-  scale = list(
-    x = 1, prior = "unif", args = list(min = 0, max = 5),
-    rule = "norm", rule_args = list(sd = 1)
+  onset = list(
+    x = "onset_max@D",
+    model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
+    rule = "norm", rule_args = list(sd = 0.25)
   )
 )

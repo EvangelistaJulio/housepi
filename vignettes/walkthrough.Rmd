@@ -33,7 +33,7 @@ Each template comes with its template definitions that can be used straight away
 To know more about each model, choose a name from the previous list and run, e. g. 
 
 ```{r, eval = FALSE}
-# present the list of template model name
+# show model description in RStudio help window
 housepi::household_model_template("chain_binom")
 ```
 
@@ -49,10 +49,11 @@ We show how to produce a new instance of such a class and its methods with a tem
 
 ```{r}
 # generate an instance of the chain binomial model
-chabi <- housepi::HouseholdModelClass$new("chain_binom")
+# note: this process can take a few minutes
+hemi <- housepi::HouseholdModelClass$new("chain_binom")
 ```
 
-*Note:* this process can take a few minutes because it compiles the full template.
+At any moment you can retrieve the template description by using the class method `help()`.
 
 ### Database Format
 
@@ -82,7 +83,7 @@ knitr::kable(head(aux_))
 Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param.append`.
 
 ```{r, echo=TRUE}
-chabi$param.append(
+hemi$param.append(
   alpha = list(
     prior = "unif", args = list(min = 0, max = 3),
     rule = "lnorm", rule_args = list(sdlog = 1)
@@ -94,12 +95,14 @@ chabi$param.append(
 )
 ```
 
-This method calls internally the method `param.check()` to ensure that the definition list matches the model required parameters, raising a warning if it does not. 
-In certain situations you might just want to skip providing all parameter definitions. Then, you can consider loading the template definitions using the method `param.template()`.
-Additionally, if some parameters are missing from your list, you can fill them with the method `param.check(fill_template = TRUE)`.
+
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
 
-For models required augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html)) for an example.
+Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param.template()`.
+The `param.append` method calls internally the `param.check()` to ensure that the definition list matches the model, raising a warning if it does not. 
+If some parameters are missing from your list, you can fill them calling the method `param.check(fill_template = TRUE)`.
+
+For models requiring augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html) for an example.
 
 ## Inference
 
@@ -107,7 +110,7 @@ Now we can safely perform inference with the method `infer`.
 
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
-chabi$infer(data = survey, num_iter = 50000, burn_in = 5000,
+hemi$infer(data = survey, num_iter = 50000, burn_in = 5000,
             thinning = 15, num_adapt = 3000, num_chains = 4, seed = 6043)
 ```
 
@@ -115,17 +118,17 @@ chabi$infer(data = survey, num_iter = 50000, burn_in = 5000,
 
 ```{r}
 # visualize the traces of the first chain
-chabi$traces.traceplot(chain = 1)
+hemi$traces.traceplot(chain = 1)
 
 # store summary of the posterior estimates
-results <- chabi$traces.summary()
+results <- hemi$traces.summary()
 ```
 
 For advanced analysis on the inference results, we can extract the traces with method `traces.export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
 
 ```{r}
 # export coda object
-mctraces <- chabi$traces.export()
+mctraces <- hemi$traces.export()
 
 # e. g. Gelman-Rubin criterion for convergence
 coda::gelman.diag(mctraces)
@@ -137,11 +140,11 @@ To perform model comparison, we can use functions from the R package [loo](https
 
 ```{r}
 # WAIC (widely applicable information criterion)
-chabi$waic()
+hemi$waic()
 ```
 ```{r}
 # approximate PSIS-LOO cross validation
-chabi$loo()
+hemi$loo()
 ```
 
 ## Simulation
@@ -176,15 +179,15 @@ We can challenge the inference process used at the beginning with the new simula
 
 ```{r}
 # run inference on new database keeping previous definitions
-chabi$infer(data = df, num_iter = 50000, burn_in = 5000,
+hemi$infer(data = df, num_iter = 50000, burn_in = 5000,
             thinning = 15, num_adapt = 3000, num_chains = 4,
             seed = 4337)
 
 # visualize traces of the first chain
-chabi$traces.traceplot(chain = 1)
+hemi$traces.traceplot(chain = 1)
 
 # collect the results
-results_2 <- chabi$traces.summary()
+results_2 <- hemi$traces.summary()
 
 # export parameters used for the simulations
 simul_pars <- simu_cb$param.export()

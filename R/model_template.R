@@ -10,7 +10,7 @@
 #' @param which (`character(1)`)\cr
 #' Name of template model. If `NULL`, list of available templates.
 #' @param path (`character(1)`)\cr
-#' Where to copy the template scripts. If `NULL`, show template model description.
+#' Where to copy the template scripts. If `NULL`, show template model description in RStudio Help window.
 #' @export
 household_model_template <- function(which = NULL, path = NULL) {
   # system path to housepi
