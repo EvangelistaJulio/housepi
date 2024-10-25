@@ -313,7 +313,7 @@ namespace tools
     ////////////////////////////////////  Converter Functions ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // Template function to wrap conversion functions with try-catch
+    /* Template function to wrap conversion functions with try-catch */
     template <typename Func, typename... Args>
     auto _safe_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
     {
@@ -325,33 +325,308 @@ namespace tools
         {
             throw std::invalid_argument("Invalid value '" + input + "'. Impossible to import " + errtxt + ".");
         }
-        // throw std::runtime_error("Unhandled error in safe_converter");
     }
 
-    // Converter to int using std::stoi with function pointer casting
+    /* Converter to int using std::stoi with function pointer casting */
     int stoi(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
     }
 
-    // Converter to double using std::stod with function pointer casting
+    /* Converter to double using std::stod with function pointer casting */
     double stod(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
-    // Converter to unsigned long using std::stoul with function pointer casting
+    /* Converter to unsigned long using std::stoul with function pointer casting */
     unsigned long stoul(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
 
-    // Converter to unsigned long long using std::stoull with function pointer casting
+    /* Converter to unsigned long long using std::stoull with function pointer casting */
     unsigned long long stoull(const std::string &input, const std::string &errtxt)
     {
         return _safe_converter_(static_cast<unsigned long long (*)(const std::string &, std::size_t *, int)>(std::stoull), input, errtxt, nullptr, 10);
     }
-}
+
+    /* Convert std::string to boolean variable. */
+    bool stobool(const std::string &tkn)
+    {
+        if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
+        {
+            return true;
+        }
+        else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
+        {
+            return false;
+        }
+        else
+        {
+            throw std::invalid_argument("Unrecognized boolean value '" + tkn + "'.");
+        }
+    }
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+#ifdef USE_RCPP
+    void rlist_to_map(Rcpp::List list, std::map<std::string, std::string> &output)
+    {
+        using namespace Rcpp;
+
+        CharacterVector keys = list.names();
+
+        output.clear();
+        for (int i = 0; i < list.size(); ++i)
+        {
+            RObject element = list[i];
+            output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
+        }
+    }
+
+    void rdataframe_to_map(Rcpp::DataFrame df, std::map<std::string, std::vector<std::string>> &output)
+    {
+        using namespace Rcpp;
+
+        CharacterVector keys = df.names();
+
+        output.clear();
+        for (int i = 0; i < df.size(); ++i)
+        {
+            CharacterVector col_str = as<CharacterVector>(df[i]);
+            std::vector<std::string> col_data(col_str.begin(), col_str.end());
+            output[as<std::string>(keys[i])] = std::move(col_data);
+        }
+    }
+#endif
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+    /* Clean std::string from forbidden characters and convert to UNDEFINED. */
+    std::string strcleaner(std::string tkn)
+    {
+        // forbidden characters
+        for (char r : {'"', '\r', '\n'})
+        {
+            tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
+        }
+
+        // check for undefined
+        if (is_na(tkn))
+        {
+            tkn = UNDEFINED;
+        }
+
+        return tkn;
+    }
+
+    /* Read column headers and compare to required headers. */
+    std::vector<std::string> read_column_headers(std::ifstream &input, const std::vector<std::string> &required_headers)
+    {
+        // clean headers
+        std::vector<std::string> headers = {};
+
+        // read first line
+        std::string line, tkn;
+        getline(input, line);
+        std::istringstream iss(line);
+
+        // get headers from first line
+        while (getline(iss, tkn, C_DELIM))
+        {
+            headers.push_back(strcleaner(tkn));
+        }
+
+        // check that all required headers are present
+        if (!required_headers.empty())
+        {
+            bool is_missing = false;
+            std::ostringstream oss;
+
+            // check the validity of the headers
+            for (const std::string &req : required_headers)
+            {
+                if (std::find(headers.begin(), headers.end(), req) == headers.end())
+                {
+                    if (!is_missing)
+                    {
+                        // point to the faulty file
+                        oss << "Missing column(s): '" + req + "'";
+                        is_missing = true;
+                    }
+                    else
+                    {
+                        oss << ", '" << req << "'";
+                    }
+                }
+            }
+
+            // raise the error if something was missing
+            if (is_missing)
+            {
+                throw std::invalid_argument(oss.str());
+            }
+        }
+
+        return headers;
+    }
+
+    /* Load files from the row with headers */
+    bool read_row_by_headers(std::ifstream &input, const std::vector<std::string> &headers, std::map<std::string, std::string> &this_row)
+    {
+        std::string line, tkn;
+
+        if (getline(input, line))
+        {
+            std::istringstream iss(line);
+            size_t num_cols = 0;
+
+            while (getline(iss, tkn, C_DELIM))
+            {
+                this_row.emplace(headers[num_cols++], strcleaner(tkn));
+            }
+
+            // last column is empty
+            for (size_t i = num_cols; i < headers.size(); i++)
+            {
+                this_row.emplace(headers[i], UNDEFINED);
+            }
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+    /* Parse the list from the std::string. */
+    std::vector<std::string> parse_list_args(const std::string &tkn, const char delim)
+    {
+        std::istringstream args_ss(tkn);
+        std::vector<std::string> output = {};
+        std::string tmp;
+
+        // rea the entries of the dictionary
+        while (getline(args_ss, tmp, delim))
+        {
+            output.push_back(tmp);
+        }
+
+        return output;
+    }
+
+    /* Combine after control two lists into a dictionary */
+    dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
+    {
+        std::vector<std::string> keys = parse_list_args(tkn_keys);
+        std::vector<std::string> vals = parse_list_args(tkn_vals);
+        dictargs output = {};
+
+        if (keys.size() != vals.size())
+        {
+            // inform parameter about the error
+            output.emplace(IO_MISMATCH, INF_DOUBLE);
+        }
+        else
+        {
+            for (size_t i = 0; i < keys.size(); ++i)
+            {
+                output.emplace(keys[i], std::stod(vals[i]));
+            }
+        }
+        return output;
+    }
+
+    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
+    void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
+    {
+        if (!is_na(pathtofile))
+        {
+            std::ifstream input(pathtofile.c_str());
+
+            if (input.is_open())
+            {
+                csv_parsed_list.clear();
+
+                // Create a std::stringstream of the current line
+                for (std::string line; getline(input, line);)
+                {
+                    std::string name, choice;
+                    std::istringstream iss(line);
+
+                    //===== NAME =====//
+                    if (!getline(iss, name, C_DELIM))
+                    {
+                        throw std::runtime_error("Unable to extract list name. Check file line: " + line);
+                    }
+
+                    //===== CHOICE =====//
+                    if (!getline(iss, choice))
+                    {
+                        throw std::runtime_error("Unable to extract list value. Check file line: " + line);
+                    }
+
+                    // add the new setup
+                    csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
+                }
+            }
+            else
+            {
+                throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
+            }
+        }
+    }
+
+    /* Read csv table store in pathtofile and store it parsed in csv_parsed_table. */
+    void read_csv_table(const std::string &pathtofile,
+                        std::map<std::string, std::vector<std::string>> &csv_parsed_table,
+                        const std::vector<std::string> &required_headers)
+    {
+        if (!is_na(pathtofile))
+        {
+            std::ifstream input(pathtofile.c_str());
+
+            if (input.is_open())
+            {
+                std::vector<std::string> headers = read_column_headers(input, required_headers);
+                std::map<std::string, std::string> this_row = {};
+
+                csv_parsed_table.clear(); // FIXME: is this correct?
+                while (read_row_by_headers(input, headers, this_row))
+                {
+                    for (const auto &x : this_row)
+                    {
+                        csv_parsed_table[x.first].push_back(x.second);
+                    }
+                    this_row.clear();
+                }
+            }
+            else
+            {
+                throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
+            }
+        }
+    }
+} // TOOLS NAMESPACE
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -544,7 +819,7 @@ int Base_Function::set_range(const dictargs &new_range)
         if (max_val > _range_max_)
         {
             std::ostringstream oss;
-            oss << "Invalid max value" << max_val << " for distribution '" << get_name() << "'.";
+            oss << "Invalid max value " << max_val << " for distribution '" << get_name() << "'.";
             throw std::invalid_argument(oss.str());
         }
     }

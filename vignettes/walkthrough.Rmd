@@ -66,8 +66,14 @@ To provide the `status` of each individual (required to perform inference), each
 -   susceptible status: $0$.
 -   missing status: $-1$.
 
+The package comes with a few synthetic data to be used for testing, e. g.
+
+```{r}
+data("survey", package = "housepi")
+```
+
 ```{r, echo=FALSE}
-aux_ <- read.csv("survey.csv")[c("id", "house_id", "status")]
+aux_ <- survey[c("id", "house_id", "status")]
 knitr::kable(head(aux_))
 ```
 
@@ -88,8 +94,12 @@ chabi$param.append(
 )
 ```
 
-At any moment we can turn a parameter definition into a constant parameter definitions: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
-Similarly we can also associate augmented variable definitions (see the vignette [Data Augmentation](data_augmentation.html)).
+This method calls internally the method `param.check()` to ensure that the definition list matches the model required parameters, raising a warning if it does not. 
+In certain situations you might just want to skip providing all parameter definitions. Then, you can consider loading the template definitions using the method `param.template()`.
+Additionally, if some parameters are missing from your list, you can fill them with the method `param.check(fill_template = TRUE)`.
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
+
+For models required augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html)) for an example.
 
 ## Inference
 
@@ -97,7 +107,7 @@ Now we can safely perform inference with the method `infer`.
 
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
-chabi$infer(data = "survey.csv", num_iter = 50000, burn_in = 5000,
+chabi$infer(data = survey, num_iter = 50000, burn_in = 5000,
             thinning = 15, num_adapt = 3000, num_chains = 4, seed = 6043)
 ```
 
@@ -150,7 +160,7 @@ simu_cb$param.append(
 
 # build the new model using the same household compositions
 # override status of the database according to simulation
-simu_cb$simulate(data = "survey.csv", seed = 5923)
+simu_cb$simulate(data = survey, seed = 5923)
 ```
 
 To return the simulated database, which also corresponds to the current loaded database, we use the method
@@ -165,12 +175,12 @@ df <- simu_cb$data.export()
 We can challenge the inference process used at the beginning with the new simulated database.
 
 ```{r}
-# run the inference on the new data keeping previous definitions
+# run inference on new database keeping previous definitions
 chabi$infer(data = df, num_iter = 50000, burn_in = 5000,
             thinning = 15, num_adapt = 3000, num_chains = 4,
             seed = 4337)
 
-# visualize the traces of the first chain
+# visualize traces of the first chain
 chabi$traces.traceplot(chain = 1)
 
 # collect the results

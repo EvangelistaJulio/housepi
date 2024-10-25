@@ -6,6 +6,13 @@
 
 #include "mcmc.h"
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -95,68 +102,6 @@ void MCMC::show_group_classes() const
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Show the complete choices for the setup. */
-void MCMC::show_setup() const
-{
-    // common setup variables
-    std::ostringstream oss;
-    oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_threads" << C_DELIM << get_num_threads()
-        << "\nnum_chains" << C_DELIM << setup_num_chains
-        << "\nnum_adapt" << C_DELIM << setup_num_adapt
-        << "\nburn_in" << C_DELIM << setup_burn_in
-        << "\nnum_iter" << C_DELIM << setup_num_iter
-        << "\nthinning" << C_DELIM << setup_thinning
-        << "\nrnd_init_params" << C_DELIM << tools::truth(setup_rnd_init_params);
-
-    // if an inverse temperature has been selected print it
-    if (setup_inv_T != 1.)
-    {
-        oss << "\ninv_temper" << C_DELIM << setup_inv_T;
-    }
-    oss << "\n";
-
-    tools::print_stdout(oss.str());
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Show the user model parameters */
-void MCMC::show_params() const
-{
-    std::ostringstream oss;
-    oss << param_file_headers[0];
-    for (size_t k = 1; k < param_file_headers.size(); ++k)
-    {
-        oss << C_DELIM << param_file_headers[k];
-    }
-    oss << "\n";
-
-    for (const std::string &parID : param_to_be_inferred)
-    {
-        oss << show_param(parID) << "\n";
-    }
-    for (const std::string &parID : param_to_be_static)
-    {
-        oss << show_param(parID) << "\n";
-    }
-
-    tools::print_stdout(oss.str());
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 #ifdef USE_RCPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -219,8 +164,8 @@ Rcpp::DataFrame MCMC::export_params() const
         V_rule_args.push_back(stoRString(show_param_prop_arg_names(parID)));
         V_rule_argsval.push_back(stoRString(show_param_prop_arg_values(parID)));
 
-        V_min.push_back(std::isnan(get_param_range_min(parID)) ? NA_REAL : get_param_range_min(parID));
-        V_max.push_back(std::isnan(get_param_range_max(parID)) ? NA_REAL : get_param_range_max(parID));
+        V_min.push_back(tools::is_na(show_param_range_min(parID)) ? NA_REAL : tools::stod(show_param_range_min(parID)));
+        V_max.push_back(tools::is_na(show_param_range_max(parID)) ? NA_REAL : tools::stod(show_param_range_max(parID)));
     }
 
     return DataFrame::create(_["name"] = V_names, _["value"] = V_value, _["infer"] = V_infer,
@@ -340,6 +285,122 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix() const
 }
 
 #else
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::show_full_build() const
+{
+    //----- SETUP -----//
+    std::string add_file_info = UNDEFINED;
+    if (report_pathtofile.find("setup") != report_pathtofile.end())
+    {
+        if (!tools::is_na(report_pathtofile.at("setup")))
+        {
+            add_file_info = "# import: " + report_pathtofile.at("setup");
+        }
+    }
+    tools::print_decorator("Setup", add_file_info);
+    show_setup();
+
+    //----- PARAMETERS -----//
+    add_file_info = UNDEFINED;
+    if (report_pathtofile.find("params") != report_pathtofile.end())
+    {
+        if (!tools::is_na(report_pathtofile.at("params")))
+        {
+            add_file_info = "# import: " + report_pathtofile.at("params");
+        }
+    }
+    tools::print_decorator("Parameters", add_file_info);
+    show_params();
+
+    //----- DATABASE -----//
+    add_file_info = UNDEFINED;
+    if (report_pathtofile.find("data") != report_pathtofile.end())
+    {
+        if (!tools::is_na(report_pathtofile.at("data")))
+        {
+            add_file_info = "# import: " + report_pathtofile.at("data");
+        }
+    }
+    tools::print_decorator("Database", add_file_info);
+    show_summary();
+    show_group_classes();
+
+    //----- AUGMENTED -----//
+    if (report_pathtofile.find("augm") != report_pathtofile.end())
+    {
+        if (!tools::is_na(report_pathtofile.at("augm")))
+        {
+            add_file_info = "# import: " + report_pathtofile.at("augm");
+        }
+    }
+    tools::print_decorator("Augmented", add_file_info);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show the complete choices for the setup. */
+void MCMC::show_setup() const
+{
+    // common setup variables
+    std::ostringstream oss;
+    oss << "seed" << C_DELIM << setup_seed
+        << "\nnum_threads" << C_DELIM << get_num_threads()
+        << "\nnum_chains" << C_DELIM << setup_num_chains
+        << "\nnum_adapt" << C_DELIM << setup_num_adapt
+        << "\nburn_in" << C_DELIM << setup_burn_in
+        << "\nnum_iter" << C_DELIM << setup_num_iter
+        << "\nthinning" << C_DELIM << setup_thinning
+        << "\nrnd_init_params" << C_DELIM << tools::truth(setup_rnd_init_params);
+
+    // if an inverse temperature has been selected print it
+    if (setup_inv_T != 1.)
+    {
+        oss << "\ninv_temper" << C_DELIM << setup_inv_T;
+    }
+    oss << "\n";
+
+    tools::print_stdout(oss.str());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show the user model parameters */
+void MCMC::show_params() const
+{
+    std::ostringstream oss;
+    oss << param_file_headers[0];
+    for (size_t k = 1; k < param_file_headers.size(); ++k)
+    {
+        oss << C_DELIM << param_file_headers[k];
+    }
+    oss << "\n";
+
+    for (const std::string &parID : param_to_be_inferred)
+    {
+        oss << show_param(parID) << "\n";
+    }
+    for (const std::string &parID : param_to_be_static)
+    {
+        oss << show_param(parID) << "\n";
+    }
+
+    tools::print_stdout(oss.str());
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

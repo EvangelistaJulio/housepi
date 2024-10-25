@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         else if (carg == std::string("--marginal"))
         {
             is_marginal = true;
-            num_rungs = safe_stoul(argv[++carg_i], "number of rungs");
+            num_rungs = tools::stoul(argv[++carg_i], "number of rungs");
         }
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))

@@ -125,7 +125,7 @@ std::string Parameter::show_diagnostics() const
     oss << avg << C_DELIM << std::sqrt(var) << C_DELIM << truth(infer)
         << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
         << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-        << C_DELIM << get_range_min() << C_DELIM << get_range_max();
+        << C_DELIM << show_range_min() << C_DELIM << show_range_max();
     return oss.str();
 }
 
@@ -235,7 +235,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     {
         std::ostringstream oss;
         oss << "Number of threads (" << n << ") changed to number of available threads (" << _max_num_available_threads << ").";
-        warning(oss.str());
+        tools::warning(oss.str());
         n = _max_num_available_threads;
     }
 

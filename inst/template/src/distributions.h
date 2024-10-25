@@ -73,23 +73,23 @@ private:
     double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
     double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
     double _trunc_dummy_(double x) const { return x; }
-    double _trunc_min_(double x) const { return x / (1.0 - _cdf_(_range_min_)); }
-    double _trunc_max_(double x) const { return x / (_cdf_(_range_max_)); }
-    double _trunc_both_sides_(double x) const { return x / (_cdf_(_range_max_) - _cdf_(_range_min_)); }
+    double _trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
+    double _trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
+    double _trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
 
     //----- Functional methods for the (log) truncation -----//
     double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
     double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
     double _logtrunc_dummy_(double x) const { return x; }
-    double _logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(_range_min_)); }
-    double _logtrunc_max_(double x) const { return x - log(_cdf_(_range_max_)); }
-    double _logtrunc_both_sides_(double x) const { return x - log(_cdf_(_range_max_) - _cdf_(_range_min_)); }
+    double _logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
+    double _logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
+    double _logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
 
     //----- Functional methods to shift cumulative -----//
     double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
     double _shift_(double x) const { return (this->*_shift_method_)(x); }
     double _shift_dummy_(double x) const { return x; }
-    double _shift_min_(double x) const { return x - _cdf_(_range_min_); }
+    double _shift_min_(double x) const { return x - _cdf_(get_range_min()); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -215,6 +215,7 @@ public:
 ///////////////////////////////////  Base_Variable : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO : time to drop the template
 template <typename dictargs_val_or_ptr>
 class Base_Variable
 {
@@ -278,7 +279,7 @@ public:
 				{
 					std::ostringstream oss;
 					oss << "Initial value " << rule_from << " outside of value range"
-						<< " {min:" << distr_ptr->get_range_min() << ", max:" << distr_ptr->get_range_max() << "}."
+						<< " {min:" << distr_ptr->show_range_min() << ", max:" << distr_ptr->show_range_max() << "}."
 						<< " If intentional, ignore this message.";
 					tools::warning(oss.str());
 				}
@@ -338,8 +339,8 @@ public:
 	std::string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
 	std::string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
 
-	double get_range_min() const { return distr_ptr->get_range_min(); }
-	double get_range_max() const { return distr_ptr->get_range_max(); }
+	std::string show_range_min() const { return distr_ptr->show_range_min(); }
+	std::string show_range_max() const { return distr_ptr->show_range_max(); }
 
 	std::string show() const
 	{
@@ -350,7 +351,7 @@ public:
 		{
 			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
 				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-				<< C_DELIM << get_range_min() << C_DELIM << get_range_max();
+				<< C_DELIM << show_range_min() << C_DELIM << show_range_max();
 		}
 		return oss.str();
 	}
@@ -489,8 +490,8 @@ public:
 	std::string show_param_prop_name(const std::string &parID) const { return params.at(parID).show_prop_name(); }
 	std::string show_param_prop_arg_names(const std::string &parID) const { return params.at(parID).show_prop_arg_names(); }
 	std::string show_param_prop_arg_values(const std::string &parID) const { return params.at(parID).show_prop_arg_values(); }
-	double get_param_range_min(const std::string &parID) const { return params.at(parID).get_range_min(); }
-	double get_param_range_max(const std::string &parID) const { return params.at(parID).get_range_max(); }
+	std::string show_param_range_min(const std::string &parID) const { return params.at(parID).show_range_min(); }
+	std::string show_param_range_max(const std::string &parID) const { return params.at(parID).show_range_max(); }
 
 	std::string show_param(const std::string &parID) const;
 	std::string show_param_diagnostics(const std::string &parID) const;

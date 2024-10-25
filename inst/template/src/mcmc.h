@@ -20,7 +20,6 @@
 #include <Rcpp.h>
 #endif
 
-#include "read.h"
 #include "individual.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -62,27 +61,18 @@ public:
 	void read_data(const std::string &pathtofile = UNDEFINED);
 	void read_augm(const std::string &pathtofile = UNDEFINED);
 
-	//===== BUILD =====//
-	void build_setup();
-	void build_params();
-	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
-	void build_augm();
-
 	//===== SHOW =====//
-	void show_setup() const;
-	void show_params() const;
 	void show_summary() const;
 	void show_group_classes() const;
-	void show_full_build() const;
 
 #ifdef USE_RCPP
-	//----- Rcpp imports -----//
+	//===== Rcpp IMPORTS =====//
 	void import_setup(Rcpp::List setup);
 	void import_params(Rcpp::DataFrame params);
 	void import_data(Rcpp::DataFrame data);
 	void import_augm(Rcpp::DataFrame augm);
 
-	//----- Rcpp exports -----//
+	//===== Rcpp EXPORTS =====//
 	Rcpp::List export_setup() const;
 	Rcpp::DataFrame export_params() const;
 	Rcpp::DataFrame export_data() const;
@@ -90,8 +80,13 @@ public:
 	Rcpp::NumericMatrix export_loglike_matrix() const;
 
 #else
-	//----- cpp outputs -----//
+	//===== Cpp SHOW =====//
+	void show_setup() const;
+	void show_params() const;
+	void show_full_build() const;
 	void show_results() const;
+
+	//===== Cpp PRINT =====//
 	void print_infer_state(const std::string &output_filename = UNDEFINED) const;
 	void print_augm_variables(const std::string &output_filename = UNDEFINED) const;
 #endif
@@ -117,10 +112,7 @@ public:
 
 	//===== INFER =====//
 	virtual void init_model_for_inference() {};
-
-	void run_monte_carlo(bool progbar, ulong sweep = 0);
 	void infer(bool progbar = true);
-	void disable_assert();
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
 	double evaluate_marginal(int num_rungs, bool adaptive = true, bool progbar = true);
@@ -190,6 +182,12 @@ private:
 	dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
 	dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
 
+	//----- build : core functions -----//
+	void build_setup();
+	void build_params();
+	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
+	void build_augm();
+
 	//===== PRINTS =====//
 	std::string get_progtxt(const std::string &txt);
 
@@ -205,6 +203,8 @@ private:
 	//===== INFER =====//
 
 	//----- Monte Carlo -----//
+	void run_monte_carlo(bool progbar, ulong sweep = 0);
+	void disable_assert();
 	void move_single_param(const std::string &parID);
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();

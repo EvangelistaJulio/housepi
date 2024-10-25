@@ -29,55 +29,52 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-void MCMC::show_full_build() const
+#ifdef USE_RCPP
+/* Import setup from R list and run build. */
+void MCMC::import_setup(Rcpp::List setup)
 {
-    //----- SETUP -----//
-    std::string add_file_info = UNDEFINED;
+    tools::rlist_to_map(setup, _setup_deflist_);
+    build_setup();
     if (report_pathtofile.find("setup") != report_pathtofile.end())
     {
-        if (!is_na(report_pathtofile.at("setup")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("setup");
-        }
+        report_pathtofile.erase("setup");
     }
-    tools::print_decorator("Setup", add_file_info);
-    show_setup();
+}
 
-    //----- PARAMETERS -----//
-    add_file_info = UNDEFINED;
-    if (report_pathtofile.find("params") != report_pathtofile.end())
-    {
-        if (!is_na(report_pathtofile.at("params")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("params");
-        }
-    }
-    tools::print_decorator("Parameters", add_file_info);
-    show_params();
-
-    //----- DATABASE -----//
-    add_file_info = UNDEFINED;
+/* Import data from R DataFrame and run build. */
+void MCMC::import_data(Rcpp::DataFrame data)
+{
+    std::map<std::string, std::vector<std::string>> datatable = {};
+    tools::rdataframe_to_map(data, datatable);
+    build_data(datatable);
     if (report_pathtofile.find("data") != report_pathtofile.end())
     {
-        if (!is_na(report_pathtofile.at("data")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("data");
-        }
+        report_pathtofile.erase("data");
     }
-    tools::print_decorator("Database", add_file_info);
-    show_summary();
-    show_group_classes();
+}
 
-    //----- AUGMENTED -----//
+/* Import params from R DataFrame and run build. */
+void MCMC::import_params(Rcpp::DataFrame params)
+{
+    tools::rdataframe_to_map(params, _param_deftable_);
+    build_params();
+    if (report_pathtofile.find("params") != report_pathtofile.end())
+    {
+        report_pathtofile.erase("params");
+    }
+}
+
+/* Import data from R DataFrame then run build. */
+void MCMC::import_augm(Rcpp::DataFrame augm)
+{
+    tools::rdataframe_to_map(augm, _augm_deftable_);
+    build_augm();
     if (report_pathtofile.find("augm") != report_pathtofile.end())
     {
-        if (!is_na(report_pathtofile.at("augm")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("augm");
-        }
+        report_pathtofile.erase("augm");
     }
-    tools::print_decorator("Augmented", add_file_info);
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
@@ -86,22 +83,10 @@ void MCMC::show_full_build() const
 /* Read Setup file and produce a definition list. */
 void MCMC::read_setup(const std::string &pathtofile)
 {
-    read_csv_list(pathtofile, _setup_deflist_);
+    tools::read_csv_list(pathtofile, _setup_deflist_);
     build_setup();
     report_pathtofile["setup"] = pathtofile;
 }
-
-#ifdef USE_RCPP
-void MCMC::import_setup(Rcpp::List setup)
-{
-    rlist_to_map(setup, _setup_deflist_);
-    build_setup();
-    if (report_pathtofile.find("setup") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("setup");
-    }
-}
-#endif
 
 /* Assign setup. */
 void MCMC::build_setup()
@@ -209,7 +194,7 @@ void MCMC::build_setup()
             //===== RANDOM INITIALIZATION OF PARAMETERS =====//
             if (_setup_deflist_.find("rnd_init_params") != _setup_deflist_.end())
             {
-                setup_rnd_init_params = stobool(_setup_deflist_.at("rnd_init_params"));
+                setup_rnd_init_params = tools::stobool(_setup_deflist_.at("rnd_init_params"));
                 if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
                 {
                     warning("Unable to fix initial parameters when running multiple chains.");
@@ -296,22 +281,10 @@ void MCMC::set_inver_temper(double inv_T)
 /* Read parameter definitions and run assignment. */
 void MCMC::read_params(const std::string &pathtofile)
 {
-    read_csv_table(pathtofile, _param_deftable_, param_file_headers);
+    tools::read_csv_table(pathtofile, _param_deftable_, param_file_headers);
     build_params();
     report_pathtofile["params"] = pathtofile;
 }
-
-#ifdef USE_RCPP
-void MCMC::import_params(Rcpp::DataFrame params)
-{
-    rdataframe_to_map(params, _param_deftable_);
-    build_params();
-    if (report_pathtofile.find("params") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("params");
-    }
-}
-#endif
 
 /* Assign parameter definitions to dictionary. */
 void MCMC::build_params()
@@ -341,7 +314,7 @@ void MCMC::build_params()
                 double value = INF_DOUBLE;
 
                 // add entry to shared parameter dictionary
-                if (stobool(_param_deftable_.at("infer")[p]))
+                if (tools::stobool(_param_deftable_.at("infer")[p]))
                 {
                     // load value
                     if (is_na(_param_deftable_.at("value")[p]))
@@ -376,11 +349,11 @@ void MCMC::build_params()
                     // assign parameter to the set of variables
                     Parameter new_param(parID, value,
                                         _param_deftable_.at("prior")[p],
-                                        merge_list_args(_param_deftable_.at("args")[p],
-                                                        _param_deftable_.at("argsval")[p]),
+                                        tools::merge_list_args(_param_deftable_.at("args")[p],
+                                                               _param_deftable_.at("argsval")[p]),
                                         _param_deftable_.at("rule")[p],
-                                        merge_list_args(_param_deftable_.at("rule_args")[p],
-                                                        _param_deftable_.at("rule_argsval")[p]),
+                                        tools::merge_list_args(_param_deftable_.at("rule_args")[p],
+                                                               _param_deftable_.at("rule_argsval")[p]),
                                         range);
                     assign_param(parID, new_param);
                 }
@@ -423,25 +396,11 @@ void MCMC::build_params()
 void MCMC::read_data(const std::string &pathtofile)
 {
     std::map<std::string, std::vector<std::string>> datatable = {};
-    read_csv_table(pathtofile, datatable);
+    tools::read_csv_table(pathtofile, datatable);
     build_data(datatable);
 
     report_pathtofile["data"] = pathtofile;
 }
-
-#ifdef USE_RCPP
-/* Import data from R DataFrame and then run assignment. */
-void MCMC::import_data(Rcpp::DataFrame data)
-{
-    std::map<std::string, std::vector<std::string>> datatable = {};
-    rdataframe_to_map(data, datatable);
-    build_data(datatable);
-    if (report_pathtofile.find("data") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("data");
-    }
-}
-#endif
 
 /* Assign data after pre-processing. */
 void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &datatable)
@@ -820,23 +779,10 @@ void MCMC::read_augm(const std::string &pathtofile)
         "rule_args", "rule_argsval", "rule_argstype", "rule_from", "rule_fromtype",
         "min", "mintype", "max", "maxtype", "init_rand"};
 
-    read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
+    tools::read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
     build_augm();
     report_pathtofile["augm"] = pathtofile;
 }
-
-#ifdef USE_RCPP
-/* Import data from R DataFrame and then run assignment. */
-void MCMC::import_augm(Rcpp::DataFrame augm)
-{
-    rdataframe_to_map(augm, _augm_deftable_);
-    build_augm();
-    if (report_pathtofile.find("augm") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("augm");
-    }
-}
-#endif
 
 /* Assign augmented variables to all individuals. */
 void MCMC::build_augm()
@@ -891,7 +837,7 @@ void MCMC::build_augm()
                 // option for random initialization
                 if (!is_na(_augm_deftable_.at("init_rand")[a]))
                 {
-                    is_init_rand = stobool(_augm_deftable_.at("init_rand")[a]);
+                    is_init_rand = tools::stobool(_augm_deftable_.at("init_rand")[a]);
                 }
 
                 // list of augmented variables to be inferred
@@ -1014,7 +960,7 @@ void MCMC::assign_augm(Individual &this_indiv)
                 this_indiv.assign_augm(new_augm);
 
                 // random initialization at assignment
-                if (stobool(_augm_deftable_.at("init_rand")[a]))
+                if (tools::stobool(_augm_deftable_.at("init_rand")[a]))
                 {
                     this_indiv.augm_model_rand(augmID, get_prng());
                 }
@@ -1179,9 +1125,9 @@ const double *MCMC::type_to_doubleptr(const std::string val, const std::string t
 /* Convert a std::string with type-dictionary to std::string-to-double */
 dictargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_key);
-    std::vector<std::string> vals = parse_list_args(tkn_val);
-    std::vector<std::string> typs = parse_list_args(tkn_typ);
+    std::vector<std::string> keys = tools::parse_list_args(tkn_key);
+    std::vector<std::string> vals = tools::parse_list_args(tkn_val);
+    std::vector<std::string> typs = tools::parse_list_args(tkn_typ);
 
     dictargs output = {};
 
@@ -1204,9 +1150,9 @@ dictargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string t
 /* Convert a std::string with type-dictionary to std::string-to-double-pointer */
 dictargs_ptr MCMC::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_key);
-    std::vector<std::string> vals = parse_list_args(tkn_val);
-    std::vector<std::string> typs = parse_list_args(tkn_typ);
+    std::vector<std::string> keys = tools::parse_list_args(tkn_key);
+    std::vector<std::string> vals = tools::parse_list_args(tkn_val);
+    std::vector<std::string> typs = tools::parse_list_args(tkn_typ);
 
     dictargs_ptr output = {};
 

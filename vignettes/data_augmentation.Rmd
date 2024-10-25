@@ -29,7 +29,7 @@ Assuming the incubation period to be described by a gamma distribution, we want 
 We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
 
 ```{r}
-delays <- read.csv("delays.csv")
+data("delays", package = "housepi")
 delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-4
 delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-4
 delays[["status"]] <- 1
@@ -61,15 +61,15 @@ hemi_1$param.append(
 ### Build Augmented Variables
 
 Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo.
-However, augmented variable definitions are more delicate, since they can depend on data or parameters.
-We state which value should be imported from data formatting it as a string "*value_name*`@D`".
+However, augmented variable definitions are more delicate, since they can depend on database or parameters.
+We state which value should be imported from the database by formatting the string with the value header: "*header_name*`@D`".
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
 hemi_1$augm.append(
   # define 'exposure' time
   exposure = list(
-    x = "exposure_min@D",                # start from data 'exposure_min'
+    x = "exposure_min@D",                # start from database value 'exposure_min'
     model = "unif",                      # associate a uniform model
     args = list(min = "exposure_min@D",  # within the range 'exposure_min' 
                 max = "exposure_max@D"), # and 'exposure_max'
@@ -102,7 +102,7 @@ results_1 <- hemi_1$traces.summary()
 
 ## Augment Onset Times
 
-For a more realistics example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
+For a more realistic example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
@@ -154,10 +154,13 @@ hemi_2$param.add(name = "inc_scale", x = results_1["scale","Mean"])
 We run a simulation with the method `simulate`.
 
 ```{r}
-# override status of the dataset according to simulation 
-hemi_2$simulate(data = "survey.csv", seed = 3733)
+# load dummy survey data
+data("survey", package = "housepi")
 
-# show a summary of the current dataset
+# override status of the database according to simulation 
+hemi_2$simulate(data = survey, seed = 3733)
+
+# show a summary of the current database
 hemi_2$data.summary()
 ```
 
@@ -165,7 +168,7 @@ In addition to the final status, the simulation associates the values of the aug
 This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
-# remove incubation period from simulated data
+# remove incubation period from simulated database
 df <- subset(hemi_2$data.export(), select = -c(incub_period) )
 
 # change all onsets after 9 PM to next day
