@@ -15,18 +15,6 @@
 
 #include "utils.h"
 
-// FIXME : this is all to avoid external libraries, but probably not worthy...
-namespace auxgammap
-{
-    constexpr int GAMMAP_ITER = 10000;
-    constexpr double GAMMAP_EPS = 1.e-12;
-    constexpr double GAMMAP_FPMIN = 1e-30;
-
-    double gamma_cdf_series(double scaled_x, double shape);
-    double gamma_cdf_cf(double scaled_x, double shape);
-    double gamma_cdf(double x, double shape, double scale);
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////

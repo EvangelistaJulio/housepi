@@ -24,7 +24,7 @@ HouseholdModelClass <- R6::R6Class(
     # Check that traces exists, otherwise raise error
     traces.check = function() {
       if (is.null(private$traces.frame)){
-        stop(cli::format_error(c("No MCMC traces where found.", i = "Be sure to run your inference first.")))
+        stop(cli::format_error(c("No MCMC traces were found.", i = "Be sure to run your inference first.")))
       }
     },
     
@@ -503,7 +503,7 @@ HouseholdModelClass <- R6::R6Class(
 
           # ----- compile package ----- #
           # TODO : how to enhance pre-compilation?
-          pkgbuild::compile_dll(exec_dir, quiet = quiet, debug = debug)
+          pkgbuild::compile_dll(exec_dir, quiet = quiet, debug = debug)  
         }
         
         # load shared library

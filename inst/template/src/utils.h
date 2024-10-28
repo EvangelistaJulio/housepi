@@ -7,6 +7,7 @@
 #ifndef UTILS__H
 #define UTILS__H
 
+#include <memory>
 #include <cmath>
 #include <random>
 #include <algorithm>
@@ -63,18 +64,21 @@ typedef std::vector<std::vector<double>> squarematrix;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME :NaN and NA to be revised
-constexpr double INF_DOUBLE = 1e10;         // numerical infinity value
-const std::string UNDEFINED = "<NA>";       // name for undefined choice
-const std::string EMPTY_RATE = "__empty__"; // name for Contact rate
+constexpr double INF_DOUBLE = 1e10;   // numerical infinity value
+const std::string UNDEFINED = "<NA>"; // name for undefined choice
 
 // constants
 constexpr int MAX_NUMBER_ATTEMPTS = 50;            // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234;       // target acceptation rate for MCMC
-const std::string IO_MISMATCH = "__io_mismatch__"; // name for undefined choice
-constexpr double REFERENCE_VALUE = 1.0;            // auxiliary reference value for the parameters
-const std::string REFERENCE = "__reference__";     // name for reference choice
-const std::string CONTACT_RATE = "Contact";        // name for Contact rate
+const std::string IO_MISMATCH = "__io_mismatch__"; // mismatch in type/key/val dictionary
 
+// group rates
+const std::string REFERENCE = "__reference__"; // name for reference choice
+const std::string CONTACT_RATE = "Contact";    // name for Contact rate
+constexpr double REFERENCE_VALUE = 1.0;        // auxiliary reference value for the parameters
+const std::string EMPTY_RATE = "__empty__";    // name for Contact rate
+
+// file formatters
 constexpr char C_DELIM = ',';      // file delimiter
 constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
 constexpr char C_DECOR = '-';      // decorator for prints
@@ -93,9 +97,8 @@ constexpr char C_PROG = '=';       // decorator for progress bar
 
 namespace tools
 {
-
+    // internal undefined string values
     bool is_na(const std::string &txt);
-    void statistics(const std::vector<double> &data, double &avg, double &var);
 
     // output formatter
     std::string percent(double num, double denom);
@@ -127,10 +130,10 @@ namespace tools
     bool stobool(const std::string &tkn);
     std::string strcleaner(std::string tkn);
 
-    #ifdef USE_RCPP
+#ifdef USE_RCPP
     void rlist_to_map(Rcpp::List list, std::map<std::string, std::string> &output);
     void rdataframe_to_map(Rcpp::DataFrame df, std::map<std::string, std::vector<std::string>> &output);
-    #endif
+#endif
 
     std::vector<std::string> read_column_headers(std::ifstream &input, const std::vector<std::string> &required_headers);
     bool read_row_by_headers(std::ifstream &input, const std::vector<std::string> &headers, std::map<std::string, std::string> &this_row);

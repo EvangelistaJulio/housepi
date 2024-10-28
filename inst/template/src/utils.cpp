@@ -47,25 +47,6 @@ namespace tools
         return false;
     }
 
-    /* Welford online algorithm for mean and variance. */
-    void statistics(const std::vector<double> &data, double &avg, double &var)
-    {
-        size_t N = data.size();
-        double x, delta, delta2;
-        double sqr_diff = 0.0;
-
-        avg = 0.0;
-        for (size_t i = 0; i < N; ++i)
-        {
-            x = data[i];
-            delta = x - avg;
-            avg += delta / (i + 1);
-            delta2 = x - avg;
-            sqr_diff += delta * delta2;
-        }
-        var = sqr_diff / (N - 1);
-    }
-
     /* A formatted std::string for percent of num/denom */
     std::string percent(double num, double den)
     {

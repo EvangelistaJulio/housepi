@@ -328,7 +328,7 @@ public:
 	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
 	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
 	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
-	void adapt(double ratio) { (prop_ptr->adapt)(ratio); }
+	void adapt_rule(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//===== Show =====//
 	std::string show_distr_name() const { return distr_ptr->get_name(); }
@@ -402,6 +402,7 @@ public:
 	void update_diagnostics();
 	std::string show_diagnostics() const;
 	std::vector<double> get_dgn_value() const { return dgn_value; }
+	double get_dgn_value(size_t i) const { return dgn_value[i]; }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -417,113 +418,6 @@ public:
 			  const std::string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
 			  double rule_from = INF_DOUBLE) : Base_Variable(augm_name, value, model_name, model_args_ptr,
 															 rule_name, rule_args, range, rule_from) {};
-};
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Monte_Carlo_Core : class  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* This is a wrapper class containing aliases for the model parameters. */
-class Monte_Carlo_Core
-{
-public:
-	std::vector<std::string> param_file_headers = {"name", "value", "infer",
-										 "prior", "args", "argsval",
-										 "rule", "rule_args", "rule_argsval", "min", "max"};
-	std::vector<std::string> param_to_be_inferred = {};
-	std::vector<std::string> param_to_be_static = {};
-
-	//===== Constructors =====//
-	Monte_Carlo_Core() : _uniform_distr_(0., 1.)
-	{
-#ifdef _OPENMP
-		_max_num_available_threads = omp_get_max_threads();
-#endif
-	}
-	virtual ~Monte_Carlo_Core() {};
-
-	//===== Getter =====//
-	void disable_assert_param();
-	void assert_param(const std::string &parID) const;
-	double get_param(const std::string &parID) const;
-	const double *get_param_pointer(const std::string &parID) const;
-	const double *get_reference() const { return &REFERENCE_VALUE; }
-	bool get_infer(const std::string &parID) const { return params.at(parID).get_infer(); }
-	double get_accept_rate(const std::string &parID) const { return params.at(parID).get_accept_rate(); }
-
-	//===== Setter =====//
-	void init_rand_params(bool is_rand_params);
-	void reset_accept_rate(const std::string &parID) { params.at(parID).reset_accept_rate(); }
-	void assign_param(const std::string &parID, const Parameter &new_param);
-	void drop_all_params();
-	const double *assign_scalar_pointer(double new_val);
-
-	//===== Parallelization =====//
-	void set_num_threads(unsigned n = 1);
-	int get_num_threads() const { return setup_num_threads; };
-
-	//===== Metropolis-Hastings moves =====//
-	bool propose_valid_param_move(const std::string &parID);
-	void restore_param_value(const std::string &parID) { params.at(parID).restore_value(); }
-	void update_param_accept_rate(const std::string &parID, bool is_accepted) { params.at(parID).update_accept_rate(is_accepted); }
-	double param_move_logratio(const std::string &parID) const { return params.at(parID).get_move_logratio(); }
-	void adapt(const std::string &parID, double ratio) { params.at(parID).adapt(ratio); }
-	void init_param_diagnostics(ulong sample_size);
-	void update_param_diagnostics();
-
-	//===== Pseudo-Random Number Generator =====//
-	void set_prng_seed(int seed);
-	sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
-	double uniform() { return _uniform_distr_(get_prng()); }
-
-	//===== Show =====//
-	std::string show_param_distr_name(const std::string &parID) const { return params.at(parID).show_distr_name(); }
-	std::string show_param_distr_arg_names(const std::string &parID) const { return params.at(parID).show_distr_arg_names(); }
-	std::string show_param_distr_arg_values(const std::string &parID) const { return params.at(parID).show_distr_arg_values(); }
-	std::string show_param_prop_name(const std::string &parID) const { return params.at(parID).show_prop_name(); }
-	std::string show_param_prop_arg_names(const std::string &parID) const { return params.at(parID).show_prop_arg_names(); }
-	std::string show_param_prop_arg_values(const std::string &parID) const { return params.at(parID).show_prop_arg_values(); }
-	std::string show_param_range_min(const std::string &parID) const { return params.at(parID).show_range_min(); }
-	std::string show_param_range_max(const std::string &parID) const { return params.at(parID).show_range_max(); }
-
-	std::string show_param(const std::string &parID) const;
-	std::string show_param_diagnostics(const std::string &parID) const;
-	std::vector<double> get_dgn_value(const std::string &parID) const { return params.at(parID).get_dgn_value(); }
-
-private:
-	//===== Internal Attributes =====//
-	std::unordered_map<std::string, Parameter> params = {};	   // parameters dictionary
-	std::map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
-
-	std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
-	unsigned setup_num_threads = 1;							// number of OMP threads
-
-	//===== Getter (auxiliary methods) =====//
-	double (Monte_Carlo_Core::*_get_param_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
-	double _get_param_assert_(const std::string &parID) const;
-	double _get_param_default_(const std::string &parID) const;
-
-	const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
-	const double *_get_param_pointer_assert_(const std::string &parID) const;
-	const double *_get_param_pointer_default_(const std::string &parID) const;
-
-	//===== Pseudo Random Number Generator (auxiliary methods) =====//
-	// FIXME : this should change if Rcpp according to developer guides
-	sys_rnd_gen prng;						// Mersenne Twister 19937 generator (32 or 64 bit)
-	std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
-	sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
-	sys_rnd_gen &_prng_unique_thread_() { return prng; }
-#ifdef _OPENMP
-	unsigned _max_num_available_threads = 1;
-	sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
-#endif
 };
 
 #endif // VARIA__H

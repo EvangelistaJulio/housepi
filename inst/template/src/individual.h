@@ -7,6 +7,8 @@
 #ifndef INDIVIDUAL__H
 #define INDIVIDUAL__H
 
+#include <string>
+#include <vector>
 #include <algorithm>
 #include <cmath>
 #include <set>

@@ -44,13 +44,13 @@ double Model::hazard_of_infection() const
 void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
-	if (report_data["n.miss.stat"] > 0)
+	if (report_data("n.miss.stat") > 0)
 	{
 		tools::error("A missing status was found : incompatible with the model.");
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_generations_lookuptable(report_data["max.n.HH.cases"]);
+	bax::init_generations_lookuptable(report_data("max.n.HH.cases"));
 }
 
 //-----------------------------------------------------------------------------------------------//

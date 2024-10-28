@@ -134,12 +134,12 @@ void Model::init_model_for_inference()
 	//===== Initialize household features =====//
 
 	// std::vector with index of first infector
-	LUT_hh_first_case = std::vector<int>(num_house, -1);
+	LUT_hh_first_case = std::vector<int>(get_num_house(), -1);
 
 	// produce the empty matrix for the infectivity profiles look-up-tables
-	for (int h = 0; h < num_house; h++)
+	for (size_t H = 0; H < get_num_house(); H++)
 	{
-		int h_size = house[h].size();
+		int h_size = house(H).size();
 		LUT_inst_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
 		LUT_cumul_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
 	}
@@ -245,11 +245,11 @@ double Model::foi(const Household &this_house, int i, const std::vector<squarema
 	{
 		if (k != i)
 		{
-			output += get_contact_rate(this_house, k, i) * get_group_rate(this_house.indiv[k], "Infectivity") * profiles[h][k][i];
+			output += this_house.get_contact_rate(k, i) * this_house.indiv[k].get_group_rate("Infectivity") * profiles[h][k][i];
 		}
 	}
 
-	output *= get_group_rate(this_house.indiv[i], "Susceptibility") * transmission_rate(this_house);
+	output *= this_house.indiv[i].get_group_rate("Susceptibility") * transmission_rate(this_house);
 
 	return output;
 }

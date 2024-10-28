@@ -10,8 +10,13 @@
 /////////////////////////////  Incomplete gamma Function  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// FIXME : this is all to avoid external libraries, but probably not worthy...
 namespace auxgammap
 {
+    constexpr int GAMMAP_ITER = 10000;
+    constexpr double GAMMAP_EPS = 1.e-12;
+    constexpr double GAMMAP_FPMIN = 1e-30;
+
     /* Lower incomplete gamma function using series expansion. */
     double gamma_cdf_series(double scaled_x, double shape)
     {
