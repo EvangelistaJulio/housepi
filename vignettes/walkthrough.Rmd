@@ -79,8 +79,8 @@ Now we can safely perform inference with the method `infer`.
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
 chabi$infer(data = "survey.csv", num_iter = 50000, burn_in = 5000,
-            thinning = "A", num_adapt = 300, num_chains = 4,
-            seed = 5, num_threads = 4)
+            thinning = 15, num_adapt = 3000, num_chains = 4,
+            seed = 6043)
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `num_threads` is not granted on such systems.
@@ -141,7 +141,7 @@ simu_cb$param.append(
 
 # build the new model using the same household compositions
 # override status of the database according to simulation
-simu_cb$simulate(data = "survey.csv", seed = 51)
+simu_cb$simulate(data = "survey.csv", seed = 5923)
 ```
 
 To return the simulated database, which also corresponds to the current loaded database, we use the method
@@ -157,7 +157,9 @@ We can challenge the inference process used at the beginning with the new simula
 
 ```{r}
 # run the inference on the new data keeping previous definitions
-chabi$infer(data = df)
+chabi$infer(data = df, num_iter = 50000, burn_in = 5000,
+            thinning = 15, num_adapt = 3000, num_chains = 4,
+            seed = 4337)
 
 # visualize the traces of the first chain
 chabi$traces.traceplot(chain = 1)

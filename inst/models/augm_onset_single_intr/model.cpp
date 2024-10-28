@@ -168,7 +168,7 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	//===== Infectious Members =====//
 	//==============================//
 
-	int h = this_house.get_id();
+	int h = this_house.get_index();
 	Individual &this_indiv = this_house.indiv[i];
 
 	double onset_i = this_indiv.get_augm("onset_date");
@@ -246,7 +246,7 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 /* Sum over all hazards of infection. */
 double Model::foi(const Household &this_house, int i, const std::vector<squarematrix> &profiles) const
 {
-	int h = this_house.get_id();
+	int h = this_house.get_index();
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
@@ -270,7 +270,7 @@ double Model::foi(const Household &this_house, int i, const std::vector<squarema
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(const Household &this_house) const
 {
-	int h = this_house.get_id();
+	int h = this_house.get_index();
 	double loglike_house = 0.0;
 
 	// Contribution of healthy members
