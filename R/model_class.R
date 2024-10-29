@@ -909,19 +909,30 @@ HouseholdModelClass <- R6::R6Class(
       # param from : get_param_pointer("string") or get_param_pointer('string')
       regular_expr <- 'get_param_pointer\\(\\s*["\'](.*?)["\']\\s*\\)'
       matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unique(unlist(matches[[1]][, 2]))))
+      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
       
       # param from : assign_rate_per_contact(, , "string")
       regular_expr <- '\\.assign_rate_per_contact\\s*\\(.*?,.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       aux <- unlist(lapply(matches, function(x) x[, 2]))
-      model_params_set <- unique(c(model_params_set, unique(aux[!is.na(aux)])))
+      model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
       
       # param from : assign_rate_per_group(, "string")
       regular_expr <- '\\.assign_group_rate\\s*\\(.*?,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       aux <- unlist(lapply(matches, function(x) x[, 2]))
-      model_params_set <- unique(c(model_params_set, unique(aux[!is.na(aux)])))
+      model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
+      
+      # param from : augmented variable model argument definitions
+      if (length(private$augm.frame) > 0) {
+        x <- private$augm.frame[c("argsval", "argstype")]
+        for (i in 1:length(x)) {
+          aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
+                            keys = strsplit(x[i, 2], "/")[[1]])
+          aux <- aux[aux[["keys"]] == "P", "vals"]
+          model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
+        }
+      }
       
       # re-order alphabetically
       model_params_set <- model_params_set[order(model_params_set)]
@@ -982,7 +993,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted augmented variable definitions.
     augm.export = function() {
-      return(augm.frame)
+      return(private$augm.frame)
     },
     
     #' @description

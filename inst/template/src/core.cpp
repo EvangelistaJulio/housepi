@@ -13,6 +13,67 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Welford online algorithm for mean and variance. */
+void compute_stats(const std::vector<double> &data, double &avg, double &var)
+{
+    size_t N = data.size();
+    double x, delta, delta2;
+    double sqr_diff = 0.0;
+
+    avg = 0.0;
+    for (size_t i = 0; i < N; ++i)
+    {
+        x = data[i];
+        delta = x - avg;
+        avg += delta / (i + 1);
+        delta2 = x - avg;
+        sqr_diff += delta * delta2;
+    }
+    var = sqr_diff / (N - 1);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Parameter : methods  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Init the values for the Bayesian diagnostics. */
+void Parameter::init_diagnostics(ulong sample_size)
+{
+    dgn_count = 0;
+    dgn_value.clear();
+    dgn_value = std::vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
+}
+
+/* Update the values for the Bayesian diagnostics. */
+void Parameter::update_diagnostics()
+{
+    dgn_value[dgn_count++] = get_value();
+}
+
+/* Message to be used at the moment of display diagnostics. (TEMPORARY) */
+std::string Parameter::show_diagnostics() const
+{
+    using namespace tools;
+    std::ostringstream oss;
+
+    double avg = 0, var = 0;
+    compute_stats(dgn_value, avg, var);
+
+    oss << avg << C_DELIM << std::sqrt(var) << C_DELIM << truth(infer)
+        << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
+        << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
+        << C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
+        << C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
+    return oss.str();
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Monte_Carlo_Core : methods (getter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,6 +126,18 @@ void Monte_Carlo_Core::assign_param(const std::string &parID, const Parameter &n
             param_to_be_static.push_back(parID);
         }
     }
+}
+
+/* Add a new scalar for augmented typedict. TODO : is there a more elegant option? */
+const double *Monte_Carlo_Core::assign_scalar_pointer(double val)
+{
+    if (_scalar_type_params_.find(val) == _scalar_type_params_.end())
+    {
+        Parameter new_param(UNDEFINED, val);
+        _scalar_type_params_.emplace(val, new_param);
+    }
+    /* Add a new scalar for augmented typedict FIXME : temporary. */
+    return _scalar_type_params_.at(val).get_pointer();
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
@@ -477,14 +550,15 @@ void Monte_Carlo_Core::build_params()
                     }
 
                     // assign parameter to the set of variables
-                    Parameter new_param(parID, value,
-                                        _param_deftable_.at("prior")[p],
-                                        tools::merge_list_args(_param_deftable_.at("args")[p],
-                                                               _param_deftable_.at("argsval")[p]),
-                                        _param_deftable_.at("rule")[p],
-                                        tools::merge_list_args(_param_deftable_.at("rule_args")[p],
-                                                               _param_deftable_.at("rule_argsval")[p]),
-                                        range);
+                    Parameter new_param(
+                        parID, value,
+                        _param_deftable_.at("prior")[p],
+                        tools::merge_list_args(_param_deftable_.at("args")[p],
+                                               _param_deftable_.at("argsval")[p]),
+                        range,
+                        _param_deftable_.at("rule")[p],
+                        tools::merge_list_args(_param_deftable_.at("rule_args")[p],
+                                               _param_deftable_.at("rule_argsval")[p]));
                     assign_param(parID, new_param);
                 }
                 else
@@ -515,21 +589,7 @@ void Monte_Carlo_Core::build_params()
 /* Extract average and variance from vector of global loglike values. */
 void Monte_Carlo_Core::dgn_glob_ll_stats(double &avg, double &var) const
 {
-    // using Welford online algorithm
-    size_t N = dgn_glob_loglike.size();
-    double x, delta, delta2;
-    double sqr_diff = 0.0;
-
-    avg = 0.0;
-    for (size_t i = 0; i < N; ++i)
-    {
-        x = dgn_glob_loglike[i];
-        delta = x - avg;
-        avg += delta / (i + 1);
-        delta2 = x - avg;
-        sqr_diff += delta * delta2;
-    }
-    var = sqr_diff / (N - 1);
+    compute_stats(dgn_glob_loglike, avg, var);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -564,8 +624,7 @@ Rcpp::List Monte_Carlo_Core::export_setup() const
         _["num_iter"] = setup_num_iter,
         _["thinning"] = setup_thinning,
         _["rnd_init_params"] = setup_rnd_init_params,
-        _["inv_temper"] = setup_inv_T
-        );
+        _["inv_temper"] = setup_inv_T);
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -596,7 +655,7 @@ Rcpp::DataFrame Monte_Carlo_Core::export_params() const
         V_rule_argsval.push_back(stoRString(params.at(parID).show_prop_arg_values()));
 
         const std::string min_val = params.at(parID).show_range_min();
-        const std::string max_val = params.at(parID).show_range_min();
+        const std::string max_val = params.at(parID).show_range_max();
         V_min.push_back(tools::is_na(min_val) ? NA_REAL : tools::stod(min_val));
         V_max.push_back(tools::is_na(max_val) ? NA_REAL : tools::stod(max_val));
     }

@@ -25,8 +25,6 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-
-
 // Forward declaration of implementation class
 class Monte_Carlo_Core;
 
@@ -136,8 +134,7 @@ private:
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::vector<std::string>> _augm_deftable_ = {};
-    std::map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
-
+    
     //----- build : type-specified variables -----//
     double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
     const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);

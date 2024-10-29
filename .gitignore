@@ -59,3 +59,6 @@ Thumbs.db
 /doc/
 /Meta/
 /man/
+/vignettes/*.R
+/vignettes/*.html
+/vignettes/*.timestamp

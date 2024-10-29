@@ -7,8 +7,6 @@
 #ifndef PROFILES__H
 #define PROFILES__H
 
-#include "utils.h"
-#include "distributions.h"
 #include "individual.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +67,7 @@ public:
 class Infec_Prof_Ashcroft20 : public Base_Function
 {
 private:
-    Gamma_Distribution *gamma_distr_ptr;
+    Base_Distribution *gamma_distr_ptr;
 
 public:
     // Constructor with immutable values
@@ -80,7 +78,7 @@ public:
     {
         assign_args(new_args);
         dictargs aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
-        gamma_distr_ptr = new Gamma_Distribution(aux_args_val, {{"min", get_arg(2)}});
+        gamma_distr_ptr = distribution_ptr("gamma", aux_args_val, {{"min", get_arg(2)}});
     }
 
     // Constructor with pointers
@@ -92,7 +90,7 @@ public:
                                                    {"shape", "scale", "shift"})
     {
         dictargs_ptr aux_args_ptr = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
-        gamma_distr_ptr = new Gamma_Distribution(aux_args_ptr, {{"min", get_arg(2)}});
+        gamma_distr_ptr = distribution_ptr("gamma", aux_args_ptr, {{"min", get_arg(2)}});
     }
     */
 

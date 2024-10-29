@@ -211,14 +211,7 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string val, const 
             }
             else if (typ == TYPE_SCALAR)
             {
-                double new_val = tools::stod(val, "argument with scalar type");
-                if (_scalar_type_params_.find(new_val) == _scalar_type_params_.end())
-                {
-                    Parameter new_param(UNDEFINED, new_val, UNDEFINED, {}, UNDEFINED, {}, {});
-                    _scalar_type_params_.emplace(new_val, new_param);
-                }
-                /* Add a new scalar for augmented typedict FIXME : temporary. */
-                output = _scalar_type_params_.at(new_val).get_pointer();
+                output = pCore->assign_scalar_pointer(tools::stod(val, "argument with scalar type"));
             }
             else
             {
@@ -541,19 +534,31 @@ void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
 
             if ((tools::is_na(augm_status)) || (this_indiv.get_status() == tools::stoi(augm_status, "augmented status")))
             {
+                //----- Name -----//
                 std::string augmID = _augm_deftable_.at("name")[a];
 
-                //----- load range -----//
+                //----- Value -----//
+                double value = type_to_double(_augm_deftable_.at("value")[a],
+                                              _augm_deftable_.at("valuetype")[a],
+                                              this_indiv);
+
+                //----- Model -----//
+                std::string model_name = _augm_deftable_.at("model")[a];
+                dictargs_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
+                                                                 _augm_deftable_.at("argsval")[a],
+                                                                 _augm_deftable_.at("argstype")[a],
+                                                                 this_indiv);
+
+                //----- Range -----//
                 dictargs range = {};
-                // min value
+                // minimum value
                 double aux_min = type_to_double(_augm_deftable_.at("min")[a],
                                                 _augm_deftable_.at("mintype")[a], this_indiv);
                 if (aux_min != INF_DOUBLE)
                 {
                     range.emplace("min", aux_min);
                 }
-
-                // max value
+                // maximum value
                 double aux_max = type_to_double(_augm_deftable_.at("max")[a],
                                                 _augm_deftable_.at("maxtype")[a], this_indiv);
                 if (aux_max != INF_DOUBLE)
@@ -561,21 +566,18 @@ void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
                     range.emplace("max", aux_max);
                 }
 
-                // assign augmented variable
-                Augmented new_augm(augmID,
-                                   type_to_double(_augm_deftable_.at("value")[a],
-                                                  _augm_deftable_.at("valuetype")[a], this_indiv),
-                                   _augm_deftable_.at("model")[a],
-                                   typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
-                                                          _augm_deftable_.at("argsval")[a],
-                                                          _augm_deftable_.at("argstype")[a], this_indiv),
-                                   _augm_deftable_.at("rule")[a],
-                                   typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
-                                                      _augm_deftable_.at("rule_argsval")[a],
-                                                      _augm_deftable_.at("rule_argstype")[a], this_indiv),
-                                   range,
-                                   type_to_double(_augm_deftable_.at("rule_from")[a],
-                                                  _augm_deftable_.at("rule_fromtype")[a], this_indiv));
+                //----- Proposer Rule -----//
+                std::string rule_name = _augm_deftable_.at("rule")[a];
+                dictargs rule_args = typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
+                                                        _augm_deftable_.at("rule_argsval")[a],
+                                                        _augm_deftable_.at("rule_argstype")[a],
+                                                        this_indiv);
+                double rule_from = type_to_double(_augm_deftable_.at("rule_from")[a],
+                                                  _augm_deftable_.at("rule_fromtype")[a], this_indiv);
+
+                //----- Assign Augmented Variable -----//
+                Augmented new_augm(augmID, value, model_name, model_args, range,
+                                   rule_name, rule_args, rule_from);
                 this_indiv.assign_augm(new_augm);
 
                 // random initialization at assignment

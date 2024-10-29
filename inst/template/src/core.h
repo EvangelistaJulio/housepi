@@ -21,6 +21,40 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Parameter : class  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Parameter : public Base_Variable
+{
+public:
+    //===== Constructor =====//
+    // NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
+    Parameter(const std::string &param_name = UNDEFINED, double value = std::numeric_limits<double>::quiet_NaN(),
+              const std::string &prior_name = UNDEFINED, dictargs prior_args = {}, dictargs range = {},
+              const std::string &rule_name = UNDEFINED, dictargs rule_args = {}) : Base_Variable(param_name, value)
+    {
+        assign_distribution(prior_name, prior_args, range);
+        assign_proposer(rule_name, rule_args);
+    }
+
+    //===== Diagnostics =====//
+    ulong dgn_count = 0;
+    std::vector<double> dgn_value = {};
+    void init_diagnostics(ulong sample_size);
+    void update_diagnostics();
+    std::string show_diagnostics() const;
+    std::vector<double> get_dgn_value() const { return dgn_value; }
+    double get_dgn_value(size_t i) const { return dgn_value[i]; }
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Monte_Carlo_Core : class  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -50,11 +84,11 @@ public:
     unsigned setup_num_threads = 1; // number of OMP threads
 
     ulong setup_c_sample_size; // single chain sample size
-    ulong setup_c_num_sweeps; // single chain n. of sweeps
+    ulong setup_c_num_sweeps;  // single chain n. of sweeps
 
-	//===== Diagnostics Attributes=====//
-	ulong dgn_count = 0;
-	std::vector<double> dgn_glob_loglike = {};
+    //===== Diagnostics Attributes=====//
+    ulong dgn_count = 0;
+    std::vector<double> dgn_glob_loglike = {};
 
     //===== CONSTRUCTOR =====//
     Monte_Carlo_Core() : _uniform_distr_(0., 1.)
@@ -83,6 +117,7 @@ public:
     //===== PARAM SETTER =====//
     void init_rand_params();
     void reset_accept_rate(const std::string &parID) { params.at(parID).reset_accept_rate(); }
+    const double *assign_scalar_pointer(double val);
 
     //===== Metropolis-Hastings moves =====//
     bool propose_valid_param_move(const std::string &parID);
@@ -125,8 +160,9 @@ public:
 
 private:
     //===== Internal Attributes =====//
-    std::unordered_map<std::string, Parameter> params = {}; // parameters dictionary
-    std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
+    std::unordered_map<std::string, Parameter> params = {};          // parameters dictionary
+    std::uniform_real_distribution<double> _uniform_distr_;          // uniform distribution
+    std::unordered_map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
     bool _is_undef_params_ = false; // undefined parameters valid only if infer
 

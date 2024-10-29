@@ -14,7 +14,89 @@
 #include <unordered_map>
 #include <cmath>
 
-#include "distributions.h"
+#include "utils.h"
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Base Distribution : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* A parent class to all distributions. */
+class Base_Distribution : public Base_Function
+{
+public:
+    using Base_Function::Base_Function;
+
+    double pdf(double x) const { return _trunc_(_pdf_(x)); }
+    double cdf(double x) const { return _trunc_(_shift_(_cdf_(x))); }
+    double logpdf(double x) const { return _logtrunc_(_logpdf_(x)); }
+
+    //----- Distribution specific methods -----//
+    virtual double logratio(double xold, double xnew) const
+    {
+        UNUSED(xold);
+        UNUSED(xnew);
+        return 0.0;
+    }
+    virtual double rand(sys_rnd_gen &prng)
+    {
+        UNUSED(prng);
+        return _undefined_call_error_("rand");
+    }
+
+protected:
+    //----- Distribution specific methods -----//
+    virtual double _pdf_(double x) const { return _undefined_call_error_("pdf", x); }
+    virtual double _logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+    virtual double _cdf_(double x) const { return _undefined_call_error_("cdf", x); }
+
+    //----- Adjust methods for truncation -----//
+    void set_truncation(const dictargs &range);
+    void check_rand_attempts(int &num_attempts) const;
+
+private:
+    //----- Internal error for calls to undefined -----//
+    double _undefined_call_error_(const std::string &txt, double x = 0, double y = 0) const;
+
+    //----- Functional methods for the truncation -----//
+    double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
+    double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
+    double _trunc_dummy_(double x) const { return x; }
+    double _trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
+    double _trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
+    double _trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
+
+    //----- Functional methods for the (log) truncation -----//
+    double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
+    double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
+    double _logtrunc_dummy_(double x) const { return x; }
+    double _logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
+    double _logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
+    double _logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
+
+    //----- Functional methods to shift cumulative -----//
+    double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
+    double _shift_(double x) const { return (this->*_shift_method_)(x); }
+    double _shift_dummy_(double x) const { return x; }
+    double _shift_min_(double x) const { return x - _cdf_(get_range_min()); }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  distribution switchboard  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
+                                    const dictargs &args = {},
+                                    const dictargs &range = {});
+Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
+                                    const dictargs_ptr &args = {},
+                                    const dictargs &range = {});
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -113,95 +195,8 @@ protected:
 	}
 	double _logratio_lognorm_symm_(double old_val, double new_val) const { return log(old_val) - log(new_val); }
 
-private:
 	//===== State Attributes =====//
 	std::vector<int> _args_to_adapt_ = {};
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  proposer_switchboard  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-Base_Proposer *proposer_switchboard(
-	std::string rule_name = UNDEFINED,
-	dictargs rule_args = {},
-	double rule_from = INF_DOUBLE);
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Uniform_Proposer : public Base_Proposer
-{
-public:
-	//=====Constructors=====//
-	Uniform_Proposer(
-		dictargs rule_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
-		double rule_from = INF_DOUBLE) : Base_Proposer(new Uniform_Distribution(rule_args), rule_from, {"min", "max"})
-	{
-		_propose_method_ = &Uniform_Proposer::_propose_sum_to_previous_;
-		_logratio_method_ = &Uniform_Proposer::_logratio_symm_;
-	}
-	~Uniform_Proposer() {}
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Normal_Proposer : class  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Normal_Proposer : public Base_Proposer
-{
-public:
-	//=====Constructor=====//
-	Normal_Proposer(
-		dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double rule_from = INF_DOUBLE) : Base_Proposer(new Normal_Distribution(rule_args), rule_from, {1})
-	{
-		_propose_method_ = &Normal_Proposer::_propose_sum_to_previous_;
-		_logratio_method_ = is_rule_start_from_zero() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
-	}
-	~Normal_Proposer() {}
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Lognorm_Proposer : class  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Lognorm_Proposer : public Base_Proposer
-{
-public:
-	//=====Constructor=====//
-	Lognorm_Proposer(
-		dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double rule_from = INF_DOUBLE) : Base_Proposer(new Lognorm_Distribution(rule_args), rule_from, {1})
-	{
-		_propose_method_ = &Lognorm_Proposer::_propose_times_previous_;
-		_logratio_method_ = is_rule_start_from_zero() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
-	}
-	~Lognorm_Proposer() {}
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Gibbs_Proposer : class  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Gibbs_Proposer : public Base_Proposer
-{
-public:
-	//=====Constructor=====//
-	Gibbs_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
-	{
-		_propose_method_ = &Gibbs_Proposer::_propose_draw_rand_;
-		_logratio_method_ = &Gibbs_Proposer::_logratio_pdf_;
-	}
-	~Gibbs_Proposer() {}
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -215,12 +210,10 @@ public:
 ///////////////////////////////////  Base_Variable : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO : time to drop the template
-template <typename dictargs_val_or_ptr>
 class Base_Variable
 {
 protected:
-	std::string name = UNDEFINED;				// name of the variable
+	std::string name = UNDEFINED;			// name of the variable
 	double value = INF_DOUBLE;				// value of the variable
 	double buffer = INF_DOUBLE;				// buffer of the variable
 	bool infer = false;						// to be inferred or immutable
@@ -229,68 +222,27 @@ protected:
 
 public:
 	//=====Constructor=====//
-	Base_Variable(const std::string &name = UNDEFINED, double value = INF_DOUBLE,
-				  const std::string &distr_name = UNDEFINED, dictargs_val_or_ptr distr_args = {},
-				  const std::string &rule_name = UNDEFINED, dictargs rule_args = {},
-				  dictargs range = {}, double rule_from = INF_DOUBLE)
+	Base_Variable(const std::string &name_, double value_) : name(name_), value(value_) {}
+	virtual ~Base_Variable() {};
+
+	// define a pointer to distribution
+	template <typename dictargs_val_or_ptr>
+	void assign_distribution(const std::string &distr_name = UNDEFINED,
+							 dictargs_val_or_ptr distr_args = {},
+							 dictargs range = {})
 	{
-		//----- Control options -----//
 		// check that distribution args have no mismatch
 		if (distr_args.find(IO_MISMATCH) != distr_args.end())
 		{
 			tools::error("Mismatching definitions in arguments of '" + name + "'.");
 		}
-
-		// check that rule args have no mismatch
-		if (rule_args.find(IO_MISMATCH) != rule_args.end())
-		{
-			tools::error("Mismatching definitions in rule arguments of '" + name + "'.");
-		}
-
-		//----- Assign options -----//
-		// set fundamental necessary values
-		set_name(name);
-		set_value(value);
-
-		// define distribution_ptr
 		distr_ptr = distribution_ptr(distr_name, distr_args, range);
-
-		// Assing proposer rule with associated state 'infer'.
-		if (tools::is_na(rule_name))
-		{
-			// immutable variable if no rule is defined
-			infer = false;
-			_propose_method_ = &Base_Variable::_propose_error_;
-		}
-		else
-		{
-			infer = true;
-
-			// define proposer rule with functional programming
-			if (rule_name == "gibbs")
-			{
-				prop_ptr = new Gibbs_Proposer(distr_ptr);
-				_propose_method_ = &Base_Variable::_propose_gibbs_sample_;
-				_move_logratio_method_ = &Base_Variable::_move_logratio_gibbs_;
-			}
-			else
-			{
-				if ((rule_from != INF_DOUBLE) && (!distr_ptr->valid(rule_from)))
-				{
-					std::ostringstream oss;
-					oss << "Initial value " << rule_from << " outside of value range"
-						<< " {min:" << distr_ptr->show_range_min() << ", max:" << distr_ptr->show_range_max() << "}."
-						<< " If intentional, ignore this message.";
-					tools::warning(oss.str());
-				}
-
-				// assigne the pointer to the proposer
-				prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from);
-				_propose_method_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
-			}
-		}
 	}
-	virtual ~Base_Variable() {};
+
+	// Assing a proposer rule with associated state 'infer'.
+	void assign_proposer(const std::string &rule_name = UNDEFINED,
+						 dictargs rule_args = {},
+						 double rule_from = INF_DOUBLE);
 
 	//===== Getter =====//
 	std::string get_name() const { return name; }
@@ -351,7 +303,8 @@ public:
 		{
 			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
 				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-				<< C_DELIM << show_range_min() << C_DELIM << show_range_max();
+				<< C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
+				<< C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
 		}
 		return oss.str();
 	}
@@ -378,46 +331,6 @@ private:
 	double _propose_gibbs_sample_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
 	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
 	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Parameter : class  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Parameter : public Base_Variable<dictargs>
-{
-public:
-	//===== Constructor =====//
-	// NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
-	Parameter(const std::string &param_name = UNDEFINED, double new_val = INF_DOUBLE,
-			  const std::string &prior_name = UNDEFINED, dictargs prior_args = {},
-			  const std::string &rule_name = UNDEFINED, dictargs rule_args = {},
-			  dictargs range = {}) : Base_Variable(param_name, new_val, prior_name, prior_args,
-												   rule_name, rule_args, range) {};
-
-	//===== Diagnostics =====//
-	ulong dgn_count = 0;
-	std::vector<double> dgn_value = {};
-	void init_diagnostics(ulong sample_size);
-	void update_diagnostics();
-	std::string show_diagnostics() const;
-	std::vector<double> get_dgn_value() const { return dgn_value; }
-	double get_dgn_value(size_t i) const { return dgn_value[i]; }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Augmented : class  //////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Augmented : public Base_Variable<dictargs_ptr>
-{
-public:
-	//===== Constructor =====//
-	Augmented(const std::string &augm_name = UNDEFINED, double value = std::numeric_limits<double>::quiet_NaN(),
-			  const std::string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {},
-			  const std::string &rule_name = UNDEFINED, dictargs rule_args = {}, dictargs range = {},
-			  double rule_from = INF_DOUBLE) : Base_Variable(augm_name, value, model_name, model_args_ptr,
-															 rule_name, rule_args, range, rule_from) {};
 };
 
 #endif // VARIA__H
