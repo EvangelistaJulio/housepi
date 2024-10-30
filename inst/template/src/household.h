@@ -42,7 +42,6 @@ public:
 	//===== SETTER =====//
 	void assign_individual(const std::string &ID, int status, const dictargs &data);
 	bool change_status(int i, int new_status);
-	void standardize_infectious_status();
 	void init_contact_matrix();
 	void assign_rate_per_contact(int from, int to, const std::string &parID);
 	void set_contact_rate(int from, int to, const double *x);

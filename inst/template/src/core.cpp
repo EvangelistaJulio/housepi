@@ -164,8 +164,8 @@ const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string &pa
 /* Disable parameter assertion. */
 void Monte_Carlo_Core::disable_assert_param()
 {
-    _get_param_method_ = &Monte_Carlo_Core::_get_param_default_;
-    _get_param_pointer_method_ = &Monte_Carlo_Core::_get_param_pointer_default_;
+    _func_get_param_ = &Monte_Carlo_Core::_get_param_default_;
+    _func_get_param_pointer_ = &Monte_Carlo_Core::_get_param_pointer_default_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -236,11 +236,11 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     if (n > 1)
     {
         prng_parallel.reserve(n);
-        _prng_method_ = &Monte_Carlo_Core::_prng_parallel_threads_;
+        _func_prng_ = &Monte_Carlo_Core::_prng_parallel_threads_;
     }
     else
     {
-        _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
+        _func_prng_ = &Monte_Carlo_Core::_prng_unique_thread_;
     }
 #else
     if (n != 1)
@@ -248,7 +248,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
         tools::warning("Parallelization with OpenMP not supported.");
     }
     setup_num_threads = 1;
-    _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
+    _func_prng_ = &Monte_Carlo_Core::_prng_unique_thread_;
 #endif
 }
 

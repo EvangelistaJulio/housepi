@@ -150,37 +150,35 @@ private:
 	//===== INFER =====//
 
 	//----- Monte Carlo -----//
-	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_power_post = false);
-	void move_single_param(const std::string &parID);
-	void move_and_adapt_all_parameters(ulong step);
-	void move_all_parameters();
-	
-	double move_single_house_augm(Household &this_house);
 	void update_inver_temper(double inv_T);
-
-
+	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_power_post = false);
+	
 	//----- Metropolis : parameter moves -----//
-	bool metropolis_param_move(const std::string &parID) { return (this->*_param_metropolis_method_)(parID); }
-	bool (MCMC::*_param_metropolis_method_)(const std::string &) = &MCMC::_param_metropolis_1_;
+	void move_all_parameters();
+	void move_and_adapt_all_parameters(ulong step);
+	void move_single_param(const std::string &parID);
+	
+	bool (MCMC::*_func_param_metropolis_)(const std::string &) = &MCMC::_param_metropolis_1_;
 	bool _param_metropolis_1_(const std::string &parID);
 	bool _param_metropolis_0_(const std::string &parID);
 	bool _param_metropolis_T_(const std::string &parID);
 
 	//----- Metropolis : augmented moves -----//
-	bool metropolis_augm_move(const Household &this_house, int i, const std::string &augmID, double &delta)
-	{
-		return (this->*_augm_metropolis_method_)(this_house, i, augmID, delta);
-	}
-	bool (MCMC::*_augm_metropolis_method_)(const Household &, int, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
+	double move_augm_single_house(Household &this_house);
+	void metropolis_augm_single_move(Household &this_house, int i, const std::string &augmID, double &delta);
+
+	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
+	void _move_no_augm_() {};
+	void _move_all_augm_();
+
+	void (MCMC::*_func_move_augm_indiv_)(Household &, int, double &) = &MCMC::_move_augm_indiv_by_status_;
+	void _move_augm_indiv_by_status_(Household &this_house, int i, double &delta);
+	void _move_augm_indiv_generic_(Household &this_house, int i, double &delta);
+
+	bool (MCMC::*_func_augm_metropolis_)(const Household &, int, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
 	bool _augm_metropolis_1_(const Household &this_house, int i, const std::string &augmID, double &delta);
 	bool _augm_metropolis_0_(const Household &this_house, int i, const std::string &augmID, double &delta);
 	bool _augm_metropolis_T_(const Household &this_house, int i, const std::string &augmID, double &delta);
-
-	//----- Metropolis : augmented moves -----//
-	void move_all_augm_variables() { (this->*_move_augm_method_)(); }
-	void (MCMC::*_move_augm_method_)() = &MCMC::_move_no_augm_;
-	void _move_no_augm_() {};
-	void _move_all_augm_();
 };
 
 #endif // MCMC__H

@@ -109,8 +109,8 @@ public:
     //===== PARAM : getter =====//
     void disable_assert_param();
     void assert_param(const std::string &parID) const;
-    double get_param(const std::string &parID) const { return (this->*_get_param_method_)(parID); }
-    const double *get_param_pointer(const std::string &parID) const { return (this->*_get_param_pointer_method_)(parID); }
+    double get_param(const std::string &parID) const { return (this->*_func_get_param_)(parID); }
+    const double *get_param_pointer(const std::string &parID) const { return (this->*_func_get_param_pointer_)(parID); }
     bool get_infer(const std::string &parID) const { return params.at(parID).get_infer(); }
     double get_accept_rate(const std::string &parID) const { return params.at(parID).get_accept_rate(); }
 
@@ -132,7 +132,7 @@ public:
     void dgn_glob_ll_stats(double &avg, double &var) const;
 
     //===== Pseudo-Random Number Generator =====//
-    sys_rnd_gen &get_prng() { return (this->*_prng_method_)(); }
+    sys_rnd_gen &get_prng() { return (this->*_func_prng_)(); }
     double uniform() { return _uniform_distr_(get_prng()); }
 
     //===== Show =====//
@@ -167,12 +167,12 @@ private:
     bool _is_undef_params_ = false; // undefined parameters valid only if infer
 
     //===== get param (functional methods) =====//
-    double (Monte_Carlo_Core::*_get_param_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
+    double (Monte_Carlo_Core::*_func_get_param_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
     double _get_param_default_(const std::string &parID) const { return params.at(parID).get_value(); };
     double _get_param_assert_(const std::string &parID) const;
 
     //===== get param pointer (functional methods) =====//
-    const double *(Monte_Carlo_Core::*_get_param_pointer_method_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
+    const double *(Monte_Carlo_Core::*_func_get_param_pointer_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
     const double *_get_param_pointer_default_(const std::string &parID) const { return params.at(parID).get_pointer(); }
     const double *_get_param_pointer_assert_(const std::string &parID) const;
 
@@ -180,7 +180,7 @@ private:
     // FIXME : this should change if Rcpp according to developer guides
     sys_rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
     std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
-    sys_rnd_gen &(Monte_Carlo_Core::*_prng_method_)();
+    sys_rnd_gen &(Monte_Carlo_Core::*_func_prng_)();
     sys_rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
     unsigned _max_num_available_threads = 1;

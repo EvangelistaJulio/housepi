@@ -45,9 +45,11 @@ public:
     std::map<std::string, std::string> _report_pathtofile_;
 
     //===== Augmented Variables =====//            
-    std::unordered_set<std::string> augm_varia_list_full = {};
-    std::map<int, std::unordered_set<std::string>> augm_varia_list_infer = {};
-    std::map<int, std::unordered_set<std::string>> augm_varia_list_model = {};
+    std::unordered_set<std::string> augm_list_full = {};
+    std::unordered_set<std::string> augm_list_infer = {};
+    std::unordered_set<std::string> augm_list_model = {};
+    std::map<int, std::unordered_set<std::string>> augm_status_map_infer = {};
+    std::map<int, std::unordered_set<std::string>> augm_status_map_model = {};
     bool is_augm_infer = false;
     bool is_augm_model = false;
 
@@ -127,10 +129,15 @@ public:
     void dgn_glob_ll_stats(double &avg, double &var) const;
 
 	//----- Metropolis : augmented moves -----//
-	double compute_augm_model_loglike(const Household &this_house) const { return (this->*_augm_model_loglike_method_)(this_house); }
-	double (Monte_Carlo_Build::*_augm_model_loglike_method_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
+	double compute_augm_model_loglike(const Household &this_house) const { return (this->*_func_augm_model_loglike_)(this_house); }
+	
+    double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
 	double _no_augm_model_loglike_(const Household &this_house) const;
 	double _augm_model_loglike_(const Household &this_house) const;
+
+    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Individual &, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
+	void _augm_model_by_status_(const Individual &this_indiv, double &delta) const;
+	void _augm_model_generic_(const Individual &this_indiv, double &delta) const;
 
 private:
     //===== Pointer to Core =====//

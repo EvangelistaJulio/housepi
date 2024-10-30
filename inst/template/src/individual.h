@@ -84,23 +84,22 @@ private:
 	void assert_augm(const std::string &augmID) const;
 
 	//===== Setter (auxiliary methods) =====//
-	void (Individual::*_set_augm_method_)(const std::string &, double) = &Individual::_set_augm_assert_;
+	void (Individual::*_func_set_augm_)(const std::string &, double) = &Individual::_set_augm_assert_;
 	void _set_augm_assert_(const std::string &augmID, double new_value);
 	void _set_augm_default_(const std::string &augmID, double new_value);
 
 	//===== Getter (auxiliary methods) =====//
-	double (Individual::*_get_augm_method_)(const std::string &) const = &Individual::_get_augm_assert_;
+	double (Individual::*_func_get_augm_)(const std::string &) const = &Individual::_get_augm_assert_;
 	double _get_augm_assert_(const std::string &augmID) const;
 	double _get_augm_default_(const std::string &augmID) const;
 
-	double (Individual::*_get_data_method_)(const std::string &) const = &Individual::_get_data_assert_;
+	double (Individual::*_func_get_data_)(const std::string &) const = &Individual::_get_data_assert_;
 	double _get_data_assert_(const std::string &dataID) const;
 	double _get_data_default_(const std::string &dataID) const;
 
-	const double *(Individual::*_get_data_pointer_method_)(const std::string &) const = &Individual::_get_data_pointer_assert_;
+	const double *(Individual::*_func_get_data_pointer_)(const std::string &) const = &Individual::_get_data_pointer_assert_;
 	const double *_get_data_pointer_assert_(const std::string &dataID) const;
 	const double *_get_data_pointer_default_(const std::string &dataID) const;
-
 };
 
 #endif // INDIVIDUAL__H

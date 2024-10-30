@@ -52,14 +52,10 @@ protected:
 	void set_truncation(const dictargs &range);
 	void check_rand_attempts(int &num_attempts) const;
 
-	double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
-	double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
-
-	double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
-	double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
-
-	double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
-	double _shift_(double x) const { return (this->*_shift_method_)(x); }
+	//----- Functional methods for truncation -----//
+	double (Base_Distribution::*_func_trunc_)(double) const = &Base_Distribution::_trunc_dummy_;
+	double (Base_Distribution::*_func_logtrunc_)(double) const = &Base_Distribution::_logtrunc_dummy_;
+	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
 
 private:
 	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;

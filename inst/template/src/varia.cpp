@@ -18,9 +18,18 @@
 /////////////////////////////  Base Distribution : methods  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Base_Distribution::pdf(double x) const { return _trunc_(_pdf_(x)); }
-double Base_Distribution::cdf(double x) const { return _trunc_(_shift_(_cdf_(x))); }
-double Base_Distribution::logpdf(double x) const { return _logtrunc_(_logpdf_(x)); }
+double Base_Distribution::pdf(double x) const
+{
+    return (this->*_func_trunc_)(_pdf_(x));
+}
+double Base_Distribution::cdf(double x) const
+{
+    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x)));
+}
+double Base_Distribution::logpdf(double x) const
+{
+    return (this->*_func_logtrunc_)(_logpdf_(x));
+}
 
 double Base_Distribution::logratio(double xold, double xnew) const
 {
@@ -53,27 +62,27 @@ void Base_Distribution::set_truncation(const dictargs &range)
     int trunc_cases = set_range(range);
     if (trunc_cases == 0) // no truncation
     {
-        _trunc_method_ = &Base_Distribution::_trunc_dummy_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_dummy_;
-        _shift_method_ = &Base_Distribution::_shift_dummy_;
+        _func_trunc_ = &Base_Distribution::_trunc_dummy_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_dummy_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
     }
     else if (trunc_cases == 1) // lower range truncation
     {
-        _trunc_method_ = &Base_Distribution::_trunc_min_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_min_;
-        _shift_method_ = &Base_Distribution::_shift_min_;
+        _func_trunc_ = &Base_Distribution::_trunc_min_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_min_;
+        _func_shift_ = &Base_Distribution::_shift_min_;
     }
     else if (trunc_cases == 2) // upper range truncation
     {
-        _trunc_method_ = &Base_Distribution::_trunc_max_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_max_;
-        _shift_method_ = &Base_Distribution::_shift_dummy_;
+        _func_trunc_ = &Base_Distribution::_trunc_max_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_max_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
     }
     else // both sides truncation
     {
-        _trunc_method_ = &Base_Distribution::_trunc_both_sides_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_both_sides_;
-        _shift_method_ = &Base_Distribution::_shift_dummy_;
+        _func_trunc_ = &Base_Distribution::_trunc_both_sides_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
     }
 }
 
@@ -178,15 +187,15 @@ void Base_Proposer::update_accept_rate(bool is_accepted)
 class Uniform_Proposer : public Base_Proposer
 {
 public:
-	//=====Constructors=====//
-	Uniform_Proposer(
-		dictargs rule_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
-		double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("unif", rule_args), rule_from, {"min", "max"})
-	{
-		_propose_method_ = &Uniform_Proposer::_propose_sum_to_previous_;
-		_logratio_method_ = &Uniform_Proposer::_logratio_symm_;
-	}
-	~Uniform_Proposer() {}
+    //=====Constructors=====//
+    Uniform_Proposer(
+        dictargs rule_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("unif", rule_args), rule_from, {"min", "max"})
+    {
+        _propose_method_ = &Uniform_Proposer::_propose_sum_to_previous_;
+        _logratio_method_ = &Uniform_Proposer::_logratio_symm_;
+    }
+    ~Uniform_Proposer() {}
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -196,15 +205,15 @@ public:
 class Normal_Proposer : public Base_Proposer
 {
 public:
-	//=====Constructor=====//
-	Normal_Proposer(
-		dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("norm", rule_args), rule_from, {1})
-	{
-		_propose_method_ = &Normal_Proposer::_propose_sum_to_previous_;
-		_logratio_method_ = is_rule_start_from_zero() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
-	}
-	~Normal_Proposer() {}
+    //=====Constructor=====//
+    Normal_Proposer(
+        dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("norm", rule_args), rule_from, {1})
+    {
+        _propose_method_ = &Normal_Proposer::_propose_sum_to_previous_;
+        _logratio_method_ = is_rule_start_from_zero() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
+    }
+    ~Normal_Proposer() {}
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -214,15 +223,15 @@ public:
 class Lognorm_Proposer : public Base_Proposer
 {
 public:
-	//=====Constructor=====//
-	Lognorm_Proposer(
-		dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-		double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("lnorm", rule_args), rule_from, {1})
-	{
-		_propose_method_ = &Lognorm_Proposer::_propose_times_previous_;
-		_logratio_method_ = is_rule_start_from_zero() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
-	}
-	~Lognorm_Proposer() {}
+    //=====Constructor=====//
+    Lognorm_Proposer(
+        dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("lnorm", rule_args), rule_from, {1})
+    {
+        _propose_method_ = &Lognorm_Proposer::_propose_times_previous_;
+        _logratio_method_ = is_rule_start_from_zero() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
+    }
+    ~Lognorm_Proposer() {}
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,13 +241,13 @@ public:
 class Gibbs_Proposer : public Base_Proposer
 {
 public:
-	//=====Constructor=====//
-	Gibbs_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
-	{
-		_propose_method_ = &Gibbs_Proposer::_propose_draw_rand_;
-		_logratio_method_ = &Gibbs_Proposer::_logratio_pdf_;
-	}
-	~Gibbs_Proposer() {}
+    //=====Constructor=====//
+    Gibbs_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
+    {
+        _propose_method_ = &Gibbs_Proposer::_propose_draw_rand_;
+        _logratio_method_ = &Gibbs_Proposer::_logratio_pdf_;
+    }
+    ~Gibbs_Proposer() {}
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -267,7 +276,8 @@ Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, d
     }
     else if (!tools::is_na(rule_name))
     {
-        throw std::invalid_argument("Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
+        throw std::invalid_argument(
+            "Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
     }
 
     return output;

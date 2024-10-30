@@ -136,15 +136,6 @@ bool Household::change_status(int i, int new_status)
 	}
 }
 
-/* Set all infectious statuses to standard. */
-void Household::standardize_infectious_status()
-{
-	for (int i: infectious_set)
-	{
-		indiv[i].set_status(INFECTIOUS);
-	}
-}
-
 /* Initializes matrix of contact rates. */
 void Household::init_contact_matrix()
 {

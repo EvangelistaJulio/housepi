@@ -56,24 +56,24 @@ void Individual::set_rate(const std::string &rateID, const double *x) { this->ra
 /* Disable data and augmented variable assertions. */
 void Individual::disable_assert()
 {
-	_set_augm_method_ = &Individual::_set_augm_default_;
-	_get_augm_method_ = &Individual::_get_augm_default_;
-	_get_data_method_ = &Individual::_get_data_default_;
-	_get_data_pointer_method_ = &Individual::_get_data_pointer_default_;
+	_func_set_augm_ = &Individual::_set_augm_default_;
+	_func_get_augm_ = &Individual::_get_augm_default_;
+	_func_get_data_ = &Individual::_get_data_default_;
+	_func_get_data_pointer_ = &Individual::_get_data_pointer_default_;
 }
 
 //===== GETTER =====//
 std::string Individual::get_ID() const { return this->ID; }
 int Individual::get_status() const { return this->status; }
-double Individual::get_data(const std::string &dataID) const { return (this->*_get_data_method_)(dataID); }
-const double *Individual::get_data_pointer(const std::string &dataID) const { return (this->*_get_data_pointer_method_)(dataID); }
+double Individual::get_data(const std::string &dataID) const { return (this->*_func_get_data_)(dataID); }
+const double *Individual::get_data_pointer(const std::string &dataID) const { return (this->*_func_get_data_pointer_)(dataID); }
 double Individual::get_group_rate(const std::string &rateID) const { return *this->rate_ptr.at(rateID); }
 std::unordered_map<std::string, std::string> Individual::get_group_rate_map() const { return this->_which_rate_; }
 
 //===== AUGMENTED VARIABLES =====//
 
 //---- Getter -----//
-double Individual::get_augm(const std::string &augmID) const { return (this->*_get_augm_method_)(augmID); }
+double Individual::get_augm(const std::string &augmID) const { return (this->*_func_get_augm_)(augmID); }
 double Individual::augm_model_logpdf(const std::string &augmID) const { return this->augm_var.at(augmID).distr_logpdf(); }
 double Individual::augm_model_logratio(const std::string &augmID) const { return this->augm_var.at(augmID).distr_logratio(); }
 double Individual::augm_propose_logratio(const std::string &augmID) const { return this->augm_var.at(augmID).propose_logratio(); }

@@ -185,7 +185,8 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     {
                         if (tools::is_na(datatable.at("id")[i]))
                         {
-                            throw std::invalid_argument("Missing id for individual in row n." + std::to_string(i + 2) + ".");
+                            throw std::invalid_argument(
+                                "Missing id for individual in row n." + std::to_string(i + 2) + ".");
                         }
                         else
                         {
@@ -196,7 +197,8 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     {
                         if (tools::is_na(datatable.at("house_id")[i]))
                         {
-                            throw std::invalid_argument("Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
+                            throw std::invalid_argument(
+                                "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
                         }
                         else
                         {
@@ -281,7 +283,8 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
             std::string rateID = pair.first;
             if (rateID == CONTACT_RATE)
             {
-                throw std::invalid_argument("The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
+                throw std::invalid_argument(
+                    "The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
             }
 
             std::string parID = pair.second;
@@ -349,7 +352,8 @@ void MCMC::set_rate_per_contact(Household &this_house)
             // all household must have a contact rate
             if (pImpl->_report_group_classes_.find(CONTACT_RATE) == pImpl->_report_group_classes_.end())
             {
-                throw std::invalid_argument("Contact rate has not been provided for all households.");
+                throw std::invalid_argument(
+                    "Contact rate has not been provided for all households.");
             }
         }
 
@@ -470,7 +474,7 @@ void MCMC::move_single_param(const std::string &parID)
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (pImpl->propose_valid_param_move(parID))
     {
-        if (metropolis_param_move(parID))
+        if ((this->*_func_param_metropolis_)(parID))
         {
             is_accepted = true;
         }
@@ -570,15 +574,16 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 /* Initialize augmented dependecies for all households. */
 void MCMC::init_augmented_variables()
 {
-    if (pImpl->augm_varia_list_full.empty())
+    if (!pImpl->augm_list_full.empty())
     {
-        _move_augm_method_ = &MCMC::_move_no_augm_;
-    }
-    else
-    {        
         if (pImpl->is_augm_infer)
         {
-            _move_augm_method_ = &MCMC::_move_all_augm_;
+            _func_move_all_augm_ = &MCMC::_move_all_augm_;
+
+            if (!pImpl->augm_list_infer.empty())
+            {
+                _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
+            }
         }
 
         for (size_t H = 0; H < get_num_house(); ++H)
@@ -606,7 +611,7 @@ void MCMC::_move_all_augm_()
         }
         try
         {
-            delta_ll += move_single_house_augm(house(H));
+            delta_ll += move_augm_single_house(house(H));
         }
         catch (const std::exception &e)
         {
@@ -630,78 +635,63 @@ void MCMC::_move_all_augm_()
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Set inverse temperature and its relative functional methods. */
-void MCMC::update_inver_temper(double inv_T)
-{
-    if ((inv_T < 0.) || (inv_T > 1.))
-    {
-        std::ostringstream oss;
-        oss << "Inverse temperature " << inv_T << " out of range [0, 1].";
-        throw std::range_error(oss.str());
-    }
-    else if (inv_T == 1.0)
-    {
-        pImpl->set_inv_T(1.0);
-        _param_metropolis_method_ = &MCMC::_param_metropolis_1_;
-        _augm_metropolis_method_ = &MCMC::_augm_metropolis_1_;
-    }
-    else if (inv_T == 0.0)
-    {
-        pImpl->set_inv_T(0.0);
-        _param_metropolis_method_ = &MCMC::_param_metropolis_0_;
-        _augm_metropolis_method_ = &MCMC::_augm_metropolis_0_;
-    }
-    else
-    {
-        pImpl->set_inv_T(inv_T);
-        _param_metropolis_method_ = &MCMC::_param_metropolis_T_;
-        _augm_metropolis_method_ = &MCMC::_augm_metropolis_T_;
-    }
-}
-
 /* Move augmented variables for infectious members of a single household.
 The move is performed one member at a time, one augmented variable at a time.
 */
-double MCMC::move_single_house_augm(Household &this_house)
+double MCMC::move_augm_single_house(Household &this_house)
 {
     double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
     for (const int &i : this_house.get_infectious_set())
     {
-        Individual &this_indiv = this_house.indiv[i];
-
-        // Loop over augmented variables of infectious
-        for (const std::string &augmID : pImpl->augm_varia_list_infer.at(this_indiv.get_status()))
-        {
-            // proceed only if the new value is consistent
-            if (this_indiv.propose_valid_augm_move(augmID, pImpl->get_prng()))
-            {
-                // update dependencies to perform computations
-                update_augm_dependecies(this_house, i);
-                // update house loglikelihood
-                this_house.set_loglike(compute_house_loglike(this_house));
-
-                // Metropolis-Hasting algorithm
-                if (!metropolis_augm_move(this_house, i, augmID, delta_global_loglike))
-                {
-                    // restore value and its dependencies
-                    this_indiv.augm_restore_value(augmID);
-                    update_augm_dependecies(this_house, i);
-                    this_house.restore_loglike();
-                }
-            }
-        }
+        (this->*_func_move_augm_indiv_)(this_house, i, delta_global_loglike);
     }
 
     return delta_global_loglike;
+}
+
+/* Generic move augmented variables one by one. */
+void MCMC::_move_augm_indiv_generic_(Household &this_house, int i, double &delta)
+{
+    // Loop over augmented variables of infectious
+    for (const std::string &augmID : pImpl->augm_list_infer)
+    {
+        metropolis_augm_single_move(this_house, i, augmID, delta);
+    }
+}
+
+/* Move augmented variables by status one variable at a time. */
+void MCMC::_move_augm_indiv_by_status_(Household &this_house, int i, double &delta)
+{
+    // Loop over augmented variables of infectious
+    for (const std::string &augmID : pImpl->augm_status_map_infer.at(this_house.indiv[i].get_status()))
+    {
+        metropolis_augm_single_move(this_house, i, augmID, delta);
+    }
+}
+
+/* Take care of a a single augmented Metropolis move. */
+void MCMC::metropolis_augm_single_move(Household &this_house, int i, const std::string &augmID, double &delta)
+{
+    // proceed only if the new value is consistent
+    if (this_house.indiv[i].propose_valid_augm_move(augmID, pImpl->get_prng()))
+    {
+        // update dependencies to perform computations
+        update_augm_dependecies(this_house, i);
+
+        // update house loglikelihood and store old value in buffer
+        this_house.set_loglike(compute_house_loglike(this_house));
+
+        // Metropolis-Hasting algorithm
+        if (!(this->*_func_augm_metropolis_)(this_house, i, augmID, delta))
+        {
+            // restore value and its dependencies
+            this_house.indiv[i].augm_restore_value(augmID);
+            update_augm_dependecies(this_house, i);
+            this_house.restore_loglike();
+        }
+    }
 }
 
 /* Metropolis algorithm for single augmented variable move (default, inverse temperature 1). */
@@ -851,7 +841,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
         {
             for (ulong t = 1; t <= pImpl->get_thinning(); ++t)
             {
-                move_all_augm_variables();
+                (this->*_func_move_all_augm_)();
                 move_and_adapt_all_parameters(i + t);
             }
             ++sweep;
@@ -867,7 +857,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
         {
             for (ulong t = 1; t <= pImpl->get_thinning(); ++t)
             {
-                move_all_augm_variables();
+                (this->*_func_move_all_augm_)();
                 move_all_parameters();
             }
             ++sweep;
@@ -884,7 +874,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
             // thinning mcmc moves
             for (ulong t = 1; t <= pImpl->get_thinning(); ++t)
             {
-                move_all_augm_variables();
+                (this->*_func_move_all_augm_)();
                 move_all_parameters();
             }
             ++sweep;
@@ -921,6 +911,41 @@ void MCMC::infer(bool progbar)
 
     //----- Close progress bar -----//
     tools::progress_bar_end("end", progbar);
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Set inverse temperature and its relative functional methods. */
+void MCMC::update_inver_temper(double inv_T)
+{
+    if ((inv_T < 0.) || (inv_T > 1.))
+    {
+        throw std::range_error(
+            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
+    }
+    else if (inv_T == 1.0)
+    {
+        pImpl->set_inv_T(1.0);
+        _func_param_metropolis_ = &MCMC::_param_metropolis_1_;
+        _func_augm_metropolis_ = &MCMC::_augm_metropolis_1_;
+    }
+    else if (inv_T == 0.0)
+    {
+        pImpl->set_inv_T(0.0);
+        _func_param_metropolis_ = &MCMC::_param_metropolis_0_;
+        _func_augm_metropolis_ = &MCMC::_augm_metropolis_0_;
+    }
+    else
+    {
+        pImpl->set_inv_T(inv_T);
+        _func_param_metropolis_ = &MCMC::_param_metropolis_T_;
+        _func_augm_metropolis_ = &MCMC::_augm_metropolis_T_;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

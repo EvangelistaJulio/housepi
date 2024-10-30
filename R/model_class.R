@@ -77,6 +77,47 @@ HouseholdModelClass <- R6::R6Class(
     },
     
     # @description
+    # Setup the list of configurations for the different analysis.
+    # @param seed (`integer(1)`)\cr
+    # Seed of the random number generator.
+    # @param num_iter (`integer(1)`)\cr
+    # Number of iterations.
+    # @param burn_in (`integer(1)`)\cr
+    # Number of iterations to discard.
+    # @param thinning (`integer(1)`)\cr
+    # Name of the parameter.
+    # @param num_chains (`integer(1)`)\cr
+    # Name of the parameter.
+    # @param num_adapt (`integer(1)`)\cr
+    # Name of the parameter.
+    # @param num_threads (`integer(1)`)\cr
+    # Name of the parameter.
+    # @param rnd_init_params (`logical(1)`)\cr
+    # Name of the parameter.
+    # @param inv_temper (`double(1)`)\cr
+    # Name of the parameter.
+    setup.list = function(seed = NA,
+                          num_iter = 1000,
+                          burn_in = 0,
+                          thinning = 1,
+                          num_chains = 1,
+                          num_adapt = 0,
+                          num_threads = 1,
+                          rnd_init_params = TRUE,
+                          inv_temper = 1.0) {
+      private$setup[["seed"]] <- seed
+      private$setup[["num_iter"]] <- num_iter
+      private$setup[["burn_in"]] <- burn_in
+      private$setup[["thinning"]] <- thinning
+      private$setup[["num_chains"]] <- num_chains
+      private$setup[["num_adapt"]] <- num_adapt
+      private$setup[["num_threads"]] <- num_threads
+      private$setup[["rnd_init_params"]] <- rnd_init_params
+      private$setup[["inv_temper"]] <- inv_temper
+      invisible(self)
+    },
+    
+    # @description
     # Add a new parameter definition.
     # @param name (`character(1)`)\cr
     # Name of the parameter.
@@ -402,7 +443,7 @@ HouseholdModelClass <- R6::R6Class(
       # assign the model object
       private$obj <- m$ModelHousepi$new()
       # assign the empty setup list
-      self$setup.clear()
+      private$setup <- list()
       # assign the empty parameter data.frame
       self$param.clear()
       # assign the empty augmented data.frame
@@ -432,13 +473,13 @@ HouseholdModelClass <- R6::R6Class(
     #' Estimate the loglikelihood for the given parameters.
     #' @param data (`character(1)` | `data.frame`)\cr
     #' Path to a csv data file or a data.frame.
-    #' @param ... 
-    #' further arguments passed to  \code{setup.list}.
+    #' @param ...
+    #' further arguments passed to \code{setup}.
     #' @return (`double(1)`)\cr
     #' The value of the loglikelihood.
     loglikelihood = function(data = NULL, ...) {
       # assign setup
-      do.call(self$setup.list, list(...))
+      do.call(private$setup.list, list(...))
       # internal build function
       private$build(data = data)
       # evaluate marginal from the internal Rcpp object
@@ -451,10 +492,10 @@ HouseholdModelClass <- R6::R6Class(
     #' Path to a csv data file or a data.frame.
     #' @param progbar (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
-    #' @param ... further arguments passed to \code{setup.list}.
+    #' @param ... further arguments passed to \code{setup}.
     infer = function(data = NULL, progbar = TRUE, ...) {
       # assign setup
-      do.call(self$setup.list, list(...))
+      do.call(private$setup.list, list(...))
       # internal build function
       private$build(data = data)
       # infer method from cpp model object
@@ -554,11 +595,11 @@ HouseholdModelClass <- R6::R6Class(
     #' Path to a csv data file or a data.frame.
     #' @param progbar (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
-    #' @param ... further arguments passed to \code{setup.list}.
+    #' @param ... further arguments passed to \code{setup}.
     #' Named build options.
     simulate = function(data = NULL, progbar = TRUE, ...) {
       # assign setup
-      do.call(self$setup.list, list(...))
+      do.call(private$setup.list, list(...))
       # internal build function
       private$build(data = data)
       # simulate method from internal Rcpp object
@@ -615,14 +656,14 @@ HouseholdModelClass <- R6::R6Class(
     #' If `FALSE` suppress the simulation progress bar.
     #' @return (`double(1)`)\cr
     #' The value of the model evidence.
-    #' @param ... further arguments passed to  \code{setup.list}.
+    #' @param ... further arguments passed to  \code{setup}.
     evidence = function(data = NULL,
                         num_rungs = 40,
                         adaptive = TRUE,
                         progbar = TRUE,
                         ...) {
       # assign setup
-      do.call(self$setup.list, list(...))
+      do.call(private$setup.list, list(...))
       # internal build function
       private$build(data = data)
       # evaluate marginal from the internal Rcpp object
@@ -630,60 +671,6 @@ HouseholdModelClass <- R6::R6Class(
       # drop traces
       private$traces.frame <- NULL
       return(output)
-    },
-    
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    
-    #' @description
-    #' Clear all current setup definitions.
-    setup.clear = function() {
-      private$setup <- list()
-      invisible(self)
-    },
-    
-    #' @description
-    #' Setup the list of configurations for the different analysis.
-    #' @param seed (`integer(1)`)\cr
-    #' Seed of the random number generator.
-    #' @param num_iter (`integer(1)`)\cr
-    #' Number of iterations.
-    #' @param burn_in (`integer(1)`)\cr
-    #' Number of iterations to discard.
-    #' @param thinning (`integer(1)`)\cr
-    #' Name of the parameter.
-    #' @param num_chains (`integer(1)`)\cr
-    #' Name of the parameter.
-    #' @param num_adapt (`integer(1)`)\cr
-    #' Name of the parameter.
-    #' @param num_threads (`integer(1)`)\cr
-    #' Name of the parameter.
-    #' @param rnd_init_params (`logical(1)`)\cr
-    #' Name of the parameter.
-    #' @param inv_temper (`double(1)`)\cr
-    #' Name of the parameter.
-    setup.list = function(seed = NA,
-                          num_iter = 1000,
-                          burn_in = 0,
-                          thinning = 1,
-                          num_chains = 1,
-                          num_adapt = 0,
-                          num_threads = 1,
-                          rnd_init_params = TRUE,
-                          inv_temper = 1.0) {
-      private$setup[["seed"]] <- seed
-      private$setup[["num_iter"]] <- num_iter
-      private$setup[["burn_in"]] <- burn_in
-      private$setup[["thinning"]] <- thinning
-      private$setup[["num_chains"]] <- num_chains
-      private$setup[["num_adapt"]] <- num_adapt
-      private$setup[["num_threads"]] <- num_threads
-      private$setup[["rnd_init_params"]] <- rnd_init_params
-      private$setup[["inv_temper"]] <- inv_temper
-      invisible(self)
     },
     
     ############################################################################

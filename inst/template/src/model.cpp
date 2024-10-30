@@ -17,11 +17,13 @@
 /* Raise error for undefined model usage. */
 void Model::init_model_for_inference()
 {
-	tools::warning("Attempt to compute the likelihood with undefined model (developer only).");
+	tools::warning(
+		"Attempt to compute the likelihood with undefined model (developer only).");
 }
 
 /* Raise error for undefined model usage. */
 void Model::init_model_for_simulation()
 {
-	tools::warning("Attempt to perform simulation with undefined model (developer only).");
+	tools::warning(
+		"Attempt to perform simulation with undefined model (developer only).");
 }

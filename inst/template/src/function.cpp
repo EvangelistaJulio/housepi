@@ -30,11 +30,11 @@ public:
     void assign_ptr_mode();
 
     //===== Getter =====//
-    bool valid(double x) const { return (this->*_valid_range_method_)(x); }
-    double get_arg(int i) const { return (this->*_get_arg_method_)(i); }
+    bool valid(double x) const { return (this->*_func_valid_range_)(x); }
+    double get_arg(int i) const { return (this->*_func_get_arg_)(i); }
 
     //===== Setter (for internal arguments) =====//
-    void set_arg(int i, double new_value) { (this->*_set_arg_method_)(i, new_value); }
+    void set_arg(int i, double new_value) { (this->*_func_set_arg_)(i, new_value); }
 
     //===== Show =====//
     std::string show_arg_names() const;
@@ -53,14 +53,14 @@ public:
 
 private:
     //===== Argument getter : functional methods =====//
-    double (Base_Function_Impl::*_get_arg_method_)(int) const;
+    double (Base_Function_Impl::*_func_get_arg_)(int) const;
     double _get_arg_val_(int i) const { return _args_val_[i]; }
     double _get_arg_ptr_(int i) const { return *(_args_ptr_[i]); }
 
     //===== Argument setter : functional methods =====//
     // note : the set_arg is only used for the adaptive
     // for this reason a pointer argument can't be set, but just assigned
-    void (Base_Function_Impl::*_set_arg_method_)(int, double);
+    void (Base_Function_Impl::*_func_set_arg_)(int, double);
     void _set_arg_val_(int i, double new_value) { _args_val_[i] = new_value; }
     void _set_arg_ptr_(int i, double new_value)
     {
@@ -76,7 +76,7 @@ private:
     double _range_max_ = INF_DOUBLE;  // init to +infty
 
     // alternative valid range methods
-    bool (Base_Function_Impl::*_valid_range_method_)(double) const = &Base_Function_Impl::_valid_range_always_;
+    bool (Base_Function_Impl::*_func_valid_range_)(double) const = &Base_Function_Impl::_valid_range_always_;
     bool _valid_range_always_(double x) const
     {
         UNUSED(x);
@@ -95,18 +95,18 @@ private:
 void Base_Function_Impl::assign_val_mode()
 {
     // assign getter
-    _get_arg_method_ = &Base_Function_Impl::_get_arg_val_;
+    _func_get_arg_ = &Base_Function_Impl::_get_arg_val_;
     // assign setter
-    _set_arg_method_ = &Base_Function_Impl::_set_arg_val_;
+    _func_set_arg_ = &Base_Function_Impl::_set_arg_val_;
 }
 
 /* Assign argument getter and setter for pointer mode. */
 void Base_Function_Impl::assign_ptr_mode()
 {
     // assign getter
-    _get_arg_method_ = &Base_Function_Impl::_get_arg_ptr_;
+    _func_get_arg_ = &Base_Function_Impl::_get_arg_ptr_;
     // assign setter
-    _set_arg_method_ = &Base_Function_Impl::_set_arg_ptr_;
+    _func_set_arg_ = &Base_Function_Impl::_set_arg_ptr_;
 }
 
 /* Overload assignment of non default POINTER arguments. */
@@ -260,19 +260,19 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
     if ((!is_new_min) && (!is_new_max))
     {
         output = 0;
-        _valid_range_method_ = &Base_Function_Impl::_valid_range_always_;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_always_;
     }
     else if ((is_new_min) && (!is_new_max))
     {
         output = 1;
         _range_min_ = min_val;
-        _valid_range_method_ = &Base_Function_Impl::_valid_range_min_;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_min_;
     }
     else if ((!is_new_min) && (is_new_max))
     {
         output = 2;
         _range_max_ = max_val;
-        _valid_range_method_ = &Base_Function_Impl::_valid_range_max_;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_max_;
     }
     else // ((is_new_min) && (is_new_max))
     {
@@ -287,7 +287,7 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         {
             _range_min_ = min_val;
             _range_max_ = max_val;
-            _valid_range_method_ = &Base_Function_Impl::_valid_range_both_;
+            _func_valid_range_ = &Base_Function_Impl::_valid_range_both_;
         }
     }
 
