@@ -72,6 +72,11 @@ constexpr int MAX_NUMBER_ATTEMPTS = 50;            // max n. of attempts for ini
 constexpr double TARGET_ACCEPT_RATE = 0.234;       // target acceptation rate for MCMC
 const std::string IO_MISMATCH = "__io_mismatch__"; // mismatch in type/key/val dictionary
 
+// status aliases
+constexpr int INFECTIOUS = 1;	   // status of infectious (>=)
+constexpr int SUSCEPTIBLE = 0;	   // status of susceptible (==)
+constexpr int MISSING_STATUS = -1; // missing status (==)
+
 // group rates
 const std::string REFERENCE = "__reference__"; // name for reference choice
 const std::string CONTACT_RATE = "Contact";    // name for Contact rate

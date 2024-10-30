@@ -175,7 +175,7 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	int hh_first_case = i;
 
 	//----- Update Lookup Tables for infectious -----//
-	for (int k : this_house.infectious_set)
+	for (int k : this_house.get_infectious_set())
 	{
 		if (k != i)
 		{
@@ -212,7 +212,7 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	//===============================//
 
 	t_infec_k = this_house.indiv[hh_first_case].get_augm("onset_date") + get_param("study_period");
-	for (int k : this_house.susceptible_set)
+	for (int k : this_house.get_susceptible_set())
 	{
 		LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k, this_indiv);
 	}
@@ -241,7 +241,7 @@ double Model::foi(const Household &this_house, int i, const std::vector<squarema
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (int k : this_house.infectious_set)
+	for (int k : this_house.get_infectious_set())
 	{
 		if (k != i)
 		{
@@ -265,13 +265,13 @@ double Model::compute_house_loglike(const Household &this_house) const
 	double loglike_house = 0.0;
 
 	// Contribution of healthy members
-	for (int i : this_house.susceptible_set)
+	for (int i : this_house.get_susceptible_set())
 	{
 		loglike_house -= foi(this_house, i, LUT_cumul_prof);
 	}
 
 	// Contribution of symptomatic members
-	for (int i : this_house.infectious_set)
+	for (int i : this_house.get_infectious_set())
 	{
 		// Contribution of secondary cases
 		if (i != LUT_hh_first_case[h])
@@ -328,7 +328,7 @@ void Model::simulate_single_house(Household &this_house)
 	double tf = t + get_param("study_period");
 
 	// onset of secondary cases following the first case
-	while ((t < tf) && (this_house.num_susceptible > 0))
+	while ((t < tf) && (this_house.get_num_susceptible() > 0))
 	{
 		t += Dt;
 		for (int i = 0; i < this_house.size(); i++)
@@ -337,7 +337,7 @@ void Model::simulate_single_house(Household &this_house)
 			{
 				// set new status for computations
 				this_house.change_status(i, INFECTIOUS);
-				this_house.indiv[i].set_augm("onset_date", t);
+				this_house.indiv[i].set_augm_value("onset_date", t);
 				update_augm_dependecies(this_house, i);
 
 				// restore status id escaped infection
@@ -350,7 +350,7 @@ void Model::simulate_single_house(Household &this_house)
 	}
 
 	// remove augmented of susceptibles
-	for (int i : this_house.susceptible_set)
+	for (int i : this_house.get_susceptible_set())
 	{
 		clear_augm(this_house.indiv[i]);
 	}

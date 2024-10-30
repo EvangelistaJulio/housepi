@@ -74,14 +74,14 @@ hemi_1$augm.append(
     args = list(min = "exposure_min@D",  # within the range 'exposure_min' 
                 max = "exposure_max@D"), # and 'exposure_max'
     rule = "norm",                       # normal rule for the Monte Carlo
-    rule_args = list(sd = 0.25)          # with a std. dev. of 0.25
+    rule_args = list(sd = 0.5)          # with a std. dev. of 0.25
   ),
   
   # define 'onset' time
   onset = list(
     x = "onset_max@D",
     model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
-    rule = "norm", rule_args = list(sd = 0.25)
+    rule = "norm", rule_args = list(sd = 0.5)
   )
 )
 ```
@@ -237,5 +237,5 @@ We can estimate the model evidence (or marginal loglikelihood) with the method o
 
 ```{r, eval=FALSE}
 # return the estimate of the model evidence
-chabi$evidence(num_rungs = 30)
+hemi_2$evidence(num_rungs = 30)
 ```

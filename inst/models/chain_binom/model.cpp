@@ -68,12 +68,12 @@ void Model::init_model_for_inference()
 double Model::compute_house_loglike(const Household &this_house) const
 {
 	int hh_size = this_house.size();
-	int n_positive = this_house.num_infectious;
+	int n_positive = this_house.get_num_infectious();
 
 	double log_commu_esc_proba = -community_risk_of_infection();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
 	double log_p2p_esc_proba = -hazard_of_infection();
-	
+
 	double log_likelihood = 0.;
 
 	//================================================//
@@ -161,9 +161,9 @@ void Model::simulate_single_house(Household &this_house)
 	//==============================================================//
 
 	int num_old_gen = 0;
-	int num_new_gen = this_house.num_infectious;
+	int num_new_gen = this_house.get_num_infectious();
 
-	while ((this_house.num_susceptible > 0) && (num_new_gen > 0))
+	while ((this_house.get_num_infectious() > 0) && (num_new_gen > 0))
 	{
 		num_old_gen = num_new_gen;
 		num_new_gen = 0;

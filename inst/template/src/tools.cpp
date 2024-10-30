@@ -506,29 +506,37 @@ namespace tools
                         std::map<std::string, std::vector<std::string>> &csv_parsed_table,
                         const std::vector<std::string> &required_headers)
     {
-        if (!is_na(pathtofile))
+        try
         {
-            std::ifstream input(pathtofile.c_str());
-
-            if (input.is_open())
+            if (!is_na(pathtofile))
             {
-                std::vector<std::string> headers = read_column_headers(input, required_headers);
-                std::map<std::string, std::string> this_row = {};
+                std::ifstream input(pathtofile.c_str());
 
-                csv_parsed_table.clear(); // FIXME: is this correct?
-                while (read_row_by_headers(input, headers, this_row))
+                if (input.is_open())
                 {
-                    for (const auto &x : this_row)
+                    std::vector<std::string> headers = read_column_headers(input, required_headers);
+                    std::map<std::string, std::string> this_row = {};
+
+                    csv_parsed_table.clear(); // FIXME: is this correct?
+                    while (read_row_by_headers(input, headers, this_row))
                     {
-                        csv_parsed_table[x.first].push_back(x.second);
+                        for (const auto &x : this_row)
+                        {
+                            csv_parsed_table[x.first].push_back(x.second);
+                        }
+                        this_row.clear();
                     }
-                    this_row.clear();
+                }
+                else
+                {
+                    throw std::runtime_error(
+                        "Impossible to open file '" + pathtofile + "'.");
                 }
             }
-            else
-            {
-                throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
-            }
+        }
+        catch (const std::exception &e)
+        {
+            error(e.what());
         }
     }
 } // TOOLS NAMESPACE

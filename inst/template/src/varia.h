@@ -33,52 +33,52 @@
 class Base_Distribution : public Base_Function
 {
 public:
-    using Base_Function::Base_Function;
+	using Base_Function::Base_Function;
 
-    double pdf(double x) const;
-    double cdf(double x) const;
-    double logpdf(double x) const;
+	double pdf(double x) const;
+	double cdf(double x) const;
+	double logpdf(double x) const;
 
-    virtual double logratio(double xold, double xnew) const;
-    virtual double rand(sys_rnd_gen &prng);
+	virtual double logratio(double xold, double xnew) const;
+	virtual double rand(sys_rnd_gen &prng);
 
 protected:
-    //----- Distribution specific methods -----//
-    virtual double _pdf_(double x) const;
-    virtual double _cdf_(double x) const;
-    virtual double _logpdf_(double x) const;
+	//----- Distribution specific methods -----//
+	virtual double _pdf_(double x) const;
+	virtual double _cdf_(double x) const;
+	virtual double _logpdf_(double x) const;
 
-    //----- Adjust methods for truncation -----//
-    void set_truncation(const dictargs &range);
-    void check_rand_attempts(int &num_attempts) const;
+	//----- Adjust methods for truncation -----//
+	void set_truncation(const dictargs &range);
+	void check_rand_attempts(int &num_attempts) const;
 
-    double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
-    double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
+	double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
+	double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
 
-    double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
-    double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
+	double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
+	double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
 
-    double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
-    double _shift_(double x) const { return (this->*_shift_method_)(x); }
+	double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
+	double _shift_(double x) const { return (this->*_shift_method_)(x); }
 
 private:
 	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
 
-    //----- Functional methods for the truncation -----//
-    double _trunc_dummy_(double x) const;
-    double _trunc_min_(double x) const;
-    double _trunc_max_(double x) const;
-    double _trunc_both_sides_(double x) const;
+	//----- Functional methods for the truncation -----//
+	double _trunc_dummy_(double x) const;
+	double _trunc_min_(double x) const;
+	double _trunc_max_(double x) const;
+	double _trunc_both_sides_(double x) const;
 
-    //----- Functional methods for the (log) truncation -----//
-    double _logtrunc_dummy_(double x) const;
-    double _logtrunc_min_(double x) const;
-    double _logtrunc_max_(double x) const;
-    double _logtrunc_both_sides_(double x) const;
+	//----- Functional methods for the (log) truncation -----//
+	double _logtrunc_dummy_(double x) const;
+	double _logtrunc_min_(double x) const;
+	double _logtrunc_max_(double x) const;
+	double _logtrunc_both_sides_(double x) const;
 
-    //----- Functional methods to shift cumulative -----//
-    double _shift_dummy_(double x) const;
-    double _shift_min_(double x) const;
+	//----- Functional methods to shift cumulative -----//
+	double _shift_dummy_(double x) const;
+	double _shift_min_(double x) const;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,11 +86,11 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
-                                    const dictargs &args = {},
-                                    const dictargs &range = {});
+									const dictargs &args = {},
+									const dictargs &range = {});
 Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
-                                    const dictargs_ptr &args = {},
-                                    const dictargs &range = {});
+									const dictargs_ptr &args = {},
+									const dictargs &range = {});
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -216,7 +216,8 @@ protected:
 
 public:
 	//=====Constructor=====//
-	Base_Variable(const std::string &name_, double value_) : name(name_), value(value_) {}
+	Base_Variable(const std::string &name_ = UNDEFINED,
+				  double value_ = std::numeric_limits<double>::quiet_NaN()) : name(name_), value(value_) {}
 	virtual ~Base_Variable() {};
 
 	// define a pointer to distribution

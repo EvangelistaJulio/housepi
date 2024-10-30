@@ -16,7 +16,7 @@
 #include <Rcpp.h>
 #endif
 
-#include "individual.h"
+#include "household.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -44,11 +44,12 @@ public:
     std::map<std::string, std::map<std::string, int>> _report_group_classes_ = {};
     std::map<std::string, std::string> _report_pathtofile_;
 
-    //===== Augmented Variables =====//
-    std::unordered_set<std::string> augm_full_set = {};
-    std::unordered_set<std::string> augm_to_be_inferred = {};
-    std::unordered_set<std::string> augm_with_model_set = {};
-    bool is_move_augm = false; // move augmented
+    //===== Augmented Variables =====//            
+    std::unordered_set<std::string> augm_varia_list_full = {};
+    std::map<int, std::unordered_set<std::string>> augm_varia_list_infer = {};
+    std::map<int, std::unordered_set<std::string>> augm_varia_list_model = {};
+    bool is_augm_infer = false;
+    bool is_augm_model = false;
 
     //===== CONSTRUCTOR =====//
     Monte_Carlo_Build();
@@ -74,7 +75,6 @@ public:
 
     void read_setup(const std::string &pathtofile);
     void read_params(const std::string &pathtofile);
-    void read_data(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
 
     //===== Show =====//
@@ -94,9 +94,10 @@ public:
     ulong get_c_num_sweeps() const;
 
     //===== SETUP : setter =====//
-    void set_rnd_init_params(bool);
+    void set_rnd_init_params(bool x);
     void set_inv_T(double x);
 
+    void assign_house(const std::string &ID);
     void update_report_data();
     int report_data(const std::string &key) const;
 
@@ -123,8 +124,13 @@ public:
     void init_move_counts();
     void init_diagnostics(bool is_power_post);
     void update_diagnostics(double glob_loglike, bool is_power_post);
-    double compute_augm_loglike(const Household &this_house) const;
     void dgn_glob_ll_stats(double &avg, double &var) const;
+
+	//----- Metropolis : augmented moves -----//
+	double compute_augm_model_loglike(const Household &this_house) const { return (this->*_augm_model_loglike_method_)(this_house); }
+	double (Monte_Carlo_Build::*_augm_model_loglike_method_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
+	double _no_augm_model_loglike_(const Household &this_house) const;
+	double _augm_model_loglike_(const Household &this_house) const;
 
 private:
     //===== Pointer to Core =====//

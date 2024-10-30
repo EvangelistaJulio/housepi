@@ -84,7 +84,7 @@ double MCMC::compute_house_loglike(const Household &this_house) const
 
 /* Assign group rate to an individual  */
 void MCMC::assign_group_rate_to_individual(Individual &this_indiv)
-{    
+{
     // this_indiv.assign_group_rate(EMPTY_RATE, EMPTY_RATE);
     UNUSED(this_indiv);
 }
@@ -170,14 +170,15 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             }
 
             //===== Safe Load of Households =====//
-            std::unordered_map<std::string, int> aux_hh_idx = {};
+            std::unordered_map<std::string, size_t> hh_ID_to_index = {};
             for (size_t i = 0; i < pImpl->num_indiv; ++i)
             {
                 //----- Read individual data -----//
-                std::string this_indiv_id = std::to_string(i);
-                std::string this_house_id = std::to_string(pImpl->num_house);
+                std::string this_indiv_ID = std::to_string(i);               // default value
+                std::string this_house_ID = std::to_string(get_num_house()); // default value
                 int this_status = MISSING_STATUS;
                 dictargs args = {};
+
                 for (const std::string &key : pImpl->data_headers)
                 {
                     if (key == "id")
@@ -188,7 +189,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                         }
                         else
                         {
-                            this_indiv_id = datatable.at("id")[i];
+                            this_indiv_ID = datatable.at("id")[i];
                         }
                     }
                     else if (key == "house_id")
@@ -199,7 +200,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                         }
                         else
                         {
-                            this_house_id = datatable.at("house_id")[i];
+                            this_house_ID = datatable.at("house_id")[i];
                         }
                     }
                     else if (key == "status")
@@ -220,29 +221,22 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                         args.emplace(key, tools::stod(datatable.at(key)[i], "data '" + key + "'"));
                     }
                 }
-                // create individual instance
-                Individual this_indiv(this_indiv_id, this_status, args);
-
-                //----- Assign and set rate per group -----//
-                set_rate_per_group(this_indiv);
 
                 // if household index doesn't exist, add new household
                 // note : this is redundant if no structure
-                if (aux_hh_idx.find(this_house_id) == aux_hh_idx.end())
+                if (hh_ID_to_index.find(this_house_ID) == hh_ID_to_index.end())
                 {
                     // map data index to household number
-                    aux_hh_idx.emplace(this_house_id, pImpl->num_house);
+                    hh_ID_to_index.emplace(this_house_ID, get_num_house());
                     // create a new empty household
-                    pImpl->house.emplace_back();
-                    // assign the user data id
-                    pImpl->house[pImpl->num_house].set_ID(this_house_id);
-                    // set household number as its index
-                    pImpl->house[pImpl->num_house].set_index(pImpl->num_house);
-                    // increment household number
-                    ++pImpl->num_house;
+                    pImpl->assign_house(this_house_ID);
                 }
-                // assign the individual the respective household
-                pImpl->house[aux_hh_idx.at(this_house_id)].assign_individual(this_indiv);
+
+                Household &this_house = house(hh_ID_to_index.at(this_house_ID));
+                // Assign the individual the respective household
+                this_house.assign_individual(this_indiv_ID, this_status, args);
+                // Assign and set rate per group
+                set_rate_per_group(this_house.indiv[this_house.size() - 1]);
             }
 
             //===== Set Contact Rates =====//
@@ -282,15 +276,15 @@ void MCMC::set_rate_per_group(Individual &this_indiv)
     {
         assign_group_rate_to_individual(this_indiv);
 
-        for (const auto &which : this_indiv.which_rate)
+        for (const auto &pair : this_indiv.get_group_rate_map())
         {
-            std::string rateID = which.first;
+            std::string rateID = pair.first;
             if (rateID == CONTACT_RATE)
             {
                 throw std::invalid_argument("The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
             }
 
-            std::string parID = which.second;
+            std::string parID = pair.second;
 
             //=====initialize model report=====//
             // if first individual, initialize rateID-report
@@ -342,8 +336,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
     {
         // allocate contact patterns
         int hh_size = this_house.size();
-        this_house.which_rate.resize(hh_size, std::vector<std::string>(hh_size, UNDEFINED));
-        this_house.contact_rates.resize(hh_size, std::vector<const double *>(hh_size, &REFERENCE_VALUE));
+        this_house.init_contact_matrix();
 
         if (this_house.get_index() == 0)
         {
@@ -369,7 +362,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
                 if (k != i)
                 {
                     assign_contact_rate_to_household(this_house, k, i);
-                    std::string parID = this_house.which_rate[k][i];
+                    std::string parID = this_house.get_group_rate_map(k, i);
 
                     if (tools::is_na(parID))
                     {
@@ -436,8 +429,9 @@ void MCMC::update_global_loglike()
         try
         {
             Household &this_house = house(H);
-            update_house_loglike(this_house);
-            global_loglike += this_house.get_loglike() + pImpl->compute_augm_loglike(this_house);
+            // update house loglikelihood
+            this_house.set_loglike(compute_house_loglike(this_house));
+            global_loglike += this_house.get_loglike() + pImpl->compute_augm_model_loglike(this_house);
         }
         catch (const std::exception &e)
         {
@@ -576,54 +570,63 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 /* Initialize augmented dependecies for all households. */
 void MCMC::init_augmented_variables()
 {
-    for (size_t H = 0; H < get_num_house(); ++H)
+    if (pImpl->augm_varia_list_full.empty())
     {
-        Household &this_house = house(H);
-        for (int i : this_house.infectious_set)
+        _move_augm_method_ = &MCMC::_move_no_augm_;
+    }
+    else
+    {        
+        if (pImpl->is_augm_infer)
         {
-            update_augm_dependecies(this_house, i);
+            _move_augm_method_ = &MCMC::_move_all_augm_;
+        }
+
+        for (size_t H = 0; H < get_num_house(); ++H)
+        {
+            Household &this_house = house(H);
+            for (int i : this_house.get_infectious_set())
+            {
+                update_augm_dependecies(this_house, i);
+            }
         }
     }
 }
 
 /* Move augmented variables from all households. */
-void MCMC::move_all_augm_variables()
+void MCMC::_move_all_augm_()
 {
-    if (pImpl->is_move_augm)
-    {
-        double delta_ll = 0.;
+    double delta_ll = 0.;
 
 #pragma omp parallel for reduction(+ : delta_ll)
-        for (size_t H = 0; H < get_num_house(); ++H)
+    for (size_t H = 0; H < get_num_house(); ++H)
+    {
+        if (_error_occurred_)
         {
-            if (_error_occurred_)
-            {
-                continue;
-            }
-            try
-            {
-                delta_ll += move_single_house_augm(house(H));
-            }
-            catch (const std::exception &e)
-            {
+            continue;
+        }
+        try
+        {
+            delta_ll += move_single_house_augm(house(H));
+        }
+        catch (const std::exception &e)
+        {
 #pragma omp critical
+            {
+                if (!_error_occurred_)
                 {
-                    if (!_error_occurred_)
-                    {
-                        _error_occurred_ = true;
-                        _error_message_ = e.what();
-                    }
+                    _error_occurred_ = true;
+                    _error_message_ = e.what();
                 }
             }
         }
-        if (_error_occurred_)
-        {
-            tools::error(_error_message_);
-        }
-        else
-        {
-            increment_global_loglike(delta_ll);
-        }
+    }
+    if (_error_occurred_)
+    {
+        tools::error(_error_message_);
+    }
+    else
+    {
+        increment_global_loglike(delta_ll);
     }
 }
 
@@ -671,28 +674,23 @@ double MCMC::move_single_house_augm(Household &this_house)
     double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
-    for (const int &i : this_house.infectious_set)
+    for (const int &i : this_house.get_infectious_set())
     {
         Individual &this_indiv = this_house.indiv[i];
 
         // Loop over augmented variables of infectious
-        for (const std::string &augmID : pImpl->augm_to_be_inferred)
+        for (const std::string &augmID : pImpl->augm_varia_list_infer.at(this_indiv.get_status()))
         {
-            bool is_accepted = false;
-
             // proceed only if the new value is consistent
             if (this_indiv.propose_valid_augm_move(augmID, pImpl->get_prng()))
             {
                 // update dependencies to perform computations
                 update_augm_dependecies(this_house, i);
-                update_house_loglike(this_house);
+                // update house loglikelihood
+                this_house.set_loglike(compute_house_loglike(this_house));
 
                 // Metropolis-Hasting algorithm
-                if (metropolis_augm_move(this_house, i, augmID, delta_global_loglike))
-                {
-                    is_accepted = true;
-                }
-                else
+                if (!metropolis_augm_move(this_house, i, augmID, delta_global_loglike))
                 {
                     // restore value and its dependencies
                     this_indiv.augm_restore_value(augmID);
@@ -700,8 +698,6 @@ double MCMC::move_single_house_augm(Household &this_house)
                     this_house.restore_loglike();
                 }
             }
-
-            this_house.update_augm_accept_rate(augmID, is_accepted);
         }
     }
 
@@ -844,12 +840,12 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
         // TODO : this can be improved, e. g. with a debug mode
         pImpl->disable_assert();
 
-        // initialize the acceptance counts
-        pImpl->init_move_counts();
-
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
+
+        // initialize the param move counts for adaptive
+        pImpl->init_move_counts();
 
         for (ulong i = 0; i < pImpl->get_num_adapt(); i += pImpl->get_thinning())
         {
@@ -861,13 +857,6 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
             ++sweep;
             progress_bar_run(get_progtxt("adapt", is_power_post),
                              sweep, _tot_thin_sweeps_, progbar);
-        }
-
-        // reset the acceptance counts
-        // UPDATE : move counts become useless since they are not even printed : improve.
-        if (pImpl->get_num_adapt() > 0)
-        {
-            pImpl->init_move_counts();
         }
 
         //============================================//

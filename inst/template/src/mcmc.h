@@ -20,7 +20,7 @@
 #include <Rcpp.h>
 #endif
 
-#include "individual.h"
+#include "household.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -141,8 +141,6 @@ private:
 	std::string get_progtxt(const std::string &txt, bool is_power_post);
 
 	//===== EVALUATE =====//
-	void update_house_loglike(Household &this_house) { this_house.set_loglike(compute_house_loglike(this_house)); }
-
 	double get_global_loglike() const { return global_loglike; };
 	double get_delta_global_loglike() const { return global_loglike - buffer; }
 	void restore_global_loglike() { global_loglike = buffer; }
@@ -156,9 +154,10 @@ private:
 	void move_single_param(const std::string &parID);
 	void move_and_adapt_all_parameters(ulong step);
 	void move_all_parameters();
-	void move_all_augm_variables();
+	
 	double move_single_house_augm(Household &this_house);
 	void update_inver_temper(double inv_T);
+
 
 	//----- Metropolis : parameter moves -----//
 	bool metropolis_param_move(const std::string &parID) { return (this->*_param_metropolis_method_)(parID); }
@@ -176,6 +175,12 @@ private:
 	bool _augm_metropolis_1_(const Household &this_house, int i, const std::string &augmID, double &delta);
 	bool _augm_metropolis_0_(const Household &this_house, int i, const std::string &augmID, double &delta);
 	bool _augm_metropolis_T_(const Household &this_house, int i, const std::string &augmID, double &delta);
+
+	//----- Metropolis : augmented moves -----//
+	void move_all_augm_variables() { (this->*_move_augm_method_)(); }
+	void (MCMC::*_move_augm_method_)() = &MCMC::_move_no_augm_;
+	void _move_no_augm_() {};
+	void _move_all_augm_();
 };
 
 #endif // MCMC__H
