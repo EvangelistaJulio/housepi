@@ -7,6 +7,7 @@
 #ifndef VARIA__H
 #define VARIA__H
 
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -14,7 +15,8 @@
 #include <unordered_map>
 #include <cmath>
 
-#include "utils.h"
+#include "tools.h"
+#include "function.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -33,58 +35,50 @@ class Base_Distribution : public Base_Function
 public:
     using Base_Function::Base_Function;
 
-    double pdf(double x) const { return _trunc_(_pdf_(x)); }
-    double cdf(double x) const { return _trunc_(_shift_(_cdf_(x))); }
-    double logpdf(double x) const { return _logtrunc_(_logpdf_(x)); }
+    double pdf(double x) const;
+    double cdf(double x) const;
+    double logpdf(double x) const;
 
-    //----- Distribution specific methods -----//
-    virtual double logratio(double xold, double xnew) const
-    {
-        UNUSED(xold);
-        UNUSED(xnew);
-        return 0.0;
-    }
-    virtual double rand(sys_rnd_gen &prng)
-    {
-        UNUSED(prng);
-        return _undefined_call_error_("rand");
-    }
+    virtual double logratio(double xold, double xnew) const;
+    virtual double rand(sys_rnd_gen &prng);
 
 protected:
     //----- Distribution specific methods -----//
-    virtual double _pdf_(double x) const { return _undefined_call_error_("pdf", x); }
-    virtual double _logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
-    virtual double _cdf_(double x) const { return _undefined_call_error_("cdf", x); }
+    virtual double _pdf_(double x) const;
+    virtual double _cdf_(double x) const;
+    virtual double _logpdf_(double x) const;
 
     //----- Adjust methods for truncation -----//
     void set_truncation(const dictargs &range);
     void check_rand_attempts(int &num_attempts) const;
 
-private:
-    //----- Internal error for calls to undefined -----//
-    double _undefined_call_error_(const std::string &txt, double x = 0, double y = 0) const;
-
-    //----- Functional methods for the truncation -----//
     double (Base_Distribution::*_trunc_method_)(double) const = &Base_Distribution::_trunc_dummy_;
     double _trunc_(double x) const { return (this->*_trunc_method_)(x); }
-    double _trunc_dummy_(double x) const { return x; }
-    double _trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
-    double _trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
-    double _trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
 
-    //----- Functional methods for the (log) truncation -----//
     double (Base_Distribution::*_logtrunc_method_)(double) const = &Base_Distribution::_logtrunc_dummy_;
     double _logtrunc_(double x) const { return (this->*_logtrunc_method_)(x); }
-    double _logtrunc_dummy_(double x) const { return x; }
-    double _logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
-    double _logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
-    double _logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
 
-    //----- Functional methods to shift cumulative -----//
     double (Base_Distribution::*_shift_method_)(double) const = &Base_Distribution::_shift_dummy_;
     double _shift_(double x) const { return (this->*_shift_method_)(x); }
-    double _shift_dummy_(double x) const { return x; }
-    double _shift_min_(double x) const { return x - _cdf_(get_range_min()); }
+
+private:
+	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
+
+    //----- Functional methods for the truncation -----//
+    double _trunc_dummy_(double x) const;
+    double _trunc_min_(double x) const;
+    double _trunc_max_(double x) const;
+    double _trunc_both_sides_(double x) const;
+
+    //----- Functional methods for the (log) truncation -----//
+    double _logtrunc_dummy_(double x) const;
+    double _logtrunc_min_(double x) const;
+    double _logtrunc_max_(double x) const;
+    double _logtrunc_both_sides_(double x) const;
+
+    //----- Functional methods to shift cumulative -----//
+    double _shift_dummy_(double x) const;
+    double _shift_min_(double x) const;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

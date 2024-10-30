@@ -44,16 +44,27 @@ We discuss how to do this in the vignette [Custom Models](custom_models.html).
 
 ## The Household Model Class
 
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
-We show how to produce a new instance of such a class and its methods with a template model, the chain binomial:
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model. It wraps an environment containing the Rcpp model class and allows to call its internal methods.
+We show how to generate a new instance of such a class and its methods with a template model, the chain binomial:
 
 ```{r}
 # generate an instance of the chain binomial model
-# note: this process can take a few minutes
 hemi <- housepi::HouseholdModelClass$new("chain_binom")
 ```
 
 At any moment you can retrieve the template description by using the class method `help()`.
+
+Model compilation can take up to one a minute and by default it is repeated  at every R session. Consider storing the associated model environment to a given folder through the options `save`:
+
+```{r, eval = FALSE}
+# store the compiled model ...
+hemi <- housepi::HouseholdModelClass$new("chain_binom",
+                                         save="ready_chain_binom")
+# ... perform you analysis ...
+
+# ... and load it straightway during next session
+hemi <- housepi::HouseholdModelClass$new("ready_chain_binom")
+```
 
 ### Database Format
 

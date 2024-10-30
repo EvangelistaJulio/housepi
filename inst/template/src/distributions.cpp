@@ -83,70 +83,6 @@ namespace auxgammap
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Base Distribution : methods  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Internal error for calls to undefined distribution. */
-double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
-{
-    UNUSED(x);
-    UNUSED(y);
-    tools::error("Attempt to call method '" + txt + "' of undefined distribution.");
-    return std::numeric_limits<double>::quiet_NaN();
-}
-
-/* Error for. */
-void Base_Distribution::check_rand_attempts(int &num_attempts) const
-{
-    if (num_attempts > MAX_NUMBER_ATTEMPTS)
-    {
-        std::ostringstream oss;
-        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
-            << " in initialization of '" << get_name() << "' "
-            << " within range {" << get_range_min() << ", " << get_range_max() << "}.";
-        tools::error(oss.str());
-    }
-    ++num_attempts;
-}
-
-/* Truncate distribution at declaration.  */
-void Base_Distribution::set_truncation(const dictargs &range)
-{
-    int trunc_cases = set_range(range);
-    if (trunc_cases == 0) // no truncation
-    {
-        _trunc_method_ = &Base_Distribution::_trunc_dummy_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_dummy_;
-        _shift_method_ = &Base_Distribution::_shift_dummy_;
-    }
-    else if (trunc_cases == 1) // lower range truncation
-    {
-        _trunc_method_ = &Base_Distribution::_trunc_min_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_min_;
-        _shift_method_ = &Base_Distribution::_shift_min_;
-    }
-    else if (trunc_cases == 2) // upper range truncation
-    {
-        _trunc_method_ = &Base_Distribution::_trunc_max_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_max_;
-        _shift_method_ = &Base_Distribution::_shift_dummy_;
-    }
-    else // both sides truncation
-    {
-        _trunc_method_ = &Base_Distribution::_trunc_both_sides_;
-        _logtrunc_method_ = &Base_Distribution::_logtrunc_both_sides_;
-        _shift_method_ = &Base_Distribution::_shift_dummy_;
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Uniform Distribution : methods  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -157,20 +93,17 @@ void Base_Distribution::set_truncation(const dictargs &range)
 class Uniform_Distribution : public Base_Distribution
 {
 public:
-    Uniform_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("unif",
-                                                 {{"min", 0.0}, {"max", 1.0}},
-                                                 {"min", "max"})
+    Uniform_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
     {
+        init("unif", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"});
         assign_args(new_args);
         set_truncation(range);
     }
-    Uniform_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("unif",
-                                                 new_args_ptr,
-                                                 {"min", "max"}) { set_truncation(range); }
+    Uniform_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    {
+        init("unif", new_args_ptr, {"min", "max"});
+        set_truncation(range);
+    }
     ~Uniform_Distribution() {}
 
     double logratio(double xold, double xnew) const override
@@ -193,15 +126,15 @@ protected:
         return 1.0;
     }
 
+    virtual double _cdf_(double x) const override
+    {
+        return x;
+    }
+
     virtual double _logpdf_(double x) const override
     {
         UNUSED(x);
         return 0.0;
-    }
-
-    virtual double _cdf_(double x) const override
-    {
-        return x;
     }
 };
 
@@ -211,20 +144,17 @@ protected:
 class Normal_Distribution : public Base_Distribution
 {
 public:
-    Normal_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("norm",
-                                                 {{"mean", 0.0}, {"sd", 1.0}},
-                                                 {"mean", "sd"})
+    Normal_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
     {
+        init("norm", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"});
         assign_args(new_args);
         set_truncation(range);
     }
-    Normal_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("norm",
-                                                 new_args_ptr,
-                                                 {"mean", "sd"}) { set_truncation(range); }
+    Normal_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    {
+        init("norm", new_args_ptr, {"mean", "sd"});
+        set_truncation(range);
+    }
     ~Normal_Distribution() {};
 
     double logratio(double xold, double xnew) const override
@@ -255,18 +185,18 @@ protected:
         return 0.39894228 * exp(-0.5 * pow((x - mean) / sd, 2)) / sd;
     }
 
-    virtual double _logpdf_(double x) const override
-    {
-        double mean = get_arg(0);
-        double sd = get_arg(1);
-        return -0.5 * pow((x - mean) / sd, 2) - 0.918938533 - log(sd);
-    }
-
     virtual double _cdf_(double x) const override
     {
         double mean = get_arg(0);
         double sd = get_arg(1);
         return 0.5 + 0.5 * erf(0.707106781 * (x - mean) / sd);
+    }
+
+    virtual double _logpdf_(double x) const override
+    {
+        double mean = get_arg(0);
+        double sd = get_arg(1);
+        return -0.5 * pow((x - mean) / sd, 2) - 0.918938533 - log(sd);
     }
 };
 
@@ -277,22 +207,17 @@ protected:
 class Lognorm_Distribution : public Base_Distribution
 {
 public:
-    Lognorm_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("lnorm",
-                                                 {{"meanlog", 0.0}, {"sdlog", 1.0}},
-                                                 {"meanlog", "sdlog"},
-                                                 {{"min", 0}})
+    Lognorm_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
     {
+        init("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"}, {{"min", 0}});
         assign_args(new_args);
         set_truncation(range);
     }
-    Lognorm_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("lnorm",
-                                                 new_args_ptr,
-                                                 {"meanlog", "sdlog"},
-                                                 {{"min", 0}}) { set_truncation(range); }
+    Lognorm_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    {
+        init("lnorm", new_args_ptr, {"meanlog", "sdlog"}, {{"min", 0}});
+        set_truncation(range);
+    }
     ~Lognorm_Distribution() {};
 
     double logratio(double xold, double xnew) const override
@@ -323,18 +248,18 @@ protected:
         return exp(-0.5 * pow((log(x) - meanlog) / sdlog, 2)) * 0.39894228 / (x * sdlog);
     }
 
-    virtual double _logpdf_(double x) const override
-    {
-        double meanlog = get_arg(0);
-        double sdlog = get_arg(1);
-        return -0.5 * pow((log(x) - meanlog) / sdlog, 2) - log(x * sdlog) - 0.918938533;
-    }
-
     virtual double _cdf_(double x) const override
     {
         double meanlog = get_arg(0);
         double sdlog = get_arg(1);
         return 0.5 + 0.5 * erf(0.707106781 * (log(x) - meanlog) / sdlog);
+    }
+
+    virtual double _logpdf_(double x) const override
+    {
+        double meanlog = get_arg(0);
+        double sdlog = get_arg(1);
+        return -0.5 * pow((log(x) - meanlog) / sdlog, 2) - log(x * sdlog) - 0.918938533;
     }
 };
 
@@ -345,22 +270,17 @@ protected:
 class Gamma_Distribution : public Base_Distribution
 {
 public:
-    Gamma_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("gamma",
-                                                 {{"shape", 1.0}, {"scale", 1.0}},
-                                                 {"shape", "scale"},
-                                                 {{"min", 0}})
+    Gamma_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
     {
+        init("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
         assign_args(new_args);
         set_truncation(range);
     }
-    Gamma_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("gamma",
-                                                 new_args_ptr,
-                                                 {"shape", "scale"},
-                                                 {{"min", 0}}) { set_truncation(range); }
+    Gamma_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    {
+        init("gamma", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
+        set_truncation(range);
+    }
     ~Gamma_Distribution() {};
 
     double logratio(double xold, double xnew) const override
@@ -391,18 +311,18 @@ protected:
         return exp(-x / scale) * pow(x, shape - 1.) / (tgamma(shape) * pow(scale, shape));
     }
 
-    virtual double _logpdf_(double x) const override
-    {
-        double shape = get_arg(0);
-        double scale = get_arg(1);
-        return (shape - 1) * log(x) - lgamma(shape) - shape * log(scale) - x / scale;
-    }
-
     virtual double _cdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return auxgammap::gamma_cdf(x, shape, scale);
+    }
+
+    virtual double _logpdf_(double x) const override
+    {
+        double shape = get_arg(0);
+        double scale = get_arg(1);
+        return (shape - 1) * log(x) - lgamma(shape) - shape * log(scale) - x / scale;
     }
 };
 
@@ -413,23 +333,18 @@ protected:
 class Weibull_Distribution : public Base_Distribution
 {
 public:
-    Weibull_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("weibull",
-                                                 {{"shape", 1.0}, {"scale", 1.0}},
-                                                 {"shape", "scale"},
-                                                 {{"min", 0}})
+    Weibull_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
     {
+        init("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
         assign_args(new_args);
         set_truncation(range);
     }
 
-    Weibull_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("weibull",
-                                                 new_args_ptr,
-                                                 {"shape", "scale"},
-                                                 {{"min", 0}}) { set_truncation(range); }
+    Weibull_Distribution(dictargs_ptr new_args_ptr, dictargs range = {})
+    {
+        init("weibull", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
+        set_truncation(range);
+    }
     ~Weibull_Distribution() {};
 
     double logratio(double xold, double xnew) const override
@@ -460,18 +375,18 @@ protected:
         return (shape / scale) * pow((x / scale), shape - 1) * exp(-pow(x / scale, shape));
     }
 
-    virtual double _logpdf_(double x) const override
-    {
-        double shape = get_arg(0);
-        double scale = get_arg(1);
-        return log(shape / scale) + (shape - 1) * log(x / scale) - pow(x / scale, shape);
-    }
-
     virtual double _cdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return 1. - exp(-pow(x / scale, shape));
+    }
+
+    virtual double _logpdf_(double x) const override
+    {
+        double shape = get_arg(0);
+        double scale = get_arg(1);
+        return log(shape / scale) + (shape - 1) * log(x / scale) - pow(x / scale, shape);
     }
 };
 
@@ -482,22 +397,17 @@ protected:
 class Rayleigh_Distribution : public Base_Distribution
 {
 public:
-    Rayleigh_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("rayleigh",
-                                                 {{"scale", 1.0}},
-                                                 {"scale"},
-                                                 {{"min", 0}})
+    Rayleigh_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
     {
+        init("rayleigh", {{"scale", 1.0}}, {"scale"}, {{"min", 0}});
         assign_args(new_args);
         set_truncation(range);
     }
-    Rayleigh_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("rayleigh",
-                                                 new_args_ptr,
-                                                 {"scale"},
-                                                 {{"min", 0}}) { set_truncation(range); }
+    Rayleigh_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    {
+        init("rayleigh", new_args_ptr, {"scale"}, {{"min", 0}});
+        set_truncation(range);
+    }
     ~Rayleigh_Distribution() {};
 
     double logratio(double xold, double xnew) const override
@@ -526,16 +436,16 @@ protected:
         return x * pow(scale, -2) * exp(-0.5 * pow(x / scale, 2));
     }
 
-    virtual double _logpdf_(double x) const override
-    {
-        double scale = get_arg(0);
-        return log(x) - 2 * log(scale) - 0.5 * pow(x / scale, 2);
-    }
-
     virtual double _cdf_(double x) const override
     {
         double scale = get_arg(0);
         return exp(-0.5 * pow(x / scale, 2));
+    }
+
+    virtual double _logpdf_(double x) const override
+    {
+        double scale = get_arg(0);
+        return log(x) - 2 * log(scale) - 0.5 * pow(x / scale, 2);
     }
 };
 
@@ -546,22 +456,17 @@ protected:
 class Exponential_Distribution : public Base_Distribution
 {
 public:
-    Exponential_Distribution(
-        dictargs new_args = {},
-        dictargs range = {}) : Base_Distribution("exp",
-                                                 {{"rate", 1.0}},
-                                                 {"rate"},
-                                                 {{"min", 0}})
+    Exponential_Distribution(dictargs new_args = {}, dictargs range = {})
     {
+        init("exp", {{"rate", 1.0}}, {"rate"}, {{"min", 0}});
         assign_args(new_args);
         set_truncation(range);
     }
-    Exponential_Distribution(
-        dictargs_ptr new_args_ptr,
-        dictargs range = {}) : Base_Distribution("exp",
-                                                 new_args_ptr,
-                                                 {"rate"},
-                                                 {{"min", 0}}) { set_truncation(range); }
+    Exponential_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    {
+        init("exp", new_args_ptr, {"rate"}, {{"min", 0}});
+        set_truncation(range);
+    }
     ~Exponential_Distribution() {};
 
     double logratio(double xold, double xnew) const override
@@ -590,16 +495,16 @@ protected:
         return rate * exp(-rate * x);
     }
 
-    virtual double _logpdf_(double x) const override
-    {
-        double rate = get_arg(0);
-        return log(rate) - rate * x;
-    }
-
     virtual double _cdf_(double x) const override
     {
         double rate = get_arg(0);
         return 1. - exp(-rate * x);
+    }
+
+    virtual double _logpdf_(double x) const override
+    {
+        double rate = get_arg(0);
+        return log(rate) - rate * x;
     }
 };
 

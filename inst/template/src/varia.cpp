@@ -4,7 +4,108 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
+#include "function.h"
 #include "varia.h"
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Base Distribution : methods  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double Base_Distribution::pdf(double x) const { return _trunc_(_pdf_(x)); }
+double Base_Distribution::cdf(double x) const { return _trunc_(_shift_(_cdf_(x))); }
+double Base_Distribution::logpdf(double x) const { return _logtrunc_(_logpdf_(x)); }
+
+double Base_Distribution::logratio(double xold, double xnew) const
+{
+    UNUSED(xold);
+    UNUSED(xnew);
+    return 0.0;
+}
+double Base_Distribution::rand(sys_rnd_gen &prng)
+{
+    UNUSED(prng);
+    return _undefined_call_error_("rand");
+}
+
+double Base_Distribution::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
+double Base_Distribution::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
+double Base_Distribution::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+
+/* Internal error for calls to undefined distribution. */
+double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
+{
+    UNUSED(x);
+    UNUSED(y);
+    tools::error("Attempt to call undefined method '" + txt + "' of distribution '" + get_name() + "'.");
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
+/* Truncate distribution at declaration.  */
+void Base_Distribution::set_truncation(const dictargs &range)
+{
+    int trunc_cases = set_range(range);
+    if (trunc_cases == 0) // no truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_dummy_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_dummy_;
+        _shift_method_ = &Base_Distribution::_shift_dummy_;
+    }
+    else if (trunc_cases == 1) // lower range truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_min_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_min_;
+        _shift_method_ = &Base_Distribution::_shift_min_;
+    }
+    else if (trunc_cases == 2) // upper range truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_max_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_max_;
+        _shift_method_ = &Base_Distribution::_shift_dummy_;
+    }
+    else // both sides truncation
+    {
+        _trunc_method_ = &Base_Distribution::_trunc_both_sides_;
+        _logtrunc_method_ = &Base_Distribution::_logtrunc_both_sides_;
+        _shift_method_ = &Base_Distribution::_shift_dummy_;
+    }
+}
+
+/* Error for. */
+void Base_Distribution::check_rand_attempts(int &num_attempts) const
+{
+    if (num_attempts > MAX_NUMBER_ATTEMPTS)
+    {
+        std::ostringstream oss;
+        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
+            << " in initialization of '" << get_name() << "' "
+            << " within range {" << get_range_min() << ", " << get_range_max() << "}.";
+        tools::error(oss.str());
+    }
+    ++num_attempts;
+}
+
+//----- Functional methods for the truncation -----//
+double Base_Distribution::_trunc_dummy_(double x) const { return x; }
+double Base_Distribution::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
+double Base_Distribution::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
+double Base_Distribution::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
+
+//----- Functional methods for the (log) truncation -----//
+double Base_Distribution::_logtrunc_dummy_(double x) const { return x; }
+double Base_Distribution::_logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
+double Base_Distribution::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
+double Base_Distribution::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
+
+//----- Functional methods to shift cumulative -----//
+double Base_Distribution::_shift_dummy_(double x) const { return x; }
+double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

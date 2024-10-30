@@ -23,8 +23,15 @@ HouseholdModelClass <- R6::R6Class(
     # @description
     # Check that traces exists, otherwise raise error
     traces.check = function() {
-      if (is.null(private$traces.frame)){
-        stop(cli::format_error(c("No MCMC traces were found.", i = "Be sure to run your inference first.")))
+      if (is.null(private$traces.frame)) {
+        stop(
+          cli::format_error(
+            c(
+              "No MCMC traces were found.",
+              i = "Be sure to run your inference first."
+            )
+          )
+        )
       }
     },
     
@@ -366,163 +373,40 @@ HouseholdModelClass <- R6::R6Class(
   public = list(
     #' @description
     #' Creates a new instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
+    #' If not specified otherwise, it create a one per session model environment.
     #' @param model (`character(1)`)\cr
-    #' Template name or path to the model folder.
+    #' Template name, path to folder with implementation or with previously compiled model.
+    #' @param save (`character(1)`)\cr
+    #' Path to folder where to store the compiled model environment.
     #' @param quiet (`logical(1)`)\cr
     #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
     #' If `TRUE` compile even if a cached model already exists.
     #' @param debug (`logical(1)`)\cr
     #' If `TRUE` use debug compilation flags.
-    initialize = function(model = NA,
+    initialize = function(model,
+                          save = NA,
                           quiet = TRUE,
                           force = FALSE,
                           debug = FALSE) {
-      if (is.na(model)) {
-        # print available templates
-        household_model_template()
-        
-      } else {
-        # system path to housepi
-        housepi_dir <- system.file(package = "housepi")
-        
-        if (dir.exists(model)) {
-          #----- custom user model -----#
-          source_files <- file.path(model, c("model.cpp", "model.h"))
-          opt_src_files <- file.path(model, c("template_params.R", "template_info.Rd", "template_augm.R"))
-          # check that header and implementation files exist
-          for (file_name in source_files) {
-            if (!file.exists(file_name)) {
-              stop(cli::format_error(c(
-                paste0("A file '", file_name, "' was not found."),
-                i = paste0("Check your model folder.")
-              )))
-            }
-          }
-          
-        } else if (model %in% list.files(file.path(housepi_dir, "models"))) {
-          #----- template model -----#
-          source_files <- file.path(housepi_dir,
-                                    "models",
-                                    model,
-                                    c("model.cpp", "model.h", "template_params.R", "template_info.Rd"))
-          opt_src_files <- file.path(housepi_dir, "models", model, c("template_augm.R"))
-          
-        } else {
-          #----- error -----#
-          stop(cli::format_error(paste0(
-            "'", model, "' is not an folder nor a template name."
-          )))
-        }
 
-        # add optional files if they exist
-        for (file_name in opt_src_files) {
-          if (file.exists(file_name)) {
-            source_files <- c(source_files, file_name)
-          }
-        }
-
-        # temporary folder
-        env_name <- paste0("housepi", gsub("_", "", model))
-        # FIXME :
-        # env_name <- sprintf("housepi%x", as.integer(file.info(cpp_file)$mtime))
-        # temporary session directory where to store model environment
-        exec_dir <- file.path(tempdir(), env_name)
-        
-        # ----- Create model package ----- #
-        
-        # Returns the path/to/DLL file supposedly generated in this session
-        executable <- file.path(exec_dir,
-                                "src",
-                                paste0("housepienvironment", .Platform$dynlib.ext))
-        
-        # option to force the removal of the package directory
-        if ((file.exists(executable) && (force == TRUE))) {
-          unlink(exec_dir, recursive = TRUE)
-        }
-        
-        # deal with existing version
-        if (file.exists(executable)) {
-          # use cached version # TODO: to be tuned with phgbuild compile_dll
-          cli::cli_alert_info(
-            "Using cached {.pkg {pkgload::pkg_name(exec_dir)}}"
-          )
-        } else {
-          # copy the package to the new directory
-          dir.create(exec_dir,
-                     recursive = TRUE,
-                     showWarnings = FALSE)
-          if (!dir.exists(exec_dir)) {
-            stop(cli::format_error(
-              c(
-                "Impossibile to create a temporary directory for the model.",
-                i = "Check your user permissions."
-              )
-            ))
-          }
-          # copy single package files
-          for (f in c("NAMESPACE", "DESCRIPTION")) {
-            from_file <- file.path(housepi_dir, "template", f)
-            to_file <- file.path(exec_dir, f)
-            if (!file.copy(from_file, to_file, overwrite = TRUE)) {
-              stop(cli::format_error(
-                c(
-                  "Failed to setup internal files.",
-                  i = "Check your user permissions."
-                )
-              ))
-            }
-          }
-          # copy folders from template
-          for (fldr in c("src", "R")) {
-            from_path <- file.path(housepi_dir, "template", fldr)
-            if (!file.copy(from_path,
-                           exec_dir,
-                           recursive = TRUE,
-                           overwrite = TRUE)) {
-              stop(cli::format_error(
-                c(
-                  "Failed to setup internal files.",
-                  i = "Check your user permissions."
-                )
-              ))
-            }
-          }
-          # copy source files in the new folder
-          for (from_file in source_files) {
-            to_file <- file.path(exec_dir, "src", basename(from_file))
-            if (!file.copy(from_file, to_file, overwrite = TRUE)) {
-              stop(cli::format_error(
-                c(
-                  "Failed to setup implementation files.", 
-                  i = "Check your user permissions."
-                )
-              ))
-            }
-          }
-
-          # ----- compile package ----- #
-          # TODO : how to enhance pre-compilation?
-          pkgbuild::compile_dll(exec_dir, quiet = quiet, debug = debug)  
-        }
-        
-        # load shared library
-        dyn.load(executable)
-        # expose internally the module
-        m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = "housepienvironment")
-        
-        #----- assign fields -----#
-        # assign the path to model environment source
-        private$environment_path <- exec_dir
-        # assign the model object
-        private$obj <- m$ModelHousepi$new()
-        # assign the empty setup list
-        self$setup.clear()
-        # assign the empty parameter data.frame
-        self$param.clear()
-        # assign the empty augmented data.frame
-        self$augm.clear()
-      }
+      generator_list <- household_model_generate(model, save, quiet, force, debug)
+      # load shared library
+      dyn.load(generator_list[["dll"]])
+      # expose internally the module
+      m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = "housepienvironment")
+      
+      #----- assign fields -----#
+      # assign the path to model environment source
+      private$environment_path <- generator_list[["path"]]
+      # assign the model object
+      private$obj <- m$ModelHousepi$new()
+      # assign the empty setup list
+      self$setup.clear()
+      # assign the empty parameter data.frame
+      self$param.clear()
+      # assign the empty augmented data.frame
+      self$augm.clear()
       
       invisible(self)
     },

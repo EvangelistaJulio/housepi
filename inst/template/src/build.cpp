@@ -403,16 +403,17 @@ void Monte_Carlo_Build::build_augm()
     {
         if (!_augm_deftable_.empty())
         {
+            // n. of definitions
             size_t table_length = _augm_deftable_.at("name").size();
 
             //===== Drop previous definitions =====//
-            std::map<std::string, std::vector<std::string>> augm_name_status_check = {};
+            std::map<std::string, std::vector<std::string>> name_status_check = {};
 
             augm_full_set.clear();
             augm_to_be_inferred.clear();
             augm_with_model_set.clear();
 
-            //===== Augmented variables lists of usage =====//
+            //===== Augmented Variables lists of usage =====//
             for (size_t a = 0; a < table_length; ++a)
             {
                 std::string augmID = _augm_deftable_.at("name")[a];
@@ -427,15 +428,17 @@ void Monte_Carlo_Build::build_augm()
                 }
                 else if (augm_full_set.find(augmID) == augm_full_set.end())
                 {
+                    // new augmented variable name
                     augm_full_set.emplace(augmID);
-                    augm_name_status_check[augmID].push_back(status);
+                    name_status_check[augmID].push_back(status);
                 }
                 else
                 {
-                    const std::vector<std::string> &mylist = augm_name_status_check.at(augmID);
+                    // check no overlaps by status 
+                    const std::vector<std::string> &mylist = name_status_check.at(augmID);
                     if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
                     {
-                        augm_name_status_check.at(augmID).push_back(status);
+                        name_status_check.at(augmID).push_back(status);
                     }
                     else
                     {
@@ -474,7 +477,7 @@ void Monte_Carlo_Build::build_augm()
             }
 
             //===== Check Univocal Definitions =====//
-            for (const auto &pair : augm_name_status_check)
+            for (const auto &pair : name_status_check)
             {
                 const std::vector<std::string> &mylist = pair.second;
 

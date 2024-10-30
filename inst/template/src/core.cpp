@@ -13,6 +13,75 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Combine after control two lists into a dictionary */
+dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
+{
+    std::vector<std::string> keys = tools::parse_list_args(tkn_keys);
+    std::vector<std::string> vals = tools::parse_list_args(tkn_vals);
+    dictargs output = {};
+
+    if (keys.size() != vals.size())
+    {
+        // inform parameter about the error
+        output.emplace(IO_MISMATCH, INF_DOUBLE);
+    }
+    else
+    {
+        for (size_t i = 0; i < keys.size(); ++i)
+        {
+            output.emplace(keys[i], std::stod(vals[i]));
+        }
+    }
+    return output;
+}
+
+/* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
+void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
+{
+    if (!tools::is_na(pathtofile))
+    {
+        std::ifstream input(pathtofile.c_str());
+
+        if (input.is_open())
+        {
+            csv_parsed_list.clear();
+
+            // Create a std::stringstream of the current line
+            for (std::string line; getline(input, line);)
+            {
+                std::string name, choice;
+                std::istringstream iss(line);
+
+                //===== NAME =====//
+                if (!getline(iss, name, C_DELIM))
+                {
+                    throw std::runtime_error("Unable to extract list name. Check file line: " + line);
+                }
+
+                //===== CHOICE =====//
+                if (!getline(iss, choice))
+                {
+                    throw std::runtime_error("Unable to extract list value. Check file line: " + line);
+                }
+
+                // add the new setup
+                csv_parsed_list.emplace(tools::strcleaner(name), tools::strcleaner(choice));
+            }
+        }
+        else
+        {
+            throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /* Welford online algorithm for mean and variance. */
 void compute_stats(const std::vector<double> &data, double &avg, double &var)
 {
@@ -129,6 +198,7 @@ void Monte_Carlo_Core::assign_param(const std::string &parID, const Parameter &n
 }
 
 /* Add a new scalar for augmented typedict. TODO : is there a more elegant option? */
+// FIXME : this might break because of dynamic allocation
 const double *Monte_Carlo_Core::assign_scalar_pointer(double val)
 {
     if (_scalar_type_params_.find(val) == _scalar_type_params_.end())
@@ -136,7 +206,7 @@ const double *Monte_Carlo_Core::assign_scalar_pointer(double val)
         Parameter new_param(UNDEFINED, val);
         _scalar_type_params_.emplace(val, new_param);
     }
-    /* Add a new scalar for augmented typedict FIXME : temporary. */
+
     return _scalar_type_params_.at(val).get_pointer();
 }
 
@@ -290,10 +360,24 @@ void Monte_Carlo_Core::update_param_diagnostics()
 //-----------------------------------------------------------------------------------------------//
 
 #ifdef USE_RCPP
+void rlist_to_map(Rcpp::List list, std::map<std::string, std::string> &output)
+{
+    using namespace Rcpp;
+
+    CharacterVector keys = list.names();
+
+    output.clear();
+    for (int i = 0; i < list.size(); ++i)
+    {
+        RObject element = list[i];
+        output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
+    }
+}
+
 /* Import setup from R list and run build. */
 void Monte_Carlo_Core::import_setup(Rcpp::List setup)
 {
-    tools::rlist_to_map(setup, _setup_deflist_);
+    rlist_to_map(setup, _setup_deflist_);
     build_setup();
 }
 
@@ -316,7 +400,7 @@ void Monte_Carlo_Core::import_params(Rcpp::DataFrame params)
 /* Read Setup file and produce a definition list. */
 void Monte_Carlo_Core::read_setup(const std::string &pathtofile)
 {
-    tools::read_csv_list(pathtofile, _setup_deflist_);
+    read_csv_list(pathtofile, _setup_deflist_);
     build_setup();
 }
 
@@ -553,12 +637,12 @@ void Monte_Carlo_Core::build_params()
                     Parameter new_param(
                         parID, value,
                         _param_deftable_.at("prior")[p],
-                        tools::merge_list_args(_param_deftable_.at("args")[p],
-                                               _param_deftable_.at("argsval")[p]),
+                        merge_list_args(_param_deftable_.at("args")[p],
+                                        _param_deftable_.at("argsval")[p]),
                         range,
                         _param_deftable_.at("rule")[p],
-                        tools::merge_list_args(_param_deftable_.at("rule_args")[p],
-                                               _param_deftable_.at("rule_argsval")[p]));
+                        merge_list_args(_param_deftable_.at("rule_args")[p],
+                                        _param_deftable_.at("rule_argsval")[p]));
                     assign_param(parID, new_param);
                 }
                 else
