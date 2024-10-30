@@ -4,21 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#include "mcmc.h"
-
-using namespace basics;
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Param_Infer_Fixed_Move_Warning = false;
-bool Non_Specified_Type_Warning = false;
-bool Non_Specified_Value_Warning = false;
-bool Fix_Init_Mult_Chains_Warning = false;
-bool Unknown_Setup_Entry_Warning = false;
-bool Unknown_Household_Data_Structure_Warning = false;
-bool Unknown_Individual_Data_Warning = false;
+#include "build.h"
+#include "core.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -40,1098 +27,214 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-void MCMC::show_full_build() const
-{
-    //----- SETUP -----//
-    std::string add_file_info = UNDEFINED;
-    if (report_pathtofile.find("setup") != report_pathtofile.end())
-    {
-        if (!is_na(report_pathtofile.at("setup")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("setup");
-        }
-    }
-    print_decorator("Setup", add_file_info);
-    show_setup();
-
-    //----- PARAMETERS -----//
-    add_file_info = UNDEFINED;
-    if (report_pathtofile.find("params") != report_pathtofile.end())
-    {
-        if (!is_na(report_pathtofile.at("params")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("params");
-        }
-    }
-    print_decorator("Parameters", add_file_info);
-    show_params();
-
-    //----- DATABASE -----//
-    add_file_info = UNDEFINED;
-    if (report_pathtofile.find("data") != report_pathtofile.end())
-    {
-        if (!is_na(report_pathtofile.at("data")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("data");
-        }
-    }
-    print_decorator("Database", add_file_info);
-    show_summary();
-    show_group_classes();
-
-    //----- AUGMENTED -----//
-    if (report_pathtofile.find("augm") != report_pathtofile.end())
-    {
-        if (!is_na(report_pathtofile.at("augm")))
-        {
-            add_file_info = "# import: " + report_pathtofile.at("augm");
-        }
-    }
-    print_decorator("Augmented", add_file_info);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : build setup  ////////////////////////////////////////
+//////////////////////////////////  Monte_Carlo_Build : implementations  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Read Setup file and produce a definition list. */
-void MCMC::read_setup(const std::string &pathtofile)
-{
-    read_csv_list(pathtofile, _setup_deflist_);
-    build_setup();
-    report_pathtofile["setup"] = pathtofile;
-}
+Monte_Carlo_Build::Monte_Carlo_Build() : pCore(std::make_unique<Monte_Carlo_Core>()) {}
+Monte_Carlo_Build::~Monte_Carlo_Build() = default;
 
 #ifdef USE_RCPP
-void MCMC::import_setup(Rcpp::List setup)
+//===== Rcpp IMPORTS =====//
+void Monte_Carlo_Build::import_setup(Rcpp::List x)
 {
-    rlist_to_map(setup, _setup_deflist_);
-    build_setup();
-    if (report_pathtofile.find("setup") == report_pathtofile.end())
+    pCore->import_setup(x);
+    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
     {
-        report_pathtofile.erase("setup");
+        _report_pathtofile_.erase("setup");
     }
 }
+void Monte_Carlo_Build::import_params(Rcpp::DataFrame x)
+{
+    pCore->import_params(x);
+    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
+    {
+        _report_pathtofile_.erase("params");
+    }
+}
+
+//===== Rcpp EXPORTS =====//
+Rcpp::List Monte_Carlo_Build::export_setup() const { return pCore->export_setup(); }
+Rcpp::DataFrame Monte_Carlo_Build::export_params() const { return pCore->export_params(); }
+Rcpp::DataFrame Monte_Carlo_Build::export_traces() const { return pCore->export_traces(); }
+#else
+//===== Cpp Show/Print =====//
+void Monte_Carlo_Build::show_results() const { pCore->show_results(); }
+void Monte_Carlo_Build::print_infer_state(const std::string &pathtofile) const { pCore->print_infer_state(pathtofile); }
 #endif
 
-/* Assign setup. */
-void MCMC::build_setup()
+void Monte_Carlo_Build::read_setup(const std::string &pathtofile)
 {
-    // default number of threads
-    unsigned num_threads = 1;
-
-    if (!_setup_deflist_.empty())
-    {
-        //===== Check that all provided setups are correct =====//
-        std::vector<std::string> file_entries = {"num_threads", "seed", "num_chains",
-                                                 "num_iter", "num_adapt", "thinning",
-                                                 "burn_in", "rnd_init_params",
-                                                 "num_rungs", "inv_temper"};
-        std::vector<std::string> wrong_entries = {};
-        for (const auto &pair : _setup_deflist_)
-        {
-            if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
-            {
-                wrong_entries.push_back(pair.first);
-            }
-        }
-        if (wrong_entries.size() > 0)
-        {
-            std::ostringstream oss;
-            oss << "Unknown setup option(s): '" << wrong_entries[0] << "'";
-            for (size_t k = 1; k < wrong_entries.size(); ++k)
-            {
-                oss << ", '" << wrong_entries[k] << "'";
-            }
-            oss << ". Available setup options are: '" << file_entries[0] << "'";
-            for (size_t k = 1; k < file_entries.size(); ++k)
-            {
-                oss << ", '" << file_entries[k] << "'";
-            }
-            raise_warning(oss.str() + ".", Unknown_Setup_Entry_Warning);
-        }
-
-        //===== ASSIGN SETUP CONFIGURATIONS =====//
-
-        //===== NUMBER OF THREADS =====//
-        if (_setup_deflist_.find("num_threads") != _setup_deflist_.end())
-        {
-            num_threads = safe_stoi(_setup_deflist_.at("num_threads"), "number of threads");
-        }
-
-        //===== PRNG SEED =====//
-        if ((_setup_deflist_.find("seed") != _setup_deflist_.end()) && (!is_na(_setup_deflist_.at("seed"))))
-        {
-            setup_seed = safe_stoull(_setup_deflist_.at("seed"), "random seed");
-        }
-
-        //===== NUMBER OF CHAINS =====//
-        if (_setup_deflist_.find("num_chains") != _setup_deflist_.end())
-        {
-            setup_num_chains = safe_stoul(_setup_deflist_.at("num_chains"), "number of chains");
-            if (setup_num_iter < 1)
-            {
-                raise_error("Number of chains must be greater than 0.");
-            }
-        }
-
-        //===== NUMBER OF ITERATIONS =====//
-        if (_setup_deflist_.find("num_iter") != _setup_deflist_.end())
-        {
-            setup_num_iter = safe_stoul(_setup_deflist_.at("num_iter"), "number of iterations");
-            if (setup_num_iter < 2)
-            {
-                raise_error("Number of iterations must be greater than 1.");
-            }
-        }
-
-        //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-        if (_setup_deflist_.find("num_adapt") != _setup_deflist_.end())
-        {
-            setup_num_adapt = safe_stoul(_setup_deflist_.at("num_adapt"), "number of adaptive steps");
-        }
-
-        //===== THINNING =====//
-        if (_setup_deflist_.find("thinning") != _setup_deflist_.end())
-        {
-            setup_thinning = safe_stoul(_setup_deflist_.at("thinning"), "thinning");
-            if (setup_thinning >= setup_num_iter)
-            {
-                raise_error("Thinning must be smaller than number of iterations. ");
-            }
-            else if (setup_thinning == 0)
-            {
-                raise_error("Thinning must be greater than 0.");
-            }
-        }
-
-        //===== BURN-IN =====//
-        if (_setup_deflist_.find("burn_in") != _setup_deflist_.end())
-        {
-            setup_burn_in = safe_stoul(_setup_deflist_.at("burn_in"), "burn-in");
-            if (setup_burn_in >= setup_num_iter)
-            {
-                raise_error("Burn-in must be smaller than number of iterations.");
-            }
-        }
-
-        //===== RANDOM INITIALIZATION OF PARAMETERS =====//
-        if (_setup_deflist_.find("rnd_init_params") != _setup_deflist_.end())
-        {
-            setup_rnd_init_params = stobool(_setup_deflist_.at("rnd_init_params"));
-            if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
-            {
-                raise_warning("Unable to fix initial parameters when running multiple chains.",
-                              Fix_Init_Mult_Chains_Warning);
-                setup_rnd_init_params = true;
-            }
-        }
-
-        //===== INVERSE TEMPERATURE =====//
-        if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
-        {
-            set_inver_temper(safe_stod(_setup_deflist_.at("inv_temper"), "inverse temperature"));
-        }
-    }
-
-    //===== Define Number of Threads (Monte_Carlo_Core) =====//
-    set_num_threads(num_threads);
-
-    //===== Pseudo-Random Number Generator Seeding =====//
-    set_prng_seed(setup_seed);
-
-    //===== Number of MCMC sweeps per single chain =====//
-    // note : Euclidean divisions!
-    _thin_sweeps_ = setup_num_adapt / setup_thinning;
-    _thin_sweeps_ += setup_burn_in / setup_thinning;
-    _thin_sweeps_ += (setup_num_iter - setup_burn_in) / setup_thinning;
-    _thin_sweeps_ *= setup_num_chains;
+    pCore->read_setup(pathtofile);
+    _report_pathtofile_["setup"] = pathtofile;
 }
-
-/* Set inverse temperature and its relative functional methods. */
-void MCMC::set_inver_temper(double inv_T)
-{
-    if ((inv_T < 0.) || (inv_T > 1.))
-    {
-        std::ostringstream oss;
-        oss << "Inverse temperature " << inv_T << " out of range [0, 1]. Check your setup.";
-        raise_error(oss.str());
-    }
-    else if (inv_T == 1.0)
-    {
-        setup_inv_T = 1.0;
-        _param_metropolis_method_ = &MCMC::_param_metropolis_1_;
-        _augm_metropolis_method_ = &MCMC::_augm_metropolis_1_;
-    }
-    else if (inv_T == 0.0)
-    {
-        setup_inv_T = 0.0;
-        _param_metropolis_method_ = &MCMC::_param_metropolis_0_;
-        _augm_metropolis_method_ = &MCMC::_augm_metropolis_0_;
-    }
-    else
-    {
-        setup_inv_T = inv_T;
-        _param_metropolis_method_ = &MCMC::_param_metropolis_T_;
-        _augm_metropolis_method_ = &MCMC::_augm_metropolis_T_;
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : build parameters  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read parameter definitions and run assignment. */
-void MCMC::read_params(const std::string &pathtofile)
+void Monte_Carlo_Build::read_params(const std::string &pathtofile)
 {
-    read_csv_table(pathtofile, _param_deftable_, param_file_headers);
-    build_params();
-    report_pathtofile["params"] = pathtofile;
+    pCore->read_params(pathtofile);
+    _report_pathtofile_["params"] = pathtofile;
 }
 
-#ifdef USE_RCPP
-void MCMC::import_params(Rcpp::DataFrame params)
-{
-    rdataframe_to_map(params, _param_deftable_);
-    build_params();
-    if (report_pathtofile.find("params") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("params");
-    }
-}
-#endif
+bool Monte_Carlo_Build::get_rnd_init_params() const { return pCore->setup_rnd_init_params; }
+ulong Monte_Carlo_Build::get_num_chains() const { return pCore->setup_num_chains; }
+ulong Monte_Carlo_Build::get_num_iter() const { return pCore->setup_num_iter; }
+ulong Monte_Carlo_Build::get_num_adapt() const { return pCore->setup_num_adapt; }
+ulong Monte_Carlo_Build::get_thinning() const { return pCore->setup_thinning; }
+ulong Monte_Carlo_Build::get_burn_in() const { return pCore->setup_burn_in; }
+double Monte_Carlo_Build::get_inv_T() const { return pCore->setup_inv_T; }
+unsigned Monte_Carlo_Build::get_num_threads() const { return pCore->setup_num_threads; }
+ulong Monte_Carlo_Build::get_c_num_sweeps() const { return pCore->setup_c_num_sweeps; }
 
-/* Assign parameter definitions to dictionary. */
-void MCMC::build_params()
-{
-    if (_param_deftable_.empty())
-    {
-        // error if nothing was previously defined
-        if (param_to_be_static.empty() && param_to_be_inferred.empty())
-        {
-            raise_error("Undefined parameter definitions.");
-        }
-    }
-    else
-    {
-        //===== Read Parameter Definitions =====//
-        size_t table_length = _param_deftable_.at("infer").size();
+void Monte_Carlo_Build::set_rnd_init_params(bool x) { pCore->setup_rnd_init_params = x; }
+void Monte_Carlo_Build::set_inv_T(double x) { pCore->setup_inv_T = x; }
 
-        //===== Empty current list of parameters =====//
-        drop_all_params();
+sys_rnd_gen &Monte_Carlo_Build::get_prng() { return pCore->get_prng(); }
+double Monte_Carlo_Build::uniform() { return pCore->uniform(); }
 
-        //===== Load parameters from the row with options =====//
-        for (size_t p = 0; p < table_length; ++p)
-        {
-            std::string parID = _param_deftable_.at("name")[p];
-            double value = INF_DOUBLE;
+void Monte_Carlo_Build::init_rand_params() { pCore->init_rand_params(); }
+void Monte_Carlo_Build::assert_param(const std::string &parID) const { pCore->assert_param(parID); }
+bool Monte_Carlo_Build::get_infer(const std::string &parID) { return pCore->get_infer(parID); }
+double Monte_Carlo_Build::get_param(const std::string &parID) { return pCore->get_param(parID); }
+const double *Monte_Carlo_Build::get_param_pointer(const std::string &parID) const { return pCore->get_param_pointer(parID); }
+void Monte_Carlo_Build::dgn_glob_ll_stats(double &avg, double &var) const { pCore->dgn_glob_ll_stats(avg, var); }
 
-            // add entry to shared parameter dictionary
-            if (stobool(_param_deftable_.at("infer")[p]))
-            {
-                // load value
-                if (is_na(_param_deftable_.at("value")[p]))
-                {
-                    if (!setup_rnd_init_params)
-                    {
-                        std::ostringstream oss;
-                        oss << "Undefined value for parameter to infer '"
-                            << parID << "' without random initialization.";
-                        raise_error(oss.str());
-                    }
-                }
-                else
-                {
-                    value = safe_stod(_param_deftable_.at("value")[p], "parameter");
-                }
-
-                // load range
-                dictargs range = {};
-                if (!is_na(_param_deftable_.at("min")[p]))
-                {
-                    range.emplace("min", safe_stod(_param_deftable_.at("min")[p], "parameter minimum"));
-                }
-                if (!is_na(_param_deftable_.at("max")[p]))
-                {
-                    range.emplace("max", safe_stod(_param_deftable_.at("max")[p], "parameter maximum"));
-                }
-
-                // assign parameter to the set of variables
-                Parameter new_param(parID, value,
-                                    _param_deftable_.at("prior")[p],
-                                    merge_list_args(_param_deftable_.at("args")[p],
-                                                    _param_deftable_.at("argsval")[p]),
-                                    _param_deftable_.at("rule")[p],
-                                    merge_list_args(_param_deftable_.at("rule_args")[p],
-                                                    _param_deftable_.at("rule_argsval")[p]),
-                                    range);
-                assign_param(parID, new_param);
-            }
-            else
-            {
-                // load value
-                if (is_na(_param_deftable_.at("value")[p]))
-                {
-                    raise_error("Undefined value for immutable parameter '" + parID + "'.");
-                }
-                else
-                {
-                    value = safe_stod(_param_deftable_.at("value")[p], "parameter");
-                }
-
-                // assign immutable parameter to the set of variables
-                Parameter new_param(parID, value);
-                assign_param(parID, new_param);
-            }
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : build data  //////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read data file and then run assignment. */
-void MCMC::read_data(const std::string &pathtofile)
-{
-    std::map<std::string, std::vector<std::string>> datatable = {};
-    read_csv_table(pathtofile, datatable);
-    build_data(datatable);
-
-    report_pathtofile["data"] = pathtofile;
-}
-
-#ifdef USE_RCPP
-/* Import data from R DataFrame and then run assignment. */
-void MCMC::import_data(Rcpp::DataFrame data)
-{
-    std::map<std::string, std::vector<std::string>> datatable = {};
-    rdataframe_to_map(data, datatable);
-    build_data(datatable);
-    if (report_pathtofile.find("data") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("data");
-    }
-}
-#endif
-
-/* Assign data after pre-processing. */
-void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &datatable)
-{
-    if (datatable.empty())
-    {
-        // If nothing was previously defined
-        if (house.empty())
-        {
-            raise_error("No database was found.");
-        }
-    }
-    else
-    {
-        //=====  Drop all Previous Data and Prepare for New  =====//
-        _data_headers_.clear();
-        for (const auto &x : datatable)
-        {
-            _data_headers_.push_back(x.first);
-        }
-        num_indiv = datatable.at(_data_headers_[0]).size();
-        num_house = 0;
-        house.clear();
-        report_group_classes.clear();
-
-        //===== Assess the presence of house IDs =====//
-        if (std::find(_data_headers_.begin(), _data_headers_.end(), "house_id") == _data_headers_.end())
-        {
-            std::ostringstream oss;
-            oss << "Impossible to associate a household structure: missing data column 'house_id'."
-                << " If it was intentional, ignore this message.";
-            raise_warning(oss.str(), Unknown_Household_Data_Structure_Warning);
-        }
-
-        //===== Safe Load of Households =====//
-        std::unordered_map<std::string, int> aux_hh_idx = {};
-        for (int i = 0; i < num_indiv; ++i)
-        {
-            //----- Read individual data -----//
-            std::string this_indiv_id = std::to_string(i);
-            std::string this_house_id = std::to_string(num_house);
-            int this_status = MISSING_STATUS;
-            dictargs args = {};
-            for (const std::string &key : _data_headers_)
-            {
-                if (key == "id")
-                {
-                    if (is_na(datatable.at("id")[i]))
-                    {
-                        raise_error("Missing id for individual in row n." + std::to_string(i) + ".");
-                    }
-                    else
-                    {
-                        this_indiv_id = datatable.at("id")[i];
-                    }
-                }
-                else if (key == "house_id")
-                {
-                    if (is_na(datatable.at("house_id")[i]))
-                    {
-                        raise_error("Missing house_id for individual in row n." + std::to_string(i) + ".");
-                    }
-                    else
-                    {
-                        this_house_id = datatable.at("house_id")[i];
-                    }
-                }
-                else if (key == "status")
-                {
-                    // NA status is a missing status
-                    if (!is_na(datatable.at("status")[i]))
-                    {
-                        this_status = safe_stoul(datatable.at("status")[i], "individual status");
-                    }
-                }
-                else if (is_na(datatable.at(key)[i]))
-                {
-                    args.emplace(key, std::numeric_limits<double>::quiet_NaN());
-                    std::ostringstream oss;
-                    oss << "Found NA value in database. If intentional, ignore this warning.";
-                    raise_warning(oss.str(), Unknown_Individual_Data_Warning);
-                }
-                else
-                {
-                    args.emplace(key, safe_stod(datatable.at(key)[i], "data '" + key + "'"));
-                }
-            }
-            // create individual instance
-            Individual this_indiv(this_indiv_id, this_status, args);
-
-            //----- Assign and set rate per group -----//
-            set_rate_per_group(this_indiv);
-
-            // if household index doesn't exist, add new household
-            // note : this is redundant if no structure
-            if (aux_hh_idx.find(this_house_id) == aux_hh_idx.end())
-            {
-                // map data index to household number
-                aux_hh_idx.emplace(this_house_id, num_house);
-                // create a new empty household
-                house.emplace_back();
-                // assign the user data id
-                house[num_house].set_ID(this_house_id);
-                // set household number as its index
-                house[num_house].set_index(num_house);
-                // increment household number
-                ++num_house;
-            }
-            // assign the individual the respective household
-            house[aux_hh_idx.at(this_house_id)].assign_individual(this_indiv);
-        }
-
-        //===== Set Contact Rates =====//
-        for (Household &this_house : house)
-        {
-            set_rate_per_contact(this_house);
-        }
-
-        //===== Update Report for Data =====//
-        update_report_data();
-
-        //===== Clean up data entries for output files =====//
-        // eventually remove standard headers to reorder them at the end
-        for (const std::string &col : {"house_id", "id", "status"})
-        {
-            _data_headers_.erase(
-                std::remove(_data_headers_.begin(), _data_headers_.end(), col),
-                _data_headers_.end());
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Use the loaded data to fill-in the respective report. */
-void MCMC::update_report_data()
-{
-    report_data = {{"n.cases", 0},
-                   {"n.miss.stat", 0},
-                   {"no.HH.case", 0},
-                   {"lst.1.case", 0},
-                   {"lst.2.case", 0},
-                   {"max.n.HH.cases", 0},
-                   {"n.HH.with.max.cases", 0},
-                   {"min.HH.size", 1000},
-                   {"n.HH.with.min.size", 0},
-                   {"max.HH.size", 0},
-                   {"n.HH.with.max.size", 0}};
-
-    //===== Set Contact Rates and Perform Database Analysis =====//
-    for (const Household &this_house : house)
-    {
-        int this_house_size = this_house.size();
-        int num_infec = this_house.num_infectious;
-
-        report_data["n.cases"] += num_infec;
-        report_data["n.miss.stat"] += this_house.num_missing_status;
-
-        report_data["no.HH.case"] += (num_infec == 0);
-        report_data["lst.1.case"] += (num_infec > 0);
-        report_data["lst.2.case"] += (num_infec > 1);
-
-        // max number of house cases
-        if (report_data["max.n.HH.cases"] < num_infec)
-        {
-            report_data["n.HH.with.max.cases"] = 1;
-            report_data["max.n.HH.cases"] = num_infec;
-        }
-        else if (report_data["max.n.HH.cases"] == num_infec)
-        {
-            report_data["n.HH.with.max.cases"] += 1;
-        }
-
-        // minimum house number of members
-        if (report_data["min.HH.size"] > this_house_size)
-        {
-            report_data["n.HH.with.min.size"] = 1;
-            report_data["min.HH.size"] = this_house_size;
-        }
-        else if (report_data["min.HH.size"] == this_house_size)
-        {
-            report_data["n.HH.with.min.size"] += 1;
-        }
-
-        // maximum house number of members
-        if (report_data["max.HH.size"] < this_house_size)
-        {
-            report_data["n.HH.with.max.size"] = 1;
-            report_data["max.HH.size"] = this_house_size;
-        }
-        else if (report_data["max.HH.size"] == this_house_size)
-        {
-            report_data["n.HH.with.max.size"] += 1;
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : set rate per group  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign group rate to an individual  */
-void MCMC::assign_group_rate_to_individual(Individual &this_indiv)
-{
-    // this_indiv.assign_group_rate(EMPTY_RATE, EMPTY_RATE);
-    UNUSED(this_indiv);
-}
-
-/* Update model report and set group rates associate to new individual. */
-void MCMC::set_rate_per_group(Individual &this_indiv)
-{
-    assign_group_rate_to_individual(this_indiv);
-
-    for (const auto &which : this_indiv.which_rate)
-    {
-        std::string rateID = which.first;
-        if (rateID == CONTACT_RATE)
-        {
-            std::ostringstream oss;
-            oss << "The group rate name '" << CONTACT_RATE << "' is reserved."
-                << "Please choose a different one.";
-            raise_error(oss.str());
-        }
-
-        std::string parID = which.second;
-
-        //=====initialize model report=====//
-        // if first individual, initialize rateID-report
-        report_group_classes.emplace(rateID, std::map<std::string, int>());
-        report_group_classes.at(rateID).emplace("[reference]", 0);
-
-        //=====set rates and update report=====//
-        if (is_na(parID))
-        {
-            // error : undefined rate
-            std::ostringstream oss;
-            oss << "Rate '" << rateID << "' is not provided for individual "
-                << this_indiv.get_ID() << ".";
-            raise_error(oss.str());
-        }
-        else if (parID == REFERENCE)
-        {
-            // rate set to reference
-            this_indiv.set_rate(rateID, get_reference());
-            report_group_classes.at(rateID).at("[reference]") += 1;
-        }
-        else if (parID != REFERENCE)
-        {
-            // rate associated to parameter
-            assert_param(parID);
-            this_indiv.set_rate(rateID, get_param_pointer(parID));
-            if (report_group_classes.at(rateID).find(parID) == report_group_classes.at(rateID).end())
-            {
-                report_group_classes.at(rateID).emplace(parID, 1);
-            }
-            else
-            {
-                report_group_classes.at(rateID).at(parID) += 1;
-            }
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_contact_rate_to_household(Household &this_house, int from, int to)
-{
-    this_house.assign_rate_per_contact(from, to, EMPTY_RATE);
-}
-
-/* Set contact rate according to user assignement. */
-void MCMC::set_rate_per_contact(Household &this_house)
-{
-    // allocate contact patterns
-    int hh_size = this_house.size();
-    this_house.which_rate.resize(hh_size, std::vector<std::string>(hh_size, UNDEFINED));
-    this_house.contact_rates.resize(hh_size, std::vector<const double *>(hh_size, &REFERENCE_VALUE));
-
-    if (this_house.get_index() == 0)
-    {
-        // if first household, initialize contact rate report
-        report_group_classes.emplace(CONTACT_RATE, std::map<std::string, int>());
-        report_group_classes.at(CONTACT_RATE).emplace("[reference]", 0);
-    }
-    else
-    {
-        // all household must have a contact rate
-        if (report_group_classes.find(CONTACT_RATE) == report_group_classes.end())
-        {
-            raise_error("Contact rate has not been provided for all households.");
-        }
-    }
-
-    // loop over all couples
-    for (int k = 0; k < hh_size; ++k) // from
-    {
-        for (int i = 0; i < hh_size; ++i) // to
-        {
-            // note : from 'k' --> to 'i'
-            if (k != i)
-            {
-                assign_contact_rate_to_household(this_house, k, i);
-                std::string parID = this_house.which_rate[k][i];
-
-                if (is_na(parID))
-                {
-                    std::ostringstream oss;
-                    oss << "Contact rate not provided for individuals " << this_house.indiv[k].get_ID()
-                        << " and " << this_house.indiv[i].get_ID() << " within household " << this_house.get_ID() << ".";
-                    raise_error(oss.str());
-                }
-                else if (parID == REFERENCE)
-                {
-                    this_house.set_contact_rate(k, i, get_reference()); // reference rate
-                    report_group_classes.at(CONTACT_RATE).at("[reference]") += 1;
-                }
-                else if (parID != EMPTY_RATE)
-                {
-                    assert_param(parID);
-                    this_house.set_contact_rate(k, i, get_param_pointer(parID)); // parameter rate
-                    if (report_group_classes.at(CONTACT_RATE).find(parID) == report_group_classes.at(CONTACT_RATE).end())
-                    {
-                        report_group_classes.at(CONTACT_RATE).emplace(parID, 1);
-                    }
-                    else
-                    {
-                        report_group_classes.at(CONTACT_RATE).at(parID) += 1;
-                    }
-                }
-
-                // count the total number of pairs
-                ++_n_contacts_;
-            }
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : build augmented  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read Model Augmented Variable file */
-void MCMC::read_augm(const std::string &pathtofile)
-{
-    const std::vector<std::string> augm_file_headers = {
-        "name", "status", "value", "valuetype",
-        "model", "args", "argsval", "argstype", "rule",
-        "rule_args", "rule_argsval", "rule_argstype", "rule_from", "rule_fromtype",
-        "min", "mintype", "max", "maxtype", "init_rand"};
-
-    read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
-    build_augm();
-    report_pathtofile["augm"] = pathtofile;
-}
-
-#ifdef USE_RCPP
-/* Import data from R DataFrame and then run assignment. */
-void MCMC::import_augm(Rcpp::DataFrame augm)
-{
-    rdataframe_to_map(augm, _augm_deftable_);
-    build_augm();
-    if (report_pathtofile.find("augm") == report_pathtofile.end())
-    {
-        report_pathtofile.erase("augm");
-    }
-}
-#endif
-
-/* Assign augmented variables to all individuals. */
-void MCMC::build_augm()
-{
-    if (!_augm_deftable_.empty())
-    {
-        size_t table_length = _augm_deftable_.at("name").size();
-
-        //===== Drop previous definitions =====//
-        std::map<std::string, std::vector<std::string>> augm_name_status_check = {};
-
-        augm_full_set.clear();
-        augm_to_be_inferred.clear();
-        augm_with_model_set.clear();
-
-        //===== Augmented variables lists of usage =====//
-        for (size_t a = 0; a < table_length; ++a)
-        {
-            std::string augmID = _augm_deftable_.at("name")[a];
-            std::string status = _augm_deftable_.at("status")[a];
-            bool is_init_rand = false;
-
-            if (is_na(augmID))
-            {
-                std::ostringstream oss;
-                oss << "Augmented variable name can not be undefined.";
-                raise_error(oss.str());
-            }
-            else if (augm_full_set.find(augmID) == augm_full_set.end())
-            {
-                augm_full_set.emplace(augmID);
-                augm_name_status_check[augmID].push_back(status);
-            }
-            else
-            {
-                const std::vector<std::string> &mylist = augm_name_status_check.at(augmID);
-                if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
-                {
-                    augm_name_status_check.at(augmID).push_back(status);
-                }
-                else
-                {
-                    std::ostringstream oss;
-                    oss << "Multiple definitions for augmented variable '" << augmID << "'."
-                        << " Check your augmented variable file.";
-                    raise_error(oss.str());
-                }
-            }
-
-            // option for random initialization
-            if (!is_na(_augm_deftable_.at("init_rand")[a]))
-            {
-                is_init_rand = stobool(_augm_deftable_.at("init_rand")[a]);
-            }
-
-            // list of augmented variables to be inferred
-            if (!is_na(_augm_deftable_.at("rule")[a]))
-            {
-                augm_to_be_inferred.emplace(augmID);
-            }
-
-            // list of augmented variables with a model
-            // note: no contribution of constant variables to Metropolis
-            if (is_na(_augm_deftable_.at("model")[a]))
-            {
-                if (is_init_rand)
-                {
-                    raise_error("Impossible to initialize '" + augmID + "' without a model.");
-                }
-            }
-            else
-            {
-                augm_with_model_set.emplace(augmID);
-            }
-        }
-
-        //===== Check Univocal Definitions =====//
-        for (const auto &pair : augm_name_status_check)
-        {
-            const std::vector<std::string> &mylist = pair.second;
-
-            for (const std::string &z : mylist)
-            {
-                if (is_na(z))
-                {
-                    if (mylist.size() > 1)
-                    {
-                        std::ostringstream oss;
-                        oss << "Forbidden default and status definitions for augmented variable '"
-                            << pair.first << "'.";
-                        raise_error(oss.str());
-                    }
-                }
-                else if (safe_stoi(z, "augmented status") < INFECTIOUS)
-                {
-                    std::ostringstream oss;
-                    oss << "Impossible to associate augmented '" << pair.first << "' for non infectious status.";
-                    raise_error(oss.str());
-                }
-            }
-        }
-
-        //===== Set internal state variable =====//
-        _is_move_augm_ = !augm_to_be_inferred.empty();
-
-        //===== Assign augmented variables to each individual =====//
-        for (Household &this_house : house)
-        {
-            for (Individual &this_indiv : this_house.indiv)
-            {
-                assign_augm(this_indiv);
-            }
-        }
-    }
-}
+/* Set accept rates to zero. */
+void Monte_Carlo_Build::init_move_counts() { pCore->init_param_move_counts(); }
+std::vector<std::string> Monte_Carlo_Build::get_param_to_be_inferred() const { return pCore->param_to_be_inferred; }
+bool Monte_Carlo_Build::propose_valid_param_move(const std::string &parID) { return pCore->propose_valid_param_move(parID); }
+void Monte_Carlo_Build::restore_param_value(const std::string &parID) { pCore->restore_param_value(parID); }
+void Monte_Carlo_Build::update_param_accept_rate(const std::string &parID, bool is_accepted) { pCore->update_param_accept_rate(parID, is_accepted); }
+double Monte_Carlo_Build::param_move_logratio(const std::string &parID) const { return pCore->param_move_logratio(parID); }
+void Monte_Carlo_Build::adapt_param_rule(const std::string &parID, double ratio) { pCore->adapt_param_rule(parID, ratio); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC : assign augmented variables  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign augmented variables to single individual. */
-void MCMC::assign_augm(Individual &this_indiv)
-{
-    for (size_t a = 0; a < _augm_deftable_.at("name").size(); ++a)
-    {
-        // assign augmented variable of the corresponding status
-        std::string augm_status = _augm_deftable_.at("status")[a];
-
-        if ((is_na(augm_status)) || (this_indiv.get_status() == safe_stoi(augm_status, "augmented status")))
-        {
-            std::string augmID = _augm_deftable_.at("name")[a];
-
-            //----- load range -----//
-            dictargs range = {};
-            // min value
-            double aux_min = type_to_double(_augm_deftable_.at("min")[a],
-                                            _augm_deftable_.at("mintype")[a], this_indiv);
-            if (aux_min != INF_DOUBLE)
-            {
-                range.emplace("min", aux_min);
-            }
-
-            // max value
-            double aux_max = type_to_double(_augm_deftable_.at("max")[a],
-                                            _augm_deftable_.at("maxtype")[a], this_indiv);
-            if (aux_max != INF_DOUBLE)
-            {
-                range.emplace("max", aux_max);
-            }
-
-            // assign augmented variable
-            Augmented new_augm(augmID,
-                               type_to_double(_augm_deftable_.at("value")[a],
-                                              _augm_deftable_.at("valuetype")[a], this_indiv),
-                               _augm_deftable_.at("model")[a],
-                               typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
-                                                      _augm_deftable_.at("argsval")[a],
-                                                      _augm_deftable_.at("argstype")[a], this_indiv),
-                               _augm_deftable_.at("rule")[a],
-                               typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
-                                                  _augm_deftable_.at("rule_argsval")[a],
-                                                  _augm_deftable_.at("rule_argstype")[a], this_indiv),
-                               range,
-                               type_to_double(_augm_deftable_.at("rule_from")[a],
-                                              _augm_deftable_.at("rule_fromtype")[a], this_indiv));
-            this_indiv.assign_augm(new_augm);
-
-            // random initialization at assignment
-            if (stobool(_augm_deftable_.at("init_rand")[a]))
-            {
-                this_indiv.augm_model_rand(augmID, get_prng());
-            }
-        }
-        else if (this_indiv.get_status() < INFECTIOUS)
-        {
-            // placeholders for non infectious
-            clear_augm(this_indiv);
-        }
-    }
-
-    // assert that individual has all definitions
-    for (const std::string &augmID : augm_full_set)
-    {
-        this_indiv.assert_augm(augmID);
-    }
-}
-
-void MCMC::clear_augm(Individual &this_indiv)
-{
-    for (const std::string &augmID : augm_full_set)
-    {
-        Augmented new_augm(augmID);
-        this_indiv.assign_augm(new_augm);
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////  MCMC : methods (type-defined variables)  ////////////////////////////
+///////////////////////  Monte_Carlo_Build : methods (type-defined variables)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
-double MCMC::type_to_double(const std::string val, const std::string typ, const Individual &this_indiv)
+double Monte_Carlo_Build::type_to_double(const std::string val, const std::string typ, const Individual &this_indiv)
 {
     double output = INF_DOUBLE;
 
-    if (is_na(val) && is_na(typ))
+    try
     {
-        output = INF_DOUBLE; // default value
-    }
-    else if (!is_na(val) && is_na(typ))
-    { 
-        output = safe_stod(val, "argument without type");
-    }
-    else if (is_na(val) && !is_na(typ))
-    {
-        raise_warning("Ignoring value type without a paired value.",
-                      Non_Specified_Value_Warning);
+        if (tools::is_na(val) && tools::is_na(typ))
+        {
+            output = INF_DOUBLE; // default value
+        }
+        else if (!tools::is_na(val) && tools::is_na(typ))
+        {
+            output = tools::stod(val, "argument without type");
+        }
+        else if (tools::is_na(val) && !tools::is_na(typ))
+        {
+            tools::warning("Ignoring value type without a paired value.");
 
-        output = INF_DOUBLE; // FIXME default value
-    }
-    else
-    {
-        if (typ == TYPE_SCALAR)
-        {
-            output = safe_stod(val, "argument with scalar type");
-        }
-        else if (typ == TYPE_DATA)
-        {
-            output = this_indiv.get_data(val);
-        }
-        else if (typ == TYPE_PARAM)
-        {
-            output = get_param(val);
-            if (get_infer(val))
-            {
-                std::ostringstream oss;
-                // FIXME : this warning is not clear as exposed here
-                oss << "Non constant parameter '" << val << "' assigned as fixed argument."
-                    << " Changes of the parameter will not affect the argument.";
-                raise_warning(oss.str(), Param_Infer_Fixed_Move_Warning);
-            }
-        }
-        else if (typ == TYPE_COMMAND)
-        {
-            if (val == "default")
-            {
-                output = INF_DOUBLE;
-            }
-            else
-            {
-                raise_error("Unknown command type '" + val + "'.");
-            }
+            output = INF_DOUBLE; // FIXME default value
         }
         else
         {
-            raise_error("Unknown variable type specifier '" + typ + "'.");
+            if (typ == TYPE_SCALAR)
+            {
+                output = tools::stod(val, "argument with scalar type");
+            }
+            else if (typ == TYPE_DATA)
+            {
+                output = this_indiv.get_data(val);
+            }
+            else if (typ == TYPE_PARAM)
+            {
+                output = get_param(val);
+                if (get_infer(val))
+                {
+                    std::ostringstream oss;
+                    // FIXME : this warning is not clear as exposed here
+                    oss << "Non constant parameter '" << val << "' assigned as fixed argument."
+                        << " Changes of the parameter will not affect the argument.";
+                    tools::warning(oss.str());
+                }
+            }
+            else if (typ == TYPE_COMMAND)
+            {
+                if (val == "default")
+                {
+                    output = INF_DOUBLE;
+                }
+                else
+                {
+                    throw std::invalid_argument("Unknown command type '" + val + "'.");
+                }
+            }
+            else
+            {
+                throw std::invalid_argument("Unknown variable type specifier '" + typ + "'.");
+            }
         }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(e.what());
     }
 
     return output;
 }
 
 /* Convert a type-std::string to a double-pointer */
-const double *MCMC::type_to_doubleptr(const std::string val, const std::string typ, const Individual &this_indiv)
+const double *Monte_Carlo_Build::type_to_doubleptr(const std::string val, const std::string typ, const Individual &this_indiv)
 {
     const double *output = nullptr;
 
-    if (is_na(val) && is_na(typ))
+    try
     {
-        output = nullptr; // default value
-    }
-    else if (!is_na(val) && is_na(typ))
-    {
-        std::ostringstream oss;
-        oss << "Impossible to interpret default value of  '" << val << "'. Please provide a type.";
-        raise_error(oss.str());
-    }
-    else if (is_na(val) && !is_na(typ))
-    {
-        raise_warning("Found a type without a paired value. Falling back to default.",
-                      Non_Specified_Value_Warning);
+        if (tools::is_na(val) && tools::is_na(typ))
+        {
+            output = nullptr; // default value
+        }
+        else if (!tools::is_na(val) && tools::is_na(typ))
+        {
+            throw std::invalid_argument("Impossible to interpret default value of  '" + val + "'. Please provide a type.");
+        }
+        else if (tools::is_na(val) && !tools::is_na(typ))
+        {
+            tools::warning("Found a type without a paired value. Falling back to default.");
 
-        output = nullptr; // default value
-    }
-    else
-    {
-        if (typ == TYPE_DATA)
-        {
-            output = this_indiv.get_data_pointer(val);
-        }
-        else if (typ == TYPE_PARAM)
-        {
-            output = get_param_pointer(val);
-        }
-        else if (typ == TYPE_SCALAR)
-        {
-            output = assign_scalar_pointer(safe_stod(val, "argument with scalar type"));
+            output = nullptr; // default value
         }
         else
         {
-            std::ostringstream oss;
-            oss << "Unsopported type '" + typ + "' found loading '" << val << "' for pointer value.";
-            raise_error(oss.str());
+            if (typ == TYPE_DATA)
+            {
+                output = this_indiv.get_data_pointer(val);
+            }
+            else if (typ == TYPE_PARAM)
+            {
+                output = get_param_pointer(val);
+            }
+            else if (typ == TYPE_SCALAR)
+            {
+                output = pCore->assign_scalar_pointer(tools::stod(val, "argument with scalar type"));
+            }
+            else
+            {
+                throw std::invalid_argument("Unsopported type '" + typ + "' found loading '" + val + "' for pointer value.");
+            }
         }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(e.what());
     }
 
     return output;
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
-dictargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
+dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_key);
-    std::vector<std::string> vals = parse_list_args(tkn_val);
-    std::vector<std::string> typs = parse_list_args(tkn_typ);
+    std::vector<std::string> keys = tools::parse_list_args(tkn_key);
+    std::vector<std::string> vals = tools::parse_list_args(tkn_val);
+    std::vector<std::string> typs = tools::parse_list_args(tkn_typ);
 
     dictargs output = {};
 
@@ -1152,11 +255,11 @@ dictargs MCMC::typedict_to_sdargs(const std::string tkn_key, const std::string t
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double-pointer */
-dictargs_ptr MCMC::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
+dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
 {
-    std::vector<std::string> keys = parse_list_args(tkn_key);
-    std::vector<std::string> vals = parse_list_args(tkn_val);
-    std::vector<std::string> typs = parse_list_args(tkn_typ);
+    std::vector<std::string> keys = tools::parse_list_args(tkn_key);
+    std::vector<std::string> vals = tools::parse_list_args(tkn_val);
+    std::vector<std::string> typs = tools::parse_list_args(tkn_typ);
 
     dictargs_ptr output = {};
 
@@ -1175,3 +278,846 @@ dictargs_ptr MCMC::typedict_to_sdargs_ptr(const std::string tkn_key, const std::
 
     return output;
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Emplace a new household. */
+void Monte_Carlo_Build::assign_house(const std::string &ID)
+{
+    house.emplace_back(ID, num_house);
+    num_house++;
+}
+
+/* Use the loaded data to fill-in the respective report. */
+void Monte_Carlo_Build::update_report_data()
+{
+    _report_data_ = {{"n.cases", 0},
+                     {"n.miss.stat", 0},
+                     {"no.HH.case", 0},
+                     {"lst.1.case", 0},
+                     {"lst.2.case", 0},
+                     {"max.n.HH.cases", 0},
+                     {"n.HH.with.max.cases", 0},
+                     {"min.HH.size", 1000},
+                     {"n.HH.with.min.size", 0},
+                     {"max.HH.size", 0},
+                     {"n.HH.with.max.size", 0}};
+
+    //===== Set Contact Rates and Perform Database Analysis =====//
+    for (const Household &this_house : house)
+    {
+        int this_house_size = this_house.size();
+        int num_infec = this_house.get_num_infectious();
+
+        _report_data_["n.cases"] += num_infec;
+        _report_data_["n.miss.stat"] += this_house.get_num_missing_status();
+
+        _report_data_["no.HH.case"] += (num_infec == 0);
+        _report_data_["lst.1.case"] += (num_infec > 0);
+        _report_data_["lst.2.case"] += (num_infec > 1);
+
+        // max number of house cases
+        if (_report_data_["max.n.HH.cases"] < num_infec)
+        {
+            _report_data_["n.HH.with.max.cases"] = 1;
+            _report_data_["max.n.HH.cases"] = num_infec;
+        }
+        else if (_report_data_["max.n.HH.cases"] == num_infec)
+        {
+            _report_data_["n.HH.with.max.cases"] += 1;
+        }
+
+        // minimum house number of members
+        if (_report_data_["min.HH.size"] > this_house_size)
+        {
+            _report_data_["n.HH.with.min.size"] = 1;
+            _report_data_["min.HH.size"] = this_house_size;
+        }
+        else if (_report_data_["min.HH.size"] == this_house_size)
+        {
+            _report_data_["n.HH.with.min.size"] += 1;
+        }
+
+        // maximum house number of members
+        if (_report_data_["max.HH.size"] < this_house_size)
+        {
+            _report_data_["n.HH.with.max.size"] = 1;
+            _report_data_["max.HH.size"] = this_house_size;
+        }
+        else if (_report_data_["max.HH.size"] == this_house_size)
+        {
+            _report_data_["n.HH.with.max.size"] += 1;
+        }
+    }
+}
+
+/* Return a value from report data. */
+int Monte_Carlo_Build::report_data(const std::string &key) const
+{
+    int output = 0;
+    if (_report_data_.find(key) != _report_data_.end())
+    {
+        output = _report_data_.at(key);
+    }
+    else
+    {
+        std::ostringstream oss;
+        oss << "Unknown summary entry `" << key << "`.";
+        tools::error(oss.str());
+    }
+    return output;
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Monte_Carlo_Build : build augmented  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Read Model Augmented Variable file */
+void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
+{
+    const std::vector<std::string> augm_file_headers = {
+        "name", "status", "value", "valuetype",
+        "model", "args", "argsval", "argstype", "rule",
+        "rule_args", "rule_argsval", "rule_argstype", "rule_from", "rule_fromtype",
+        "min", "mintype", "max", "maxtype", "init_rand"};
+
+    tools::read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
+    build_augm();
+    _report_pathtofile_["augm"] = pathtofile;
+}
+
+/* Assign augmented variables to all individuals. */
+void Monte_Carlo_Build::build_augm()
+{
+    try
+    {
+        if (!_augm_deftable_.empty())
+        {
+            // n. of definitions
+            size_t table_length = _augm_deftable_.at("name").size();
+
+            // auxiliary variable to load definitions : augmID -> status lists
+            std::map<std::string, std::vector<std::string>> name_status_check = {};
+
+            //===== Check Augmented Variables lists of usage =====//
+            for (size_t a = 0; a < table_length; ++a)
+            {
+                std::string augmID = _augm_deftable_.at("name")[a];
+                std::string status = _augm_deftable_.at("status")[a];
+                bool is_init_rand = false;
+
+                // check that augmID and status are correct
+                if (tools::is_na(augmID))
+                {
+                    throw std::invalid_argument("Augmented variable name can not be undefined.");
+                }
+                else if (name_status_check.find(augmID) == name_status_check.end())
+                {
+                    // new augmented variable status
+                    name_status_check.emplace(augmID, std::vector<std::string>{status});
+                }
+                else
+                {
+                    // check no multiple augmID with same status
+                    const std::vector<std::string> &mylist = name_status_check.at(augmID);
+                    if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
+                    {
+                        name_status_check.at(augmID).push_back(status);
+                    }
+                    else
+                    {
+                        throw std::invalid_argument("Incompatible definitions for augmented variable '" + augmID + "'.");
+                    }
+                }
+
+                // option for random initialization
+                if (!tools::is_na(_augm_deftable_.at("init_rand")[a]))
+                {
+                    is_init_rand = tools::stobool(_augm_deftable_.at("init_rand")[a]);
+                }
+
+                if ((tools::is_na(_augm_deftable_.at("model")[a])) && (is_init_rand))
+                {
+                    throw std::invalid_argument("Impossible to initialize '" + augmID + "' without a model.");
+                }
+            }
+
+            //===== Drop previous definitions =====//
+            augm_list_full.clear();
+            augm_list_infer.clear();
+            augm_list_model.clear();
+            augm_status_map_infer.clear();
+            augm_status_map_model.clear();
+            is_augm_infer = false;
+            is_augm_model = false;
+
+            //===== Check Univocal Definitions and Allocate New Lists =====//
+            for (const auto &pair : name_status_check)
+            {
+                const std::string &augmID = pair.first;
+                const std::vector<std::string> &mylist = pair.second;
+
+                for (const std::string &status : mylist)
+                {
+                    if (tools::is_na(status))
+                    {
+                        if (mylist.size() > 1)
+                        {
+                            throw std::invalid_argument(
+                                "Conflicting status-specific and general definitions for augmented '" + augmID + "'.");
+                        }
+                    }
+                    else
+                    {
+                        int s = tools::stoi(status, "augmented status");
+                        if (s < INFECTIOUS)
+                        {
+                            throw std::invalid_argument(
+                                "Impossible to associate augmented '" + augmID + "' for non infectious status.");
+                        }
+                        else
+                        {
+                            augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
+                            augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
+                        }
+                    }
+
+                    augm_list_full.emplace(augmID);
+                }
+            }
+
+            //===== Case of Only Generic Definitions =====//
+            bool is_only_generic = (augm_list_full.size() > 0) && (augm_status_map_infer.empty());
+            if (is_only_generic)
+            {
+                _func_augm_model_by_definition_ = &Monte_Carlo_Build::_augm_model_generic_;
+            }
+
+            //===== Assign new definitions to lists =====//
+            // note : I can't I collapse this with the previous because of generic status
+            for (size_t a = 0; a < table_length; ++a)
+            {
+                std::string augmID = _augm_deftable_.at("name")[a];
+                std::string status = _augm_deftable_.at("status")[a];
+
+                //----- Augmented Variables to be Inferred -----//
+                if (!tools::is_na(_augm_deftable_.at("rule")[a]))
+                {
+                    is_augm_infer = true;
+
+                    if (tools::is_na(status))
+                    {
+                        // generic definition
+                        if (is_only_generic)
+                        {
+                            augm_list_infer.emplace(augmID);
+                        }
+                        else
+                        {
+                            for (const auto &pair : augm_status_map_infer)
+                            {
+                                augm_status_map_infer.at(pair.first).emplace(augmID);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // status-specific definition
+                        augm_status_map_infer.at(tools::stoi(status)).emplace(augmID);
+                    }
+                }
+
+                //----- Augmented Variables with a Model -----//
+                if (!tools::is_na(_augm_deftable_.at("model")[a]))
+                {
+                    is_augm_model = true;
+
+                    if (tools::is_na(status))
+                    {
+                        // generic definition
+                        if (is_only_generic)
+                        {
+                            augm_list_model.emplace(augmID);
+                        }
+                        else
+                        {
+                            for (const auto &pair : augm_status_map_model)
+                            {
+                                augm_status_map_model.at(pair.first).emplace(augmID);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // status-specific definition
+                        augm_status_map_model.at(tools::stoi(status)).emplace(augmID);
+                    }
+                }
+            }
+
+            //===== Assign augmented variables to each individual =====//
+            for (Household &this_house : house)
+            {
+                for (Individual &this_indiv : this_house.indiv)
+                {
+                    // allocate memory for all augmented for all individuals
+                    clear_augm(this_indiv);
+                    assign_augm(this_indiv);
+                }
+            }
+
+            //===== Functional method for augmented model contribution to loglikelihood ====//
+            if (is_augm_model)
+            {
+                _func_augm_model_loglike_ = &Monte_Carlo_Build::_augm_model_loglike_;
+            }
+            else
+            {
+                _func_augm_model_loglike_ = &Monte_Carlo_Build::_no_augm_model_loglike_;
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(e.what());
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Monte_Carlo_Build : assign augmented variables  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign augmented variables to single individual. */
+void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
+{
+    try
+    {
+        for (size_t a = 0; a < _augm_deftable_.at("name").size(); ++a)
+        {
+            // assign augmented variable of the corresponding status
+            std::string augm_status = _augm_deftable_.at("status")[a];
+
+            // assign augmented variable of the corresponding status or undefined status
+            if ((tools::is_na(augm_status)) || (this_indiv.get_status() == tools::stoi(augm_status, "augmented status")))
+            {
+                //----- Name -----//
+                std::string augmID = _augm_deftable_.at("name")[a];
+
+                //----- Value -----//
+                double value = type_to_double(_augm_deftable_.at("value")[a],
+                                              _augm_deftable_.at("valuetype")[a],
+                                              this_indiv);
+
+                //----- Model -----//
+                std::string model_name = _augm_deftable_.at("model")[a];
+                dictargs_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
+                                                                 _augm_deftable_.at("argsval")[a],
+                                                                 _augm_deftable_.at("argstype")[a],
+                                                                 this_indiv);
+
+                //----- Range -----//
+                dictargs range = {};
+                // minimum value
+                double aux_min = type_to_double(_augm_deftable_.at("min")[a],
+                                                _augm_deftable_.at("mintype")[a], this_indiv);
+                if (aux_min != INF_DOUBLE)
+                {
+                    range.emplace("min", aux_min);
+                }
+                // maximum value
+                double aux_max = type_to_double(_augm_deftable_.at("max")[a],
+                                                _augm_deftable_.at("maxtype")[a], this_indiv);
+                if (aux_max != INF_DOUBLE)
+                {
+                    range.emplace("max", aux_max);
+                }
+
+                //----- Proposer Rule -----//
+                std::string rule_name = _augm_deftable_.at("rule")[a];
+                dictargs rule_args = typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
+                                                        _augm_deftable_.at("rule_argsval")[a],
+                                                        _augm_deftable_.at("rule_argstype")[a],
+                                                        this_indiv);
+                double rule_from = type_to_double(_augm_deftable_.at("rule_from")[a],
+                                                  _augm_deftable_.at("rule_fromtype")[a], this_indiv);
+
+                //----- Assign Augmented Variable -----//
+                this_indiv.assign_augm(augmID, value, model_name, model_args, range,
+                                       rule_name, rule_args, rule_from);
+
+                // random initialization at assignment
+                if (tools::stobool(_augm_deftable_.at("init_rand")[a]))
+                {
+                    this_indiv.augm_model_rand(augmID, get_prng());
+                }
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(e.what());
+    }
+}
+
+/* Clear all augmented definition of individual. */
+void Monte_Carlo_Build::clear_augm(Individual &this_indiv)
+{
+    for (const std::string &augmID : augm_list_full)
+    {
+        this_indiv.clear_augm(augmID);
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print the report of the database and of the model group rates. */
+void Monte_Carlo_Build::show_summary() const
+{
+    using tools::percent;
+
+    //===== PRINT =====//
+
+    std::ostringstream oss;
+
+    oss << "n. of individuals: " << num_indiv
+        << "\n    * n. of cases: " << _report_data_.at("n.cases")
+        << " " << percent(_report_data_.at("n.cases"), num_indiv);
+    if (_report_data_.at("n.miss.stat") > 0)
+    {
+        oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
+            << " " << percent(_report_data_.at("n.miss.stat"), num_indiv);
+    }
+
+    oss << "\nn. of households: " << num_house;
+    if (_report_data_.at("no.HH.case") > 0)
+    {
+        oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
+            << " " << percent(_report_data_.at("no.HH.case"), num_house);
+    }
+
+    oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
+        << " " << percent(_report_data_.at("lst.1.case"), num_house);
+    if (_report_data_.at("lst.1.case") > 0)
+    {
+        oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
+            << " " << percent(_report_data_.at("lst.2.case"), num_house);
+    }
+
+    oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
+        << " " << percent(_report_data_.at("n.HH.with.max.cases"), num_house)
+        << "\nmin n. house members: " << _report_data_.at("min.HH.size")
+        << " " << percent(_report_data_.at("n.HH.with.min.size"), num_house)
+        << "\nmax n. house members: " << _report_data_.at("max.HH.size")
+        << " " << percent(_report_data_.at("n.HH.with.max.size"), num_house);
+
+    tools::print_stdout(oss.str() + "\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Monte_Carlo_Build : show group classes  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show model group classes. */
+void Monte_Carlo_Build::show_group_classes() const
+{
+    std::ostringstream oss;
+
+    // format group classes
+    for (const auto &entry : _report_group_classes_)
+    {
+        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
+        {
+            oss << entry.first << ":";
+            for (const auto &x : entry.second)
+            {
+                oss << "\n    * " << x.first << ": " << x.second
+                    << " " << tools::percent(x.second, num_indiv);
+            }
+            oss << "\n";
+        }
+    }
+
+    // format contact rates
+    if (_report_group_classes_.at(CONTACT_RATE).find(EMPTY_RATE) != _report_group_classes_.at(CONTACT_RATE).end())
+    {
+        oss << CONTACT_RATE << ":";
+        for (const auto &x : _report_group_classes_.at(CONTACT_RATE))
+        {
+            oss << "\n    * " << x.first << ": " << x.second
+                << " " << tools::percent(x.second, _num_contacts_);
+        }
+        oss << "\n";
+    }
+
+    // print only if there's something to print
+    if (oss.str().size() > 0)
+    {
+        tools::print_stdout(oss.str());
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Init Bayesian diagnostics. */
+void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
+{
+    ulong sample_size = pCore->setup_c_sample_size * pCore->setup_num_chains;
+
+    pCore->dgn_count = 0;
+    pCore->dgn_glob_loglike = std::vector<double>(sample_size);
+
+    if (!is_power_post)
+    {
+        // diagnostics for all parameters
+        pCore->init_param_diagnostics(sample_size);
+
+        // diagnostics over households
+        for (size_t H = 0; H < num_house; ++H)
+        {
+            house[H].init_diagnostics(sample_size);
+        }
+    }
+}
+
+/* Update Bayesian diagnostics */
+void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_post)
+{
+    // diagnostics for global loglike
+    pCore->dgn_glob_loglike[pCore->dgn_count++] = glob_loglike;
+
+    if (!is_power_post)
+    {
+        // diagnostics for all parameters
+        pCore->update_param_diagnostics();
+
+        // diagnostics over households
+        for (size_t H = 0; H < num_house; ++H)
+        {
+            house[H].update_diagnostics();
+        }
+    }
+}
+
+/* Disable all assert methods for user definitions. */
+void Monte_Carlo_Build::disable_assert()
+{
+    pCore->disable_assert_param();
+
+    // disable augmented variable assertion for all individuals
+    for (Household &this_house : house)
+    {
+        for (Individual &this_indiv : this_house.indiv)
+        {
+            this_indiv.disable_assert();
+        }
+    }
+}
+
+/* No model contributions. */
+double Monte_Carlo_Build::_no_augm_model_loglike_(const Household &this_house) const
+{
+    UNUSED(this_house);
+    return 0.0;
+}
+
+/* House loglikelihood including augmented modl contribution. */
+double Monte_Carlo_Build::_augm_model_loglike_(const Household &this_house) const
+{
+    double hh_loglike = 0.;
+    // Contribution of model associated to augmented variables
+    for (int i : this_house.get_infectious_set())
+    {
+        (this->*_func_augm_model_by_definition_)(this_house.indiv[i], hh_loglike);
+    }
+    return hh_loglike;
+}
+
+void Monte_Carlo_Build::_augm_model_by_status_(const Individual &this_indiv, double &delta) const
+{
+    for (const std::string &augmID : augm_status_map_model.at(this_indiv.get_status()))
+    {
+        delta += this_indiv.augm_model_logpdf(augmID);
+    }
+}
+
+void Monte_Carlo_Build::_augm_model_generic_(const Individual &this_indiv, double &delta) const
+{
+    for (const std::string &augmID : augm_list_model)
+    {
+        delta += this_indiv.augm_model_logpdf(augmID);
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+#ifdef USE_RCPP
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Import data from R DataFrame then run build. */
+void Monte_Carlo_Build::import_augm(Rcpp::DataFrame augm)
+{
+    tools::rdataframe_to_map(augm, _augm_deftable_);
+    build_augm();
+    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
+    {
+        _report_pathtofile_.erase("augm");
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Monte_Carlo_Build : exports to Rcpp //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Export current data configurations to R DataFrame. */
+Rcpp::DataFrame Monte_Carlo_Build::export_data() const
+{
+    using namespace Rcpp;
+
+    // pre-allocate memories
+    // initialize the dataframe as a list of named std::vectors
+    CharacterVector df_index(num_indiv);
+    CharacterVector df_house_index(num_indiv);
+    IntegerVector df_status(num_indiv);
+    std::map<std::string, NumericVector> df_dbl;
+
+    for (const std::string &dataID : data_headers)
+    {
+        df_dbl.insert({dataID, NumericVector(num_indiv)});
+    }
+    for (const std::string &augmID : augm_list_full)
+    {
+        df_dbl.insert({augmID, NumericVector(num_indiv)});
+    }
+
+    size_t c = 0;
+    for (const Household &this_house : house)
+    {
+        for (const Individual &this_indiv : this_house.indiv)
+        {
+            df_index[c] = this_indiv.get_ID();
+            df_house_index[c] = this_house.get_ID();
+            df_status[c] = this_indiv.get_status();
+
+            for (const std::string &dataID : data_headers)
+            {
+                df_dbl.at(dataID)[c] = this_indiv.get_data(dataID);
+            }
+            for (const std::string &augmID : augm_list_full)
+            {
+                df_dbl.at(augmID)[c] = this_indiv.get_augm(augmID);
+            }
+
+            ++c;
+        }
+    }
+
+    DataFrame output;
+    output = DataFrame::create(_["id"] = df_index,
+                               _["house_id"] = df_house_index,
+                               _["status"] = df_status);
+    for (const std::string &dataID : data_headers)
+    {
+        output.push_back(df_dbl.at(dataID), dataID);
+    }
+    for (const std::string &augmID : augm_list_full)
+    {
+        output.push_back(df_dbl.at(augmID), augmID);
+    }
+
+    return output;
+}
+
+/* Export all sampled values of the loglikelihood for all household. */
+Rcpp::NumericMatrix Monte_Carlo_Build::export_loglike_matrix() const
+{
+    using namespace Rcpp;
+
+    // FIXME : this should be prevented if is_power_post
+
+    // Create a NumericMatrix with num_house columns
+    ulong sample_size = pCore->setup_num_chains * pCore->setup_c_sample_size;
+    NumericMatrix output(sample_size, num_house);
+
+    // Assign each NumericVector to a column of the matrix
+    for (size_t H = 0; H < num_house; ++H)
+    {
+        NumericVector column = wrap(house[H].get_dgn_loglike());
+        output(_, H) = column;
+    }
+
+    return output;
+}
+
+#else
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Monte_Carlo_Build::show_full_build() const
+{
+    //----- SETUP -----//
+    std::string add_file_info = UNDEFINED;
+    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("setup")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("setup");
+        }
+    }
+    tools::print_decorator("Setup", add_file_info);
+    pCore->show_setup();
+
+    //----- PARAMETERS -----//
+    add_file_info = UNDEFINED;
+    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("params")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("params");
+        }
+    }
+    tools::print_decorator("Parameters", add_file_info);
+    pCore->show_all_params();
+
+    //----- DATABASE -----//
+    add_file_info = UNDEFINED;
+    if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("data")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("data");
+        }
+    }
+    tools::print_decorator("Database", add_file_info);
+    show_summary();
+    show_group_classes();
+
+    //----- AUGMENTED -----//
+    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("augm")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("augm");
+        }
+    }
+    tools::print_decorator("Augmented", add_file_info);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Monte_Carlo_Build : print augm variables  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print all augmented variables of each individual */
+void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) const
+{
+    if (!tools::is_na(pathtofile))
+    {
+        std::ofstream augm_ofstream;
+        augm_ofstream.open(pathtofile.c_str());
+
+        if (augm_ofstream.is_open())
+        {
+            //===== Print column headers =====//
+            // default headers
+            augm_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
+
+            // data headers
+            for (const std::string &dataID : data_headers)
+            {
+                augm_ofstream << C_DELIM << dataID;
+            }
+
+            // augmented variables headers
+            // FIXME
+            for (const std::string &augmID : augm_list_full)
+            {
+                augm_ofstream << C_DELIM << augmID;
+            }
+
+            augm_ofstream << std::endl;
+
+            //===== Print data and augmented variables =====//
+            for (const Household &this_house : house)
+            {
+                for (const Individual &this_indiv : this_house.indiv)
+                {
+                    augm_ofstream << this_indiv.get_ID()
+                                  << C_DELIM << this_house.get_ID()
+                                  << C_DELIM << this_indiv.get_status();
+                    for (const std::string &dataID : data_headers)
+                    {
+                        augm_ofstream << C_DELIM << this_indiv.get_data(dataID);
+                    }
+
+                    // FIXME
+                    for (const std::string &augmID : augm_list_full)
+                    {
+                        if (this_indiv.get_status() == INFECTIOUS)
+                        {
+                            augm_ofstream << C_DELIM << this_indiv.get_augm(augmID);
+                        }
+                        else
+                        {
+                            augm_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
+                        }
+                    }
+                    augm_ofstream << std::endl;
+                }
+            }
+
+            augm_ofstream.close();
+        }
+        else
+        {
+            tools::error("Unable to open file: " + pathtofile);
+        }
+    }
+}
+
+#endif

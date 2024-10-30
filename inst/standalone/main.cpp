@@ -30,7 +30,7 @@
 /* The Main Function. */
 int main(int argc, char *argv[])
 {
-    using namespace basics;
+    using namespace tools;
 
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
         std::ostringstream oss;
         oss << "No argument or command found. Check the usage through:\n"
             << argv[0] << " -h";
-        raise_error(oss.str());
+        error(oss.str());
     }
 
     //=====Parse commands and options=====//
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
             std::ostringstream oss;
             oss << "No Software Manual is available, refer to the Rcpp tutorials.\n"
                 << "Apologies for the inconvenience.";
-            raise_error(oss.str());
+            error(oss.str());
         }
 
         else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         else if (carg == std::string("--marginal"))
         {
             is_marginal = true;
-            num_rungs = safe_stoul(argv[++carg_i], "number of rungs");
+            num_rungs = tools::stoul(argv[++carg_i], "number of rungs");
         }
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 
         else
         {
-            raise_error("Unrecognized option `" + carg + "`.");
+            error("Unrecognized option `" + carg + "`.");
         }
 
         carg_i++; // Move to the next command line argument
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     int aux = is_evaluate + is_infer + is_simulate + is_marginal;
     if (aux > 1)
     {
-        raise_error(
+        error(
             "Incompatible commands: choose one between --evaluate, --infer, --simulate or --marginal.");
     }
     else if (aux == 0)
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
     { //===== Simulation Study =====//
         if (output_file == UNDEFINED)
         {
-            raise_error("Missing output file for simulation.");
+            error("Missing output file for simulation.");
         }
         else
         {

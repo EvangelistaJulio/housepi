@@ -20,20 +20,51 @@ knitr::opts_chunk$set(echo = TRUE, comment = NA)
 We introduce `housepi`, a package for the study of epidemiological data from household outbreaks.
 We'll walk through the process of loading a model, associating necessary definitions to perform the inference and a simulation study.
 
+## Getting Started with Template Models
+
+To see the complete list of available template models, from within Rstudio just run 
+
+```{r, eval = FALSE}
+# present the list of template model name
+housepi::household_model_template()
+```
+
+Each template comes with its template definitions that can be used straight away or changed. 
+To know more about each model, choose a name from the previous list and run, e. g. 
+
+```{r, eval = FALSE}
+# show model description in RStudio help window
+housepi::household_model_template("chain_binom")
+```
+
+This command will open the relative documentation file in the Help window of your Rstudio session.
+
+Starting from a template we may want to create a custom model adapted to our study project. 
+We discuss how to do this in the vignette [Custom Models](custom_models.html).
+
 ## The Household Model Class
 
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
-We show how to produce a new instance of such a class and its methods with a template model, the chain binomial:
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model. It wraps an environment containing the Rcpp model class and allows to call its internal methods.
+We show how to generate a new instance of such a class and its methods with a template model, the chain binomial:
 
 ```{r}
 # generate an instance of the chain binomial model
-chabi <- housepi::HouseholdModelClass$new("chain_binom")
+hemi <- housepi::HouseholdModelClass$new("chain_binom")
 ```
 
-*Note:* this process can take a few minutes because it compiles the full template.
+At any moment you can retrieve the template description by using the class method `help()`.
 
-To see the complete list of available template models, just run `HouseholdModelClass$new()` without arguments.
-We explain how to create a custom model in the vignette [Custom Models](custom_models.html).
+Model compilation can take up to one a minute and by default it is repeated  at every R session. Consider storing the associated model environment to a given folder through the options `save`:
+
+```{r, eval = FALSE}
+# store the compiled model ...
+hemi <- housepi::HouseholdModelClass$new("chain_binom",
+                                         save="ready_chain_binom")
+# ... perform you analysis ...
+
+# ... and load it straightway during next session
+hemi <- housepi::HouseholdModelClass$new("ready_chain_binom")
+```
 
 ### Database Format
 
@@ -47,8 +78,14 @@ To provide the `status` of each individual (required to perform inference), each
 -   susceptible status: $0$.
 -   missing status: $-1$.
 
+The package comes with a few synthetic data to be used for testing, e. g.
+
+```{r}
+data("survey", package = "housepi")
+```
+
 ```{r, echo=FALSE}
-aux_ <- read.csv("survey.csv")[c("id", "house_id", "status")]
+aux_ <- survey[c("id", "house_id", "status")]
 knitr::kable(head(aux_))
 ```
 
@@ -57,7 +94,7 @@ knitr::kable(head(aux_))
 Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param.append`.
 
 ```{r, echo=TRUE}
-chabi$param.append(
+hemi$param.append(
   alpha = list(
     prior = "unif", args = list(min = 0, max = 3),
     rule = "lnorm", rule_args = list(sdlog = 1)
@@ -69,8 +106,14 @@ chabi$param.append(
 )
 ```
 
-At any moment we can turn a parameter definition into a constant parameter definitions: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
-Similarly we can also associate augmented variable definitions (see the vignette [Data Augmentation](data_augmentation.html)).
+
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
+
+Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param.template()`.
+The `param.append` method calls internally the `param.check()` to ensure that the definition list matches the model, raising a warning if it does not. 
+If some parameters are missing from your list, you can fill them calling the method `param.check(fill_template = TRUE)`.
+
+For models requiring augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html) for an example.
 
 ## Inference
 
@@ -78,51 +121,41 @@ Now we can safely perform inference with the method `infer`.
 
 ```{r}
 # run the Monte Carlo with setup options like number of iterations, seed, etc.
-chabi$infer(data = "survey.csv", num_iter = 50000, burn_in = 5000,
-            thinning = 15, num_adapt = 3000, num_chains = 4,
-            seed = 6043)
+hemi$infer(data = survey, num_iter = 50000, burn_in = 5000,
+           thinning = 15, num_adapt = 3000, num_chains = 4, seed = 6043)
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `num_threads` is not granted on such systems.
 
 ```{r}
 # visualize the traces of the first chain
-chabi$traces.traceplot(chain = 1)
+hemi$traces.traceplot(chain = 1)
 
 # store summary of the posterior estimates
-results <- chabi$traces.summary()
+results <- hemi$traces.summary()
 ```
 
 For advanced analysis on the inference results, we can extract the traces with method `traces.export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
 
 ```{r}
 # export coda object
-mctraces <- chabi$traces.export()
-
-# e. g. compute effective sample size
-coda::effectiveSize(mctraces)
+mctraces <- hemi$traces.export()
 
 # e. g. Gelman-Rubin criterion for convergence
 coda::gelman.diag(mctraces)
 ```
 
-### Model Diagnostic
+### Model Comparison
 
-To perform model diagnostics, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/index.html) :
+To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/index.html) :
 
 ```{r}
 # WAIC (widely applicable information criterion)
-chabi$waic()
-
-# approximate PSIS-LOO cross validation
-chabi$loo()
+hemi$waic()
 ```
-
-Another possibility is to estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
-
-```{r, eval=FALSE}
-# return the estimate of the model evidence
-chabi$evidence(num_rungs = 30)
+```{r}
+# approximate PSIS-LOO cross validation
+hemi$loo()
 ```
 
 ## Simulation
@@ -141,7 +174,7 @@ simu_cb$param.append(
 
 # build the new model using the same household compositions
 # override status of the database according to simulation
-simu_cb$simulate(data = "survey.csv", seed = 5923)
+simu_cb$simulate(data = survey, seed = 5923)
 ```
 
 To return the simulated database, which also corresponds to the current loaded database, we use the method
@@ -156,24 +189,24 @@ df <- simu_cb$data.export()
 We can challenge the inference process used at the beginning with the new simulated database.
 
 ```{r}
-# run the inference on the new data keeping previous definitions
-chabi$infer(data = df, num_iter = 50000, burn_in = 5000,
-            thinning = 15, num_adapt = 3000, num_chains = 4,
-            seed = 4337)
+# run inference on new database keeping previous definitions
+hemi$infer(data = df, num_iter = 50000, burn_in = 5000,
+           thinning = 15, num_adapt = 3000, num_chains = 4,
+           seed = 4337)
 
-# visualize the traces of the first chain
-chabi$traces.traceplot(chain = 1)
+# visualize traces of the first chain
+hemi$traces.traceplot(chain = 1)
 
 # collect the results
-results_2 <- chabi$traces.summary()
+results_2 <- hemi$traces.summary()
 
 # export parameters used for the simulations
-params <- simu_cb$param.export()
+simul_pars <- simu_cb$param.export()
 
-# compare results to parameters used for inference
-results_2[params[["name"]], "Simul"] <- params["value"]
+# compare results to parameter values used for inference
+results_2[simul_pars[["name"]], "Simul"] <- simul_pars["value"]
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(results_2)
+knitr::kable(results_2, digits = 3)
 ```

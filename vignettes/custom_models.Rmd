@@ -17,34 +17,28 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 ```
 
-This tutorial introduces to custom models with the package `housepi`. 
+This tutorial introduces to custom models with the package `housepi`.
+To create a custom model, we recommend not starting from scratch, but instead to copy a template model and modify all its relevant parts.
 
-We'll walk through the process of associating augmented variable to individuals to then proceed with standard model generation and inference. 
+## Template Models
 
-To create a custom model without starting from scratch, we copy a template model to a custom path with the function `template_model`:
+To copy a template to a custom path we use the function `household_model_template`:
 
 ```{r, eval=FALSE}
 # copy the heterogeneous chain binomial template to a custom directory
-
-my_model_path <- "custom_project"
-housepi::template_model(which = "chain_binom_heter", path = my_model_path)
+my_model_path <- "custom_folder"
+housepi::household_model_template(which = "chain_binom_heter", 
+                                  path = my_model_path)
 ```
 
-Modify all relevant parts of the C++ implementation *model.cpp* and of the header *model.h* within your model directory. *Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
+Modify all relevant parts of the C++ implementation *model.cpp* and of the header *model.h* within your model directory.
+*Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
 
-We generate according to the custom directory. All other commands remain the same.
+We generate according to the custom directory.
+All other commands remain the same.
 
 ```{r, eval=FALSE}
 hemi <- housepi::generate_model(my_model_path)
 ```
 
-
-
-```{r, eval=FALSE}
-housepi::build_model(hemi, data="survey.csv", params =  params$df)
-```
-
-
-
-
-
+## Creating a new Template

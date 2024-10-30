@@ -4,17 +4,117 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
+#include "function.h"
 #include "varia.h"
 
-using basics::raise_error;
-using basics::raise_warning;
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  /////////////////////////////////////////////
+/////////////////////////////  Base Distribution : methods  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Disabled_OpenMP_Warning = false;   // warning for attempt to use openmp while disabled
-bool Above_Max_Threads_Warning = false; // warning for over the threshold n. of threads
+double Base_Distribution::pdf(double x) const
+{
+    return (this->*_func_trunc_)(_pdf_(x));
+}
+double Base_Distribution::cdf(double x) const
+{
+    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x)));
+}
+double Base_Distribution::logpdf(double x) const
+{
+    return (this->*_func_logtrunc_)(_logpdf_(x));
+}
+
+double Base_Distribution::logratio(double xold, double xnew) const
+{
+    UNUSED(xold);
+    UNUSED(xnew);
+    return 0.0;
+}
+double Base_Distribution::rand(sys_rnd_gen &prng)
+{
+    UNUSED(prng);
+    return _undefined_call_error_("rand");
+}
+
+double Base_Distribution::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
+double Base_Distribution::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
+double Base_Distribution::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+
+/* Internal error for calls to undefined distribution. */
+double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
+{
+    UNUSED(x);
+    UNUSED(y);
+    tools::error("Attempt to call undefined method '" + txt + "' of distribution '" + get_name() + "'.");
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
+/* Truncate distribution at declaration.  */
+void Base_Distribution::set_truncation(const dictargs &range)
+{
+    int trunc_cases = set_range(range);
+    if (trunc_cases == 0) // no truncation
+    {
+        _func_trunc_ = &Base_Distribution::_trunc_dummy_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_dummy_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
+    }
+    else if (trunc_cases == 1) // lower range truncation
+    {
+        _func_trunc_ = &Base_Distribution::_trunc_min_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_min_;
+        _func_shift_ = &Base_Distribution::_shift_min_;
+    }
+    else if (trunc_cases == 2) // upper range truncation
+    {
+        _func_trunc_ = &Base_Distribution::_trunc_max_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_max_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
+    }
+    else // both sides truncation
+    {
+        _func_trunc_ = &Base_Distribution::_trunc_both_sides_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
+    }
+}
+
+/* Error for. */
+void Base_Distribution::check_rand_attempts(int &num_attempts) const
+{
+    if (num_attempts > MAX_NUMBER_ATTEMPTS)
+    {
+        std::ostringstream oss;
+        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
+            << " in initialization of '" << get_name() << "' "
+            << " within range {" << get_range_min() << ", " << get_range_max() << "}.";
+        tools::error(oss.str());
+    }
+    ++num_attempts;
+}
+
+//----- Functional methods for the truncation -----//
+double Base_Distribution::_trunc_dummy_(double x) const { return x; }
+double Base_Distribution::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
+double Base_Distribution::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
+double Base_Distribution::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
+
+//----- Functional methods for the (log) truncation -----//
+double Base_Distribution::_logtrunc_dummy_(double x) const { return x; }
+double Base_Distribution::_logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
+double Base_Distribution::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
+double Base_Distribution::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
+
+//----- Functional methods to shift cumulative -----//
+double Base_Distribution::_shift_dummy_(double x) const { return x; }
+double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -28,19 +128,19 @@ bool Above_Max_Threads_Warning = false; // warning for over the threshold n. of 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Base_Proposer::Base_Proposer(Base_Distribution *distr,
-                             double rule_start,
+                             double rule_start_value,
                              std::vector<int> args_to_adapt) : distr_ptr(distr)
 {
     _args_to_adapt_ = args_to_adapt;
 
-    if (rule_start == INF_DOUBLE)
+    if (rule_start_value == INF_DOUBLE)
     {
         _is_start_from_zero_ = false;
     }
     else
     {
         _is_start_from_zero_ = true;
-        set_rule_start_value(rule_start);
+        set_rule_start_value(rule_start_value);
     }
 };
 
@@ -73,6 +173,90 @@ void Base_Proposer::update_accept_rate(bool is_accepted)
     num_proposed_moves += 1;
 }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Uniform_Proposer : public Base_Proposer
+{
+public:
+    //=====Constructors=====//
+    Uniform_Proposer(
+        dictargs rule_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("unif", rule_args), rule_from, {"min", "max"})
+    {
+        _propose_method_ = &Uniform_Proposer::_propose_sum_to_previous_;
+        _logratio_method_ = &Uniform_Proposer::_logratio_symm_;
+    }
+    ~Uniform_Proposer() {}
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Normal_Proposer : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Normal_Proposer : public Base_Proposer
+{
+public:
+    //=====Constructor=====//
+    Normal_Proposer(
+        dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("norm", rule_args), rule_from, {1})
+    {
+        _propose_method_ = &Normal_Proposer::_propose_sum_to_previous_;
+        _logratio_method_ = is_rule_start_from_zero() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
+    }
+    ~Normal_Proposer() {}
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Lognorm_Proposer : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Lognorm_Proposer : public Base_Proposer
+{
+public:
+    //=====Constructor=====//
+    Lognorm_Proposer(
+        dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("lnorm", rule_args), rule_from, {1})
+    {
+        _propose_method_ = &Lognorm_Proposer::_propose_times_previous_;
+        _logratio_method_ = is_rule_start_from_zero() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
+    }
+    ~Lognorm_Proposer() {}
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Gibbs_Proposer : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Gibbs_Proposer : public Base_Proposer
+{
+public:
+    //=====Constructor=====//
+    Gibbs_Proposer(Base_Distribution *distribution) : Base_Proposer(distribution)
+    {
+        _propose_method_ = &Gibbs_Proposer::_propose_draw_rand_;
+        _logratio_method_ = &Gibbs_Proposer::_logratio_pdf_;
+    }
+    ~Gibbs_Proposer() {}
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /* Switchboard to select the custom metropolis proposer rule. */
 Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, double rule_from)
 {
@@ -90,9 +274,10 @@ Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, d
     {
         output = new Lognorm_Proposer(rule_args, rule_from);
     }
-    else if (!basics::is_na(rule_name))
+    else if (!tools::is_na(rule_name))
     {
-        raise_error("Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
+        throw std::invalid_argument(
+            "Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
     }
 
     return output;
@@ -106,270 +291,54 @@ Base_Proposer *proposer_switchboard(std::string rule_name, dictargs rule_args, d
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Parameter : methods  ///////////////////////////////////////
+//////////////////////////////////  Base_Variable : methods  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Init the values for the Bayesian diagnostics. */
-void Parameter::init_diagnostics(ulong sample_size)
+void Base_Variable::assign_proposer(const std::string &rule_name,
+                                    dictargs rule_args,
+                                    double rule_from)
 {
-    dgn_count = 0;
-    dgn_value.clear();
-    dgn_value = std::vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
-}
-
-/* Update the values for the Bayesian diagnostics. */
-void Parameter::update_diagnostics()
-{
-    dgn_value[dgn_count++] = get_value();
-}
-
-/* Message to be used at the moment of display diagnostics. */
-std::string Parameter::show_diagnostics() const
-{
-    using namespace basics;
-    std::ostringstream oss;
-
-    double avg = 0, var = 0;
-    statistics(dgn_value, avg, var);
-
-    oss << avg << C_DELIM << std::sqrt(var) << C_DELIM << truth(infer)
-        << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
-        << C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-        << C_DELIM << get_range_min() << C_DELIM << get_range_max();
-    return oss.str();
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Monte_Carlo_Core : methods (getter)  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Default method to get a value. */
-double Monte_Carlo_Core::_get_param_default_(const std::string &parID) const
-{
-    return params.at(parID).get_value();
-}
-
-/* Safe method to get a value with previous assertion. */
-double Monte_Carlo_Core::_get_param_assert_(const std::string &parID) const
-{
-    assert_param(parID);
-    return _get_param_default_(parID);
-}
-
-/* Default method to get a pointer to a parameter. */
-const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string &parID) const
-{
-    return params.at(parID).get_pointer();
-}
-
-/* Safe method to get a pointer to a parameter with previous assertion. */
-const double *Monte_Carlo_Core::_get_param_pointer_assert_(const std::string &parID) const
-{
-    assert_param(parID);
-    return _get_param_pointer_default_(parID);
-}
-
-/* Disable parameter assertion. */
-void Monte_Carlo_Core::disable_assert_param()
-{
-    _get_param_method_ = &Monte_Carlo_Core::_get_param_default_;
-    _get_param_pointer_method_ = &Monte_Carlo_Core::_get_param_pointer_default_;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Drop all params dictionary. */
-void Monte_Carlo_Core::drop_all_params()
-{
-    params.clear();
-    param_to_be_static.clear();
-    param_to_be_inferred.clear();
-}
-
-/* Assign a new parameter to the dictionary. */
-void Monte_Carlo_Core::assign_param(const std::string &parID, const Parameter &new_param)
-{
-    // create the new parameter if it's not already defined
-    if (params.find(parID) != params.end())
+    // check that rule args have no mismatch
+    if (rule_args.find(IO_MISMATCH) != rule_args.end())
     {
-        raise_error("Parameter '" + parID + "' has multiple definitions.");
+        tools::error("Mismatching definitions in rule arguments of '" + name + "'.");
+    }
+
+    if (tools::is_na(rule_name))
+    {
+        // immutable variable if no rule is defined
+        infer = false;
+        _propose_method_ = &Base_Variable::_propose_error_;
     }
     else
     {
-        // emplace the new parameter
-        params.emplace(parID, new_param);
+        infer = true;
 
-        // update the lists of parameters to be inferred, and these to be static
-        if (new_param.get_infer())
+        // define proposer rule with functional programming
+        if (rule_name == "gibbs")
         {
-            param_to_be_inferred.push_back(parID);
+            prop_ptr = new Gibbs_Proposer(distr_ptr);
+            _propose_method_ = &Base_Variable::_propose_gibbs_sample_;
+            _move_logratio_method_ = &Base_Variable::_move_logratio_gibbs_;
         }
         else
         {
-            param_to_be_static.push_back(parID);
+            if ((rule_from != INF_DOUBLE) && (!distr_ptr->valid(rule_from)))
+            {
+                std::string min_val = distr_ptr->show_range_min();
+                std::string max_val = distr_ptr->show_range_max();
+                std::ostringstream oss;
+                oss << "Initial value " << rule_from << " outside of value range"
+                    << " {min:" << (tools::is_na(min_val) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(min_val))
+                    << ", max:" << (tools::is_na(max_val) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(max_val))
+                    << "}."
+                    << " If intentional, ignore this message.";
+                tools::warning(oss.str());
+            }
+
+            // assigne the pointer to the proposer
+            prop_ptr = proposer_switchboard(rule_name, rule_args, rule_from);
+            _propose_method_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
         }
     }
-}
-
-/* Set the number of threads for parrell computations (default is 1). */
-void Monte_Carlo_Core::set_num_threads(unsigned n)
-{
-    if (n == 0)
-    {
-        raise_error("Number of threads must be equal or greater than 1.");
-    }
-
-#ifdef _OPENMP
-    if (n > _max_num_available_threads)
-    {
-        std::ostringstream oss;
-        oss << "Number of threads (" << n << ") changed to number of available threads (" << _max_num_available_threads << ").";
-        raise_warning(oss.str(), Above_Max_Threads_Warning);
-        n = _max_num_available_threads;
-    }
-
-    // declare the global number of omp threads
-    omp_set_num_threads(n);
-    setup_num_threads = n;
-
-    // create different generators for different parallel threads
-    // UPDATE: they are used only to parallelize data augmentantion
-    if (n > 1)
-    {
-        prng_parallel.reserve(n);
-        _prng_method_ = &Monte_Carlo_Core::_prng_parallel_threads_;
-    }
-    else
-    {
-        _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
-    }
-#else
-    if (n != 1)
-    {
-        raise_warning("Parallelization with OpenMP not supported.", Disabled_OpenMP_Warning);
-    }
-    setup_num_threads = 1;
-    _prng_method_ = &Monte_Carlo_Core::_prng_unique_thread_;
-#endif
-}
-
-/* Assign seed for random generators. */
-void Monte_Carlo_Core::set_prng_seed(int seed)
-{
-    // seed for the unique thread rand num generator
-    prng.seed(seed);
-
-    // seeds for the case of parallelization
-    if (setup_num_threads > 1)
-    {
-        std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
-        for (unsigned n = 0; n < setup_num_threads; ++n)
-        {
-            prng_parallel[n].seed(seed_generator(prng));
-        }
-    }
-}
-
-/* Add a new scalar for augmented typedict FIXME : temporary. */
-const double *Monte_Carlo_Core::assign_scalar_pointer(double new_val)
-{
-    if (_scalar_type_params_.find(new_val) == _scalar_type_params_.end())
-    {
-        Parameter new_param(UNDEFINED, new_val, UNDEFINED, {}, UNDEFINED, {}, {});
-        _scalar_type_params_.emplace(new_val, new_param);
-    }
-    return _scalar_type_params_.at(new_val).get_pointer();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Monte_Carlo_Core : methods (setter)  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Check if the given parameter is defined, otherwise raise error. */
-void Monte_Carlo_Core::assert_param(const std::string &parID) const
-{
-    if (params.find(parID) == params.end())
-    {
-        raise_error("Parameter '" + parID + "' not found. Check your model and your parameter definitions.");
-    }
-}
-
-/* randomly initialize values of the parameters to be inferred */
-void Monte_Carlo_Core::init_rand_params(bool is_rand_params)
-{
-    if (is_rand_params)
-    {
-        for (const std::string &parID : param_to_be_inferred)
-        {
-            params.at(parID).rand(prng);
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  Monte_Carlo_Core : methods (parameter moves)  //////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-// FIXME : Gibbs sampling is missing here!
-// 1) always valid 2) move_logratio == 0
-bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
-{
-    // set new value of the parameter and store the old to buffer
-    params.at(parID).propose(prng);
-
-    // proceed only if valid move, otherwise restore buffer
-    if (params.at(parID).valid_move())
-    {
-        return true;
-    }
-    else
-    {
-        // reassign buffered value to param
-        restore_param_value(parID);
-        return false;
-    }
-}
-
-/* Init diagnostics for all parameters */
-void Monte_Carlo_Core::init_param_diagnostics(ulong sample_size)
-{
-    for (const std::string &parID : param_to_be_inferred)
-    {
-        params.at(parID).init_diagnostics(sample_size);
-    }
-}
-
-/* Update diagnostics for all parameters */
-void Monte_Carlo_Core::update_param_diagnostics()
-{
-    for (const std::string &parID : param_to_be_inferred)
-    {
-        params.at(parID).update_diagnostics();
-    }
-}
-
-/* Format parameter to show. */
-std::string Monte_Carlo_Core::show_param(const std::string &parID) const
-{
-    std::ostringstream oss;
-    oss << parID << basics::C_DELIM << params.at(parID).show();
-    return oss.str();
-}
-
-/* Format parameter diagnostics to show. */
-std::string Monte_Carlo_Core::show_param_diagnostics(const std::string &parID) const
-{
-    std::ostringstream oss;
-    oss << parID << basics::C_DELIM << params.at(parID).show_diagnostics();
-    return oss.str();
 }

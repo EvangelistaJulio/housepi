@@ -7,12 +7,6 @@
 
 #include "model.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  WARNINGS  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Undefined_Model_Warning = false;
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -23,15 +17,13 @@ bool Undefined_Model_Warning = false;
 /* Raise error for undefined model usage. */
 void Model::init_model_for_inference()
 {
-	basics::raise_warning(
-		"Attempt to compute the likelihood with undefined model (developer only).",
-		Undefined_Model_Warning);
+	tools::warning(
+		"Attempt to compute the likelihood with undefined model (developer only).");
 }
 
 /* Raise error for undefined model usage. */
 void Model::init_model_for_simulation()
 {
-	basics::raise_warning(
-		"Attempt to perform simulation with undefined model (developer only).", 
-		Undefined_Model_Warning);
+	tools::warning(
+		"Attempt to perform simulation with undefined model (developer only).");
 }

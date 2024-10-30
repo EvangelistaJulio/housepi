@@ -15,7 +15,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(MODEL)/model.exe
 
 # Compilation flags
-CXXFLAGS := -Wall -Wextra -std=gnu++11
+CXXFLAGS := -Wall -Wextra -std=gnu++14
 ifdef DEBUG
 CXXFLAGS += -g -O2 -Wno-unknown-pragmas
 else

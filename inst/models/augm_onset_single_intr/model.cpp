@@ -124,12 +124,8 @@ double Model::transmission_rate(const Household &this_house) const
 /* Initialize parameters and augmented variables */
 void Model::init_model_for_inference()
 {
-	//===== Initialize Lookup Tables (infectivity profiles) =====//
-	dictargs args = {{"alpha", get_param("tost_alpha")},
-					 {"mu", get_param("tost_mu")},
-					 {"sigma", get_param("tost_sigma")},
-					 {"tau", get_param("tost_tau")}};
-	infec_prof_ptr = new Infec_Prof_Ferretti20(args);
+	// use infectivity profile from Ferretti et al (2020)
+	infec_prof_ptr = new Infec_Prof_Ferretti20();
 
 	// clear the Lookup Tables (in case of multiple initializations)
 	LUT_inst_prof.clear();
@@ -138,12 +134,12 @@ void Model::init_model_for_inference()
 	//===== Initialize household features =====//
 
 	// std::vector with index of first infector
-	LUT_hh_first_case = std::vector<int>(num_house, -1);
+	LUT_hh_first_case = std::vector<int>(get_num_house(), -1);
 
 	// produce the empty matrix for the infectivity profiles look-up-tables
-	for (int h = 0; h < num_house; h++)
+	for (size_t H = 0; H < get_num_house(); H++)
 	{
-		int h_size = house[h].size();
+		int h_size = house(H).size();
 		LUT_inst_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
 		LUT_cumul_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
 	}
@@ -171,30 +167,25 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	int h = this_house.get_index();
 	Individual &this_indiv = this_house.indiv[i];
 
-	double onset_i = this_indiv.get_augm("onset_date");
-	double incub_i = this_indiv.get_augm("incub_period");
-	double t_infec_i = onset_i - incub_i;
+	double t_infec_i = this_indiv.get_augm("onset_date") - this_indiv.get_augm("incub_period");
+	double t_infec_k;
 
 	// init new first case to i
 	double new_t0 = t_infec_i;
 	int hh_first_case = i;
 
-	double onset_k, incub_k, t_infec_k;
-
 	//----- Update Lookup Tables for infectious -----//
-	for (int k : this_house.infectious_set)
+	for (int k : this_house.get_infectious_set())
 	{
 		if (k != i)
 		{
 			Individual &other_indiv = this_house.indiv[k];
-			onset_k = other_indiv.get_augm("onset_date");
-			incub_k = other_indiv.get_augm("incub_period");
-			t_infec_k = onset_k - incub_k;
+			t_infec_k = other_indiv.get_augm("onset_date") - other_indiv.get_augm("incub_period");
 
 			if (t_infec_i < t_infec_k)
 			{ //----- `i` : infector, `k` : infectee -----//
-				LUT_inst_prof[h][i][k] = infec_prof_ptr->pdf(t_infec_k - onset_i, incub_i);
-				LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+				LUT_inst_prof[h][i][k] = infec_prof_ptr->pdf(t_infec_k, this_indiv);
+				LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k, this_indiv);
 				LUT_inst_prof[h][k][i] = 0.;
 				LUT_cumul_prof[h][k][i] = 0.;
 			}
@@ -202,8 +193,8 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 			{ //----- `k` : infector, `i` : infectee -----//
 				LUT_inst_prof[h][i][k] = 0.;
 				LUT_cumul_prof[h][i][k] = 0.;
-				LUT_inst_prof[h][k][i] = infec_prof_ptr->pdf(t_infec_i - onset_k, incub_k);
-				LUT_cumul_prof[h][k][i] = infec_prof_ptr->cdf(t_infec_i - onset_k, incub_k);
+				LUT_inst_prof[h][k][i] = infec_prof_ptr->pdf(t_infec_i, other_indiv);
+				LUT_cumul_prof[h][k][i] = infec_prof_ptr->cdf(t_infec_i, other_indiv);
 
 				// update first case
 				if (t_infec_k < new_t0)
@@ -221,9 +212,9 @@ void Model::update_augm_dependecies(Household &this_house, int i)
 	//===============================//
 
 	t_infec_k = this_house.indiv[hh_first_case].get_augm("onset_date") + get_param("study_period");
-	for (int k : this_house.susceptible_set)
+	for (int k : this_house.get_susceptible_set())
 	{
-		LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k - onset_i, incub_i);
+		LUT_cumul_prof[h][i][k] = infec_prof_ptr->cdf(t_infec_k, this_indiv);
 	}
 
 	//==================================//
@@ -250,15 +241,15 @@ double Model::foi(const Household &this_house, int i, const std::vector<squarema
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (int k : this_house.infectious_set)
+	for (int k : this_house.get_infectious_set())
 	{
 		if (k != i)
 		{
-			output += get_contact_rate(this_house, k, i) * get_group_rate(this_house.indiv[k], "Infectivity") * profiles[h][k][i];
+			output += this_house.get_contact_rate(k, i) * this_house.indiv[k].get_group_rate("Infectivity") * profiles[h][k][i];
 		}
 	}
 
-	output *= get_group_rate(this_house.indiv[i], "Susceptibility") * transmission_rate(this_house);
+	output *= this_house.indiv[i].get_group_rate("Susceptibility") * transmission_rate(this_house);
 
 	return output;
 }
@@ -274,13 +265,13 @@ double Model::compute_house_loglike(const Household &this_house) const
 	double loglike_house = 0.0;
 
 	// Contribution of healthy members
-	for (int i : this_house.susceptible_set)
+	for (int i : this_house.get_susceptible_set())
 	{
 		loglike_house -= foi(this_house, i, LUT_cumul_prof);
 	}
 
 	// Contribution of symptomatic members
-	for (int i : this_house.infectious_set)
+	for (int i : this_house.get_infectious_set())
 	{
 		// Contribution of secondary cases
 		if (i != LUT_hh_first_case[h])
@@ -337,7 +328,7 @@ void Model::simulate_single_house(Household &this_house)
 	double tf = t + get_param("study_period");
 
 	// onset of secondary cases following the first case
-	while ((t < tf) && (this_house.num_susceptible > 0))
+	while ((t < tf) && (this_house.get_num_susceptible() > 0))
 	{
 		t += Dt;
 		for (int i = 0; i < this_house.size(); i++)
@@ -346,7 +337,7 @@ void Model::simulate_single_house(Household &this_house)
 			{
 				// set new status for computations
 				this_house.change_status(i, INFECTIOUS);
-				this_house.indiv[i].set_augm("onset_date", t);
+				this_house.indiv[i].set_augm_value("onset_date", t);
 				update_augm_dependecies(this_house, i);
 
 				// restore status id escaped infection
@@ -359,7 +350,7 @@ void Model::simulate_single_house(Household &this_house)
 	}
 
 	// remove augmented of susceptibles
-	for (int i : this_house.susceptible_set)
+	for (int i : this_house.get_susceptible_set())
 	{
 		clear_augm(this_house.indiv[i]);
 	}

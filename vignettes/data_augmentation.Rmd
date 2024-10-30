@@ -29,7 +29,7 @@ Assuming the incubation period to be described by a gamma distribution, we want 
 We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
 
 ```{r}
-delays <- read.csv("delays.csv")
+data("delays", package = "housepi")
 delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-4
 delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-4
 delays[["status"]] <- 1
@@ -61,27 +61,27 @@ hemi_1$param.append(
 ### Build Augmented Variables
 
 Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo.
-However, augmented variable definitions are more delicate, since they can depend on data or parameters.
-We state which value should be imported from data formatting it as a string "*value_name*`@D`".
+However, augmented variable definitions are more delicate, since they can depend on database or parameters.
+We state which value should be imported from the database by formatting the string with the value header: "*header_name*`@D`".
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
 hemi_1$augm.append(
   # define 'exposure' time
   exposure = list(
-    x = "exposure_min@D", # start from data 'exposure_min'
+    x = "exposure_min@D",                # start from database value 'exposure_min'
     model = "unif",                      # associate a uniform model
     args = list(min = "exposure_min@D",  # within the range 'exposure_min' 
                 max = "exposure_max@D"), # and 'exposure_max'
-    rule = "norm",              # choose normal rule for the Monte Carlo
-    rule_args = list(sd = 0.25) # with a std. dev. of 0.25
+    rule = "norm",                       # normal rule for the Monte Carlo
+    rule_args = list(sd = 0.5)          # with a std. dev. of 0.25
   ),
   
   # define 'onset' time
   onset = list(
     x = "onset_max@D",
     model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
-    rule = "norm", rule_args = list(sd = 0.25)
+    rule = "norm", rule_args = list(sd = 0.5)
   )
 )
 ```
@@ -91,7 +91,8 @@ We run the inference and we extract the results
 ```{r}
 hemi_1$infer(data = delays, num_iter = 100000, burn_in = 10000,
              thinning = 10, num_adapt = 2500, seed = 4349)
-# Note: The warning is telling us that the database is interpreted as composed of single individuals living in separate households.
+# Note: The warning tells us that our database has no demographic structure:
+# it will be interpreted as single individuals living in separate households.
 
 # show traces of chains
 hemi_1$traces.traceplot()
@@ -102,7 +103,7 @@ results_1 <- hemi_1$traces.summary()
 
 ## Augment Onset Times
 
-For a more realistics example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
+For a more realistic example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
@@ -120,31 +121,35 @@ par_2 <- hemi_2$param.export()
 ```
 
 ```{r, echo=FALSE}
+options(knitr.kable.NA = "")
 knitr::kable(par_2)
+options(knitr.kable.NA = "NA")
 ```
 
 We propose the following definitions for the augmented variable
 
 ```{r}
-# add augmented variable definition 'onset_date'
-hemi_2$augm.add(name = "onset_date",
-                init_rand = TRUE,
-                model = "lnorm", 
-                args = list(meanlog = 4, sdlog = 0.5),
-                range = list(max = 365))
 
-# add augmented variable definition 'incub_period'
-hemi_2$augm.add(name = "incub_period", 
-                init_rand = TRUE,
-                model = "gamma", 
-                args = list(shape = "inc_shape@P", 
-                            scale = "inc_scale@P"),
-                range = list(max = 14))
+hemi_2$augm.append(
+  # add augmented variable definition 'onset_date'
+  onset_date = list(
+    init_rand = TRUE,
+    model = "lnorm", args = list(meanlog = 4, sdlog = 0.5),
+    range = list(max = 365)
+  ),
+  # add augmented variable definition 'incub_period'
+  incub_period = list(
+    init_rand = TRUE,
+    # assign arguments of incubation period from parameter definitions
+    model = "gamma", args = list(shape = "inc_shape@P", 
+                                 scale = "inc_scale@P"),
+    range = list(max = 14)
+  )
+)
 
-# assign arguments of incubation period as constant parameters
-# we use the inferred values from the first example
-hemi_2$param.add(name = "inc_shape", x = results_1["shape","Mean"])
-hemi_2$param.add(name = "inc_scale", x = results_1["scale","Mean"])
+# use inferred values from first example as constant parameters
+hemi_2$param.append(inc_shape = list(x = results_1["shape","Mean"]),
+                    inc_scale = list(x = results_1["scale","Mean"]))
 ```
 
 ### Simulate an Outbreak
@@ -152,10 +157,10 @@ hemi_2$param.add(name = "inc_scale", x = results_1["scale","Mean"])
 We run a simulation with the method `simulate`.
 
 ```{r}
-# override status of the dataset according to simulation 
-hemi_2$simulate(data = "survey.csv", seed = 3733)
+# override status of the dataset according to simulation
+hemi_2$simulate(data = "survey.csv", seed = 3731)
 
-# show a summary of the current dataset
+# show a summary of the current database
 hemi_2$data.summary()
 ```
 
@@ -163,8 +168,8 @@ In addition to the final status, the simulation associates the values of the aug
 This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
-# remove incubation period from simulated data
-df <- subset(hemi_2$data.export(), select = -c(incub_period) )
+# remove incubation period from simulated database
+df <- subset(hemi_2$data.export(), select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
 is_infec <- df$status == 1
@@ -186,38 +191,49 @@ We can check that inference returns the parameters used for the simulation.
 # clear previous augmented definitions
 hemi_2$augm.clear()
 
-# add 'onset_date' definition
-hemi_2$augm.add(name = "onset_date",
-                x = "onset_date@D",
-                rule = "norm", rule_args = list(sd = 0.25),
-                rule_from = "onset_date@D")
-
-# add 'incub_period' definition
-hemi_2$augm.add(name = "incub_period",
-                init_rand = TRUE,
-                model = "gamma",
-                args = list(shape = "inc_shape@P", scale = "inc_scale@P"),
-                rule = "gibbs",
-                range = list(max = 14))
+# add new definitions
+hemi_2$augm.append(
+  # add 'onset_date' definition
+  onset_date = list(
+    x = "onset_date@D",
+    rule = "norm", rule_args = list(sd = 0.25),
+    rule_from = "onset_date@D"
+  ),
+  # add 'incub_period' definition
+  incub_period = list(
+    init_rand = TRUE,
+    model = "gamma", args = list(shape = "inc_shape@P", 
+                                 scale = "inc_scale@P"),
+    rule = "gibbs", range = list(max = 14)
+  )
+)
 
 # perform the inference
+# note: NA onset dates of healthy individuals will raise a warning
 hemi_2$infer(data = df, num_iter = 30000, burn_in = 5000, 
              thinning = 25, num_adapt = 2500, seed = 3413)
 
 # plot the traces
 hemi_2$traces.traceplot()
-```
 
-```{r}
 # collect the results
 results_2 <- hemi_2$traces.summary()
 
-# compare results to parameters used for inference
+# compare results to parameter values used for inference
 imask <- par_2["infer"] == TRUE
 inames <- par_2[imask, "name"]
 results_2[inames, "Simul"] <- par_2[imask, "value"]
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(results_2)
+knitr::kable(results_2, digits = 3)
+```
+
+### Model Comparison
+
+We can estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
+
+```{r, eval=FALSE}
+# return the estimate of the model evidence
+hemi_2$evidence(num_rungs = 30)
 ```

@@ -92,7 +92,7 @@ void Model::fill_house_escape_matrix(const Household &this_house, std::vector<do
 	int count = 0;
 
 	// 1) ordered members group rates : infectious
-	for (int i : this_house.infectious_set)
+	for (int i : this_house.get_infectious_set())
 	{
 		susc_rate[count] = this_house.indiv[i].get_group_rate("Susceptibility");
 		infec_rate[count] = this_house.indiv[i].get_group_rate("Infectivity");
@@ -100,7 +100,7 @@ void Model::fill_house_escape_matrix(const Household &this_house, std::vector<do
 	}
 
 	// 2) ordered members group rates : susceptibles
-	for (int i : this_house.susceptible_set)
+	for (int i : this_house.get_susceptible_set())
 	{
 		susc_rate[count] = this_house.indiv[i].get_group_rate("Susceptibility");
 		infec_rate[count] = this_house.indiv[i].get_group_rate("Infectivity");
@@ -117,8 +117,8 @@ void Model::fill_house_escape_matrix(const Household &this_house, std::vector<do
 		// note : else is equal to 1 (declared outside, not relevant)
 		for (int k = 0; k < i; ++k)
 		{
-			p2p_esc_proba[k][i] = exp(-susc_rate[i] * get_contact_rate(this_house, k, i) * infec_rate[k] * get_param("beta"));
-			p2p_esc_proba[i][k] = exp(-susc_rate[k] * get_contact_rate(this_house, i, k) * infec_rate[i] * get_param("beta"));
+			p2p_esc_proba[k][i] = exp(-susc_rate[i] * this_house.get_contact_rate(k, i) * infec_rate[k] * get_param("beta"));
+			p2p_esc_proba[i][k] = exp(-susc_rate[k] * this_house.get_contact_rate(i, k) * infec_rate[i] * get_param("beta"));
 		}
 	}
 }
@@ -145,13 +145,13 @@ void Model::fill_house_escape_matrix(const Household &this_house, std::vector<do
 void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
-	if (report_data["n.unk.stat"] > 0)
+	if (report_data("n.unk.stat") > 0)
 	{
-		basics::raise_error("A missing status was found : incompatible with the model.");
+		tools::error("A missing status was found : incompatible with the model.");
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_escape_patterns_lookuptable(report_data["max.n.HH.cases"]);
+	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,7 +162,7 @@ void Model::init_model_for_inference()
 double Model::compute_house_loglike(const Household &this_house) const
 {
 	int hh_size = this_house.size();
-	int num_infec = this_house.num_infectious;
+	int num_infec = this_house.get_num_infectious();
 
 	//=====Escape Matrix=====//
 	std::vector<double> commu_esc_proba(hh_size, 1.);
@@ -218,9 +218,9 @@ void Model::simulate_single_house(Household &this_house)
 	//=============================================================//
 
 	std::set<int> old_gen_set = {};
-	std::set<int> new_gen_set = this_house.infectious_set;
+	std::set<int> new_gen_set = this_house.get_infectious_set();
 
-	while ((this_house.num_susceptible > 0) && (!new_gen_set.empty()))
+	while ((this_house.get_num_susceptible() > 0) && (!new_gen_set.empty()))
 	{
 		old_gen_set = new_gen_set;
 		new_gen_set.clear();
