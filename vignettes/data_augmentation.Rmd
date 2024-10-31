@@ -158,7 +158,8 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation
-hemi_2$simulate(data = "survey.csv", seed = 3731)
+data("survey", package = "housepi")
+hemi_2$simulate(data = survey, seed = 3731)
 
 # show a summary of the current database
 hemi_2$data.summary()
