@@ -69,17 +69,17 @@ Here we associate to each individual an exposure and an onset time.
 hemi_1$augm.append(
   # define 'exposure' time
   exposure = list(
-    x = "exposure_min@D",                # start from database value 'exposure_min'
+    value = "exposure_min@D",            # start from database value 'exposure_min'
     model = "unif",                      # associate a uniform model
     args = list(min = "exposure_min@D",  # within the range 'exposure_min' 
                 max = "exposure_max@D"), # and 'exposure_max'
     rule = "norm",                       # normal rule for the Monte Carlo
-    rule_args = list(sd = 0.5)          # with a std. dev. of 0.25
+    rule_args = list(sd = 0.5)           # with a std. dev. of 0.25
   ),
   
   # define 'onset' time
   onset = list(
-    x = "onset_max@D",
+    value = "onset_max@D",
     model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
     rule = "norm", rule_args = list(sd = 0.5)
   )
@@ -148,8 +148,8 @@ hemi_2$augm.append(
 )
 
 # use inferred values from first example as constant parameters
-hemi_2$param.append(inc_shape = list(x = results_1["shape","Mean"]),
-                    inc_scale = list(x = results_1["scale","Mean"]))
+hemi_2$param.append(inc_shape = list(value = results_1["shape","Mean"]),
+                    inc_scale = list(value = results_1["scale","Mean"]))
 ```
 
 ### Simulate an Outbreak
@@ -196,7 +196,7 @@ hemi_2$augm.clear()
 hemi_2$augm.append(
   # add 'onset_date' definition
   onset_date = list(
-    x = "onset_date@D",
+    value = "onset_date@D",
     rule = "norm", rule_args = list(sd = 0.25),
     rule_from = "onset_date@D"
   ),

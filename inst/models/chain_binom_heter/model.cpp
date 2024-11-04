@@ -15,33 +15,33 @@
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* Assign the parameters controlling infectivity for each individual */
-void Model::assign_group_rate_to_individual(Individual &this_indiv)
+void Model::assign_group_rate_to_individual(Household &this_house, int i)
 {
 	//=====Susceptibility=====//
-	if (this_indiv.get_data("age") <= get_param("child_age"))
+	if (this_house.get_data(i, "age") <= get_param("child_age"))
 	{ // child
-		this_indiv.assign_group_rate("Susceptibility", "sus_child");
+		this_house.assign_group_rate(i, "Susceptibility", "sus_child");
 	}
 	else
 	{ // adult
-		if (this_indiv.get_data("sex") == 0)
+		if (this_house.get_data(i, "sex") == 0)
 		{ // adult women
-			this_indiv.assign_group_rate("Susceptibility", "sus_women");
+			this_house.assign_group_rate(i, "Susceptibility", "sus_women");
 		}
 		else
 		{ // adult men : Susceptibility [REFERENCE]
-			this_indiv.assign_group_rate("Susceptibility", REFERENCE);
+			this_house.assign_group_rate(i, "Susceptibility", REFERENCE);
 		}
 	}
 
 	//=====Infectivity=====//
-	if (this_indiv.get_data("age") > get_param("child_age"))
+	if (this_house.get_data(i, "age") > get_param("child_age"))
 	{ // adult : Susceptiblity [REFERENCE]
-		this_indiv.assign_group_rate("Infectivity", REFERENCE);
+		this_house.assign_group_rate(i, "Infectivity", REFERENCE);
 	}
 	else
 	{ // child
-		this_indiv.assign_group_rate("Infectivity", "inf_child");
+		this_house.assign_group_rate(i, "Infectivity", "inf_child");
 	}
 }
 
@@ -52,32 +52,29 @@ void Model::assign_group_rate_to_individual(Individual &this_indiv)
 /* Assign the contact patterns between a couple of individuals. */
 void Model::assign_contact_rate_to_household(Household &this_house, int from, int to)
 {
-	Individual &from_indiv = this_house.indiv[from];
-	Individual &to_indiv = this_house.indiv[to];
-
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (from_indiv.get_data("age") < get_param("child_age"));
+	bool i_is_child = (this_house.get_data(from, "age") < get_param("child_age"));
 	bool i_is_adult = (i_is_child == false);
 
-	bool k_is_child = (to_indiv.get_data("age") < get_param("child_age"));
+	bool k_is_child = (this_house.get_data(to, "age") < get_param("child_age"));
 	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		this_house.assign_rate_per_contact(from, to, "cont_child_child");
+		this_house.assign_contact_rate(from, to, "cont_child_child");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		this_house.assign_rate_per_contact(from, to, "cont_child_adult");
+		this_house.assign_contact_rate(from, to, "cont_child_adult");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		this_house.assign_rate_per_contact(from, to, "cont_adult_child");
+		this_house.assign_contact_rate(from, to, "cont_adult_child");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		this_house.assign_rate_per_contact(from, to, REFERENCE);
+		this_house.assign_contact_rate(from, to, REFERENCE);
 	}
 }
 
@@ -94,16 +91,16 @@ void Model::fill_house_escape_matrix(const Household &this_house, std::vector<do
 	// 1) ordered members group rates : infectious
 	for (int i : this_house.get_infectious_set())
 	{
-		susc_rate[count] = this_house.indiv[i].get_group_rate("Susceptibility");
-		infec_rate[count] = this_house.indiv[i].get_group_rate("Infectivity");
+		susc_rate[count] = this_house.get_group_rate(i, "Susceptibility");
+		infec_rate[count] = this_house.get_group_rate(i, "Infectivity");
 		count++;
 	}
 
 	// 2) ordered members group rates : susceptibles
 	for (int i : this_house.get_susceptible_set())
 	{
-		susc_rate[count] = this_house.indiv[i].get_group_rate("Susceptibility");
-		infec_rate[count] = this_house.indiv[i].get_group_rate("Infectivity");
+		susc_rate[count] = this_house.get_group_rate(i, "Susceptibility");
+		infec_rate[count] = this_house.get_group_rate(i, "Infectivity");
 		count++;
 	}
 
@@ -227,7 +224,7 @@ void Model::simulate_single_house(Household &this_house)
 
 		for (int i = 0; i < this_house.size(); i++)
 		{
-			if (this_house.is_susceptible(i))
+			if (this_house.get_status(i) == SUSCEPTIBLE)
 			{
 				for (int k : old_gen_set)
 				{

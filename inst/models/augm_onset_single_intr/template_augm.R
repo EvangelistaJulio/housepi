@@ -1,6 +1,6 @@
 list(
   onset_date = list(
-    x = "onset_date@D",
+    value = "onset_date@D",
     rule = "norm", rule_args = list(sd = 0.25), rule_from = "onset_date@D"
   ),
   incub_period = list(

@@ -332,19 +332,19 @@ void Model::assign_contact_rate_to_household(int h, int i, int k)
 
 	if (i_is_child && k_is_child)
 	{ // Child to Child
-		house[h].assign_rate_per_contact(i, k, "c_kid_to_kid");
+		house[h].assign_contact_rate(i, k, "c_kid_to_kid");
 	}
 	else if (i_is_child && k_is_adult)
 	{ // Child to Adult
-		house[h].assign_rate_per_contact(i, k, "c_kid_to_adu");
+		house[h].assign_contact_rate(i, k, "c_kid_to_adu");
 	}
 	else if (i_is_adult && k_is_child)
 	{ // Adult to Child
-		house[h].assign_rate_per_contact(i, k, "c_adu_to_kid");
+		house[h].assign_contact_rate(i, k, "c_adu_to_kid");
 	}
 	else
 	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		house[h].assign_rate_per_contact(i, k, REFERENCE);
+		house[h].assign_contact_rate(i, k, REFERENCE);
 	}
 }
 

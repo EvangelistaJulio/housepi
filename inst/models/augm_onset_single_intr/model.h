@@ -32,7 +32,7 @@ public:
 	void update_augm_dependecies(Household &this_house, int i) override;
 
 	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Individual &this_indiv) override;
+	void assign_group_rate_to_individual(Household &this_house, int i) override;
 	void assign_contact_rate_to_household(Household &this_house, int from, int to) override;
 
 	//----- Override Methods for Inference -----//

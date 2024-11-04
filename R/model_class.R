@@ -121,7 +121,7 @@ HouseholdModelClass <- R6::R6Class(
     # Add a new parameter definition.
     # @param name (`character(1)`)\cr
     # Name of the parameter.
-    # @param x (`double(1)`)\cr
+    # @param value (`double(1)`)\cr
     # Initial value of the parameter.
     # @param infer (`logical(1)`)\cr
     # If `FALSE` the parameter is treated as a constant.
@@ -136,7 +136,7 @@ HouseholdModelClass <- R6::R6Class(
     # @param range (named `list()` of `double(1)`)\cr
     # The prior truncation 'min', 'max' or no bound for the parameter value.
     param.add = function(name = NA,
-                        x = NA,
+                        value = NA,
                         infer = NA,
                         prior = NA,
                         args = list(),
@@ -204,7 +204,7 @@ HouseholdModelClass <- R6::R6Class(
           private$param.frame,
           data.frame(
             name = name,
-            value = x,
+            value = value,
             infer = TRUE,
             prior = prior,
             args = args_,
@@ -219,7 +219,7 @@ HouseholdModelClass <- R6::R6Class(
         )
         
       } else {
-        if (is.na(x)) {
+        if (is.na(value)) {
           stop(cli::format_error(
             paste0("Missing value for constant parameter '", name, "'.")
           ))
@@ -228,7 +228,7 @@ HouseholdModelClass <- R6::R6Class(
           private$param.frame,
           data.frame(
             name = name,
-            value = x,
+            value = value,
             infer = FALSE,
             prior = NA,
             args = NA,
@@ -248,7 +248,7 @@ HouseholdModelClass <- R6::R6Class(
     # @description Add a new augmented variable definition.
     # @param name (`character(1)` )\cr
     # Name of the augmented variable.
-    # @param x (`double(1)` | `character(1)`)\cr
+    # @param value (`double(1)` | `character(1)`)\cr
     # Scalar value or parameter name (followed by `@P`) or data name (followed by `@D`).
     # @param model (`character(1)` )\cr
     # Name of the model distribution.
@@ -265,7 +265,7 @@ HouseholdModelClass <- R6::R6Class(
     # @param status (`integer(1)` )\cr
     # The associated status of the definition. Default NA is for all infectious.
     augm.add = function(name = NA,
-                        x = NA,
+                        value = NA,
                         model = NA,
                         args = list(),
                         rule = NA,
@@ -295,16 +295,16 @@ HouseholdModelClass <- R6::R6Class(
           valuetype_ <- NA
         }
       } else {
-        if (is.na(x)) {
+        if (is.na(value)) {
           stop(cli::format_error(
             c(
-              "Incomplete definition: missing value x.",
+              "Incomplete definition: missing value.",
               i = "Alternatively provide a model and set init_rand = TRUE"
             )
           ))
         } else {
-          value_ <- str_split_(x)[["values"]]
-          valuetype_ <- str_split_(x)[["types"]]
+          value_ <- str_split_(value)[["values"]]
+          valuetype_ <- str_split_(value)[["types"]]
         }
       }
       
@@ -730,7 +730,7 @@ HouseholdModelClass <- R6::R6Class(
           this <- definitions[[p]]
           private$param.add(
             name = p,
-            x = get_val_(this, "x"),
+            value = get_val_(this, "value"),
             infer = get_val_(this, "infer"),
             prior = get_val_(this, "prior"),
             args = get_val_(this, "args", default = list()),
@@ -772,27 +772,25 @@ HouseholdModelClass <- R6::R6Class(
       # read the script and extract parameters
       script <- readChar(model_path, file.info(model_path)$size)
       
-      # from : get_param("string") or get_param('string')
-      regular_expr <- 'get_param\\(\\s*["\'](.*?)["\']\\s*\\)'
+      # from : get_param("string" or get_param('string'
+      regular_expr <- 'get_param\\s*\\(\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       model_params_set <- unique(unlist(matches[[1]][, 2]))
       
-      # param from : get_param_pointer("string") or get_param_pointer('string')
-      regular_expr <- 'get_param_pointer\\(\\s*["\'](.*?)["\']\\s*\\)'
+      # param from : get_param_pointer("string" or get_param_pointer('string'
+      regular_expr <- 'get_param_pointer\\(\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
       
-      # param from : assign_rate_per_contact(, , "string")
-      regular_expr <- '\\.assign_rate_per_contact\\s*\\(.*?,.*?,\\s*["\'](.*?)["\']'
+      # param from : assign_contact_rate(, , "string"
+      regular_expr <- 'assign_contact_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
-      aux <- unlist(lapply(matches, function(x) x[, 2]))
-      model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
+      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
       
-      # param from : assign_rate_per_group(, "string")
-      regular_expr <- '\\.assign_group_rate\\s*\\(.*?,\\s*["\'](.*?)["\']'
+      # param from : assign_group_rate(, , "string"
+      regular_expr <- 'assign_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
-      aux <- unlist(lapply(matches, function(x) x[, 2]))
-      model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
+      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
       
       # param from : augmented variable model argument definitions
       if (length(private$augm.frame) > 0) {
@@ -919,7 +917,7 @@ HouseholdModelClass <- R6::R6Class(
           private$augm.add(
             name = a,
             status = get_val_(this, "status"),
-            x = get_val_(this, "x"),
+            value = get_val_(this, "value"),
             model = get_val_(this, "model"),
             args = get_val_(this, "args", default = list()),
             rule = get_val_(this, "rule"),
@@ -946,7 +944,7 @@ HouseholdModelClass <- R6::R6Class(
         stop(cli::format_error("Impossible to automatically initialize augmented variables. No template file was found."))
       }
       # remove previous definitions
-      self$augm.clear()
+      self$augm.clear() 
       # append definitions
       do.call(self$augm.append, dget(templ_augm_file))
       invisible(self)
@@ -963,13 +961,13 @@ HouseholdModelClass <- R6::R6Class(
       # read the script and extract augmented variables
       script <- readChar(model_path, file.info(model_path)$size)
       
-      # from : .get_augm("string") or .get_augm('string')
-      regular_expr <- '\\.get_augm\\(\\s*["\'](.*?)["\']\\s*\\)'
+      # from : .get_augm(, "string" or .get_augm(, 'string'
+      regular_expr <- 'get_augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       model_augm_set <- unique(unlist(matches[[1]][, 2]))
               
-      # from : .set_augm("string", )
-      regular_expr <- '\\.set_augm\\s*\\(\\s*["\'](.*?)["\']'
+      # from : .set_augm(, "string"
+      regular_expr <- 'set_augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       matches <- stringr::str_match_all(script, regular_expr)
       model_augm_set <- unique(c(model_augm_set, unique(unlist(matches[[1]][, 2]))))
 

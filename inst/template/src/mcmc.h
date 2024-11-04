@@ -84,10 +84,10 @@ public:
 
 	// note : I didn't find a way to PIMPL these because of the virtual functions
 	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
-	void set_rate_per_group(Individual &this_indiv);
+	void set_rate_per_group(Household &this_house, int i);
 	void set_rate_per_contact(Household &this_house);
 
-	virtual void assign_group_rate_to_individual(Individual &this_indiv);
+	virtual void assign_group_rate_to_individual(Household &this_house, int i);
 	virtual void assign_contact_rate_to_household(Household &this_house, int from, int to);
 
 	//===== RAND NUMBER GENERATOR =====//
@@ -100,8 +100,8 @@ public:
 	//===== AUGMENTED VARIABLES =====//
 	void init_augmented_variables();
 	virtual void update_augm_dependecies(Household &this_house, int i);
-	void assign_augm(Individual &this_indiv);
-	void clear_augm(Individual &this_indiv);
+	void assign_all_augm(Household &this_house, int i);
+	void clear_all_augm(Household &this_house, int i);
 
 	//===== EVALUATE (loglikelihood) =====//
 	virtual double compute_house_loglike(const Household &this_house) const;

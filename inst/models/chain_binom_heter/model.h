@@ -24,8 +24,8 @@ class Model : public MCMC
 	void init_model_for_inference() override;
 	double compute_house_loglike(const Household &this_house) const override;
 	void simulate_single_house(Household &this_house) override;
-	void assign_group_rate_to_individual(Individual &this_indiv) override;
-	void assign_contact_rate_to_household(Household &this_house, int i, int k) override;
+	void assign_group_rate_to_individual(Household &this_house, int i) override;
+	void assign_contact_rate_to_household(Household &this_house, int from, int to) override;
 };
 
 #endif // MODEL__H

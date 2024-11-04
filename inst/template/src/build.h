@@ -57,6 +57,8 @@ public:
     Monte_Carlo_Build();
     ~Monte_Carlo_Build();
 
+    //===== IMPORT\EXPORT =====//
+
 #ifdef USE_RCPP
 	//===== Rcpp IMPORTS =====//
 	void import_setup(Rcpp::List x);
@@ -79,12 +81,14 @@ public:
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
 
-    //===== Show =====//
+    //----- Import\Export : Show -----//
     void show_group_classes() const;
     void show_summary() const;
     void show_full_build() const;
 
-    //===== SETUP : getter =====//
+    //===== SETUP =====//
+
+    //----- Setup : Getter -----//
     bool get_rnd_init_params() const;
     ulong get_num_chains() const;
     ulong get_num_iter() const;
@@ -103,8 +107,9 @@ public:
     void update_report_data();
     int report_data(const std::string &key) const;
 
-    void assign_augm(Individual &this_indiv);
-    void clear_augm(Individual &this_indiv);
+    //===== AUGMENTED =====//
+    void clear_all_augm(Household &this_house, int i);
+    void assign_all_augm(Household &this_house, int i);
 
     sys_rnd_gen &get_prng();
     double uniform();
@@ -135,9 +140,9 @@ public:
 	double _no_augm_model_loglike_(const Household &this_house) const;
 	double _augm_model_loglike_(const Household &this_house) const;
 
-    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Individual &, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
-	void _augm_model_by_status_(const Individual &this_indiv, double &delta) const;
-	void _augm_model_generic_(const Individual &this_indiv, double &delta) const;
+    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, int, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
+	void _augm_model_by_status_(const Household &this_house, int i, double &delta) const;
+	void _augm_model_generic_(const Household &this_house, int i, double &delta) const;
 
 private:
     //===== Pointer to Core =====//
@@ -149,10 +154,10 @@ private:
     std::map<std::string, std::vector<std::string>> _augm_deftable_ = {};
     
     //----- build : type-specified variables -----//
-    double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
-    const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
-    dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
-    dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv);
+    double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
+    const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
+    dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
+    dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
 
     //----- build : Augmented Variables -----//
     void build_augm();

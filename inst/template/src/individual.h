@@ -40,7 +40,7 @@ public:
 	//===== SETTER =====//
 	void set_status(int s);
 	void disable_assert();
-	void set_rate(const std::string &rateID, const double *x);	
+	void set_rate(const std::string &rateID, const double *ptr);	
 	void assign_group_rate(const std::string &rateID, const std::string &parID);
 
 	//===== GETTER =====//

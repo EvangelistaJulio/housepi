@@ -113,21 +113,21 @@ void Monte_Carlo_Build::adapt_param_rule(const std::string &parID, double ratio)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
-double Monte_Carlo_Build::type_to_double(const std::string val, const std::string typ, const Individual &this_indiv)
+double Monte_Carlo_Build::type_to_double(const std::string value, const std::string type, const Household &this_house, int i)
 {
     double output = INF_DOUBLE;
 
     try
     {
-        if (tools::is_na(val) && tools::is_na(typ))
+        if (tools::is_na(value) && tools::is_na(type))
         {
             output = INF_DOUBLE; // default value
         }
-        else if (!tools::is_na(val) && tools::is_na(typ))
+        else if (!tools::is_na(value) && tools::is_na(type))
         {
-            output = tools::stod(val, "argument without type");
+            output = tools::stod(value, "argument without type");
         }
-        else if (tools::is_na(val) && !tools::is_na(typ))
+        else if (tools::is_na(value) && !tools::is_na(type))
         {
             tools::warning("Ignoring value type without a paired value.");
 
@@ -135,40 +135,40 @@ double Monte_Carlo_Build::type_to_double(const std::string val, const std::strin
         }
         else
         {
-            if (typ == TYPE_SCALAR)
+            if (type == TYPE_SCALAR)
             {
-                output = tools::stod(val, "argument with scalar type");
+                output = tools::stod(value, "argument with scalar type");
             }
-            else if (typ == TYPE_DATA)
+            else if (type == TYPE_DATA)
             {
-                output = this_indiv.get_data(val);
+                output = this_house.get_data(i, value);
             }
-            else if (typ == TYPE_PARAM)
+            else if (type == TYPE_PARAM)
             {
-                output = get_param(val);
-                if (get_infer(val))
+                output = get_param(value);
+                if (get_infer(value))
                 {
                     std::ostringstream oss;
                     // FIXME : this warning is not clear as exposed here
-                    oss << "Non constant parameter '" << val << "' assigned as fixed argument."
+                    oss << "Non constant parameter '" << value << "' assigned as fixed argument."
                         << " Changes of the parameter will not affect the argument.";
                     tools::warning(oss.str());
                 }
             }
-            else if (typ == TYPE_COMMAND)
+            else if (type == TYPE_COMMAND)
             {
-                if (val == "default")
+                if (value == "default")
                 {
                     output = INF_DOUBLE;
                 }
                 else
                 {
-                    throw std::invalid_argument("Unknown command type '" + val + "'.");
+                    throw std::invalid_argument("Unknown command type '" + value + "'.");
                 }
             }
             else
             {
-                throw std::invalid_argument("Unknown variable type specifier '" + typ + "'.");
+                throw std::invalid_argument("Unknown variable type specifier '" + type + "'.");
             }
         }
     }
@@ -181,21 +181,21 @@ double Monte_Carlo_Build::type_to_double(const std::string val, const std::strin
 }
 
 /* Convert a type-std::string to a double-pointer */
-const double *Monte_Carlo_Build::type_to_doubleptr(const std::string val, const std::string typ, const Individual &this_indiv)
+const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, const std::string type, const Household &this_house, int i)
 {
     const double *output = nullptr;
 
     try
     {
-        if (tools::is_na(val) && tools::is_na(typ))
+        if (tools::is_na(value) && tools::is_na(type))
         {
             output = nullptr; // default value
         }
-        else if (!tools::is_na(val) && tools::is_na(typ))
+        else if (!tools::is_na(value) && tools::is_na(type))
         {
-            throw std::invalid_argument("Impossible to interpret default value of  '" + val + "'. Please provide a type.");
+            throw std::invalid_argument("Impossible to interpret default value of  '" + value + "'. Please provide a type.");
         }
-        else if (tools::is_na(val) && !tools::is_na(typ))
+        else if (tools::is_na(value) && !tools::is_na(type))
         {
             tools::warning("Found a type without a paired value. Falling back to default.");
 
@@ -203,21 +203,21 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string val, const 
         }
         else
         {
-            if (typ == TYPE_DATA)
+            if (type == TYPE_DATA)
             {
-                output = this_indiv.get_data_pointer(val);
+                output = this_house.get_data_pointer(i, value);
             }
-            else if (typ == TYPE_PARAM)
+            else if (type == TYPE_PARAM)
             {
-                output = get_param_pointer(val);
+                output = get_param_pointer(value);
             }
-            else if (typ == TYPE_SCALAR)
+            else if (type == TYPE_SCALAR)
             {
-                output = pCore->assign_scalar_pointer(tools::stod(val, "argument with scalar type"));
+                output = pCore->assign_scalar_pointer(tools::stod(value, "argument with scalar type"));
             }
             else
             {
-                throw std::invalid_argument("Unsopported type '" + typ + "' found loading '" + val + "' for pointer value.");
+                throw std::invalid_argument("Unsopported type '" + type + "' found loading '" + value + "' for pointer value.");
             }
         }
     }
@@ -230,7 +230,7 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string val, const 
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
-dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
+dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i)
 {
     std::vector<std::string> keys = tools::parse_list_args(tkn_key);
     std::vector<std::string> vals = tools::parse_list_args(tkn_val);
@@ -247,7 +247,7 @@ dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const 
     {
         for (size_t x = 0; x < keys.size(); ++x)
         {
-            output.emplace(keys[x], type_to_double(vals[x], typs[x], this_indiv));
+            output.emplace(keys[x], type_to_double(vals[x], typs[x], this_house, i));
         }
     }
 
@@ -255,7 +255,7 @@ dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const 
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double-pointer */
-dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Individual &this_indiv)
+dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i)
 {
     std::vector<std::string> keys = tools::parse_list_args(tkn_key);
     std::vector<std::string> vals = tools::parse_list_args(tkn_val);
@@ -272,7 +272,7 @@ dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key
     {
         for (size_t x = 0; x < keys.size(); ++x)
         {
-            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], this_indiv));
+            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], this_house, i));
         }
     }
 
@@ -570,11 +570,11 @@ void Monte_Carlo_Build::build_augm()
             //===== Assign augmented variables to each individual =====//
             for (Household &this_house : house)
             {
-                for (Individual &this_indiv : this_house.indiv)
+                for (int i = 0; i < this_house.size(); ++i)
                 {
                     // allocate memory for all augmented for all individuals
-                    clear_augm(this_indiv);
-                    assign_augm(this_indiv);
+                    clear_all_augm(this_house, i);
+                    assign_all_augm(this_house, i);
                 }
             }
 
@@ -600,7 +600,7 @@ void Monte_Carlo_Build::build_augm()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
-void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
+void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
 {
     try
     {
@@ -610,7 +610,7 @@ void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
             std::string augm_status = _augm_deftable_.at("status")[a];
 
             // assign augmented variable of the corresponding status or undefined status
-            if ((tools::is_na(augm_status)) || (this_indiv.get_status() == tools::stoi(augm_status, "augmented status")))
+            if ((tools::is_na(augm_status)) || (this_house.get_status(i) == tools::stoi(augm_status, "augmented status")))
             {
                 //----- Name -----//
                 std::string augmID = _augm_deftable_.at("name")[a];
@@ -618,27 +618,29 @@ void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
                 //----- Value -----//
                 double value = type_to_double(_augm_deftable_.at("value")[a],
                                               _augm_deftable_.at("valuetype")[a],
-                                              this_indiv);
+                                              this_house, i);
 
                 //----- Model -----//
                 std::string model_name = _augm_deftable_.at("model")[a];
                 dictargs_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
                                                                  _augm_deftable_.at("argsval")[a],
                                                                  _augm_deftable_.at("argstype")[a],
-                                                                 this_indiv);
+                                                                 this_house, i);
 
                 //----- Range -----//
                 dictargs range = {};
                 // minimum value
                 double aux_min = type_to_double(_augm_deftable_.at("min")[a],
-                                                _augm_deftable_.at("mintype")[a], this_indiv);
+                                                _augm_deftable_.at("mintype")[a],
+                                                this_house, i);
                 if (aux_min != INF_DOUBLE)
                 {
                     range.emplace("min", aux_min);
                 }
                 // maximum value
                 double aux_max = type_to_double(_augm_deftable_.at("max")[a],
-                                                _augm_deftable_.at("maxtype")[a], this_indiv);
+                                                _augm_deftable_.at("maxtype")[a],
+                                                this_house, i);
                 if (aux_max != INF_DOUBLE)
                 {
                     range.emplace("max", aux_max);
@@ -649,18 +651,20 @@ void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
                 dictargs rule_args = typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
                                                         _augm_deftable_.at("rule_argsval")[a],
                                                         _augm_deftable_.at("rule_argstype")[a],
-                                                        this_indiv);
+                                                        this_house, i);
                 double rule_from = type_to_double(_augm_deftable_.at("rule_from")[a],
-                                                  _augm_deftable_.at("rule_fromtype")[a], this_indiv);
+                                                  _augm_deftable_.at("rule_fromtype")[a],
+                                                  this_house, i);
 
                 //----- Assign Augmented Variable -----//
-                this_indiv.assign_augm(augmID, value, model_name, model_args, range,
+                this_house.assign_augm(i, augmID, value,
+                                       model_name, model_args, range,
                                        rule_name, rule_args, rule_from);
 
                 // random initialization at assignment
                 if (tools::stobool(_augm_deftable_.at("init_rand")[a]))
                 {
-                    this_indiv.augm_model_rand(augmID, get_prng());
+                    this_house.augm_model_rand(i, augmID, get_prng());
                 }
             }
         }
@@ -672,11 +676,11 @@ void Monte_Carlo_Build::assign_augm(Individual &this_indiv)
 }
 
 /* Clear all augmented definition of individual. */
-void Monte_Carlo_Build::clear_augm(Individual &this_indiv)
+void Monte_Carlo_Build::clear_all_augm(Household &this_house, int i)
 {
     for (const std::string &augmID : augm_list_full)
     {
-        this_indiv.clear_augm(augmID);
+        this_house.clear_augm(i, augmID);
     }
 }
 
@@ -836,10 +840,7 @@ void Monte_Carlo_Build::disable_assert()
     // disable augmented variable assertion for all individuals
     for (Household &this_house : house)
     {
-        for (Individual &this_indiv : this_house.indiv)
-        {
-            this_indiv.disable_assert();
-        }
+        this_house.disable_assert();
     }
 }
 
@@ -857,24 +858,24 @@ double Monte_Carlo_Build::_augm_model_loglike_(const Household &this_house) cons
     // Contribution of model associated to augmented variables
     for (int i : this_house.get_infectious_set())
     {
-        (this->*_func_augm_model_by_definition_)(this_house.indiv[i], hh_loglike);
+        (this->*_func_augm_model_by_definition_)(this_house, i, hh_loglike);
     }
     return hh_loglike;
 }
 
-void Monte_Carlo_Build::_augm_model_by_status_(const Individual &this_indiv, double &delta) const
+void Monte_Carlo_Build::_augm_model_by_status_(const Household &this_house, int i, double &delta) const
 {
-    for (const std::string &augmID : augm_status_map_model.at(this_indiv.get_status()))
+    for (const std::string &augmID : augm_status_map_model.at(this_house.get_status(i)))
     {
-        delta += this_indiv.augm_model_logpdf(augmID);
+        delta += this_house.augm_model_logpdf(i, augmID);
     }
 }
 
-void Monte_Carlo_Build::_augm_model_generic_(const Individual &this_indiv, double &delta) const
+void Monte_Carlo_Build::_augm_model_generic_(const Household &this_house, int i, double &delta) const
 {
     for (const std::string &augmID : augm_list_model)
     {
-        delta += this_indiv.augm_model_logpdf(augmID);
+        delta += this_house.augm_model_logpdf(i, augmID);
     }
 }
 
@@ -930,19 +931,19 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
     size_t c = 0;
     for (const Household &this_house : house)
     {
-        for (const Individual &this_indiv : this_house.indiv)
+        for (int i = 0; i < this_house.size(); ++i)
         {
-            df_index[c] = this_indiv.get_ID();
+            df_index[c] = this_house.get_ID(i);
             df_house_index[c] = this_house.get_ID();
-            df_status[c] = this_indiv.get_status();
+            df_status[c] = this_house.get_status(i);
 
             for (const std::string &dataID : data_headers)
             {
-                df_dbl.at(dataID)[c] = this_indiv.get_data(dataID);
+                df_dbl.at(dataID)[c] = this_house.get_data(i, dataID);
             }
             for (const std::string &augmID : augm_list_full)
             {
-                df_dbl.at(augmID)[c] = this_indiv.get_augm(augmID);
+                df_dbl.at(augmID)[c] = this_house.get_augm(i, augmID);
             }
 
             ++c;
@@ -1085,22 +1086,22 @@ void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) cons
             //===== Print data and augmented variables =====//
             for (const Household &this_house : house)
             {
-                for (const Individual &this_indiv : this_house.indiv)
+                for (int i = 0; i < this_house.size(); ++i)
                 {
-                    augm_ofstream << this_indiv.get_ID()
+                    augm_ofstream << this_house.get_ID(i)
                                   << C_DELIM << this_house.get_ID()
-                                  << C_DELIM << this_indiv.get_status();
+                                  << C_DELIM << this_house.get_status(i);
                     for (const std::string &dataID : data_headers)
                     {
-                        augm_ofstream << C_DELIM << this_indiv.get_data(dataID);
+                        augm_ofstream << C_DELIM << this_house.get_data(i, dataID);
                     }
 
                     // FIXME
                     for (const std::string &augmID : augm_list_full)
                     {
-                        if (this_indiv.get_status() == INFECTIOUS)
+                        if (this_house.get_status(i) == INFECTIOUS)
                         {
-                            augm_ofstream << C_DELIM << this_indiv.get_augm(augmID);
+                            augm_ofstream << C_DELIM << this_house.get_augm(i, augmID);
                         }
                         else
                         {

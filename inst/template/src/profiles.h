@@ -7,8 +7,7 @@
 #ifndef PROFILES__H
 #define PROFILES__H
 
-#include "function.h"
-#include "individual.h"
+#include "varia.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Infec_Prof_Ferretti20 : class ////////////////////////////////
@@ -43,11 +42,11 @@ public:
              {"alpha", "mu", "sigma", "tau"});
         assign_args(new_args);
     }
-
+    // Deconstructor
     ~Infec_Prof_Ferretti20() = default;
 
-    double pdf(double t_transm, const Individual &this_indiv) const;
-    double cdf(double t_transm, const Individual &this_indiv) const;
+    double pdf(double t_onset_to_transmission, double incubation_period) const;
+    double cdf(double t_onset_to_transmission, double incubation_period) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -75,11 +74,11 @@ public:
         dictargs aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
         gamma_distr_ptr = distribution_ptr("gamma", aux_args_val, {{"min", get_arg(2)}});
     }
-
+    // Deconstructor
     ~Infec_Prof_Ashcroft20() {};
 
-    double pdf(double t_transm, const Individual &this_indiv) const;
-    double cdf(double t_transm, const Individual &this_indiv) const;
+    double pdf(double t_infection) const;
+    double cdf(double t_infection) const;
 };
 
 #endif // PROFILES__H

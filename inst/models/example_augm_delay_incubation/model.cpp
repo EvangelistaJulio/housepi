@@ -54,11 +54,9 @@ void Model::init_model_for_inference()
 
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(const Household &this_house) const
-{
-	const Individual &single = this_house.indiv[0];
-	
+{	
 	// note : incubation period = onset - exposure
-	double incub = single.get_augm("onset") - single.get_augm("exposure");
+	double incub = this_house.get_augm(0, "onset") - this_house.get_augm(0, "exposure");
 
 	if (incub_distr_ptr->valid(incub))
 	{

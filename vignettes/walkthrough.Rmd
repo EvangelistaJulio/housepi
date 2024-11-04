@@ -107,7 +107,7 @@ hemi$param.append(
 ```
 
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and an initial value `x`.
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and a `value`.
 
 Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param.template()`.
 The `param.append` method calls internally the `param.check()` to ensure that the definition list matches the model, raising a warning if it does not. 
@@ -168,8 +168,8 @@ simu_cb <- housepi::HouseholdModelClass$new("chain_binom")
 
 # define constant parameters from the inference results
 simu_cb$param.append(
-  alpha = list(x = results["alpha", "Mean"]),
-  beta = list(x = results["beta", "Mean"])
+  alpha = list(value = results["alpha", "Mean"]),
+  beta = list(value = results["beta", "Mean"])
 )
 
 # build the new model using the same household compositions

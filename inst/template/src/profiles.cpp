@@ -11,11 +11,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Probability distribution function for the Infectivity Profile. */
-double Infec_Prof_Ferretti20::pdf(double t_transm, const Individual &this_indiv) const
-{
-	double tost = t_transm - this_indiv.get_augm("onset_date");
-	double t_incub = this_indiv.get_augm("incub_period");
-		
+double Infec_Prof_Ferretti20::pdf(double tost, double t_incub) const
+{		
 	double a = get_arg(0); // shape argument
 	double m = get_arg(1); // location argument
 	double s = get_arg(2); // scale argument
@@ -35,11 +32,8 @@ double Infec_Prof_Ferretti20::pdf(double t_transm, const Individual &this_indiv)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Cumulative distribution function forthe Infectivity Profile. */
-double Infec_Prof_Ferretti20::cdf(double t_transm, const Individual &this_indiv) const
+double Infec_Prof_Ferretti20::cdf(double tost, double t_incub) const
 {
-	double tost = t_transm - this_indiv.get_augm("onset_date");
-	double t_incub = this_indiv.get_augm("incub_period");
-
 	double a = get_arg(0); // shape argument
 	double m = get_arg(1); // location argument
 	double s = get_arg(2); // scale argument
@@ -73,19 +67,17 @@ double Infec_Prof_Ferretti20::cdf(double t_transm, const Individual &this_indiv)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Probability distribution function for the Infectivity Profile. */
-double Infec_Prof_Ashcroft20::pdf(double t_transm, const Individual &this_indiv) const
+double Infec_Prof_Ashcroft20::pdf(double t_infection) const
 {
-	UNUSED(this_indiv);
 	double shift = get_arg(2); // shift argument
 
-	return gamma_distr_ptr->pdf(shift + t_transm);
+	return gamma_distr_ptr->pdf(shift + t_infection);
 }
 
 /* Cumulative distribution function for the Infectivity Profile. */
-double Infec_Prof_Ashcroft20::cdf(double t_transm, const Individual &this_indiv) const
+double Infec_Prof_Ashcroft20::cdf(double t_infection) const
 {
-	UNUSED(this_indiv);
 	double shift = get_arg(2); // shift argument
 
-	return gamma_distr_ptr->cdf(shift + t_transm);
+	return gamma_distr_ptr->cdf(shift + t_infection);
 }
