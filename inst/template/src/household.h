@@ -15,7 +15,7 @@
 #include <set>
 #include <unordered_map>
 
-#include "individual.h"
+#include "tools.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -28,12 +28,16 @@
 //////////////////////////////////////  Household : class  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+class Household_Impl;
+
 class Household
 {
 public:
 	//===== CONSTRUCTOR =====//
 	Household();
 	Household(const std::string &ID, int index);
+	Household(Household&& other) noexcept;        // Move constructor
+    Household& operator=(Household&& other) noexcept; // Move assignment
 	~Household();
 
 	//===== SETTER =====//
@@ -104,39 +108,11 @@ public:
 	//===== DIAGNOSTICS =====//
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
-	std::vector<double> get_dgn_loglike() const { return dgn_loglike; }
+	std::vector<double> get_dgn_loglike() const;
 
 private:
-	//===== ATTRIBUTES =====//
-	std::vector<Individual> indiv = {};
-
-	std::string ID = UNDEFINED; // user ID
-	int index = -1;				// index of household
-	int house_size = 0;			// number of house members
-
-	double house_loglike = -INF_DOUBLE; // current loglikelihood value
-	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
-
-	int num_infectious = 0;
-	int num_susceptible = 0;
-	int num_missing_status = 0;
-
-	// wheter members correspond to a given status or not
-	std::vector<bool> _is_infectious_ = {};
-	std::vector<bool> _is_susceptible_ = {};
-	std::vector<bool> _is_missing_status_ = {};
-
-	ulong dgn_count = 0;
-	std::vector<double> dgn_loglike = {};
-
-	// contact rate pointers
-	std::vector<std::vector<const double *>> contact_rates;
-	std::vector<std::vector<std::string>> _which_rate_;
-
-	// list with ONLY indexes of members with a given status
-	std::set<int> infectious_set = {};
-	std::set<int> susceptible_set = {};
-	std::set<int> missing_status_set = {};
+	//===== Pointer to Implementation =====//
+	std::unique_ptr<Household_Impl> pImpl;
 };
 
 #endif // HOUSEHOLD__H

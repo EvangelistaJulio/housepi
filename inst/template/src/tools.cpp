@@ -304,7 +304,7 @@ namespace tools
         }
         catch (const std::invalid_argument &e)
         {
-            throw std::invalid_argument("Invalid value '" + input + "'. Impossible to import " + errtxt + ".");
+            throw std::invalid_argument("Impossible to import " + errtxt + ": invalid value '" + input + "'.");
         }
     }
 

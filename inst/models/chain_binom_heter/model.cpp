@@ -142,7 +142,7 @@ void Model::fill_house_escape_matrix(const Household &this_house, std::vector<do
 void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
-	if (report_data("n.unk.stat") > 0)
+	if (report_data("n.miss.stat") > 0)
 	{
 		tools::error("A missing status was found : incompatible with the model.");
 	}
