@@ -130,7 +130,7 @@ void Model::init_model_for_inference()
 
 	//===== Initialize household features =====//
 
-	// std::vector with index of first infector
+	// indexes of first infector
 	LUT_hh_first_case = std::vector<int>(get_num_house(), -1);
 
 	// produce the empty matrix for the infectivity profiles look-up-tables

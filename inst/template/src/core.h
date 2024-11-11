@@ -43,7 +43,7 @@ public:
     void init_diagnostics(ulong sample_size);
     void update_diagnostics();
     std::string show_diagnostics() const;
-    std::vector<double> get_dgn_value() const { return dgn_value; }
+    const std::vector<double> &get_dgn_value() const { return dgn_value; }
     double get_dgn_value(size_t i) const { return dgn_value[i]; }
 };
 

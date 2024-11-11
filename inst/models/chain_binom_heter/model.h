@@ -8,7 +8,6 @@
 #ifndef MODEL__H
 #define MODEL__H
 
-#include "binomial.h"
 #include "mcmc.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,7 +17,7 @@
 class Model : public MCMC
 {
 	//===== Model dependent methods =====//
-	void fill_house_escape_matrix(const Household &this_house, std::vector<double> &commu_esc_proba, squarematrix &p2p_esc_proba) const;
+	void fill_house_escape_matrix(const Household &this_house) const;
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;

@@ -480,11 +480,11 @@ void MCMC::move_single_param(const std::string &parID)
         }
         else
         {
-            // restore buffered value of global loglike
-            restore_global_loglike();
-
             // restore buffered value of parameter
             pImpl->restore_param_value(parID);
+
+            // restore buffered value of global loglike
+            restore_global_loglike();
 
             // restore buffered loglikelihood in households
             for (size_t H = 0; H < get_num_house(); ++H)

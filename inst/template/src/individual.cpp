@@ -14,7 +14,7 @@
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Individual : constructor  ////////////////////////////////////
+///////////////////////////////////  Individual : constructors  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Individual::Individual() {}
@@ -49,17 +49,23 @@ Individual::~Individual() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //===== SETTER =====//
-void Individual::set_status(int s) { this->status = s; }
+void Individual::set_status(int s)
+{
+	this->status = s;
+}
 
-void Individual::set_rate(const std::string &rateID, const double *x) { this->rate_ptr.emplace(rateID, x); }
+void Individual::set_rate(const std::string &rateID, const double *x)
+{
+	this->rate_ptr.emplace(rateID, x);
+}
 
 /* Disable data and augmented variable assertions. */
 void Individual::disable_assert()
 {
-	_func_set_augm_ = &Individual::_set_augm_default_;
-	_func_get_augm_ = &Individual::_get_augm_default_;
-	_func_get_data_ = &Individual::_get_data_default_;
-	_func_get_data_pointer_ = &Individual::_get_data_pointer_default_;
+	this->_func_set_augm_ = &Individual::_set_augm_default_;
+	this->_func_get_augm_ = &Individual::_get_augm_default_;
+	this->_func_get_data_ = &Individual::_get_data_default_;
+	this->_func_get_data_pointer_ = &Individual::_get_data_pointer_default_;
 }
 
 //===== GETTER =====//
@@ -89,16 +95,32 @@ void Individual::assign_augm(const std::string &augmID, double value,
 	new_augm.assign_proposer(rule_name, rule_args, rule_from);
 	this->augm_var[augmID] = new_augm;
 }
-void Individual::set_augm_value(const std::string &augmID, double x) { this->augm_var.at(augmID).set_value(x); }
-void Individual::augm_model_rand(const std::string &augmID, sys_rnd_gen &prng) { this->augm_var.at(augmID).rand(prng); }
 
-/* Propose augmented and return true if valid move, otherwise restore buffer.  */
+/* Clear the augmented variable definitions. */
+void Individual::clear_augm(const std::string &augmID)
+{
+	this->augm_var[augmID] = Base_Variable(augmID);
+}
+
+/* Set a value for the augmented variable. */
+void Individual::set_augm_value(const std::string &augmID, double x)
+{
+	this->augm_var.at(augmID).set_value(x);
+}
+
+/* Draw a value from the augmented variable distribution. */
+void Individual::augm_model_rand(const std::string &augmID, sys_rnd_gen &prng)
+{
+	this->augm_var.at(augmID).rand(prng);
+}
+
+/* Propose augmented and return true if valid move, otherwise restore buffer. */
 bool Individual::propose_valid_augm_move(const std::string &augmID, sys_rnd_gen &prng)
 {
 	Base_Variable &this_augm = augm_var.at(augmID);
 
 	// propose new augmented value and store old
-	this_augm.propose(prng); 
+	this_augm.propose(prng);
 
 	// proceed only if valid
 	if (this_augm.valid_move())
@@ -113,11 +135,10 @@ bool Individual::propose_valid_augm_move(const std::string &augmID, sys_rnd_gen 
 	}
 }
 
-void Individual::augm_restore_value(const std::string &augmID) { this->augm_var.at(augmID).restore_value(); }
-void Individual::clear_augm(const std::string &augmID)
+/* Restore buffer value of augmented variable. */
+void Individual::augm_restore_value(const std::string &augmID)
 {
-	Base_Variable new_augm(augmID);
-	this->augm_var[augmID] = new_augm;
+	this->augm_var.at(augmID).restore_value();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -134,7 +155,7 @@ void Individual::clear_augm(const std::string &augmID)
 /* Check if the individal has the data defined */
 void Individual::assert_data(const std::string &dataID) const
 {
-	if (data.find(dataID) == data.end())
+	if (this->data.find(dataID) == this->data.end())
 	{
 		throw std::invalid_argument(
 			"Unknown data '" + dataID + "' for individual " + ID + ".");
@@ -144,7 +165,7 @@ void Individual::assert_data(const std::string &dataID) const
 /* Default method to get the value of data. */
 double Individual::_get_data_default_(const std::string &dataID) const
 {
-	return data.at(dataID);
+	return this->data.at(dataID);
 }
 
 /* Safe method to get the value of data with previous assertion. */
@@ -157,7 +178,7 @@ double Individual::_get_data_assert_(const std::string &dataID) const
 /* Safe method to get a data pointer with previous assertion. */
 const double *Individual::_get_data_pointer_default_(const std::string &dataID) const
 {
-	return &(data.find(dataID)->second);
+	return &(this->data.find(dataID)->second);
 }
 
 /* Safe method to get a data pointer with previous assertion. */
@@ -174,10 +195,10 @@ const double *Individual::_get_data_pointer_assert_(const std::string &dataID) c
 /* Assign a model rate r */
 void Individual::assign_group_rate(const std::string &rateID, const std::string &parID)
 {
-	if (_which_rate_.find(rateID) == _which_rate_.end())
+	if (this->_which_rate_.find(rateID) == this->_which_rate_.end())
 	{
 		// if rateID was undeclared, add it
-		_which_rate_.emplace(rateID, parID);
+		this->_which_rate_.emplace(rateID, parID);
 	}
 	else
 	{
@@ -193,7 +214,7 @@ void Individual::assign_group_rate(const std::string &rateID, const std::string 
 /* Check if the given parameter is defined, otherwise raise error. */
 void Individual::assert_augm(const std::string &augmID) const
 {
-	if (augm_var.find(augmID) == augm_var.end())
+	if (this->augm_var.find(augmID) == this->augm_var.end())
 	{
 		throw std::invalid_argument(
 			"Unknown augmented variable '" + augmID + "' for individual " + ID + ".");
@@ -203,7 +224,7 @@ void Individual::assert_augm(const std::string &augmID) const
 /* Default method to get the value of an augmented variable. */
 double Individual::_get_augm_default_(const std::string &augmID) const
 {
-	return augm_var.at(augmID).get_value();
+	return this->augm_var.at(augmID).get_value();
 }
 
 /* Safe method to get the value of an augmented variable with previous assertion. */
@@ -216,7 +237,7 @@ double Individual::_get_augm_assert_(const std::string &augmID) const
 /* Default method to set the value of an augmented variable. */
 void Individual::_set_augm_default_(const std::string &augmID, double new_value)
 {
-	augm_var.at(augmID).set_value(new_value);
+	this->augm_var.at(augmID).set_value(new_value);
 }
 
 /* Safe method to set the value of an augmented variable with previous assertion. */
