@@ -35,7 +35,7 @@ public:
     //===== Household Data =====//
     size_t num_indiv = 0;
     size_t num_house = 0;
-    std::vector<Household> house = {};
+    std::vector<Household> house_vec = {};
 
     //===== Data Reports =====//
     std::vector<std::string> data_headers = {};

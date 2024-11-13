@@ -49,15 +49,15 @@ public:
 	void disable_assert();
 
 	//===== GETTER =====//
-	const std::string get_ID() const;
-	int get_index() const;
+	const std::string house_ID() const;
+	int index() const;
 	int size() const;
-	int get_num_infectious() const;
-	int get_num_susceptible() const;
-	int get_num_missing_status() const;
-	const std::set<int> &get_infectious_set() const;
-	const std::set<int> &get_susceptible_set() const;
-	const std::set<int> &get_missing_status_set() const;
+	int num_infectious() const;
+	int num_susceptible() const;
+	int num_missing_status() const;
+	const std::set<int> &infectious_set() const;
+	const std::set<int> &susceptible_set() const;
+	const std::set<int> &missing_status_set() const;
 
 	//===== INDIVIDUAL =====//
 
@@ -66,15 +66,15 @@ public:
 	void set_rate(int i, const std::string &rateID, const double *ptr);
 
 	//----- Individual : Getter -----//
-	const std::string get_ID(int i) const;
-	double get_data(int i, const std::string &dataID) const;
-	const double *get_data_pointer(int i, const std::string &dataID) const;
+	const std::string ID(int i) const;
+	double data(int i, const std::string &dataID) const;
+	const double *data_pointer(int i, const std::string &dataID) const;
 	std::unordered_map<std::string, std::string> get_group_rate_map(int i) const;
-	double get_group_rate(int i, const std::string &rateID) const;
-	int get_status(int i) const;
+	double group_rate(int i, const std::string &rateID) const;
+	int status(int i) const;
 
 	const std::string get_contact_rate_map(int from, int to) const;
-	double get_contact_rate(int from, int to) const;
+	double contact_rate(int from, int to) const;
 
 	//===== AUGMENTED =====//
 
@@ -89,7 +89,7 @@ public:
 	void clear_augm(int i, const std::string &augmID);
 
 	//----- Augmented : Getter -----//
-	double get_augm(int i, const std::string &augmID) const;
+	double augm(int i, const std::string &augmID) const;
 	double augm_model_logpdf(int i, const std::string &augmID) const;
 	double augm_model_logratio(int i, const std::string &augmID) const;
 	double augm_propose_logratio(int i, const std::string &augmID) const;

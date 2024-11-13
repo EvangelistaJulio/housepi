@@ -17,14 +17,13 @@
 class Model : public MCMC
 {
 	//===== Model dependent methods =====//
-	void fill_house_escape_matrix(const Household &this_house) const;
+	void fill_house_escape_matrix(const Household &house) const;
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;
-	double compute_house_loglike(const Household &this_house) const override;
-	void simulate_single_house(Household &this_house) override;
-	void assign_group_rate_to_individual(Household &this_house, int i) override;
-	void assign_contact_rate_to_household(Household &this_house, int from, int to) override;
+	double compute_house_loglike(const Household &house) const override;
+	void simulate_single_house(Household &house) override;
+	void assign_group_rate_to_individual(Household &house, int i) override;
 };
 
 #endif // MODEL__H

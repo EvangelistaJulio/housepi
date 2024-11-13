@@ -48,6 +48,7 @@ Missing data and asymptomatic status are not modeled.
 \item \code{cont_adult_child} (c) : contact rate from adult to child;
 \item \code{cont_child_adult} (c) : contact rate from child to adult;
 \item \code{cont_child_child} (c) : contact rate from adult to child;
+\item \code{size_ref} (c) : the size of the reference household;
 \item \code{study_period} (c) : study period after inclusion;
 \item \code{child_age} (c) : children/adult age threshold.
 }

@@ -77,7 +77,7 @@ private:
 
 	dictargs_ptr rate_ptr = {};
 	std::unordered_map<std::string, std::string> _which_rate_ = {};
-	std::unordered_map<std::string, Base_Variable> augm_var = {};
+	std::unordered_map<std::string, Base_Variable> augm_map = {};
 
 	//===== Auxxiliary Assert =====//
 	void assert_data(const std::string &dataID) const;

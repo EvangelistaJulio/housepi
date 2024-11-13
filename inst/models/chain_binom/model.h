@@ -23,8 +23,8 @@ class Model : public MCMC
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;
-	double compute_house_loglike(const Household &this_house) const override;	
-	void simulate_single_house(Household &this_house) override;
+	double compute_house_loglike(const Household &house) const override;	
+	void simulate_single_house(Household &house) override;
 
 };
 

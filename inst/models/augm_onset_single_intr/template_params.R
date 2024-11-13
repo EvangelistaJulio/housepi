@@ -18,6 +18,7 @@ list(
   cont_adult_child = list(value = 0.75),
   cont_child_adult = list(value = 1.1),
   cont_child_child = list(value = 1.25),
+  size_ref = list(value = 4),
   study_period = list(value = 60),
   child_age = list(value = 15)
 )

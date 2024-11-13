@@ -140,7 +140,7 @@ double Monte_Carlo_Build::type_to_double(const std::string value, const std::str
             }
             else if (type == TYPE_DATA)
             {
-                output = this_house.get_data(i, value);
+                output = this_house.data(i, value);
             }
             else if (type == TYPE_PARAM)
             {
@@ -204,7 +204,7 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, cons
         {
             if (type == TYPE_DATA)
             {
-                output = this_house.get_data_pointer(i, value);
+                output = this_house.data_pointer(i, value);
             }
             else if (type == TYPE_PARAM)
             {
@@ -288,7 +288,7 @@ dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key
 /* Emplace a new household. */
 void Monte_Carlo_Build::assign_house(const std::string &ID)
 {
-    house.emplace_back(ID, num_house);
+    house_vec.emplace_back(ID, num_house);
     num_house++;
 }
 
@@ -308,13 +308,13 @@ void Monte_Carlo_Build::update_report_data()
                      {"n.HH.with.max.size", 0}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
-    for (const Household &this_house : house)
+    for (const Household &this_house : house_vec)
     {
         int this_house_size = this_house.size();
-        int num_infec = this_house.get_num_infectious();
+        int num_infec = this_house.num_infectious();
 
         _report_data_["n.cases"] += num_infec;
-        _report_data_["n.miss.stat"] += this_house.get_num_missing_status();
+        _report_data_["n.miss.stat"] += this_house.num_missing_status();
 
         _report_data_["no.HH.case"] += (num_infec == 0);
         _report_data_["lst.1.case"] += (num_infec > 0);
@@ -567,7 +567,7 @@ void Monte_Carlo_Build::build_augm()
             }
 
             //===== Assign augmented variables to each individual =====//
-            for (Household &this_house : house)
+            for (Household &this_house : house_vec)
             {
                 for (int i = 0; i < this_house.size(); ++i)
                 {
@@ -609,7 +609,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
             std::string augm_status = _augm_deftable_.at("status")[a];
 
             // assign augmented variable of the corresponding status or undefined status
-            if ((tools::is_na(augm_status)) || (this_house.get_status(i) == tools::stoi(augm_status, "augmented status")))
+            if ((tools::is_na(augm_status)) || (this_house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
                 //----- Name -----//
                 std::string augmID = _augm_deftable_.at("name")[a];
@@ -711,7 +711,7 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
         // diagnostics over households
         for (size_t H = 0; H < num_house; ++H)
         {
-            house[H].init_diagnostics(sample_size);
+            house_vec[H].init_diagnostics(sample_size);
         }
     }
 }
@@ -730,7 +730,7 @@ void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_po
         // diagnostics over households
         for (size_t H = 0; H < num_house; ++H)
         {
-            house[H].update_diagnostics();
+            house_vec[H].update_diagnostics();
         }
     }
 }
@@ -741,7 +741,7 @@ void Monte_Carlo_Build::disable_assert()
     pCore->disable_assert_param();
 
     // disable augmented variable assertion for all individuals
-    for (Household &this_house : house)
+    for (Household &this_house : house_vec)
     {
         this_house.disable_assert();
     }
@@ -759,7 +759,7 @@ double Monte_Carlo_Build::_augm_model_loglike_(const Household &this_house) cons
 {
     double hh_loglike = 0.;
     // Contribution of model associated to augmented variables
-    for (int i : this_house.get_infectious_set())
+    for (int i : this_house.infectious_set())
     {
         (this->*_func_augm_model_by_definition_)(this_house, i, hh_loglike);
     }
@@ -768,7 +768,7 @@ double Monte_Carlo_Build::_augm_model_loglike_(const Household &this_house) cons
 
 void Monte_Carlo_Build::_augm_model_by_status_(const Household &this_house, int i, double &delta) const
 {
-    for (const std::string &augmID : augm_status_map_model.at(this_house.get_status(i)))
+    for (const std::string &augmID : augm_status_map_model.at(this_house.status(i)))
     {
         delta += this_house.augm_model_logpdf(i, augmID);
     }
@@ -989,21 +989,21 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
     }
 
     size_t c = 0;
-    for (const Household &this_house : house)
+    for (const Household &this_house : house_vec)
     {
         for (int i = 0; i < this_house.size(); ++i)
         {
-            df_index[c] = this_house.get_ID(i);
-            df_house_index[c] = this_house.get_ID();
-            df_status[c] = this_house.get_status(i);
+            df_index[c] = this_house.ID(i);
+            df_house_index[c] = this_house.house_ID();
+            df_status[c] = this_house.status(i);
 
             for (const std::string &dataID : data_headers)
             {
-                df_dbl.at(dataID)[c] = this_house.get_data(i, dataID);
+                df_dbl.at(dataID)[c] = this_house.data(i, dataID);
             }
             for (const std::string &augmID : augm_list_full)
             {
-                df_dbl.at(augmID)[c] = this_house.get_augm(i, augmID);
+                df_dbl.at(augmID)[c] = this_house.augm(i, augmID);
             }
 
             ++c;
@@ -1040,7 +1040,7 @@ Rcpp::NumericMatrix Monte_Carlo_Build::export_loglike_matrix() const
     // Assign each NumericVector to a column of the matrix
     for (size_t H = 0; H < num_house; ++H)
     {
-        NumericVector column = wrap(house[H].get_dgn_loglike());
+        NumericVector column = wrap(house_vec[H].get_dgn_loglike());
         output(_, H) = column;
     }
 
@@ -1090,24 +1090,24 @@ void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) cons
             augm_ofstream << std::endl;
 
             //===== Print data and augmented variables =====//
-            for (const Household &this_house : house)
+            for (const Household &this_house : house_vec)
             {
                 for (int i = 0; i < this_house.size(); ++i)
                 {
-                    augm_ofstream << this_house.get_ID(i)
-                                  << C_DELIM << this_house.get_ID()
-                                  << C_DELIM << this_house.get_status(i);
+                    augm_ofstream << this_house.ID(i)
+                                  << C_DELIM << this_house.house_ID()
+                                  << C_DELIM << this_house.status(i);
                     for (const std::string &dataID : data_headers)
                     {
-                        augm_ofstream << C_DELIM << this_house.get_data(i, dataID);
+                        augm_ofstream << C_DELIM << this_house.data(i, dataID);
                     }
 
                     // FIXME
                     for (const std::string &augmID : augm_list_full)
                     {
-                        if (this_house.get_status(i) == INFECTIOUS)
+                        if (this_house.status(i) == INFECTIOUS)
                         {
-                            augm_ofstream << C_DELIM << this_house.get_augm(i, augmID);
+                            augm_ofstream << C_DELIM << this_house.augm(i, augmID);
                         }
                         else
                         {

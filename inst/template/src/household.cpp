@@ -202,29 +202,29 @@ void Household::set_loglike(double x)
 void Household::restore_loglike() { pImpl->house_loglike = pImpl->buffer; }
 
 //===== GETTER =====//
-const std::string Household::get_ID() const { return pImpl->ID; }
-const std::string Household::get_ID(int i) const { return pImpl->indiv[i].get_ID(); }
-int Household::get_index() const { return pImpl->index; }
+const std::string Household::house_ID() const { return pImpl->ID; }
+const std::string Household::ID(int i) const { return pImpl->indiv[i].get_ID(); }
+int Household::index() const { return pImpl->index; }
 int Household::size() const { return pImpl->house_size; }
 
 std::unordered_map<std::string, std::string> Household::get_group_rate_map(int i) const { return pImpl->indiv[i].get_group_rate_map(); }
-double Household::get_group_rate(int i, const std::string &rateID) const { return pImpl->indiv[i].get_group_rate(rateID); }
+double Household::group_rate(int i, const std::string &rateID) const { return pImpl->indiv[i].get_group_rate(rateID); }
 
 const std::string Household::get_contact_rate_map(int from, int to) const { return pImpl->_which_rate_[from][to]; }
-double Household::get_contact_rate(int from, int to) const { return *pImpl->contact_rates[from][to]; }
+double Household::contact_rate(int from, int to) const { return *pImpl->contact_rates[from][to]; }
 
-int Household::get_status(int i) const { return pImpl->indiv[i].get_status(); }
-double Household::get_augm(int i, const std::string &augmID) const { return pImpl->indiv[i].get_augm(augmID); }
-double Household::get_data(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data(dataID); }
-const double *Household::get_data_pointer(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data_pointer(dataID); }
+int Household::status(int i) const { return pImpl->indiv[i].get_status(); }
+double Household::augm(int i, const std::string &augmID) const { return pImpl->indiv[i].get_augm(augmID); }
+double Household::data(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data(dataID); }
+const double *Household::data_pointer(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data_pointer(dataID); }
 
-int Household::get_num_infectious() const { return pImpl->num_infectious; }
-int Household::get_num_susceptible() const { return pImpl->num_susceptible; }
-int Household::get_num_missing_status() const { return pImpl->num_missing_status; }
+int Household::num_infectious() const { return pImpl->num_infectious; }
+int Household::num_susceptible() const { return pImpl->num_susceptible; }
+int Household::num_missing_status() const { return pImpl->num_missing_status; }
 
-const std::set<int> &Household::get_infectious_set() const { return pImpl->infectious_set; }
-const std::set<int> &Household::get_susceptible_set() const { return pImpl->susceptible_set; }
-const std::set<int> &Household::get_missing_status_set() const { return pImpl->missing_status_set; }
+const std::set<int> &Household::infectious_set() const { return pImpl->infectious_set; }
+const std::set<int> &Household::susceptible_set() const { return pImpl->susceptible_set; }
+const std::set<int> &Household::missing_status_set() const { return pImpl->missing_status_set; }
 
 double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }

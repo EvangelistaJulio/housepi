@@ -23,23 +23,23 @@ class Model : public MCMC
 {
 public:
 	//===== Model dependent methods =====//
-	double transmission_rate(const Household &this_house) const;
-	double foi(const Household &this_house, int i, const std::vector<squarematrix> &profiles) const;
+	double transmission_rate(const Household &house) const;
+	double foi(const Household &house, int i, const std::vector<squarematrix> &profiles) const;
 
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
 	void init_model_for_simulation() override { init_model_for_inference(); };
-	void update_augm_dependecies(Household &this_house, int i) override;
+	void update_augm_dependecies(Household &house, int i) override;
 
 	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Household &this_house, int i) override;
-	void assign_contact_rate_to_household(Household &this_house, int from, int to) override;
+	void assign_group_rate_to_individual(Household &house, int i) override;
+	void assign_contact_rate_to_household(Household &house, int from, int to) override;
 
 	//----- Override Methods for Inference -----//
-	double compute_house_loglike(const Household &this_house) const override;
+	double compute_house_loglike(const Household &house) const override;
 
 	//----- Override Methods for Simulations -----//
-	void simulate_single_house(Household &this_house) override;
+	void simulate_single_house(Household &house) override;
 };
 
 #endif // MODEL__H

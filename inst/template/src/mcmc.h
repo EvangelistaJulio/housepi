@@ -79,33 +79,33 @@ public:
 	void show_group_classes() const;
 
 	//===== DATA =====//
-	Household &house(size_t H);
-	size_t get_num_house() const;
+	int house_size(int H) const;
+	size_t num_houses() const;
 	int report_data(const std::string &key) const;
 
 	// note : I didn't find a way to PIMPL these because of the virtual functions
 	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
-	void set_rate_per_group(Household &this_house, int i);
-	void set_rate_per_contact(Household &this_house);
+	void set_rate_per_group(Household &house, int i);
+	void set_rate_per_contact(Household &house);
 
-	virtual void assign_group_rate_to_individual(Household &this_house, int i);
-	virtual void assign_contact_rate_to_household(Household &this_house, int from, int to);
+	virtual void assign_group_rate_to_individual(Household &house, int i);
+	virtual void assign_contact_rate_to_household(Household &house, int from, int to);
 
 	//===== RAND NUMBER GENERATOR =====//
 	double uniform();
 
 	//===== PARAMETERS =====//
-	double get_param(const std::string &parID) const;
-	const double *get_param_pointer(const std::string &parID) const;
+	double param(const std::string &parID) const;
+	const double *param_pointer(const std::string &parID) const;
 
 	//===== AUGMENTED VARIABLES =====//
 	void init_augmented_variables();
-	virtual void update_augm_dependecies(Household &this_house, int i);
-	void assign_all_augm(Household &this_house, int i);
-	void clear_all_augm(Household &this_house, int i);
+	virtual void update_augm_dependecies(Household &house, int i);
+	void assign_all_augm(Household &house, int i);
+	void clear_all_augm(Household &house, int i);
 
 	//===== EVALUATE (loglikelihood) =====//
-	virtual double compute_house_loglike(const Household &this_house) const;
+	virtual double compute_house_loglike(const Household &house) const;
 	double evaluate();
 
 	//===== INFER =====//
@@ -117,7 +117,7 @@ public:
 
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};
-	virtual void simulate_single_house(Household &this_house);
+	virtual void simulate_single_house(Household &house);
 	void simulate(bool progbar = true);
 
 private:
@@ -165,21 +165,21 @@ private:
 	bool _param_metropolis_T_(const std::string &parID);
 
 	//----- Metropolis : augmented moves -----//
-	double move_augm_single_house(Household &this_house);
-	void metropolis_augm_single_move(Household &this_house, int i, const std::string &augmID, double &delta);
+	double move_augm_single_house(Household &house);
+	void metropolis_augm_single_move(Household &house, int i, const std::string &augmID, double &delta);
 
 	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
 	void _move_no_augm_() {};
 	void _move_all_augm_();
 
 	void (MCMC::*_func_move_augm_indiv_)(Household &, int, double &) = &MCMC::_move_augm_indiv_by_status_;
-	void _move_augm_indiv_by_status_(Household &this_house, int i, double &delta);
-	void _move_augm_indiv_generic_(Household &this_house, int i, double &delta);
+	void _move_augm_indiv_by_status_(Household &house, int i, double &delta);
+	void _move_augm_indiv_generic_(Household &house, int i, double &delta);
 
 	bool (MCMC::*_func_augm_metropolis_)(const Household &, int, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
-	bool _augm_metropolis_1_(const Household &this_house, int i, const std::string &augmID, double &delta);
-	bool _augm_metropolis_0_(const Household &this_house, int i, const std::string &augmID, double &delta);
-	bool _augm_metropolis_T_(const Household &this_house, int i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_1_(const Household &house, int i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_0_(const Household &house, int i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_T_(const Household &house, int i, const std::string &augmID, double &delta);
 };
 
 #endif // MCMC__H

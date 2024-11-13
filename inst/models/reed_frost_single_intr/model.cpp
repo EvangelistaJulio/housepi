@@ -17,7 +17,7 @@
 /* Hazard of infection (-logarithm of the person-to-person escape probability). */
 double Model::hazard_of_infection() const
 {
-	return get_param("beta");
+	return param("beta");
 }
 
 //------------------------------------------- /\ ------------------------------------------------//
@@ -87,12 +87,12 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(const Household &this_house) const
+double Model::compute_house_loglike(const Household &house) const
 {
 	double log_likelihood = 0;
 
-	int hh_size = this_house.size();
-	int n_positive = this_house.get_num_infectious();
+	int hh_size = house.size();
+	int n_positive = house.num_infectious();
 
 	double log_p2p_esc_proba = -hazard_of_infection();
 	double log_p2p_infec_proba = log(1. - exp(log_p2p_esc_proba));
@@ -157,7 +157,7 @@ double Model::compute_house_loglike(const Household &this_house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
-void Model::simulate_single_house(Household &this_house)
+void Model::simulate_single_house(Household &house)
 {
 	double log_p2p_esc_proba = -hazard_of_infection();
 
@@ -166,14 +166,14 @@ void Model::simulate_single_house(Household &this_house)
 	//=================================================//
 
 	// set all cases to susceptible
-	for (int i = 0; i < this_house.size(); i++)
+	for (int i = 0; i < house.size(); i++)
 	{
-		this_house.change_status(i, SUSCEPTIBLE);
+		house.change_status(i, SUSCEPTIBLE);
 	}
 
 	// pick a random introduction
-	int first_case = uniform() * this_house.size();
-	this_house.change_status(first_case, INFECTIOUS);
+	int first_case = uniform() * house.size();
+	house.change_status(first_case, INFECTIOUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
@@ -182,19 +182,19 @@ void Model::simulate_single_house(Household &this_house)
 	int num_old_gen = 0;
 	int num_new_gen = 1;
 
-	while ((this_house.get_num_susceptible() > 0) && (num_new_gen > 0))
+	while ((house.num_susceptible() > 0) && (num_new_gen > 0))
 	{
 		num_old_gen = num_new_gen;
 		num_new_gen = 0;
 
-		// note : here this_house.susceptible_set is not allowed because of change_status
-		for (int i = 0; i < this_house.size(); i++)
+		// note : here house.susceptible_set is not allowed because of change_status
+		for (int i = 0; i < house.size(); i++)
 		{
-			if (this_house.get_status(i) == SUSCEPTIBLE)
+			if (house.status(i) == SUSCEPTIBLE)
 			{
 				if (uniform() >= exp(num_old_gen * log_p2p_esc_proba))
 				{
-					this_house.change_status(i, INFECTIOUS);
+					house.change_status(i, INFECTIOUS);
 					num_new_gen++;
 				}
 			}

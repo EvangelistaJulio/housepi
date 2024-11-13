@@ -32,7 +32,7 @@ private:
 public:
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
-	double compute_house_loglike(const Household &this_house) const override;
+	double compute_house_loglike(const Household &house) const override;
 };
 
 #endif // MODEL__H

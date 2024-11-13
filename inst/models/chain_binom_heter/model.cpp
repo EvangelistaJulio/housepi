@@ -26,33 +26,35 @@ std::vector<squarematrix> LUT_p2p_esc_proba;
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* Assign the parameters controlling infectivity for each individual */
-void Model::assign_group_rate_to_individual(Household &this_house, int i)
+void Model::assign_group_rate_to_individual(Household &house, int i)
 {
+	bool is_child = house.data(i, "age") <= param("child_age");
+
 	//=====Susceptibility=====//
-	if (this_house.get_data(i, "age") <= get_param("child_age"))
+	if (is_child)
 	{ // child
-		this_house.assign_group_rate(i, "Susceptibility", "sus_child");
+		house.assign_group_rate(i, "Susceptibility", "sus_child");
 	}
 	else
 	{ // adult
-		if (this_house.get_data(i, "sex") == 0)
+		if (house.data(i, "sex") == 0)
 		{ // adult women
-			this_house.assign_group_rate(i, "Susceptibility", "sus_women");
+			house.assign_group_rate(i, "Susceptibility", "sus_women");
 		}
 		else
 		{ // adult men : Susceptibility [REFERENCE]
-			this_house.assign_group_rate(i, "Susceptibility", REFERENCE);
+			house.assign_group_rate(i, "Susceptibility", REFERENCE);
 		}
 	}
 
 	//=====Infectivity=====//
-	if (this_house.get_data(i, "age") > get_param("child_age"))
+	if (!is_child)
 	{ // adult : Susceptiblity [REFERENCE]
-		this_house.assign_group_rate(i, "Infectivity", REFERENCE);
+		house.assign_group_rate(i, "Infectivity", REFERENCE);
 	}
 	else
 	{ // child
-		this_house.assign_group_rate(i, "Infectivity", "inf_child");
+		house.assign_group_rate(i, "Infectivity", "inf_child");
 	}
 }
 
@@ -60,60 +62,31 @@ void Model::assign_group_rate_to_individual(Household &this_house, int i)
 ////////////////////////  Model : assign rate_per group to individual  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign the contact patterns between a couple of individuals. */
-void Model::assign_contact_rate_to_household(Household &this_house, int from, int to)
-{
-	// from `i` -> to `k`
-	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (this_house.get_data(from, "age") < get_param("child_age"));
-	bool i_is_adult = (i_is_child == false);
-
-	bool k_is_child = (this_house.get_data(to, "age") < get_param("child_age"));
-	bool k_is_adult = (k_is_child == false);
-
-	if (i_is_child && k_is_child)
-	{ // Child to Child
-		this_house.assign_contact_rate(from, to, "cont_child_child");
-	}
-	else if (i_is_child && k_is_adult)
-	{ // Child to Adult
-		this_house.assign_contact_rate(from, to, "cont_child_adult");
-	}
-	else if (i_is_adult && k_is_child)
-	{ // Adult to Child
-		this_house.assign_contact_rate(from, to, "cont_adult_child");
-	}
-	else
-	{ // Adult to Adult : Contact Pattern [REFERENCE]
-		this_house.assign_contact_rate(from, to, REFERENCE);
-	}
-}
-
 /* The person-to-person escape probabilities stored inside a matrix.
 	Important: it must be re-ordered to have seropositives first. */
-void Model::fill_house_escape_matrix(const Household &this_house) const
+void Model::fill_house_escape_matrix(const Household &house) const
 {
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
-	size_t H = this_house.get_index();
-	int hh_size = this_house.size();
+	size_t H = house.index();
+	int hh_size = house.size();
 	int count = 0;
 
-	double p2p_transm_rate = get_param("beta");
-	double commu_transm_rate = get_param("alpha");
+	double p2p_transm_rate = param("beta");
+	double commu_transm_rate = param("alpha");
 
 	// 1) ordered members group rates : infectious
-	for (int i : this_house.get_infectious_set())
+	for (int i : house.infectious_set())
 	{
-		LUT_susc_rates[H][count] = this_house.get_group_rate(i, "Susceptibility");
-		LUT_infec_rates[H][count] = this_house.get_group_rate(i, "Infectivity");
+		LUT_susc_rates[H][count] = house.group_rate(i, "Susceptibility");
+		LUT_infec_rates[H][count] = house.group_rate(i, "Infectivity");
 		++count;
 	}
 
 	// 2) ordered members group rates : susceptibles
-	for (int i : this_house.get_susceptible_set())
+	for (int i : house.susceptible_set())
 	{
-		LUT_susc_rates[H][count] = this_house.get_group_rate(i, "Susceptibility");
-		LUT_infec_rates[H][count] = this_house.get_group_rate(i, "Infectivity");
+		LUT_susc_rates[H][count] = house.group_rate(i, "Susceptibility");
+		LUT_infec_rates[H][count] = house.group_rate(i, "Infectivity");
 		++count;
 	}
 
@@ -126,8 +99,8 @@ void Model::fill_house_escape_matrix(const Household &this_house) const
 		// person-to-person : i escaped from k
 		for (int k = 0; k < i; ++k)
 		{
-			LUT_p2p_esc_proba[H][k][i] = exp(-LUT_susc_rates[H][i] * this_house.get_contact_rate(k, i) * LUT_infec_rates[H][k] * p2p_transm_rate);
-			LUT_p2p_esc_proba[H][i][k] = exp(-LUT_susc_rates[H][k] * this_house.get_contact_rate(i, k) * LUT_infec_rates[H][i] * p2p_transm_rate);
+			LUT_p2p_esc_proba[H][k][i] = exp(-LUT_susc_rates[H][i] * LUT_infec_rates[H][k] * p2p_transm_rate);
+			LUT_p2p_esc_proba[H][i][k] = exp(-LUT_susc_rates[H][k] * LUT_infec_rates[H][i] * p2p_transm_rate);
 		}
 
 		// note : infector always escape himself (not relevant)
@@ -163,9 +136,9 @@ void Model::init_model_for_inference()
 	}
 
 	//===== Allocate memory for the escape matrix =====//
-	for (size_t H = 0; H < get_num_house(); H++)
+	for (size_t H = 0; H < num_houses(); H++)
 	{
-		int h_size = house(H).size();
+		int h_size = house_size(H);
 		LUT_susc_rates.emplace_back(h_size, 1);
 		LUT_infec_rates.emplace_back(h_size, 1);
 		LUT_commu_esc_proba.emplace_back(h_size, 1);
@@ -181,13 +154,13 @@ void Model::init_model_for_inference()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_house_loglike(const Household &this_house) const
+double Model::compute_house_loglike(const Household &house) const
 {
-	size_t H = this_house.get_index();
-	int num_infec = this_house.get_num_infectious();
+	size_t H = house.index();
+	int num_infec = house.num_infectious();
 
 	//===== Fill Escape Probabilities =====//
-	fill_house_escape_matrix(this_house);
+	fill_house_escape_matrix(house);
 
 	//=====compute the loglikelihood=====//
 	return bax::chain_binomial_heter_loglikelihood(num_infec,
@@ -207,30 +180,30 @@ double Model::compute_house_loglike(const Household &this_house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
-void Model::simulate_single_house(Household &this_house)
+void Model::simulate_single_house(Household &house)
 {
 	//=========================//
 	//===== ESCAPE MATRIX =====//
 	//=========================//
 
-	size_t H = this_house.get_index();
-	int hh_size = this_house.size();
+	size_t H = house.index();
+	int hh_size = house.size();
 
-	fill_house_escape_matrix(this_house);
+	fill_house_escape_matrix(house);
 
 	//==================================================//
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (int i = 0; i < this_house.size(); i++)
+	for (int i = 0; i < house.size(); i++)
 	{
 		if (uniform() < LUT_commu_esc_proba[H][i])
 		{
-			this_house.change_status(i, SUSCEPTIBLE);
+			house.change_status(i, SUSCEPTIBLE);
 		}
 		else
 		{
-			this_house.change_status(i, INFECTIOUS);
+			house.change_status(i, INFECTIOUS);
 		}
 	}
 
@@ -239,22 +212,22 @@ void Model::simulate_single_house(Household &this_house)
 	//=============================================================//
 
 	std::set<int> old_gen_set = {};
-	std::set<int> new_gen_set = this_house.get_infectious_set();
+	std::set<int> new_gen_set = house.infectious_set();
 
-	while ((this_house.get_num_susceptible() > 0) && (!new_gen_set.empty()))
+	while ((house.num_susceptible() > 0) && (!new_gen_set.empty()))
 	{
 		old_gen_set = new_gen_set;
 		new_gen_set.clear();
 
-		for (int i = 0; i < this_house.size(); i++)
+		for (int i = 0; i < house.size(); i++)
 		{
-			if (this_house.get_status(i) == SUSCEPTIBLE)
+			if (house.status(i) == SUSCEPTIBLE)
 			{
 				for (int k : old_gen_set)
 				{
 					if (uniform() >= LUT_p2p_esc_proba[H][k][i])
 					{
-						this_house.change_status(i, INFECTIOUS);
+						house.change_status(i, INFECTIOUS);
 						new_gen_set.insert(i);
 					}
 				}
