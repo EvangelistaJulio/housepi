@@ -58,8 +58,7 @@ Rcpp::List Monte_Carlo_Build::export_setup() const { return pCore->export_setup(
 Rcpp::DataFrame Monte_Carlo_Build::export_params() const { return pCore->export_params(); }
 Rcpp::DataFrame Monte_Carlo_Build::export_traces() const { return pCore->export_traces(); }
 #else
-//===== Cpp Show/Print =====//
-void Monte_Carlo_Build::show_results() const { pCore->show_results(); }
+//===== Cpp Print =====//
 void Monte_Carlo_Build::print_infer_state(const std::string &pathtofile) const { pCore->print_infer_state(pathtofile); }
 #endif
 
@@ -691,102 +690,6 @@ void Monte_Carlo_Build::clear_all_augm(Household &this_house, int i)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print the report of the database and of the model group rates. */
-void Monte_Carlo_Build::show_summary() const
-{
-    using tools::percent;
-
-    //===== PRINT =====//
-
-    std::ostringstream oss;
-
-    oss << "n. of individuals: " << num_indiv
-        << "\n    * n. of cases: " << _report_data_.at("n.cases")
-        << " " << percent(_report_data_.at("n.cases"), num_indiv);
-    if (_report_data_.at("n.miss.stat") > 0)
-    {
-        oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
-            << " " << percent(_report_data_.at("n.miss.stat"), num_indiv);
-    }
-
-    oss << "\nn. of households: " << num_house;
-    if (_report_data_.at("no.HH.case") > 0)
-    {
-        oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
-            << " " << percent(_report_data_.at("no.HH.case"), num_house);
-    }
-
-    oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
-        << " " << percent(_report_data_.at("lst.1.case"), num_house);
-    if (_report_data_.at("lst.1.case") > 0)
-    {
-        oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
-            << " " << percent(_report_data_.at("lst.2.case"), num_house);
-    }
-
-    oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
-        << " " << percent(_report_data_.at("n.HH.with.max.cases"), num_house)
-        << "\nmin n. house members: " << _report_data_.at("min.HH.size")
-        << " " << percent(_report_data_.at("n.HH.with.min.size"), num_house)
-        << "\nmax n. house members: " << _report_data_.at("max.HH.size")
-        << " " << percent(_report_data_.at("n.HH.with.max.size"), num_house);
-
-    tools::print_stdout(oss.str() + "\n");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Monte_Carlo_Build : show group classes  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Show model group classes. */
-void Monte_Carlo_Build::show_group_classes() const
-{
-    std::ostringstream oss;
-
-    // format group classes
-    for (const auto &entry : _report_group_classes_)
-    {
-        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
-        {
-            oss << entry.first << ":";
-            for (const auto &x : entry.second)
-            {
-                oss << "\n    * " << x.first << ": " << x.second
-                    << " " << tools::percent(x.second, num_indiv);
-            }
-            oss << "\n";
-        }
-    }
-
-    // format contact rates
-    if (_report_group_classes_.at(CONTACT_RATE).find(EMPTY_RATE) != _report_group_classes_.at(CONTACT_RATE).end())
-    {
-        oss << CONTACT_RATE << ":";
-        for (const auto &x : _report_group_classes_.at(CONTACT_RATE))
-        {
-            oss << "\n    * " << x.first << ": " << x.second
-                << " " << tools::percent(x.second, _num_contacts_);
-        }
-        oss << "\n";
-    }
-
-    // print only if there's something to print
-    if (oss.str().size() > 0)
-    {
-        tools::print_stdout(oss.str());
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
@@ -877,6 +780,163 @@ void Monte_Carlo_Build::_augm_model_generic_(const Household &this_house, int i,
     {
         delta += this_house.augm_model_logpdf(i, augmID);
     }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : show results  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Monte_Carlo_Build::show_results() const { pCore->show_results(); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print the report of the database and of the model group rates. */
+void Monte_Carlo_Build::show_summary() const
+{
+    using tools::percent;
+
+    //===== PRINT =====//
+
+    std::ostringstream oss;
+
+    oss << "n. of individuals: " << num_indiv
+        << "\n    * n. of cases: " << _report_data_.at("n.cases")
+        << " " << percent(_report_data_.at("n.cases"), num_indiv);
+    if (_report_data_.at("n.miss.stat") > 0)
+    {
+        oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
+            << " " << percent(_report_data_.at("n.miss.stat"), num_indiv);
+    }
+
+    oss << "\nn. of households: " << num_house;
+    if (_report_data_.at("no.HH.case") > 0)
+    {
+        oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
+            << " " << percent(_report_data_.at("no.HH.case"), num_house);
+    }
+
+    oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
+        << " " << percent(_report_data_.at("lst.1.case"), num_house);
+    if (_report_data_.at("lst.1.case") > 0)
+    {
+        oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
+            << " " << percent(_report_data_.at("lst.2.case"), num_house);
+    }
+
+    oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
+        << " " << percent(_report_data_.at("n.HH.with.max.cases"), num_house)
+        << "\nmin n. house members: " << _report_data_.at("min.HH.size")
+        << " " << percent(_report_data_.at("n.HH.with.min.size"), num_house)
+        << "\nmax n. house members: " << _report_data_.at("max.HH.size")
+        << " " << percent(_report_data_.at("n.HH.with.max.size"), num_house);
+
+    tools::print_stdout(oss.str() + "\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Monte_Carlo_Build : show group classes  ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show model group classes. */
+void Monte_Carlo_Build::show_group_classes() const
+{
+    std::ostringstream oss;
+
+    // format group classes
+    for (const auto &entry : _report_group_classes_)
+    {
+        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
+        {
+            oss << entry.first << ":";
+            for (const auto &x : entry.second)
+            {
+                oss << "\n    * " << x.first << ": " << x.second
+                    << " " << tools::percent(x.second, num_indiv);
+            }
+            oss << "\n";
+        }
+    }
+
+    // format contact rates
+    if (_report_group_classes_.at(CONTACT_RATE).find(EMPTY_RATE) != _report_group_classes_.at(CONTACT_RATE).end())
+    {
+        oss << CONTACT_RATE << ":";
+        for (const auto &x : _report_group_classes_.at(CONTACT_RATE))
+        {
+            oss << "\n    * " << x.first << ": " << x.second
+                << " " << tools::percent(x.second, _num_contacts_);
+        }
+        oss << "\n";
+    }
+
+    // print only if there's something to print
+    if (oss.str().size() > 0)
+    {
+        tools::print_stdout(oss.str());
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Monte_Carlo_Build::show_full_build() const
+{
+    //----- SETUP -----//
+    std::string add_file_info = UNDEFINED;
+    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("setup")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("setup");
+        }
+    }
+    tools::print_decorator("Setup", add_file_info);
+    pCore->show_setup();
+
+    //----- PARAMETERS -----//
+    add_file_info = UNDEFINED;
+    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("params")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("params");
+        }
+    }
+    tools::print_decorator("Parameters", add_file_info);
+    pCore->show_all_params();
+
+    //----- DATABASE -----//
+    add_file_info = UNDEFINED;
+    if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("data")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("data");
+        }
+    }
+    tools::print_decorator("Database", add_file_info);
+    show_summary();
+    show_group_classes();
+
+    //----- AUGMENTED -----//
+    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
+    {
+        if (!tools::is_na(_report_pathtofile_.at("augm")))
+        {
+            add_file_info = "# import: " + _report_pathtofile_.at("augm");
+        }
+    }
+    tools::print_decorator("Augmented", add_file_info);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -997,61 +1057,7 @@ Rcpp::NumericMatrix Monte_Carlo_Build::export_loglike_matrix() const
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Monte_Carlo_Build::show_full_build() const
-{
-    //----- SETUP -----//
-    std::string add_file_info = UNDEFINED;
-    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
-    {
-        if (!tools::is_na(_report_pathtofile_.at("setup")))
-        {
-            add_file_info = "# import: " + _report_pathtofile_.at("setup");
-        }
-    }
-    tools::print_decorator("Setup", add_file_info);
-    pCore->show_setup();
-
-    //----- PARAMETERS -----//
-    add_file_info = UNDEFINED;
-    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
-    {
-        if (!tools::is_na(_report_pathtofile_.at("params")))
-        {
-            add_file_info = "# import: " + _report_pathtofile_.at("params");
-        }
-    }
-    tools::print_decorator("Parameters", add_file_info);
-    pCore->show_all_params();
-
-    //----- DATABASE -----//
-    add_file_info = UNDEFINED;
-    if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
-    {
-        if (!tools::is_na(_report_pathtofile_.at("data")))
-        {
-            add_file_info = "# import: " + _report_pathtofile_.at("data");
-        }
-    }
-    tools::print_decorator("Database", add_file_info);
-    show_summary();
-    show_group_classes();
-
-    //----- AUGMENTED -----//
-    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
-    {
-        if (!tools::is_na(_report_pathtofile_.at("augm")))
-        {
-            add_file_info = "# import: " + _report_pathtofile_.at("augm");
-        }
-    }
-    tools::print_decorator("Augmented", add_file_info);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Monte_Carlo_Build : print augm variables  ///////////////////////////////////
+////////////////////////////  Monte_Carlo_Build : print augm variables  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */

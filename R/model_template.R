@@ -144,21 +144,21 @@ household_model_generate <- function(model,
   }
   
   # ----- Create the model package ----- #
-  
-  # option to force the removal of the executable
-  if ((file.exists(executable(exec_dir)) && (force == TRUE))) {
-    unlink(executable(exec_dir))
-  }
-  
-  # deal with existing version
+    
   if (file.exists((executable(exec_dir)))) {
-    # use cached version # TODO: to be tuned with phgbuild compile_dll
-    cli::cli_alert_info(
-      "Using cached {.pkg {pkgload::pkg_name(exec_dir)}}"
-    )
+    # deal with existing version
+    if (force == TRUE) {
+      # force the removal of the existing executable
+      unlink(executable(exec_dir))
+
+    } else {
+      # use cached version # TODO: to be tuned with phgbuild compile_dll
+      cli::cli_alert_info(
+        "Using existing {.pkg {pkgload::pkg_name(exec_dir)}}"
+      )
+    }
 
   } else {
-
     # copy the package to the new directory
     dir.create(exec_dir,
                 recursive = TRUE,

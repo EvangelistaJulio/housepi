@@ -176,14 +176,14 @@ void Monte_Carlo_Core::disable_assert_param()
 void Monte_Carlo_Core::assign_param(const std::string &parID, const Parameter &new_param)
 {
     // create the new parameter if it's not already defined
-    if (params.find(parID) != params.end())
+    if (param_map.find(parID) != param_map.end())
     {
         throw std::invalid_argument("Parameter '" + parID + "' has multiple definitions.");
     }
     else
     {
         // emplace the new parameter
-        params.emplace(parID, new_param);
+        param_map.emplace(parID, new_param);
 
         // update the lists of parameters to be inferred, and these to be static
         if (new_param.get_infer())
@@ -276,7 +276,7 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
 /* Check if the given parameter is defined, otherwise raise error. */
 void Monte_Carlo_Core::assert_param(const std::string &parID) const
 {
-    if (params.find(parID) == params.end())
+    if (param_map.find(parID) == param_map.end())
     {
         throw std::invalid_argument("Parameter '" + parID + "' not found. Check your model and parameter definitions.");
     }
@@ -289,7 +289,7 @@ void Monte_Carlo_Core::init_rand_params()
     {
         for (const std::string &parID : param_to_be_inferred)
         {
-            params.at(parID).rand(prng);
+            param_map.at(parID).rand(prng);
         }
     }
     else
@@ -319,10 +319,10 @@ void Monte_Carlo_Core::init_param_move_counts()
 bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
 {
     // set new value of the parameter and store the old to buffer
-    params.at(parID).propose(prng);
+    param_map.at(parID).propose(prng);
 
     // proceed only if valid move, otherwise restore buffer
-    if (params.at(parID).valid_move())
+    if (param_map.at(parID).valid_move())
     {
         return true;
     }
@@ -337,9 +337,16 @@ bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
 /* Init diagnostics for all parameters */
 void Monte_Carlo_Core::init_param_diagnostics(ulong sample_size)
 {
+    //----- Check if there is something to infer -----//
+    if (param_to_be_inferred.empty())
+    {
+        tools::error("No parameters to be inferred.");
+    }
+
+    //----- Initialize diagnostic vectors -----//
     for (const std::string &parID : param_to_be_inferred)
     {
-        params.at(parID).init_diagnostics(sample_size);
+        param_map.at(parID).init_diagnostics(sample_size);
     }
 }
 
@@ -348,7 +355,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 {
     for (const std::string &parID : param_to_be_inferred)
     {
-        params.at(parID).update_diagnostics();
+        param_map.at(parID).update_diagnostics();
     }
 }
 
@@ -590,7 +597,8 @@ void Monte_Carlo_Core::build_params()
             size_t table_length = _param_deftable_.at("infer").size();
 
             //===== Empty current list of parameters =====//
-            params.clear();
+            _is_undef_params_ = false;
+            param_map.clear();
             param_to_be_static.clear();
             param_to_be_inferred.clear();
 
@@ -606,11 +614,8 @@ void Monte_Carlo_Core::build_params()
                     // load value
                     if (tools::is_na(_param_deftable_.at("value")[p]))
                     {
-                        if (setup_rnd_init_params)
-                        {
-                            _is_undef_params_ = true;
-                        }
-                        else
+                        _is_undef_params_ = true;
+                        if (!setup_rnd_init_params)
                         {
                             std::ostringstream oss;
                             oss << "Undefined value without random initialization for parameter to infer '" << parID << "'.";
@@ -675,110 +680,6 @@ void Monte_Carlo_Core::dgn_glob_ll_stats(double &avg, double &var) const
 {
     compute_stats(dgn_glob_loglike, avg, var);
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-#ifdef USE_RCPP
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Rcpp::String stoRString(const std::string &x)
-{
-    return (tools::is_na(x)) ? NA_STRING : Rcpp::String(x);
-}
-
-/* Export current setup configurations to R List. */
-Rcpp::List Monte_Carlo_Core::export_setup() const
-{
-    using namespace Rcpp;
-
-    return List::create(
-        _["seed"] = setup_seed,
-        _["num_threads"] = setup_num_threads,
-        _["num_chains"] = setup_num_chains,
-        _["num_adapt"] = setup_num_adapt,
-        _["burn_in"] = setup_burn_in,
-        _["num_iter"] = setup_num_iter,
-        _["thinning"] = setup_thinning,
-        _["rnd_init_params"] = setup_rnd_init_params,
-        _["inv_temper"] = setup_inv_T);
-}
-
-/* Export current parameter configurations to R DataFrame. */
-Rcpp::DataFrame Monte_Carlo_Core::export_params() const
-{
-    using namespace Rcpp;
-
-    std::vector<std::string> V_names = param_to_be_inferred;
-    V_names.insert(V_names.end(), param_to_be_static.begin(), param_to_be_static.end());
-
-    NumericVector V_value = {};
-    LogicalVector V_infer = {};
-    CharacterVector V_prior = {}, V_args = {}, V_argsval = {};
-    CharacterVector V_rule = {}, V_rule_args = {}, V_rule_argsval = {};
-    NumericVector V_min = {}, V_max = {};
-
-    for (const std::string &parID : V_names)
-    {
-        V_value.push_back(get_param(parID));
-        V_infer.push_back(get_infer(parID));
-
-        V_prior.push_back(stoRString(params.at(parID).show_distr_name()));
-        V_args.push_back(stoRString(params.at(parID).show_distr_arg_names()));
-        V_argsval.push_back(stoRString(params.at(parID).show_distr_arg_values()));
-
-        V_rule.push_back(stoRString(params.at(parID).show_prop_name()));
-        V_rule_args.push_back(stoRString(params.at(parID).show_prop_arg_names()));
-        V_rule_argsval.push_back(stoRString(params.at(parID).show_prop_arg_values()));
-
-        const std::string min_val = params.at(parID).show_range_min();
-        const std::string max_val = params.at(parID).show_range_max();
-        V_min.push_back(tools::is_na(min_val) ? NA_REAL : tools::stod(min_val));
-        V_max.push_back(tools::is_na(max_val) ? NA_REAL : tools::stod(max_val));
-    }
-
-    return DataFrame::create(_["name"] = V_names, _["value"] = V_value, _["infer"] = V_infer,
-                             _["prior"] = V_prior, _["args"] = V_args, _["argsval"] = V_argsval,
-                             _["rule"] = V_rule, _["rule_args"] = V_rule_args, _["rule_argsval"] = V_rule_argsval,
-                             _["min"] = V_min, _["max"] = V_max);
-}
-
-/* Export MCMC traces with posterior samples. */
-Rcpp::DataFrame Monte_Carlo_Core::export_traces() const
-{
-    using namespace Rcpp;
-
-    DataFrame output = DataFrame::create(
-        _["loglikelihood"] = wrap(dgn_glob_loglike));
-
-    for (const std::string &parID : param_to_be_inferred)
-    {
-        output.push_back(wrap(params.at(parID).get_dgn_value()), parID);
-    }
-
-    // retrieve chain identities
-    if (setup_num_chains > 1)
-    {
-        IntegerVector df_chain(setup_c_sample_size * setup_num_chains);
-        for (ulong c = 0; c < setup_num_chains; ++c)
-        {
-            std::fill(df_chain.begin() + c * setup_c_sample_size,
-                      df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
-        }
-        output.push_back(df_chain, "CHAIN__");
-    }
-
-    return output;
-}
-
-#else
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -853,11 +754,138 @@ void Monte_Carlo_Core::show_results() const
     oss << "\n";
     for (const std::string &parID : param_to_be_inferred)
     {
-        oss << parID << C_DELIM << params.at(parID).show_diagnostics() << "\n";
+        oss << parID << C_DELIM << param_map.at(parID).show_diagnostics() << "\n";
     }
 
     tools::print_stdout(oss.str());
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+#ifdef USE_RCPP
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+Rcpp::String stoRString(const std::string &x)
+{
+    return (tools::is_na(x)) ? NA_STRING : Rcpp::String(x);
+}
+
+/* Export current setup configurations to R List. */
+Rcpp::List Monte_Carlo_Core::export_setup() const
+{
+    using namespace Rcpp;
+
+    return List::create(
+        _["seed"] = setup_seed,
+        _["num_threads"] = setup_num_threads,
+        _["num_chains"] = setup_num_chains,
+        _["num_adapt"] = setup_num_adapt,
+        _["burn_in"] = setup_burn_in,
+        _["num_iter"] = setup_num_iter,
+        _["thinning"] = setup_thinning,
+        _["rnd_init_params"] = setup_rnd_init_params,
+        _["inv_temper"] = setup_inv_T);
+}
+
+/* Export current parameter configurations to R DataFrame. */
+Rcpp::DataFrame Monte_Carlo_Core::export_params() const
+{
+    using namespace Rcpp;
+
+    std::vector<std::string> V_names = {};
+    if (!param_to_be_inferred.empty())
+    {
+        V_names.insert(V_names.end(), param_to_be_inferred.begin(), param_to_be_inferred.end());
+    }
+    if (!param_to_be_static.empty())
+    {
+        V_names.insert(V_names.end(), param_to_be_static.begin(), param_to_be_static.end());
+    }
+    size_t n_rows = V_names.size();
+
+    // check if not empty
+    if (V_names.empty())
+    {
+        tools::error("No parameters to be exported.");
+    }
+
+    // pre-allocate memory
+    NumericVector V_value(n_rows), V_min(n_rows), V_max(n_rows);
+    LogicalVector V_infer(n_rows);
+    CharacterVector V_prior(n_rows), V_args(n_rows), V_argsval(n_rows);
+    CharacterVector V_rule(n_rows), V_rule_args(n_rows), V_rule_argsval(n_rows);
+
+    // fill datafrane columns
+    for (size_t c = 0; c < n_rows; ++c)
+    {
+        std::string parID = V_names[c];
+        V_value[c] = get_param(parID);
+        V_infer[c] = get_infer(parID);
+
+        V_prior[c] = stoRString(param_map.at(parID).show_distr_name());
+        V_args[c] = stoRString(param_map.at(parID).show_distr_arg_names());
+        V_argsval[c] = stoRString(param_map.at(parID).show_distr_arg_values());
+
+        V_rule[c] = stoRString(param_map.at(parID).show_prop_name());
+        V_rule_args[c] = stoRString(param_map.at(parID).show_prop_arg_names());
+        V_rule_argsval[c] = stoRString(param_map.at(parID).show_prop_arg_values());
+
+        const std::string min_val = param_map.at(parID).show_range_min();
+        const std::string max_val = param_map.at(parID).show_range_max();
+        V_min[c] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
+        V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
+    }
+
+    return DataFrame::create(_["name"] = wrap(V_names), _["value"] = V_value, _["infer"] = V_infer,
+                             _["prior"] = V_prior, _["args"] = V_args, _["argsval"] = V_argsval,
+                             _["rule"] = V_rule, _["rule_args"] = V_rule_args, _["rule_argsval"] = V_rule_argsval,
+                             _["min"] = V_min, _["max"] = V_max);
+}
+
+/* Export MCMC traces with posterior samples. */
+Rcpp::DataFrame Monte_Carlo_Core::export_traces() const
+{
+    using namespace Rcpp;
+
+    DataFrame output = DataFrame::create(
+        _["loglikelihood"] = wrap(dgn_glob_loglike));
+
+    for (const std::string &parID : param_to_be_inferred)
+    {
+        output.push_back(wrap(param_map.at(parID).get_dgn_value()), parID);
+    }
+
+    // retrieve chain identities
+    if (setup_num_chains > 1)
+    {
+        IntegerVector df_chain(setup_c_sample_size * setup_num_chains);
+        for (ulong c = 0; c < setup_num_chains; ++c)
+        {
+            std::fill(df_chain.begin() + c * setup_c_sample_size,
+                      df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
+        }
+        output.push_back(df_chain, "CHAIN__");
+    }
+
+    return output;
+}
+
+#else
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
@@ -902,7 +930,8 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
                     for (const std::string &parID : param_to_be_inferred)
                     {
                         // FIXME
-                        inferstate_ofstream << C_DELIM << std::setprecision(5) << std::fixed << params.at(parID).get_dgn_value(i);
+                        inferstate_ofstream << C_DELIM << std::setprecision(5)
+                                            << std::fixed << param_map.at(parID).get_dgn_value(i);
                     }
                     // print : which chain
                     if (setup_num_chains > 1)

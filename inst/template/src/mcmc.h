@@ -64,17 +64,17 @@ public:
 	Rcpp::DataFrame export_data() const;
 	Rcpp::DataFrame export_traces() const;
 	Rcpp::NumericMatrix export_loglike_matrix() const;
-#else
-	//===== Cpp SHOW =====//
-	void show_full_build() const;
-	void show_results() const;
+	//=====  SHOW =====//
 
+#else
 	//===== Cpp PRINT =====//
 	void print_infer_state(const std::string &output_filename = UNDEFINED) const;
 	void print_augm_variables(const std::string &output_filename = UNDEFINED) const;
 #endif
 
 	//===== SHOW =====//
+	void show_full_build() const;
+	void show_results() const;
 	void show_summary() const;
 	void show_group_classes() const;
 

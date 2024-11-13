@@ -307,7 +307,7 @@ void Model::simulate_single_house(Household &this_house)
 	// note: incub_period are initialized according to definitions
 	// - set infectious to susceptible w/o dropping augm variables;
 	// - add augmented variables to all others (also missing);
-	for (int i = 0; i < this_house.size(); i++)
+	for (int i = 0; i < this_house.size(); ++i)
 	{
 		if (this_house.get_status(i) != INFECTIOUS)
 		{
@@ -331,7 +331,7 @@ void Model::simulate_single_house(Household &this_house)
 	while ((t < tf) && (this_house.get_num_susceptible() > 0))
 	{
 		t += Dt;
-		for (int i = 0; i < this_house.size(); i++)
+		for (int i = 0; i < this_house.size(); ++i)
 		{
 			if (this_house.get_status(i) == SUSCEPTIBLE)
 			{

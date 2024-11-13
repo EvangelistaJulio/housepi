@@ -31,9 +31,6 @@ Rcpp::DataFrame MCMC::export_data() const { return pImpl->export_data(); }
 Rcpp::DataFrame MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_loglike_matrix() const { return pImpl->export_loglike_matrix(); }
 #else
-//===== Cpp SHOW =====//
-void MCMC::show_full_build() const { pImpl->show_full_build(); }
-void MCMC::show_results() const { pImpl->show_results(); }
 
 //===== Cpp PRINT =====//
 void MCMC::print_infer_state(const std::string &pathtofile) const { pImpl->print_infer_state(pathtofile); }
@@ -41,6 +38,8 @@ void MCMC::print_augm_variables(const std::string &pathtofile) const { pImpl->pr
 #endif
 
 //===== SHOW =====//
+void MCMC::show_full_build() const { pImpl->show_full_build(); }
+void MCMC::show_results() const { pImpl->show_results(); }
 void MCMC::show_summary() const { pImpl->show_summary(); }
 void MCMC::show_group_classes() const { pImpl->show_group_classes(); }
 

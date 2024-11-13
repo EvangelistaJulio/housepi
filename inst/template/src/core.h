@@ -111,20 +111,20 @@ public:
     void assert_param(const std::string &parID) const;
     double get_param(const std::string &parID) const { return (this->*_func_get_param_)(parID); }
     const double *get_param_pointer(const std::string &parID) const { return (this->*_func_get_param_pointer_)(parID); }
-    bool get_infer(const std::string &parID) const { return params.at(parID).get_infer(); }
-    double get_accept_rate(const std::string &parID) const { return params.at(parID).get_accept_rate(); }
+    bool get_infer(const std::string &parID) const { return param_map.at(parID).get_infer(); }
+    double get_accept_rate(const std::string &parID) const { return param_map.at(parID).get_accept_rate(); }
 
     //===== PARAM SETTER =====//
     void init_rand_params();
-    void reset_accept_rate(const std::string &parID) { params.at(parID).reset_accept_rate(); }
+    void reset_accept_rate(const std::string &parID) { param_map.at(parID).reset_accept_rate(); }
     const double *assign_scalar_pointer(double val);
 
     //===== Metropolis-Hastings moves =====//
     bool propose_valid_param_move(const std::string &parID);
-    void restore_param_value(const std::string &parID) { params.at(parID).restore_value(); }
-    void update_param_accept_rate(const std::string &parID, bool is_accepted) { params.at(parID).update_accept_rate(is_accepted); }
-    double param_move_logratio(const std::string &parID) const { return params.at(parID).get_move_logratio(); }
-    void adapt_param_rule(const std::string &parID, double ratio) { params.at(parID).adapt_rule(ratio); }
+    void restore_param_value(const std::string &parID) { param_map.at(parID).restore_value(); }
+    void update_param_accept_rate(const std::string &parID, bool is_accepted) { param_map.at(parID).update_accept_rate(is_accepted); }
+    double param_move_logratio(const std::string &parID) const { return param_map.at(parID).get_move_logratio(); }
+    void adapt_param_rule(const std::string &parID, double ratio) { param_map.at(parID).adapt_rule(ratio); }
     void init_param_diagnostics(ulong sample_size);
     void update_param_diagnostics();
     void init_param_move_counts();
@@ -136,7 +136,7 @@ public:
     double uniform() { return _uniform_distr_(get_prng()); }
 
     //===== Show =====//
-    std::string show_param(const std::string &parID) const { return parID + C_DELIM + params.at(parID).show(); }
+    std::string show_param(const std::string &parID) const { return parID + C_DELIM + param_map.at(parID).show(); }
 
 #ifdef USE_RCPP
     //===== Rcpp IMPORTS =====//
@@ -147,12 +147,16 @@ public:
     Rcpp::List export_setup() const;
     Rcpp::DataFrame export_params() const;
     Rcpp::DataFrame export_traces() const;
+
 #else
+	//===== Cpp PRINT =====//
+    void print_infer_state(const std::string &output_filename) const;
+#endif
+
+    //===== SHOW =====//
     void show_setup() const;
     void show_all_params() const;
     void show_results() const;
-    void print_infer_state(const std::string &output_filename) const;
-#endif
 
     //===== Build : core functions =====//
     void build_setup();
@@ -160,7 +164,7 @@ public:
 
 private:
     //===== Internal Attributes =====//
-    std::unordered_map<std::string, Parameter> params = {};          // parameters dictionary
+    std::unordered_map<std::string, Parameter> param_map = {};          // parameters dictionary
     std::uniform_real_distribution<double> _uniform_distr_;          // uniform distribution
     std::unordered_map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
@@ -168,12 +172,12 @@ private:
 
     //===== get param (functional methods) =====//
     double (Monte_Carlo_Core::*_func_get_param_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
-    double _get_param_default_(const std::string &parID) const { return params.at(parID).get_value(); };
+    double _get_param_default_(const std::string &parID) const { return param_map.at(parID).get_value(); };
     double _get_param_assert_(const std::string &parID) const;
 
     //===== get param pointer (functional methods) =====//
     const double *(Monte_Carlo_Core::*_func_get_param_pointer_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
-    const double *_get_param_pointer_default_(const std::string &parID) const { return params.at(parID).get_pointer(); }
+    const double *_get_param_pointer_default_(const std::string &parID) const { return param_map.at(parID).get_pointer(); }
     const double *_get_param_pointer_assert_(const std::string &parID) const;
 
     //===== Pseudo Random Number Generator (auxiliary methods) =====//

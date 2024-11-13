@@ -72,16 +72,18 @@ public:
     Rcpp::DataFrame export_traces() const;
     Rcpp::NumericMatrix export_loglike_matrix() const;
 #else
-    void show_results() const;
+    //===== Cpp PRINTS =====//
     void print_infer_state(const std::string &pathtofile) const;
     void print_augm_variables(const std::string &pathtofile) const;
 #endif
 
+    //===== READ =====//
     void read_setup(const std::string &pathtofile);
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
 
-    //----- Import\Export : Show -----//
+    //===== SHOW =====//
+    void show_results() const;
     void show_group_classes() const;
     void show_summary() const;
     void show_full_build() const;

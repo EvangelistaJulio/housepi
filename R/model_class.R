@@ -49,9 +49,11 @@ HouseholdModelClass <- R6::R6Class(
       #----- 1) SETUP -----#
       char_setup <- lapply(private$setup[!is.na(private$setup)], as.character)
       private$obj$import_setup(char_setup)
+
       #----- 2) PARAMETERS -----#
       char_params <- data.frame(lapply(private$param.frame, as.character))
       private$obj$import_params(char_params)
+
       #----- 3) DATA -----#
       if (is.null(data)) {
         private$obj$read_data("<NA>")
@@ -68,6 +70,7 @@ HouseholdModelClass <- R6::R6Class(
           )
         ))
       }
+      
       #----- 4) AUGMENTED VARIABLES -----#
       char_augm <- data.frame(lapply(private$augm.frame, as.character))
       private$obj$import_augm(char_augm)
