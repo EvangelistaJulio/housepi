@@ -61,9 +61,9 @@ public:
 
 #ifdef USE_RCPP
 	//===== Rcpp IMPORTS =====//
-	void import_setup(Rcpp::List x);
-	void import_params(Rcpp::DataFrame x);
-    void import_augm(Rcpp::DataFrame x);
+	void import_setup(const Rcpp::List &x);
+	void import_params(const Rcpp::DataFrame &x);
+    void import_augm(const Rcpp::DataFrame &x);
 
     //===== Rcpp EXPORTS =====//
     Rcpp::List export_setup() const;

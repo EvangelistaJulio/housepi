@@ -53,10 +53,10 @@ public:
 
 #ifdef USE_RCPP
 	//===== Rcpp IMPORTS =====//
-	void import_setup(Rcpp::List setup);
-	void import_params(Rcpp::DataFrame params);
-	void import_data(Rcpp::DataFrame data);
-	void import_augm(Rcpp::DataFrame augm);
+	void import_setup(const Rcpp::List &setup);
+	void import_params(const Rcpp::DataFrame &params);
+	void import_data(const Rcpp::DataFrame &data);
+	void import_augm(const Rcpp::DataFrame &augm);
 
 	//===== Rcpp EXPORTS =====//
 	Rcpp::List export_setup() const;
@@ -139,7 +139,7 @@ private:
 	std::string _error_message_ = "";
 
 	//===== PRINTS =====//
-	std::string get_progtxt(const std::string &txt, bool is_power_post);
+	const std::string get_progtxt(const std::string &txt, bool is_power_post);
 
 	//===== EVALUATE =====//
 	double get_global_loglike() const { return global_loglike; };

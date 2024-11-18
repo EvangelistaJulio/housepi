@@ -27,7 +27,7 @@ class Model : public MCMC
 {
 private:
 	//----- Pointer to incubation period distribution -----//
-	Base_Distribution *incub_distr_ptr;
+	std::shared_ptr<_Base_Distribution_> incub_distr_ptr;
 
 public:
 	//===== Override General Methods =====//

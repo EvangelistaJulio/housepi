@@ -90,7 +90,7 @@ namespace auxgammap
 //////////////////////////////////  Uniform_Distr : class  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Uniform_Distribution : public Base_Distribution
+class Uniform_Distribution : public _Base_Distribution_
 {
 public:
     Uniform_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
@@ -141,7 +141,7 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  Normal Distribution : methods  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-class Normal_Distribution : public Base_Distribution
+class Normal_Distribution : public _Base_Distribution_
 {
 public:
     Normal_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
@@ -167,14 +167,14 @@ public:
     double rand(sys_rnd_gen &prng) override
     {
         std::normal_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double new_value = distr_gen(prng);
+        double xnew = distr_gen(prng);
         int num_attempts = 0;
-        while (!valid(new_value))
+        while (!valid(xnew))
         {
             check_rand_attempts(num_attempts);
-            new_value = distr_gen(prng);
+            xnew = distr_gen(prng);
         }
-        return new_value;
+        return xnew;
     }
 
 protected:
@@ -204,7 +204,7 @@ protected:
 //////////////////////////////  Lognormal Distribution : methods  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Lognorm_Distribution : public Base_Distribution
+class Lognorm_Distribution : public _Base_Distribution_
 {
 public:
     Lognorm_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
@@ -230,14 +230,14 @@ public:
     double rand(sys_rnd_gen &prng) override
     {
         std::lognormal_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double new_value = distr_gen(prng);
+        double xnew = distr_gen(prng);
         int num_attempts = 0;
-        while (!valid(new_value))
+        while (!valid(xnew))
         {
             check_rand_attempts(num_attempts);
-            new_value = distr_gen(prng);
+            xnew = distr_gen(prng);
         }
-        return new_value;
+        return xnew;
     }
 
 protected:
@@ -267,7 +267,7 @@ protected:
 ////////////////////////////////  Gamma Distribution : methods  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Gamma_Distribution : public Base_Distribution
+class Gamma_Distribution : public _Base_Distribution_
 {
 public:
     Gamma_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
@@ -293,14 +293,14 @@ public:
     double rand(sys_rnd_gen &prng) override
     {
         std::gamma_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double new_value = distr_gen(prng);
+        double xnew = distr_gen(prng);
         int num_attempts = 0;
-        while (!valid(new_value))
+        while (!valid(xnew))
         {
             check_rand_attempts(num_attempts);
-            new_value = distr_gen(prng);
+            xnew = distr_gen(prng);
         }
-        return new_value;
+        return xnew;
     }
 
 protected:
@@ -330,7 +330,7 @@ protected:
 ///////////////////////////////  Weibull Distribution : methods  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Weibull_Distribution : public Base_Distribution
+class Weibull_Distribution : public _Base_Distribution_
 {
 public:
     Weibull_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
@@ -357,14 +357,14 @@ public:
     double rand(sys_rnd_gen &prng) override
     {
         std::weibull_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double new_value = distr_gen(prng);
+        double xnew = distr_gen(prng);
         int num_attempts = 0;
-        while (!valid(new_value))
+        while (!valid(xnew))
         {
             check_rand_attempts(num_attempts);
-            new_value = distr_gen(prng);
+            xnew = distr_gen(prng);
         }
-        return new_value;
+        return xnew;
     }
 
 protected:
@@ -394,7 +394,7 @@ protected:
 ///////////////////////////////////  Rayleigh_Distr : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Rayleigh_Distribution : public Base_Distribution
+class Rayleigh_Distribution : public _Base_Distribution_
 {
 public:
     Rayleigh_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
@@ -419,14 +419,14 @@ public:
     double rand(sys_rnd_gen &prng) override
     {
         std::uniform_real_distribution<double> unif_gen(0, 1);
-        double new_value = get_arg(0) * sqrt(-2 * unif_gen(prng));
+        double xnew = get_arg(0) * sqrt(-2 * unif_gen(prng));
         int num_attempts = 0;
-        while (!valid(new_value))
+        while (!valid(xnew))
         {
             check_rand_attempts(num_attempts);
-            new_value = get_arg(0) * sqrt(-2 * unif_gen(prng));
+            xnew = get_arg(0) * sqrt(-2 * unif_gen(prng));
         }
-        return new_value;
+        return xnew;
     }
 
 protected:
@@ -453,7 +453,7 @@ protected:
 //////////////////////////////////  Exponential_Distr : class  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Exponential_Distribution : public Base_Distribution
+class Exponential_Distribution : public _Base_Distribution_
 {
 public:
     Exponential_Distribution(dictargs new_args = {}, dictargs range = {})
@@ -478,14 +478,14 @@ public:
     double rand(sys_rnd_gen &prng) override
     {
         std::exponential_distribution<double> distr_gen(get_arg(0));
-        double new_value = distr_gen(prng);
+        double xnew = distr_gen(prng);
         int num_attempts = 0;
-        while (!valid(new_value))
+        while (!valid(xnew))
         {
             check_rand_attempts(num_attempts);
-            new_value = distr_gen(prng);
+            xnew = distr_gen(prng);
         }
-        return new_value;
+        return xnew;
     }
 
 protected:
@@ -521,37 +521,37 @@ protected:
 
 /* Auxiliary hidden template to return the chosen distribution. */
 template <typename dictargs_val_or_ptr>
-Base_Distribution *_distribution_ptr_(const std::string &name, const dictargs_val_or_ptr &args, const dictargs &range)
+std::shared_ptr<_Base_Distribution_> _distribution_ptr_(const std::string &name, const dictargs_val_or_ptr &args, const dictargs &range)
 {
-    Base_Distribution *output = new Base_Distribution();
+    std::shared_ptr<_Base_Distribution_> output = std::make_shared<_Base_Distribution_>();
 
     if (name == "unif")
     {
-        output = new Uniform_Distribution(args, range);
+        output = std::make_shared<Uniform_Distribution>(args, range);
     }
     else if (name == "norm")
     {
-        output = new Normal_Distribution(args, range);
+        output = std::make_shared<Normal_Distribution>(args, range);
     }
     else if (name == "lnorm")
     {
-        output = new Lognorm_Distribution(args, range);
+        output = std::make_shared<Lognorm_Distribution>(args, range);
     }
     else if (name == "gamma")
     {
-        output = new Gamma_Distribution(args, range);
+        output = std::make_shared<Gamma_Distribution>(args, range);
     }
     else if (name == "weibull")
     {
-        output = new Weibull_Distribution(args, range);
+        output = std::make_shared<Weibull_Distribution>(args, range);
     }
     else if (name == "rayleigh")
     {
-        output = new Rayleigh_Distribution(args, range);
+        output = std::make_shared<Rayleigh_Distribution>(args, range);
     }
     else if (name == "exp")
     {
-        output = new Exponential_Distribution(args, range);
+        output = std::make_shared<Exponential_Distribution>(args, range);
     }
     else if (!tools::is_na(name))
     {
@@ -562,17 +562,17 @@ Base_Distribution *_distribution_ptr_(const std::string &name, const dictargs_va
 }
 
 /* Pointer to distribution with scalar arguments. */
-Base_Distribution *distribution_ptr(const std::string &name,
-                                    const dictargs &args,
-                                    const dictargs &range)
+std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name,
+                                                      const dictargs &args,
+                                                      const dictargs &range)
 {
     return _distribution_ptr_(name, args, range);
 }
 
 /* Pointer to distribution with pointer arguments. */
-Base_Distribution *distribution_ptr(const std::string &name,
-                                    const dictargs_ptr &args,
-                                    const dictargs &range)
+std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name,
+                                                      const dictargs_ptr &args,
+                                                      const dictargs &range)
 {
     return _distribution_ptr_(name, args, range);
 }

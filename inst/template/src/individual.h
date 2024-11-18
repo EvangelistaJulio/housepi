@@ -44,12 +44,12 @@ public:
 	void assign_group_rate(const std::string &rateID, const std::string &parID);
 
 	//===== GETTER =====//
-	std::string get_ID() const;
+	const std::string &get_ID() const;
 	int get_status() const;
 	double get_data(const std::string &dataID) const;
 	const double *get_data_pointer(const std::string &dataID) const;
 	double get_group_rate(const std::string &rateID) const;
-	std::unordered_map<std::string, std::string> get_group_rate_map() const;
+	const std::unordered_map<std::string, std::string> &get_group_rate_map() const;
 
 	//===== AUGMENTED VARIABLES =====//
 

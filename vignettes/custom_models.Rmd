@@ -27,18 +27,79 @@ To copy a template to a custom path we use the function `household_model_templat
 ```{r, eval=FALSE}
 # copy the heterogeneous chain binomial template to a custom directory
 my_model_path <- "custom_folder"
-housepi::household_model_template(which = "chain_binom_heter", 
+housepi::household_model_template(which = "chain_binom_heter",
                                   path = my_model_path)
 ```
 
-Modify all relevant parts of the C++ implementation *model.cpp* and of the header *model.h* within your model directory.
-*Note:* to avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
+Modify all relevant parts of the C++ implementation *model.cpp* and of the header *model.h* within your model directory (see guidelines below).
 
-We generate according to the custom directory.
-All other commands remain the same.
+We can then generate an instance of our custom model from its path. All other methods remain the same already seen in [Walkthrough](walkthrough.html).
 
 ```{r, eval=FALSE}
-hemi <- housepi::generate_model(my_model_path)
+hemi <- housepi::HouseholdModelClass$new(my_model_path)
 ```
 
+## Hints of the Coding Framework
+
+Assuming that the user knows about basic usage of C++, we provide here a brief introduction on how to use the most relevant classes in `housepi`.
+
+* `Household` class. 
+It collects all methods to acces properties of its residents (i. e. individuals sharing the same "house_id" in the data). 
+*Getter Methods*
+- `data`: value of data entry associated to resident `i`.
+- `augm`: value of augmented variable associated to resident `i`.
+- `infectious_set`: set of resident indexes with infectious status. 
+- `missing_status_set`: set of resident indexes with missing status.
+- `susceptible_set`: set of indexes of other residents.
+  
+* `Model` class. 
+It collects all the model specific methods used by its parent class `MCMC` which privately performs the actual computations.
+*Getter Methods*
+- `param`: value of parameter.
+- `param_pointer`: pointer to a parameter.
+- `uniform`: uniform random variable.
+
 ## Creating a new Template
+As in the best board games however, instructions can be boring, and a faster understanding comes with actual examples. If this is your case, you can skip thi section.
+
+
+### Changing Group Rates and Contact Rates
+
+`Model::assign_group_rate_to_individual`:
+- `Household::assign_group_rate`:
+- `Household::group_rate`:
+
+`Model::assign_contact_rate_to_household`:
+- `Household::assign_contact_rate`:
+- `Household::contact_rate`:
+
+### Advanced Customization: Household Likelihood and Simulation
+
+*Custom Methods to Override*
+- `compute_house_loglike`: value of the loglikelihood associated to the household.
+- `simulate_single_house`: 
+- `init_model_for_inference`: allocate memory for objects required for the inference.
+- `init_model_for_simulation`: same but for the simulation.
+- `update_augm_dependecies`:
+
+## Final Comments with Best Practices
+
+* To avoid errors we recommend changing only the chunks of code indicated with "CHANGE-ME".
+
+* Do not introduce constant variables as digits, but rather associate a a constant parameter to them.
+E. g. imagine we want to implement a transmission rate in household of size $n$ of the kind 
+$\beta \dfrac{4}{n}$,
+where $\beta$ is the transmission rate for the reference household size. We can implement it like
+
+```{Rcpp, eval=FALSE}
+// ...within a Model method containing (a reference to) a Household object 'house'
+transmission_rate = param("beta") * param("ref_size") / house.size();
+```
+
+* This will improve readibility, it will allow changes without recompilation, plus it will avoid type-related errors which are frequent in C++ implementation (e.g. is (1/2==0) ? yes!). 
+
+* Core C++ code and template model use "snake case" code syntax. You can find [here](https://style.tidyverse.org/syntax.html) some motivation on why you should too.
+
+* Don't forget semicolons `;` at the end of your code lines.
+
+

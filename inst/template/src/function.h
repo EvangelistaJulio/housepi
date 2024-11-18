@@ -43,25 +43,25 @@ class Base_Function_Impl;
 // a solution could be point to internal, at that point the whole pointer thing could be collapsed
 
 /* Parent class to all function classes where the arguements are stored in arrays. */
-class Base_Function
+class _Base_Function_
 {
 public:
     //=====Constructors=====//
-    Base_Function();
-    virtual ~Base_Function();
+    _Base_Function_();
+    virtual ~_Base_Function_();
 
     //----- FUNCTION NAME -----//
-    std::string get_name() const;
+    const std::string &get_name() const;
 
     //----- ARGUMENTS -----//
     double get_arg(int i) const;
     void set_arg(int i, double new_value);
-    std::string show_arg_names() const;
-    std::string show_arg_values() const;
+    const std::string show_arg_names() const;
+    const std::string show_arg_values() const;
 
     //----- RANGE -----//
-    std::string show_range_min() const;
-    std::string show_range_max() const;
+    const std::string show_range_min() const;
+    const std::string show_range_max() const;
 
     //----- VALID -----//
     bool valid(double x) const;

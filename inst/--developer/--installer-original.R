@@ -1,21 +1,22 @@
+
 compile_dll <- function(path = ".",
                         force = FALSE,
                         quiet = FALSE,
                         debug = TRUE) {
-  path <- pkg_path(path)
+  path <- pkgbuild::pkg_path(path)
   
   if (!needs_compile(path) && !isTRUE(force)) {
     return(invisible())
   }
   
   pkgbuild::check_build_tools(quiet = TRUE)
-  # FIXME : is this necessary
+  # FIXME : is this necessary?
   unlink(file.path(path, c("R/RcppExports.R", "src/RcppExports.cpp")))
   Rcpp::compileAttributes(path, verbose = !quiet)
   
   # Mock install the package to generate the DLL
   # FIXME : this requires to be recoded
-  xflags <- should_add_compiler_flags()
+  xflags <- pkgbuild::should_add_compiler_flags()
   
   if (!quiet) {
     cli::cli_alert_info(c(
@@ -36,13 +37,13 @@ compile_dll <- function(path = ".",
       quiet = quiet
     )
     
-    invisible(dll_path(file.path(install_dir, pkg_name(path))))
+    invisible(dll_path(file.path(install_dir, pkgbuild::pkg_name(path))))
   }
   
   if (xflags) {
-    withr_with_makevars(compiler_flags(debug), {
+    pkgbuild::withr_with_makevars(compiler_flags(debug), {
       if (debug) {
-        withr_with_envvar(c(DEBUG = "true"), build())
+        pkgbuild::withr_with_envvar(c(DEBUG = "true"), build())
       } else {
         build()
       }
@@ -53,7 +54,7 @@ compile_dll <- function(path = ".",
 }
 
 clean_dll <- function(path = ".") {
-  path <- pkg_path(path)
+  path <- pkgbuild::pkg_path(path)
   
   # Clean out the /src/ directory and children:
   # * individual object files
@@ -61,7 +62,7 @@ clean_dll <- function(path = ".") {
   # * symbols.rds (added when run inside R CMD check)
   pattern <- sprintf(
     "\\.(o|sl|so|dylib|a|dll)$|(%s\\.def)$|^symbols.rds$",
-    pkg_name(path)
+    pkgbuild::pkg_name(path)
   )
   files <- dir(
     file.path(path, "src"),
@@ -76,7 +77,7 @@ clean_dll <- function(path = ".") {
 
 # Returns the full path and name of the DLL file
 dll_path <- function(path = ".") {
-  name <- paste(pkg_name(path), .Platform$dynlib.ext, sep = "")
+  name <- paste(pkgbuild::pkg_name(path), .Platform$dynlib.ext, sep = "")
   file.path(path, "src", name)
 }
 
@@ -189,5 +190,91 @@ install_min <- function(path = ".", dest, components = NULL, args = NULL, quiet 
     quiet = quiet
   )
   
-  invisible(file.path(dest, pkg_name(path)))
+  invisible(file.path(dest, pkgbuild::pkg_name(path)))
+}
+
+# Call R CMD 'command' with build tools active
+#
+# This is a wrapper around `callr::rcmd_safe()` that checks
+# that you have build tools available, and on Windows, automatically sets
+# the path to include Rtools.
+#
+# @param ... Parameters passed on to `rcmd_safe`.
+# @param env Additional environment variables to set. The defaults from
+#   `callr::rcmd_safe_env()` are always set.
+# @inheritParams with_build_tools
+# @inheritParams build
+# @export
+# @examples
+# # These env vars are always set
+# callr::rcmd_safe_env()
+#
+# if (has_build_tools()) {
+#   rcmd_build_tools("CONFIG", "CC")$stdout
+#   rcmd_build_tools("CC", "--version")$stdout
+# }
+rcmd_build_tools <- function(..., env = character(), required = TRUE, quiet = FALSE) {
+  env <- c(callr::rcmd_safe_env(), env)
+
+  if (!quiet) {
+    cli::cat_rule(paste0("R CMD ", ..1), col = "cyan")
+  }
+
+  warn_for_potential_errors()
+
+  callback <- if (cli::is_dynamic_tty()) {
+    block_callback(quiet)
+  } else {
+    simple_callback(quiet)
+  }
+
+  res <- with_build_tools(
+    {
+      withCallingHandlers(
+        callr::rcmd_safe(...,
+          env = env, spinner = FALSE, show = FALSE,
+          echo = FALSE, block_callback = callback, stderr = "2>&1"
+        ),
+        error = function(e) {
+          if (!quiet) e$echo <- TRUE
+          asNamespace("callr")$err$throw(e)
+        }
+      )
+    },
+    required = required
+  )
+
+  msg_for_long_paths(res)
+
+  invisible(res)
+}
+
+msg_for_long_paths <- function(output) {
+  if (is_windows() &&
+    any(grepl("over-long path length", output$stdout))) {
+    message(
+      "\nIt seems that this package contains files with very long paths.\n",
+      "This is not supported on most Windows versions. Please contact the\n",
+      "package authors and tell them about this. See this GitHub issue\n",
+      "for more details: https://github.com/r-lib/remotes/issues/84\n"
+    )
+  }
+}
+
+warn_for_potential_errors <- function() {
+  if (is_windows() && grepl(" ", R.home()) &&
+    getRversion() <= "3.4.2") {
+    warning(
+      immediate. = TRUE,
+      "\n!!! Building will probably fail!\n",
+      "This version of R has trouble with building packages if\n",
+      "the R HOME directory (currently '", R.home(), "')\n",
+      "has space characters. Possible workarounds include:\n",
+      "- installing R to the C: drive,\n",
+      "- installing it into a path without a space, or\n",
+      "- creating a drive letter for R HOME via the `subst` windows command, and\n",
+      "  starting R from the new drive.\n",
+      "See also https://github.com/r-lib/remotes/issues/98\n"
+    )
+  }
 }

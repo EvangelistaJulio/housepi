@@ -48,7 +48,7 @@ namespace tools
     }
 
     /* A formatted std::string for percent of num/denom */
-    std::string percent(double num, double den)
+    const std::string percent(double num, double den)
     {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(1)
@@ -57,7 +57,7 @@ namespace tools
     }
 
     /* A formatted std::string for TRUE/FALSE values. */
-    std::string truth(bool condition)
+    const std::string truth(bool condition)
     {
 #ifdef USE_RCPP
         return (condition ? "true" : "false");
@@ -101,16 +101,16 @@ namespace tools
     /* Display a decorator for a section (if VERBOSE) */
     void print_decorator(const std::string &title, const std::string &txt, char decor, bool verbose)
     {
+        using std::string; 
+
         if (verbose)
         {
-            std::ostringstream oss;
-            oss << std::string(DECOR_LEFT, decor) << " " << title << " "
-                << std::string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) << "\n";
+            string sms = string(DECOR_LEFT, decor) + " " + title + " " + string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) + "\n";
             if (!is_na(txt))
             {
-                oss << txt << "\n";
+                sms += txt + "\n";
             }
-            print_stdout(oss.str());
+            print_stdout(sms);
         }
     }
 
@@ -164,15 +164,12 @@ namespace tools
     void progress_bar_init(const std::string &txt, bool verbose)
     {
         using namespace std::chrono;
+        using std::string;
 
         if (verbose)
         {
-            std::ostringstream oss;
-            oss << "\r"
-                << txt << ": [" + std::string(PROGBAR_WIDTH, '.') << "] "
-                << percent(0., 1.) << " 00m00s<??m??s"
-                << std::string(20, ' ');
-            _helper_stderr_(oss.str());
+            string sms = "\r" + txt + ": [" + string(PROGBAR_WIDTH, '.') + "] " + percent(0., 1.) + " 00m00s<??m??s" + string(20, ' ');
+            _helper_stderr_(sms);
 
             _ProgBar_Thin_ = 5;
             _ProgBar_Start_ = steady_clock::now();
@@ -188,6 +185,7 @@ namespace tools
     void progress_bar_run(const std::string &txt, ulong progress, ulong total, bool verbose)
     {
         using namespace std::chrono;
+        using std::string;
 
         if (verbose)
         {
@@ -200,14 +198,10 @@ namespace tools
                 long long time_missing = time_elapsed * (static_cast<double>(total) / progress - 1.);
                 _ProgBar_LastTime_ = steady_clock::now();
 
-                std::ostringstream oss;
-                oss << "\r"
-                    << txt << ": [" << std::string(where, C_PROG) << std::string(PROGBAR_WIDTH - where, '.') << "] "
-                    << percent(progress, total)
-                    << " " << format_millisecs(time_elapsed) << "<"
-                    << ((time_elapsed > 4000) ? format_millisecs(time_missing) : "??m??s")
-                    << std::string(20, ' ');
-                _helper_stderr_(oss.str());
+                string sms = "\r" + txt + ": [" + string(where, C_PROG) + string(PROGBAR_WIDTH - where, '.') + "] ";
+                sms += percent(progress, total) + " " + format_millisecs(time_elapsed) + "<";
+                sms += ((time_elapsed > 4000) ? format_millisecs(time_missing) : "??m??s") + string(20, ' ');
+                _helper_stderr_(sms);
 
                 // adapt progressbar thinning
                 if (time_lastchecked < 900)
@@ -230,16 +224,13 @@ namespace tools
     void progress_bar_end(const std::string &txt, bool verbose)
     {
         using namespace std::chrono;
+        using std::string;
 
         if (verbose)
         {
             auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _ProgBar_Start_).count();
-            std::ostringstream oss;
-            oss << "\r"
-                << txt << ": [" << std::string(PROGBAR_WIDTH, C_PROG) << "] "
-                << format_millisecs(time_elapsed)
-                << std::string(25, ' ') << "\n";
-            _helper_stderr_(oss.str());
+            string sms = "\r" + txt + ": [" + string(PROGBAR_WIDTH, C_PROG) + "] " + format_millisecs(time_elapsed) + string(25, ' ') + "\n";
+            _helper_stderr_(sms);
         }
 
 #ifdef USE_RCPP
@@ -357,7 +348,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
 #ifdef USE_RCPP
-    void rdataframe_to_map(Rcpp::DataFrame df, std::map<std::string, std::vector<std::string>> &output)
+    void rdataframe_to_map(const Rcpp::DataFrame &df, std::map<std::string, std::vector<std::string>> &output)
     {
         using namespace Rcpp;
 
@@ -381,7 +372,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     /* Clean std::string from forbidden characters and convert to UNDEFINED. */
-    std::string strcleaner(std::string tkn)
+    const std::string strcleaner(std::string tkn)
     {
         // forbidden characters
         for (char r : {'"', '\r', '\n'})
@@ -419,7 +410,7 @@ namespace tools
         if (!required_headers.empty())
         {
             bool is_missing = false;
-            std::ostringstream oss;
+            std::string sms;
 
             // check the validity of the headers
             for (const std::string &req : required_headers)
@@ -429,12 +420,12 @@ namespace tools
                     if (!is_missing)
                     {
                         // point to the faulty file
-                        oss << "Missing column(s): '" + req + "'";
+                        sms += "Missing column(s): '" + req + "'";
                         is_missing = true;
                     }
                     else
                     {
-                        oss << ", '" << req << "'";
+                       sms += ", '" + req + "'";
                     }
                 }
             }
@@ -442,7 +433,7 @@ namespace tools
             // raise the error if something was missing
             if (is_missing)
             {
-                throw std::invalid_argument(oss.str());
+                throw std::invalid_argument(sms);
             }
         }
 
@@ -486,7 +477,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     /* Parse the list from the std::string. */
-    std::vector<std::string> parse_list_args(const std::string &tkn, const char delim)
+    const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim)
     {
         std::istringstream args_ss(tkn);
         std::vector<std::string> output = {};

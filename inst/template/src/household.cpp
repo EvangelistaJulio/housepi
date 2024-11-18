@@ -67,8 +67,8 @@ Household::Household(const std::string &ID, int H) : pImpl(std::make_unique<Hous
 	pImpl->ID = ID;
 	pImpl->index = H;
 }
-Household::Household(Household&& other) noexcept = default;
-Household& Household::operator=(Household&& other) noexcept = default;
+Household::Household(Household &&other) noexcept = default;
+Household &Household::operator=(Household &&other) noexcept = default;
 Household::~Household() = default;
 
 /* Link an individual to the household */
@@ -149,8 +149,8 @@ bool Household::change_status(int i, int new_status)
 		else
 		{
 			std::ostringstream oss;
-			oss << "While changing status: unknown old status '"
-				<< old_status << "' of individual " << this_indiv.get_ID() << ".";
+			oss << "Unknown status '"
+				<< old_status << "' for individual " << this_indiv.get_ID() << ".";
 			throw std::runtime_error(oss.str());
 		}
 
@@ -202,15 +202,15 @@ void Household::set_loglike(double x)
 void Household::restore_loglike() { pImpl->house_loglike = pImpl->buffer; }
 
 //===== GETTER =====//
-const std::string Household::house_ID() const { return pImpl->ID; }
-const std::string Household::ID(int i) const { return pImpl->indiv[i].get_ID(); }
+const std::string &Household::house_ID() const { return pImpl->ID; }
+const std::string &Household::ID(int i) const { return pImpl->indiv[i].get_ID(); }
 int Household::index() const { return pImpl->index; }
 int Household::size() const { return pImpl->house_size; }
 
-std::unordered_map<std::string, std::string> Household::get_group_rate_map(int i) const { return pImpl->indiv[i].get_group_rate_map(); }
+const std::unordered_map<std::string, std::string> &Household::get_group_rate_map(int i) const { return pImpl->indiv[i].get_group_rate_map(); }
 double Household::group_rate(int i, const std::string &rateID) const { return pImpl->indiv[i].get_group_rate(rateID); }
 
-const std::string Household::get_contact_rate_map(int from, int to) const { return pImpl->_which_rate_[from][to]; }
+const std::string &Household::get_contact_rate_map(int from, int to) const { return pImpl->_which_rate_[from][to]; }
 double Household::contact_rate(int from, int to) const { return *pImpl->contact_rates[from][to]; }
 
 int Household::status(int i) const { return pImpl->indiv[i].get_status(); }
@@ -248,8 +248,8 @@ void Household::assign_augm(int i, const std::string &augmID, double value,
 							const std::string &rule_name, dictargs rule_args, double rule_from)
 {
 	pImpl->indiv[i].assign_augm(augmID, value,
-							   model_name, model_args_ptr, range,
-							   rule_name, rule_args, rule_from);
+								model_name, model_args_ptr, range,
+								rule_name, rule_args, rule_from);
 }
 void Household::set_augm_value(int i, const std::string &augmID, double x) { pImpl->indiv[i].set_augm_value(augmID, x); }
 void Household::augm_model_rand(int i, const std::string &augmID, sys_rnd_gen &prng) { pImpl->indiv[i].augm_model_rand(augmID, prng); }
@@ -262,7 +262,7 @@ void Household::clear_augm(int i, const std::string &augmID) { pImpl->indiv[i].c
 
 //===== DIAGNOSTICS =====//
 
-/* update the values for the Bayesian diagnostics */
+/* Update the values for the Bayesian diagnostics. */
 void Household::init_diagnostics(ulong sample_size)
 {
 	pImpl->dgn_count = 0;
@@ -270,10 +270,14 @@ void Household::init_diagnostics(ulong sample_size)
 	pImpl->dgn_loglike = std::vector<double>(sample_size);
 }
 
-/* update the values for the Bayesian diagnostics */
+/* Update the values for the Bayesian diagnostics. */
 void Household::update_diagnostics()
 {
 	pImpl->dgn_loglike[pImpl->dgn_count++] = pImpl->house_loglike;
 }
 
-std::vector<double> Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
+/* Return the loglikelihood sample vector. */
+const std::vector<double> &Household::get_dgn_loglike() const
+{
+	return pImpl->dgn_loglike;
+}

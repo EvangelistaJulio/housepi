@@ -86,7 +86,7 @@ namespace bax
 
 	/* Compute the loglikelihood starting from the current escape pattern.
 		Important : it requires initialization of the lookup table. */
-	double EscapePattern::likelihood(std::vector<double> &esc_mtx)
+	double EscapePattern::likelihood(const std::vector<double> &esc_mtx)
 	{
 		double output = 1.;
 
@@ -104,7 +104,7 @@ namespace bax
 	}
 
 	/* Print the formula of the loglikelihood. */
-	std::string EscapePattern::show()
+	const std::string EscapePattern::show()
 	{
 		std::ostringstream oss;
 
@@ -479,8 +479,8 @@ namespace bax
 		p2p_esc_proba : ordered person-to-person escape probabilities
 	*/
 	double chain_binomial_heter_loglikelihood(ushort N_star,
-											  std::vector<double> &commu_esc_proba,
-											  std::vector<std::vector<double>> &p2p_esc_proba)
+											  const std::vector<double> &commu_esc_proba,
+											  const std::vector<std::vector<double>> &p2p_esc_proba)
 
 	{
 		ushort hh_size = commu_esc_proba.size();

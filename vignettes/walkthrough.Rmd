@@ -91,10 +91,10 @@ knitr::kable(head(aux_))
 
 ### Parameter Definitions
 
-Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param.append`.
+Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param_append`.
 
 ```{r, echo=TRUE}
-hemi$param.append(
+hemi$param_append(
   alpha = list(
     prior = "unif", args = list(min = 0, max = 3),
     rule = "lnorm", rule_args = list(sdlog = 1)
@@ -109,9 +109,9 @@ hemi$param.append(
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and a `value`.
 
-Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param.template()`.
-The `param.append` method calls internally the `param.check()` to ensure that the definition list matches the model, raising a warning if it does not. 
-If some parameters are missing from your list, you can fill them calling the method `param.check(fill_template = TRUE)`.
+Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param_template()`.
+The `param_append` method calls internally the `param_check()` to ensure that the definition list matches the model, raising a warning if it does not. 
+If some parameters are missing from your list, you can fill them calling the method `param_check(fill_template = TRUE)`.
 
 For models requiring augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html) for an example.
 
@@ -129,17 +129,17 @@ hemi$infer(data = survey, num_iter = 50000, burn_in = 5000,
 
 ```{r}
 # visualize the traces of the first chain
-hemi$traces.traceplot(chain = 1)
+hemi$traces_traceplot(chain = 1)
 
 # store summary of the posterior estimates
-results <- hemi$traces.summary()
+results <- hemi$traces_summary()
 ```
 
-For advanced analysis on the inference results, we can extract the traces with method `traces.export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
+For advanced analysis on the inference results, we can extract the traces with method `traces_export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
 
 ```{r}
 # export coda object
-mctraces <- hemi$traces.export()
+mctraces <- hemi$traces_export()
 
 # e. g. Gelman-Rubin criterion for convergence
 coda::gelman.diag(mctraces)
@@ -167,7 +167,7 @@ In order to produce a simulation, our models require a pre-loaded database for t
 simu_cb <- housepi::HouseholdModelClass$new("chain_binom")
 
 # define constant parameters from the inference results
-simu_cb$param.append(
+simu_cb$param_append(
   alpha = list(value = results["alpha", "Mean"]),
   beta = list(value = results["beta", "Mean"])
 )
@@ -181,7 +181,7 @@ To return the simulated database, which also corresponds to the current loaded d
 
 ```{r}
 # export current database
-df <- simu_cb$data.export()
+df <- simu_cb$data_export()
 ```
 
 ### Simulation Study
@@ -195,13 +195,13 @@ hemi$infer(data = df, num_iter = 50000, burn_in = 5000,
            seed = 4337)
 
 # visualize traces of the first chain
-hemi$traces.traceplot(chain = 1)
+hemi$traces_traceplot(chain = 1)
 
 # collect the results
-results_2 <- hemi$traces.summary()
+results_2 <- hemi$traces_summary()
 
 # export parameters used for the simulations
-simul_pars <- simu_cb$param.export()
+simul_pars <- simu_cb$param_export()
 
 # compare results to parameter values used for inference
 results_2[simul_pars[["name"]], "Simul"] <- simul_pars["value"]

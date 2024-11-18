@@ -20,9 +20,9 @@ void MCMC::read_augm(const std::string &pathtofile) { pImpl->read_augm(pathtofil
 
 #ifdef USE_RCPP
 //===== Rcpp IMPORTS =====//
-void MCMC::import_setup(Rcpp::List x) { pImpl->import_setup(x); }
-void MCMC::import_params(Rcpp::DataFrame x) { pImpl->import_params(x); }
-void MCMC::import_augm(Rcpp::DataFrame x) { pImpl->import_augm(x); }
+void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
+void MCMC::import_params(const Rcpp::DataFrame &x) { pImpl->import_params(x); }
+void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 
 //===== Rcpp EXPORTS =====//
 Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
@@ -44,7 +44,7 @@ void MCMC::show_summary() const { pImpl->show_summary(); }
 void MCMC::show_group_classes() const { pImpl->show_group_classes(); }
 
 //===== DATA =====//
-int MCMC::house_size(int H) const { pImpl->house_vec[H].size(); }
+int MCMC::house_size(int H) const { return pImpl->house_vec[H].size(); }
 size_t MCMC::num_houses() const { return pImpl->num_house; }
 int MCMC::report_data(const std::string &key) const { return pImpl->report_data(key); }
 double MCMC::uniform() { return pImpl->uniform(); }
@@ -121,7 +121,7 @@ void MCMC::read_data(const std::string &pathtofile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Import data from R DataFrame and run build. */
-void MCMC::import_data(Rcpp::DataFrame data)
+void MCMC::import_data(const Rcpp::DataFrame &data)
 {
     std::map<std::string, std::vector<std::string>> datatable = {};
     tools::rdataframe_to_map(data, datatable);
@@ -162,10 +162,8 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             //===== Assess the presence of house IDs =====//
             if (std::find(pImpl->data_headers.begin(), pImpl->data_headers.end(), "house_id") == pImpl->data_headers.end())
             {
-                std::ostringstream oss;
-                oss << "Impossible to associate a household structure: missing data column 'house_id'."
-                    << " If intentional, ignore this warning.";
-                tools::warning(oss.str());
+                tools::warning(
+                    "Unknown household structure: missing data column 'house_id'. If intentional, ignore this warning.");
             }
 
             //===== Safe Load of Households =====//
@@ -369,10 +367,9 @@ void MCMC::set_rate_per_contact(Household &this_house)
 
                     if (tools::is_na(parID))
                     {
-                        std::ostringstream oss;
-                        oss << "Contact rate not provided for individuals " << this_house.ID(k)
-                            << " and " << this_house.ID(i) << " within household " << this_house.house_ID() << ".";
-                        throw std::invalid_argument(oss.str());
+                        std::string sms = "Contact rate not provided for individuals " + this_house.ID(k);
+                        sms += " and " + this_house.ID(i) + " within household " + this_house.house_ID() + ".";
+                        throw std::invalid_argument(sms);
                     }
                     else if (parID == REFERENCE)
                     {
@@ -779,22 +776,21 @@ double MCMC::evaluate()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The text to print in the Markov chian progress bar. */
-std::string MCMC::get_progtxt(const std::string &txt, bool is_power_post)
+// UPDATE : this could be functional too
+const std::string MCMC::get_progtxt(const std::string &txt, bool is_power_post)
 {
-    std::ostringstream oss;
     if (is_power_post)
     {
-        oss << "power post " << _rung_ << "/" << _num_rungs_;
+        return "power post " + std::to_string(_rung_) + "/" + std::to_string(_num_rungs_);
     }
     else if (pImpl->get_num_chains() > 1)
     {
-        oss << txt << " " << _chain_ << "/" << pImpl->get_num_chains();
+        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pImpl->get_num_chains());
     }
     else
     {
-        oss << txt;
+        return txt;
     }
-    return oss.str();
 }
 
 /* Markov chain core, used for inference and power posteriors.
@@ -1118,7 +1114,6 @@ void MCMC::simulate(bool progbar)
 
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
-
     tools::progress_bar_init("simul", progbar);
 
 #ifdef _OPENMP
@@ -1132,7 +1127,7 @@ void MCMC::simulate(bool progbar)
         }
         try
         {
-            simulate_single_house(house(H));
+            simulate_single_house(pImpl->house_vec[H]);
         }
         catch (const std::exception &e)
         {

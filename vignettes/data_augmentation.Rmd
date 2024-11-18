@@ -46,7 +46,7 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 hemi_1 <- housepi::HouseholdModelClass$new("example_augm_delay_incubation")
 
 # gamma distribution parameter definitions
-hemi_1$param.append(
+hemi_1$param_append(
   shape = list(
     prior = "unif", args = list(min = 0, max = 5),
     rule = "norm", rule_args = list(sd = 1)
@@ -66,7 +66,7 @@ We state which value should be imported from the database by formatting the stri
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
-hemi_1$augm.append(
+hemi_1$augm_append(
   # define 'exposure' time
   exposure = list(
     value = "exposure_min@D",            # start from database value 'exposure_min'
@@ -95,10 +95,10 @@ hemi_1$infer(data = delays, num_iter = 100000, burn_in = 10000,
 # it will be interpreted as single individuals living in separate households.
 
 # show traces of chains
-hemi_1$traces.traceplot()
+hemi_1$traces_traceplot()
 
 # collect results
-results_1 <- hemi_1$traces.summary()
+results_1 <- hemi_1$traces_summary()
 ```
 
 ## Augment Onset Times
@@ -114,10 +114,10 @@ This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
-hemi_2$param.template()
+hemi_2$param_template()
 
 # export the data.frame with parameter definitions
-par_2 <- hemi_2$param.export()
+par_2 <- hemi_2$param_export()
 ```
 
 ```{r, echo=FALSE}
@@ -130,7 +130,7 @@ We propose the following definitions for the augmented variable
 
 ```{r}
 
-hemi_2$augm.append(
+hemi_2$augm_append(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
@@ -148,7 +148,7 @@ hemi_2$augm.append(
 )
 
 # use inferred values from first example as constant parameters
-hemi_2$param.append(inc_shape = list(value = results_1["shape","Mean"]),
+hemi_2$param_append(inc_shape = list(value = results_1["shape","Mean"]),
                     inc_scale = list(value = results_1["scale","Mean"]))
 ```
 
@@ -162,7 +162,7 @@ data("survey", package = "housepi")
 hemi_2$simulate(data = survey, seed = 3731)
 
 # show a summary of the current database
-hemi_2$data.summary()
+hemi_2$data_summary()
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
@@ -170,12 +170,12 @@ This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
 # remove incubation period from simulated database
-df <- subset(hemi_2$data.export(), select = -c(incub_period))
+df <- subset(hemi_2$data_export(), select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
 is_infec <- df$status == 1
 df[is_infec, "onset_date"] <- sapply(
-  df[is_infec, "onset_date"], 
+  df[is_infec, "onset_date"],
   function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
   )
 ```
@@ -190,10 +190,10 @@ We can check that inference returns the parameters used for the simulation.
 
 ```{r}
 # clear previous augmented definitions
-hemi_2$augm.clear()
+hemi_2$augm_clear()
 
 # add new definitions
-hemi_2$augm.append(
+hemi_2$augm_append(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
@@ -215,10 +215,10 @@ hemi_2$infer(data = df, num_iter = 30000, burn_in = 5000,
              thinning = 25, num_adapt = 2500, seed = 3413)
 
 # plot the traces
-hemi_2$traces.traceplot()
+hemi_2$traces_traceplot()
 
 # collect the results
-results_2 <- hemi_2$traces.summary()
+results_2 <- hemi_2$traces_summary()
 
 # compare results to parameter values used for inference
 imask <- par_2["infer"] == TRUE

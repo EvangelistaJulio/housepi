@@ -38,8 +38,8 @@ namespace bax
 
         void add_entry(ushort new_entry);
         void add_pattern(ulong new_pattern_idx);
-        double likelihood(std::vector<double> &esc_mtx);
-        std::string show();
+        double likelihood(const std::vector<double> &esc_mtx);
+        const std::string show();
 
     private:
         const ushort N_star;
@@ -91,11 +91,12 @@ namespace bax
     void init_combinations_lookuptable(ushort max_N);
     void clear_combinations_lookuptable();
 
-    // recursive likelihood formulation
+    // recursive likelihood formulation lookuptable
     void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results);
     void init_escape_patterns_lookuptable(ushort max_N);
 
-    double chain_binomial_heter_loglikelihood(ushort N_star, std::vector<double> &commu_esc_proba, std::vector<std::vector<double>> &p2p_esc_proba);
+    // actuall chain binomial likelihood
+    double chain_binomial_heter_loglikelihood(ushort N_star, const std::vector<double> &commu_esc_proba, const std::vector<std::vector<double>> &p2p_esc_proba);
 }
 
 #endif // BINOMIAL__H

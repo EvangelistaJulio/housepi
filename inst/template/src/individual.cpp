@@ -69,12 +69,12 @@ void Individual::disable_assert()
 }
 
 //===== GETTER =====//
-std::string Individual::get_ID() const { return this->ID; }
+const std::string &Individual::get_ID() const { return this->ID; }
 int Individual::get_status() const { return this->status; }
 double Individual::get_data(const std::string &dataID) const { return (this->*_func_get_data_)(dataID); }
 const double *Individual::get_data_pointer(const std::string &dataID) const { return (this->*_func_get_data_pointer_)(dataID); }
 double Individual::get_group_rate(const std::string &rateID) const { return *this->rate_ptr.at(rateID); }
-std::unordered_map<std::string, std::string> Individual::get_group_rate_map() const { return this->_which_rate_; }
+const std::unordered_map<std::string, std::string> &Individual::get_group_rate_map() const { return this->_which_rate_; }
 
 //===== AUGMENTED VARIABLES =====//
 

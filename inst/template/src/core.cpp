@@ -367,7 +367,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 //-----------------------------------------------------------------------------------------------//
 
 #ifdef USE_RCPP
-void rlist_to_map(Rcpp::List list, std::map<std::string, std::string> &output)
+void rlist_to_map(const Rcpp::List &list, std::map<std::string, std::string> &output)
 {
     using namespace Rcpp;
 
@@ -382,14 +382,14 @@ void rlist_to_map(Rcpp::List list, std::map<std::string, std::string> &output)
 }
 
 /* Import setup from R list and run build. */
-void Monte_Carlo_Core::import_setup(Rcpp::List setup)
+void Monte_Carlo_Core::import_setup(const Rcpp::List &setup)
 {
     rlist_to_map(setup, _setup_deflist_);
     build_setup();
 }
 
 /* Import params from R DataFrame and run build. */
-void Monte_Carlo_Core::import_params(Rcpp::DataFrame params)
+void Monte_Carlo_Core::import_params(const Rcpp::DataFrame &params)
 {
     tools::rdataframe_to_map(params, _param_deftable_);
     build_params();
@@ -536,9 +536,8 @@ void Monte_Carlo_Core::build_setup()
                 double inv_T = tools::stod(_setup_deflist_.at("inv_temper"), "inverse temperature");
                 if ((inv_T < 0.) || (inv_T > 1.))
                 {
-                    std::ostringstream oss;
-                    oss << "Inverse temperature " << inv_T << " out of range [0, 1].";
-                    throw std::out_of_range(oss.str());
+                    throw std::out_of_range(
+                        "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
                 }
                 else
                 {
@@ -617,9 +616,8 @@ void Monte_Carlo_Core::build_params()
                         _is_undef_params_ = true;
                         if (!setup_rnd_init_params)
                         {
-                            std::ostringstream oss;
-                            oss << "Undefined value without random initialization for parameter to infer '" << parID << "'.";
-                            throw std::invalid_argument(oss.str());
+                            throw std::invalid_argument(
+                                "Undefined value without random initialization for parameter to infer '" + parID + "'.");
                         }
                     }
                     else

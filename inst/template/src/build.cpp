@@ -36,7 +36,7 @@ Monte_Carlo_Build::~Monte_Carlo_Build() = default;
 
 #ifdef USE_RCPP
 //===== Rcpp IMPORTS =====//
-void Monte_Carlo_Build::import_setup(Rcpp::List x)
+void Monte_Carlo_Build::import_setup(const Rcpp::List &x)
 {
     pCore->import_setup(x);
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
@@ -44,7 +44,7 @@ void Monte_Carlo_Build::import_setup(Rcpp::List x)
         _report_pathtofile_.erase("setup");
     }
 }
-void Monte_Carlo_Build::import_params(Rcpp::DataFrame x)
+void Monte_Carlo_Build::import_params(const Rcpp::DataFrame &x)
 {
     pCore->import_params(x);
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
@@ -148,10 +148,8 @@ double Monte_Carlo_Build::type_to_double(const std::string value, const std::str
                 if (get_infer(value))
                 {
                     std::ostringstream oss;
-                    // FIXME : this warning is not clear as exposed here
-                    oss << "Non constant parameter '" << value << "' assigned as fixed argument."
-                        << " Changes of the parameter will not affect the argument.";
-                    tools::warning(oss.str());
+                    tools::warning(
+                        "Non constant parameter '" + value + "' assigned as immutable argument (deprecated).");
                 }
             }
             else if (type == TYPE_COMMAND)
@@ -365,9 +363,7 @@ int Monte_Carlo_Build::report_data(const std::string &key) const
     }
     else
     {
-        std::ostringstream oss;
-        oss << "Unknown summary entry `" << key << "`.";
-        tools::error(oss.str());
+        tools::error("Unknown summary entry '" + key + "'.");
     }
     return output;
 }
@@ -690,7 +686,6 @@ void Monte_Carlo_Build::clear_all_augm(Household &this_house, int i)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -953,7 +948,7 @@ void Monte_Carlo_Build::show_full_build() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Import data from R DataFrame then run build. */
-void Monte_Carlo_Build::import_augm(Rcpp::DataFrame augm)
+void Monte_Carlo_Build::import_augm(const Rcpp::DataFrame &augm)
 {
     tools::rdataframe_to_map(augm, _augm_deftable_);
     build_augm();
@@ -972,55 +967,62 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
 {
     using namespace Rcpp;
 
-    // pre-allocate memories
-    // initialize the dataframe as a list of named std::vectors
     CharacterVector df_index(num_indiv);
     CharacterVector df_house_index(num_indiv);
     IntegerVector df_status(num_indiv);
-    std::map<std::string, NumericVector> df_dbl;
-
+    std::vector<NumericVector> df_dbl;
     for (const std::string &dataID : data_headers)
     {
-        df_dbl.insert({dataID, NumericVector(num_indiv)});
+        df_dbl.emplace_back(num_indiv);
     }
     for (const std::string &augmID : augm_list_full)
     {
-        df_dbl.insert({augmID, NumericVector(num_indiv)});
+        df_dbl.emplace_back(num_indiv);
     }
 
-    size_t c = 0;
+    size_t r = 0, c = 0;
     for (const Household &this_house : house_vec)
     {
         for (int i = 0; i < this_house.size(); ++i)
         {
-            df_index[c] = this_house.ID(i);
-            df_house_index[c] = this_house.house_ID();
-            df_status[c] = this_house.status(i);
+            df_index[r] = this_house.ID(i);
+            df_house_index[r] = this_house.house_ID();
+            df_status[r] = this_house.status(i);
 
+            c = 0;
             for (const std::string &dataID : data_headers)
             {
-                df_dbl.at(dataID)[c] = this_house.data(i, dataID);
+                df_dbl[c][r] = this_house.data(i, dataID);
+                ++c;
             }
             for (const std::string &augmID : augm_list_full)
             {
-                df_dbl.at(augmID)[c] = this_house.augm(i, augmID);
+                df_dbl[c][r] = this_house.augm(i, augmID);
+                ++c;
             }
 
-            ++c;
+            ++r;
         }
     }
+
+    // FLAG
+    tools::print_stdout("CHECK: " + tools::truth(df_dbl[0][5] == df_dbl[2][5]) + "\n");
+    // FLAG-END
 
     DataFrame output;
     output = DataFrame::create(_["id"] = df_index,
                                _["house_id"] = df_house_index,
                                _["status"] = df_status);
+    c = 0;
     for (const std::string &dataID : data_headers)
     {
-        output.push_back(df_dbl.at(dataID), dataID);
+        output.push_back(df_dbl[c], dataID);
+        ++c;
     }
     for (const std::string &augmID : augm_list_full)
     {
-        output.push_back(df_dbl.at(augmID), augmID);
+        output.push_back(df_dbl[c], augmID);
+        ++c;
     }
 
     return output;

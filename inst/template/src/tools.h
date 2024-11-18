@@ -106,8 +106,8 @@ namespace tools
     bool is_na(const std::string &txt);
 
     // output formatter
-    std::string percent(double num, double denom);
-    std::string truth(bool condition);
+    const std::string percent(double num, double denom);
+    const std::string truth(bool condition);
 
     // stodut print
     void print_stdout(const std::string &txt);
@@ -133,16 +133,16 @@ namespace tools
     unsigned long stoul(const std::string &input, const std::string &errtxt = "");
     unsigned long long stoull(const std::string &input, const std::string &errtxt = "");
     bool stobool(const std::string &tkn);
-    std::string strcleaner(std::string tkn);
+    const std::string strcleaner(std::string tkn);
 
 #ifdef USE_RCPP
-    void rdataframe_to_map(Rcpp::DataFrame df, std::map<std::string, std::vector<std::string>> &output);
+    void rdataframe_to_map(const Rcpp::DataFrame &df, std::map<std::string, std::vector<std::string>> &output);
 #endif
 
     void read_csv_table(const std::string &pathtofile,
                         std::map<std::string, std::vector<std::string>> &csv_parsed_table,
                         const std::vector<std::string> &required_headers = {});
-    std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
+    const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
 }
 
 #endif // UTILS__H

@@ -30,10 +30,10 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* A parent class to all distributions. */
-class Base_Distribution : public Base_Function
+class _Base_Distribution_ : public _Base_Function_
 {
 public:
-	using Base_Function::Base_Function;
+	using _Base_Function_::_Base_Function_;
 
 	double pdf(double x) const;
 	double cdf(double x) const;
@@ -53,12 +53,15 @@ protected:
 	void check_rand_attempts(int &num_attempts) const;
 
 	//----- Functional methods for truncation -----//
-	double (Base_Distribution::*_func_trunc_)(double) const = &Base_Distribution::_trunc_dummy_;
-	double (Base_Distribution::*_func_logtrunc_)(double) const = &Base_Distribution::_logtrunc_dummy_;
-	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
+	double (_Base_Distribution_::*_func_trunc_)(double) const = &_Base_Distribution_::_trunc_dummy_;
+	double (_Base_Distribution_::*_func_logtrunc_)(double) const = &_Base_Distribution_::_logtrunc_dummy_;
+	double (_Base_Distribution_::*_func_shift_)(double) const = &_Base_Distribution_::_shift_dummy_;
 
 private:
 	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
+
+	//----- Functional methods for the discretization -----//
+	// FIXME missing
 
 	//----- Functional methods for the truncation -----//
 	double _trunc_dummy_(double x) const;
@@ -81,12 +84,15 @@ private:
 //////////////////////////////////  distribution switchboard  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
-									const dictargs &args = {},
-									const dictargs &range = {});
-Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
-									const dictargs_ptr &args = {},
-									const dictargs &range = {});
+/* overloaded distribution with static values. */
+std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name = UNDEFINED,
+													  const dictargs &args = {},
+													  const dictargs &range = {});
+
+/* overloaded distribution with pointer to values. */
+std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name = UNDEFINED,
+													  const dictargs_ptr &args = {},
+													  const dictargs &range = {});
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -96,21 +102,21 @@ Base_Distribution *distribution_ptr(const std::string &name = UNDEFINED,
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Proposer : class  /////////////////////////////////////
+///////////////////////////////////  _Base_Proposer_ : class  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME : impose mean=0, etc...
 
-class Base_Proposer
+class _Base_Proposer_
 {
 public:
 	//=====Constructors=====//
-	Base_Proposer(Base_Distribution *, double rule_start_value = INF_DOUBLE,
-				  std::vector<int> args_to_adapt = {});
-	virtual ~Base_Proposer() {};
+	_Base_Proposer_(std::shared_ptr<_Base_Distribution_>, double rule_start_value = INF_DOUBLE,
+					std::vector<int> args_to_adapt = {});
+	virtual ~_Base_Proposer_() {};
 
 	//===== Getter =====//
-	std::string get_name() const { return distr_ptr->get_name(); }
+	const std::string &get_name() const { return distr_ptr->get_name(); }
 	double get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
 	double get_from_value() const { return from_value; }
 	bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
@@ -120,7 +126,7 @@ public:
 
 	double rand(sys_rnd_gen &prng) { return (distr_ptr->rand)(prng); }
 
-	virtual double propose(sys_rnd_gen &prng, double start = 0.0) { return (this->*_propose_method_)(prng, start); }
+	virtual double propose(sys_rnd_gen &prng, double start = 0.0) { return (this->*_func_propose_)(prng, start); }
 	virtual double logratio(double xold, double xnew) const { return (this->*_logratio_method_)(xold, xnew); }
 
 	//=====Finite Adaptive=====//
@@ -130,12 +136,12 @@ public:
 	void adapt(double ratio);
 
 	//===== Show =====//
-	std::string show_arg_names() const { return distr_ptr->show_arg_names(); }
-	std::string show_arg_values() const { return distr_ptr->show_arg_values(); }
+	const std::string show_arg_names() const { return distr_ptr->show_arg_names(); }
+	const std::string show_arg_values() const { return distr_ptr->show_arg_values(); }
 
 protected:
 	//===== Attributes =====//
-	Base_Distribution *distr_ptr;
+	std::shared_ptr<_Base_Distribution_> distr_ptr;
 	double from_value = INF_DOUBLE;
 
 	int num_proposed_moves = 0;
@@ -145,7 +151,7 @@ protected:
 	bool _is_start_from_zero_ = false;
 
 	//===== propose : functional methods =====//
-	double (Base_Proposer::*_propose_method_)(sys_rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
+	double (_Base_Proposer_::*_func_propose_)(sys_rnd_gen &, double) = &_Base_Proposer_::_propose_undefined_;
 
 	// alternative proposer methods
 	double _propose_undefined_(sys_rnd_gen &prng, double start)
@@ -164,7 +170,7 @@ protected:
 	}
 
 	//===== logratio : functional methods =====//
-	double (Base_Proposer::*_logratio_method_)(double, double) const = &Base_Proposer::_logratio_undefined_;
+	double (_Base_Proposer_::*_logratio_method_)(double, double) const = &_Base_Proposer_::_logratio_undefined_;
 
 	// alternative logratios
 	double _logratio_undefined_(double old_val, double new_val) const
@@ -203,12 +209,12 @@ protected:
 class Base_Variable
 {
 protected:
-	std::string name = UNDEFINED;			// name of the variable
-	double value = INF_DOUBLE;				// value of the variable
-	double buffer = INF_DOUBLE;				// buffer of the variable
-	bool infer = false;						// to be inferred or immutable
-	Base_Distribution *distr_ptr = nullptr; // prior/model distribution of the parameter
-	Base_Proposer *prop_ptr = nullptr;		// proposer for Monte Carlo Markov Chain
+	std::string name = UNDEFINED;							  // name of the variable
+	double value = INF_DOUBLE;								  // value of the variable
+	double buffer = INF_DOUBLE;								  // buffer of the variable
+	bool infer = false;										  // to be inferred or immutable
+	std::shared_ptr<_Base_Distribution_> distr_ptr = nullptr; // prior/model distribution of the parameter
+	std::shared_ptr<_Base_Proposer_> prop_ptr = nullptr;	  // proposer for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
@@ -235,8 +241,8 @@ public:
 						 dictargs rule_args = {},
 						 double rule_from = INF_DOUBLE);
 
-	//===== Getter =====//
-	std::string get_name() const { return name; }
+	//===== Getter =====//const
+	const std::string &get_name() const { return name; }
 	double get_value() const { return value; }
 	const double *get_pointer() const { return &value; }
 	bool get_infer() const { return infer; }
@@ -254,8 +260,8 @@ public:
 
 	//===== Metropolis-Hastings =====//
 
-	double get_move_logratio() const { return (this->*_move_logratio_method_)(); }
-	bool valid_move() const { return (this->*_valid_move_method_)(); }
+	double get_move_logratio() const { return (this->*_func_move_logratio_)(); }
+	bool valid_move() const { return (this->*_func_valid_move_)(); }
 
 	//----- distr_ptr : prior/model methods -----//
 	void rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
@@ -264,7 +270,7 @@ public:
 	double distr_logratio() const { return distr_ptr->logratio(buffer, value); }
 
 	//----- prop_ptr : propose methods -----//
-	void propose(sys_rnd_gen &prng) { return set_value((this->*_propose_method_)(prng)); }
+	void propose(sys_rnd_gen &prng) { return set_value((this->*_func_propose_)(prng)); }
 	double propose_logratio() const { return (prop_ptr->logratio)(buffer, value); }
 
 	//----- prop_ptr : adaptive methods -----//
@@ -274,18 +280,18 @@ public:
 	void adapt_rule(double ratio) { (prop_ptr->adapt)(ratio); }
 
 	//===== Show =====//
-	std::string show_distr_name() const { return distr_ptr->get_name(); }
-	std::string show_distr_arg_names() const { return distr_ptr->show_arg_names(); }
-	std::string show_distr_arg_values() const { return distr_ptr->show_arg_values(); }
+	const std::string show_distr_name() const { return distr_ptr->get_name(); }
+	const std::string show_distr_arg_names() const { return distr_ptr->show_arg_names(); }
+	const std::string show_distr_arg_values() const { return distr_ptr->show_arg_values(); }
 
-	std::string show_prop_name() const { return prop_ptr->get_name(); }
-	std::string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
-	std::string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
+	const std::string show_prop_name() const { return prop_ptr->get_name(); }
+	const std::string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
+	const std::string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
 
-	std::string show_range_min() const { return distr_ptr->show_range_min(); }
-	std::string show_range_max() const { return distr_ptr->show_range_max(); }
+	const std::string show_range_min() const { return distr_ptr->show_range_min(); }
+	const std::string show_range_max() const { return distr_ptr->show_range_max(); }
 
-	std::string show() const
+	const std::string show() const
 	{
 		using namespace tools;
 		std::ostringstream oss;
@@ -302,17 +308,17 @@ public:
 
 private:
 	//===== Valid move : functional methods =====//
-	bool (Base_Variable::*_valid_move_method_)() const = &Base_Variable::_valid_move_default_;
+	bool (Base_Variable::*_func_valid_move_)() const = &Base_Variable::_valid_move_default_;
 	bool _valid_move_default_() const { return distr_ptr->valid(value); }
 	bool _valid_move_gibbs_() const { return true; }
 
 	//===== Move logratio : functional methods =====//
-	double (Base_Variable::*_move_logratio_method_)() const = &Base_Variable::_move_logratio_default_;
+	double (Base_Variable::*_func_move_logratio_)() const = &Base_Variable::_move_logratio_default_;
 	double _move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
 	double _move_logratio_gibbs_() const { return 0.0; }
 
 	//===== Propose : functional methods =====//
-	double (Base_Variable::*_propose_method_)(sys_rnd_gen &);
+	double (Base_Variable::*_func_propose_)(sys_rnd_gen &);
 	double _propose_error_(sys_rnd_gen &prng)
 	{
 		UNUSED(prng);

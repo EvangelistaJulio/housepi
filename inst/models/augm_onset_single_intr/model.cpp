@@ -11,18 +11,6 @@
 
 #include "model.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-//----- Infectivity Profile Functions -----//
-Infec_Prof_Ferretti20 *infec_prof_ptr;
-
-//----- Attributes for Look-Up-Tables -----//
-std::vector<squarematrix> LUT_inst_prof;
-std::vector<squarematrix> LUT_cumul_prof;
-std::vector<int> LUT_hh_first_case;
-
 //-----------------------------------------------------------------------------------------------//
 //---------------------------------- - - - CHANGE-ME - - - --------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
@@ -118,7 +106,7 @@ double Model::transmission_rate(const Household &house) const
 void Model::init_model_for_inference()
 {
 	// use infectivity profile from Ferretti et al (2020)
-	infec_prof_ptr = new Infec_Prof_Ferretti20();
+	infec_prof_ptr = std::make_shared<Infec_Prof_Ferretti20>();
 
 	// clear the Lookup Tables (in case of multiple initializations)
 	LUT_inst_prof.clear();
@@ -127,14 +115,14 @@ void Model::init_model_for_inference()
 	//===== Initialize household features =====//
 
 	// indexes of first infector
-	LUT_hh_first_case = std::vector<int>(num_houses(), -1);
+	LUT_hh_first_case = std::vector<int>(num_houses());
 
 	// produce the empty matrix for the infectivity profiles look-up-tables
 	for (size_t H = 0; H < num_houses(); ++H)
 	{
 		int h_size = house_size(H);
-		LUT_inst_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
-		LUT_cumul_prof.emplace_back(h_size, std::vector<double>(h_size, 0.));
+		LUT_inst_prof.emplace_back(h_size, std::vector<double>(h_size));
+		LUT_cumul_prof.emplace_back(h_size, std::vector<double>(h_size));
 	}
 }
 

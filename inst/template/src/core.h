@@ -140,8 +140,8 @@ public:
 
 #ifdef USE_RCPP
     //===== Rcpp IMPORTS =====//
-    void import_setup(Rcpp::List setup);
-    void import_params(Rcpp::DataFrame params);
+    void import_setup(const Rcpp::List &setup);
+    void import_params(const Rcpp::DataFrame &params);
 
     //===== Rcpp EXPORTS =====//
     Rcpp::List export_setup() const;

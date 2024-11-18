@@ -37,10 +37,10 @@ public:
     void set_arg(int i, double new_value) { (this->*_func_set_arg_)(i, new_value); }
 
     //===== Show =====//
-    std::string show_arg_names() const;
-    std::string show_arg_values() const;
-    std::string show_range_min() const { return (_range_min_ > -INF_DOUBLE) ? std::to_string(_range_min_) : UNDEFINED; }
-    std::string show_range_max() const { return (_range_max_ < INF_DOUBLE) ? std::to_string(_range_min_) : UNDEFINED; }
+    const std::string show_arg_names() const;
+    const std::string show_arg_values() const;
+    const std::string show_range_min() const;
+    const std::string show_range_max() const;
 
     //===== Initial non-default arguments =====//
     void assign_args(const dictargs &new_args_val);
@@ -65,10 +65,8 @@ private:
     void _set_arg_ptr_(int i, double new_value)
     {
         UNUSED(new_value);
-        std::ostringstream oss;
-        oss << "Inconsistent change of pointer argument'" << _args_names_[i]
-            << "' within '" << _name_ << "'.";
-        tools::error(oss.str());
+        tools::error(
+            "Inconsistent change of pointer argument '" + _args_names_[i] + "' within '" + _name_ + "'.");
     }
 
     //===== Valid : functional methods =====//
@@ -117,9 +115,8 @@ void Base_Function_Impl::assign_args(const dictargs &args_val)
         auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
         if (it == _args_names_.end())
         {
-            std::ostringstream oss;
-            oss << "Unknown argument '" << pair.first << "' for '" << _name_ << "'.";
-            throw std::invalid_argument(oss.str());
+            throw std::invalid_argument(
+                "Unknown argument '" + pair.first + "' for '" + _name_ + "'.");
         }
         else
         {
@@ -136,9 +133,8 @@ void Base_Function_Impl::assign_args(const dictargs_ptr &args_ptr)
         auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
         if (it == _args_names_.end())
         {
-            std::ostringstream oss;
-            oss << "Unknown argument '" << pair.first << "' for '" << _name_ << "'.";
-            throw std::invalid_argument(oss.str());
+            throw std::invalid_argument(
+                "Unknown argument '" + pair.first + "' for '" + _name_ + "'.");
         }
         else
         {
@@ -196,9 +192,8 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         }
         else
         {
-            std::ostringstream oss;
-            oss << "Invalid range keyword '" << x.first << "'. Provide only 'min' and/or 'max'.";
-            throw std::invalid_argument(oss.str());
+            throw std::invalid_argument(
+                "Invalid range keyword '" + x.first + "'. Provide only 'min' and/or 'max'.");
         }
     }
 
@@ -209,9 +204,8 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         min_val = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
         if (is_new_min)
         {
-            std::ostringstream oss;
-            oss << "Overwriting range min with argument min " << min_val << " in '" << _name_ << "'.";
-            tools::warning(oss.str());
+            tools::warning(
+                "Overwriting range min with argument min " + std::to_string(min_val) + " in '" + _name_ + "'.");
         }
         is_new_min = true;
     }
@@ -220,9 +214,8 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         //----- Check compatibility with min from domain (e .g. uniform distribution) -----//
         if (min_val < _range_min_)
         {
-            std::ostringstream oss;
-            oss << "Invalid min value " << min_val << " for distribution '" << _name_ << "'.";
-            throw std::invalid_argument(oss.str());
+            throw std::invalid_argument(
+                "Invalid min value " + std::to_string(min_val) + " for distribution '" + _name_ + "'.");
         }
     }
 
@@ -233,9 +226,7 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         max_val = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
         if (is_new_max)
         {
-            std::ostringstream oss;
-            oss << "Overwriting range max with argument max " << max_val << " in '" << _name_ << "'.";
-            tools::warning(oss.str());
+            tools::warning("Overwriting range max with argument max " + std::to_string(max_val) + " in '" + _name_ + "'.");
         }
         is_new_max = true;
     }
@@ -244,9 +235,8 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         //----- Check compatibility with max from domain -----//
         if (max_val > _range_max_)
         {
-            std::ostringstream oss;
-            oss << "Invalid max value " << max_val << " for distribution '" << _name_ << "'.";
-            throw std::invalid_argument(oss.str());
+            throw std::invalid_argument(
+                "Invalid max value " + std::to_string(max_val) + " for distribution '" + _name_ + "'.");
         }
     }
 
@@ -279,9 +269,8 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
         output = 3;
         if (_range_min_ >= _range_max_)
         {
-            std::ostringstream oss;
-            oss << "Provided an inconsistent range {min:" << _range_min_ << ", max:" << _range_max_ << "}.";
-            throw std::invalid_argument(oss.str());
+            throw std::invalid_argument(
+                "Inconsistent range {min:" + std::to_string(_range_min_) + ", max:" + std::to_string(_range_max_) + "}.");
         }
         else
         {
@@ -299,7 +288,7 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return formatted argument names of the distribution. */
-std::string Base_Function_Impl::show_arg_names() const
+const std::string Base_Function_Impl::show_arg_names() const
 {
     if (_args_names_.empty())
     {
@@ -307,18 +296,17 @@ std::string Base_Function_Impl::show_arg_names() const
     }
     else
     {
-        std::ostringstream oss;
-        oss << _args_names_[0];
+        std::string output = _args_names_[0];
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << C_LIST_DELIM << _args_names_[i];
+            output += C_LIST_DELIM + _args_names_[i];
         }
-        return oss.str();
+        return output;
     }
 }
 
 /* Return formatted argument names of the distribution. */
-std::string Base_Function_Impl::show_arg_values() const
+const std::string Base_Function_Impl::show_arg_values() const
 {
     if (_args_names_.empty())
     {
@@ -326,14 +314,25 @@ std::string Base_Function_Impl::show_arg_values() const
     }
     else
     {
-        std::ostringstream oss;
-        oss << get_arg(0);
+        std::string output = std::to_string(get_arg(0));
         for (size_t i = 1; i < _args_names_.size(); ++i)
         {
-            oss << C_LIST_DELIM << get_arg(i);
+            output += C_LIST_DELIM + std::to_string(get_arg(i));
         }
-        return oss.str();
+        return output;
     }
+}
+
+/* */
+const std::string Base_Function_Impl::show_range_min() const
+{
+    return (_range_min_ > -INF_DOUBLE) ? std::to_string(_range_min_) : UNDEFINED;
+}
+
+/* */
+const std::string Base_Function_Impl::show_range_max() const
+{
+    return (_range_max_ < INF_DOUBLE) ? std::to_string(_range_min_) : UNDEFINED;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -348,40 +347,40 @@ std::string Base_Function_Impl::show_arg_values() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 //----- CONSTRUCTORS -----//
-Base_Function::Base_Function() : pImpl(std::make_unique<Base_Function_Impl>()) {};
-Base_Function::~Base_Function() = default;
+_Base_Function_::_Base_Function_() : pImpl(std::make_unique<Base_Function_Impl>()) {};
+_Base_Function_::~_Base_Function_() = default;
 
 //----- FUNCTION NAME -----//
-std::string Base_Function::get_name() const { return pImpl->_name_; }
+const std::string &_Base_Function_::get_name() const { return pImpl->_name_; }
 
 //----- ARGUMENTS -----//
-double Base_Function::get_arg(int i) const { return pImpl->get_arg(i); }
-void Base_Function::set_arg(int i, double x) { pImpl->set_arg(i, x); }
-std::string Base_Function::show_arg_names() const { return pImpl->show_arg_names(); }
-std::string Base_Function::show_arg_values() const { return pImpl->show_arg_values(); }
+double _Base_Function_::get_arg(int i) const { return pImpl->get_arg(i); }
+void _Base_Function_::set_arg(int i, double x) { pImpl->set_arg(i, x); }
+const std::string _Base_Function_::show_arg_names() const { return pImpl->show_arg_names(); }
+const std::string _Base_Function_::show_arg_values() const { return pImpl->show_arg_values(); }
 
 //----- RANGE -----//
-std::string Base_Function::show_range_min() const { return pImpl->show_range_min(); }
-std::string Base_Function::show_range_max() const { return pImpl->show_range_max(); }
+const std::string _Base_Function_::show_range_min() const { return pImpl->show_range_min(); }
+const std::string _Base_Function_::show_range_max() const { return pImpl->show_range_max(); }
 
 //----- VALID -----//
-bool Base_Function::valid(double x) const { return pImpl->valid(x); }
+bool _Base_Function_::valid(double x) const { return pImpl->valid(x); }
 
 //----- ARGUMENTS -----//
 // note: just for initial non-default arguments
-void Base_Function::assign_args(const dictargs &new_args_val) { pImpl->assign_args(new_args_val); }
-void Base_Function::assign_args(const dictargs_ptr &new_args_ptr) { pImpl->assign_args(new_args_ptr); }
+void _Base_Function_::assign_args(const dictargs &new_args_val) { pImpl->assign_args(new_args_val); }
+void _Base_Function_::assign_args(const dictargs_ptr &new_args_ptr) { pImpl->assign_args(new_args_ptr); }
 
 //----- RANGE -----//
-ushort Base_Function::set_range(const dictargs &new_range) { return pImpl->set_range(new_range); }
-double Base_Function::get_range_min() const { return pImpl->get_range_min(); }
-double Base_Function::get_range_max() const { return pImpl->get_range_max(); }
+ushort _Base_Function_::set_range(const dictargs &new_range) { return pImpl->set_range(new_range); }
+double _Base_Function_::get_range_min() const { return pImpl->get_range_min(); }
+double _Base_Function_::get_range_max() const { return pImpl->get_range_max(); }
 
 /* Overload constructor for argument VALUES. */
-void Base_Function::init(const std::string &name,
-                         const dictargs &args_val,
-                         const std::vector<std::string> &order,
-                         const dictargs &domain)
+void _Base_Function_::init(const std::string &name,
+                           const dictargs &args_val,
+                           const std::vector<std::string> &order,
+                           const dictargs &domain)
 {
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;
@@ -398,10 +397,10 @@ void Base_Function::init(const std::string &name,
 }
 
 /* Overload constructor for argument POINTERS. */
-void Base_Function::init(const std::string &name,
-                         const dictargs_ptr &args_ptr,
-                         const std::vector<std::string> &order,
-                         const dictargs &domain)
+void _Base_Function_::init(const std::string &name,
+                           const dictargs_ptr &args_ptr,
+                           const std::vector<std::string> &order,
+                           const dictargs &domain)
 {
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;

@@ -32,7 +32,7 @@ Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
 The timing of COVID-19 transmission.
 medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
  */
-class Infec_Prof_Ferretti20 : public Base_Function
+class Infec_Prof_Ferretti20 : public _Base_Function_
 {
 public:
     // Constructor with immutable values
@@ -59,10 +59,10 @@ public:
  Ashcroft P, Huisman JS, Lehtinen S, Bouman JA, Althaus CL, Regoes RR, et al.
  COVID-19 infectivity profile correction. Swiss medical weekly. 2020. p. w20336.
 */
-class Infec_Prof_Ashcroft20 : public Base_Function
+class Infec_Prof_Ashcroft20 : public _Base_Function_
 {
 private:
-    Base_Distribution *gamma_distr_ptr;
+    std::shared_ptr<_Base_Distribution_> gamma_distr_ptr;
 
 public:
     // Constructor with immutable values

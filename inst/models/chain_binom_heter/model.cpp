@@ -139,10 +139,10 @@ void Model::init_model_for_inference()
 	for (size_t H = 0; H < num_houses(); H++)
 	{
 		int h_size = house_size(H);
-		LUT_susc_rates.emplace_back(h_size, 1);
-		LUT_infec_rates.emplace_back(h_size, 1);
-		LUT_commu_esc_proba.emplace_back(h_size, 1);
-		LUT_p2p_esc_proba.emplace_back(h_size, std::vector<double>(h_size, 1.));
+		LUT_susc_rates.emplace_back(h_size, 1.0);
+		LUT_infec_rates.emplace_back(h_size, 1.0);
+		LUT_commu_esc_proba.emplace_back(h_size, 1.0);
+		LUT_p2p_esc_proba.emplace_back(h_size, std::vector<double>(h_size, 1.0));
 	}
 
 	//=====Initialize look-up-table to largest possible value=====//

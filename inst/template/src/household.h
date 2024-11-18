@@ -49,7 +49,7 @@ public:
 	void disable_assert();
 
 	//===== GETTER =====//
-	const std::string house_ID() const;
+	const std::string &house_ID() const;
 	int index() const;
 	int size() const;
 	int num_infectious() const;
@@ -66,14 +66,14 @@ public:
 	void set_rate(int i, const std::string &rateID, const double *ptr);
 
 	//----- Individual : Getter -----//
-	const std::string ID(int i) const;
+	const std::string &ID(int i) const;
 	double data(int i, const std::string &dataID) const;
 	const double *data_pointer(int i, const std::string &dataID) const;
-	std::unordered_map<std::string, std::string> get_group_rate_map(int i) const;
+	const std::unordered_map<std::string, std::string> &get_group_rate_map(int i) const;
 	double group_rate(int i, const std::string &rateID) const;
 	int status(int i) const;
 
-	const std::string get_contact_rate_map(int from, int to) const;
+	const std::string &get_contact_rate_map(int from, int to) const;
 	double contact_rate(int from, int to) const;
 
 	//===== AUGMENTED =====//
@@ -108,7 +108,7 @@ public:
 	//===== DIAGNOSTICS =====//
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
-	std::vector<double> get_dgn_loglike() const;
+	const std::vector<double> &get_dgn_loglike() const;
 
 private:
 	//===== Pointer to Implementation =====//
