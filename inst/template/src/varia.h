@@ -35,22 +35,30 @@ class _Base_Distribution_ : public _Base_Function_
 public:
 	using _Base_Function_::_Base_Function_;
 
-	double pdf(double x) const;
-	double cdf(double x) const;
-	double logpdf(double x) const;
-
-	virtual double logratio(double xold, double xnew) const;
-	virtual double rand(sys_rnd_gen &prng);
+	double pdf(double x) const { return (this->*_func_pdf_)(x); }
+	double cdf(double x) const { return (this->*_func_cdf_)(x); }
+	double logpdf(double x) const { return (this->*_func_logpdf_)(x); }
+	double logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
+	double rand(sys_rnd_gen &prng) { return (this->*_func_rand_)(prng); }
 
 protected:
-	//----- Distribution specific methods -----//
+	//----- Distribution specific virtual methods -----//
 	virtual double _pdf_(double x) const;
 	virtual double _cdf_(double x) const;
 	virtual double _logpdf_(double x) const;
+	virtual double _logratio_(double xold, double xnew) const;
+	virtual double _rand_(sys_rnd_gen &prng);
 
-	//----- Adjust methods for truncation -----//
-	void set_truncation(const dictargs &range);
-	void check_rand_attempts(int &num_attempts) const;
+	//----- Adjust methods for truncation and/or discretizat -----//
+	void _assign_reshaping_(const dictargs &range, const std::string &discr);
+	void _check_rand_attempts_(int &num_attempts) const;
+
+	//----- Functional methods for public methods -----//
+	double (_Base_Distribution_::*_func_pdf_)(double) const = &_Base_Distribution_::_default_pdf_;
+	double (_Base_Distribution_::*_func_cdf_)(double) const = &_Base_Distribution_::_default_cdf_;
+	double (_Base_Distribution_::*_func_logpdf_)(double) const = &_Base_Distribution_::_default_logpdf_;
+	double (_Base_Distribution_::*_func_logratio_)(double, double) const = &_Base_Distribution_::_default_logratio_;
+	double (_Base_Distribution_::*_func_rand_)(sys_rnd_gen &) = &_Base_Distribution_::_default_rand_;
 
 	//----- Functional methods for truncation -----//
 	double (_Base_Distribution_::*_func_trunc_)(double) const = &_Base_Distribution_::_trunc_dummy_;
@@ -60,10 +68,28 @@ protected:
 private:
 	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
 
-	//----- Functional methods for the discretization -----//
-	// FIXME missing
+	//----- Deafult functional methods -----//
+	double _default_pdf_(double x) const;
+	double _default_cdf_(double x) const;
+	double _default_logpdf_(double x) const;
+	double _default_logratio_(double xold, double xnew) const;
+	double _default_rand_(sys_rnd_gen &prng);
 
-	//----- Functional methods for the truncation -----//
+	//----- Functional methods for the center adjusted discretization -----//
+	double _discr_center_pdf_(double x) const;
+	double _discr_center_cdf_(double x) const;
+	double _discr_center_logpdf_(double x) const;
+	double _discr_center_logratio_(double xold, double xnew) const;
+	double _discr_center_rand_(sys_rnd_gen &prng);
+
+	//----- Functional methods for the left adjusted discretization -----//
+	double _discr_left_pdf_(double x) const;
+	double _discr_left_cdf_(double x) const;
+	double _discr_left_logpdf_(double x) const;
+	double _discr_left_logratio_(double xold, double xnew) const;
+	double _discr_left_rand_(sys_rnd_gen &prng);
+
+	//----- Functional methods for the truncation and/or discretization -----//
 	double _trunc_dummy_(double x) const;
 	double _trunc_min_(double x) const;
 	double _trunc_max_(double x) const;

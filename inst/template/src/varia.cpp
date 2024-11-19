@@ -15,51 +15,211 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Base Distribution : methods  //////////////////////////////////
+////////////////////////////////  Base Distribution : virtual  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::pdf(double x) const
-{
-    return (this->*_func_trunc_)(_pdf_(x));
-}
-double _Base_Distribution_::cdf(double x) const
-{
-    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x)));
-}
-double _Base_Distribution_::logpdf(double x) const
-{
-    return (this->*_func_logtrunc_)(_logpdf_(x));
-}
-
-double _Base_Distribution_::logratio(double xold, double xnew) const
+double _Base_Distribution_::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
+double _Base_Distribution_::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
+double _Base_Distribution_::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+double _Base_Distribution_::_logratio_(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
     return 0.0;
 }
-double _Base_Distribution_::rand(sys_rnd_gen &prng)
+double _Base_Distribution_::_rand_(sys_rnd_gen &prng)
 {
     UNUSED(prng);
     return _undefined_call_error_("rand");
 }
 
-double _Base_Distribution_::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
-double _Base_Distribution_::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
-double _Base_Distribution_::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Base Distribution : deaults  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double _Base_Distribution_::_default_pdf_(double x) const { return (this->*_func_trunc_)(_pdf_(x)); }
+double _Base_Distribution_::_default_cdf_(double x) const { return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x))); }
+double _Base_Distribution_::_default_logpdf_(double x) const { return (this->*_func_logtrunc_)(_logpdf_(x)); }
+double _Base_Distribution_::_default_logratio_(double xold, double xnew) const { return _logratio_(xold, xnew); }
+double _Base_Distribution_::_default_rand_(sys_rnd_gen &prng) { return _rand_(prng); }
 
 /* Internal error for calls to undefined distribution. */
 double _Base_Distribution_::_undefined_call_error_(const std::string &txt, double x, double y) const
 {
     UNUSED(x);
     UNUSED(y);
-    tools::error("Attempt to call undefined method '" + txt + "' of distribution '" + get_name() + "'.");
+    tools::error("Call to undefined method '" + txt + "' of distribution '" + get_name() + "'.");
     return std::numeric_limits<double>::quiet_NaN();
 }
 
-/* Truncate distribution at declaration.  */
-void _Base_Distribution_::set_truncation(const dictargs &range)
+/* Check accept/reject within range is not exceeding maximum number of attempts. */
+void _Base_Distribution_::_check_rand_attempts_(int &num_attempts) const
 {
-    int trunc_cases = set_range(range);
+    if (num_attempts > MAX_NUMBER_ATTEMPTS)
+    {
+        std::ostringstream oss;
+        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
+            << " in random draw of " << get_name() << "(" << show_arg_values() << ")"
+            << " with truncation {" << get_range_min() << ", " << get_range_max() << "}.";
+        tools::error(oss.str());
+    }
+    ++num_attempts;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////  Base Distribution : discretized center /////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double _Base_Distribution_::_discr_center_pdf_(double x) const
+{
+    double d = std::round(x);
+    return (this->*_func_trunc_)(_cdf_(d + 0.5) - _cdf_(d - 0.5));
+}
+
+double _Base_Distribution_::_discr_center_cdf_(double x) const
+{
+    double d = std::round(x);
+    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(d + 0.5)));
+}
+
+double _Base_Distribution_::_discr_center_logpdf_(double x) const
+{
+    return log(_discr_center_pdf_(x));
+}
+
+double _Base_Distribution_::_discr_center_logratio_(double xold, double xnew) const
+{
+    double dold = std::round(xold), dnew = std::round(xnew);
+    return log((_cdf_(dnew + 0.5) - _cdf_(dnew - 0.5)) / (_cdf_(dold + 0.5) - _cdf_(dold - 0.5)));
+}
+
+double _Base_Distribution_::_discr_center_rand_(sys_rnd_gen &prng)
+{
+    return std::round(_rand_(prng));
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Base Distribution : discretized left /////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double _Base_Distribution_::_discr_left_pdf_(double x) const
+{
+    double d = std::floor(x);
+    return (this->*_func_trunc_)(_cdf_(d + 1.0) - _cdf_(d));
+}
+
+double _Base_Distribution_::_discr_left_cdf_(double x) const
+{
+    double d = std::floor(x);
+    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(d + 1.0)));
+}
+
+double _Base_Distribution_::_discr_left_logpdf_(double x) const
+{
+    return log(_discr_left_pdf_(x));
+}
+
+double _Base_Distribution_::_discr_left_logratio_(double xold, double xnew) const
+{
+    double dold = std::floor(xold), dnew = std::floor(xnew);
+    return log((_cdf_(dnew + 1.0) - _cdf_(dnew)) / (_cdf_(dold + 1.0) - _cdf_(dold)));
+}
+
+double _Base_Distribution_::_discr_left_rand_(sys_rnd_gen &prng)
+{
+    return std::floor(_rand_(prng));
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  Base Distribution : truncation (functional)  //////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double _Base_Distribution_::_trunc_dummy_(double x) const { return x; }
+double _Base_Distribution_::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
+double _Base_Distribution_::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
+double _Base_Distribution_::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////  Base Distribution : logtruncation (functional)  ////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double _Base_Distribution_::_logtrunc_dummy_(double x) const { return x; }
+double _Base_Distribution_::_logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
+double _Base_Distribution_::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
+double _Base_Distribution_::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double _Base_Distribution_::_shift_dummy_(double x) const { return x; }
+double _Base_Distribution_::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Base Distribution : assign reshaping  ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Truncate and/or discretize distribution at declaration.  */
+void _Base_Distribution_::_assign_reshaping_(const dictargs &range, const std::string &discr)
+{
+    dictargs new_range = range;
+
+    //===== DISCRETIZATION =====//
+    // asjust range in case of discretization
+    if (discr != UNDEFINED)
+    {
+        if (discr == "center")
+        { // centered discretization
+            _func_pdf_ = &_Base_Distribution_::_discr_center_pdf_;
+            _func_cdf_ = &_Base_Distribution_::_discr_center_cdf_;
+            _func_logpdf_ = &_Base_Distribution_::_discr_center_logpdf_;
+            _func_logratio_ = &_Base_Distribution_::_discr_center_logratio_;
+            _func_rand_ = &_Base_Distribution_::_discr_center_rand_;
+
+            if (range.find("min") != range.end())
+            {
+                new_range["min"] = std::floor(range.at("min")) + 0.5;
+            }
+            if (range.find("max") != range.end())
+            {
+                new_range["max"] = std::ceil(range.at("max")) - 0.5;
+            }
+        }
+        else if (discr == "left")
+        { // left adjusted discretization
+            _func_pdf_ = &_Base_Distribution_::_discr_left_pdf_;
+            _func_cdf_ = &_Base_Distribution_::_discr_left_cdf_;
+            _func_logpdf_ = &_Base_Distribution_::_discr_left_logpdf_;
+            _func_logratio_ = &_Base_Distribution_::_discr_left_logratio_;
+            _func_rand_ = &_Base_Distribution_::_discr_left_rand_;
+            
+            if (range.find("min") != range.end())
+            {
+                new_range["min"] = std::floor(range.at("min"));
+            }
+            if (range.find("max") != range.end())
+            {
+                new_range["max"] = std::ceil(range.at("max"));
+            }
+        }
+        else
+        {
+            tools::error(
+                "Unrecognized discretization method '" + discr + "'.");
+        }
+    }
+
+    //===== TRUNCATION =====/
+    int trunc_cases = set_range(new_range);
+
+    //----- Fucntional methods -----//
     if (trunc_cases == 0) // no truncation
     {
         _func_trunc_ = &_Base_Distribution_::_trunc_dummy_;
@@ -85,36 +245,6 @@ void _Base_Distribution_::set_truncation(const dictargs &range)
         _func_shift_ = &_Base_Distribution_::_shift_dummy_;
     }
 }
-
-/* Error for. */
-void _Base_Distribution_::check_rand_attempts(int &num_attempts) const
-{
-    if (num_attempts > MAX_NUMBER_ATTEMPTS)
-    {
-        std::ostringstream oss;
-        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
-            << " in random draw of " << get_name() << "(" << show_arg_values() << ")"
-            << " with truncation {" << get_range_min() << ", " << get_range_max() << "}.";
-        tools::error(oss.str());
-    }
-    ++num_attempts;
-}
-
-//----- Functional methods for the truncation -----//
-double _Base_Distribution_::_trunc_dummy_(double x) const { return x; }
-double _Base_Distribution_::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
-double _Base_Distribution_::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
-double _Base_Distribution_::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
-
-//----- Functional methods for the (log) truncation -----//
-double _Base_Distribution_::_logtrunc_dummy_(double x) const { return x; }
-double _Base_Distribution_::_logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
-double _Base_Distribution_::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
-double _Base_Distribution_::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
-
-//----- Functional methods to shift cumulative -----//
-double _Base_Distribution_::_shift_dummy_(double x) const { return x; }
-double _Base_Distribution_::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

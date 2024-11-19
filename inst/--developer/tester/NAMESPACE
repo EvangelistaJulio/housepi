@@ -1,4 +1,4 @@
 exportPattern("^[[:alpha:]]+")
 import(Rcpp)
 import(methods)
-useDynLib(housepienvironment, .registration = TRUE)
+useDynLib(dummyjukebox, .registration = TRUE)

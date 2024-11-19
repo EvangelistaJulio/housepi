@@ -1,0 +1,4 @@
+exportPattern("^[[:alpha:]]+")
+import(Rcpp)
+import(methods)
+useDynLib(dummyjukebox, .registration = TRUE)

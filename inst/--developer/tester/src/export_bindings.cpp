@@ -1,5 +1,5 @@
 #include <Rcpp.h>
-#include "dummy.h"
+#include "juke_box.h"
 
 RCPP_MODULE(jukebox_rcpp)
 {
@@ -8,5 +8,5 @@ RCPP_MODULE(jukebox_rcpp)
   class_<JukeBox>("JukeBox")
       .constructor()
       .method("pezzali", &JukeBox::pezzali)
-      .method("collins", &JukeBox::collins)
+      .method("collins", &JukeBox::collins);
 }

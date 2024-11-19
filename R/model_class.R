@@ -434,7 +434,7 @@ HouseholdModelClass <- R6::R6Class(
                           force = FALSE,
                           debug = FALSE) {
 
-      generator_list <- household_model_generate(model, save, quiet, force, debug)
+      generator_list <- generate_model(model, save, quiet, force, debug)
       # load shared library
       dyn.load(generator_list[["dll"]])
       # expose internally the module

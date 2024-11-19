@@ -43,7 +43,7 @@ class MCMC
 public:
 	//===== CONSTRUCTOR =====//
 	MCMC();
-	~MCMC();
+	virtual ~MCMC();
 
 	//===== READ =====//
 	void read_setup(const std::string &pathtofile = UNDEFINED);

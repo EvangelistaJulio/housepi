@@ -92,32 +92,28 @@ namespace auxgammap
 
 class Uniform_Distribution : public _Base_Distribution_
 {
+private:
+    std::uniform_real_distribution<double> distr_gen;
+
 public:
-    Uniform_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
+    Uniform_Distribution(const dictargs &new_args = {},
+                         const dictargs &range = {},
+                         bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("unif", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
-    Uniform_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+
+    Uniform_Distribution(const dictargs_ptr &new_args_ptr,
+                         const dictargs &range = {},
+                         bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("unif", new_args_ptr, {"min", "max"});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
+
     ~Uniform_Distribution() {}
-
-    double logratio(double xold, double xnew) const override
-    {
-        UNUSED(xold);
-        UNUSED(xnew);
-        return 0.0;
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::uniform_real_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        return distr_gen(prng);
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -136,6 +132,19 @@ protected:
         UNUSED(x);
         return 0.0;
     }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        UNUSED(xold);
+        UNUSED(xnew);
+        return 0.0;
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        distr_gen.param(std::uniform_real_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        return distr_gen(prng);
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,39 +152,28 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 class Normal_Distribution : public _Base_Distribution_
 {
+private:
+    std::normal_distribution<double> distr_gen;
+
 public:
-    Normal_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
+    Normal_Distribution(const dictargs &new_args = {},
+                        const dictargs &range = {},
+                        bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("norm", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
-    Normal_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+
+    Normal_Distribution(const dictargs_ptr &new_args_ptr,
+                        const dictargs &range = {},
+                        bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("norm", new_args_ptr, {"mean", "sd"});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
+
     ~Normal_Distribution() {};
-
-    double logratio(double xold, double xnew) const override
-    {
-        double mean = get_arg(0);
-        double sd = get_arg(1);
-        return 0.5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::normal_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double xnew = distr_gen(prng);
-        int num_attempts = 0;
-        while (!valid(xnew))
-        {
-            check_rand_attempts(num_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -198,6 +196,26 @@ protected:
         double sd = get_arg(1);
         return -0.5 * pow((x - mean) / sd, 2) - 0.918938533 - log(sd);
     }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        double mean = get_arg(0);
+        double sd = get_arg(1);
+        return 0.5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        distr_gen.param(std::normal_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        double xnew = distr_gen(prng);
+        int num_attempts = 0;
+        while (!valid(xnew))
+        {
+            _check_rand_attempts_(num_attempts);
+            xnew = distr_gen(prng);
+        }
+        return xnew;
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -206,39 +224,28 @@ protected:
 
 class Lognorm_Distribution : public _Base_Distribution_
 {
+private:
+    std::lognormal_distribution<double> distr_gen;
+
 public:
-    Lognorm_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
+    Lognorm_Distribution(const dictargs &new_args = {},
+                         const dictargs &range = {},
+                         bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"}, {{"min", 0}});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
-    Lognorm_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+
+    Lognorm_Distribution(const dictargs_ptr &new_args_ptr,
+                         const dictargs &range = {},
+                         bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("lnorm", new_args_ptr, {"meanlog", "sdlog"}, {{"min", 0}});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
+
     ~Lognorm_Distribution() {};
-
-    double logratio(double xold, double xnew) const override
-    {
-        double meanlog = get_arg(0);
-        double sdlog = get_arg(1);
-        return 0.5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::lognormal_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double xnew = distr_gen(prng);
-        int num_attempts = 0;
-        while (!valid(xnew))
-        {
-            check_rand_attempts(num_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -261,6 +268,26 @@ protected:
         double sdlog = get_arg(1);
         return -0.5 * pow((log(x) - meanlog) / sdlog, 2) - log(x * sdlog) - 0.918938533;
     }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        double meanlog = get_arg(0);
+        double sdlog = get_arg(1);
+        return 0.5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        double xnew = distr_gen(prng);
+        int num_attempts = 0;
+        while (!valid(xnew))
+        {
+            _check_rand_attempts_(num_attempts);
+            xnew = distr_gen(prng);
+        }
+        return xnew;
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -269,39 +296,28 @@ protected:
 
 class Gamma_Distribution : public _Base_Distribution_
 {
+private:
+    std::gamma_distribution<double> distr_gen;
+
 public:
-    Gamma_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
+    Gamma_Distribution(const dictargs &new_args = {},
+                       const dictargs &range = {},
+                       bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
-    Gamma_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+
+    Gamma_Distribution(const dictargs_ptr &new_args_ptr,
+                       const dictargs &range = {},
+                       bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("gamma", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
+
     ~Gamma_Distribution() {};
-
-    double logratio(double xold, double xnew) const override
-    {
-        double shape = get_arg(0);
-        double scale = get_arg(1);
-        return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::gamma_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double xnew = distr_gen(prng);
-        int num_attempts = 0;
-        while (!valid(xnew))
-        {
-            check_rand_attempts(num_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -324,6 +340,26 @@ protected:
         double scale = get_arg(1);
         return (shape - 1) * log(x) - lgamma(shape) - shape * log(scale) - x / scale;
     }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        double shape = get_arg(0);
+        double scale = get_arg(1);
+        return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        double xnew = distr_gen(prng);
+        int num_attempts = 0;
+        while (!valid(xnew))
+        {
+            _check_rand_attempts_(num_attempts);
+            xnew = distr_gen(prng);
+        }
+        return xnew;
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -332,40 +368,27 @@ protected:
 
 class Weibull_Distribution : public _Base_Distribution_
 {
+private:
+    std::weibull_distribution<double> distr_gen;
+
 public:
-    Weibull_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
+    Weibull_Distribution(const dictargs &new_args = {},
+                         const dictargs &range = {},
+                         bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
 
-    Weibull_Distribution(dictargs_ptr new_args_ptr, dictargs range = {})
+    Weibull_Distribution(const dictargs_ptr new_args_ptr,
+                         const dictargs &range = {},
+                         bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("weibull", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
     ~Weibull_Distribution() {};
-
-    double logratio(double xold, double xnew) const override
-    {
-        double shape = get_arg(0);
-        double scale = get_arg(1);
-        return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::weibull_distribution<double> distr_gen(get_arg(0), get_arg(1));
-        double xnew = distr_gen(prng);
-        int num_attempts = 0;
-        while (!valid(xnew))
-        {
-            check_rand_attempts(num_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -388,6 +411,26 @@ protected:
         double scale = get_arg(1);
         return log(shape / scale) + (shape - 1) * log(x / scale) - pow(x / scale, shape);
     }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        double shape = get_arg(0);
+        double scale = get_arg(1);
+        return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        double xnew = distr_gen(prng);
+        int num_attempts = 0;
+        while (!valid(xnew))
+        {
+            _check_rand_attempts_(num_attempts);
+            xnew = distr_gen(prng);
+        }
+        return xnew;
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,38 +439,26 @@ protected:
 
 class Rayleigh_Distribution : public _Base_Distribution_
 {
+private:
+    std::uniform_real_distribution<double> unif_gen;
+
 public:
-    Rayleigh_Distribution(const dictargs &new_args = {}, const dictargs &range = {})
+    Rayleigh_Distribution(const dictargs &new_args = {},
+                          const dictargs &range = {},
+                          bool discr = false) : unif_gen(0.0, 1.0)
     {
         init("rayleigh", {{"scale", 1.0}}, {"scale"}, {{"min", 0}});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
-    Rayleigh_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    Rayleigh_Distribution(const dictargs_ptr &new_args_ptr,
+                          const dictargs &range = {},
+                          bool discr = false) : unif_gen(0.0, 1.0)
     {
         init("rayleigh", new_args_ptr, {"scale"}, {{"min", 0}});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
     ~Rayleigh_Distribution() {};
-
-    double logratio(double xold, double xnew) const override
-    {
-        double scale = get_arg(0);
-        return log(xnew / xold) + 0.5 * pow(scale, -2) * (pow(xold, 2) - pow(xnew, 2));
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::uniform_real_distribution<double> unif_gen(0, 1);
-        double xnew = get_arg(0) * sqrt(-2 * unif_gen(prng));
-        int num_attempts = 0;
-        while (!valid(xnew))
-        {
-            check_rand_attempts(num_attempts);
-            xnew = get_arg(0) * sqrt(-2 * unif_gen(prng));
-        }
-        return xnew;
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -447,6 +478,30 @@ protected:
         double scale = get_arg(0);
         return log(x) - 2 * log(scale) - 0.5 * pow(x / scale, 2);
     }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        double scale = get_arg(0);
+        return log(xnew / xold) + 0.5 * pow(scale, -2) * (pow(xold, 2) - pow(xnew, 2));
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        double xnew = distr_gen(prng);
+        int num_attempts = 0;
+        while (!valid(xnew))
+        {
+            _check_rand_attempts_(num_attempts);
+            xnew = distr_gen(prng);
+        }
+        return xnew;
+    }
+
+private:
+    double distr_gen(sys_rnd_gen &prng)
+    {
+        return get_arg(0) * sqrt(-2 * unif_gen(prng));
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -455,38 +510,26 @@ protected:
 
 class Exponential_Distribution : public _Base_Distribution_
 {
+private:
+    std::exponential_distribution<double> distr_gen;
+
 public:
-    Exponential_Distribution(dictargs new_args = {}, dictargs range = {})
+    Exponential_Distribution(const dictargs &new_args = {},
+                             const dictargs &range = {},
+                             bool discr = false) : distr_gen(1.0)
     {
         init("exp", {{"rate", 1.0}}, {"rate"}, {{"min", 0}});
         assign_args(new_args);
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
-    Exponential_Distribution(const dictargs_ptr &new_args_ptr, const dictargs &range = {})
+    Exponential_Distribution(const dictargs_ptr &new_args_ptr,
+                             const dictargs &range = {},
+                             bool discr = false) : distr_gen(1.0)
     {
         init("exp", new_args_ptr, {"rate"}, {{"min", 0}});
-        set_truncation(range);
+        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
     ~Exponential_Distribution() {};
-
-    double logratio(double xold, double xnew) const override
-    {
-        double rate = get_arg(0);
-        return rate * (xold - xnew);
-    }
-
-    double rand(sys_rnd_gen &prng) override
-    {
-        std::exponential_distribution<double> distr_gen(get_arg(0));
-        double xnew = distr_gen(prng);
-        int num_attempts = 0;
-        while (!valid(xnew))
-        {
-            check_rand_attempts(num_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
-    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -505,6 +548,25 @@ protected:
     {
         double rate = get_arg(0);
         return log(rate) - rate * x;
+    }
+
+    virtual double _logratio_(double xold, double xnew) const override
+    {
+        double rate = get_arg(0);
+        return rate * (xold - xnew);
+    }
+
+    virtual double _rand_(sys_rnd_gen &prng) override
+    {
+        distr_gen.param(std::exponential_distribution<double>::param_type(get_arg(0)));
+        double xnew = distr_gen(prng);
+        int num_attempts = 0;
+        while (!valid(xnew))
+        {
+            _check_rand_attempts_(num_attempts);
+            xnew = distr_gen(prng);
+        }
+        return xnew;
     }
 };
 

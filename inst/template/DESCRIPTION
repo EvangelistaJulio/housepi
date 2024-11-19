@@ -1,15 +1,13 @@
 Package: housepienvironment
 Type: Package
-Title: Household model environment
+Title: Household Model Environment
 Version: 0.0.1
 Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
 Maintainer: <francesco.camaglia@pasteur.fr>
-Description: This is an implementation of the class Modelhousepi12345 with the package housepi.
+Description: This is an implementation of the class ModelHousepi with the package housepi. It should never be accessed directly.
 License: GPL-3
 Encoding: UTF-8
-LazyData: true
 Depends: methods, Rcpp (>= 1.0.0)
 LinkingTo: Rcpp
 RcppModules: model_housepi_rcpp
-RoxygenNote: 7.3.1
 SystemRequirements: GNU make

@@ -971,11 +971,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
     CharacterVector df_house_index(num_indiv);
     IntegerVector df_status(num_indiv);
     std::vector<NumericVector> df_dbl;
-    for (const std::string &dataID : data_headers)
-    {
-        df_dbl.emplace_back(num_indiv);
-    }
-    for (const std::string &augmID : augm_list_full)
+    for (size_t s = 0; s < data_headers.size() + augm_list_full.size(); ++s)
     {
         df_dbl.emplace_back(num_indiv);
     }
@@ -1004,10 +1000,6 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
             ++r;
         }
     }
-
-    // FLAG
-    tools::print_stdout("CHECK: " + tools::truth(df_dbl[0][5] == df_dbl[2][5]) + "\n");
-    // FLAG-END
 
     DataFrame output;
     output = DataFrame::create(_["id"] = df_index,
