@@ -35,20 +35,20 @@
 ///////////////////////////////////  Base Function : class //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Forward declaration of implementation class
-class Base_Function_Impl;
-
 // FIXME :
 // for the moment it is not possible to provide default pointer argumets
 // a solution could be point to internal, at that point the whole pointer thing could be collapsed
 
+/* FOrward declaration of implementationl. */
+class Base_Function_Impl;
+
 /* Parent class to all function classes where the arguements are stored in arrays. */
-class _Base_Function_
+class Base_Function
 {
 public:
     //=====Constructors=====//
-    _Base_Function_();
-    virtual ~_Base_Function_();
+    Base_Function();
+    virtual ~Base_Function();
 
     //----- FUNCTION NAME -----//
     const std::string &get_name() const;

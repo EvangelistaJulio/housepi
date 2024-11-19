@@ -90,7 +90,7 @@ namespace auxgammap
 //////////////////////////////////  Uniform_Distr : class  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Uniform_Distribution : public _Base_Distribution_
+class Uniform_Distribution : public Base_Distribution
 {
 private:
     std::uniform_real_distribution<double> distr_gen;
@@ -150,7 +150,7 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  Normal Distribution : methods  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-class Normal_Distribution : public _Base_Distribution_
+class Normal_Distribution : public Base_Distribution
 {
 private:
     std::normal_distribution<double> distr_gen;
@@ -222,7 +222,7 @@ protected:
 //////////////////////////////  Lognormal Distribution : methods  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Lognorm_Distribution : public _Base_Distribution_
+class Lognorm_Distribution : public Base_Distribution
 {
 private:
     std::lognormal_distribution<double> distr_gen;
@@ -294,7 +294,7 @@ protected:
 ////////////////////////////////  Gamma Distribution : methods  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Gamma_Distribution : public _Base_Distribution_
+class Gamma_Distribution : public Base_Distribution
 {
 private:
     std::gamma_distribution<double> distr_gen;
@@ -366,7 +366,7 @@ protected:
 ///////////////////////////////  Weibull Distribution : methods  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Weibull_Distribution : public _Base_Distribution_
+class Weibull_Distribution : public Base_Distribution
 {
 private:
     std::weibull_distribution<double> distr_gen;
@@ -437,7 +437,7 @@ protected:
 ///////////////////////////////////  Rayleigh_Distr : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Rayleigh_Distribution : public _Base_Distribution_
+class Rayleigh_Distribution : public Base_Distribution
 {
 private:
     std::uniform_real_distribution<double> unif_gen;
@@ -508,7 +508,7 @@ private:
 //////////////////////////////////  Exponential_Distr : class  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Exponential_Distribution : public _Base_Distribution_
+class Exponential_Distribution : public Base_Distribution
 {
 private:
     std::exponential_distribution<double> distr_gen;
@@ -583,9 +583,9 @@ protected:
 
 /* Auxiliary hidden template to return the chosen distribution. */
 template <typename dictargs_val_or_ptr>
-std::shared_ptr<_Base_Distribution_> _distribution_ptr_(const std::string &name, const dictargs_val_or_ptr &args, const dictargs &range)
+std::shared_ptr<Base_Distribution> _distribution_ptr_(const std::string &name, const dictargs_val_or_ptr &args, const dictargs &range)
 {
-    std::shared_ptr<_Base_Distribution_> output = std::make_shared<_Base_Distribution_>();
+    std::shared_ptr<Base_Distribution> output = std::make_shared<Base_Distribution>();
 
     if (name == "unif")
     {
@@ -624,7 +624,7 @@ std::shared_ptr<_Base_Distribution_> _distribution_ptr_(const std::string &name,
 }
 
 /* Pointer to distribution with scalar arguments. */
-std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name,
+std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name,
                                                       const dictargs &args,
                                                       const dictargs &range)
 {
@@ -632,7 +632,7 @@ std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name,
 }
 
 /* Pointer to distribution with pointer arguments. */
-std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name,
+std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name,
                                                       const dictargs_ptr &args,
                                                       const dictargs &range)
 {

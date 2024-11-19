@@ -25,7 +25,7 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-// Forward declaration of implementation class
+/* Forward declaration of core implementation. */
 class Monte_Carlo_Core;
 
 /* Class to operate on data and augmented variables. */

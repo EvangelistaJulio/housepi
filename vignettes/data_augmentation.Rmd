@@ -43,7 +43,7 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate the model
-hemi_1 <- housepi::HouseholdModelClass$new("example_augm_delay_incubation")
+hemi_1 <- housepi::HouseholdModelClass$new("ex-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
 hemi_1$param_append(
@@ -103,11 +103,11 @@ results_1 <- hemi_1$traces_summary()
 
 ## Augment Onset Times
 
-For a more realistic example, we use the template model "augm_onset_single_intr", where surveys are conditioned on single introduction and follow the times of onset.
+For a more realistic example, we use the template model "ex-augm-onset-single-intro", where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
-hemi_2 <- housepi::HouseholdModelClass$new("augm_onset_single_intr")
+hemi_2 <- housepi::HouseholdModelClass$new("ex-augm-onset-single-intro")
 ```
 
 This time we load the parameter definitions directly from the model template.

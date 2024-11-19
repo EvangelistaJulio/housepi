@@ -10,12 +10,13 @@
 #' @param which (`character(1)`)\cr
 #' Name of template model. If `NULL`, list of available templates.
 #' @param path (`character(1)`)\cr
-#' Where to copy the template scripts. If `NULL`, show template model description in RStudio Help window.
+#' Where to copy the template scripts.
+#' If `NULL`, show template model description in RStudio Help window.
 #' @export
 household_model_template <- function(which = NULL, path = NULL) {
   # system path to housepi
   models_dir <- file.path(system.file(package = "housepi"), "models")
-  
+
   if (is.null(which)) {
     cli::cli_alert_info("Template model names:")
     ulid <- cli::cli_ul()
@@ -23,9 +24,9 @@ household_model_template <- function(which = NULL, path = NULL) {
       cli::cli_li(name)
     }
     cli::cli_end(ulid)
-    
+
   } else if (is.character(which)) {
-    
+
     if (which %in% list.files(models_dir)) {
       if (is.null(path)) {
         #----- show model description -----#
@@ -35,7 +36,7 @@ household_model_template <- function(which = NULL, path = NULL) {
         }
         rstudioapi::previewRd(templ_info_file)
       } else {
-        
+
         #----- copy files -----#
         dir.create(path, recursive = TRUE, showWarnings = TRUE)
         if (dir.exists(path)) {
@@ -52,7 +53,7 @@ household_model_template <- function(which = NULL, path = NULL) {
               ))
             }
           }
-          
+
         } else {
           stop(cli::format_error(
             c(
@@ -62,7 +63,7 @@ household_model_template <- function(which = NULL, path = NULL) {
           ))
         }
       }
-      
+
     } else {
       stop(cli::format_error(
         c(
@@ -72,7 +73,7 @@ household_model_template <- function(which = NULL, path = NULL) {
       ))
     }
 
-  } else {    
+  } else {
     stop(cli::format_error("Template name should be a character."))
   }
 }

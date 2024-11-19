@@ -171,7 +171,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             for (size_t i = 0; i < pImpl->num_indiv; ++i)
             {
                 //----- Read individual data -----//
-                std::string this_indiv_ID = std::to_string(i);               // default value
+                std::string this_indiv_ID = std::to_string(i);            // default value
                 std::string this_house_ID = std::to_string(num_houses()); // default value
                 int this_status = MISSING_STATUS;
                 dictargs args = {};
@@ -889,11 +889,13 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
 /* Performs the inference using Metropolis-Hastings. */
 void MCMC::infer(bool progbar)
 {
-    //----- Check if data is meaningful -----//
+    // UPDATE : Check if data is meaningful
+    /*
     if (report_data("n.miss.stat") == static_cast<int>(pImpl->num_indiv))
     {
         tools::error("No infectious status has been provided in the data file.");
     }
+    */
 
     //----- total number of mcmc sweeps -----//
     _tot_thin_sweeps_ = pImpl->get_c_num_sweeps() * pImpl->get_num_chains();

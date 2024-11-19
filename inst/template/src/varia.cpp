@@ -18,16 +18,16 @@
 ////////////////////////////////  Base Distribution : virtual  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
-double _Base_Distribution_::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
-double _Base_Distribution_::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
-double _Base_Distribution_::_logratio_(double xold, double xnew) const
+double Base_Distribution::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
+double Base_Distribution::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
+double Base_Distribution::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+double Base_Distribution::_logratio_(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
     return 0.0;
 }
-double _Base_Distribution_::_rand_(sys_rnd_gen &prng)
+double Base_Distribution::_rand_(sys_rnd_gen &prng)
 {
     UNUSED(prng);
     return _undefined_call_error_("rand");
@@ -37,14 +37,14 @@ double _Base_Distribution_::_rand_(sys_rnd_gen &prng)
 ////////////////////////////////  Base Distribution : deaults  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_default_pdf_(double x) const { return (this->*_func_trunc_)(_pdf_(x)); }
-double _Base_Distribution_::_default_cdf_(double x) const { return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x))); }
-double _Base_Distribution_::_default_logpdf_(double x) const { return (this->*_func_logtrunc_)(_logpdf_(x)); }
-double _Base_Distribution_::_default_logratio_(double xold, double xnew) const { return _logratio_(xold, xnew); }
-double _Base_Distribution_::_default_rand_(sys_rnd_gen &prng) { return _rand_(prng); }
+double Base_Distribution::_default_pdf_(double x) const { return (this->*_func_trunc_)(_pdf_(x)); }
+double Base_Distribution::_default_cdf_(double x) const { return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x))); }
+double Base_Distribution::_default_logpdf_(double x) const { return (this->*_func_logtrunc_)(_logpdf_(x)); }
+double Base_Distribution::_default_logratio_(double xold, double xnew) const { return _logratio_(xold, xnew); }
+double Base_Distribution::_default_rand_(sys_rnd_gen &prng) { return _rand_(prng); }
 
 /* Internal error for calls to undefined distribution. */
-double _Base_Distribution_::_undefined_call_error_(const std::string &txt, double x, double y) const
+double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
 {
     UNUSED(x);
     UNUSED(y);
@@ -53,7 +53,7 @@ double _Base_Distribution_::_undefined_call_error_(const std::string &txt, doubl
 }
 
 /* Check accept/reject within range is not exceeding maximum number of attempts. */
-void _Base_Distribution_::_check_rand_attempts_(int &num_attempts) const
+void Base_Distribution::_check_rand_attempts_(int &num_attempts) const
 {
     if (num_attempts > MAX_NUMBER_ATTEMPTS)
     {
@@ -70,30 +70,30 @@ void _Base_Distribution_::_check_rand_attempts_(int &num_attempts) const
 ///////////////////////////  Base Distribution : discretized center /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_discr_center_pdf_(double x) const
+double Base_Distribution::_discr_center_pdf_(double x) const
 {
     double d = std::round(x);
     return (this->*_func_trunc_)(_cdf_(d + 0.5) - _cdf_(d - 0.5));
 }
 
-double _Base_Distribution_::_discr_center_cdf_(double x) const
+double Base_Distribution::_discr_center_cdf_(double x) const
 {
     double d = std::round(x);
     return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(d + 0.5)));
 }
 
-double _Base_Distribution_::_discr_center_logpdf_(double x) const
+double Base_Distribution::_discr_center_logpdf_(double x) const
 {
     return log(_discr_center_pdf_(x));
 }
 
-double _Base_Distribution_::_discr_center_logratio_(double xold, double xnew) const
+double Base_Distribution::_discr_center_logratio_(double xold, double xnew) const
 {
     double dold = std::round(xold), dnew = std::round(xnew);
     return log((_cdf_(dnew + 0.5) - _cdf_(dnew - 0.5)) / (_cdf_(dold + 0.5) - _cdf_(dold - 0.5)));
 }
 
-double _Base_Distribution_::_discr_center_rand_(sys_rnd_gen &prng)
+double Base_Distribution::_discr_center_rand_(sys_rnd_gen &prng)
 {
     return std::round(_rand_(prng));
 }
@@ -102,30 +102,30 @@ double _Base_Distribution_::_discr_center_rand_(sys_rnd_gen &prng)
 /////////////////////////////  Base Distribution : discretized left /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_discr_left_pdf_(double x) const
+double Base_Distribution::_discr_left_pdf_(double x) const
 {
     double d = std::floor(x);
     return (this->*_func_trunc_)(_cdf_(d + 1.0) - _cdf_(d));
 }
 
-double _Base_Distribution_::_discr_left_cdf_(double x) const
+double Base_Distribution::_discr_left_cdf_(double x) const
 {
     double d = std::floor(x);
     return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(d + 1.0)));
 }
 
-double _Base_Distribution_::_discr_left_logpdf_(double x) const
+double Base_Distribution::_discr_left_logpdf_(double x) const
 {
     return log(_discr_left_pdf_(x));
 }
 
-double _Base_Distribution_::_discr_left_logratio_(double xold, double xnew) const
+double Base_Distribution::_discr_left_logratio_(double xold, double xnew) const
 {
     double dold = std::floor(xold), dnew = std::floor(xnew);
     return log((_cdf_(dnew + 1.0) - _cdf_(dnew)) / (_cdf_(dold + 1.0) - _cdf_(dold)));
 }
 
-double _Base_Distribution_::_discr_left_rand_(sys_rnd_gen &prng)
+double Base_Distribution::_discr_left_rand_(sys_rnd_gen &prng)
 {
     return std::floor(_rand_(prng));
 }
@@ -141,33 +141,33 @@ double _Base_Distribution_::_discr_left_rand_(sys_rnd_gen &prng)
 ////////////////////////  Base Distribution : truncation (functional)  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_trunc_dummy_(double x) const { return x; }
-double _Base_Distribution_::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
-double _Base_Distribution_::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
-double _Base_Distribution_::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
+double Base_Distribution::_trunc_dummy_(double x) const { return x; }
+double Base_Distribution::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
+double Base_Distribution::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
+double Base_Distribution::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Base Distribution : logtruncation (functional)  ////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_logtrunc_dummy_(double x) const { return x; }
-double _Base_Distribution_::_logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
-double _Base_Distribution_::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
-double _Base_Distribution_::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
+double Base_Distribution::_logtrunc_dummy_(double x) const { return x; }
+double Base_Distribution::_logtrunc_min_(double x) const { return x - log(1.0 - _cdf_(get_range_min())); }
+double Base_Distribution::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
+double Base_Distribution::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double _Base_Distribution_::_shift_dummy_(double x) const { return x; }
-double _Base_Distribution_::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
+double Base_Distribution::_shift_dummy_(double x) const { return x; }
+double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Base Distribution : assign reshaping  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Truncate and/or discretize distribution at declaration.  */
-void _Base_Distribution_::_assign_reshaping_(const dictargs &range, const std::string &discr)
+void Base_Distribution::_assign_reshaping_(const dictargs &range, const std::string &discr)
 {
     dictargs new_range = range;
 
@@ -177,11 +177,11 @@ void _Base_Distribution_::_assign_reshaping_(const dictargs &range, const std::s
     {
         if (discr == "center")
         { // centered discretization
-            _func_pdf_ = &_Base_Distribution_::_discr_center_pdf_;
-            _func_cdf_ = &_Base_Distribution_::_discr_center_cdf_;
-            _func_logpdf_ = &_Base_Distribution_::_discr_center_logpdf_;
-            _func_logratio_ = &_Base_Distribution_::_discr_center_logratio_;
-            _func_rand_ = &_Base_Distribution_::_discr_center_rand_;
+            _func_pdf_ = &Base_Distribution::_discr_center_pdf_;
+            _func_cdf_ = &Base_Distribution::_discr_center_cdf_;
+            _func_logpdf_ = &Base_Distribution::_discr_center_logpdf_;
+            _func_logratio_ = &Base_Distribution::_discr_center_logratio_;
+            _func_rand_ = &Base_Distribution::_discr_center_rand_;
 
             if (range.find("min") != range.end())
             {
@@ -194,11 +194,11 @@ void _Base_Distribution_::_assign_reshaping_(const dictargs &range, const std::s
         }
         else if (discr == "left")
         { // left adjusted discretization
-            _func_pdf_ = &_Base_Distribution_::_discr_left_pdf_;
-            _func_cdf_ = &_Base_Distribution_::_discr_left_cdf_;
-            _func_logpdf_ = &_Base_Distribution_::_discr_left_logpdf_;
-            _func_logratio_ = &_Base_Distribution_::_discr_left_logratio_;
-            _func_rand_ = &_Base_Distribution_::_discr_left_rand_;
+            _func_pdf_ = &Base_Distribution::_discr_left_pdf_;
+            _func_cdf_ = &Base_Distribution::_discr_left_cdf_;
+            _func_logpdf_ = &Base_Distribution::_discr_left_logpdf_;
+            _func_logratio_ = &Base_Distribution::_discr_left_logratio_;
+            _func_rand_ = &Base_Distribution::_discr_left_rand_;
             
             if (range.find("min") != range.end())
             {
@@ -222,27 +222,27 @@ void _Base_Distribution_::_assign_reshaping_(const dictargs &range, const std::s
     //----- Fucntional methods -----//
     if (trunc_cases == 0) // no truncation
     {
-        _func_trunc_ = &_Base_Distribution_::_trunc_dummy_;
-        _func_logtrunc_ = &_Base_Distribution_::_logtrunc_dummy_;
-        _func_shift_ = &_Base_Distribution_::_shift_dummy_;
+        _func_trunc_ = &Base_Distribution::_trunc_dummy_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_dummy_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
     }
     else if (trunc_cases == 1) // lower range truncation
     {
-        _func_trunc_ = &_Base_Distribution_::_trunc_min_;
-        _func_logtrunc_ = &_Base_Distribution_::_logtrunc_min_;
-        _func_shift_ = &_Base_Distribution_::_shift_min_;
+        _func_trunc_ = &Base_Distribution::_trunc_min_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_min_;
+        _func_shift_ = &Base_Distribution::_shift_min_;
     }
     else if (trunc_cases == 2) // upper range truncation
     {
-        _func_trunc_ = &_Base_Distribution_::_trunc_max_;
-        _func_logtrunc_ = &_Base_Distribution_::_logtrunc_max_;
-        _func_shift_ = &_Base_Distribution_::_shift_dummy_;
+        _func_trunc_ = &Base_Distribution::_trunc_max_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_max_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
     }
     else // both sides truncation
     {
-        _func_trunc_ = &_Base_Distribution_::_trunc_both_sides_;
-        _func_logtrunc_ = &_Base_Distribution_::_logtrunc_both_sides_;
-        _func_shift_ = &_Base_Distribution_::_shift_dummy_;
+        _func_trunc_ = &Base_Distribution::_trunc_both_sides_;
+        _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_;
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
     }
 }
 
@@ -254,10 +254,10 @@ void _Base_Distribution_::_assign_reshaping_(const dictargs &range, const std::s
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  _Base_Proposer_ : constructor  ////////////////////////////////////
+////////////////////////////////  Base_Proposer : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-_Base_Proposer_::_Base_Proposer_(std::shared_ptr<_Base_Distribution_> distr,
+Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
                                  double rule_start_value,
                                  std::vector<int> args_to_adapt) : distr_ptr(distr)
 {
@@ -275,11 +275,11 @@ _Base_Proposer_::_Base_Proposer_(std::shared_ptr<_Base_Distribution_> distr,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  _Base_Proposer_ : methods  //////////////////////////////////////
+//////////////////////////////////  Base_Proposer : methods  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Increase spread if acceptation rate is high and viceversa. */
-void _Base_Proposer_::adapt(double ratio)
+void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
@@ -290,14 +290,14 @@ void _Base_Proposer_::adapt(double ratio)
 }
 
 /* Reset acceptation rate. */
-void _Base_Proposer_::reset_accept_rate()
+void Base_Proposer::reset_accept_rate()
 {
     accept_rate = 0.0;
     num_proposed_moves = 0;
 };
 
 /* Update the parameter accept rate. */
-void _Base_Proposer_::update_accept_rate(bool is_accepted)
+void Base_Proposer::update_accept_rate(bool is_accepted)
 {
     accept_rate = (double)(accept_rate * num_proposed_moves + is_accepted) / (num_proposed_moves + 1);
     num_proposed_moves += 1;
@@ -314,13 +314,13 @@ void _Base_Proposer_::update_accept_rate(bool is_accepted)
 //////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Uniform_Proposer : public _Base_Proposer_
+class Uniform_Proposer : public Base_Proposer
 {
 public:
     //=====Constructors=====//
     Uniform_Proposer(
         dictargs rule_args = {{"min", (double)-0.5}, {"max", (double)0.5}},
-        double rule_from = INF_DOUBLE) : _Base_Proposer_(distribution_ptr("unif", rule_args), rule_from, {"min", "max"})
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("unif", rule_args), rule_from, {"min", "max"})
     {
         _func_propose_ = &Uniform_Proposer::_propose_sum_to_previous_;
         _logratio_method_ = &Uniform_Proposer::_logratio_symm_;
@@ -332,13 +332,13 @@ public:
 //////////////////////////////////  Normal_Proposer : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Normal_Proposer : public _Base_Proposer_
+class Normal_Proposer : public Base_Proposer
 {
 public:
     //=====Constructor=====//
     Normal_Proposer(
         dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-        double rule_from = INF_DOUBLE) : _Base_Proposer_(distribution_ptr("norm", rule_args), rule_from, {1})
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("norm", rule_args), rule_from, {1})
     {
         _func_propose_ = &Normal_Proposer::_propose_sum_to_previous_;
         _logratio_method_ = is_rule_start_from_zero() ? &Normal_Proposer::_logratio_sum_to_zero_ : &Normal_Proposer::_logratio_symm_;
@@ -350,13 +350,13 @@ public:
 //////////////////////////////////  Lognorm_Proposer : class  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Lognorm_Proposer : public _Base_Proposer_
+class Lognorm_Proposer : public Base_Proposer
 {
 public:
     //=====Constructor=====//
     Lognorm_Proposer(
         dictargs rule_args = {{"mean", (double)0.0}, {"sd", (double)1.0}},
-        double rule_from = INF_DOUBLE) : _Base_Proposer_(distribution_ptr("lnorm", rule_args), rule_from, {1})
+        double rule_from = INF_DOUBLE) : Base_Proposer(distribution_ptr("lnorm", rule_args), rule_from, {1})
     {
         _func_propose_ = &Lognorm_Proposer::_propose_times_previous_;
         _logratio_method_ = is_rule_start_from_zero() ? &Lognorm_Proposer::_logratio_times_zero_ : &Lognorm_Proposer::_logratio_lognorm_symm_;
@@ -368,11 +368,11 @@ public:
 ///////////////////////////////////  Gibbs_Proposer : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Gibbs_Proposer : public _Base_Proposer_
+class Gibbs_Proposer : public Base_Proposer
 {
 public:
     //=====Constructor=====//
-    Gibbs_Proposer(std::shared_ptr<_Base_Distribution_> distr) : _Base_Proposer_(distr)
+    Gibbs_Proposer(std::shared_ptr<Base_Distribution> distr) : Base_Proposer(distr)
     {
         _func_propose_ = &Gibbs_Proposer::_propose_draw_rand_;
         _logratio_method_ = &Gibbs_Proposer::_logratio_pdf_;
@@ -388,9 +388,9 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<_Base_Proposer_> proposer_switchboard(std::string rule_name, dictargs rule_args, double rule_from)
+std::shared_ptr<Base_Proposer> proposer_switchboard(std::string rule_name, dictargs rule_args, double rule_from)
 {
-    std::shared_ptr<_Base_Proposer_> output = std::make_shared<_Base_Proposer_>(std::make_shared<_Base_Distribution_>());
+    std::shared_ptr<Base_Proposer> output = std::make_shared<Base_Proposer>(std::make_shared<Base_Distribution>());
 
     if (rule_name == "unif")
     {

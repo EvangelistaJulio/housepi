@@ -48,13 +48,13 @@ typedef std::vector<std::vector<double>> squarematrix;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Define the Infectivity_Profile_Function class. */
-class Infectivity_Profile_Function : public _Base_Function_
+class Infectivity_Profile_Function : public Base_Function
 {
 public:
 	// Constructors
 	Infectivity_Profile_Function() {};
-	Infectivity_Profile_Function(orderargs new_args) : _Base_Function_(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
-	Infectivity_Profile_Function(orderargs_ptr new_args_ext) : _Base_Function_(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	Infectivity_Profile_Function(orderargs new_args) : Base_Function(new_args, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
+	Infectivity_Profile_Function(orderargs_ptr new_args_ext) : Base_Function(new_args_ext, {"tost_alpha", "tost_mu", "tost_sigma", "tost_tau"}) {}
 	~Infectivity_Profile_Function(){};
 
 	double pdf(double tost, double t_incub);

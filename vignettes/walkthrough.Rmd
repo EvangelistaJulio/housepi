@@ -34,7 +34,7 @@ To know more about each model, choose a name from the previous list and run, e. 
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
-housepi::household_model_template("chain_binom")
+housepi::household_model_template("chain-binomial")
 ```
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
@@ -49,21 +49,19 @@ We show how to generate a new instance of such a class and its methods with a te
 
 ```{r}
 # generate an instance of the chain binomial model
-hemi <- housepi::HouseholdModelClass$new("chain_binom")
+hemi <- housepi::HouseholdModelClass$new("chain-binomial")
 ```
 
 At any moment you can retrieve the template description by using the class method `help()`.
 
-Model compilation can take up to one a minute and by default it is repeated  at every R session. Consider storing the associated model environment to a given folder through the options `save`:
+By default a new instance requires the model compilation which is repeated at every R session. In certain conditions, e. g. when running different scripts in parallel, it is recommended to avoid this. Consider storing the associated model environment to a given folder through the options `save`:
 
 ```{r, eval = FALSE}
 # store the compiled model ...
-hemi <- housepi::HouseholdModelClass$new("chain_binom",
-                                         save="ready_chain_binom")
-# ... perform your analysis ...
+hemi <- housepi::HouseholdModelClass$new("chain-binomial", save="ready_cb")
 
 # ... and load it straightway during next session
-hemi <- housepi::HouseholdModelClass$new("ready_chain_binom")
+hemi <- housepi::HouseholdModelClass$new("ready_cb")
 ```
 
 ### Database Format
@@ -164,7 +162,7 @@ In order to produce a simulation, our models require a pre-loaded database for t
 
 ```{r}
 # generate a new model object for the simulation
-simu_cb <- housepi::HouseholdModelClass$new("chain_binom")
+simu_cb <- housepi::HouseholdModelClass$new("chain-binomial")
 
 # define constant parameters from the inference results
 simu_cb$param_append(

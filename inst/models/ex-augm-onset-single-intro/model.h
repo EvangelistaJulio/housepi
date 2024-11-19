@@ -21,15 +21,6 @@
 
 class Model : public MCMC
 {
-private:
-	//----- Infectivity Profile Functions -----//
-	std::shared_ptr<Infec_Prof_Ferretti20> infec_prof_ptr;
-
-	//----- Attributes for Look-Up-Tables -----//
-	std::vector<squarematrix> LUT_inst_prof;
-	std::vector<squarematrix> LUT_cumul_prof;
-	std::vector<int> LUT_hh_first_case;
-
 public:
 	//===== Model dependent methods =====//
 	double transmission_rate(const Household &house) const;

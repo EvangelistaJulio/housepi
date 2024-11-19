@@ -4,128 +4,185 @@
 # Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-# Returns the path/to/DLL file 
+# Returns the path/to/DLL file
 executable <- function(path) {
-  return(file.path(path, paste0("housepienvironment", .Platform$dynlib.ext)))
+  file.path(path, paste0("housepienvironment", .Platform$dynlib.ext))
 }
 
-generate_model <- function(model_path = ".", save = NA, quiet = TRUE,
-                           force = FALSE, debug = FALSE) {
+# Returns the path/to/models folder
+template_dir <- function() {
+  file.path(system.file(package = "housepi"), "models")
+}
+
+# Source code files
+source_files <- function(path) {
+  file.path(path, paste0("model.", c("cpp", "h")))
+}
+
+# Optional helper files
+helper_files <- function(path) {
+  file.path(path, paste0("template_", c("params.R", "info.Rd", "augm.R")))
+}
+
+overwrite <- function(from, to, ...) {
+  file.copy(from, to, overwrite = TRUE, ...)
+}
+
+# Create temporary folder and copy source code there
+temp_src_code <- function(path) {
+
+  #===== Temporary folder where to store sorce code =====#
+  pkg_dir <- file.path(tempdir(), paste0("housepi", gsub("_", "", path)))
+
+  #===== Copy the package to the new directory =====#
+  dir.create(pkg_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(pkg_dir)) {
+    stop(cli::format_error(c(
+      "Impossibile to create a temporary directory for the model.",
+      i = "Check your user permissions."
+    )))
+  }
+
+  #===== Copy single package files =====#
+  for (f in c("NAMESPACE", "DESCRIPTION")) {
+    from_file <- file.path(system.file(package = "housepi"), "template", f)
+    to_file <- file.path(pkg_dir, f)
+    if (!overwrite(from_file, to_file)) {
+      stop(cli::format_error(c(
+        "Failed to setup internal files.",
+        i = "Check your user permissions."
+      )))
+    }
+  }
+
+  #===== Copy folders from template =====#
+  for (fldr in c("src", "R")) {
+    from_path <- file.path(system.file(package = "housepi"), "template", fldr)
+    if (!overwrite(from_path, pkg_dir, recursive = TRUE)) {
+      stop(cli::format_error(c(
+        "Failed to setup internal files.",
+        i = "Check your user permissions."
+      )))
+    }
+  }
+
+  return(pkg_dir)
+}
+
+# ensure the model path is a directory or a template
+check_model_path <- function(path) {
+  if (dir.exists(path)) {
+    #===== Folder Contains Source Code =====#
+    for (file_name in source_files(path)) {
+      if (!file.exists(file_name)) {
+        stop(cli::format_error(c(
+          sprintf("A file '%s' was not found.", file_name),
+          i = "Check your model directory"
+        )))
+      }
+    }
+
+  } else if (path %in% list.files(template_dir())) {
+    #===== Template Model Name =====#
+    path <- file.path(template_dir(), path)
+
+  } else {
+    #===== ERROR =====#
+    stop(cli::format_error(
+      sprintf("'%s' is not a folder nor a template name.", path)
+    ))
+  }
+
+  return(path)
+}
+
+# save DLL and helper files
+save_environment <- function(path, pkg_dir, custom_dir = NA) {
+  if (((!is.na(custom_dir))) && is.character(custom_dir)) {
+    dir.create(custom_dir, recursive = TRUE, showWarnings = TRUE)
+    out_dir <- custom_dir
+  } else {
+    out_dir <- pkg_dir
+  }
+
+  #----- Copy DLL in the output directory -----#
+  if (!overwrite(executable(file.path(pkg_dir, "src")), executable(out_dir))) {
+    stop(cli::format_error(c(
+      "Failed to setup internal files.",
+      i = "Check your user permissions."
+    )))
+  }
+
+  #----- Copy helper files in the output directory -----#
+  for (from_file in helper_files(path)) {
+    if (file.exists(from_file)) {
+      to_file <- file.path(out_dir, basename(from_file))
+
+      if (!overwrite(from_file, to_file)) {
+        stop(cli::format_error(c(
+          "Failed to setup implementation files.",
+          i = "Check your user permissions."
+        )))
+      }
+    }
+  }
+  
+  return(out_dir)
+}
+
+# @description
+# Name of model dynamic library. Compile if needed.
+# @param model_path (named `character(1)`)\cr
+# @param store_path (named `character(1)`)\cr
+# @param quiet (`logical(1)`)\cr
+# @param force (`logical(1)`)\cr
+# @param debug (`logical(1)`)\cr
+generate_model <- function(model_path = ".", store_path = NA,
+                           quiet = TRUE, force = FALSE, debug = FALSE) {
 
   if ((file.exists(executable(model_path))) && isFALSE(force)) {
     #===== Folder Contains Executable =====#
-    exec_dir <- file.path(model_path)
+    out_dir <- file.path(model_path)
 
     # UPDATE: sugar to be tuned with pkgbuild compile_dll
-    cli::cli_alert_info(
-      "Using existing {.pkg {pkgload::pkg_name(exec_dir)}}"
-    )
-  }
+    cli::cli_alert_info("Using existing {.pkg {housepienvironment}}")
 
-  else {
-    # system path to housepi
-    housepi_dir <- system.file(package = "housepi")
+  } else {
+    #===== Check Model Path =====#
+    model_path <- check_model_path(model_path)
 
-    # temporary session directory where to store model environment
-    exec_dir <- file.path(tempdir(), paste0("housepi", gsub("_", "", model_path)))
+    #===== Create a Temporary Model Source Code =====#
+    pkg_dir <- temp_src_code(model_path)
 
-    if (dir.exists(model_path)) {
-      #===== Folder Contains Source Code =====#
-      source_files <- file.path(
-        model_path,         
-        c("model.cpp", "model.h"))
-
-      # check that header and implementation files exist
-      for (file_name in source_files) {
-        if (!file.exists(file_name)) {
-          stop(cli::format_error(c(
-            paste0("A file '", file_name, "' was not found."),
-            i = "Check your model directory"
-          )))
-        }
-      }
-
-      # other optional files
-      opt_src_files <- file.path(
-        model_path, 
-        c("template_params.R", "template_info.Rd", "template_augm.R"))
-    
-    } else if (model_path %in% list.files(file.path(housepi_dir, "models"))) {
-      #===== Template Model Name =====#
-      template_dir <- file.path(housepi_dir, "models", model_path)
-      source_files <- file.path(template_dir,
-                                c("model.cpp", "model.h", "template_params.R", "template_info.Rd"))
-      opt_src_files <- file.path(template_dir, c("template_augm.R"))
-      
-    } else {
-      #===== ERROR =====#
-      stop(cli::format_error(paste0("'", model_path, "' is not a folder nor a template name.")))
-    }
-
-    #----- Add Optional files if they exist -----#
-    for (file_name in opt_src_files) {
-      if (file.exists(file_name)) {
-        source_files <- c(source_files, file_name)
-      }
-    }
-
-    #----- Save option has the priority -----#
-    if ((!is.na(save)) && (is.character(save))){
-      exec_dir <- save
-    }
-  
-    #===== Create the Model Source Code =====#
-      
-    # copy the package to the new directory
-    dir.create(exec_dir, recursive = TRUE, showWarnings = FALSE)
-    if (!dir.exists(exec_dir)) {
-      stop(cli::format_error(
-        c("Impossibile to create a temporary directory for the model.",
-          i = "Check your user permissions.")
-      ))
-    }
-
-    # copy single package files
-    for (f in c("NAMESPACE", "DESCRIPTION")) {
-      from_file <- file.path(housepi_dir, "template", f)
-      to_file <- file.path(exec_dir, f)
-      if (!file.copy(from_file, to_file, overwrite = TRUE)) {
-        stop(cli::format_error(
-          c("Failed to setup internal files.", i = "Check your user permissions.")
-        ))
-      }
-    }
-
-    # copy folders from template
-    for (fldr in c("src", "R")) {
-      from_path <- file.path(housepi_dir, "template", fldr)
-      if (!file.copy(from_path, exec_dir, recursive = TRUE, overwrite = TRUE)) {
-        stop(cli::format_error(
-          c("Failed to setup internal files.", i = "Check your user permissions.")
-        ))
-      }
-    }
-
-    #----- Touch installation files -----#
-    touch_time <- Sys.time()
-    for (f in list.files(file.path(exec_dir,"src"), full.names = TRUE)) {
-      Sys.setFileTime(f, touch_time)
-    }
-
-    #----- Copy source files in the new folder ------#
-    for (from_file in source_files) {
-      to_file <- file.path(exec_dir, "src", basename(from_file))
-      if (!file.copy(from_file, to_file, overwrite = TRUE)) {
-        stop(cli::format_error(
-          c("Failed to setup implementation files.", i = "Check your user permissions.")
-        ))
+    #===== Copy source files in the new folder =====#
+    for (from_file in source_files(model_path)) {
+      to_file <- file.path(pkg_dir, "src", basename(from_file))
+      if (!overwrite(from_file, to_file)) {
+        stop(cli::format_error(c(
+          "Failed to setup implementation files.",
+          i = "Check your user permissions."
+        )))
       }
     }
 
     #===== COMPILE PACKAGE =====#
-    # TODO : how to enhance pre-compilation?
-    pkgbuild::compile_dll(exec_dir, quiet = quiet, debug = debug)
+    #===== Remove object file =====#
+    unlink(file.path(pkg_dir, "src", "model.o"))
+
+    #===== Touch installation files =====#
+    touch_time <- Sys.time()
+    for (f in list.files(file.path(pkg_dir, "src"), full.names = TRUE)) {
+      Sys.setFileTime(f, touch_time)
+    }
+    Sys.setFileTime(file.path(pkg_dir, "src", "model.cpp"), touch_time + 1)
+
+    #===== Compile the dynamic library =====#
+    # note: for the moment force is not within pkgbuild
+    pkgbuild::compile_dll(pkg_dir, quiet = quiet, debug = debug)
+
+    #===== SAVE OUTPUT =====#
+    out_dir <- save_environment(model_path, pkg_dir, store_path)
   }
 
-  return(list(dll = executable(exec_dir), path = exec_dir))
+  return(executable(out_dir))
 }

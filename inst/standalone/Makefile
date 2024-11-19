@@ -1,7 +1,7 @@
 # Standalone Makefile
 
 # If MODEL is not provided, set a default value
-MODEL ?= ../models/chain_binom
+MODEL ?= ../models/chain-binomial
 
 # Lost of source files with exclusions
 SRC := ../template/src

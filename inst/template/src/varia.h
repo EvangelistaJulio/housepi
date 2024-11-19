@@ -30,10 +30,10 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* A parent class to all distributions. */
-class _Base_Distribution_ : public _Base_Function_
+class Base_Distribution : public Base_Function
 {
 public:
-	using _Base_Function_::_Base_Function_;
+	using Base_Function::Base_Function;
 
 	double pdf(double x) const { return (this->*_func_pdf_)(x); }
 	double cdf(double x) const { return (this->*_func_cdf_)(x); }
@@ -54,16 +54,16 @@ protected:
 	void _check_rand_attempts_(int &num_attempts) const;
 
 	//----- Functional methods for public methods -----//
-	double (_Base_Distribution_::*_func_pdf_)(double) const = &_Base_Distribution_::_default_pdf_;
-	double (_Base_Distribution_::*_func_cdf_)(double) const = &_Base_Distribution_::_default_cdf_;
-	double (_Base_Distribution_::*_func_logpdf_)(double) const = &_Base_Distribution_::_default_logpdf_;
-	double (_Base_Distribution_::*_func_logratio_)(double, double) const = &_Base_Distribution_::_default_logratio_;
-	double (_Base_Distribution_::*_func_rand_)(sys_rnd_gen &) = &_Base_Distribution_::_default_rand_;
+	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
+	double (Base_Distribution::*_func_cdf_)(double) const = &Base_Distribution::_default_cdf_;
+	double (Base_Distribution::*_func_logpdf_)(double) const = &Base_Distribution::_default_logpdf_;
+	double (Base_Distribution::*_func_logratio_)(double, double) const = &Base_Distribution::_default_logratio_;
+	double (Base_Distribution::*_func_rand_)(sys_rnd_gen &) = &Base_Distribution::_default_rand_;
 
 	//----- Functional methods for truncation -----//
-	double (_Base_Distribution_::*_func_trunc_)(double) const = &_Base_Distribution_::_trunc_dummy_;
-	double (_Base_Distribution_::*_func_logtrunc_)(double) const = &_Base_Distribution_::_logtrunc_dummy_;
-	double (_Base_Distribution_::*_func_shift_)(double) const = &_Base_Distribution_::_shift_dummy_;
+	double (Base_Distribution::*_func_trunc_)(double) const = &Base_Distribution::_trunc_dummy_;
+	double (Base_Distribution::*_func_logtrunc_)(double) const = &Base_Distribution::_logtrunc_dummy_;
+	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
 
 private:
 	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
@@ -111,12 +111,12 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* overloaded distribution with static values. */
-std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name = UNDEFINED,
+std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name = UNDEFINED,
 													  const dictargs &args = {},
 													  const dictargs &range = {});
 
 /* overloaded distribution with pointer to values. */
-std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name = UNDEFINED,
+std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name = UNDEFINED,
 													  const dictargs_ptr &args = {},
 													  const dictargs &range = {});
 
@@ -128,18 +128,18 @@ std::shared_ptr<_Base_Distribution_> distribution_ptr(const std::string &name = 
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  _Base_Proposer_ : class  /////////////////////////////////////
+///////////////////////////////////  Base_Proposer : class  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME : impose mean=0, etc...
 
-class _Base_Proposer_
+class Base_Proposer
 {
 public:
 	//=====Constructors=====//
-	_Base_Proposer_(std::shared_ptr<_Base_Distribution_>, double rule_start_value = INF_DOUBLE,
+	Base_Proposer(std::shared_ptr<Base_Distribution>, double rule_start_value = INF_DOUBLE,
 					std::vector<int> args_to_adapt = {});
-	virtual ~_Base_Proposer_() {};
+	virtual ~Base_Proposer() {};
 
 	//===== Getter =====//
 	const std::string &get_name() const { return distr_ptr->get_name(); }
@@ -167,7 +167,7 @@ public:
 
 protected:
 	//===== Attributes =====//
-	std::shared_ptr<_Base_Distribution_> distr_ptr;
+	std::shared_ptr<Base_Distribution> distr_ptr;
 	double from_value = INF_DOUBLE;
 
 	int num_proposed_moves = 0;
@@ -177,7 +177,7 @@ protected:
 	bool _is_start_from_zero_ = false;
 
 	//===== propose : functional methods =====//
-	double (_Base_Proposer_::*_func_propose_)(sys_rnd_gen &, double) = &_Base_Proposer_::_propose_undefined_;
+	double (Base_Proposer::*_func_propose_)(sys_rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
 
 	// alternative proposer methods
 	double _propose_undefined_(sys_rnd_gen &prng, double start)
@@ -196,7 +196,7 @@ protected:
 	}
 
 	//===== logratio : functional methods =====//
-	double (_Base_Proposer_::*_logratio_method_)(double, double) const = &_Base_Proposer_::_logratio_undefined_;
+	double (Base_Proposer::*_logratio_method_)(double, double) const = &Base_Proposer::_logratio_undefined_;
 
 	// alternative logratios
 	double _logratio_undefined_(double old_val, double new_val) const
@@ -239,8 +239,8 @@ protected:
 	double value = INF_DOUBLE;								  // value of the variable
 	double buffer = INF_DOUBLE;								  // buffer of the variable
 	bool infer = false;										  // to be inferred or immutable
-	std::shared_ptr<_Base_Distribution_> distr_ptr = nullptr; // prior/model distribution of the parameter
-	std::shared_ptr<_Base_Proposer_> prop_ptr = nullptr;	  // proposer for Monte Carlo Markov Chain
+	std::shared_ptr<Base_Distribution> distr_ptr = nullptr; // prior/model distribution of the parameter
+	std::shared_ptr<Base_Proposer> prop_ptr = nullptr;	  // proposer for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
