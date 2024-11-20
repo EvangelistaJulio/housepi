@@ -13,13 +13,12 @@ HouseholdModelClass <- R6::R6Class(
   classname = "HouseholdModelClass",
   cloneable = FALSE,
   private = list(
-    setup = NULL,
-    param_frame = NULL,
-    augm_frame = NULL,
-    traces_frame = NULL,
     obj = NULL,
     envir_path = NA,
-    model_path = NA,
+    setup = NULL,
+    params = NULL,
+    augm = NULL,
+    traces_frame = NULL,
 
     # @description
     # Check that traces exists, otherwise raise error
@@ -48,7 +47,7 @@ HouseholdModelClass <- R6::R6Class(
       private$obj$import_setup(char_setup)
 
       #----- 2) PARAMETERS -----#
-      char_params <- data.frame(lapply(private$param_frame, as.character))
+      char_params <- data.frame(lapply(private$params$defs, as.character))
       private$obj$import_params(char_params)
 
       #----- 3) DATA -----#
@@ -113,298 +112,6 @@ HouseholdModelClass <- R6::R6Class(
       private$setup[["rnd_init_params"]] <- rnd_init_params
       private$setup[["inv_temper"]] <- inv_temper
       invisible(self)
-    },
-
-    # @description
-    # Add a new parameter definition.
-    # @param name (`character(1)`)\cr
-    # Name of the parameter.
-    # @param value (`double(1)`)\cr
-    # Initial value of the parameter.
-    # @param infer (`logical(1)`)\cr
-    # If `FALSE` the parameter is treated as a constant.
-    # @param prior (`character(1)`)\cr
-    # Name of the prior distribution.
-    # @param args (named `list()` of `double(1)`)\cr
-    # Arguments for the prior distribution.
-    # @param rule (`character(1)`)\cr
-    # Name of the inference rule.
-    # @param rule_args (named `list()` of `double(1)`)\cr
-    # Arguments for the inference rule.
-    # They can be changed automatically during iterations with adaptation.
-    # @param range (named `list()` of `double(1)`)\cr
-    # The prior truncation 'min', 'max' or no bound for the parameter value.
-    param_add = function(name = NA,
-                         value = NA,
-                         infer = NA,
-                         prior = NA,
-                         args = list(),
-                         rule = NA,
-                         rule_args = list(),
-                         range = list()) {
-      if (is.na(name)) {
-        stop(cli::format_error(c("Missing parameter name.")))
-      }
-
-      if (name %in% private$param_frame[["name"]]) {
-        cli::cli_alert_warning(cli::format_warning(c(
-          paste0("Overwriting existing '", name, "' definition.")
-        )))
-        mask <- private$param_frame$name != name
-        private$param_frame <- private$param_frame[mask, ]
-      }
-
-      #----- extrapolate infer value -----#
-      if (is.na(infer)) {
-        infer <- !is.na(rule)
-        if (is.na(rule) && (!is.na(prior))) {
-          cli::cli_alert_warning(cli::format_warning(
-            c(paste0(
-              "'", name, "' interpreted as if infer = FALSE."
-            ), i = "Provide one between rule/infer to silence this warning.")
-          ))
-        }
-      }
-
-      if (isTRUE(infer)) {
-        #----- prior -----#
-        if (is.na(prior)) {
-          stop(cli::format_error(c(
-            paste0("Provide a prior name for '", name, "'.")
-          )))
-        }
-
-        if (length(args) == 0) {
-          args_ <- NA
-          argsval_ <- NA
-        } else {
-          args_ <- str_join_(names(args))
-          argsval_ <- str_join_(unname(unlist(args)))
-        }
-
-        #----- rule -----#
-        if (is.na(rule)) {
-          stop(cli::format_error(c(
-            paste0("Provide a rule name for '", name, "'.")
-          )))
-        } else if (length(rule_args) == 0) {
-          rule_args_ <- NA
-          rule_argsval_ <- NA
-        } else {
-          rule_args_ <- str_join_(names(rule_args))
-          rule_argsval_ <- str_join_(unname(unlist(rule_args)))
-        }
-
-        #----- range -----#
-        min_ <- get_val_(names(range), "min")
-        max_ <- get_val_(names(range), "max")
-
-        #----- private$param_frame : append -----#
-        private$param_frame <- rbind(
-          private$param_frame,
-          data.frame(
-            name = name,
-            value = value,
-            infer = TRUE,
-            prior = prior,
-            args = args_,
-            argsval = argsval_,
-            rule = rule,
-            rule_args = rule_args_,
-            rule_argsval = rule_argsval_,
-            min = min_,
-            max = max_,
-            stringsAsFactors = FALSE
-          )
-        )
-
-      } else {
-        if (is.na(value)) {
-          stop(cli::format_error(
-            paste0("Missing value for constant parameter '", name, "'.")
-          ))
-        }
-        private$param_frame <- rbind(
-          private$param_frame,
-          data.frame(
-            name = name,
-            value = value,
-            infer = FALSE,
-            prior = NA,
-            args = NA,
-            argsval = NA,
-            rule = NA,
-            rule_args = NA,
-            rule_argsval = NA,
-            min = NA,
-            max = NA,
-            stringsAsFactors = FALSE
-          )
-        )
-      }
-      invisible(self)
-    },
-
-    # @description Add a new augmented variable definition.
-    # @param name (`character(1)` )\cr
-    # Name of the augmented variable.
-    # @param value (`double(1)` | `character(1)`)\cr
-    # Scalar value
-    # or parameter name (followed by `@P`)
-    # or data name (followed by `@D`).
-    # @param model (`character(1)` )\cr
-    # Name of the model distribution.
-    # @param args - List of arguments for the prior distribution.
-    # @param rule (`character(1)` )\cr
-    # Name of the inference rule.
-    # @param rule_args (named `list()` of `double(1)` | `character(1)`)\cr
-    # Arguments for the inference rule.
-    # @param rule_from (`double(1)` | `character(1)`)\cr
-    # Advanced options for non random walk moves.
-    # @param range - List with 'min' and/or 'max' values (or none).
-    # @param init_rand (`character(1)` )\cr
-    # If `TRUE` draw initial vale from model distribution.
-    # @param status (`integer(1)` )\cr
-    # The associated status of the definition. Default NA is for all infectious.
-    augm_add = function(name = NA,
-                        value = NA,
-                        model = NA,
-                        args = list(),
-                        rule = NA,
-                        rule_args = list(),
-                        rule_from = NA,
-                        range = list(),
-                        init_rand = FALSE,
-                        status = NA) {
-      #----- name -----#
-      if (is.na(name)) {
-        stop(cli::format_error("Incomplete definition: missing name."))
-      } else {
-        if (name %in% private$augm_frame[["name"]]) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            paste0("Existing '", name, "' definition has been overwritten.")
-          )))
-          mask <- private$augm_frame$name != name
-          private$augm_frame <- private$augm_frame[mask, ]
-        }
-      }
-
-      #----- value/init_rand -----#
-      if (isTRUE(init_rand)) {
-        if (is.na(model)) {
-          stop(cli::format_error("Unknown model for random initialization."))
-        } else {
-          value_ <- NA
-          valuetype_ <- NA
-        }
-      } else {
-        if (is.na(value)) {
-          stop(cli::format_error(
-            c(
-              "Incomplete definition: missing value.",
-              i = "Alternatively provide a model and set init_rand = TRUE"
-            )
-          ))
-        } else {
-          value_ <- str_split_(value)[["values"]]
-          valuetype_ <- str_split_(value)[["types"]]
-        }
-      }
-
-      #----- method -----#
-      args_ <- NA
-      argsval_ <- NA
-      argstype_ <- NA
-      # assign method only if arguments are provided
-      if (!is.na(model))  {
-        if (length(args) == 0) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            paste0("Missing args for augmented variable '", name, "'.")
-          )))
-        } else {
-          args_ <- str_join_(names(args))
-          tmp <- str_split_(args)
-          argsval_ <- str_join_(tmp[["values"]])
-          argstype_ <- str_join_(tmp[["types"]])
-        }
-      }
-
-      #----- rule -----#
-      rule_args_ <- NA
-      rule_argsval_ <- NA
-      rule_argstype_ <- NA
-      rule_from_ <- NA
-      rule_fromtype_ <- NA
-      if (!is.na(rule)) {
-        if ((rule != "gibbs") && (length(rule_args) == 0)) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            paste0("Missing rule_args for augmented variable '", name, "'.")
-          )))
-        } else {
-          rule_args_ <- str_join_(names(rule_args))
-          tmp <- str_split_(rule_args)
-          rule_argsval_ <- str_join_(tmp[["values"]])
-          rule_argstype_ <- str_join_(tmp[["types"]])
-          rule_from_ <- str_split_(rule_from)[["values"]]
-          rule_fromtype_ <- str_split_(rule_from)[["types"]]
-        }
-      }
-
-      #----- range -----#
-      if (length(range) == 0) {
-        # empty range
-        min_ <- NA
-        mintype_ <- NA
-        max_ <- NA
-        maxtype_ <- NA
-      } else {
-        # minimum value
-        if ("min" %in% names(range)) {
-          tmp <- str_split_(range[names(range) == "min"])
-          min_ <- tmp[["values"]]
-          mintype_ <- tmp[["types"]]
-        } else {
-          min_ <- NA
-          mintype_ <- NA
-        }
-        # maximum value
-        if ("max" %in% names(range)) {
-          tmp <- str_split_(range[names(range) == "max"])
-          max_ <- tmp[["values"]]
-          maxtype_ <- tmp[["types"]]
-        } else {
-          max_ <- NA
-          maxtype_ <- NA
-        }
-      }
-
-      #----- append the new definitions -----#
-      private$augm_frame <- rbind(
-        private$augm_frame,
-        data.frame(
-          name = name,
-          status = status,
-          value = value_,
-          valuetype = valuetype_,
-          model = model,
-          args = args_,
-          argsval = argsval_,
-          argstype = argstype_,
-          rule = rule,
-          rule_args = rule_args_,
-          rule_argsval = rule_argsval_,
-          rule_argstype = rule_argstype_,
-          rule_from = rule_from_,
-          rule_fromtype = rule_fromtype_,
-          min = min_,
-          mintype = mintype_,
-          max = max_,
-          maxtype = maxtype_,
-          init_rand = init_rand,
-          stringsAsFactors = FALSE
-        )
-      )
-      invisible(self)
     }
   ),
 
@@ -447,9 +154,9 @@ HouseholdModelClass <- R6::R6Class(
       # assign the empty setup list
       private$setup <- list()
       # assign the empty parameter data.frame
-      self$param_clear()
+      private$params <- HousepiParameterClass$new()
       # assign the empty augmented data.frame
-      self$augm_clear()
+      private$augm <- HousepiAugmentedClass$new()
 
       invisible(self)
     },
@@ -556,8 +263,8 @@ HouseholdModelClass <- R6::R6Class(
     traces_summary = function() {
       private$traces_check()
       res <- summary(private$traces_frame)
-      imask <- private$param_frame["infer"] == TRUE
-      inames <- private$param_frame[imask, "name"]
+      imask <- private$params$defs["infer"] == TRUE
+      inames <- private$params$defs[imask, "name"]
       output <- data.frame(
         Mean = res[["statistics"]][inames, "Mean"],
         SD = res[["statistics"]][inames, "SD"],
@@ -691,26 +398,13 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted parameter definitions.
     param_export = function() {
-      return(private$param_frame)
+      return(private$params$defs)
     },
 
     #' @description
     #' Clear all current parameter definitions.
     param_clear = function() {
-      private$param_frame <- data.frame(
-        name = character(),
-        value = numeric(),
-        infer = logical(),
-        prior = character(),
-        args = character(),
-        argsval = character(),
-        rule = character(),
-        rule_args = character(),
-        rule_argsval = character(),
-        min = numeric(),
-        max = numeric(),
-        stringsAsFactors = FALSE
-      )
+      private$params$clear()
       invisible(self)
     },
 
@@ -724,6 +418,7 @@ HouseholdModelClass <- R6::R6Class(
       }
       self$param_clear()
       do.call(self$param_append, def_list)
+      invisible(self)
     },
 
     #' @description
@@ -731,53 +426,8 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... (named `list()`s)\cr
     #' Parameter names with respective list of definitions.
     param_append = function(...) {
-      # convert definitions to list
-      definitions <- list(...)
-
-      if (length(definitions) == 0) {
-        # reinitialize according to templated parameters
-        stop(cli::format_error(c(
-          "No definitions provided.",
-          i = "To use template definitions use method param_template()."
-        )))
-
-      } else {
-        # user definitions
-        for (p in names(definitions)) {
-          this <- definitions[[p]]
-          private$param_add(
-            name = p,
-            value = get_val_(this, "value"),
-            infer = get_val_(this, "infer"),
-            prior = get_val_(this, "prior"),
-            args = get_val_(this, "args", default = list()),
-            rule = get_val_(this, "rule"),
-            rule_args = get_val_(this, "rule_args", default = list()),
-            range = get_val_(this, "range", default = list())
-          )
-        }
-
-        # check if definitions match the model
-        self$param_check()
-      }
-      invisible(self)
-    },
-
-    #' @description
-    #' Overwrite current parameter definitions with template definitions.
-    param_template = function() {
-      # retrieve the template parameters file
-      templ_params_file <- file.path(private$envir_path, "template_params.R")
-      if (!file.exists((templ_params_file))) {
-        stop(cli::format_error(c(
-          "Impossible to automatically initialize parameters from template.",
-          i = "No template file was found."
-        )))
-      }
-      # remove previous definitions
-      self$param_clear()
-      # append definitions
-      do.call(self$param_append, dget(templ_params_file))
+      private$params$append(...)
+      self$param_check(FALSE)
       invisible(self)
     },
 
@@ -786,92 +436,14 @@ HouseholdModelClass <- R6::R6Class(
     #' @param fill_template (`logical(1)`)\cr
     #' If `TRUE` fills the missing parameter with template definitions.
     param_check = function(fill_template = FALSE) {
-      # retrieve the model script
-      model_path <- file.path(private$envir_path, "src", "model.cpp")
+      private$params$check(private$envir_path, private$augm$defs, fill_template)
+      invisible(self)
+    },
 
-      # read the script and extract parameters
-      script <- readChar(model_path, file.info(model_path)$size)
-
-      # from : param("string" or get_param('string'
-      regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(unlist(matches[[1]][, 2]))
-      
-      # param from : param_pointer("string" or param_pointer('string'
-      regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
-
-      # param from : assign_contact_rate(, , "string"
-      regular_expr <- 'assign_contact_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
-
-      # param from : assign_group_rate(, , "string"
-      regular_expr <- 'assign_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
-
-      # param from : augmented variable model argument definitions
-      # FIXME : to be checked
-      if (length(private$augm_frame) > 0) {
-        x <- private$augm_frame[c("argsval", "argstype")]
-        for (i in seq_along(x)) {
-          aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
-                            keys = strsplit(x[i, 2], "/")[[1]])
-          aux <- aux[aux[["keys"]] == "P", "vals"]
-          model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
-        }
-      }
-
-      # re-order alphabetically
-      model_params_set <- model_params_set[order(model_params_set)]
-
-      # add missing parameters with standard options
-      missing <- c()
-      for (name in model_params_set) {
-        if (!(name %in% private$param_frame[["name"]])) {
-          missing <- c(missing, name)
-        }
-      }
-
-      # eventually fill with template definitions
-      if (length(missing) > 0) {
-        if (fill_template) {
-          # retrieve the template parameters file
-          templ_file <- file.path(private$envir_path, "template_params.R")
-          if (!file.exists((templ_file))) {
-            stop(cli::format_error(c(
-              "Impossible to automatically fill missing parameters.",
-              i = "No template file was found."
-            )))
-          }
-          templ_params_list <- dget(templ_file)[missing]
-          do.call(self$param_append, templ_params_list)
-          oss <- sprintf("Added missing parameter(s) from template: '%s'", missing[[1]])
-        } else {
-          oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])
-        }
-        for (name in missing[-1]) {
-          oss <- sprintf("%s, '%s'", oss, name)
-        }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
-
-      # point out parameters that are not used
-      unused <- c()
-      for (name in private$param_frame[["name"]]) {
-        if (!(name %in% model_params_set)) {
-          unused <- c(unused, name)
-        }
-      }
-      if (length(unused) > 0) {
-        oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
-        for (name in unused[-1]) {
-          oss <- paste0(oss, ", '", name, "'")
-        }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
+    #' @description
+    #' Overwrite current parameter definitions with template definitions.
+    param_template = function() {
+      private$params$template(private$envir_path)
       invisible(self)
     },
 
@@ -886,34 +458,13 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted augmented variable definitions.
     augm_export = function() {
-      return(private$augm_frame)
+      return(private$augm$defs)
     },
 
     #' @description
     #' Remove all current augmented variable definitions.
     augm_clear = function() {
-      private$augm_frame <- data.frame(
-        name = character(),
-        status = character(),
-        value = character(),
-        valuetype = character(),
-        model = character(),
-        args = character(),
-        argsval = character(),
-        argstype = character(),
-        rule = character(),
-        rule_args = character(),
-        rule_argsval = character(),
-        rule_argstype = character(),
-        rule_from = character(),
-        rule_fromtype = character(),
-        min = character(),
-        mintype = character(),
-        max = character(),
-        maxtype = character(),
-        init_rand = logical(),
-        stringsAsFactors = FALSE
-      )
+      private$augm$clear()
       invisible(self)
     },
 
@@ -928,6 +479,7 @@ HouseholdModelClass <- R6::R6Class(
       }
       self$augm_clear()
       do.call(self$augm_append, def_list)
+      invisible(self)
     },
 
     #' @description
@@ -935,56 +487,8 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... (named `list()`s)\cr
     #' Augmented variable names with respective list of definitions.
     augm_append = function(...) {
-      # convert definitions to list
-      definitions <- list(...)
-
-      if (length(definitions) == 0) {
-        # reinitialize according to templated parameters
-        stop(cli::format_error(c(
-          "No definitions provided.",
-          i = "To use template definitions use method param_template()."
-        )))
-
-      } else {
-        # add each entry of the list
-        for (a in names(definitions)) {
-          this <- definitions[[a]]
-          private$augm_add(
-            name = a,
-            status = get_val_(this, "status"),
-            value = get_val_(this, "value"),
-            model = get_val_(this, "model"),
-            args = get_val_(this, "args", default = list()),
-            rule = get_val_(this, "rule"),
-            rule_args = get_val_(this, "rule_args", default = list()),
-            rule_from = get_val_(this, "rule_from"),
-            range = get_val_(this, "range", default = list()),
-            init_rand = get_val_(this, "init_rand", default = FALSE)
-          )
-        }
-
-        # check if definitions match the model
-        self$augm_check()
-      }
-      invisible(self)
-    },
-
-
-    #' @description
-    #' Overwrite augmented variable definitions with template definitions.
-    augm_template = function() {
-      # retrieve the template augmented file
-      templ_augm_file <- file.path(private$envir_path, "template_augm.R")
-      if (!file.exists((templ_augm_file))) {
-        stop(cli::format_error(c(
-          "Impossible to automatically initialize augmented variables.",
-          i = "No template file was found."
-        )))
-      }
-      # remove previous definitions
-      self$augm_clear()
-      # append definitions
-      do.call(self$augm_append, dget(templ_augm_file))
+      private$augm$append(...)
+      self$augm_check(FALSE)
       invisible(self)
     },
 
@@ -993,72 +497,14 @@ HouseholdModelClass <- R6::R6Class(
     #' @param fill_template (`logical(1)`)\cr
     #' If `TRUE` fills missing augmented variables with template definitions.
     augm_check = function(fill_template = FALSE) {
-      # retrieve the model script
-      model_path <- file.path(private$envir_path, "src", "model.cpp")
+      private$augm$check(private$envir_path, fill_template)
+      invisible(self)
+    },
 
-      # read the script and extract augmented variables
-      script <- readChar(model_path, file.info(model_path)$size)
-
-      # from : augm(, "string" or augm(, 'string'
-      regular_expr <- 'augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_augm_set <- unique(unlist(matches[[1]][, 2]))
-
-      # from : set_augm(, "string"
-      regular_expr <- 'set_augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_augm_set <- unique(c(model_augm_set, unique(unlist(matches[[1]][, 2]))))
-
-      # UPDATE : check from infectivity profile?
-
-      # re-order alphabetically
-      model_augm_set <- model_augm_set[order(model_augm_set)]
-
-      # find missing augmented variables
-      missing <- c()
-      for (name in model_augm_set) {
-        if (!(name %in% private$augm_frame[["name"]])) {
-          missing <- c(missing, name)
-        }
-      }
-
-      # eventually fill with template definitions
-      if (length(missing) > 0) {
-        if (isTRUE(fill_template)) {
-          # retrieve the template augmented file
-          templ_augm_file <- file.path(private$envir_path, "template_augm.R")
-          if (!file.exists((templ_augm_file))) {
-            stop(cli::format_error(c(
-              "Impossible to automatically initialize augmented variables.",
-              i = "No template file was found."
-            )))
-          }
-          templ_augm_list <- dget(templ_augm_file)[missing]
-          do.call(self$augm_append, templ_augm_list)
-          oss <- sprintf("Added missing augmented variable(s) from template: '%s'", missing[[1]])
-        } else {
-          oss <- sprintf("Missing augmented variable(s): '%s'", missing[[1]])
-        }
-        for (name in missing[-1]) {
-          oss <- sprintf("%s, '%s'", oss, name)
-        }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
-
-      # point out augmented variables that are not used
-      unused <- c()
-      for (name in private$augm_frame[["name"]]) {
-        if (!(name %in% model_augm_set)) {
-          unused <- c(unused, name)
-        }
-      }
-      if (length(unused) > 0) {
-        oss <- sprintf("Augmented variable(s) not used in model: '%s'", unused[[1]])
-        for (name in unused[-1]) {
-          oss <- paste0("%s, '%s'", oss, name)
-        }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
+    #' @description
+    #' Overwrite augmented variable definitions with template definitions.
+    augm_template = function() {
+      private$augm$template(private$envir_path)
       invisible(self)
     }
   )
