@@ -66,13 +66,12 @@ void Model::assign_group_rate_to_individual(Household &house, int i)
 	Important: it must be re-ordered to have seropositives first. */
 void Model::fill_house_escape_matrix(const Household &house) const
 {
+	double commu_transm_rate = param("alpha");
+	double p2p_transm_rate = param("beta");
+
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
 	size_t H = house.index();
-	int hh_size = house.size();
 	int count = 0;
-
-	double p2p_transm_rate = param("beta");
-	double commu_transm_rate = param("alpha");
 
 	// 1) ordered members group rates : infectious
 	for (int i : house.infectious_set())
@@ -91,7 +90,7 @@ void Model::fill_house_escape_matrix(const Household &house) const
 	}
 
 	//----- assign values to matrix -----//
-	for (int i = 0; i < hh_size; ++i)
+	for (int i = 0; i < house.size(); ++i)
 	{
 		// community : i escaped from community
 		LUT_commu_esc_proba[H][i] = exp(-LUT_susc_rates[H][i] * commu_transm_rate);
@@ -187,7 +186,6 @@ void Model::simulate_single_house(Household &house)
 	//=========================//
 
 	size_t H = house.index();
-	int hh_size = house.size();
 
 	fill_house_escape_matrix(house);
 

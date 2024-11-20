@@ -90,18 +90,16 @@ void Model::init_model_for_inference()
 double Model::compute_house_loglike(const Household &house) const
 {
 	double log_likelihood = 0;
-
-	int hh_size = house.size();
-	int n_positive = house.num_infectious();
-
 	double log_p2p_esc_proba = -hazard_of_infection();
 	double log_p2p_infec_proba = log(1. - exp(log_p2p_esc_proba));
+
+	int n_positive = house.num_infectious();
 
 	//================================================//
 	//======== Contribution of Sero-Negatives ========//
 	//================================================//
 
-	log_likelihood += (hh_size - n_positive) * n_positive * log_p2p_esc_proba;
+	log_likelihood += (house.size() - n_positive) * n_positive * log_p2p_esc_proba;
 
 	//================================================//
 	//======== Contribution of Sero-Positives ========//
@@ -139,7 +137,7 @@ double Model::compute_house_loglike(const Household &house) const
 			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive - 1][c] * exp(tmp);
 		}
 
-		// log_likelihood += log(sero_positive_term * bax::binomial_coefficient(hh_size - 1, n_positive-1));
+		// log_likelihood += log(sero_positive_term * bax::binomial_coefficient(house.size() - 1, n_positive-1));
 		log_likelihood += log(sero_positive_term);
 	}
 
@@ -180,12 +178,10 @@ void Model::simulate_single_house(Household &house)
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	int num_old_gen = 0;
 	int num_new_gen = 1;
 
 	while ((house.num_susceptible() > 0) && (num_new_gen > 0))
 	{
-		num_old_gen = num_new_gen;
 		num_new_gen = 0;
 
 		// note : here househ[h].susceptible_set is not allowed because of change_status

@@ -67,7 +67,6 @@ void Model::init_model_for_inference()
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(const Household &house) const
 {
-	int hh_size = house.size();
 	int n_positive = house.num_infectious();
 
 	double log_commu_esc_proba = -community_risk_of_infection();
@@ -80,7 +79,7 @@ double Model::compute_house_loglike(const Household &house) const
 	//======== Contribution of Sero-Negatives ========//
 	//================================================//
 
-	log_likelihood += (hh_size - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
+	log_likelihood += (house.size() - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
 
 	//================================================//
 	//======== Contribution of Sero-Positives ========//

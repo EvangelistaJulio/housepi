@@ -420,21 +420,19 @@ HouseholdModelClass <- R6::R6Class(
     #' If not specified otherwise, it create a one per session model environment.
     #' @param model (`character(1)`)\cr
     #' Template name, path to folder with implementation or with previously compiled model.
-    #' @param save (`character(1)`)\cr
+    #' @param store_path (`character(1)`)\cr
     #' Path to folder where to store the compiled model environment.
     #' @param quiet (`logical(1)`)\cr
     #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
     #' If `TRUE` compile even if a cached model already exists.
-    #' @param debug (`logical(1)`)\cr
-    #' If `TRUE` use debug compilation flags.
-    initialize = function(model,
-                          save = NA,
+    initialize = function(model = ".",
+                          store_path = NA,
                           quiet = TRUE,
-                          force = FALSE,
-                          debug = FALSE) {
+                          force = FALSE) {
 
-      dll <- generate_model(model, save, quiet, force, debug)
+      dll <- generate_model(model, store_path = store_path, 
+                            quiet = quiet, force = force)
       # load shared library
       dyn.load(dll)
       # expose internally the module

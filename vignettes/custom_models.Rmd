@@ -27,7 +27,7 @@ To copy a template to a custom path we use the function `household_model_templat
 ```{r, eval=FALSE}
 # copy the heterogeneous chain binomial template to a custom directory
 my_model_path <- "custom_folder"
-housepi::household_model_template(which = "chain_binom_heter",
+housepi::household_model_template(which = "chain-binomial-heterogeneous",
                                   path = my_model_path)
 ```
 

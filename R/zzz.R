@@ -6,6 +6,5 @@
 "_PACKAGE"
 
 .onLoad <- function(libname, pkgname) {
-    template_dir <- file.path(system.file(package = pkgname), "template")
-    pkgbuild::compile_dll(template_dir, debug = FALSE)
+  re_compile_library(pkgname, force = FALSE)
 }
