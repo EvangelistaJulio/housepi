@@ -1,5 +1,10 @@
-// model.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * model.cpp
+ *
+ * Model template of the 'housepi' package.
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ *
+ */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  * *** * CHAIN BINOMIAL * *** *  ////////////////////////////////
@@ -8,20 +13,20 @@
 #include "model.h"
 
 //-----------------------------------------------------------------------------------------------//
-//---------------------------------- - - - CHANGE-ME - - - --------------------------------------//
+//---------------------------------------- CHANGE-ME --------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- \/ ------------------------------------------------//
 
-/* Community risk of infection (-logarithm of community escape probability). */
-double Model::community_risk_of_infection() const
+/* [CHANGE-ME] Risk of infection from the community. */
+double Model::community_risk() const
 {
 	return param("alpha");
 }
 
-/* Hazard of infection (-logarithm of person-to-person escape probability). */
-double Model::hazard_of_infection() const
+/* [CHANGE-ME] Risk of infection from another household member. */
+double Model::person_to_person_risk() const
 {
 	return param("beta");
 }
@@ -30,14 +35,7 @@ double Model::hazard_of_infection() const
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
-//---------------------------------- - - - CHANGE-ME - - - --------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+//---------------------------------------- CHANGE-ME --------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
 /* Initialize the Lookup Table. */
@@ -69,9 +67,9 @@ double Model::compute_house_loglike(const Household &house) const
 {
 	int n_positive = house.num_infectious();
 
-	double log_commu_esc_proba = -community_risk_of_infection();
+	double log_commu_esc_proba = -community_risk();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
-	double log_p2p_esc_proba = -hazard_of_infection();
+	double log_p2p_esc_proba = -person_to_person_risk();
 
 	double log_likelihood = 0.;
 
@@ -136,8 +134,8 @@ double Model::compute_house_loglike(const Household &house) const
 /* Simulate the infection within a household. */
 void Model::simulate_single_house(Household &house)
 {
-	double commu_esc_proba = exp(-community_risk_of_infection());
-	double log_p2p_esc_proba = -hazard_of_infection();
+	double commu_esc_proba = exp(-community_risk());
+	double log_p2p_esc_proba = -person_to_person_risk();
 
 	//==================================================//
 	//===== GENERATION 0 : infection by community ======//

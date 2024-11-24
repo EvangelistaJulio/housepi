@@ -1,5 +1,10 @@
-// model.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * model.h
+ *
+ * Model template of the 'housepi' package.
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ *
+ */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////  * *** * GREENWOOD SINGLE INTRODUCTION * *** *  //////////////////////
@@ -18,7 +23,7 @@
 class Model : public MCMC
 {
 	//===== Model dependent methods =====//
-	double hazard_of_infection() const;
+	double person_to_person_risk() const;
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;

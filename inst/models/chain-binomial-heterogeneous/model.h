@@ -1,5 +1,10 @@
-// model.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * model.h
+ *
+ * Model template of the 'housepi' package.
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ *
+ */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////  * *** * CHAIN BINOMIAL HETEROGENEOUS * *** *  /////////////////////////
@@ -17,6 +22,8 @@
 class Model : public MCMC
 {
 	//===== Model dependent methods =====//
+	double community_risk() const;
+	double person_to_person_risk() const;
 	void fill_house_escape_matrix(const Household &house) const;
 
 	//===== Override MCMC methods =====//

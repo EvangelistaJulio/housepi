@@ -4,6 +4,15 @@
 # Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+# wrapper to file.copy with overwrite option
+overwrite <- function(from, to, ...) {
+  success <- TRUE 
+  if (from != to) {   
+    success <- file.copy(from, to, overwrite = TRUE, ...)
+  }
+  return(success)
+}
+
 # Define a custom get function (like in Python dictionaries)
 get_val_ <- function(lst, key, default = NA) {
   if (key %in% names(lst)) {

@@ -1,6 +1,7 @@
 /*
  * model.h
  *
+ * Model template of the 'housepi' package.
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  *
  */
@@ -28,18 +29,14 @@ public:
 
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
-	void init_model_for_simulation() override { init_model_for_inference(); };
+	void init_model_for_simulation() override;
 	void update_augm_dependecies(Household &house, int i) override;
+	double compute_house_loglike(const Household &house) const override;
+	void simulate_single_house(Household &house) override;
 
 	//----- Rate Choices -----//
 	void assign_group_rate_to_individual(Household &house, int i) override;
 	void assign_contact_rate_to_household(Household &house, int from, int to) override;
-
-	//----- Override Methods for Inference -----//
-	double compute_house_loglike(const Household &house) const override;
-
-	//----- Override Methods for Simulations -----//
-	void simulate_single_house(Household &house) override;
 };
 
 #endif // MODEL__H

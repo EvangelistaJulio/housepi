@@ -227,101 +227,102 @@ HousepiParameterClass <- R6::R6Class(
     # If `TRUE` fills the missing parameter with template definitions.
     check = function(envir_path, augm_frame, fill_template = FALSE) {
 
-      # retrieve the model script
-      if (file.exists(file.path(envir_path, "model.cpp"))) {
-        model_path <- file.path(envir_path, "model.cpp")
-      } else if (file.exists(file.path(envir_path, "src", "model.cpp"))) {
-        model_path <- file.path(envir_path, "src", "model.cpp")
-      } else {
-        stop(cli::format_error(c(
-         x = "Impossible to find the original source code 'model.cpp'.",
-         i = "Try to regenerate the model."
+      # retrieve the model source code
+      model_path <- file.path(envir_path, ".source.txt")
+
+      if (!file.exists(file.path(envir_path, ".source.txt"))) {
+        cli::cli_alert_warning(cli::format_warning(c(
+         x = "Impossible to find '.source.txt': file has been moved or deleted.",
+         i = "Try to generate a new model object with {.code force = TRUE}."
         )))
-      }
 
-      # read the script and extract parameters
-      script <- readChar(model_path, file.info(model_path)$size)
+      } else {
 
-      # from : param("string" or get_param('string'
-      regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(unlist(matches[[1]][, 2]))
-      
-      # param from : param_pointer("string" or param_pointer('string'
-      regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
+        # read the script and extract parameters
+        script <- readChar(model_path, file.info(model_path)$size)
 
-      # param from : assign_contact_rate(, , "string"
-      regular_expr <- 'assign_contact_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
+        # from : param("string" or get_param('string'
+        regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_params_set <- unique(unlist(matches[[1]][, 2]))
+        
+        # param from : param_pointer("string" or param_pointer('string'
+        regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
 
-      # param from : assign_group_rate(, , "string"
-      regular_expr <- 'assign_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
+        # param from : assign_contact_rate(, , "string"
+        regular_expr <- 'assign_contact_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
 
-      # param from : augmented variable model argument definitions
-      # UPDATE : to be controlled
-      if (length(augm_frame) > 0) {
-        x <- augm_frame[c("argsval", "argstype")]
-        for (i in seq_along(x)) {
-          aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
-                            keys = strsplit(x[i, 2], "/")[[1]])
-          aux <- aux[aux[["keys"]] == "P", "vals"]
-          model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
-        }
-      }
+        # param from : assign_group_rate(, , "string"
+        regular_expr <- 'assign_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
 
-      # re-order alphabetically
-      model_params_set <- model_params_set[order(model_params_set)]
-
-      # add missing parameters with standard options
-      missing <- c()
-      for (name in model_params_set) {
-        if (!(name %in% self$defs[["name"]])) {
-          missing <- c(missing, name)
-        }
-      }
-
-      # eventually fill with template definitions
-      if (length(missing) > 0) {
-        if (fill_template) {
-          # retrieve the template parameters file
-          templ_file <- file.path(envir_path, "template_params.R")
-          if (!file.exists((templ_file))) {
-            stop(cli::format_error(c(
-              x = "Impossible to fill missing parameters without a template.",
-              i = "If you just want to check, set {.code fill_template = FALSE}."
-            )))
+        # param from : augmented variable model argument definitions
+        # UPDATE : to be controlled
+        if (length(augm_frame) > 0) {
+          x <- augm_frame[c("argsval", "argstype")]
+          for (i in seq_along(x)) {
+            aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
+                              keys = strsplit(x[i, 2], "/")[[1]])
+            aux <- aux[aux[["keys"]] == "P", "vals"]
+            model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
           }
-          templ_params_list <- dget(templ_file)[missing]
-          do.call(self$append, templ_params_list)
-          oss <- sprintf("Added missing parameter(s) from template: '%s'", missing[[1]])
-        } else {
-          oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])
         }
-        for (name in missing[-1]) {
-          oss <- sprintf("%s, '%s'", oss, name)
+
+        # re-order alphabetically
+        model_params_set <- model_params_set[order(model_params_set)]
+
+        # add missing parameters with standard options
+        missing <- c()
+        for (name in model_params_set) {
+          if (!(name %in% self$defs[["name"]])) {
+            missing <- c(missing, name)
+          }
         }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+
+        # eventually fill with template definitions
+        if (length(missing) > 0) {
+          if (fill_template) {
+            # retrieve the template parameters file
+            templ_file <- file.path(envir_path, "template_params.R")
+            if (!file.exists((templ_file))) {
+              stop(cli::format_error(c(
+                x = "Impossible to fill missing parameters without a template.",
+                i = "If you just want to check, set {.code fill_template = FALSE}."
+              )))
+            }
+            templ_params_list <- dget(templ_file)[missing]
+            do.call(self$append, templ_params_list)
+            oss <- sprintf("Added missing parameter(s) from template: '%s'", missing[[1]])
+          } else {
+            oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])
+          }
+          for (name in missing[-1]) {
+            oss <- sprintf("%s, '%s'", oss, name)
+          }
+          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+        }
+
+        # point out parameters that are not used
+        unused <- c()
+        for (name in self$defs[["name"]]) {
+          if (!(name %in% model_params_set)) {
+            unused <- c(unused, name)
+          }
+        }
+        if (length(unused) > 0) {
+          oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
+          for (name in unused[-1]) {
+            oss <- paste0(oss, ", '", name, "'")
+          }
+          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+        }
       }
 
-      # point out parameters that are not used
-      unused <- c()
-      for (name in self$defs[["name"]]) {
-        if (!(name %in% model_params_set)) {
-          unused <- c(unused, name)
-        }
-      }
-      if (length(unused) > 0) {
-        oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
-        for (name in unused[-1]) {
-          oss <- paste0(oss, ", '", name, "'")
-        }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
       invisible(self)
     }
   )

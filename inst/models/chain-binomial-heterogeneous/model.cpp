@@ -1,5 +1,10 @@
-// model.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * model.cpp
+ *
+ * Model template of the 'housepi' package.
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ *
+ */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////  * *** * CHAIN BINOMIAL HETEROGENEOUS * *** *  /////////////////////////
@@ -9,23 +14,21 @@
 #include "binomial.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
+//////////////////////////////////////  Global Variables  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-//----- Attributes for Look-Up-Tables -----//
-std::vector<std::vector<double>> LUT_susc_rates;
-std::vector<std::vector<double>> LUT_infec_rates;
+//----- Look-Up-Tables -----//
 std::vector<std::vector<double>> LUT_commu_esc_proba;
 std::vector<squarematrix> LUT_p2p_esc_proba;
 
 //-----------------------------------------------------------------------------------------------//
-//---------------------------------- - - - CHANGE-ME - - - --------------------------------------//
+//---------------------------------------- CHANGE-ME --------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- \/ ------------------------------------------------//
 
-/* Assign the parameters controlling infectivity for each individual */
+/* [CHANGE-ME] Assign the parameters controlling infectivity for each individual. */
 void Model::assign_group_rate_to_individual(Household &house, int i)
 {
 	bool is_child = house.data(i, "age") <= param("child_age");
@@ -58,68 +61,66 @@ void Model::assign_group_rate_to_individual(Household &house, int i)
 	}
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  Model : assign rate_per group to individual  //////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* The person-to-person escape probabilities stored inside a matrix.
-	Important: it must be re-ordered to have seropositives first. */
-void Model::fill_house_escape_matrix(const Household &house) const
+/* [CHANGE-ME] Risk of infection from the community. */
+double Model::community_risk() const
 {
-	double commu_transm_rate = param("alpha");
-	double p2p_transm_rate = param("beta");
+	return param("alpha");
+}
 
-	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
-	size_t H = house.index();
-	int count = 0;
-
-	// 1) ordered members group rates : infectious
-	for (int i : house.infectious_set())
-	{
-		LUT_susc_rates[H][count] = house.group_rate(i, "Susceptibility");
-		LUT_infec_rates[H][count] = house.group_rate(i, "Infectivity");
-		++count;
-	}
-
-	// 2) ordered members group rates : susceptibles
-	for (int i : house.susceptible_set())
-	{
-		LUT_susc_rates[H][count] = house.group_rate(i, "Susceptibility");
-		LUT_infec_rates[H][count] = house.group_rate(i, "Infectivity");
-		++count;
-	}
-
-	//----- assign values to matrix -----//
-	for (int i = 0; i < house.size(); ++i)
-	{
-		// community : i escaped from community
-		LUT_commu_esc_proba[H][i] = exp(-LUT_susc_rates[H][i] * commu_transm_rate);
-
-		// person-to-person : i escaped from k
-		for (int k = 0; k < i; ++k)
-		{
-			LUT_p2p_esc_proba[H][k][i] = exp(-LUT_susc_rates[H][i] * LUT_infec_rates[H][k] * p2p_transm_rate);
-			LUT_p2p_esc_proba[H][i][k] = exp(-LUT_susc_rates[H][k] * LUT_infec_rates[H][i] * p2p_transm_rate);
-		}
-
-		// note : infector always escape himself (not relevant)
-		LUT_p2p_esc_proba[H][i][i] = 1;
-	}
+/* [CHANGE-ME] Risk of infection from another household member. */
+double Model::person_to_person_risk() const
+{
+	return param("beta");
 }
 
 //------------------------------------------- /\ ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
-//---------------------------------- - - - CHANGE-ME - - - --------------------------------------//
+//---------------------------------------- CHANGE-ME --------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Model : fill house escape matrix  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* The person-to-person escape probabilities stored inside a matrix.
+	Important: it must be re-ordered to have seropositives first. */
+void Model::fill_house_escape_matrix(const Household &house) const
+{
+	double commu_transm_rate = community_risk();
+	double p2p_transm_rate = person_to_person_risk();
+
+	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
+	std::vector<int> order;
+	order.reserve(house.size());
+	// 1) Append infectious members
+	order.insert(order.end(), house.infectious_set().begin(), house.infectious_set().end());
+	// 2) Append susceptible members
+	order.insert(order.end(), house.susceptible_set().begin(), house.susceptible_set().end());
+
+	//----- Assign values to LUT matrix -----//
+	size_t H = house.index();
+	for (int c = 0; c < house.size(); ++c)
+	{
+		double susc_commu_c = house.group_rate(order[c], "Susc-Community");
+		double infect_c = house.group_rate(order[c], "Infectivity");
+		double susc_house_c = house.group_rate(order[c], "Susc-House");
+
+		// community : i escaped from community
+		LUT_commu_esc_proba[H][c] = exp(-susc_commu_c * commu_transm_rate);
+
+		// person-to-person : [1st] escaped from [2nd]
+		for (int r = 0; r < c; ++r)
+		{
+			LUT_p2p_esc_proba[H][r][c] = exp(-house.group_rate(order[r], "Infectivity") * susc_house_c * p2p_transm_rate);
+			LUT_p2p_esc_proba[H][c][r] = exp(-infect_c * house.group_rate(order[r], "Susc-House") * p2p_transm_rate);
+		}
+
+		// note : infector always escape himself (not relevant)
+		LUT_p2p_esc_proba[H][c][c] = 1;
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Model : initialize model  ///////////////////////////////////
@@ -138,8 +139,6 @@ void Model::init_model_for_inference()
 	for (size_t H = 0; H < num_houses(); H++)
 	{
 		int h_size = house_size(H);
-		LUT_susc_rates.emplace_back(h_size, 1.0);
-		LUT_infec_rates.emplace_back(h_size, 1.0);
 		LUT_commu_esc_proba.emplace_back(h_size, 1.0);
 		LUT_p2p_esc_proba.emplace_back(h_size, std::vector<double>(h_size, 1.0));
 	}

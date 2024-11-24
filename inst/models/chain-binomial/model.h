@@ -1,5 +1,10 @@
-// model.h //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * model.h
+ *
+ * Model template of the 'housepi' package.
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ *
+ */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  * *** * CHAIN BINOMIAL * *** *  ////////////////////////////////
@@ -18,14 +23,13 @@
 class Model : public MCMC
 {
 	//===== Model dependent methods =====//
-	double community_risk_of_infection() const;
-	double hazard_of_infection() const;
+	double community_risk() const;
+	double person_to_person_risk() const;
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;
 	double compute_house_loglike(const Household &house) const override;	
 	void simulate_single_house(Household &house) override;
-
 };
 
 #endif // MODEL__H

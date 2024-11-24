@@ -266,83 +266,82 @@ HousepiAugmentedClass <- R6::R6Class(
     # @param fill_template (`logical(1)`)\cr
     # If `TRUE` fills missing augmented variables with template definitions.
     check = function(envir_path, fill_template = FALSE) {
+      # retrieve the model source code
+      model_path <- file.path(envir_path, ".source.txt")
 
-      # retrieve the model script
-      if (file.exists(file.path(envir_path, "model.cpp"))) {
-        model_path <- file.path(envir_path, "model.cpp")
-      } else if (file.exists(file.path(envir_path, "src", "model.cpp"))) {
-        model_path <- file.path(envir_path, "src", "model.cpp")
-      } else {
-        stop(cli::format_error(c(
-         x = "Impossible to find the source code 'model.cpp'.",
-         i = "Check if the original file has been moved or deleted."
+      if (!file.exists(file.path(envir_path, ".source.txt"))) {
+        cli::cli_alert_warning(cli::format_warning(c(
+         x = "Impossible to find '.source.txt': file has been moved or deleted.",
+         i = "Try to generate a new model object with {.code force = TRUE}."
         )))
-      }
 
-      # read the script and extract augmented variables
-      script <- readChar(model_path, file.info(model_path)$size)
+      } else {
 
-      # from : augm(, "string" or augm(, 'string'
-      regular_expr <- 'augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_augm_set <- unique(unlist(matches[[1]][, 2]))
+        # read the script and extract augmented variables
+        script <- readChar(model_path, file.info(model_path)$size)
 
-      # from : set_augm(, "string"
-      regular_expr <- 'set_augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_augm_set <- unique(c(model_augm_set, unique(unlist(matches[[1]][, 2]))))
+        # from : augm(, "string" or augm(, 'string'
+        regular_expr <- 'augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_augm_set <- unique(unlist(matches[[1]][, 2]))
 
-      # UPDATE : import from infectivity profile?
+        # from : set_augm(, "string"
+        regular_expr <- 'set_augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_augm_set <- unique(c(model_augm_set, unique(unlist(matches[[1]][, 2]))))
 
-      # re-order alphabetically
-      model_augm_set <- model_augm_set[order(model_augm_set)]
+        # UPDATE : import from infectivity profile?
 
-      # find missing augmented variables
-      missing <- c()
-      for (name in model_augm_set) {
-        if (!(name %in% self$defs[["name"]])) {
-          missing <- c(missing, name)
-        }
-      }
+        # re-order alphabetically
+        model_augm_set <- model_augm_set[order(model_augm_set)]
 
-      # eventually fill with template definitions
-      if (length(missing) > 0) {
-        if (isTRUE(fill_template)) {
-          # retrieve the template augmented file
-          templ_augm_file <- file.path(envir_path, "template_augm.R")
-          if (!file.exists((templ_augm_file))) {
-            stop(cli::format_error(c(
-              x = "Impossible to fill missing augmented variables without a template.",
-              i = "If you just want to check, set {.code fill_template = FALSE}."
-            )))
+        # find missing augmented variables
+        missing <- c()
+        for (name in model_augm_set) {
+          if (!(name %in% self$defs[["name"]])) {
+            missing <- c(missing, name)
           }
-          templ_augm_list <- dget(templ_augm_file)[missing]
-          do.call(self$append, templ_augm_list)
-          oss <- sprintf("Added missing augmented variable(s) from template: '%s'", missing[[1]])
-
-        } else {
-          oss <- sprintf("Missing augmented variable(s): '%s'", missing[[1]])
         }
 
-        for (name in missing[-1]) {
-          oss <- sprintf("%s, '%s'", oss, name)
-        }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
+        # eventually fill with template definitions
+        if (length(missing) > 0) {
+          if (isTRUE(fill_template)) {
+            # retrieve the template augmented file
+            templ_augm_file <- file.path(envir_path, "template_augm.R")
+            if (!file.exists((templ_augm_file))) {
+              stop(cli::format_error(c(
+                x = "Impossible to fill missing augmented variables without a template.",
+                i = "If you just want to check, set {.code fill_template = FALSE}."
+              )))
+            }
+            templ_augm_list <- dget(templ_augm_file)[missing]
+            do.call(self$append, templ_augm_list)
+            oss <- sprintf("Added missing augmented variable(s) from template: '%s'", missing[[1]])
 
-      # point out augmented variables that are not used
-      unused <- c()
-      for (name in self$defs[["name"]]) {
-        if (!(name %in% model_augm_set)) {
-          unused <- c(unused, name)
+          } else {
+            oss <- sprintf("Missing augmented variable(s): '%s'", missing[[1]])
+          }
+
+          for (name in missing[-1]) {
+            oss <- sprintf("%s, '%s'", oss, name)
+          }
+          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
-      }
-      if (length(unused) > 0) {
-        oss <- sprintf("Augmented variable(s) not used in model: '%s'", unused[[1]])
-        for (name in unused[-1]) {
-          oss <- paste0("%s, '%s'", oss, name)
+
+        # point out augmented variables that are not used
+        unused <- c()
+        for (name in self$defs[["name"]]) {
+          if (!(name %in% model_augm_set)) {
+            unused <- c(unused, name)
+          }
         }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+        if (length(unused) > 0) {
+          oss <- sprintf("Augmented variable(s) not used in model: '%s'", unused[[1]])
+          for (name in unused[-1]) {
+            oss <- paste0("%s, '%s'", oss, name)
+          }
+          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+        }
       }
 
       invisible(self)

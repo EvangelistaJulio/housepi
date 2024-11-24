@@ -24,15 +24,6 @@ helper_files <- function(path) {
   file.path(path, paste0("template_", c("params.R", "info.Rd", "augm.R")))
 }
 
-# wrapper to overwrite
-overwrite <- function(from, to, ...) {
-  success <- TRUE 
-  if (from != to) {   
-    success <- file.copy(from, to, overwrite = TRUE, ...)
-  }
-  return(success)
-}
-
 # user permission error (tipically)
 internal_error <- function() {
   stop(cli::format_error(c(
@@ -124,9 +115,23 @@ save_environment <- function(path, pkg_dir, custom_dir = NA) {
   }
 
   #----- Copy DLL in the output directory -----#
-  if (!overwrite(executable(file.path(pkg_dir, "src")), executable(out_dir))) {
+  from_file <- executable(file.path(pkg_dir, "src"))
+  to_file <- executable(out_dir)
+  if (!overwrite(from_file, to_file)) {
     internal_error()
   }
+
+  #----- Copy source code withot commented lines as a reference -----#
+  lines <- readLines(file.path(pkg_dir, "src", "model.cpp"), warn = FALSE)
+  
+  # Remove single-line comments (//) 
+  lines <- stringr::str_remove_all(lines, "//.*")
+  # Remove inline comments (/* ... */)
+  lines <- stringr::str_remove_all(lines, "/\\*.*?\\*/")
+  # Filter out empty or whitespace-only lines
+  cleaned_lines <- lines[stringr::str_detect(lines, "\\S")]
+  
+  writeLines(cleaned_lines, file.path(out_dir, ".source.txt"))
 
   #----- Copy helper files in the output directory -----#
   for (from_file in helper_files(path)) {
@@ -151,15 +156,15 @@ save_environment <- function(path, pkg_dir, custom_dir = NA) {
 generate_model <- function(model_path = ".", store_path = NA,
                            quiet = TRUE, force = FALSE) {
 
-  #===== Check Model Path =====#
-  model_path <- check_model_path(model_path)
-
-  if ((file.exists(executable(model_path))) && isFALSE(force)) {
+  if ((dir.exists(model_path)) && (file.exists(executable(model_path))) && isFALSE(force)) {
     #===== Folder Contains Executable =====#
     out_dir <- file.path(model_path)
     cli::cli_alert_info("Loading {.pkg {basename(model_path)}}")
 
   } else {
+    #===== Check Model Path =====#
+    model_path <- check_model_path(model_path)
+
     #===== Temporary folder where to store source code =====#
     pkg_dir <- file.path(tempdir(), paste0("housepi", gsub("_", "", model_path)))
     

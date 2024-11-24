@@ -100,6 +100,10 @@ transmission_rate = param("beta") * param("ref_size") / house.size();
 
 * Core C++ code and template model use "snake case" code syntax. You can find [here](https://style.tidyverse.org/syntax.html) some motivation on why you should too.
 
+### Common mistakes moving from R to C++
+
+* In C++, to access the first element of a vector of size N we use the index 0. The last element can be access with index N-1.
+
 * Don't forget semicolons `;` at the end of your code lines.
 
 
