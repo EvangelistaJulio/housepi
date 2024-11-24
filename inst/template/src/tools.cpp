@@ -14,12 +14,8 @@ namespace tools
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::unordered_set<std::string> _issued_warnings_;
-    constexpr ulong DECOR_LEFT = 3;     // left size of decorator
-    constexpr ulong DECOR_WIDTH = 65;   // total size of decorator
-    constexpr ulong PROGBAR_WIDTH = 30; // total size of progress bar
-    ulong _ProgBar_Thin_;               // thinning of progress bar
-    std::chrono::steady_clock::time_point _ProgBar_Start_;
-    std::chrono::steady_clock::time_point _ProgBar_LastTime_;
+    constexpr ulong DECOR_LEFT = 3;   // left size of decorator
+    constexpr ulong DECOR_WIDTH = 65; // total size of decorator
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
@@ -48,18 +44,27 @@ namespace tools
     }
 
     /* A formatted std::string for percent of num/denom */
-    const std::string percent(double num, double den)
+    const std::string percent(ulong num, ulong den)
     {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(1)
-            << "(" << (100.0 * num / den) << "%)";
+            << "(" << (100.0 * static_cast<double>(num) / den) << "%)";
+        return oss.str();
+    }
+
+    /* A formatted std::string for percent of num/denom */
+    const std::string percent(double fraction)
+    {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(1)
+            << "(" << (100.0 * fraction) << "%)";
         return oss.str();
     }
 
     /* A formatted std::string for TRUE/FALSE values. */
     const std::string truth(bool condition)
     {
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
         return (condition ? "true" : "false");
 #else
         return (condition ? "TRUE" : "FALSE");
@@ -73,7 +78,7 @@ namespace tools
     /* Function to change stdout in case of RCPP. */
     void print_stdout(const std::string &txt)
     {
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
         Rcpp::Rcout << txt;
         Rcpp::Rcout.flush();
 #else
@@ -83,9 +88,9 @@ namespace tools
     }
 
     /* Internal helper function to change stderr in case of RCPP. */
-    void _helper_stderr_(const std::string &txt)
+    void print_stderr(const std::string &txt)
     {
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
         Rcpp::Rcerr << txt;
         Rcpp::Rcerr.flush();
 #else
@@ -101,7 +106,7 @@ namespace tools
     /* Display a decorator for a section (if VERBOSE) */
     void print_decorator(const std::string &title, const std::string &txt, char decor, bool verbose)
     {
-        using std::string; 
+        using std::string;
 
         if (verbose)
         {
@@ -122,130 +127,6 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* Format the  */
-    std::string format_millisecs(long long elapsed)
-    {
-        using namespace std::chrono;
-
-        auto dys = duration_cast<duration<int, std::ratio<86400>>>(milliseconds(elapsed));
-        elapsed -= duration_cast<milliseconds>(dys).count();
-
-        auto hrs = duration_cast<hours>(milliseconds(elapsed));
-        elapsed -= duration_cast<milliseconds>(hrs).count();
-
-        auto mns = duration_cast<minutes>(milliseconds(elapsed));
-        elapsed -= duration_cast<milliseconds>(mns).count();
-
-        auto scs = duration_cast<seconds>(milliseconds(elapsed));
-        elapsed -= duration_cast<milliseconds>(scs).count();
-
-        std::ostringstream oss;
-
-        // show large time scales only if the case
-        if (dys.count() > 1)
-        {
-            oss << dys.count() << "d";
-        }
-        if (hrs.count() > 1)
-        {
-            oss << std::setfill('0') << std::setw(2) << hrs.count() << "h";
-        }
-
-        oss << std::setfill('0') << std::setw(2) << mns.count() << "m"
-            << std::setfill('0') << std::setw(2) << scs.count() << "s";
-
-        return oss.str();
-    }
-
-    /* Initialize progress bar. */
-    void progress_bar_init(const std::string &txt, bool verbose)
-    {
-        using namespace std::chrono;
-        using std::string;
-
-        if (verbose)
-        {
-            string sms = "\r" + txt + ": [" + string(PROGBAR_WIDTH, '.') + "] " + percent(0., 1.) + " 00m00s<??m??s" + string(20, ' ');
-            _helper_stderr_(sms);
-
-            _ProgBar_Thin_ = 5;
-            _ProgBar_Start_ = steady_clock::now();
-            _ProgBar_LastTime_ = steady_clock::now();
-        }
-
-#ifdef USE_RCPP
-        Rcpp::checkUserInterrupt();
-#endif
-    }
-
-    /* Percentual progress bar (progress/total). */
-    void progress_bar_run(const std::string &txt, ulong progress, ulong total, bool verbose)
-    {
-        using namespace std::chrono;
-        using std::string;
-
-        if (verbose)
-        {
-            if (progress % _ProgBar_Thin_ == 0)
-            {
-                ulong where = static_cast<double>(progress) * PROGBAR_WIDTH / total;
-                std::chrono::steady_clock::time_point now = steady_clock::now();
-                long long time_elapsed = duration_cast<milliseconds>(now - _ProgBar_Start_).count();
-                long long time_lastchecked = duration_cast<milliseconds>(now - _ProgBar_LastTime_).count();
-                long long time_missing = time_elapsed * (static_cast<double>(total) / progress - 1.);
-                _ProgBar_LastTime_ = steady_clock::now();
-
-                string sms = "\r" + txt + ": [" + string(where, C_PROG) + string(PROGBAR_WIDTH - where, '.') + "] ";
-                sms += percent(progress, total) + " " + format_millisecs(time_elapsed) + "<";
-                sms += ((time_elapsed > 4000) ? format_millisecs(time_missing) : "??m??s") + string(20, ' ');
-                _helper_stderr_(sms);
-
-                // adapt progressbar thinning
-                if (time_lastchecked < 900)
-                {
-                    _ProgBar_Thin_ *= 2;
-                }
-                else if (time_lastchecked > 1100)
-                {
-                    _ProgBar_Thin_ /= 3;
-                }
-            }
-        }
-
-#ifdef USE_RCPP
-        Rcpp::checkUserInterrupt();
-#endif
-    }
-
-    /*  End the progress bar. */
-    void progress_bar_end(const std::string &txt, bool verbose)
-    {
-        using namespace std::chrono;
-        using std::string;
-
-        if (verbose)
-        {
-            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - _ProgBar_Start_).count();
-            string sms = "\r" + txt + ": [" + string(PROGBAR_WIDTH, C_PROG) + "] " + format_millisecs(time_elapsed) + string(25, ' ') + "\n";
-            _helper_stderr_(sms);
-        }
-
-#ifdef USE_RCPP
-        Rcpp::checkUserInterrupt();
-#endif
-    }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Warning Functions  //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -255,7 +136,7 @@ namespace tools
     {
         if (_issued_warnings_.find(txt) == _issued_warnings_.end())
         {
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
             Rcpp::warning(txt);
 #else
             std::cerr << "\nWarning: " + txt << std::endl;
@@ -272,7 +153,7 @@ namespace tools
     // FIXME : omp critical is wrong! Throw and check exceptions instead depending on Rcpp
     void error(const std::string &txt)
     {
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
         Rcpp::stop(txt);
 #else
         std::cerr << "\nError: " + txt + "\nExit...\n"
@@ -347,7 +228,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
     void rdataframe_to_map(const Rcpp::DataFrame &df, std::map<std::string, std::vector<std::string>> &output)
     {
         using namespace Rcpp;
@@ -425,7 +306,7 @@ namespace tools
                     }
                     else
                     {
-                       sms += ", '" + req + "'";
+                        sms += ", '" + req + "'";
                     }
                 }
             }
@@ -448,15 +329,15 @@ namespace tools
         if (getline(input, line))
         {
             std::istringstream iss(line);
-            size_t num_cols = 0;
+            size_t n_cols = 0;
 
             while (getline(iss, tkn, C_DELIM))
             {
-                this_row.emplace(headers[num_cols++], strcleaner(tkn));
+                this_row.emplace(headers[n_cols++], strcleaner(tkn));
             }
 
             // last column is empty
-            for (size_t i = num_cols; i < headers.size(); i++)
+            for (size_t i = n_cols; i < headers.size(); i++)
             {
                 this_row.emplace(headers[i], UNDEFINED);
             }

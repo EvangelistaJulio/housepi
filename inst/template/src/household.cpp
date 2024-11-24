@@ -31,9 +31,9 @@ public:
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
 	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
 
-	int num_infectious = 0;
-	int num_susceptible = 0;
-	int num_missing_status = 0;
+	int n_infectious = 0;
+	int n_susceptible = 0;
+	int n_missing_status = 0;
 
 	// wheter members correspond to a given status or not
 	std::vector<bool> _is_infectious_ = {};
@@ -77,7 +77,7 @@ void Household::assign_individual(const std::string &ID, int status, const dicta
 	//----- update status lists within the household -----//
 	if (status >= INFECTIOUS)
 	{
-		++pImpl->num_infectious;
+		++pImpl->n_infectious;
 		pImpl->infectious_set.insert(size());
 
 		pImpl->_is_infectious_.push_back(true);
@@ -86,7 +86,7 @@ void Household::assign_individual(const std::string &ID, int status, const dicta
 	}
 	else if (status == SUSCEPTIBLE)
 	{
-		++pImpl->num_susceptible;
+		++pImpl->n_susceptible;
 		pImpl->susceptible_set.insert(size());
 
 		pImpl->_is_infectious_.push_back(false);
@@ -95,7 +95,7 @@ void Household::assign_individual(const std::string &ID, int status, const dicta
 	}
 	else if (status == MISSING_STATUS)
 	{
-		++pImpl->num_missing_status;
+		++pImpl->n_missing_status;
 		pImpl->missing_status_set.insert(size());
 
 		pImpl->_is_infectious_.push_back(false);
@@ -130,19 +130,19 @@ bool Household::change_status(int i, int new_status)
 	{
 		if (old_status >= INFECTIOUS)
 		{
-			--pImpl->num_infectious;
+			--pImpl->n_infectious;
 			pImpl->infectious_set.erase(i);
 			pImpl->_is_infectious_[i] = false;
 		}
 		else if (old_status == SUSCEPTIBLE)
 		{
-			--pImpl->num_susceptible;
+			--pImpl->n_susceptible;
 			pImpl->susceptible_set.erase(i);
 			pImpl->_is_susceptible_[i] = false;
 		}
 		else if (old_status == MISSING_STATUS)
 		{
-			--pImpl->num_missing_status;
+			--pImpl->n_missing_status;
 			pImpl->missing_status_set.erase(i);
 			pImpl->_is_missing_status_[i] = false;
 		}
@@ -156,19 +156,19 @@ bool Household::change_status(int i, int new_status)
 
 		if (new_status >= INFECTIOUS)
 		{
-			++pImpl->num_infectious;
+			++pImpl->n_infectious;
 			pImpl->infectious_set.insert(i);
 			pImpl->_is_infectious_[i] = true;
 		}
 		else if (new_status == SUSCEPTIBLE)
 		{
-			++pImpl->num_susceptible;
+			++pImpl->n_susceptible;
 			pImpl->susceptible_set.insert(i);
 			pImpl->_is_susceptible_[i] = true;
 		}
 		else if (new_status == MISSING_STATUS)
 		{
-			++pImpl->num_missing_status;
+			++pImpl->n_missing_status;
 			pImpl->missing_status_set.insert(i);
 			pImpl->_is_missing_status_[i] = true;
 		}
@@ -218,9 +218,9 @@ double Household::augm(int i, const std::string &augmID) const { return pImpl->i
 double Household::data(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data(dataID); }
 const double *Household::data_pointer(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data_pointer(dataID); }
 
-int Household::num_infectious() const { return pImpl->num_infectious; }
-int Household::num_susceptible() const { return pImpl->num_susceptible; }
-int Household::num_missing_status() const { return pImpl->num_missing_status; }
+int Household::n_infectious() const { return pImpl->n_infectious; }
+int Household::n_susceptible() const { return pImpl->n_susceptible; }
+int Household::n_missing_status() const { return pImpl->n_missing_status; }
 
 const std::set<int> &Household::infectious_set() const { return pImpl->infectious_set; }
 const std::set<int> &Household::susceptible_set() const { return pImpl->susceptible_set; }

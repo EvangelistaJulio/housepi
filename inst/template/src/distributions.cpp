@@ -208,10 +208,10 @@ protected:
     {
         distr_gen.param(std::normal_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
-        int num_attempts = 0;
+        int n_attempts = 0;
         while (!valid(xnew))
         {
-            _check_rand_attempts_(num_attempts);
+            _check_rand_attempts_(n_attempts);
             xnew = distr_gen(prng);
         }
         return xnew;
@@ -280,10 +280,10 @@ protected:
     {
         distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
-        int num_attempts = 0;
+        int n_attempts = 0;
         while (!valid(xnew))
         {
-            _check_rand_attempts_(num_attempts);
+            _check_rand_attempts_(n_attempts);
             xnew = distr_gen(prng);
         }
         return xnew;
@@ -352,10 +352,10 @@ protected:
     {
         distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
-        int num_attempts = 0;
+        int n_attempts = 0;
         while (!valid(xnew))
         {
-            _check_rand_attempts_(num_attempts);
+            _check_rand_attempts_(n_attempts);
             xnew = distr_gen(prng);
         }
         return xnew;
@@ -423,10 +423,10 @@ protected:
     {
         distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
-        int num_attempts = 0;
+        int n_attempts = 0;
         while (!valid(xnew))
         {
-            _check_rand_attempts_(num_attempts);
+            _check_rand_attempts_(n_attempts);
             xnew = distr_gen(prng);
         }
         return xnew;
@@ -488,10 +488,10 @@ protected:
     virtual double _rand_(sys_rnd_gen &prng) override
     {
         double xnew = distr_gen(prng);
-        int num_attempts = 0;
+        int n_attempts = 0;
         while (!valid(xnew))
         {
-            _check_rand_attempts_(num_attempts);
+            _check_rand_attempts_(n_attempts);
             xnew = distr_gen(prng);
         }
         return xnew;
@@ -560,10 +560,10 @@ protected:
     {
         distr_gen.param(std::exponential_distribution<double>::param_type(get_arg(0)));
         double xnew = distr_gen(prng);
-        int num_attempts = 0;
+        int n_attempts = 0;
         while (!valid(xnew))
         {
-            _check_rand_attempts_(num_attempts);
+            _check_rand_attempts_(n_attempts);
             xnew = distr_gen(prng);
         }
         return xnew;

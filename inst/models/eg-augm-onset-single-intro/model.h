@@ -10,8 +10,8 @@
 /////////////////////  * *** * AUGMENTED ONSET - SINGLE INTRODUCTION * *** *  /////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MODEL__H
-#define MODEL__H
+#ifndef HOUSEPI__MODEL__H
+#define HOUSEPI__MODEL__H
 
 #include "profiles.h"
 #include "mcmc.h"
@@ -39,4 +39,4 @@ public:
 	void assign_contact_rate_to_household(Household &house, int from, int to) override;
 };
 
-#endif // MODEL__H
+#endif // HOUSEPI__MODEL__H

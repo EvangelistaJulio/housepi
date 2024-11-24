@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef FUNCTION__H
-#define FUNCTION__H
+#ifndef HOUSEPI__FUNCTION__H
+#define HOUSEPI__FUNCTION__H
 
 #include <memory>
 #include <cmath>
@@ -96,4 +96,4 @@ private:
     std::unique_ptr<Base_Function_Impl> pImpl;
 };
 
-#endif // FUNCTION__H
+#endif // HOUSEPI__FUNCTION__H

@@ -1,0 +1,30 @@
+/*
+ * model.cpp
+ *
+ * Model template of the 'housepi' package.
+ * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ *
+ */
+#include "model.h"
+std::shared_ptr<Base_Distribution> incub_distr_ptr;
+void Model::init_model_for_inference()
+{
+	dictargs_ptr args = {{"shape", param_pointer("shape")},
+					   {"scale", param_pointer("scale")}};				   
+	incub_distr_ptr = distribution_ptr("gamma", args);
+}
+double Model::compute_house_loglike(const Household &house) const
+{	
+	double incub = house.augm(0, "onset") - house.augm(0, "exposure");
+	if (incub_distr_ptr->valid(incub))
+	{
+		return incub_distr_ptr->logpdf(incub);
+	}
+	else 
+	{
+		return -INF_DOUBLE;
+	}
+}
+void Model::simulate_single_house(Household &house)
+{
+}

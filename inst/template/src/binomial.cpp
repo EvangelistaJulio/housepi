@@ -74,14 +74,14 @@ namespace bax
 	void EscapePattern::add_entry(ushort new_entry)
 	{
 		entries.push_back(new_entry);
-		++num_entries;
+		++n_entries;
 	}
 
 	/* Add a new pattern index. */
 	void EscapePattern::add_pattern(ulong new_pattern_idx)
 	{
 		pattern_idxs.push_back(new_pattern_idx);
-		++num_patterns;
+		++n_patterns;
 	}
 
 	/* Compute the loglikelihood starting from the current escape pattern.
@@ -90,12 +90,12 @@ namespace bax
 	{
 		double output = 1.;
 
-		for (size_t c = 0; c < num_patterns; ++c)
+		for (size_t c = 0; c < n_patterns; ++c)
 		{
 			output -= EscapePatterns_LookupTable[N_star][pattern_idxs[c]].likelihood(esc_mtx);
 		}
 
-		for (size_t c = 0; c < num_entries; ++c)
+		for (size_t c = 0; c < n_entries; ++c)
 		{
 			output *= esc_mtx[entries[c]];
 		}
@@ -108,7 +108,7 @@ namespace bax
 	{
 		std::ostringstream oss;
 
-		for (size_t c = 0; c < num_entries; ++c)
+		for (size_t c = 0; c < n_entries; ++c)
 		{
 			ushort u = entries[c];
 			if (u < N_star)
@@ -120,26 +120,26 @@ namespace bax
 				oss << "Q" << u / N_star << "_" << u % N_star + 1;
 			}
 
-			if (c < num_entries - 1)
+			if (c < n_entries - 1)
 			{
 				oss << "*";
 			}
 		}
 
-		if (num_patterns > 0)
+		if (n_patterns > 0)
 		{
-			if (num_entries > 0)
+			if (n_entries > 0)
 			{
 				oss << "*(";
 			}
 
 			oss << "1";
-			for (size_t c = 0; c < num_patterns; ++c)
+			for (size_t c = 0; c < n_patterns; ++c)
 			{
 				oss << " - " << EscapePatterns_LookupTable[N_star][pattern_idxs[c]].show();
 			}
 
-			if (num_entries > 0)
+			if (n_entries > 0)
 			{
 				oss << ")";
 			}
@@ -541,9 +541,9 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 	using namespace bax;
 	for (ushort N_star = 0; N_star <= max_num; ++N_star)
 	{
-		size_t num_patterns = EscapePatterns_LookupTable[N_star].size();
+		size_t n_patterns = EscapePatterns_LookupTable[N_star].size();
 		std::cerr << "\n<<" << N_star << ">>"
-					<< " n.terms = " << ((num_patterns == 0) ? 0 : 1 + (num_patterns - 1) / 2) << std::endl;
+					<< " n.terms = " << ((n_patterns == 0) ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
 
 		//----- elements for the escape matrix -----//
 		std::vector<double> commu_esc_proba(N_star);

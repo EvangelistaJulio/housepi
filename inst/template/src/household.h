@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef HOUSEHOLD__H
-#define HOUSEHOLD__H
+#ifndef HOUSEPI__HOUSEHOLD__H
+#define HOUSEPI__HOUSEHOLD__H
 
 #include <memory>
 #include <string>
@@ -53,9 +53,9 @@ public:
 	const std::string &house_ID() const;
 	int index() const;
 	int size() const;
-	int num_infectious() const;
-	int num_susceptible() const;
-	int num_missing_status() const;
+	int n_infectious() const;
+	int n_susceptible() const;
+	int n_missing_status() const;
 	const std::set<int> &infectious_set() const;
 	const std::set<int> &susceptible_set() const;
 	const std::set<int> &missing_status_set() const;
@@ -116,4 +116,4 @@ private:
 	std::unique_ptr<Household_Impl> pImpl;
 };
 
-#endif // HOUSEHOLD__H
+#endif // HOUSEPI__HOUSEHOLD__H

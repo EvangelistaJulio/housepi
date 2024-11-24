@@ -34,7 +34,7 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 Monte_Carlo_Build::Monte_Carlo_Build() : pCore(std::make_unique<Monte_Carlo_Core>()) {}
 Monte_Carlo_Build::~Monte_Carlo_Build() = default;
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 //===== Rcpp IMPORTS =====//
 void Monte_Carlo_Build::import_setup(const Rcpp::List &x)
 {
@@ -76,14 +76,14 @@ void Monte_Carlo_Build::read_params(const std::string &pathtofile)
 }
 
 bool Monte_Carlo_Build::get_rnd_init_params() const { return pCore->setup_rnd_init_params; }
-ulong Monte_Carlo_Build::get_num_chains() const { return pCore->setup_num_chains; }
-ulong Monte_Carlo_Build::get_num_iter() const { return pCore->setup_num_iter; }
-ulong Monte_Carlo_Build::get_num_adapt() const { return pCore->setup_num_adapt; }
-ulong Monte_Carlo_Build::get_thinning() const { return pCore->setup_thinning; }
-ulong Monte_Carlo_Build::get_burn_in() const { return pCore->setup_burn_in; }
+ulong Monte_Carlo_Build::get_n_chains() const { return pCore->setup_n_chains; }
+ulong Monte_Carlo_Build::get_n_steps() const { return pCore->setup_n_steps; }
+ulong Monte_Carlo_Build::get_n_adapt() const { return pCore->setup_n_adapt; }
+ulong Monte_Carlo_Build::get_thin() const { return pCore->setup_thin; }
+ulong Monte_Carlo_Build::get_n_burnin() const { return pCore->setup_n_burnin; }
 double Monte_Carlo_Build::get_inv_T() const { return pCore->setup_inv_T; }
-unsigned Monte_Carlo_Build::get_num_threads() const { return pCore->setup_num_threads; }
-ulong Monte_Carlo_Build::get_c_num_sweeps() const { return pCore->setup_c_num_sweeps; }
+unsigned Monte_Carlo_Build::get_n_threads() const { return pCore->setup_n_threads; }
+ulong Monte_Carlo_Build::get_c_n_sweeps() const { return pCore->setup_c_n_sweeps; }
 
 void Monte_Carlo_Build::set_rnd_init_params(bool x) { pCore->setup_rnd_init_params = x; }
 void Monte_Carlo_Build::set_inv_T(double x) { pCore->setup_inv_T = x; }
@@ -286,8 +286,8 @@ dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key
 /* Emplace a new household. */
 void Monte_Carlo_Build::assign_house(const std::string &ID)
 {
-    house_vec.emplace_back(ID, num_house);
-    num_house++;
+    house_vec.emplace_back(ID, n_house);
+    n_house++;
 }
 
 /* Use the loaded data to fill-in the respective report. */
@@ -309,22 +309,22 @@ void Monte_Carlo_Build::update_report_data()
     for (const Household &this_house : house_vec)
     {
         int this_house_size = this_house.size();
-        int num_infec = this_house.num_infectious();
+        int n_infec = this_house.n_infectious();
 
-        _report_data_["n.cases"] += num_infec;
-        _report_data_["n.miss.stat"] += this_house.num_missing_status();
+        _report_data_["n.cases"] += n_infec;
+        _report_data_["n.miss.stat"] += this_house.n_missing_status();
 
-        _report_data_["no.HH.case"] += (num_infec == 0);
-        _report_data_["lst.1.case"] += (num_infec > 0);
-        _report_data_["lst.2.case"] += (num_infec > 1);
+        _report_data_["no.HH.case"] += (n_infec == 0);
+        _report_data_["lst.1.case"] += (n_infec > 0);
+        _report_data_["lst.2.case"] += (n_infec > 1);
 
         // max number of house cases
-        if (_report_data_["max.n.HH.cases"] < num_infec)
+        if (_report_data_["max.n.HH.cases"] < n_infec)
         {
             _report_data_["n.HH.with.max.cases"] = 1;
-            _report_data_["max.n.HH.cases"] = num_infec;
+            _report_data_["max.n.HH.cases"] = n_infec;
         }
-        else if (_report_data_["max.n.HH.cases"] == num_infec)
+        else if (_report_data_["max.n.HH.cases"] == n_infec)
         {
             _report_data_["n.HH.with.max.cases"] += 1;
         }
@@ -693,7 +693,7 @@ void Monte_Carlo_Build::clear_all_augm(Household &this_house, int i)
 /* Init Bayesian diagnostics. */
 void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
 {
-    ulong sample_size = pCore->setup_c_sample_size * pCore->setup_num_chains;
+    ulong sample_size = pCore->setup_c_sample_size * pCore->setup_n_chains;
 
     pCore->dgn_count = 0;
     pCore->dgn_glob_loglike = std::vector<double>(sample_size);
@@ -704,7 +704,7 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
         pCore->init_param_diagnostics(sample_size);
 
         // diagnostics over households
-        for (size_t H = 0; H < num_house; ++H)
+        for (size_t H = 0; H < n_house; ++H)
         {
             house_vec[H].init_diagnostics(sample_size);
         }
@@ -723,7 +723,7 @@ void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_po
         pCore->update_param_diagnostics();
 
         // diagnostics over households
-        for (size_t H = 0; H < num_house; ++H)
+        for (size_t H = 0; H < n_house; ++H)
         {
             house_vec[H].update_diagnostics();
         }
@@ -803,36 +803,36 @@ void Monte_Carlo_Build::show_summary() const
 
     std::ostringstream oss;
 
-    oss << "n. of individuals: " << num_indiv
+    oss << "n. of individuals: " << n_indiv
         << "\n    * n. of cases: " << _report_data_.at("n.cases")
-        << " " << percent(_report_data_.at("n.cases"), num_indiv);
+        << " " << percent(_report_data_.at("n.cases"), n_indiv);
     if (_report_data_.at("n.miss.stat") > 0)
     {
         oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
-            << " " << percent(_report_data_.at("n.miss.stat"), num_indiv);
+            << " " << percent(_report_data_.at("n.miss.stat"), n_indiv);
     }
 
-    oss << "\nn. of households: " << num_house;
+    oss << "\nn. of households: " << n_house;
     if (_report_data_.at("no.HH.case") > 0)
     {
         oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
-            << " " << percent(_report_data_.at("no.HH.case"), num_house);
+            << " " << percent(_report_data_.at("no.HH.case"), n_house);
     }
 
     oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
-        << " " << percent(_report_data_.at("lst.1.case"), num_house);
+        << " " << percent(_report_data_.at("lst.1.case"), n_house);
     if (_report_data_.at("lst.1.case") > 0)
     {
         oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
-            << " " << percent(_report_data_.at("lst.2.case"), num_house);
+            << " " << percent(_report_data_.at("lst.2.case"), n_house);
     }
 
     oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
-        << " " << percent(_report_data_.at("n.HH.with.max.cases"), num_house)
+        << " " << percent(_report_data_.at("n.HH.with.max.cases"), n_house)
         << "\nmin n. house members: " << _report_data_.at("min.HH.size")
-        << " " << percent(_report_data_.at("n.HH.with.min.size"), num_house)
+        << " " << percent(_report_data_.at("n.HH.with.min.size"), n_house)
         << "\nmax n. house members: " << _report_data_.at("max.HH.size")
-        << " " << percent(_report_data_.at("n.HH.with.max.size"), num_house);
+        << " " << percent(_report_data_.at("n.HH.with.max.size"), n_house);
 
     tools::print_stdout(oss.str() + "\n");
 }
@@ -855,7 +855,7 @@ void Monte_Carlo_Build::show_group_classes() const
             for (const auto &x : entry.second)
             {
                 oss << "\n    * " << x.first << ": " << x.second
-                    << " " << tools::percent(x.second, num_indiv);
+                    << " " << tools::percent(x.second, n_indiv);
             }
             oss << "\n";
         }
@@ -868,7 +868,7 @@ void Monte_Carlo_Build::show_group_classes() const
         for (const auto &x : _report_group_classes_.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
-                << " " << tools::percent(x.second, _num_contacts_);
+                << " " << tools::percent(x.second, _n_contacts_);
         }
         oss << "\n";
     }
@@ -941,7 +941,7 @@ void Monte_Carlo_Build::show_full_build() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
@@ -967,13 +967,13 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
 {
     using namespace Rcpp;
 
-    CharacterVector df_index(num_indiv);
-    CharacterVector df_house_index(num_indiv);
-    IntegerVector df_status(num_indiv);
+    CharacterVector df_index(n_indiv);
+    CharacterVector df_house_index(n_indiv);
+    IntegerVector df_status(n_indiv);
     std::vector<NumericVector> df_dbl;
     for (size_t s = 0; s < data_headers.size() + augm_list_full.size(); ++s)
     {
-        df_dbl.emplace_back(num_indiv);
+        df_dbl.emplace_back(n_indiv);
     }
 
     size_t r = 0, c = 0;
@@ -1027,12 +1027,12 @@ Rcpp::NumericMatrix Monte_Carlo_Build::export_loglike_matrix() const
 
     // FIXME : this should be prevented if is_power_post
 
-    // Create a NumericMatrix with num_house columns
-    ulong sample_size = pCore->setup_num_chains * pCore->setup_c_sample_size;
-    NumericMatrix output(sample_size, num_house);
+    // Create a NumericMatrix with n_house columns
+    ulong sample_size = pCore->setup_n_chains * pCore->setup_c_sample_size;
+    NumericMatrix output(sample_size, n_house);
 
     // Assign each NumericVector to a column of the matrix
-    for (size_t H = 0; H < num_house; ++H)
+    for (size_t H = 0; H < n_house; ++H)
     {
         NumericVector column = wrap(house_vec[H].get_dgn_loglike());
         output(_, H) = column;

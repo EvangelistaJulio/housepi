@@ -74,7 +74,7 @@ double Model::compute_house_loglike(const Household &house) const
 	double log_p2p_esc_proba = -person_to_person_risk();
 	double log_p2p_infec_proba = log(1. - exp(log_p2p_esc_proba));
 
-	int n_positive = house.num_infectious();
+	int n_positive = house.n_infectious();
 
 	//================================================//
 	//======== Contribution of Sero-Negatives ========//
@@ -158,11 +158,11 @@ void Model::simulate_single_house(Household &house)
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	int num_new_gen = 1;
+	int n_new_gen = 1;
 
-	while ((house.num_susceptible() > 0) && (num_new_gen > 0))
+	while ((house.n_susceptible() > 0) && (n_new_gen > 0))
 	{
-		num_new_gen = 0;
+		n_new_gen = 0;
 
 		// note : here househ[h].susceptible_set is not allowed because of change_status
 		for (int i = 0; i < house.size(); i++)
@@ -172,7 +172,7 @@ void Model::simulate_single_house(Household &house)
 				if (uniform() >= exp(log_p2p_esc_proba))
 				{
 					house.change_status(i, INFECTIOUS);
-					num_new_gen++;
+					n_new_gen++;
 				}
 			}
 		}

@@ -58,7 +58,8 @@ By default a new instance requires the model compilation which is repeated at ev
 
 ```{r, eval = FALSE}
 # store the compiled model ...
-hemi <- housepi::HouseholdModelClass$new("chain-binomial", save="ready_cb")
+hemi <- housepi::HouseholdModelClass$new("chain-binomial",
+                                         store_path = "ready_cb")
 
 # ... and load it straightway during next session
 hemi <- housepi::HouseholdModelClass$new("ready_cb")
@@ -118,16 +119,16 @@ For models requiring augmented variables the procedure is analogous. See the vig
 Now we can safely perform inference with the method `infer`.
 
 ```{r}
-# run the Monte Carlo with setup options like number of iterations, seed, etc.
-hemi$infer(data = survey, num_iter = 50000, burn_in = 5000,
-           thinning = 15, num_adapt = 3000, num_chains = 4, seed = 6043)
+# run the Monte Carlo with setup options like number of steps, seed, etc.
+hemi$infer(data = survey, n_steps = 50000, n_burnin = 5000,
+           thin = 15, n_adapt = 3000, n_chains = 4, seed = 6043)
 ```
 
-*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `num_threads` is not granted on such systems.
+*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
 ```{r}
 # visualize the traces of the first chain
-hemi$traces_traceplot(chain = 1)
+hemi$traces_plot(chain = 1)
 
 # store summary of the posterior estimates
 results <- hemi$traces_summary()
@@ -188,12 +189,11 @@ We can challenge the inference process used at the beginning with the new simula
 
 ```{r}
 # run inference on new database keeping previous definitions
-hemi$infer(data = df, num_iter = 50000, burn_in = 5000,
-           thinning = 15, num_adapt = 3000, num_chains = 4,
-           seed = 4337)
+hemi$infer(data = df, n_steps = 50000, n_burnin = 5000,
+           thin = 15, n_adapt = 3000, n_chains = 4, seed = 4337)
 
 # visualize traces of the first chain
-hemi$traces_traceplot(chain = 1)
+hemi$traces_plot(chain = 1)
 
 # collect the results
 results_2 <- hemi$traces_summary()

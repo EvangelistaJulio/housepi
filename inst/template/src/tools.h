@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef UTILS__H
-#define UTILS__H
+#ifndef HOUSEPI__TOOLS__H
+#define HOUSEPI__TOOLS__H
 
 #include <memory>
 #include <cmath>
@@ -22,7 +22,7 @@
 #include <sstream>
 #include <chrono>
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #else
 #include <iostream>
@@ -87,7 +87,6 @@ const std::string EMPTY_RATE = "__empty__";    // name for Contact rate
 constexpr char C_DELIM = ',';      // file delimiter
 constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
 constexpr char C_DECOR = '-';      // decorator for prints
-constexpr char C_PROG = '=';       // decorator for progress bar
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -97,7 +96,7 @@ constexpr char C_PROG = '=';       // decorator for progress bar
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Input/Output Functions  //////////////////////////////////////
+//////////////////////////////////  Basic Tools Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tools
@@ -106,20 +105,17 @@ namespace tools
     bool is_na(const std::string &txt);
 
     // output formatter
-    const std::string percent(double num, double denom);
+    const std::string percent(ulong num, ulong denom);
+    const std::string percent(double fraction);
     const std::string truth(bool condition);
 
     // stodut print
     void print_stdout(const std::string &txt);
+    void print_stderr(const std::string &txt);
     void print_decorator(const std::string &title,
                          const std::string &txt = UNDEFINED,
                          char decor = C_DECOR,
                          bool verbose = true);
-
-    // print progress bar to stdout
-    void progress_bar_init(const std::string &txt, bool verbose = true);
-    void progress_bar_run(const std::string &txt, ulong progress, ulong total, bool verbose = true);
-    void progress_bar_end(const std::string &txt, bool verbose = true);
 
     // print warnings to stderr
     void warning(const std::string &txt);
@@ -135,7 +131,7 @@ namespace tools
     bool stobool(const std::string &tkn);
     const std::string strcleaner(std::string tkn);
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
     void rdataframe_to_map(const Rcpp::DataFrame &df, std::map<std::string, std::vector<std::string>> &output);
 #endif
 
@@ -145,4 +141,37 @@ namespace tools
     const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
 }
 
-#endif // UTILS__H
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Progress Bar Class  //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Forward declaration of implementation. */
+class CustomProgressBarImpl;
+
+/* Class for custom progress bar. */
+class CustomProgressBar
+{
+public:
+    CustomProgressBar(bool verbose = true);
+    ~CustomProgressBar();
+
+    void set_text(const std::string &text);
+    void initialize();
+
+    void update(double progress);
+    void finalize();
+
+private:
+	//===== Pointer to Implementation =====//
+	std::unique_ptr<CustomProgressBarImpl> pImpl;
+};
+
+
+#endif // HOUSEPI__TOOLS__H

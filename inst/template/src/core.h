@@ -4,6 +4,9 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
+#ifndef HOUSEPI__MCMC__CORE__H
+#define HOUSEPI__MCMC__CORE__H
+
 #include <string>
 #include <chrono>
 #include <vector>
@@ -74,17 +77,17 @@ public:
     unsigned long long setup_seed = 1; // random generator seed
     bool setup_rnd_init_params = true; // random initialization of parameters
 
-    ulong setup_num_chains = 1;   // n. chains
-    ulong setup_num_iter = 10000; // n. iterations
-    ulong setup_num_adapt = 0;    // n. (finite) adaptive steps
-    ulong setup_thinning = 1;     // n. thinning iterations
-    ulong setup_burn_in = 0;      // n. burnin iterations
+    ulong setup_n_chains = 1;   // n. chains
+    ulong setup_n_steps = 10000; // n. iterations
+    ulong setup_n_adapt = 0;    // n. (finite) adaptive steps
+    ulong setup_thin = 1;         // n. thinning iterations
+    ulong setup_n_burnin = 0;      // n. burnin iterations
 
     double setup_inv_T = 1.0;       // inverse temperature
-    unsigned setup_num_threads = 1; // number of OMP threads
+    unsigned setup_n_threads = 1; // number of OMP threads
 
     ulong setup_c_sample_size; // single chain sample size
-    ulong setup_c_num_sweeps;  // single chain n. of sweeps
+    ulong setup_c_n_sweeps;  // single chain n. of sweeps
 
     //===== Diagnostics Attributes=====//
     ulong dgn_count = 0;
@@ -94,7 +97,7 @@ public:
     Monte_Carlo_Core() : _uniform_distr_(0., 1.)
     {
 #ifdef _OPENMP
-        _max_num_available_threads = omp_get_max_threads();
+        _max_n_available_threads = omp_get_max_threads();
 #endif
     }
     ~Monte_Carlo_Core() {};
@@ -104,7 +107,7 @@ public:
     void read_params(const std::string &pathtofile = UNDEFINED);
 
     //===== SETUP : setter =====//
-    void set_num_threads(unsigned n = 1);
+    void set_n_threads(unsigned n = 1);
 
     //===== PARAM : getter =====//
     void disable_assert_param();
@@ -138,7 +141,7 @@ public:
     //===== Show =====//
     std::string show_param(const std::string &parID) const { return parID + C_DELIM + param_map.at(parID).show(); }
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
     //===== Rcpp IMPORTS =====//
     void import_setup(const Rcpp::List &setup);
     void import_params(const Rcpp::DataFrame &params);
@@ -149,7 +152,7 @@ public:
     Rcpp::DataFrame export_traces() const;
 
 #else
-	//===== Cpp PRINT =====//
+    //===== Cpp PRINT =====//
     void print_infer_state(const std::string &output_filename) const;
 #endif
 
@@ -164,7 +167,7 @@ public:
 
 private:
     //===== Internal Attributes =====//
-    std::unordered_map<std::string, Parameter> param_map = {};          // parameters dictionary
+    std::unordered_map<std::string, Parameter> param_map = {};       // parameters dictionary
     std::uniform_real_distribution<double> _uniform_distr_;          // uniform distribution
     std::unordered_map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
@@ -187,7 +190,7 @@ private:
     sys_rnd_gen &(Monte_Carlo_Core::*_func_prng_)();
     sys_rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
-    unsigned _max_num_available_threads = 1;
+    unsigned _max_n_available_threads = 1;
     sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
     void set_prng_seed(int seed);
@@ -199,3 +202,5 @@ private:
     //===== PARAM SETTER =====//
     void assign_param(const std::string &parID, const Parameter &new_param);
 };
+
+#endif // HOUSEPI__MCMC__CORE__H

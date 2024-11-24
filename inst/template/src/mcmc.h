@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef MCMC__H
-#define MCMC__H
+#ifndef HOUSEPI__MCMC__H
+#define HOUSEPI__MCMC__H
 
 #include <memory>
 #include <map>
@@ -16,7 +16,7 @@
 #include <sstream>
 #include <iomanip>
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
@@ -51,7 +51,7 @@ public:
 	void read_data(const std::string &pathtofile = UNDEFINED);
 	void read_augm(const std::string &pathtofile = UNDEFINED);
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 	//===== Rcpp IMPORTS =====//
 	void import_setup(const Rcpp::List &setup);
 	void import_params(const Rcpp::DataFrame &params);
@@ -80,7 +80,7 @@ public:
 
 	//===== DATA =====//
 	int house_size(int H) const;
-	size_t num_houses() const;
+	size_t n_houses() const;
 	int report_data(const std::string &key) const;
 
 	// note : I didn't find a way to PIMPL these because of the virtual functions
@@ -110,15 +110,15 @@ public:
 
 	//===== INFER =====//
 	virtual void init_model_for_inference() {};
-	void infer(bool progbar = true);
+	void infer(bool is_progbar = true);
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
-	double evaluate_marginal(int num_rungs, bool adaptive = true, bool progbar = true);
+	double evaluate_marginal(int n_rungs, bool adaptive = true, bool is_progbar = true);
 
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {};
 	virtual void simulate_single_house(Household &house);
-	void simulate(bool progbar = true);
+	void simulate(bool is_progbar = true);
 
 private:
 	//===== Pointer to Implementation =====//
@@ -132,14 +132,14 @@ private:
 	ulong _chain_ = 0;			 // current chain
 	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
 	ulong _rung_ = 0;			 // current thermodynamic rung
-	ulong _num_rungs_ = 0;		 // number of rungs
+	ulong _n_rungs_ = 0;		 // number of rungs
 
 	// errors
 	bool _error_occurred_ = false;
 	std::string _error_message_ = "";
 
 	//===== PRINTS =====//
-	const std::string get_progtxt(const std::string &txt, bool is_power_post);
+	const std::string fmt_progtxt(const std::string &txt, bool is_power_post);
 
 	//===== EVALUATE =====//
 	double get_global_loglike() const { return global_loglike; };
@@ -152,7 +152,7 @@ private:
 
 	//----- Monte Carlo -----//
 	void update_inver_temper(double inv_T);
-	void run_monte_carlo(bool progbar, ulong sweep = 0, bool is_power_post = false);
+	void run_monte_carlo(CustomProgressBar &progbar, ulong sweep = 0, bool is_power_post = false);
 	
 	//----- Metropolis : parameter moves -----//
 	void move_all_parameters();
@@ -182,4 +182,4 @@ private:
 	bool _augm_metropolis_T_(const Household &house, int i, const std::string &augmID, double &delta);
 };
 
-#endif // MCMC__H
+#endif // HOUSEPI__MCMC__H

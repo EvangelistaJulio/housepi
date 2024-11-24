@@ -77,38 +77,38 @@ HouseholdModelClass <- R6::R6Class(
     # Setup the list of configurations for the different analysis.
     # @param seed (`integer(1)`)\cr
     # Seed of the random number generator.
-    # @param num_iter (`integer(1)`)\cr
+    # @param n_steps (`integer(1)`)\cr
     # Number of iterations.
-    # @param burn_in (`integer(1)`)\cr
+    # @param n_burnin (`integer(1)`)\cr
     # Number of iterations to discard.
-    # @param thinning (`integer(1)`)\cr
+    # @param thin (`integer(1)`)\cr
     # Name of the parameter.
-    # @param num_chains (`integer(1)`)\cr
+    # @param n_chains (`integer(1)`)\cr
     # Name of the parameter.
-    # @param num_adapt (`integer(1)`)\cr
+    # @param n_adapt (`integer(1)`)\cr
     # Name of the parameter.
-    # @param num_threads (`integer(1)`)\cr
+    # @param n_threads (`integer(1)`)\cr
     # Name of the parameter.
     # @param rnd_init_params (`logical(1)`)\cr
     # Name of the parameter.
     # @param inv_temper (`double(1)`)\cr
     # Name of the parameter.
     setup_list = function(seed = NA,
-                          num_iter = 1000,
-                          burn_in = 0,
-                          thinning = 1,
-                          num_chains = 1,
-                          num_adapt = 0,
-                          num_threads = 1,
+                          n_steps = 1000,
+                          n_burnin = 0,
+                          thin = 1,
+                          n_chains = 1,
+                          n_adapt = 0,
+                          n_threads = 1,
                           rnd_init_params = TRUE,
                           inv_temper = 1.0) {
       private$setup[["seed"]] <- seed
-      private$setup[["num_iter"]] <- num_iter
-      private$setup[["burn_in"]] <- burn_in
-      private$setup[["thinning"]] <- thinning
-      private$setup[["num_chains"]] <- num_chains
-      private$setup[["num_adapt"]] <- num_adapt
-      private$setup[["num_threads"]] <- num_threads
+      private$setup[["n_steps"]] <- n_steps
+      private$setup[["n_burnin"]] <- n_burnin
+      private$setup[["thin"]] <- thin
+      private$setup[["n_chains"]] <- n_chains
+      private$setup[["n_adapt"]] <- n_adapt
+      private$setup[["n_threads"]] <- n_threads
       private$setup[["rnd_init_params"]] <- rnd_init_params
       private$setup[["inv_temper"]] <- inv_temper
       invisible(self)
@@ -202,16 +202,16 @@ HouseholdModelClass <- R6::R6Class(
     #' Run Bayesian MCMC inference and store internally the chain traces.
     #' @param data (`character(1)` | `data.frame`)\cr
     #' Path to a csv data file or a data.frame.
-    #' @param progbar (`logical(1)`)\cr
+    #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
     #' @param ... further arguments passed to \code{setup}.
-    infer = function(data = NULL, progbar = TRUE, ...) {
+    infer = function(data = NULL, progress = TRUE, ...) {
       # assign setup
       do.call(private$setup_list, list(...))
       # internal build function
       private$build(data = data)
       # infer method from cpp model object
-      private$obj$infer(progbar)
+      private$obj$infer(progress)
       # load traces from last inference
       df <- private$obj$export_traces()
       # extract setup information for coda
@@ -221,18 +221,18 @@ HouseholdModelClass <- R6::R6Class(
         df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
           coda::mcmc(
             data = x[, !names(x) %in% "CHAIN__"],
-            start = load_setup[["burn_in"]] + load_setup[["thinning"]],
-            end = load_setup[["num_iter"]],
-            thin = load_setup[["thinning"]]
+            start = load_setup[["n_burnin"]] + load_setup[["thin"]],
+            end = load_setup[["n_steps"]],
+            thin = load_setup[["thin"]]
           )
         })
         private$traces_frame <- coda::as.mcmc.list(df_list)
       } else {
         private$traces_frame <- coda::mcmc(
           data = df,
-          start = load_setup[["burn_in"]] + load_setup[["thinning"]],
-          end = load_setup[["num_iter"]],
-          thin = load_setup[["thinning"]]
+          start = load_setup[["n_burnin"]] + load_setup[["thin"]],
+          end = load_setup[["n_steps"]],
+          thin = load_setup[["thin"]]
         )
       }
       invisible(self)
@@ -275,47 +275,47 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Calls `coda` traceplot function to plot traces of a single chain.
+    #' Calls coda version of lattice:xyplot for the traces traces.
     #' @param chain (`integer(1)`)
     #' Option to specifiy which chain to plot if multiple chains.
-    #' @param col (`character(1)`)
-    #' Name of the color or RGB hex value.
+    #' @param col (`character()`)
+    #' Color names.
     #' @param ...
-    #' Further arguments pass to [coda][coda::traceplot].
-    traces_traceplot = function(chain = NA,
-                                col = "dodgerblue",
-                                ...) {
+    #' Further arguments pass to [xyplot][lattice::xyplot].
+    traces_plot = function(chain = NA, col = "dodgerblue", ...) {
       private$traces_check()
-      if (is.null(private$traces_frame)) {
-        stop("No traces found.")
-      } else if (coda::is.mcmc.list(private$traces_frame)) {
+      xlab <- "iteration"
+
+      if (coda::is.mcmc.list(private$traces_frame)) {
         if (is.na(chain)) {
-          coda::traceplot(private$traces_frame, col = col, ...)
+          lattice::xyplot(
+            private$traces_frame, auto.key = TRUE, xlab = xlab, ...
+          )
         } else {
-          coda::traceplot(private$traces_frame[chain], col = col, ...)
+          lattice::xyplot(
+            private$traces_frame[chain], col = col, xlab = xlab, ...
+          )
         }
       } else {
-        coda::traceplot(private$traces_frame, col = col, ...)
+        lattice::xyplot(private$traces_frame, col = col, xlab = xlab, ...)
       }
-
-      invisible(self)
     },
 
     #' @description
     #' Run the simulation.
     #' @param data (`character(1)` | `data.frame`)\cr
     #' Path to a csv data file or a data.frame.
-    #' @param progbar (`logical(1)`)\cr
+    #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
     #' @param ... further arguments passed to \code{setup}.
     #' Named build options.
-    simulate = function(data = NULL, progbar = TRUE, ...) {
+    simulate = function(data = NULL, progress = TRUE, ...) {
       # assign setup
       do.call(private$setup_list, list(...))
       # internal build function
       private$build(data = data)
       # simulate method from internal Rcpp object
-      private$obj$simulate(progbar)
+      private$obj$simulate(progress)
       invisible(self)
     },
 
@@ -361,27 +361,27 @@ HouseholdModelClass <- R6::R6Class(
     #' It uses the method of power posteriors.
     #' @param data (`character(1)` | `data.frame`)\cr
     #' Path to a csv data file or a data.frame.
-    #' @param num_rungs (`integer`)\cr
+    #' @param n_rungs (`integer`)\cr
     #' The number of rungs in the thermodynamic ladder.
     #' @param adaptive (`logical(1)`)\cr
     #' If `TRUE` uses adaptive scheme for thermodynamic ladder.
     #' Else use power fractions.
-    #' @param progbar (`logical(1)`)\cr
+    #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
     #' @return (`double(1)`)\cr
     #' The value of the model evidence.
     #' @param ... further arguments passed to  \code{setup}.
     evidence = function(data = NULL,
-                        num_rungs = 40,
+                        n_rungs = 40,
                         adaptive = TRUE,
-                        progbar = TRUE,
+                        progress = TRUE,
                         ...) {
       # assign setup
       do.call(private$setup_list, list(...))
       # internal build function
       private$build(data = data)
       # evaluate marginal from the internal Rcpp object
-      output <- private$obj$evaluate_marginal(num_rungs, adaptive, progbar)
+      output <- private$obj$evaluate_marginal(n_rungs, adaptive, progress)
       # drop traces
       private$traces_frame <- NULL
       return(output)

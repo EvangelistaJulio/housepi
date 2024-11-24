@@ -5,8 +5,8 @@
 /////////////////////////////////  * *** * UNDEFINED MODEL * *** *  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MODEL__H
-#define MODEL__H
+#ifndef HOUSEPI__MODEL__H
+#define HOUSEPI__MODEL__H
 
 #include "mcmc.h"
 
@@ -20,4 +20,4 @@ class Model : public MCMC
 	void init_model_for_simulation() override;
 };
 
-#endif // MODEL__H
+#endif // HOUSEPI__MODEL__H

@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef BINOMIAL__H
-#define BINOMIAL__H
+#ifndef HOUSEPI__BINOMIAL__H
+#define HOUSEPI__BINOMIAL__H
 
 #include <vector>
 #include <string>
@@ -43,8 +43,8 @@ namespace bax
 
     private:
         const ushort N_star;
-        size_t num_entries = 0;
-        size_t num_patterns = 0;
+        size_t n_entries = 0;
+        size_t n_patterns = 0;
 
         vec_ushort entries = {};
         std::vector<ulong> pattern_idxs = {};
@@ -99,4 +99,4 @@ namespace bax
     double chain_binomial_heter_loglikelihood(ushort N_star, const std::vector<double> &commu_esc_proba, const std::vector<std::vector<double>> &p2p_esc_proba);
 }
 
-#endif // BINOMIAL__H
+#endif // HOUSEPI__BINOMIAL__H

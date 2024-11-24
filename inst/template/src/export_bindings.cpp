@@ -14,7 +14,7 @@
 //' @field simulate Load a simulated database.
 //' @field evaluate Evaluate the loglikelihood according to the current state.
 //' @field evaluate_marginal Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
-//'   \item Parameter: num_rungs
+//'   \item Parameter: n_rungs
 //'   \item Parameter: progbar - show the progress bar
 //'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 //' }

@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef PROFILES__H
-#define PROFILES__H
+#ifndef HOUSEPI__PROFILES__H
+#define HOUSEPI__PROFILES__H
 
 #include "varia.h"
 
@@ -81,4 +81,4 @@ public:
     double cdf(double t_infection) const;
 };
 
-#endif // PROFILES__H
+#endif // HOUSEPI__PROFILES__H

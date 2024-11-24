@@ -211,7 +211,7 @@ const double *Monte_Carlo_Core::assign_scalar_pointer(double val)
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
-void Monte_Carlo_Core::set_num_threads(unsigned n)
+void Monte_Carlo_Core::set_n_threads(unsigned n)
 {
     if (n == 0)
     {
@@ -219,17 +219,17 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     }
 
 #ifdef _OPENMP
-    if (n > _max_num_available_threads)
+    if (n > _max_n_available_threads)
     {
         std::ostringstream oss;
-        oss << "Number of threads (" << n << ") changed to number of available threads (" << _max_num_available_threads << ").";
+        oss << "Number of threads (" << n << ") changed to number of available threads (" << _max_n_available_threads << ").";
         tools::warning(oss.str());
-        n = _max_num_available_threads;
+        n = _max_n_available_threads;
     }
 
     // declare the global number of omp threads
-    omp_set_num_threads(n);
-    setup_num_threads = n;
+    omp_set_n_threads(n);
+    setup_n_threads = n;
 
     // create different generators for different parallel threads
     // UPDATE: they are used only to parallelize data augmentantion
@@ -247,7 +247,7 @@ void Monte_Carlo_Core::set_num_threads(unsigned n)
     {
         tools::warning("Parallelization with OpenMP not supported.");
     }
-    setup_num_threads = 1;
+    setup_n_threads = 1;
     _func_prng_ = &Monte_Carlo_Core::_prng_unique_thread_;
 #endif
 }
@@ -259,10 +259,10 @@ void Monte_Carlo_Core::set_prng_seed(int seed)
     prng.seed(seed);
 
     // seeds for the case of parallelization
-    if (setup_num_threads > 1)
+    if (setup_n_threads > 1)
     {
         std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
-        for (unsigned n = 0; n < setup_num_threads; ++n)
+        for (unsigned n = 0; n < setup_n_threads; ++n)
         {
             prng_parallel[n].seed(seed_generator(prng));
         }
@@ -366,7 +366,7 @@ void Monte_Carlo_Core::update_param_diagnostics()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 void rlist_to_map(const Rcpp::List &list, std::map<std::string, std::string> &output)
 {
     using namespace Rcpp;
@@ -417,7 +417,7 @@ void Monte_Carlo_Core::build_setup()
     try
     {
         // default number of threads
-        unsigned num_threads = 1;
+        unsigned n_threads = 1;
 
         // default prng seed
         //----- default prng seed -----//
@@ -427,10 +427,10 @@ void Monte_Carlo_Core::build_setup()
         if (!_setup_deflist_.empty())
         {
             //===== Check that all provided setups are correct =====//
-            std::vector<std::string> file_entries = {"num_threads", "seed", "num_chains",
-                                                     "num_iter", "num_adapt", "thinning",
-                                                     "burn_in", "rnd_init_params",
-                                                     "num_rungs", "inv_temper"};
+            std::vector<std::string> file_entries = {"n_threads", "seed", "n_chains",
+                                                     "n_steps", "n_adapt", "thin",
+                                                     "n_burnin", "rnd_init_params",
+                                                     "n_rungs", "inv_temper"};
             std::vector<std::string> wrong_entries = {};
             for (const auto &pair : _setup_deflist_)
             {
@@ -458,9 +458,9 @@ void Monte_Carlo_Core::build_setup()
             //===== ASSIGN SETUP CONFIGURATIONS =====//
 
             //===== NUMBER OF THREADS =====//
-            if (_setup_deflist_.find("num_threads") != _setup_deflist_.end())
+            if (_setup_deflist_.find("n_threads") != _setup_deflist_.end())
             {
-                num_threads = tools::stoi(_setup_deflist_.at("num_threads"), "number of threads");
+                n_threads = tools::stoi(_setup_deflist_.at("n_threads"), "number of threads");
             }
 
             //===== PRNG SEED =====//
@@ -470,50 +470,50 @@ void Monte_Carlo_Core::build_setup()
             }
 
             //===== NUMBER OF CHAINS =====//
-            if (_setup_deflist_.find("num_chains") != _setup_deflist_.end())
+            if (_setup_deflist_.find("n_chains") != _setup_deflist_.end())
             {
-                setup_num_chains = tools::stoul(_setup_deflist_.at("num_chains"), "number of chains");
-                if (setup_num_iter < 1)
+                setup_n_chains = tools::stoul(_setup_deflist_.at("n_chains"), "number of chains");
+                if (setup_n_steps < 1)
                 {
                     throw std::out_of_range("Number of chains must be greater than 0.");
                 }
             }
 
             //===== NUMBER OF ITERATIONS =====//
-            if (_setup_deflist_.find("num_iter") != _setup_deflist_.end())
+            if (_setup_deflist_.find("n_steps") != _setup_deflist_.end())
             {
-                setup_num_iter = tools::stoul(_setup_deflist_.at("num_iter"), "number of iterations");
-                if (setup_num_iter < 2)
+                setup_n_steps = tools::stoul(_setup_deflist_.at("n_steps"), "number of iterations");
+                if (setup_n_steps < 2)
                 {
                     throw std::out_of_range("Number of iterations must be greater than 1.");
                 }
             }
 
             //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-            if (_setup_deflist_.find("num_adapt") != _setup_deflist_.end())
+            if (_setup_deflist_.find("n_adapt") != _setup_deflist_.end())
             {
-                setup_num_adapt = tools::stoul(_setup_deflist_.at("num_adapt"), "number of adaptive steps");
+                setup_n_adapt = tools::stoul(_setup_deflist_.at("n_adapt"), "number of adaptive steps");
             }
 
             //===== THINNING =====//
-            if (_setup_deflist_.find("thinning") != _setup_deflist_.end())
+            if (_setup_deflist_.find("thin") != _setup_deflist_.end())
             {
-                setup_thinning = tools::stoul(_setup_deflist_.at("thinning"), "thinning");
-                if (setup_thinning >= setup_num_iter)
+                setup_thin = tools::stoul(_setup_deflist_.at("thin"), "thin");
+                if (setup_thin >= setup_n_steps)
                 {
                     throw std::out_of_range("Thinning must be smaller than number of iterations. ");
                 }
-                else if (setup_thinning == 0)
+                else if (setup_thin == 0)
                 {
                     throw std::out_of_range("Thinning must be greater than 0.");
                 }
             }
 
             //===== BURN-IN =====//
-            if (_setup_deflist_.find("burn_in") != _setup_deflist_.end())
+            if (_setup_deflist_.find("n_burnin") != _setup_deflist_.end())
             {
-                setup_burn_in = tools::stoul(_setup_deflist_.at("burn_in"), "burn-in");
-                if (setup_burn_in >= setup_num_iter)
+                setup_n_burnin = tools::stoul(_setup_deflist_.at("n_burnin"), "burn-in");
+                if (setup_n_burnin >= setup_n_steps)
                 {
                     throw std::out_of_range("Burn-in must be smaller than number of iterations.");
                 }
@@ -523,7 +523,7 @@ void Monte_Carlo_Core::build_setup()
             if (_setup_deflist_.find("rnd_init_params") != _setup_deflist_.end())
             {
                 setup_rnd_init_params = tools::stobool(_setup_deflist_.at("rnd_init_params"));
-                if ((setup_num_chains > 1) && (setup_rnd_init_params == false))
+                if ((setup_n_chains > 1) && (setup_rnd_init_params == false))
                 {
                     tools::warning("Unable to fix initial parameters when running multiple chains.");
                     setup_rnd_init_params = true;
@@ -547,15 +547,15 @@ void Monte_Carlo_Core::build_setup()
         }
 
         //===== Define Number of Threads (Monte_Carlo_Core) =====//
-        set_num_threads(num_threads);
+        set_n_threads(n_threads);
 
         //===== Pseudo-Random Number Generator Seeding =====//
         set_prng_seed(setup_seed);
 
-        setup_c_sample_size = (setup_num_iter - setup_burn_in) / setup_thinning;
-        setup_c_num_sweeps = setup_num_adapt / setup_thinning;
-        setup_c_num_sweeps += setup_burn_in / setup_thinning;
-        setup_c_num_sweeps += setup_c_sample_size;
+        setup_c_sample_size = (setup_n_steps - setup_n_burnin) / setup_thin;
+        setup_c_n_sweeps = setup_n_adapt / setup_thin;
+        setup_c_n_sweeps += setup_n_burnin / setup_thin;
+        setup_c_n_sweeps += setup_c_sample_size;
     }
     catch (const std::exception &e)
     {
@@ -696,12 +696,12 @@ void Monte_Carlo_Core::show_setup() const
     // common setup variables
     std::ostringstream oss;
     oss << "seed" << C_DELIM << setup_seed
-        << "\nnum_threads" << C_DELIM << setup_num_threads
-        << "\nnum_chains" << C_DELIM << setup_num_chains
-        << "\nnum_adapt" << C_DELIM << setup_num_adapt
-        << "\nburn_in" << C_DELIM << setup_burn_in
-        << "\nnum_iter" << C_DELIM << setup_num_iter
-        << "\nthinning" << C_DELIM << setup_thinning
+        << "\nn_threads" << C_DELIM << setup_n_threads
+        << "\nn_chains" << C_DELIM << setup_n_chains
+        << "\nn_adapt" << C_DELIM << setup_n_adapt
+        << "\nn_burnin" << C_DELIM << setup_n_burnin
+        << "\nn_steps" << C_DELIM << setup_n_steps
+        << "\nthin" << C_DELIM << setup_thin
         << "\nrnd_init_params" << C_DELIM << tools::truth(setup_rnd_init_params)
         << "\ninv_temper" << C_DELIM << setup_inv_T
         << "\n";
@@ -765,7 +765,7 @@ void Monte_Carlo_Core::show_results() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
@@ -783,12 +783,12 @@ Rcpp::List Monte_Carlo_Core::export_setup() const
 
     return List::create(
         _["seed"] = setup_seed,
-        _["num_threads"] = setup_num_threads,
-        _["num_chains"] = setup_num_chains,
-        _["num_adapt"] = setup_num_adapt,
-        _["burn_in"] = setup_burn_in,
-        _["num_iter"] = setup_num_iter,
-        _["thinning"] = setup_thinning,
+        _["n_threads"] = setup_n_threads,
+        _["n_chains"] = setup_n_chains,
+        _["n_adapt"] = setup_n_adapt,
+        _["n_burnin"] = setup_n_burnin,
+        _["n_steps"] = setup_n_steps,
+        _["thin"] = setup_thin,
         _["rnd_init_params"] = setup_rnd_init_params,
         _["inv_temper"] = setup_inv_T);
 }
@@ -862,10 +862,10 @@ Rcpp::DataFrame Monte_Carlo_Core::export_traces() const
     }
 
     // retrieve chain identities
-    if (setup_num_chains > 1)
+    if (setup_n_chains > 1)
     {
-        IntegerVector df_chain(setup_c_sample_size * setup_num_chains);
-        for (ulong c = 0; c < setup_num_chains; ++c)
+        IntegerVector df_chain(setup_c_sample_size * setup_n_chains);
+        for (ulong c = 0; c < setup_n_chains; ++c)
         {
             std::fill(df_chain.begin() + c * setup_c_sample_size,
                       df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
@@ -908,7 +908,7 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
                 inferstate_ofstream << C_DELIM << parID;
             }
             // header : chain
-            if (setup_num_chains > 1)
+            if (setup_n_chains > 1)
             {
                 inferstate_ofstream << C_DELIM << "CHAIN__";
             }
@@ -917,7 +917,7 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
             //----- VALUES -----//
 
             // FIXME : // FLAG : // HERE :
-            for (size_t c = 0; c < setup_num_chains; ++c)
+            for (size_t c = 0; c < setup_n_chains; ++c)
             {
                 for (size_t k = 0; k < setup_c_sample_size; k++)
                 {
@@ -932,7 +932,7 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
                                             << std::fixed << param_map.at(parID).get_dgn_value(i);
                     }
                     // print : which chain
-                    if (setup_num_chains > 1)
+                    if (setup_n_chains > 1)
                     {
                         inferstate_ofstream << C_DELIM << (c + 1);
                     }

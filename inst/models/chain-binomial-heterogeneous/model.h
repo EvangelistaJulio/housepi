@@ -10,8 +10,8 @@
 //////////////////////////  * *** * CHAIN BINOMIAL HETEROGENEOUS * *** *  /////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MODEL__H
-#define MODEL__H
+#ifndef HOUSEPI__MODEL__H
+#define HOUSEPI__MODEL__H
 
 #include "mcmc.h"
 
@@ -33,4 +33,4 @@ class Model : public MCMC
 	void assign_group_rate_to_individual(Household &house, int i) override;
 };
 
-#endif // MODEL__H
+#endif // HOUSEPI__MODEL__H

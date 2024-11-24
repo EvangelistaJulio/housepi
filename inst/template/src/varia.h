@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef VARIA__H
-#define VARIA__H
+#ifndef HOUSEPI__VARIA__H
+#define HOUSEPI__VARIA__H
 
 #include <memory>
 #include <random>
@@ -51,7 +51,7 @@ protected:
 
 	//----- Adjust methods for truncation and/or discretizat -----//
 	void _assign_reshaping_(const dictargs &range, const std::string &discr);
-	void _check_rand_attempts_(int &num_attempts) const;
+	void _check_rand_attempts_(int &n_attempts) const;
 
 	//----- Functional methods for public methods -----//
 	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
@@ -170,7 +170,7 @@ protected:
 	std::shared_ptr<Base_Distribution> distr_ptr;
 	double from_value = INF_DOUBLE;
 
-	int num_proposed_moves = 0;
+	int n_proposed_moves = 0;
 	double accept_rate = 0.0;
 
 	//==== State attributes ====//
@@ -356,4 +356,4 @@ private:
 	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
 };
 
-#endif // VARIA__H
+#endif // HOUSEPI__VARIA__H

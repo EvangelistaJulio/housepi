@@ -18,7 +18,7 @@ void MCMC::read_setup(const std::string &pathtofile) { pImpl->read_setup(pathtof
 void MCMC::read_params(const std::string &pathtofile) { pImpl->read_params(pathtofile); }
 void MCMC::read_augm(const std::string &pathtofile) { pImpl->read_augm(pathtofile); }
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 //===== Rcpp IMPORTS =====//
 void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
 void MCMC::import_params(const Rcpp::DataFrame &x) { pImpl->import_params(x); }
@@ -45,7 +45,7 @@ void MCMC::show_group_classes() const { pImpl->show_group_classes(); }
 
 //===== DATA =====//
 int MCMC::house_size(int H) const { return pImpl->house_vec[H].size(); }
-size_t MCMC::num_houses() const { return pImpl->num_house; }
+size_t MCMC::n_houses() const { return pImpl->n_house; }
 int MCMC::report_data(const std::string &key) const { return pImpl->report_data(key); }
 double MCMC::uniform() { return pImpl->uniform(); }
 
@@ -115,7 +115,7 @@ void MCMC::read_data(const std::string &pathtofile)
     pImpl->_report_pathtofile_["data"] = pathtofile;
 }
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,8 +154,8 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             {
                 pImpl->data_headers.push_back(x.first);
             }
-            pImpl->num_indiv = datatable.at(pImpl->data_headers[0]).size();
-            pImpl->num_house = 0;
+            pImpl->n_indiv = datatable.at(pImpl->data_headers[0]).size();
+            pImpl->n_house = 0;
             pImpl->house_vec.clear();
             pImpl->_report_group_classes_.clear();
 
@@ -168,11 +168,11 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
 
             //===== Safe Load of Households =====//
             std::unordered_map<std::string, size_t> hh_ID_to_index = {};
-            for (size_t i = 0; i < pImpl->num_indiv; ++i)
+            for (size_t i = 0; i < pImpl->n_indiv; ++i)
             {
                 //----- Read individual data -----//
                 std::string this_indiv_ID = std::to_string(i);            // default value
-                std::string this_house_ID = std::to_string(num_houses()); // default value
+                std::string this_house_ID = std::to_string(n_houses()); // default value
                 int this_status = MISSING_STATUS;
                 dictargs args = {};
 
@@ -226,7 +226,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                 if (hh_ID_to_index.find(this_house_ID) == hh_ID_to_index.end())
                 {
                     // map data index to household number
-                    hh_ID_to_index.emplace(this_house_ID, num_houses());
+                    hh_ID_to_index.emplace(this_house_ID, n_houses());
                     // create a new empty household
                     pImpl->assign_house(this_house_ID);
                 }
@@ -239,7 +239,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             }
 
             //===== Set Contact Rates =====//
-            pImpl->_num_contacts_ = 0;
+            pImpl->_n_contacts_ = 0;
             for (Household &this_house : pImpl->house_vec)
             {
                 set_rate_per_contact(this_house);
@@ -391,7 +391,7 @@ void MCMC::set_rate_per_contact(Household &this_house)
                     }
 
                     // count the total number of pairs
-                    ++pImpl->_num_contacts_;
+                    ++pImpl->_n_contacts_;
                 }
             }
         }
@@ -420,7 +420,7 @@ void MCMC::update_global_loglike()
     global_loglike = 0.0;
 
 #pragma omp parallel for reduction(+ : global_loglike)
-    for (size_t H = 0; H < num_houses(); ++H)
+    for (size_t H = 0; H < n_houses(); ++H)
     {
         if (_error_occurred_)
         {
@@ -483,7 +483,7 @@ void MCMC::move_single_param(const std::string &parID)
             restore_global_loglike();
 
             // restore buffered loglikelihood in households
-            for (size_t H = 0; H < num_houses(); ++H)
+            for (size_t H = 0; H < n_houses(); ++H)
             {
                 pImpl->house_vec[H].restore_loglike();
             }
@@ -547,7 +547,7 @@ void MCMC::move_all_parameters()
 /* Move all model parameters and adapt their rule arguments. */
 void MCMC::move_and_adapt_all_parameters(ulong step)
 {
-    double adapt_ratio = static_cast<double>(step) / pImpl->get_num_adapt();
+    double adapt_ratio = static_cast<double>(step) / pImpl->get_n_adapt();
 
     for (const std::string &parID : pImpl->get_param_to_be_inferred())
     {
@@ -582,7 +582,7 @@ void MCMC::init_augmented_variables()
             }
         }
 
-        for (size_t H = 0; H < num_houses(); ++H)
+        for (size_t H = 0; H < n_houses(); ++H)
         {
             Household &this_house = pImpl->house_vec[H];
             for (int i : this_house.infectious_set())
@@ -599,7 +599,7 @@ void MCMC::_move_all_augm_()
     double delta_ll = 0.;
 
 #pragma omp parallel for reduction(+ : delta_ll)
-    for (size_t H = 0; H < num_houses(); ++H)
+    for (size_t H = 0; H < n_houses(); ++H)
     {
         if (_error_occurred_)
         {
@@ -777,15 +777,15 @@ double MCMC::evaluate()
 
 /* The text to print in the Markov chian progress bar. */
 // UPDATE : this could be functional too
-const std::string MCMC::get_progtxt(const std::string &txt, bool is_power_post)
+const std::string MCMC::fmt_progtxt(const std::string &txt, bool is_power_post)
 {
     if (is_power_post)
     {
-        return "power post " + std::to_string(_rung_) + "/" + std::to_string(_num_rungs_);
+        return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
     }
-    else if (pImpl->get_num_chains() > 1)
+    else if (pImpl->get_n_chains() > 1)
     {
-        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pImpl->get_num_chains());
+        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pImpl->get_n_chains());
     }
     else
     {
@@ -795,10 +795,8 @@ const std::string MCMC::get_progtxt(const std::string &txt, bool is_power_post)
 
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
-void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
+void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_power_post)
 {
-    using namespace tools;
-
     //==========================//
     //===== Initialization =====//
     //==========================//
@@ -810,7 +808,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
     pImpl->init_diagnostics(is_power_post);
 
     //===== Run Multiple MCMC Chains =====//
-    for (_chain_ = 1; _chain_ <= pImpl->get_num_chains(); ++_chain_)
+    for (_chain_ = 1; _chain_ <= pImpl->get_n_chains(); ++_chain_)
     {
         //-----Initialize parameter inference-----//
         pImpl->init_rand_params();
@@ -829,45 +827,51 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
 
+        progressbar.set_text(fmt_progtxt("adapt", is_power_post));
+
         // initialize the param move counts for adaptive
         pImpl->init_move_counts();
 
-        for (ulong i = 0; i < pImpl->get_num_adapt(); i += pImpl->get_thinning())
+        for (ulong i = 0; i < pImpl->get_n_adapt(); i += pImpl->get_thin())
         {
-            for (ulong t = 1; t <= pImpl->get_thinning(); ++t)
+            for (ulong t = 1; t <= pImpl->get_thin(); ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_and_adapt_all_parameters(i + t);
             }
             ++sweep;
-            progress_bar_run(get_progtxt("adapt", is_power_post),
-                             sweep, _tot_thin_sweeps_, progbar);
+
+            progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
         }
 
         //============================================//
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
-        for (ulong i = 0; i < pImpl->get_burn_in(); i += pImpl->get_thinning())
+        progressbar.set_text(fmt_progtxt("burn", is_power_post));
+
+        for (ulong i = 0; i < pImpl->get_n_burnin(); i += pImpl->get_thin())
         {
-            for (ulong t = 1; t <= pImpl->get_thinning(); ++t)
+            for (ulong t = 1; t <= pImpl->get_thin(); ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_all_parameters();
             }
             ++sweep;
-            progress_bar_run(get_progtxt("burn", is_power_post),
-                             sweep, _tot_thin_sweeps_, progbar);
+
+            progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
         }
 
         //============================================//
         //========= MCMC Posterior Sampling ==========//
         //============================================//
 
-        for (ulong i = pImpl->get_burn_in(); i < pImpl->get_num_iter(); i += pImpl->get_thinning())
+        progressbar.set_text(fmt_progtxt("sample", is_power_post));
+
+        for (ulong i = pImpl->get_n_burnin(); i < pImpl->get_n_steps(); i += pImpl->get_thin())
         {
             // thinning mcmc moves
-            for (ulong t = 1; t <= pImpl->get_thinning(); ++t)
+            for (ulong t = 1; t <= pImpl->get_thin(); ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_all_parameters();
@@ -876,8 +880,7 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
 
             // compute diagnostics for the previous iterations
             pImpl->update_diagnostics(get_global_loglike(), is_power_post);
-            progress_bar_run(get_progtxt("sample", is_power_post),
-                             sweep, _tot_thin_sweeps_, progbar);
+            progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
         }
     }
 }
@@ -887,27 +890,28 @@ void MCMC::run_monte_carlo(bool progbar, ulong sweep, bool is_power_post)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Performs the inference using Metropolis-Hastings. */
-void MCMC::infer(bool progbar)
+void MCMC::infer(bool is_progbar)
 {
     // UPDATE : Check if data is meaningful
     /*
-    if (report_data("n.miss.stat") == static_cast<int>(pImpl->num_indiv))
+    if (report_data("n.miss.stat") == static_cast<int>(pImpl->n_indiv))
     {
         tools::error("No infectious status has been provided in the data file.");
     }
     */
 
     //----- total number of mcmc sweeps -----//
-    _tot_thin_sweeps_ = pImpl->get_c_num_sweeps() * pImpl->get_num_chains();
+    _tot_thin_sweeps_ = pImpl->get_c_n_sweeps() * pImpl->get_n_chains();
 
     //----- Start progress bar and chrono -----//
-    tools::progress_bar_init("init", progbar);
+    CustomProgressBar progressbar(is_progbar);
+    progressbar.initialize();
 
     //----- Run Markov Chain -----//
-    run_monte_carlo(progbar);
+    run_monte_carlo(progressbar);
 
     //----- Close progress bar -----//
-    tools::progress_bar_end("end", progbar);
+    progressbar.finalize();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -950,20 +954,20 @@ void MCMC::update_inver_temper(double inv_T)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Evaluate the logarithm of marginal likelihood with power posteriors. */
-double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
+double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
 {
     /* Ref: Friel, N., Hurn, M. & Wyse, J.
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).*/
 
-    if (num_rungs < 2)
+    if (n_rungs < 2)
     {
         tools::error("Number of rungs must be greater than 1.");
     }
     else
     {
         // fix internal number of rungs (for progress bar)
-        _num_rungs_ = num_rungs;
+        _n_rungs_ = n_rungs;
     }
 
     //----- Backup user setup to restore them later -----//
@@ -978,11 +982,11 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
     std::vector<double> var_vec = {}; // variance loglikelihood
 
     //----- Total number of mcmc sweeps -----//
-    ulong rung_sweeps = pImpl->get_c_num_sweeps() * pImpl->get_num_chains();
-    _tot_thin_sweeps_ = rung_sweeps * (_num_rungs_ + 1);
+    ulong rung_sweeps = pImpl->get_c_n_sweeps() * pImpl->get_n_chains();
+    _tot_thin_sweeps_ = rung_sweeps * (_n_rungs_ + 1);
 
     //----- Start progress bar and chrono -----//
-    tools::progress_bar_init("init", progbar);
+    CustomProgressBar progressbar(is_progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
@@ -991,7 +995,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
     _rung_ = 0;
     update_inver_temper(0.0);
     pImpl->set_rnd_init_params(true);
-    run_monte_carlo(progbar, 0, true);
+    run_monte_carlo(progressbar, 0, true);
     pImpl->dgn_glob_ll_stats(avg, var);
 
     inv_t.push_back(0.0);
@@ -1009,7 +1013,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
         _rung_ = 1;
         update_inver_temper(1.0);
         pImpl->set_rnd_init_params(false);
-        run_monte_carlo(progbar, rung_sweeps, true);
+        run_monte_carlo(progressbar, rung_sweeps, true);
         pImpl->dgn_glob_ll_stats(avg, var);
 
         inv_t.push_back(1.0);
@@ -1018,7 +1022,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
 
         //----- Inverse Temperatures (0, 1) -----//
         size_t k = 0; // index to interval lower bound
-        while (_rung_ < _num_rungs_)
+        while (_rung_ < _n_rungs_)
         {
             ++_rung_;
 
@@ -1034,7 +1038,7 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
 
             //----- power posterior sampling -----//
             update_inver_temper(new_inv_T);
-            run_monte_carlo(progbar, _rung_ * rung_sweeps, true);
+            run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
             pImpl->dgn_glob_ll_stats(avg, var);
 
             //----- find larger rectangular discretization error -----//
@@ -1057,10 +1061,10 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
 
         //----- Inverse Temperatures (0, 1] -----//
         pImpl->set_rnd_init_params(false);
-        for (_rung_ = 1; _rung_ < _num_rungs_; ++_rung_)
+        for (_rung_ = 1; _rung_ < _n_rungs_; ++_rung_)
         {
-            update_inver_temper(std::pow(static_cast<double>(_rung_) / (_num_rungs_ - 1), 5));
-            run_monte_carlo(progbar, _rung_ * rung_sweeps, true);
+            update_inver_temper(std::pow(static_cast<double>(_rung_) / (_n_rungs_ - 1), 5));
+            run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
             pImpl->dgn_glob_ll_stats(avg, var);
 
             inv_t.push_back(pImpl->get_inv_T());
@@ -1071,14 +1075,14 @@ double MCMC::evaluate_marginal(int num_rungs, bool adaptive, bool progbar)
 
     //----- trapezoidal rule to compute marginal likelihood -----//
     double d_inv_t, output = 0.;
-    for (int k = 0; k < num_rungs; ++k)
+    for (int k = 0; k < n_rungs; ++k)
     {
         d_inv_t = inv_t[k + 1] - inv_t[k];
         output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_t / 2. - (var_vec[k + 1] - var_vec[k]) * std::pow(d_inv_t, 2) / 12.;
     }
 
     //----- Close progress bar -----//
-    tools::progress_bar_end("end", progbar);
+    progressbar.finalize();
 
     //----- Restore user setup -----//
     update_inver_temper(bkp_inv_T);
@@ -1105,7 +1109,7 @@ void MCMC::simulate_single_house(Household &this_house)
 }
 
 /* Perform simulation as provided by the user */
-void MCMC::simulate(bool progbar)
+void MCMC::simulate(bool is_progbar)
 {
     //----- Check no undefined parameters -----//
     pImpl->set_rnd_init_params(false);
@@ -1116,12 +1120,13 @@ void MCMC::simulate(bool progbar)
 
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
-    tools::progress_bar_init("simul", progbar);
+    CustomProgressBar progressbar(is_progbar);
+    progressbar.set_text("simul");
 
 #ifdef _OPENMP
-    int thin_num_house = num_houses() / pImpl->get_num_threads();
+    int thin_n_house = n_houses() / pImpl->get_n_threads();
 #pragma omp parallel for default(shared)
-    for (size_t H = 0; H < num_houses(); ++H)
+    for (size_t H = 0; H < n_houses(); ++H)
     {
         if (_error_occurred_)
         {
@@ -1144,11 +1149,11 @@ void MCMC::simulate(bool progbar)
         }
         if (omp_get_thread_num() == 0)
         {
-            tools::progress_bar_run("simul", H, thin_num_house, progbar);
+            progressbar.update(static_cast<double>(H) / thin_n_house);
         }
     }
 #else
-    for (size_t H = 0; H < num_houses(); ++H)
+    for (size_t H = 0; H < n_houses(); ++H)
     {
         if (_error_occurred_)
         {
@@ -1163,7 +1168,7 @@ void MCMC::simulate(bool progbar)
             _error_occurred_ = true;
             _error_message_ = e.what();
         }
-        tools::progress_bar_run("simul", H, num_houses(), progbar);
+            progressbar.update(static_cast<double>(H) / n_houses());
     }
 #endif
 
@@ -1173,7 +1178,7 @@ void MCMC::simulate(bool progbar)
     }
     else
     {
-        tools::progress_bar_end("simul", progbar);
+        progressbar.finalize();
         pImpl->update_report_data();
     }
 }

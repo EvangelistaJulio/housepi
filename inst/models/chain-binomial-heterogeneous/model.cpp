@@ -136,7 +136,7 @@ void Model::init_model_for_inference()
 	}
 
 	//===== Allocate memory for the escape matrix =====//
-	for (size_t H = 0; H < num_houses(); H++)
+	for (size_t H = 0; H < n_houses(); H++)
 	{
 		int h_size = house_size(H);
 		LUT_commu_esc_proba.emplace_back(h_size, 1.0);
@@ -155,13 +155,13 @@ void Model::init_model_for_inference()
 double Model::compute_house_loglike(const Household &house) const
 {
 	size_t H = house.index();
-	int num_infec = house.num_infectious();
+	int n_infec = house.n_infectious();
 
 	//===== Fill Escape Probabilities =====//
 	fill_house_escape_matrix(house);
 
 	//=====compute the loglikelihood=====//
-	return bax::chain_binomial_heter_loglikelihood(num_infec,
+	return bax::chain_binomial_heter_loglikelihood(n_infec,
 												   LUT_commu_esc_proba[H], 
 												   LUT_p2p_esc_proba[H]);
 }
@@ -211,7 +211,7 @@ void Model::simulate_single_house(Household &house)
 	std::set<int> old_gen_set = {};
 	std::set<int> new_gen_set = house.infectious_set();
 
-	while ((house.num_susceptible() > 0) && (!new_gen_set.empty()))
+	while ((house.n_susceptible() > 0) && (!new_gen_set.empty()))
 	{
 		old_gen_set = new_gen_set;
 		new_gen_set.clear();

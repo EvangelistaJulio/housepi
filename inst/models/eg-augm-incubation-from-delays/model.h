@@ -11,8 +11,8 @@
 /////////////////////////////////  * Incubation Period example *  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MODEL__H
-#define MODEL__H
+#ifndef HOUSEPI__MODEL__H
+#define HOUSEPI__MODEL__H
 
 #include "mcmc.h"
 
@@ -29,4 +29,4 @@ public:
 	void simulate_single_house(Household &house) override;
 };
 
-#endif // MODEL__H
+#endif // HOUSEPI__MODEL__H

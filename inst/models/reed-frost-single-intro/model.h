@@ -17,8 +17,8 @@ Hum Biol. 1952 Sep;24(3):201-33. PMID: 12990130.
 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MODEL__H
-#define MODEL__H
+#ifndef HOUSEPI__MODEL__H
+#define HOUSEPI__MODEL__H
 
 #include "binomial.h"
 #include "mcmc.h"
@@ -38,4 +38,4 @@ class Model : public MCMC
 	void simulate_single_house(Household &house) override;
 };
 
-#endif // MODEL__H
+#endif // HOUSEPI__MODEL__H

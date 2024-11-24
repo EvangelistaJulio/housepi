@@ -4,8 +4,8 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef INDIVIDUAL__H
-#define INDIVIDUAL__H
+#ifndef HOUSEPI__INDIVIDUAL__H
+#define HOUSEPI__INDIVIDUAL__H
 
 #include <memory>
 #include <string>
@@ -102,4 +102,4 @@ private:
 	const double *_get_data_pointer_default_(const std::string &dataID) const;
 };
 
-#endif // INDIVIDUAL__H
+#endif // HOUSEPI__INDIVIDUAL__H

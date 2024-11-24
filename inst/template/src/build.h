@@ -4,15 +4,15 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef MCMC__BUILD__H
-#define MCMC__BUILD__H
+#ifndef HOUSEPI__MCMC__BUILD__H
+#define HOUSEPI__MCMC__BUILD__H
 
 #include <string>
 #include <map>
 #include <vector>
 #include <memory>
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
@@ -33,13 +33,13 @@ class Monte_Carlo_Build
 {
 public:
     //===== Household Data =====//
-    size_t num_indiv = 0;
-    size_t num_house = 0;
+    size_t n_indiv = 0;
+    size_t n_house = 0;
     std::vector<Household> house_vec = {};
 
     //===== Data Reports =====//
     std::vector<std::string> data_headers = {};
-    ulong _num_contacts_ = 0;
+    ulong _n_contacts_ = 0;
     std::map<std::string, int> _report_data_;
     std::map<std::string, std::map<std::string, int>> _report_group_classes_ = {};
     std::map<std::string, std::string> _report_pathtofile_;
@@ -59,7 +59,7 @@ public:
 
     //===== IMPORT\EXPORT =====//
 
-#ifdef USE_RCPP
+#ifdef _HOUSEPI_RCPP
 	//===== Rcpp IMPORTS =====//
 	void import_setup(const Rcpp::List &x);
 	void import_params(const Rcpp::DataFrame &x);
@@ -92,14 +92,14 @@ public:
 
     //----- Setup : Getter -----//
     bool get_rnd_init_params() const;
-    ulong get_num_chains() const;
-    ulong get_num_iter() const;
-    ulong get_num_adapt() const;
-    ulong get_thinning() const;
-    ulong get_burn_in() const;
+    ulong get_n_chains() const;
+    ulong get_n_steps() const;
+    ulong get_n_adapt() const;
+    ulong get_thin() const;
+    ulong get_n_burnin() const;
     double get_inv_T() const;
-    unsigned get_num_threads() const;
-    ulong get_c_num_sweeps() const;
+    unsigned get_n_threads() const;
+    ulong get_c_n_sweeps() const;
 
     //===== SETUP : setter =====//
     void set_rnd_init_params(bool x);
@@ -165,4 +165,4 @@ private:
     void build_augm();
 };
 
-#endif // MCMC__BUILD__H
+#endif // HOUSEPI__MCMC__BUILD__H

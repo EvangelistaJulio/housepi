@@ -134,10 +134,10 @@ void Model::init_model_for_inference()
 	//===== Initialize household features =====//
 
 	// indexes of first infector
-	LUT_hh_first_case = std::vector<int>(num_houses());
+	LUT_hh_first_case = std::vector<int>(n_houses());
 
 	// produce the empty matrix for the infectivity profiles look-up-tables
-	for (size_t H = 0; H < num_houses(); ++H)
+	for (size_t H = 0; H < n_houses(); ++H)
 	{
 		int h_size = house_size(H);
 		LUT_inst_prof.emplace_back(h_size, std::vector<double>(h_size));
@@ -310,7 +310,7 @@ void Model::simulate_single_house(Household &house)
 	double tf = t + param("study_period");
 
 	// onset of secondary cases following the first case
-	while ((t < tf) && (house.num_susceptible() > 0))
+	while ((t < tf) && (house.n_susceptible() > 0))
 	{
 		t += Dt;
 		for (int i = 0; i < house.size(); ++i)

@@ -155,15 +155,16 @@ save_environment <- function(path, pkg_dir, custom_dir = NA) {
 # @param force (`logical(1)`)\cr
 generate_model <- function(model_path = ".", store_path = NA,
                            quiet = TRUE, force = FALSE) {
-
-  if ((dir.exists(model_path)) && (file.exists(executable(model_path))) && isFALSE(force)) {
+  
+  #===== Check Model Path =====#
+  model_path <- check_model_path(model_path)
+  
+  if ((file.exists(executable(model_path))) && isFALSE(force)) {
     #===== Folder Contains Executable =====#
     out_dir <- file.path(model_path)
     cli::cli_alert_info("Loading {.pkg {basename(model_path)}}")
 
   } else {
-    #===== Check Model Path =====#
-    model_path <- check_model_path(model_path)
 
     #===== Temporary folder where to store source code =====#
     pkg_dir <- file.path(tempdir(), paste0("housepi", gsub("_", "", model_path)))

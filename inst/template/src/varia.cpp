@@ -53,9 +53,9 @@ double Base_Distribution::_undefined_call_error_(const std::string &txt, double 
 }
 
 /* Check accept/reject within range is not exceeding maximum number of attempts. */
-void Base_Distribution::_check_rand_attempts_(int &num_attempts) const
+void Base_Distribution::_check_rand_attempts_(int &n_attempts) const
 {
-    if (num_attempts > MAX_NUMBER_ATTEMPTS)
+    if (n_attempts > MAX_NUMBER_ATTEMPTS)
     {
         std::ostringstream oss;
         oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
@@ -63,7 +63,7 @@ void Base_Distribution::_check_rand_attempts_(int &num_attempts) const
             << " with truncation {" << get_range_min() << ", " << get_range_max() << "}.";
         tools::error(oss.str());
     }
-    ++num_attempts;
+    ++n_attempts;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,14 +293,14 @@ void Base_Proposer::adapt(double ratio)
 void Base_Proposer::reset_accept_rate()
 {
     accept_rate = 0.0;
-    num_proposed_moves = 0;
+    n_proposed_moves = 0;
 };
 
 /* Update the parameter accept rate. */
 void Base_Proposer::update_accept_rate(bool is_accepted)
 {
-    accept_rate = (double)(accept_rate * num_proposed_moves + is_accepted) / (num_proposed_moves + 1);
-    num_proposed_moves += 1;
+    accept_rate = (double)(accept_rate * n_proposed_moves + is_accepted) / (n_proposed_moves + 1);
+    n_proposed_moves += 1;
 }
 
 //-----------------------------------------------------------------------------------------------//
