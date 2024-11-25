@@ -105,8 +105,7 @@ namespace tools
     bool is_na(const std::string &txt);
 
     // output formatter
-    const std::string percent(ulong num, ulong denom);
-    const std::string percent(double fraction);
+    const std::string percentage(double fraction, ushort precision = 1);
     const std::string truth(bool condition);
 
     // stodut print
@@ -163,7 +162,7 @@ public:
     ~CustomProgressBar();
 
     void set_text(const std::string &text);
-    void initialize();
+    void initialize(const std::string &text = "");
 
     void update(double progress);
     void finalize();

@@ -15,6 +15,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
+options(knitr.kable.NA = "")
 ```
 
 This tutorial introduces to data augmentation with the package `housepi`.
@@ -118,9 +119,7 @@ par_2 <- hmc_2$param_export()
 ```
 
 ```{r, echo=FALSE}
-options(knitr.kable.NA = "")
 knitr::kable(par_2)
-options(knitr.kable.NA = "NA")
 ```
 
 We propose the following definitions for the augmented variable

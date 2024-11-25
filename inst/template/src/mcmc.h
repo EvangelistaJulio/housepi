@@ -129,7 +129,7 @@ private:
 	double global_loglike = 0.0;
 
 	//===== Internal =====//
-	ulong _chain_ = 0;			 // current chain
+	ulong _chain_ = 1;			 // current chain
 	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
 	ulong _rung_ = 0;			 // current thermodynamic rung
 	ulong _n_rungs_ = 0;		 // number of rungs
@@ -139,7 +139,7 @@ private:
 	std::string _error_message_ = "";
 
 	//===== PRINTS =====//
-	const std::string fmt_progtxt(const std::string &txt, bool is_power_post);
+	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
 
 	//===== EVALUATE =====//
 	double get_global_loglike() const { return global_loglike; };

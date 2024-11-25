@@ -79,30 +79,30 @@ public:
     };
     ~CustomProgressBarImpl() {};
 
-    /* Change text displayed */
-    void set_text(const string &text)
+    void set_text(const std::string &text)
     {
         this->text = text;
     }
 
     /* Initialize progress bar. */
-    void initialize()
+    void initialize(const string &text)
     {
+        set_text(text);
+
 #ifdef _HOUSEPI_RCPP
         Rcpp::checkUserInterrupt();
 #endif
         if (verbose)
-        {
-            // note : it seems a useles print
-            //string sms = "init |" + string(barwidth, ' ') + "| " + percent(0., 1.);
-            //display(sms);
-            
+        {            
+            string sms = text + " |" + string(barwidth, ' ') + "| " + percentage(0.0, 0);
+            sms += " 0s<?";
+            display(sms);
             start = steady_clock::now();
             lastprint = start;
         }
     }
 
-    /* Percentual progress bar (step/total). */
+    /* Update progress bar given the progress state (step / total). */
     void update(double progress)
     {
 #ifdef _HOUSEPI_RCPP
@@ -120,7 +120,7 @@ public:
                 {
                     sms += symbol;
                 }
-                sms += string(barwidth - where, ' ') + "| " + percent(progress);
+                sms += string(barwidth - where, ' ') + "| " + percentage(progress, 0);
 
                 seconds elapsed = duration_cast<seconds>(now - start);
                 seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
@@ -172,9 +172,9 @@ void CustomProgressBar::set_text(const std::string &text)
 {
     pImpl->set_text(text);
 }
-void CustomProgressBar::initialize()
+void CustomProgressBar::initialize(const std::string &text)
 {
-    pImpl->initialize();
+    pImpl->initialize(text);
 }
 void CustomProgressBar::update(double progress)
 {

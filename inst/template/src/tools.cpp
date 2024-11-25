@@ -43,21 +43,12 @@ namespace tools
         return false;
     }
 
-    /* A formatted std::string for percent of num/denom */
-    const std::string percent(ulong num, ulong den)
+    /* A formatted std::string for percentage of num/denom */
+    const std::string percentage(double fraction, ushort precision)
     {
         std::ostringstream oss;
-        oss << std::fixed << std::setprecision(1)
-            << "(" << (100.0 * static_cast<double>(num) / den) << "%)";
-        return oss.str();
-    }
-
-    /* A formatted std::string for percent of num/denom */
-    const std::string percent(double fraction)
-    {
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(1)
-            << "(" << (100.0 * fraction) << "%)";
+        oss << std::fixed << std::setprecision(precision)
+            << (100.0 * fraction) << "%";
         return oss.str();
     }
 

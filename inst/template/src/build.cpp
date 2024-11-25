@@ -27,8 +27,14 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Auxiliary function to call percentuage. */
+inline const std::string _aux_percent_(int num, int den)
+{
+    return "(" + tools::percentage(static_cast<double>(num) / den, 1) + ")";
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Monte_Carlo_Build : implementations  ///////////////////////////////////////
+///////////////////////////////  Monte_Carlo_Build : implementations  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Monte_Carlo_Build::Monte_Carlo_Build() : pCore(std::make_unique<Monte_Carlo_Core>()) {}
@@ -797,42 +803,38 @@ void Monte_Carlo_Build::show_results() const { pCore->show_results(); }
 /* Print the report of the database and of the model group rates. */
 void Monte_Carlo_Build::show_summary() const
 {
-    using tools::percent;
-
-    //===== PRINT =====//
-
     std::ostringstream oss;
 
     oss << "n. of individuals: " << n_indiv
         << "\n    * n. of cases: " << _report_data_.at("n.cases")
-        << " " << percent(_report_data_.at("n.cases"), n_indiv);
+        << " " << _aux_percent_(_report_data_.at("n.cases"), n_indiv);
     if (_report_data_.at("n.miss.stat") > 0)
     {
         oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
-            << " " << percent(_report_data_.at("n.miss.stat"), n_indiv);
+            << " " << _aux_percent_(_report_data_.at("n.miss.stat"), n_indiv);
     }
 
     oss << "\nn. of households: " << n_house;
     if (_report_data_.at("no.HH.case") > 0)
     {
         oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
-            << " " << percent(_report_data_.at("no.HH.case"), n_house);
+            << " " << _aux_percent_(_report_data_.at("no.HH.case"), n_house);
     }
 
     oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
-        << " " << percent(_report_data_.at("lst.1.case"), n_house);
+        << " " << _aux_percent_(_report_data_.at("lst.1.case"), n_house);
     if (_report_data_.at("lst.1.case") > 0)
     {
         oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
-            << " " << percent(_report_data_.at("lst.2.case"), n_house);
+            << " " << _aux_percent_(_report_data_.at("lst.2.case"), n_house);
     }
 
     oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
-        << " " << percent(_report_data_.at("n.HH.with.max.cases"), n_house)
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.cases"), n_house)
         << "\nmin n. house members: " << _report_data_.at("min.HH.size")
-        << " " << percent(_report_data_.at("n.HH.with.min.size"), n_house)
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.min.size"), n_house)
         << "\nmax n. house members: " << _report_data_.at("max.HH.size")
-        << " " << percent(_report_data_.at("n.HH.with.max.size"), n_house);
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.size"), n_house);
 
     tools::print_stdout(oss.str() + "\n");
 }
@@ -855,7 +857,7 @@ void Monte_Carlo_Build::show_group_classes() const
             for (const auto &x : entry.second)
             {
                 oss << "\n    * " << x.first << ": " << x.second
-                    << " " << tools::percent(x.second, n_indiv);
+                    << " " << _aux_percent_(x.second, n_indiv);
             }
             oss << "\n";
         }
@@ -868,7 +870,7 @@ void Monte_Carlo_Build::show_group_classes() const
         for (const auto &x : _report_group_classes_.at(CONTACT_RATE))
         {
             oss << "\n    * " << x.first << ": " << x.second
-                << " " << tools::percent(x.second, _n_contacts_);
+                << " " << _aux_percent_(x.second, _n_contacts_);
         }
         oss << "\n";
     }

@@ -776,7 +776,6 @@ double MCMC::evaluate()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The text to print in the Markov chian progress bar. */
-// UPDATE : this could be functional too
 const std::string MCMC::fmt_progtxt(const std::string &txt, bool is_power_post)
 {
     if (is_power_post)
@@ -810,6 +809,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
     //===== Run Multiple MCMC Chains =====//
     for (_chain_ = 1; _chain_ <= pImpl->get_n_chains(); ++_chain_)
     {
+        //----- Update Progressbar Tezt -----//
+        progressbar.set_text(fmt_progtxt("infer", is_power_post));
+
         //-----Initialize parameter inference-----//
         pImpl->init_rand_params();
 
@@ -826,8 +828,6 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//
         //=========================================//
-
-        progressbar.set_text(fmt_progtxt("adapt", is_power_post));
 
         // initialize the param move counts for adaptive
         pImpl->init_move_counts();
@@ -848,8 +848,6 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
-        progressbar.set_text(fmt_progtxt("burnin", is_power_post));
-
         for (ulong i = 0; i < pImpl->get_n_burnin(); i += pImpl->get_thin())
         {
             for (ulong t = 1; t <= pImpl->get_thin(); ++t)
@@ -865,8 +863,6 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         //============================================//
         //========= MCMC Posterior Sampling ==========//
         //============================================//
-
-        progressbar.set_text(fmt_progtxt("sample", is_power_post));
 
         for (ulong i = pImpl->get_n_burnin(); i < pImpl->get_n_steps(); i += pImpl->get_thin())
         {
@@ -901,11 +897,12 @@ void MCMC::infer(bool is_progbar)
     */
 
     //----- total number of mcmc sweeps -----//
+    _chain_ = 1;
     _tot_thin_sweeps_ = pImpl->get_c_n_sweeps() * pImpl->get_n_chains();
 
     //----- Start progress bar and chrono -----//
     CustomProgressBar progressbar(is_progbar);
-    progressbar.initialize();
+    progressbar.initialize(fmt_progtxt("infer"));
 
     //----- Run Markov Chain -----//
     run_monte_carlo(progressbar);
@@ -983,16 +980,18 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
 
     //----- Total number of mcmc sweeps -----//
     ulong rung_sweeps = pImpl->get_c_n_sweeps() * pImpl->get_n_chains();
+    // internal state variables
     _tot_thin_sweeps_ = rung_sweeps * (_n_rungs_ + 1);
+    _rung_ = 0;
 
     //----- Start progress bar and chrono -----//
     CustomProgressBar progressbar(is_progbar);
+    progressbar.initialize(fmt_progtxt("", true));
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
     //==================================//
 
-    _rung_ = 0;
     update_inver_temper(0.0);
     pImpl->set_rnd_init_params(true);
     run_monte_carlo(progressbar, 0, true);
@@ -1121,8 +1120,7 @@ void MCMC::simulate(bool is_progbar)
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
     CustomProgressBar progressbar(is_progbar);
-    progressbar.initialize();
-    progressbar.set_text("simul");
+    progressbar.initialize("simulate");
 
 #ifdef _OPENMP
     int thin_n_house = n_houses() / pImpl->get_n_threads();
