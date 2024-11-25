@@ -848,7 +848,7 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
-        progressbar.set_text(fmt_progtxt("burn", is_power_post));
+        progressbar.set_text(fmt_progtxt("burnin", is_power_post));
 
         for (ulong i = 0; i < pImpl->get_n_burnin(); i += pImpl->get_thin())
         {
@@ -1121,6 +1121,7 @@ void MCMC::simulate(bool is_progbar)
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
     CustomProgressBar progressbar(is_progbar);
+    progressbar.initialize();
     progressbar.set_text("simul");
 
 #ifdef _OPENMP

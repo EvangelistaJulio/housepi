@@ -62,3 +62,7 @@ Thumbs.db
 /vignettes/*.R
 /vignettes/*.html
 /vignettes/*.timestamp
+
+# housepi files #
+#################
+*.source.txt

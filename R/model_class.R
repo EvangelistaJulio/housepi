@@ -16,7 +16,7 @@ HouseholdModelClass <- R6::R6Class(
     obj = NULL,
     envir_path = NA,
     setup = NULL,
-    params = NULL,
+    param = NULL,
     augm = NULL,
     traces_frame = NULL,
 
@@ -47,8 +47,8 @@ HouseholdModelClass <- R6::R6Class(
       private$obj$import_setup(char_setup)
 
       #----- 2) PARAMETERS -----#
-      char_params <- data.frame(lapply(private$params$defs, as.character))
-      private$obj$import_params(char_params)
+      char_param <- data.frame(lapply(private$param$defs, as.character))
+      private$obj$import_params(char_param)
 
       #----- 3) DATA -----#
       if (is.null(data)) {
@@ -66,7 +66,7 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       #----- 4) AUGMENTED VARIABLES -----#
-      char_augm <- data.frame(lapply(private$augm_frame, as.character))
+      char_augm <- data.frame(lapply(private$augm$defs, as.character))
       private$obj$import_augm(char_augm)
 
       # restore scientific notation option
@@ -154,7 +154,7 @@ HouseholdModelClass <- R6::R6Class(
       # assign the empty setup list
       private$setup <- list()
       # assign the empty parameter data.frame
-      private$params <- HousepiParameterClass$new()
+      private$param <- HousepiParameterClass$new()
       # assign the empty augmented data.frame
       private$augm <- HousepiAugmentedClass$new()
 
@@ -263,8 +263,8 @@ HouseholdModelClass <- R6::R6Class(
     traces_summary = function() {
       private$traces_check()
       res <- summary(private$traces_frame)
-      imask <- private$params$defs["infer"] == TRUE
-      inames <- private$params$defs[imask, "name"]
+      imask <- private$param$defs["infer"] == TRUE
+      inames <- private$param$defs[imask, "name"]
       output <- data.frame(
         Mean = res[["statistics"]][inames, "Mean"],
         SD = res[["statistics"]][inames, "SD"],
@@ -398,13 +398,13 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted parameter definitions.
     param_export = function() {
-      return(private$params$defs)
+      return(private$param$defs)
     },
 
     #' @description
     #' Clear all current parameter definitions.
     param_clear = function() {
-      private$params$clear()
+      private$param$clear()
       invisible(self)
     },
 
@@ -426,7 +426,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... (named `list()`s)\cr
     #' Parameter names with respective list of definitions.
     param_append = function(...) {
-      private$params$append(...)
+      private$param$append(...)
       self$param_check(FALSE)
       invisible(self)
     },
@@ -436,14 +436,14 @@ HouseholdModelClass <- R6::R6Class(
     #' @param fill_template (`logical(1)`)\cr
     #' If `TRUE` fills the missing parameter with template definitions.
     param_check = function(fill_template = FALSE) {
-      private$params$check(private$envir_path, private$augm$defs, fill_template)
+      private$param$check(private$envir_path, private$augm$defs, fill_template)
       invisible(self)
     },
 
     #' @description
     #' Overwrite current parameter definitions with template definitions.
     param_template = function() {
-      private$params$template(private$envir_path)
+      private$param$template(private$envir_path)
       invisible(self)
     },
 

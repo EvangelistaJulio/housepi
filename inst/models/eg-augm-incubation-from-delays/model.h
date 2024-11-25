@@ -26,7 +26,7 @@ public:
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
 	double compute_house_loglike(const Household &house) const override;
-	void simulate_single_house(Household &house) override;
+	//void simulate_single_house(Household &house) override;
 };
 
 #endif // HOUSEPI__MODEL__H

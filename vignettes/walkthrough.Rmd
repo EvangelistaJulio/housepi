@@ -49,21 +49,10 @@ We show how to generate a new instance of such a class and its methods with a te
 
 ```{r}
 # generate an instance of the chain binomial model
-hemi <- housepi::HouseholdModelClass$new("chain-binomial")
+hmc <- housepi::HouseholdModelClass$new("chain-binomial")
 ```
 
 At any moment you can retrieve the template description by using the class method `help()`.
-
-By default a new instance requires the model compilation which is repeated at every R session. In certain conditions, e. g. when running different scripts in parallel, it is recommended to avoid this. Consider storing the associated model environment to a given folder through the options `save`:
-
-```{r, eval = FALSE}
-# store the compiled model ...
-hemi <- housepi::HouseholdModelClass$new("chain-binomial",
-                                         store_path = "ready_cb")
-
-# ... and load it straightway during next session
-hemi <- housepi::HouseholdModelClass$new("ready_cb")
-```
 
 ### Database Format
 
@@ -93,7 +82,7 @@ knitr::kable(head(aux_))
 Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param_append`.
 
 ```{r, echo=TRUE}
-hemi$param_append(
+hmc$param_append(
   alpha = list(
     prior = "unif", args = list(min = 0, max = 3),
     rule = "lnorm", rule_args = list(sdlog = 1)
@@ -120,25 +109,27 @@ Now we can safely perform inference with the method `infer`.
 
 ```{r}
 # run the Monte Carlo with setup options like number of steps, seed, etc.
-hemi$infer(data = survey, n_steps = 50000, n_burnin = 5000,
-           thin = 15, n_adapt = 3000, n_chains = 4, seed = 6043)
+hmc$infer(data = survey, n_steps = 50000, n_burnin = 5000,
+          thin = 15, n_adapt = 3000, n_chains = 4, seed = 6043)
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
-```{r}
+```{r, fig.align = 'center'}
 # visualize the traces of the first chain
-hemi$traces_plot(chain = 1)
+hmc$traces_plot(chain = 1)
+```
 
+```{r}
 # store summary of the posterior estimates
-results <- hemi$traces_summary()
+results <- hmc$traces_summary()
 ```
 
 For advanced analysis on the inference results, we can extract the traces with method `traces_export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
 
 ```{r}
 # export coda object
-mctraces <- hemi$traces_export()
+mctraces <- hmc$traces_export()
 
 # e. g. Gelman-Rubin criterion for convergence
 coda::gelman.diag(mctraces)
@@ -150,11 +141,11 @@ To perform model comparison, we can use functions from the R package [loo](https
 
 ```{r}
 # WAIC (widely applicable information criterion)
-hemi$waic()
+hmc$waic()
 ```
 ```{r}
 # approximate PSIS-LOO cross validation
-hemi$loo()
+hmc$loo()
 ```
 
 ## Simulation
@@ -189,14 +180,18 @@ We can challenge the inference process used at the beginning with the new simula
 
 ```{r}
 # run inference on new database keeping previous definitions
-hemi$infer(data = df, n_steps = 50000, n_burnin = 5000,
-           thin = 15, n_adapt = 3000, n_chains = 4, seed = 4337)
+hmc$infer(data = df, n_steps = 50000, n_burnin = 5000,
+          thin = 15, n_adapt = 3000, n_chains = 4, seed = 4337)
+```
 
+```{r, fig.align = 'center'}
 # visualize traces of the first chain
-hemi$traces_plot(chain = 1)
+hmc$traces_plot(chain = 1)
+```
 
+```{r}
 # collect the results
-results_2 <- hemi$traces_summary()
+results_2 <- hmc$traces_summary()
 
 # export parameters used for the simulations
 simul_pars <- simu_cb$param_export()

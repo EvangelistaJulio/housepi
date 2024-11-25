@@ -42,11 +42,11 @@ knitr::kable(head(delays))
 We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
-# generate the model
-hemi_1 <- housepi::HouseholdModelClass$new("ex-augm-incubation-from-delays")
+# generate an instance of the household model class
+hmc_1 <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
-hemi_1$param_append(
+hmc_1$param_append(
   shape = list(
     prior = "unif", args = list(min = 0, max = 5),
     rule = "norm", rule_args = list(sd = 1)
@@ -66,7 +66,7 @@ We state which value should be imported from the database by formatting the stri
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
-hemi_1$augm_append(
+hmc_1$augm_append(
   # define 'exposure' time
   exposure = list(
     value = "exposure_min@D",            # start from data value 'exposure_min'
@@ -89,16 +89,13 @@ hemi_1$augm_append(
 We run the inference and we extract the results
 
 ```{r}
-hemi_1$infer(data = delays, n_steps = 100000, n_burnin = 10000,
-             thin = 10, n_adapt = 2500, seed = 4349)
+hmc_1$infer(data = delays, n_steps = 100000, n_burnin = 10000,
+            thin = 10, n_adapt = 2500, seed = 4349)
 # Note: The warning tells us that our database has no demographic structure:
 # it will be interpreted as single individuals living in separate households.
 
-# show traces of chains
-hemi_1$traces_traceplot()
-
-# collect results
-results_1 <- hemi_1$traces_summary()
+# collect the inference results
+results_1 <- hmc_1$traces_summary()
 ```
 
 ## Augment Onset Times
@@ -107,17 +104,17 @@ For a more realistic example, we use the template model "ex-augm-onset-single-in
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
-hemi_2 <- housepi::HouseholdModelClass$new("ex-augm-onset-single-intro")
+hmc_2 <- housepi::HouseholdModelClass$new("eg-augm-onset-single-intro")
 ```
 
 This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
-hemi_2$param_template()
+hmc_2$param_template()
 
 # export the data.frame with parameter definitions
-par_2 <- hemi_2$param_export()
+par_2 <- hmc_2$param_export()
 ```
 
 ```{r, echo=FALSE}
@@ -130,7 +127,7 @@ We propose the following definitions for the augmented variable
 
 ```{r}
 
-hemi_2$augm_append(
+hmc_2$augm_append(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
@@ -148,8 +145,8 @@ hemi_2$augm_append(
 )
 
 # use inferred values from first example as constant parameters
-hemi_2$param_append(inc_shape = list(value = results_1["shape", "Mean"]),
-                    inc_scale = list(value = results_1["scale", "Mean"]))
+hmc_2$param_append(inc_shape = list(value = results_1["shape", "Mean"]),
+                   inc_scale = list(value = results_1["scale", "Mean"]))
 ```
 
 ### Simulate an Outbreak
@@ -159,10 +156,10 @@ We run a simulation with the method `simulate`.
 ```{r}
 # override status of the dataset according to simulation
 data("survey", package = "housepi")
-hemi_2$simulate(data = survey, seed = 3731)
+hmc_2$simulate(data = survey, seed = 3731)
 
 # show a summary of the current database
-hemi_2$data_summary()
+hmc_2$data_summary()
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
@@ -170,7 +167,7 @@ This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
 # remove incubation period from simulated database
-df <- subset(hemi_2$data_export(), select = -c(incub_period))
+df <- subset(hmc_2$data_export(), select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
 is_infec <- df$status == 1
@@ -189,11 +186,8 @@ knitr::kable(head(df))
 We can check that inference returns the parameters used for the simulation.
 
 ```{r}
-# clear previous augmented definitions
-hemi_2$augm_clear()
-
 # add new definitions
-hemi_2$augm_append(
+new_augm_defs <- list(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
@@ -209,16 +203,23 @@ hemi_2$augm_append(
   )
 )
 
+# clear previous definitions and load new from list
+hmc_2$augm_from_list(new_augm_defs)
+
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hemi_2$infer(data = df, n_steps = 10000, n_burnin = 5000,
-             n_chains = 3, thin = 25, n_adapt = 2500, seed = 3413)
+hmc_2$infer(data = df, n_steps = 10000, n_burnin = 2000, thin = 25,
+            n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
+```
 
-# plot the traces
-hemi_2$traces_plot()
+```{r, fig.align = 'center'}
+# plot the traces of all chains 
+hmc_2$traces_plot()
+```
 
+```{r}
 # collect the results
-results_2 <- hemi_2$traces_summary()
+results_2 <- hmc_2$traces_summary()
 
 # compare results to parameter values used for inference
 imask <- par_2["infer"] == TRUE
@@ -236,5 +237,5 @@ We can estimate the model evidence (or marginal loglikelihood) with the method o
 
 ```{r, eval=FALSE}
 # return the estimate of the model evidence
-hemi_2$evidence(n_rungs = 30)
+hmc_2$evidence(n_rungs = 30)
 ```

@@ -77,7 +77,9 @@ double Model::compute_house_loglike(const Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Poisson point process to simulate outbreak in a single household. */
+/*
 void Model::simulate_single_house(Household &house)
 {
 	
 }
+*/

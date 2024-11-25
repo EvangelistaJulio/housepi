@@ -25,6 +25,8 @@ double Model::compute_house_loglike(const Household &house) const
 		return -INF_DOUBLE;
 	}
 }
+/*
 void Model::simulate_single_house(Household &house)
 {
 }
+*/

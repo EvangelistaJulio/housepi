@@ -14,24 +14,21 @@ using std::string;
 ////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Format the  */
-string format_millisecs(long long elapsed)
+/* Format elapsed time in seconds. */
+const string fmt_time(std::chrono::seconds scs)
 {
     std::ostringstream oss;
 
-    auto dys = duration_cast<duration<int, std::ratio<86400>>>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(dys).count();
+    auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
+    scs -= duration_cast<seconds>(dys);
 
-    auto hrs = duration_cast<hours>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(hrs).count();
+    auto hrs = duration_cast<hours>(scs);
+    scs -= duration_cast<seconds>(hrs);
 
-    auto mns = duration_cast<minutes>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(mns).count();
+    auto mns = duration_cast<minutes>(scs);
+    scs -= duration_cast<seconds>(mns);
 
-    auto scs = duration_cast<seconds>(milliseconds(elapsed));
-    elapsed -= duration_cast<milliseconds>(scs).count();
-
-    // show large time scales only if the case
+    // show large time scales only if relevant
     if (dys.count() > 1)
     {
         oss << dys.count() << "d"
@@ -62,12 +59,13 @@ class CustomProgressBarImpl
 {
 private:
     bool verbose = true;
-    std::string text = "";
+    string text = "";
+    const string symbol = u8"\u25A0"; // decorator for progress bar
+    unsigned barwidth = 30;           // total size of progress bar
+
     steady_clock::time_point start;
     steady_clock::time_point lastprint;
-    const long long thintime = 999;
-    const std::string symbol = u8"\u25A0"; // decorator for progress bar
-    unsigned barwidth = 30;                // total size of progress bar
+    const int64_t thintime = 0;
 
 public:
     CustomProgressBarImpl(bool verbose = true)
@@ -90,71 +88,73 @@ public:
     /* Initialize progress bar. */
     void initialize()
     {
-        if (verbose)
-        {
-            string sms = "init |" + string(barwidth, ' ') + "| " + percent(0., 1.) + " 00m00s<??m??s";
-            print_stderr(sms);
-
-            start = steady_clock::now();
-            lastprint = start;
-        }
-
 #ifdef _HOUSEPI_RCPP
         Rcpp::checkUserInterrupt();
 #endif
+        if (verbose)
+        {
+            // note : it seems a useles print
+            //string sms = "init |" + string(barwidth, ' ') + "| " + percent(0., 1.);
+            //display(sms);
+            
+            start = steady_clock::now();
+            lastprint = start;
+        }
     }
 
-    /* Percentual progress bar (progress/total). */
+    /* Percentual progress bar (step/total). */
     void update(double progress)
     {
+#ifdef _HOUSEPI_RCPP
+        Rcpp::checkUserInterrupt();
+#endif
         if (verbose)
         {
             steady_clock::time_point now = steady_clock::now();
-            long long time_lastchecked = duration_cast<milliseconds>(now - lastprint).count();
 
-            if (time_lastchecked > thintime)
+            if (duration_cast<seconds>(now - lastprint).count() > thintime)
             {
-                lastprint = steady_clock::now();
-
-                long long time_elapsed = duration_cast<milliseconds>(now - start).count();
-                long long time_missing = time_elapsed * (1. / progress - 1.);
-
-                unsigned where = static_cast<double>(progress) * barwidth;
+                unsigned where = progress * barwidth;
                 string sms = text + " |";
                 for (unsigned u = 0; u < where; ++u)
                 {
                     sms += symbol;
                 }
-                sms += string(barwidth - where, ' ') + "| ";
-                sms += percent(progress) + " " + format_millisecs(time_elapsed);
-                sms += "<" + format_millisecs(time_missing);
-                print_stderr("\r" + sms + string(10, ' '));
+                sms += string(barwidth - where, ' ') + "| " + percent(progress);
+
+                seconds elapsed = duration_cast<seconds>(now - start);
+                seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
+                sms += " " + fmt_time(elapsed) + "<" + fmt_time(missing);
+                display("\r" + sms + string(10, ' '));
+
+                lastprint = steady_clock::now();
             }
         }
-
-#ifdef _HOUSEPI_RCPP
-        Rcpp::checkUserInterrupt();
-#endif
     }
 
     /*  End the progress bar. */
     void finalize()
     {
+#ifdef _HOUSEPI_RCPP
+        Rcpp::checkUserInterrupt();
+#endif
         if (verbose)
         {
-            auto time_elapsed = duration_cast<milliseconds>(steady_clock::now() - start).count();
-            string sms = "end |";
+            seconds elapsed = duration_cast<seconds>(steady_clock::now() - start);
+            string sms = text + " |";
             for (unsigned u = 0; u < barwidth; u++)
             {
                 sms += symbol;
             }
-            sms += "| " + format_millisecs(time_elapsed);
-            print_stderr("\r" + sms + string(25, ' ') + "\n");
+            sms += "| " + fmt_time(elapsed);
+            display("\r" + sms + string(25, ' ') + "\n");
         }
+    }
 
-#ifdef _HOUSEPI_RCPP
-        Rcpp::checkUserInterrupt();
-#endif
+private:
+    void display(const std::string &sms)
+    {
+        print_stdout(sms);
     }
 };
 
