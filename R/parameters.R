@@ -228,11 +228,11 @@ HousepiParameterClass <- R6::R6Class(
     check = function(envir_path, augm_frame, fill_template = FALSE) {
 
       # retrieve the model source code
-      model_path <- file.path(envir_path, ".source.txt")
+      model_path <- file.path(envir_path, ".source")
 
-      if (!file.exists(file.path(envir_path, ".source.txt"))) {
+      if (!file.exists(file.path(envir_path, ".source"))) {
         cli::cli_alert_warning(cli::format_warning(c(
-         x = "Impossible to find '.source.txt': file has been moved or deleted.",
+         x = "Impossible to find '.source': file moved or deleted.",
          i = "Try to generate a new model object with {.code force = TRUE}."
         )))
 

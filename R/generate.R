@@ -131,7 +131,7 @@ save_environment <- function(path, pkg_dir, custom_dir = NA) {
   # Filter out empty or whitespace-only lines
   cleaned_lines <- lines[stringr::str_detect(lines, "\\S")]
   
-  writeLines(cleaned_lines, file.path(out_dir, ".source.txt"))
+  writeLines(cleaned_lines, file.path(out_dir, ".source"))
 
   #----- Copy helper files in the output directory -----#
   for (from_file in helper_files(path)) {
