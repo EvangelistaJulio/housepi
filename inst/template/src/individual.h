@@ -67,7 +67,7 @@ public:
 	void set_augm_value(const std::string &augmID, double x);
 	void augm_model_rand(const std::string &augmID, sys_rnd_gen &prng);
 	bool propose_valid_augm_move(const std::string &augmID, sys_rnd_gen &prng);
-	void augm_restore_value(const std::string &augmID);
+	void restore_augm_value(const std::string &augmID);
 	void clear_augm(const std::string &augmID);
 
 private:

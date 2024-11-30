@@ -80,7 +80,6 @@ public:
 	void show_group_classes() const;
 
 	//===== DATA =====//
-	int house_size(int H) const;
 	size_t n_houses() const;
 	int report_data(const std::string &key) const;
 
@@ -105,6 +104,11 @@ public:
 	void assign_all_augm(Household &house, int i);
 	void clear_all_augm(Household &house, int i);
 
+	//===== EXTRA ATTRIBUTES =====//
+	void assign_extra_integer_to_all_houses(const std::vector<std::string> &names, int init_value = 0.0);
+	void assign_extra_vector_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
+	void assign_extra_matrix_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
+
 	//===== INFECTIVITY PROFILE =====//
 	void assign_infectivity_profile(const std::string &name);
 	double infec_profile_inst(const std::vector<double> &x);
@@ -128,7 +132,7 @@ public:
 
 private:
 	//===== Pointer to Implementation =====//
-	std::unique_ptr<Monte_Carlo_Build> pImpl;
+	std::unique_ptr<Monte_Carlo_Build> pBuild;
 
 	//===== Global Loglikelihood =====//
 	double buffer = INF_DOUBLE;

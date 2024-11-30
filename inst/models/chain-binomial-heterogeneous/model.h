@@ -24,7 +24,7 @@ class Model : public MCMC
 	//===== Model dependent methods =====//
 	double community_risk() const;
 	double person_to_person_risk() const;
-	void fill_house_escape_matrix(const Household &house) const;
+	void fill_house_escape_matrix(Household &house) const;
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override;

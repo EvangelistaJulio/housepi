@@ -13,14 +13,6 @@
 #include "model.h"
 #include "binomial.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Global Variables  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-//----- Look-Up-Tables -----//
-std::vector<std::vector<double>> LUT_commu_esc_proba;
-std::vector<squarematrix> LUT_p2p_esc_proba;
-
 //-----------------------------------------------------------------------------------------------//
 //---------------------------------------- CHANGE-ME --------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
@@ -47,7 +39,7 @@ void Model::assign_group_rate_to_individual(Household &house, int i)
 	if (is_adult)
 		if (is_male)
 			house.assign_group_rate(i, rateID, REFERENCE);
-		else 
+		else
 			house.assign_group_rate(i, rateID, "comsus_woman");
 	else
 		house.assign_group_rate(i, rateID, "comsus_child");
@@ -57,11 +49,10 @@ void Model::assign_group_rate_to_individual(Household &house, int i)
 	if (is_adult)
 		if (is_male)
 			house.assign_group_rate(i, rateID, REFERENCE);
-		else 
+		else
 			house.assign_group_rate(i, rateID, "sus_woman");
 	else
 		house.assign_group_rate(i, rateID, "sus_child");
-
 }
 
 /* [CHANGE-ME] Risk of infection from the community. */
@@ -84,12 +75,40 @@ double Model::person_to_person_risk() const
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Model : initialize model  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize the Lookup Table. */
+void Model::init_model_for_simulation()
+{
+	//===== Allocate memory for the escape matrix =====//
+	assign_extra_vector_to_all_houses({"commu-escprob"});
+	assign_extra_matrix_to_all_houses({"p2p-escprob"});
+}
+
+/* Initialize the Lookup Table. */
+void Model::init_model_for_inference()
+{
+	//==== Unknown status are not modeled =====//
+	if (report_data("n.miss.stat") > 0)
+	{
+		tools::error("A missing status was found : incompatible with the model.");
+	}
+
+	//===== Allocate memory for the escape matrix =====//
+	init_model_for_simulation();
+
+	//=====Initialize look-up-table to largest possible value=====//
+	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Model : fill house escape matrix  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The person-to-person escape probabilities stored inside a matrix.
 	Important: it must be re-ordered to have seropositives first. */
-void Model::fill_house_escape_matrix(const Household &house) const
+void Model::fill_house_escape_matrix(Household &house) const
 {
 	double commu_transm_rate = community_risk();
 	double p2p_transm_rate = person_to_person_risk();
@@ -111,50 +130,20 @@ void Model::fill_house_escape_matrix(const Household &house) const
 		double susc_house_c = house.group_rate(order[c], "Susc-House");
 
 		// community : i escaped from community
-		LUT_commu_esc_proba[H][c] = exp(-susc_commu_c * commu_transm_rate);
+		house.set_extra_vector("commu-escprob", c, exp(-susc_commu_c * commu_transm_rate));
 
 		// person-to-person : [1st] escaped from [2nd]
 		for (int r = 0; r < c; ++r)
 		{
-			LUT_p2p_esc_proba[H][r][c] = exp(-house.group_rate(order[r], "Infectivity") * susc_house_c * p2p_transm_rate);
-			LUT_p2p_esc_proba[H][c][r] = exp(-infect_c * house.group_rate(order[r], "Susc-House") * p2p_transm_rate);
+			house.set_extra_matrix("p2p-escprob", r, c,
+								   exp(-house.group_rate(order[r], "Infectivity") * susc_house_c * p2p_transm_rate));
+			house.set_extra_matrix("p2p-escprob", c, r,
+								   exp(-infect_c * house.group_rate(order[r], "Susc-House") * p2p_transm_rate));
 		}
 
 		// note : infector always escape himself (not relevant)
-		LUT_p2p_esc_proba[H][c][c] = 1;
+		house.set_extra_matrix("p2p-escprob", c, c, 1.0);
 	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Model : initialize model  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize the Lookup Table. */
-void Model::init_model_for_simulation()
-{
-	//===== Allocate memory for the escape matrix =====//
-	for (size_t H = 0; H < n_houses(); H++)
-	{
-		int h_size = house_size(H);
-		LUT_commu_esc_proba.emplace_back(h_size, 1.0);
-		LUT_p2p_esc_proba.emplace_back(h_size, std::vector<double>(h_size, 1.0));
-	}
-}
-
-/* Initialize the Lookup Table. */
-void Model::init_model_for_inference()
-{
-	//==== Unknown status are not modeled =====//
-	if (report_data("n.miss.stat") > 0)
-	{
-		tools::error("A missing status was found : incompatible with the model.");
-	}
-
-	//===== Allocate memory for the escape matrix =====//
-	init_model_for_simulation();
-
-	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,8 +160,8 @@ double Model::compute_house_loglike(Household &house) const
 
 	//=====compute the loglikelihood=====//
 	return bax::chain_binomial_heter_loglikelihood(house.n_infectious(),
-												   LUT_commu_esc_proba[H], 
-												   LUT_p2p_esc_proba[H]);
+												   house.extra_vector("commu-escprob"),
+												   house.extra_matrix("p2p-escprob"));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -203,7 +192,7 @@ void Model::simulate_single_house(Household &house)
 
 	for (int i = 0; i < house.size(); i++)
 	{
-		if (uniform() < LUT_commu_esc_proba[H][i])
+		if (uniform() < house.extra_vector("commu-escprob", i))
 		{
 			house.change_status(i, SUSCEPTIBLE);
 		}
@@ -231,7 +220,7 @@ void Model::simulate_single_house(Household &house)
 			{
 				for (int k : old_gen_set)
 				{
-					if (uniform() >= LUT_p2p_esc_proba[H][k][i])
+					if (uniform() >= house.extra_matrix("commu-escprob", k, i))
 					{
 						house.change_status(i, INFECTIOUS);
 						new_gen_set.insert(i);

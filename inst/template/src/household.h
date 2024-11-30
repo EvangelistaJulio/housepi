@@ -86,7 +86,7 @@ public:
 	void set_augm_value(int i, const std::string &augmID, double x);	
 	void augm_model_rand(int i, const std::string &augmID, sys_rnd_gen &prng);
 	bool propose_valid_augm_move(int i, const std::string &augmID, sys_rnd_gen &prng);
-	void augm_restore_value(int i, const std::string &augmID);
+	void restore_augm_value(int i, const std::string &augmID);
 	void clear_augm(int i, const std::string &augmID);
 
 	//----- Augmented : Getter -----//
@@ -95,6 +95,24 @@ public:
 	double augm_model_logratio(int i, const std::string &augmID) const;
 	double augm_propose_logratio(int i, const std::string &augmID) const;
 	double augm_move_logratio(int i, const std::string &augmID) const;
+
+	//===== EXTRA ATTRIBUTES =====//
+	void _buffer_all_extra();
+	void _restore_all_extra();
+
+	void allocate_extra_int(const std::vector<std::string> names, int init_value = 0.0);
+	void set_extra_int(const std::string &intID, int new_value);
+	int extra_int(const std::string &intID) const;
+
+	void allocate_extra_vector(const std::vector<std::string> names, double init_value = 0.0);
+	void set_extra_vector(const std::string &vecID, size_t i, double new_value);
+	double extra_vector(const std::string &vecID, size_t i) const;
+	const std::vector<double> &extra_vector(const std::string &vecID) const;
+
+	void allocate_extra_matrix(const std::vector<std::string> names, double init_value = 0.0);
+	void set_extra_matrix(const std::string &mtxID, size_t from, size_t to, double new_value);
+	double extra_matrix(const std::string &mtxID, size_t from, size_t to) const;
+	const squarematrix &extra_matrix(const std::string &mtxID) const;
 
 	//===== LOGLIKELIHOOD =====//
 

@@ -40,6 +40,10 @@ public:
 	std::vector<bool> _is_susceptible_ = {};
 	std::vector<bool> _is_missing_status_ = {};
 
+	void assign_individual(const std::string &ID, int status, const dictargs &data);
+	bool change_status(int i, int new_status);
+
+	// diagnostics
 	ulong dgn_count = 0;
 	std::vector<double> dgn_loglike = {};
 
@@ -51,7 +55,149 @@ public:
 	std::set<int> infectious_set = {};
 	std::set<int> susceptible_set = {};
 	std::set<int> missing_status_set = {};
+
+	//===== EXTRA ATTRIBUTES =====//
+
+	//----- Extra Attributes -----//
+	std::unordered_map<std::string, int> extra_int = {};
+	std::unordered_map<std::string, std::vector<double>> extra_vec = {};
+	std::unordered_map<std::string, squarematrix> extra_mtx = {};
+
+	//----- Buffer EXTRA Attributes -----//
+	std::unordered_map<std::string, int> _buffer_extra_int_ = {};
+	std::unordered_map<std::string, std::vector<double>> _buffer_extra_vec_ = {};
+	std::unordered_map<std::string, squarematrix> _buffer_extra_mtx_ = {};
+
+	// deep copies of extra attributes in the buffer
+	void buffer_all_extra()
+	{
+		_buffer_extra_int_ = extra_int;
+		_buffer_extra_vec_ = extra_vec;
+		_buffer_extra_mtx_ = extra_mtx;
+	}
+
+	// swap buffer into  extra attributes
+	void restore_all_extra()
+	{
+		extra_int.swap(_buffer_extra_int_);
+		extra_vec.swap(_buffer_extra_vec_);
+		extra_mtx.swap(_buffer_extra_mtx_);
+	}
 };
+
+/* Link an individual to the household */
+void Household_Impl::assign_individual(const std::string &ID, int status, const dictargs &data)
+{
+	//----- update status lists within the household -----//
+	if (status >= INFECTIOUS)
+	{
+		++n_infectious;
+		infectious_set.insert(house_size);
+
+		_is_infectious_.push_back(true);
+		_is_susceptible_.push_back(false);
+		_is_missing_status_.push_back(false);
+	}
+	else if (status == SUSCEPTIBLE)
+	{
+		++n_susceptible;
+		susceptible_set.insert(house_size);
+
+		_is_infectious_.push_back(false);
+		_is_susceptible_.push_back(true);
+		_is_missing_status_.push_back(false);
+	}
+	else if (status == MISSING_STATUS)
+	{
+		++n_missing_status;
+		missing_status_set.insert(house_size);
+
+		_is_infectious_.push_back(false);
+		_is_susceptible_.push_back(false);
+		_is_missing_status_.push_back(true);
+	}
+	else
+	{
+		throw std::invalid_argument(
+			"Unknown status '" + std::to_string(status) + "' for individual " + ID + ".");
+	}
+
+	//----- update household size -----//
+	++house_size;
+
+	//----- emplace new individual -----//
+	indiv.emplace_back(ID, status, data);
+}
+
+/* Change_status of individual i to new status (without controls).
+	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
+bool Household_Impl::change_status(int i, int new_status)
+{
+	Individual &this_indiv = indiv[i];
+	int old_status = this_indiv.get_status();
+
+	if (new_status == old_status)
+	{
+		return false;
+	}
+	else
+	{
+		if (old_status >= INFECTIOUS)
+		{
+			--n_infectious;
+			infectious_set.erase(i);
+			_is_infectious_[i] = false;
+		}
+		else if (old_status == SUSCEPTIBLE)
+		{
+			--n_susceptible;
+			susceptible_set.erase(i);
+			_is_susceptible_[i] = false;
+		}
+		else if (old_status == MISSING_STATUS)
+		{
+			--n_missing_status;
+			missing_status_set.erase(i);
+			_is_missing_status_[i] = false;
+		}
+		else
+		{
+			std::ostringstream oss;
+			oss << "Unknown status '"
+				<< old_status << "' for individual " << this_indiv.get_ID() << ".";
+			throw std::runtime_error(oss.str());
+		}
+
+		if (new_status >= INFECTIOUS)
+		{
+			++n_infectious;
+			infectious_set.insert(i);
+			_is_infectious_[i] = true;
+		}
+		else if (new_status == SUSCEPTIBLE)
+		{
+			++n_susceptible;
+			susceptible_set.insert(i);
+			_is_susceptible_[i] = true;
+		}
+		else if (new_status == MISSING_STATUS)
+		{
+			++n_missing_status;
+			missing_status_set.insert(i);
+			_is_missing_status_[i] = true;
+		}
+		else
+		{
+			std::ostringstream oss;
+			oss << "While changing status: unknown new status '"
+				<< new_status << "' for individual " << this_indiv.get_ID() << ".";
+			throw std::runtime_error(oss.str());
+		}
+
+		this_indiv.set_status(new_status);
+		return true;
+	}
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -71,119 +217,14 @@ Household::Household(Household &&other) noexcept = default;
 Household &Household::operator=(Household &&other) noexcept = default;
 Household::~Household() = default;
 
-/* Link an individual to the household */
 void Household::assign_individual(const std::string &ID, int status, const dictargs &data)
 {
-	//----- update status lists within the household -----//
-	if (status >= INFECTIOUS)
-	{
-		++pImpl->n_infectious;
-		pImpl->infectious_set.insert(size());
-
-		pImpl->_is_infectious_.push_back(true);
-		pImpl->_is_susceptible_.push_back(false);
-		pImpl->_is_missing_status_.push_back(false);
-	}
-	else if (status == SUSCEPTIBLE)
-	{
-		++pImpl->n_susceptible;
-		pImpl->susceptible_set.insert(size());
-
-		pImpl->_is_infectious_.push_back(false);
-		pImpl->_is_susceptible_.push_back(true);
-		pImpl->_is_missing_status_.push_back(false);
-	}
-	else if (status == MISSING_STATUS)
-	{
-		++pImpl->n_missing_status;
-		pImpl->missing_status_set.insert(size());
-
-		pImpl->_is_infectious_.push_back(false);
-		pImpl->_is_susceptible_.push_back(false);
-		pImpl->_is_missing_status_.push_back(true);
-	}
-	else
-	{
-		throw std::invalid_argument(
-			"Unknown status '" + std::to_string(status) + "' for individual " + ID + ".");
-	}
-
-	//----- update household size -----//
-	++pImpl->house_size;
-
-	//----- emplace new individual -----//
-	pImpl->indiv.emplace_back(ID, status, data);
+	pImpl->assign_individual(ID, status, data);
 }
 
 /* Change_status of individual i to new status (without controls).
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
-bool Household::change_status(int i, int new_status)
-{
-	Individual &this_indiv = pImpl->indiv[i];
-	int old_status = this_indiv.get_status();
-
-	if (new_status == old_status)
-	{
-		return false;
-	}
-	else
-	{
-		if (old_status >= INFECTIOUS)
-		{
-			--pImpl->n_infectious;
-			pImpl->infectious_set.erase(i);
-			pImpl->_is_infectious_[i] = false;
-		}
-		else if (old_status == SUSCEPTIBLE)
-		{
-			--pImpl->n_susceptible;
-			pImpl->susceptible_set.erase(i);
-			pImpl->_is_susceptible_[i] = false;
-		}
-		else if (old_status == MISSING_STATUS)
-		{
-			--pImpl->n_missing_status;
-			pImpl->missing_status_set.erase(i);
-			pImpl->_is_missing_status_[i] = false;
-		}
-		else
-		{
-			std::ostringstream oss;
-			oss << "Unknown status '"
-				<< old_status << "' for individual " << this_indiv.get_ID() << ".";
-			throw std::runtime_error(oss.str());
-		}
-
-		if (new_status >= INFECTIOUS)
-		{
-			++pImpl->n_infectious;
-			pImpl->infectious_set.insert(i);
-			pImpl->_is_infectious_[i] = true;
-		}
-		else if (new_status == SUSCEPTIBLE)
-		{
-			++pImpl->n_susceptible;
-			pImpl->susceptible_set.insert(i);
-			pImpl->_is_susceptible_[i] = true;
-		}
-		else if (new_status == MISSING_STATUS)
-		{
-			++pImpl->n_missing_status;
-			pImpl->missing_status_set.insert(i);
-			pImpl->_is_missing_status_[i] = true;
-		}
-		else
-		{
-			std::ostringstream oss;
-			oss << "While changing status: unknown new status '"
-				<< new_status << "' for individual " << this_indiv.get_ID() << ".";
-			throw std::runtime_error(oss.str());
-		}
-
-		this_indiv.set_status(new_status);
-		return true;
-	}
-}
+bool Household::change_status(int i, int new_status) { return pImpl->change_status(i, new_status); }
 
 /* Initializes matrix of contact rates. */
 void Household::init_contact_matrix()
@@ -254,7 +295,7 @@ void Household::assign_augm(int i, const std::string &augmID, double value,
 void Household::set_augm_value(int i, const std::string &augmID, double x) { pImpl->indiv[i].set_augm_value(augmID, x); }
 void Household::augm_model_rand(int i, const std::string &augmID, sys_rnd_gen &prng) { pImpl->indiv[i].augm_model_rand(augmID, prng); }
 bool Household::propose_valid_augm_move(int i, const std::string &augmID, sys_rnd_gen &prng) { return pImpl->indiv[i].propose_valid_augm_move(augmID, prng); }
-void Household::augm_restore_value(int i, const std::string &augmID) { pImpl->indiv[i].augm_restore_value(augmID); }
+void Household::restore_augm_value(int i, const std::string &augmID) { pImpl->indiv[i].restore_augm_value(augmID); }
 
 void Household::assign_group_rate(int i, const std::string &rateID, const std::string &parID) { pImpl->indiv[i].assign_group_rate(rateID, parID); }
 void Household::set_rate(int i, const std::string &rateID, const double *ptr) { pImpl->indiv[i].set_rate(rateID, ptr); }
@@ -280,4 +321,69 @@ void Household::update_diagnostics()
 const std::vector<double> &Household::get_dgn_loglike() const
 {
 	return pImpl->dgn_loglike;
+}
+
+//===== EXTRA ATTRIBUTES =====//
+void Household::_buffer_all_extra() { pImpl->buffer_all_extra(); }
+void Household::_restore_all_extra() { pImpl->restore_all_extra(); }
+
+void Household::allocate_extra_int(const std::vector<std::string> names, int init_value)
+{
+	for (const std::string &intID : names)
+	{
+		pImpl->extra_int.emplace(intID, init_value);
+	}
+}
+
+void Household::set_extra_int(const std::string &intID, int new_value)
+{
+	pImpl->extra_int.at(intID) = new_value;
+}
+
+int Household::extra_int(const std::string &intID) const
+{
+	return pImpl->extra_int.at(intID);
+}
+
+void Household::allocate_extra_vector(const std::vector<std::string> names, double init_value)
+{
+	for (const std::string &vecID : names)
+	{
+		pImpl->extra_vec.emplace(vecID, std::vector<double>(size(), init_value));
+	}
+}
+void Household::set_extra_vector(const std::string &vecID, size_t i, double new_value)
+{
+	pImpl->extra_vec.at(vecID)[i] = new_value;
+}
+double Household::extra_vector(const std::string &vecID, size_t i) const
+{
+	return pImpl->extra_vec.at(vecID)[i];
+}
+const std::vector<double> &Household::extra_vector(const std::string &vecID) const
+{
+	return pImpl->extra_vec.at(vecID);
+}
+
+void Household::allocate_extra_matrix(const std::vector<std::string> names, double init_value)
+{
+	for (const std::string &mtxID : names)
+	{
+		pImpl->extra_mtx.emplace(mtxID, std::vector<std::vector<double>>(size(), std::vector<double>(size(), init_value)));
+	}
+}
+
+void Household::set_extra_matrix(const std::string &mtxID, size_t from, size_t to, double new_value)
+{
+	pImpl->extra_mtx.at(mtxID)[from][to] = new_value;
+}
+
+double Household::extra_matrix(const std::string &mtxID, size_t from, size_t to) const
+{
+	return pImpl->extra_mtx.at(mtxID)[from][to];
+}
+
+const squarematrix &Household::extra_matrix(const std::string &mtxID) const
+{
+	return pImpl->extra_mtx.at(mtxID);
 }

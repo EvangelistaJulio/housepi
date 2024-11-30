@@ -135,7 +135,7 @@ bool Individual::propose_valid_augm_move(const std::string &augmID, sys_rnd_gen 
 }
 
 /* Restore buffer value of augmented variable. */
-void Individual::augm_restore_value(const std::string &augmID)
+void Individual::restore_augm_value(const std::string &augmID)
 {
 	this->augm_map.at(augmID).restore_value();
 }
