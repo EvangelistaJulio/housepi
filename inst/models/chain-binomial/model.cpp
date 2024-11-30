@@ -63,7 +63,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(const Household &house) const
+double Model::compute_house_loglike(Household &house) const
 {
 	int n_positive = house.n_infectious();
 

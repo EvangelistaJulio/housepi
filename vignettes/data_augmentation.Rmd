@@ -208,7 +208,7 @@ hmc_2$augm_from_list(new_augm_defs)
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
 hmc_2$infer(data = df, n_steps = 10000, n_burnin = 2000, thin = 25,
-            n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
+            n_chains = 3, n_adapt = 2000, seed = 3413, progress = TRUE)
 ```
 
 ```{r, fig.align = 'center'}

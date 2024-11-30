@@ -22,6 +22,7 @@
 
 #include "varia.h"
 #include "household.h"
+#include "profiles.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -104,19 +105,24 @@ public:
 	void assign_all_augm(Household &house, int i);
 	void clear_all_augm(Household &house, int i);
 
+	//===== INFECTIVITY PROFILE =====//
+	void assign_infectivity_profile(const std::string &name);
+	double infec_profile_inst(const std::vector<double> &x);
+	double infec_profile_cumul(const std::vector<double> &x);
+
 	//===== EVALUATE (loglikelihood) =====//
-	virtual double compute_house_loglike(const Household &house) const;
+	virtual double compute_house_loglike(Household &house) const;
 	double evaluate();
 
 	//===== INFER =====//
-	virtual void init_model_for_inference() {};
+	virtual void init_model_for_inference() {}
 	void infer(bool is_progbar = true);
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
 	double evaluate_marginal(int n_rungs, bool adaptive = true, bool is_progbar = true);
 
 	//===== SIMULATE =====//
-	virtual void init_model_for_simulation() {};
+	virtual void init_model_for_simulation() {}
 	virtual void simulate_single_house(Household &house);
 	void simulate(bool is_progbar = true);
 
@@ -137,6 +143,9 @@ private:
 	// errors
 	bool _error_occurred_ = false;
 	std::string _error_message_ = "";
+
+	//===== Infectivity_Profile =====//
+	std::unique_ptr<Base_Infectivity_Profile> _infec_profile_;
 
 	//===== PRINTS =====//
 	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);

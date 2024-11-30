@@ -68,7 +68,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(const Household &house) const
+double Model::compute_house_loglike(Household &house) const
 {
 	double log_likelihood = 0;
 	double log_p2p_esc_proba = -person_to_person_risk();

@@ -29,20 +29,20 @@ const string fmt_time(std::chrono::seconds scs)
     scs -= duration_cast<seconds>(mns);
 
     // show large time scales only if relevant
-    if (dys.count() > 1)
+    if (dys.count() > 0)
     {
         oss << dys.count() << "d"
             << std::setfill('0') << std::setw(2) << hrs.count() << "h"
             << std::setfill('0') << std::setw(2) << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
     }
-    else if (hrs.count() > 1)
+    else if (hrs.count() > 0)
     {
         oss << hrs.count() << "h"
             << std::setfill('0') << std::setw(2) << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
     }
-    else if (mns.count() > 1)
+    else if (mns.count() > 0)
     {
         oss << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
@@ -93,7 +93,7 @@ public:
         Rcpp::checkUserInterrupt();
 #endif
         if (verbose)
-        {            
+        {
             string sms = text + " |" + string(barwidth, ' ') + "| " + percentage(0.0, 0);
             sms += " 0s<?";
             display(sms);
@@ -168,19 +168,7 @@ private:
 CustomProgressBar::CustomProgressBar(bool verbose) : pImpl(std::make_unique<CustomProgressBarImpl>(verbose)) {}
 CustomProgressBar::~CustomProgressBar() = default;
 
-void CustomProgressBar::set_text(const std::string &text)
-{
-    pImpl->set_text(text);
-}
-void CustomProgressBar::initialize(const std::string &text)
-{
-    pImpl->initialize(text);
-}
-void CustomProgressBar::update(double progress)
-{
-    pImpl->update(progress);
-}
-void CustomProgressBar::finalize()
-{
-    pImpl->finalize();
-}
+void CustomProgressBar::set_text(const std::string &text) { pImpl->set_text(text); }
+void CustomProgressBar::initialize(const std::string &text) { pImpl->initialize(text); }
+void CustomProgressBar::update(double progress) { pImpl->update(progress); }
+void CustomProgressBar::finalize() { pImpl->finalize(); }

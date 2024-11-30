@@ -13,7 +13,6 @@
 #ifndef HOUSEPI__MODEL__H
 #define HOUSEPI__MODEL__H
 
-#include "profiles.h"
 #include "mcmc.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -25,13 +24,17 @@ class Model : public MCMC
 public:
 	//===== Model dependent methods =====//
 	double transmission_rate(const Household &house) const;
-	double foi(const Household &house, int i, const std::vector<squarematrix> &profiles) const;
+	double _houseROI_(const Household &house, int i, const squarematrix &profiles) const;
+	double ROI_inst(const Household &house, int i) const;
+	double ROI_cumul_infec(const Household &house, int i) const;
+	double ROI_cumul_suscept(const Household &house, int i) const;
+	double time_end_followup(const Household &house) const;
 
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
 	void init_model_for_simulation() override;
 	void update_augm_dependecies(Household &house, int i) override;
-	double compute_house_loglike(const Household &house) const override;
+	double compute_house_loglike(Household &house) const override;
 	void simulate_single_house(Household &house) override;
 
 	//----- Rate Choices -----//

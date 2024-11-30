@@ -13,7 +13,7 @@ HouseholdModelClass <- R6::R6Class(
   classname = "HouseholdModelClass",
   cloneable = FALSE,
   private = list(
-    obj = NULL,
+    rcppmodel = NULL,
     envir_path = NA,
     setup = NULL,
     param = NULL,
@@ -43,21 +43,21 @@ HouseholdModelClass <- R6::R6Class(
       options(scipen = 500)
 
       #----- 1) SETUP -----#
-      char_setup <- lapply(private$setup[!is.na(private$setup)], as.character)
-      private$obj$import_setup(char_setup)
+      setup <- lapply(private$setup[!is.na(private$setup)], as.character)
+      private$rcppmodel$import_setup(setup)
 
       #----- 2) PARAMETERS -----#
-      char_param <- data.frame(lapply(private$param$defs, as.character))
-      private$obj$import_params(char_param)
+      params <- data.frame(lapply(private$param$defs, as.character))
+      private$rcppmodel$import_params(params)
 
       #----- 3) DATA -----#
       if (is.null(data)) {
-        private$obj$read_data("<NA>")
+        private$rcppmodel$read_data("<NA>")
       } else if (is.character(data)) {
-        private$obj$read_data(data)
+        private$rcppmodel$read_data(data)
       } else if (is.data.frame(data)) {
-        char_data <- data.frame(lapply(data, as.character))
-        private$obj$import_data(char_data)
+        data <- data.frame(lapply(data, as.character))
+        private$rcppmodel$import_data(data)
       } else {
         stop(cli::format_error(c(
           "Wrong type for data",
@@ -66,8 +66,8 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       #----- 4) AUGMENTED VARIABLES -----#
-      char_augm <- data.frame(lapply(private$augm$defs, as.character))
-      private$obj$import_augm(char_augm)
+      augm <- data.frame(lapply(private$augm$defs, as.character))
+      private$rcppmodel$import_augm(augm)
 
       # restore scientific notation option
       options(scipen = store_scipen)
@@ -149,7 +149,7 @@ HouseholdModelClass <- R6::R6Class(
       # assign the path to model environment source
       private$envir_path <- dirname(dll)
       # assign the model object
-      private$obj <- m$ModelHousepi$new()
+      private$rcppmodel <- m$ModelHousepi$new()
 
       # assign the empty setup list
       private$setup <- list()
@@ -195,7 +195,7 @@ HouseholdModelClass <- R6::R6Class(
       # internal build function
       private$build(data = data)
       # evaluate marginal from the internal Rcpp object
-      return(private$obj$evaluate())
+      return(private$rcppmodel$evaluate())
     },
 
     #' @description
@@ -211,11 +211,11 @@ HouseholdModelClass <- R6::R6Class(
       # internal build function
       private$build(data = data)
       # infer method from cpp model object
-      private$obj$infer(progress)
+      private$rcppmodel$infer(progress)
       # load traces from last inference
-      df <- private$obj$export_traces()
+      df <- private$rcppmodel$export_traces()
       # extract setup information for coda
-      load_setup <- private$obj$export_setup()
+      load_setup <- private$rcppmodel$export_setup()
       # Check if multiple chains
       if ("CHAIN__" %in% colnames(df)) {
         df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
@@ -315,7 +315,7 @@ HouseholdModelClass <- R6::R6Class(
       # internal build function
       private$build(data = data)
       # simulate method from internal Rcpp object
-      private$obj$simulate(progress)
+      private$rcppmodel$simulate(progress)
       invisible(self)
     },
 
@@ -325,13 +325,13 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with individual data.
     data_export = function() {
-      return(private$obj$export_data())
+      return(private$rcppmodel$export_data())
     },
 
     #' @description
     #' Print a summary of the loaded database.
     data_summary = function() {
-      return(private$obj$show_summary())
+      return(private$rcppmodel$show_summary())
     },
 
     ############################################################################
@@ -345,7 +345,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
     loo = function(...) {
-      return(loo::loo(private$obj$export_loglike_matrix(), ...))
+      return(loo::loo(private$rcppmodel$export_loglike_matrix(), ...))
     },
 
     #' @description
@@ -353,7 +353,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::waic].
     #' #' For arguments and further details type ?loo::waic.
     waic = function(...) {
-      return(loo::waic(private$obj$export_loglike_matrix(), ...))
+      return(loo::waic(private$rcppmodel$export_loglike_matrix(), ...))
     },
 
     #' @description
@@ -381,7 +381,7 @@ HouseholdModelClass <- R6::R6Class(
       # internal build function
       private$build(data = data)
       # evaluate marginal from the internal Rcpp object
-      output <- private$obj$evaluate_marginal(n_rungs, adaptive, progress)
+      output <- private$rcppmodel$evaluate_marginal(n_rungs, adaptive, progress)
       # drop traces
       private$traces_frame <- NULL
       return(output)

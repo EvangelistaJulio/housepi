@@ -31,34 +31,37 @@ std::vector<squarematrix> LUT_p2p_esc_proba;
 /* [CHANGE-ME] Assign the parameters controlling infectivity for each individual. */
 void Model::assign_group_rate_to_individual(Household &house, int i)
 {
-	bool is_child = house.data(i, "age") <= param("child_age");
+	std::string rateID;
+	bool is_adult = house.data(i, "age") > param("child_age");
+	bool is_male = (house.data(i, "sex") == 1);
 
-	//=====Susceptibility=====//
-	if (is_child)
-	{ // child
-		house.assign_group_rate(i, "Susceptibility", "sus_child");
-	}
+	//===== Infectivity in Community =====//
+	rateID = "Infectivity";
+	if (is_adult)
+		house.assign_group_rate(i, rateID, REFERENCE);
 	else
-	{ // adult
-		if (house.data(i, "sex") == 0)
-		{ // adult women
-			house.assign_group_rate(i, "Susceptibility", "sus_women");
-		}
-		else
-		{ // adult men : Susceptibility [REFERENCE]
-			house.assign_group_rate(i, "Susceptibility", REFERENCE);
-		}
-	}
+		house.assign_group_rate(i, rateID, "inf_child");
 
-	//=====Infectivity=====//
-	if (!is_child)
-	{ // adult : Susceptiblity [REFERENCE]
-		house.assign_group_rate(i, "Infectivity", REFERENCE);
-	}
+	//===== Susceptibility in Community =====//
+	rateID = "Susc-Community";
+	if (is_adult)
+		if (is_male)
+			house.assign_group_rate(i, rateID, REFERENCE);
+		else 
+			house.assign_group_rate(i, rateID, "comsus_woman");
 	else
-	{ // child
-		house.assign_group_rate(i, "Infectivity", "inf_child");
-	}
+		house.assign_group_rate(i, rateID, "comsus_child");
+
+	//===== Susceptibility in House =====//
+	rateID = "Susc-House";
+	if (is_adult)
+		if (is_male)
+			house.assign_group_rate(i, rateID, REFERENCE);
+		else 
+			house.assign_group_rate(i, rateID, "sus_woman");
+	else
+		house.assign_group_rate(i, rateID, "sus_child");
+
 }
 
 /* [CHANGE-ME] Risk of infection from the community. */
@@ -127,6 +130,18 @@ void Model::fill_house_escape_matrix(const Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the Lookup Table. */
+void Model::init_model_for_simulation()
+{
+	//===== Allocate memory for the escape matrix =====//
+	for (size_t H = 0; H < n_houses(); H++)
+	{
+		int h_size = house_size(H);
+		LUT_commu_esc_proba.emplace_back(h_size, 1.0);
+		LUT_p2p_esc_proba.emplace_back(h_size, std::vector<double>(h_size, 1.0));
+	}
+}
+
+/* Initialize the Lookup Table. */
 void Model::init_model_for_inference()
 {
 	//==== Unknown status are not modeled =====//
@@ -136,12 +151,7 @@ void Model::init_model_for_inference()
 	}
 
 	//===== Allocate memory for the escape matrix =====//
-	for (size_t H = 0; H < n_houses(); H++)
-	{
-		int h_size = house_size(H);
-		LUT_commu_esc_proba.emplace_back(h_size, 1.0);
-		LUT_p2p_esc_proba.emplace_back(h_size, std::vector<double>(h_size, 1.0));
-	}
+	init_model_for_simulation();
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
@@ -152,16 +162,15 @@ void Model::init_model_for_inference()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_house_loglike(const Household &house) const
+double Model::compute_house_loglike(Household &house) const
 {
 	size_t H = house.index();
-	int n_infec = house.n_infectious();
 
 	//===== Fill Escape Probabilities =====//
 	fill_house_escape_matrix(house);
 
 	//=====compute the loglikelihood=====//
-	return bax::chain_binomial_heter_loglikelihood(n_infec,
+	return bax::chain_binomial_heter_loglikelihood(house.n_infectious(),
 												   LUT_commu_esc_proba[H], 
 												   LUT_p2p_esc_proba[H]);
 }
