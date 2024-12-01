@@ -39,12 +39,18 @@ household_model_template <- function(template_name = NULL, path = NULL) {
 
         # FIXME: this doesn't work outside of Rstudio
         rstudioapi::previewRd(templ_info_file)
-      } else {
 
+      } else if (any(file.exists(source_files(path)))) {
+        cli::cli_alert_warning(cli::format_warning(c(
+          sprintf("A model already exists in folder '%s'.", path),
+          i = "To create a model in the same folder, delete its content first."
+        )))
+      } else {
         #----- copy files -----#
-        dir.create(path, recursive = TRUE, showWarnings = TRUE)
+        dir.create(path, recursive = TRUE, showWarnings = FALSE)
         if (dir.exists(path)) {
           # UPDATE : maybe don't copy the copyright section
+          
           for (f in c("model.cpp", "model.h", "template_params.R", "template_info.Rd")) {
             from_file <- file.path(models_dir, template_name, f)
             to_file <- file.path(path, f)

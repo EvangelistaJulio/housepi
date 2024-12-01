@@ -391,6 +391,7 @@ public:
 std::shared_ptr<Base_Proposer> proposer_switchboard(std::string rule_name, dictargs rule_args, double rule_from)
 {
     std::shared_ptr<Base_Proposer> output = std::make_shared<Base_Proposer>(std::make_shared<Base_Distribution>());
+    const std::vector<std::string> options = {"gibbs", "unif", "norm", "lnorm"};
 
     if (rule_name == "unif")
     {
@@ -406,8 +407,9 @@ std::shared_ptr<Base_Proposer> proposer_switchboard(std::string rule_name, dicta
     }
     else if (!tools::is_na(rule_name))
     {
-        throw std::invalid_argument(
-            "Unknown proposer rule '" + rule_name + "' for Metropolis-Hastings.");
+        std::string err_message = "Unknown proposer rule '" + rule_name + "'.";
+        err_message += tools::find_closest_option(rule_name, options);
+        throw std::invalid_argument(err_message);
     }
 
     return output;

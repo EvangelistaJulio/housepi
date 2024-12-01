@@ -112,13 +112,13 @@ private:
 
 /* overloaded distribution with static values. */
 std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name = UNDEFINED,
-													  const dictargs &args = {},
-													  const dictargs &range = {});
+													const dictargs &args = {},
+													const dictargs &range = {});
 
 /* overloaded distribution with pointer to values. */
 std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name = UNDEFINED,
-													  const dictargs_ptr &args = {},
-													  const dictargs &range = {});
+													const dictargs_ptr &args = {},
+													const dictargs &range = {});
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -137,8 +137,9 @@ class Base_Proposer
 {
 public:
 	//=====Constructors=====//
-	Base_Proposer(std::shared_ptr<Base_Distribution>, double rule_start_value = INF_DOUBLE,
-					std::vector<int> args_to_adapt = {});
+	Base_Proposer(std::shared_ptr<Base_Distribution>,
+				  double rule_start_value = INF_DOUBLE,
+				  std::vector<int> args_to_adapt = {});
 	virtual ~Base_Proposer() {};
 
 	//===== Getter =====//
@@ -235,12 +236,12 @@ protected:
 class Base_Variable
 {
 protected:
-	std::string name = UNDEFINED;							  // name of the variable
-	double value = INF_DOUBLE;								  // value of the variable
-	double buffer = INF_DOUBLE;								  // buffer of the variable
-	bool infer = false;										  // to be inferred or immutable
+	std::string name = UNDEFINED;							// name of the variable
+	double value = INF_DOUBLE;								// value of the variable
+	double buffer = INF_DOUBLE;								// buffer of the variable
+	bool infer = false;										// to be inferred or immutable
 	std::shared_ptr<Base_Distribution> distr_ptr = nullptr; // prior/model distribution of the parameter
-	std::shared_ptr<Base_Proposer> prop_ptr = nullptr;	  // proposer for Monte Carlo Markov Chain
+	std::shared_ptr<Base_Proposer> prop_ptr = nullptr;		// proposer for Monte Carlo Markov Chain
 
 public:
 	//=====Constructor=====//
@@ -259,6 +260,7 @@ public:
 		{
 			tools::error("Mismatching definitions in arguments of '" + name + "'.");
 		}
+
 		distr_ptr = distribution_ptr(distr_name, distr_args, range);
 	}
 

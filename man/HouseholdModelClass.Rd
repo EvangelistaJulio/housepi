@@ -87,14 +87,17 @@ Show model description in RStudio Help window.
 \subsection{Method \code{loglikelihood()}}{
 Estimate the loglikelihood for the given parameters.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$loglikelihood(data = NULL, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$loglikelihood(dataset = NULL, verbose = FALSE, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv data file or a data.frame.}
+\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
+Path to a csv file or a data.frame containing the dataset.}
+
+\item{\code{verbose}}{(\code{logical(1)})\cr
+If \code{TRUE} prints automatic build information.}
 
 \item{\code{...}}{further arguments passed to \code{setup}.}
 }
@@ -111,17 +114,25 @@ The value of the loglikelihood.
 \subsection{Method \code{infer()}}{
 Run Bayesian MCMC inference and store internally the chain traces.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$infer(data = NULL, progress = TRUE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$infer(
+  dataset = NULL,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv data file or a data.frame.}
+\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
+Path to a csv file or a data.frame containing the dataset.}
 
 \item{\code{progress}}{(\code{logical(1)})\cr
 If \code{FALSE} suppress the inference progress bar.}
+
+\item{\code{verbose}}{(\code{logical(1)})\cr
+If \code{TRUE} prints automatic build information.}
 
 \item{\code{...}}{further arguments passed to \code{setup}.}
 }
@@ -196,20 +207,27 @@ Color names.}
 \subsection{Method \code{simulate()}}{
 Run the simulation.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$simulate(data = NULL, progress = TRUE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$simulate(
+  dataset = NULL,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv data file or a data.frame.}
+\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
+Path to a csv file or a data.frame containing the dataset.}
 
 \item{\code{progress}}{(\code{logical(1)})\cr
 If \code{FALSE} suppress the simulation progress bar.}
 
-\item{\code{...}}{further arguments passed to \code{setup}.
-Named build options.}
+\item{\code{verbose}}{(\code{logical(1)})\cr
+If \code{TRUE} prints automatic build information.}
+
+\item{\code{...}}{further arguments passed to \code{setup}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -218,7 +236,7 @@ Named build options.}
 \if{html}{\out{<a id="method-HouseholdModelClass-data_export"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-data_export}{}}}
 \subsection{Method \code{data_export()}}{
-Export the loaded database at current state.
+Export the current dataset at current state.
 If the case, it also return the associated augmented variables.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$data_export()}\if{html}{\out{</div>}}
@@ -226,14 +244,14 @@ If the case, it also return the associated augmented variables.
 
 \subsection{Returns}{
 (\code{data.frame})\cr
-A data.frame with individual data.
+A data.frame with individual level information.
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-data_summary"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-data_summary}{}}}
 \subsection{Method \code{data_summary()}}{
-Print a summary of the loaded database.
+Print a summary of the current dataset.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$data_summary()}\if{html}{\out{</div>}}
 }
@@ -283,10 +301,11 @@ Estimate the model evidence (or marginal likelihood).
 It uses the method of power posteriors.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$evidence(
-  data = NULL,
+  dataset = NULL,
   n_rungs = 40,
   adaptive = TRUE,
   progress = TRUE,
+  verbose = FALSE,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -294,8 +313,8 @@ It uses the method of power posteriors.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv data file or a data.frame.}
+\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
+Path to a csv file or a data.frame containing the dataset.}
 
 \item{\code{n_rungs}}{(\code{integer})\cr
 The number of rungs in the thermodynamic ladder.}
@@ -307,7 +326,10 @@ Else use power fractions.}
 \item{\code{progress}}{(\code{logical(1)})\cr
 If \code{FALSE} suppress the simulation progress bar.}
 
-\item{\code{...}}{further arguments passed to  \code{setup}.}
+\item{\code{verbose}}{(\code{logical(1)})\cr
+If \code{TRUE} prints automatic build information.}
+
+\item{\code{...}}{further arguments passed to \code{setup}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -451,7 +473,7 @@ Augmented variable names with respective list of definitions.}
 \if{html}{\out{<a id="method-HouseholdModelClass-augm_append"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_append}{}}}
 \subsection{Method \code{augm_append()}}{
-Append a data frame of augmented variable definitions.
+Append augmented variable definitions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_append(...)}\if{html}{\out{</div>}}
 }

@@ -201,7 +201,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             if (std::find(pBuild->data_headers.begin(), pBuild->data_headers.end(), "house_id") == pBuild->data_headers.end())
             {
                 tools::warning(
-                    "Unknown household structure: missing data column 'house_id'. If intentional, ignore this warning.");
+                    "Unknown household structure: missing data column 'house_id'.");
             }
 
             //===== Safe Load of Households =====//
@@ -251,7 +251,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     else if (tools::is_na(datatable.at(key)[i]))
                     {
                         args.emplace(key, std::numeric_limits<double>::quiet_NaN());
-                        tools::warning("Found NA value in database. If intentional, ignore this warning.");
+                        tools::warning("Found NA value(s) in the database.");
                     }
                     else
                     {
@@ -787,18 +787,25 @@ bool MCMC::_augm_metropolis_T_(const Household &house, int i, const std::string 
 /* Default method to only compute the loglikelihood and display it. */
 double MCMC::evaluate()
 {
-    //----- Check no undefined parameters -----//
-    pBuild->set_rnd_init_params(false);
-    pBuild->init_rand_params();
+    try
+    {
+        //----- Check no undefined parameters -----//
+        pBuild->set_rnd_init_params(false);
+        pBuild->init_rand_params();
 
-    //----- Initialize model -----//
-    init_model_for_inference();
+        //----- Initialize model -----//
+        init_model_for_inference();
 
-    //----- Initialize augmented dependencies -----//
-    init_augmented_variables();
+        //----- Initialize augmented dependencies -----//
+        init_augmented_variables();
 
-    //----- Initialize global loglikelihood -----//
-    update_global_loglike();
+        //----- Initialize global loglikelihood -----//
+        update_global_loglike();
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(e.what());
+    }
 
     return get_global_loglike();
 }

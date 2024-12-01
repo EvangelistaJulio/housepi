@@ -228,7 +228,7 @@ void Monte_Carlo_Core::set_n_threads(unsigned n)
     }
 
     // declare the global number of omp threads
-    omp_set_n_threads(n);
+    omp_set_num_threads(n);
     setup_n_threads = n;
 
     // create different generators for different parallel threads
@@ -296,7 +296,8 @@ void Monte_Carlo_Core::init_rand_params()
     {
         if (_is_undef_params_)
         {
-            tools::error("Parameters with undefined values are not supported.");
+            throw std::invalid_argument(
+                "Parameters with undefined values are not allowed.");
         }
     }
 }
@@ -916,7 +917,7 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
 
             //----- VALUES -----//
 
-            // FIXME : // FLAG : // HERE :
+            // FIXME : // HERE :
             for (size_t c = 0; c < setup_n_chains; ++c)
             {
                 for (size_t k = 0; k < setup_c_sample_size; k++)

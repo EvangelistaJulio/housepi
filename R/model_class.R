@@ -32,42 +32,66 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     # @description
-    # Associate data and definitions to the model.
-    # @param data (`character(1)` | `data.frame`)\cr
-    # Path to a csv data file or a data.frame.
+    # Associate dataset to the model.
+    # @param dataset (`character(1)` | `data.frame`)\cr
+    # Path to a csv file or a data.frame containing the dataset.
     # @param verbose (`logical(1)`)\cr
     # If `TRUE` prints automatic build information.
-    build = function(data = NULL, verbose = FALSE) {
+    # @param ...
+    # further arguments passed to \code{setup}.
+    build = function(dataset = NULL, verbose = FALSE, ...) {
       # change scientific notation
       store_scipen <- options()$scipen
       options(scipen = 500)
 
       #----- 1) SETUP -----#
+      do.call(private$setup_list, list(...))
       setup <- lapply(private$setup[!is.na(private$setup)], as.character)
       private$rcppmodel$import_setup(setup)
+      if (isTRUE(verbose)) {
+        cli::cli_alert_success("Imported setup definitions.")
+      }
 
       #----- 2) PARAMETERS -----#
       params <- data.frame(lapply(private$param$defs, as.character))
       private$rcppmodel$import_params(params)
+      if (isTRUE(verbose)) {
+        cli::cli_alert_success("Imported parameter definitions.")
+      }
 
       #----- 3) DATA -----#
-      if (is.null(data)) {
+      if (is.null(dataset)) {
         private$rcppmodel$read_data("<NA>")
-      } else if (is.character(data)) {
-        private$rcppmodel$read_data(data)
-      } else if (is.data.frame(data)) {
-        data <- data.frame(lapply(data, as.character))
-        private$rcppmodel$import_data(data)
+        if (isTRUE(verbose)) {
+          cli::cli_alert_success("Using previously loaded dataset.")
+        }
+
+      } else if (is.character(dataset)) {
+        private$rcppmodel$read_data(dataset)
+        if (isTRUE(verbose)) {
+          cli::cli_alert_success("Imported dataset from file.")
+        }
+
+      } else if (is.data.frame(dataset)) {
+        dataset <- data.frame(lapply(dataset, as.character))
+        private$rcppmodel$import_data(dataset)
+        if (isTRUE(verbose)) {
+          cli::cli_alert_success("Imported dataset from data.frame")
+        }
+
       } else {
-        stop(cli::format_error(c(
-          "Wrong type for data",
-          i = "It should be data.frame or path/to/file."
-        )))
+        stop(cli::format_error(
+          c("Unsupported type for dataset.",
+            i = "It should be data.frame or path/to/csv.")
+          ))
       }
 
       #----- 4) AUGMENTED VARIABLES -----#
       augm <- data.frame(lapply(private$augm$defs, as.character))
       private$rcppmodel$import_augm(augm)
+      if (isTRUE(verbose)) {
+        cli::cli_alert_success("Imported augmented variable definitions.")
+      }
 
       # restore scientific notation option
       options(scipen = store_scipen)
@@ -140,10 +164,17 @@ HouseholdModelClass <- R6::R6Class(
 
       dll <- generate_model(model, store_path = store_path, 
                             quiet = quiet, force = force)
+
+      # remove environment if already loaded
+      if (is.loaded(dll)) {
+        dyn.unload(dll)
+      }
       # load shared library
       dyn.load(dll)
+  
       # expose internally the module
-      m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = "housepienvironment")
+      m <- Rcpp::Module("model_housepi_rcpp", 
+                        PACKAGE = "housepienvironment")
 
       #----- assign fields -----#
       # assign the path to model environment source
@@ -183,39 +214,43 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Estimate the loglikelihood for the given parameters.
-    #' @param data (`character(1)` | `data.frame`)\cr
-    #' Path to a csv data file or a data.frame.
+    #' @param dataset (`character(1)` | `data.frame`)\cr
+    #' Path to a csv file or a data.frame containing the dataset.
+    #' @param verbose (`logical(1)`)\cr
+    #' If `TRUE` prints automatic build information.
     #' @param ...
     #' further arguments passed to \code{setup}.
     #' @return (`double(1)`)\cr
     #' The value of the loglikelihood.
-    loglikelihood = function(data = NULL, ...) {
-      # assign setup
-      do.call(private$setup_list, list(...))
+    loglikelihood = function(dataset = NULL, verbose = FALSE, ...) {
       # internal build function
-      private$build(data = data)
-      # evaluate marginal from the internal Rcpp object
+      private$build(dataset, verbose, ...)
+  
+      # evaluate loglikelihood from the internal Rcpp object
       return(private$rcppmodel$evaluate())
     },
 
     #' @description
     #' Run Bayesian MCMC inference and store internally the chain traces.
-    #' @param data (`character(1)` | `data.frame`)\cr
-    #' Path to a csv data file or a data.frame.
+    #' @param dataset (`character(1)` | `data.frame`)\cr
+    #' Path to a csv file or a data.frame containing the dataset.
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
-    #' @param ... further arguments passed to \code{setup}.
-    infer = function(data = NULL, progress = TRUE, ...) {
-      # assign setup
-      do.call(private$setup_list, list(...))
+    #' @param verbose (`logical(1)`)\cr
+    #' If `TRUE` prints automatic build information.
+    #' @param ...
+    #' further arguments passed to \code{setup}.
+    infer = function(dataset = NULL, progress = TRUE, verbose = FALSE, ...) {
       # internal build function
-      private$build(data = data)
+      private$build(dataset, verbose, ...)
+
       # infer method from cpp model object
       private$rcppmodel$infer(progress)
       # load traces from last inference
       df <- private$rcppmodel$export_traces()
       # extract setup information for coda
       load_setup <- private$rcppmodel$export_setup()
+
       # Check if multiple chains
       if ("CHAIN__" %in% colnames(df)) {
         df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
@@ -227,6 +262,7 @@ HouseholdModelClass <- R6::R6Class(
           )
         })
         private$traces_frame <- coda::as.mcmc.list(df_list)
+
       } else {
         private$traces_frame <- coda::mcmc(
           data = df,
@@ -235,6 +271,7 @@ HouseholdModelClass <- R6::R6Class(
           thin = load_setup[["thin"]]
         )
       }
+
       invisible(self)
     },
 
@@ -303,33 +340,34 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Run the simulation.
-    #' @param data (`character(1)` | `data.frame`)\cr
-    #' Path to a csv data file or a data.frame.
+    #' @param dataset (`character(1)` | `data.frame`)\cr
+    #' Path to a csv file or a data.frame containing the dataset.
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
-    #' @param ... further arguments passed to \code{setup}.
-    #' Named build options.
-    simulate = function(data = NULL, progress = TRUE, ...) {
-      # assign setup
-      do.call(private$setup_list, list(...))
+    #' @param verbose (`logical(1)`)\cr
+    #' If `TRUE` prints automatic build information.
+    #' @param ...
+    #' further arguments passed to \code{setup}.
+    simulate = function(dataset = NULL, progress = TRUE, verbose = FALSE, ...) {
       # internal build function
-      private$build(data = data)
+      private$build(dataset, verbose, ...)
+
       # simulate method from internal Rcpp object
       private$rcppmodel$simulate(progress)
       invisible(self)
     },
 
     #' @description
-    #' Export the loaded database at current state.
+    #' Export the current dataset at current state.
     #' If the case, it also return the associated augmented variables.
     #' @return (`data.frame`)\cr
-    #' A data.frame with individual data.
+    #' A data.frame with individual level information.
     data_export = function() {
       return(private$rcppmodel$export_data())
     },
 
     #' @description
-    #' Print a summary of the loaded database.
+    #' Print a summary of the current dataset.
     data_summary = function() {
       return(private$rcppmodel$show_summary())
     },
@@ -359,8 +397,8 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Estimate the model evidence (or marginal likelihood).
     #' It uses the method of power posteriors.
-    #' @param data (`character(1)` | `data.frame`)\cr
-    #' Path to a csv data file or a data.frame.
+    #' @param dataset (`character(1)` | `data.frame`)\cr
+    #' Path to a csv file or a data.frame containing the dataset.
     #' @param n_rungs (`integer`)\cr
     #' The number of rungs in the thermodynamic ladder.
     #' @param adaptive (`logical(1)`)\cr
@@ -368,22 +406,26 @@ HouseholdModelClass <- R6::R6Class(
     #' Else use power fractions.
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
+    #' @param verbose (`logical(1)`)\cr
+    #' If `TRUE` prints automatic build information.
+    #' @param ...
+    #' further arguments passed to \code{setup}.
     #' @return (`double(1)`)\cr
     #' The value of the model evidence.
-    #' @param ... further arguments passed to  \code{setup}.
-    evidence = function(data = NULL,
+    evidence = function(dataset = NULL,
                         n_rungs = 40,
                         adaptive = TRUE,
                         progress = TRUE,
+                        verbose = FALSE,
                         ...) {
-      # assign setup
-      do.call(private$setup_list, list(...))
+
       # internal build function
-      private$build(data = data)
+      private$build(dataset, verbose, ...)
       # evaluate marginal from the internal Rcpp object
       output <- private$rcppmodel$evaluate_marginal(n_rungs, adaptive, progress)
       # drop traces
       private$traces_frame <- NULL
+  
       return(output)
     },
 
@@ -417,7 +459,13 @@ HouseholdModelClass <- R6::R6Class(
         stop("The argument def_list should be a list.")
       }
       self$param_clear()
-      do.call(self$param_append, def_list)
+      for (i in seq_along(def_list)){
+        this_list <- def_list[[i]]
+        this_list[["name"]] <- names(def_list[i])
+        do.call(private$param$add, this_list)
+      }
+      self$param_check(FALSE)
+
       invisible(self)
     },
 
@@ -477,13 +525,20 @@ HouseholdModelClass <- R6::R6Class(
       if (!is.list(def_list)) {
         stop("The argument def_list should be a list.")
       }
+
       self$augm_clear()
-      do.call(self$augm_append, def_list)
+      for (i in seq_along(def_list)){
+        this_list <- def_list[[i]]
+        this_list[["name"]] <- names(def_list[i])
+        do.call(private$augm$add, this_list)
+      }
+      self$augm_check(FALSE)
+
       invisible(self)
     },
 
     #' @description
-    #' Append a data frame of augmented variable definitions.
+    #' Append augmented variable definitions.
     #' @param ... (named `list()`s)\cr
     #' Augmented variable names with respective list of definitions.
     augm_append = function(...) {

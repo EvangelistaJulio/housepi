@@ -138,6 +138,13 @@ namespace tools
                         std::map<std::string, std::vector<std::string>> &csv_parsed_table,
                         const std::vector<std::string> &required_headers = {});
     const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
+
+    // Function to calculate Levenshtein distance
+    size_t levenshtein(const std::string& s1, const std::string& s2);
+
+    // Function to find the closest match
+    std::string find_closest_option(const std::string& input, const std::vector<std::string>& options);
+
 }
 
 //-----------------------------------------------------------------------------------------------//

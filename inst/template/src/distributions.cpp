@@ -586,6 +586,15 @@ template <typename dictargs_val_or_ptr>
 std::shared_ptr<Base_Distribution> _distribution_ptr_(const std::string &name, const dictargs_val_or_ptr &args, const dictargs &range)
 {
     std::shared_ptr<Base_Distribution> output = std::make_shared<Base_Distribution>();
+    const std::vector<std::string> options = {
+        "unif",
+        "norm",
+        "lnorm",
+        "gamma",
+        "weibull",
+        "rayleigh",
+        "exp"
+    };
 
     if (name == "unif")
     {
@@ -617,7 +626,9 @@ std::shared_ptr<Base_Distribution> _distribution_ptr_(const std::string &name, c
     }
     else if (!tools::is_na(name))
     {
-        tools::error("Unknown distribution '" + name + "'.");
+        std::string err_message = "Unknown distribution '" + name + "'.";
+        err_message += tools::find_closest_option(name, options);
+        throw std::invalid_argument(err_message);
     }
 
     return output;
@@ -625,16 +636,16 @@ std::shared_ptr<Base_Distribution> _distribution_ptr_(const std::string &name, c
 
 /* Pointer to distribution with scalar arguments. */
 std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name,
-                                                      const dictargs &args,
-                                                      const dictargs &range)
+                                                    const dictargs &args,
+                                                    const dictargs &range)
 {
     return _distribution_ptr_(name, args, range);
 }
 
 /* Pointer to distribution with pointer arguments. */
 std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name,
-                                                      const dictargs_ptr &args,
-                                                      const dictargs &range)
+                                                    const dictargs_ptr &args,
+                                                    const dictargs &range)
 {
     return _distribution_ptr_(name, args, range);
 }

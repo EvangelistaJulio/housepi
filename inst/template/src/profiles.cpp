@@ -151,16 +151,16 @@ public:
 
 	double pdf(const std::vector<double> &x) const override
 	{
-		double t_transm = x[0];	   // time of transmission
+		double t_ost = x[0];	   // time from onset to transmission
 		double shift = get_arg(2); // shift argument
-		return gamma_distr_ptr->pdf(shift + t_transm);
+		return gamma_distr_ptr->pdf(shift + t_ost);
 	}
 
 	double cdf(const std::vector<double> &x) const override
 	{
-		double t_transm = x[0];	   // time of transmission
+		double t_ost = x[0];	   // time from onset to transmission
 		double shift = get_arg(2); // shift argument
-		return gamma_distr_ptr->cdf(shift + t_transm);
+		return gamma_distr_ptr->cdf(shift + t_ost);
 	}
 };
 
@@ -175,6 +175,8 @@ public:
 std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_ptr(const std::string &name)
 {
 	std::unique_ptr<Base_Infectivity_Profile> output = std::make_unique<Base_Infectivity_Profile>();
+	const std::vector<std::string> options = {"ferretti20", "ashcroft20"};
+	
 	if (name == "ferretti20")
 	{
 		output = std::make_unique<Infec_Prof_Ferretti20>();
@@ -184,7 +186,10 @@ std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_ptr(const std::str
 		output = std::make_unique<Infec_Prof_Ashcroft20>();
 	}
 	else if (!tools::is_na(name))
-		tools::error("Unknown infectivity profile '" + name + "'.");
-
+	{
+        std::string err_message = "Unknown infectivity profile '" + name + "'.";
+        err_message += tools::find_closest_option(name, options);
+        throw std::invalid_argument(err_message);
+	}
 	return output;
 }

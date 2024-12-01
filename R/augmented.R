@@ -54,12 +54,28 @@ HousepiAugmentedClass <- R6::R6Class(
         stop(cli::format_error("Incomplete definition: missing name."))
 
       } else {
-        if (name %in% self$defs[["name"]]) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("Existing '%s' definition has been overwritten.", name)
-          )))
-          mask <- self$defs[["name"]] != name
-          self$defs <- self$defs[mask, ]
+
+        mask <- (self$defs[["name"]] == name)
+        if (any(mask)) {
+          if (is.na(status)) {
+            cli::cli_alert_warning(cli::format_warning(c(
+              sprintf("Existing '%s' definition has been overwritten.", name)
+            )))
+            # drop previous definitions
+            self$defs <- self$defs[!mask, ]
+
+          } else {
+            # check if same name and status
+            mask <- mask & (self$defs[["status"]] == status)
+            mask[is.na(mask)] <- FALSE
+            if (any(mask)) {
+              cli::cli_alert_warning(cli::format_warning(c(
+                sprintf("Existing '%s' with status %d definition has been overwritten.", name, status)
+              )))
+              # drop previous definitions
+              self$defs <- self$defs[!mask, ]
+            }
+          }
         }
       }
 

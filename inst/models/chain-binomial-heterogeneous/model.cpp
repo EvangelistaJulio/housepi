@@ -122,7 +122,6 @@ void Model::fill_house_escape_matrix(Household &house) const
 	order.insert(order.end(), house.susceptible_set().begin(), house.susceptible_set().end());
 
 	//----- Assign values to LUT matrix -----//
-	size_t H = house.index();
 	for (int c = 0; c < house.size(); ++c)
 	{
 		double susc_commu_c = house.group_rate(order[c], "Susc-Community");
@@ -153,8 +152,6 @@ void Model::fill_house_escape_matrix(Household &house) const
 /* Compute the log-likelihood for a single household. */
 double Model::compute_house_loglike(Household &house) const
 {
-	size_t H = house.index();
-
 	//===== Fill Escape Probabilities =====//
 	fill_house_escape_matrix(house);
 
@@ -181,8 +178,6 @@ void Model::simulate_single_house(Household &house)
 	//=========================//
 	//===== ESCAPE MATRIX =====//
 	//=========================//
-
-	size_t H = house.index();
 
 	fill_house_escape_matrix(house);
 

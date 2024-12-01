@@ -614,7 +614,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
             if ((tools::is_na(augm_status)) || (this_house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
                 //----- Name -----//
-                std::string augmID = _augm_deftable_.at("name")[a];
+                const std::string &augmID = _augm_deftable_.at("name")[a];
 
                 //----- Value -----//
                 double value = type_to_double(_augm_deftable_.at("value")[a],
@@ -622,7 +622,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
                                               this_house, i);
 
                 //----- Model -----//
-                std::string model_name = _augm_deftable_.at("model")[a];
+                const std::string &model_name = _augm_deftable_.at("model")[a];
                 dictargs_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
                                                                  _augm_deftable_.at("argsval")[a],
                                                                  _augm_deftable_.at("argstype")[a],
@@ -648,7 +648,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
                 }
 
                 //----- Proposer Rule -----//
-                std::string rule_name = _augm_deftable_.at("rule")[a];
+                const std::string &rule_name = _augm_deftable_.at("rule")[a];
                 dictargs rule_args = typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
                                                         _augm_deftable_.at("rule_argsval")[a],
                                                         _augm_deftable_.at("rule_argstype")[a],

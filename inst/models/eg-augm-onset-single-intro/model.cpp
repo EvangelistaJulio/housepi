@@ -74,6 +74,16 @@ double Model::transmission_rate(const Household &house) const
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  Model : initialization for simulation  ///////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize parameters and augmented variables. */
+void Model::init_model_for_simulation()
+{
+	init_model_for_inference();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  Model : initialization for inference  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -83,21 +93,11 @@ void Model::init_model_for_inference()
 	// use infectivity profile from Ferretti et al (2020)
 	assign_infectivity_profile("ferretti20");
 
+	// integer for index of introduction case
+	assign_extra_integer_to_all_houses({"intro-case"}, -1);
+
 	// matrices for the instantaneous and cumulative infectivity profiles
-	assign_extra_matrix_to_all_houses({"inst", "cumul"});
-
-	// index of introduction case
-	assign_extra_integer_to_all_houses({"intro-case"});
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Model : initialization for simulation  ///////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize parameters and augmented variables. */
-void Model::init_model_for_simulation()
-{
-	init_model_for_inference();
+	assign_extra_matrix_to_all_houses({"inst", "cumul"}, 0.0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,7 +250,6 @@ void Model::update_augm_dependecies(Household &house, int i)
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(Household &house) const
 {
-	int h = house.index();
 	double loglike_house = 0.0;
 
 	// Contribution of healthy members

@@ -4,7 +4,7 @@ list(
     rule = "lnorm", rule_args = list(sdlog = 1)
   ),
   beta = list(
-    value = 0.05, prior = "unif", args = list(min = 0, max = 1),
+    value = 0.07, prior = "unif", args = list(min = 0, max = 1),
     rule = "lnorm", rule_args = list(sdlog = 1)
   ),
   gamma = list(

@@ -78,71 +78,47 @@ int main(int argc, char *argv[])
             error(oss.str());
         }
 
-        else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
-        {
-            verbose = true;
-        }
-
-        else if (carg == std::string("--silent"))
-        {
-            is_silent = true;
-        }
-
-        else if (carg == std::string("--evaluate"))
-        {
-            is_evaluate = true;
-        }
-
-        else if (carg == std::string("--infer"))
-        {
-            is_infer = true;
-        }
-
-        else if (carg == std::string("--simulate"))
-        {
-            is_simulate = true;
-        }
-
         else if (carg == std::string("--marginal"))
         {
             is_marginal = true;
             num_rungs = tools::stoul(argv[++carg_i], "number of rungs");
         }
+        
+        else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
+            verbose = true;
+
+        else if (carg == std::string("--silent"))
+            is_silent = true;
+
+        else if (carg == std::string("--evaluate"))
+            is_evaluate = true;
+
+        else if (carg == std::string("--infer"))
+            is_infer = true;
+
+        else if (carg == std::string("--simulate"))
+            is_simulate = true;
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))
-        {
             setup_file = argv[++carg_i];
-        }
 
         else if (carg == std::string("-p") || carg == std::string("--params"))
-        {
             params_file = argv[++carg_i];
-        }
 
         else if (carg == std::string("-d") || carg == std::string("--database"))
-        {
             data_file = argv[++carg_i];
-        }
 
         else if (carg == std::string("-a") || carg == std::string("--augmented"))
-        {
             augm_file = argv[++carg_i];
-        }
 
         else if (carg == std::string("-o") || carg == std::string("--output"))
-        {
             output_file = argv[++carg_i];
-        }
 
         else if (carg == std::string("--save-augm"))
-        {
             save_augm_file = argv[++carg_i];
-        }
 
         else
-        {
             error("Unrecognized option `" + carg + "`.");
-        }
 
         carg_i++; // Move to the next command line argument
     }
@@ -160,17 +136,14 @@ int main(int argc, char *argv[])
     //----- Check for command -----//
     int aux = is_evaluate + is_infer + is_simulate + is_marginal;
     if (aux > 1)
-    {
         error(
             "Incompatible commands: choose one between --evaluate, --infer, --simulate or --marginal.");
-    }
+
     else if (aux == 0)
-    {
         is_evaluate = true; // default
-    }
 
     //----- Initialize the custom Model object -----//
-    Model *user_model = new Model();
+    std::unique_ptr<Model> user_model = std::make_unique<Model>();
 
     // 1) Load Setup (optional)
     user_model->read_setup(setup_file);
@@ -185,9 +158,7 @@ int main(int argc, char *argv[])
     user_model->read_augm(augm_file);
 
     if (verbose)
-    {
         user_model->show_full_build();
-    }
 
     //=====================//
     //===== EXECUTION =====//

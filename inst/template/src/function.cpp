@@ -405,11 +405,22 @@ void Base_Function::init(const std::string &name,
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;
     pImpl->_args_ptr_ = new const double *[args_ptr.size()];
+
     size_t i = 0;
     for (const std::string &argID : order)
     {
-        pImpl->_args_ptr_[i++] = args_ptr.at(argID);
+        if (args_ptr.find(argID) == args_ptr.end())
+        {
+            throw std::invalid_argument(
+                "Argument '" + argID + "' not provided for '" + pImpl->_name_ + "'.");
+        }
+        else 
+        {
+            pImpl->_args_ptr_[i] = args_ptr.at(argID);
+        }
+        ++i;
     }
+
     // assign getter and setter for pointer mode
     pImpl->assign_ptr_mode();
     // assign domain
