@@ -41,23 +41,17 @@ void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
 	if (report_data("n.unk.stat") > 0)
-	{
 		tools::error("A missing status was found : incompatible with the model.");
-	}
 
 	// households without case don't have a contribution
 	if (report_data("no.HH.case") == 0)
-	{
 		tools::warning(
 			"Hoseholds without cases are not modeled and will be ignored. Discard them to improve computation time.");
-	}
 
 	// households of size 1 don't have a contribution
 	if (report_data("min.HH.size") == 1)
-	{
 		tools::warning(
 			"Hoseholds with one single member are not modeled and will be ignored. Discard them to improve computation time.");
-	}
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_generations_lookuptable(report_data("max.n.HH.cases"));
@@ -74,7 +68,7 @@ double Model::compute_house_loglike(Household &house) const
 	double log_p2p_esc_proba = -person_to_person_risk();
 	double log_p2p_infec_proba = log(1. - exp(log_p2p_esc_proba));
 
-	int n_positive = house.n_infectious();
+	indiv n_positive = house.n_infectious();
 
 	//================================================//
 	//======== Contribution of Sero-Negatives ========//
@@ -144,21 +138,19 @@ void Model::simulate_single_house(Household &house)
 	//=================================================//
 
 	// set all cases to susceptible
-	for (int i = 0; i < house.size(); i++)
-	{
+	for (indiv i = 0; i < house.size(); i++)
 		house.change_status(i, SUSCEPTIBLE);
-	}
 
 	// pick a random introduction
-	int first_case = uniform() * house.size();
+	indiv first_case = uniform() * house.size();
 	house.change_status(first_case, INFECTIOUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	int n_old_gen = 0;
-	int n_new_gen = 1;
+	ushort n_old_gen = 0;
+	ushort n_new_gen = 1;
 
 	while ((house.n_susceptible() > 0) && (n_new_gen > 0))
 	{
@@ -166,14 +158,14 @@ void Model::simulate_single_house(Household &house)
 		n_new_gen = 0;
 
 		// note : here house.susceptible_set is not allowed because of change_status
-		for (int i = 0; i < house.size(); i++)
+		for (indiv i = 0; i < house.size(); ++i)
 		{
 			if (house.status(i) == SUSCEPTIBLE)
 			{
 				if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 				{
 					house.change_status(i, INFECTIOUS);
-					n_new_gen++;
+					++n_new_gen;
 				}
 			}
 		}

@@ -22,18 +22,18 @@ public:
 	~Household_Impl() {};
 
 	//===== ATTRIBUTES =====//
-	std::vector<Individual> indiv = {};
+	std::vector<Individual> indiv_vector = {};
 
 	std::string ID = UNDEFINED; // user ID
 	int index = -1;				// index of household
-	int house_size = 0;			// number of house members
+	ushort house_size = 0;			// number of house members
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
 	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
 
-	int n_infectious = 0;
-	int n_susceptible = 0;
-	int n_missing_status = 0;
+	ushort n_infectious = 0;
+	ushort n_susceptible = 0;
+	ushort n_missing_status = 0;
 
 	// wheter members correspond to a given status or not
 	std::vector<bool> _is_infectious_ = {};
@@ -41,7 +41,7 @@ public:
 	std::vector<bool> _is_missing_status_ = {};
 
 	void assign_individual(const std::string &ID, int status, const dictargs &data);
-	bool change_status(int i, int new_status);
+	bool change_status(indiv i, int new_status);
 
 	// diagnostics
 	ulong dgn_count = 0;
@@ -52,9 +52,9 @@ public:
 	std::vector<std::vector<std::string>> _which_rate_;
 
 	// list with ONLY indexes of members with a given status
-	std::set<int> infectious_set = {};
-	std::set<int> susceptible_set = {};
-	std::set<int> missing_status_set = {};
+	std::set<indiv> infectious_set = {};
+	std::set<indiv> susceptible_set = {};
+	std::set<indiv> missing_status_set = {};
 
 	//===== EXTRA ATTRIBUTES =====//
 
@@ -66,6 +66,7 @@ public:
 
 	//----- Buffer EXTRA Attributes -----//
 	std::unordered_map<std::string, int> _buffer_extra_int_ = {};
+	std::unordered_map<std::string, double> _buffer_extra_double_ = {};
 	std::unordered_map<std::string, std::vector<double>> _buffer_extra_vec_ = {};
 	std::unordered_map<std::string, squarematrix> _buffer_extra_mtx_ = {};
 
@@ -73,6 +74,7 @@ public:
 	void buffer_all_extra()
 	{
 		_buffer_extra_int_ = extra_int;
+		_buffer_extra_double_ = extra_double;
 		_buffer_extra_vec_ = extra_vec;
 		_buffer_extra_mtx_ = extra_mtx;
 	}
@@ -81,6 +83,7 @@ public:
 	void restore_all_extra()
 	{
 		extra_int.swap(_buffer_extra_int_);
+		extra_double.swap(_buffer_extra_double_);
 		extra_vec.swap(_buffer_extra_vec_);
 		extra_mtx.swap(_buffer_extra_mtx_);
 	}
@@ -127,14 +130,14 @@ void Household_Impl::assign_individual(const std::string &ID, int status, const 
 	++house_size;
 
 	//----- emplace new individual -----//
-	indiv.emplace_back(ID, status, data);
+	indiv_vector.emplace_back(ID, status, data);
 }
 
 /* Change_status of individual i to new status (without controls).
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
-bool Household_Impl::change_status(int i, int new_status)
+bool Household_Impl::change_status(indiv i, int new_status)
 {
-	Individual &this_indiv = indiv[i];
+	Individual &this_indiv = indiv_vector[i];
 	int old_status = this_indiv.get_status();
 
 	if (new_status == old_status)
@@ -225,7 +228,7 @@ void Household::assign_individual(const std::string &ID, int status, const dicta
 
 /* Change_status of individual i to new status (without controls).
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
-bool Household::change_status(int i, int new_status) { return pImpl->change_status(i, new_status); }
+bool Household::change_status(indiv i, int new_status) { return pImpl->change_status(i, new_status); }
 
 /* Initializes matrix of contact rates. */
 void Household::init_contact_matrix()
@@ -234,8 +237,8 @@ void Household::init_contact_matrix()
 	pImpl->contact_rates.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
 }
 
-void Household::assign_contact_rate(int from, int to, const std::string &parID) { pImpl->_which_rate_[from][to] = parID; }
-void Household::set_contact_rate(int from, int to, const double *x) { pImpl->contact_rates[from][to] = x; }
+void Household::assign_contact_rate(indiv from, indiv to, const std::string &parID) { pImpl->_which_rate_[from][to] = parID; }
+void Household::set_contact_rate(indiv from, indiv to, const double *x) { pImpl->contact_rates[from][to] = x; }
 void Household::set_loglike(double x)
 {
 	pImpl->buffer = pImpl->house_loglike;
@@ -245,62 +248,62 @@ void Household::restore_loglike() { pImpl->house_loglike = pImpl->buffer; }
 
 //===== GETTER =====//
 const std::string &Household::house_ID() const { return pImpl->ID; }
-const std::string &Household::ID(int i) const { return pImpl->indiv[i].get_ID(); }
+const std::string &Household::ID(indiv i) const { return pImpl->indiv_vector[i].get_ID(); }
 int Household::index() const { return pImpl->index; }
-int Household::size() const { return pImpl->house_size; }
+ushort Household::size() const { return pImpl->house_size; }
 
-const std::unordered_map<std::string, std::string> &Household::get_group_rate_map(int i) const { return pImpl->indiv[i].get_group_rate_map(); }
-double Household::group_rate(int i, const std::string &rateID) const { return pImpl->indiv[i].get_group_rate(rateID); }
+const std::unordered_map<std::string, std::string> &Household::get_group_rate_map(indiv i) const { return pImpl->indiv_vector[i].get_group_rate_map(); }
+double Household::group_rate(indiv i, const std::string &rateID) const { return pImpl->indiv_vector[i].get_group_rate(rateID); }
 
-const std::string &Household::get_contact_rate_map(int from, int to) const { return pImpl->_which_rate_[from][to]; }
-double Household::contact_rate(int from, int to) const { return *pImpl->contact_rates[from][to]; }
+const std::string &Household::get_contact_rate_map(indiv from, indiv to) const { return pImpl->_which_rate_[from][to]; }
+double Household::contact_rate(indiv from, indiv to) const { return *pImpl->contact_rates[from][to]; }
 
-int Household::status(int i) const { return pImpl->indiv[i].get_status(); }
-double Household::augm(int i, const std::string &augmID) const { return pImpl->indiv[i].get_augm(augmID); }
-double Household::data(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data(dataID); }
-const double *Household::data_pointer(int i, const std::string &dataID) const { return pImpl->indiv[i].get_data_pointer(dataID); }
+int Household::status(indiv i) const { return pImpl->indiv_vector[i].get_status(); }
+double Household::augm(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].get_augm(augmID); }
+double Household::data(indiv i, const std::string &dataID) const { return pImpl->indiv_vector[i].get_data(dataID); }
+const double *Household::data_pointer(indiv i, const std::string &dataID) const { return pImpl->indiv_vector[i].get_data_pointer(dataID); }
 
-int Household::n_infectious() const { return pImpl->n_infectious; }
-int Household::n_susceptible() const { return pImpl->n_susceptible; }
-int Household::n_missing_status() const { return pImpl->n_missing_status; }
+ushort Household::n_infectious() const { return pImpl->n_infectious; }
+ushort Household::n_susceptible() const { return pImpl->n_susceptible; }
+ushort Household::n_missing_status() const { return pImpl->n_missing_status; }
 
-const std::set<int> &Household::infectious_set() const { return pImpl->infectious_set; }
-const std::set<int> &Household::susceptible_set() const { return pImpl->susceptible_set; }
-const std::set<int> &Household::missing_status_set() const { return pImpl->missing_status_set; }
+const std::set<indiv> &Household::infectious_set() const { return pImpl->infectious_set; }
+const std::set<indiv> &Household::susceptible_set() const { return pImpl->susceptible_set; }
+const std::set<indiv> &Household::missing_status_set() const { return pImpl->missing_status_set; }
 
 double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }
 
-double Household::augm_model_logpdf(int i, const std::string &augmID) const { return pImpl->indiv[i].augm_model_logpdf(augmID); }
-double Household::augm_model_logratio(int i, const std::string &augmID) const { return pImpl->indiv[i].augm_model_logratio(augmID); }
-double Household::augm_propose_logratio(int i, const std::string &augmID) const { return pImpl->indiv[i].augm_propose_logratio(augmID); }
-double Household::augm_move_logratio(int i, const std::string &augmID) const { return pImpl->indiv[i].augm_move_logratio(augmID); }
+double Household::augm_model_logpdf(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_model_logpdf(augmID); }
+double Household::augm_model_logratio(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_model_logratio(augmID); }
+double Household::augm_propose_logratio(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_propose_logratio(augmID); }
+double Household::augm_move_logratio(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_move_logratio(augmID); }
 
 //===== SETTER =====//
 void Household::disable_assert()
 {
-	for (int i = 0; i < size(); ++i)
+	for (indiv i = 0; i < size(); ++i)
 	{
-		pImpl->indiv[i].disable_assert();
+		pImpl->indiv_vector[i].disable_assert();
 	}
 }
 
-void Household::assign_augm(int i, const std::string &augmID, double value,
+void Household::assign_augm(indiv i, const std::string &augmID, double value,
 							const std::string &model_name, dictargs_ptr model_args_ptr, dictargs range,
 							const std::string &rule_name, dictargs rule_args, double rule_from)
 {
-	pImpl->indiv[i].assign_augm(augmID, value,
+	pImpl->indiv_vector[i].assign_augm(augmID, value,
 								model_name, model_args_ptr, range,
 								rule_name, rule_args, rule_from);
 }
-void Household::set_augm_value(int i, const std::string &augmID, double x) { pImpl->indiv[i].set_augm_value(augmID, x); }
-void Household::augm_model_rand(int i, const std::string &augmID, sys_rnd_gen &prng) { pImpl->indiv[i].augm_model_rand(augmID, prng); }
-bool Household::propose_valid_augm_move(int i, const std::string &augmID, sys_rnd_gen &prng) { return pImpl->indiv[i].propose_valid_augm_move(augmID, prng); }
-void Household::restore_augm_value(int i, const std::string &augmID) { pImpl->indiv[i].restore_augm_value(augmID); }
+void Household::set_augm_value(indiv i, const std::string &augmID, double x) { pImpl->indiv_vector[i].set_augm_value(augmID, x); }
+void Household::augm_model_rand(indiv i, const std::string &augmID, sys_rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(augmID, prng); }
+bool Household::propose_valid_augm_move(indiv i, const std::string &augmID, sys_rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(augmID, prng); }
+void Household::restore_augm_value(indiv i, const std::string &augmID) { pImpl->indiv_vector[i].restore_augm_value(augmID); }
 
-void Household::assign_group_rate(int i, const std::string &rateID, const std::string &parID) { pImpl->indiv[i].assign_group_rate(rateID, parID); }
-void Household::set_rate(int i, const std::string &rateID, const double *ptr) { pImpl->indiv[i].set_rate(rateID, ptr); }
-void Household::clear_augm(int i, const std::string &augmID) { pImpl->indiv[i].clear_augm(augmID); }
+void Household::assign_group_rate(indiv i, const std::string &rateID, const std::string &parID) { pImpl->indiv_vector[i].assign_group_rate(rateID, parID); }
+void Household::set_rate(indiv i, const std::string &rateID, const double *ptr) { pImpl->indiv_vector[i].set_rate(rateID, ptr); }
+void Household::clear_augm(indiv i, const std::string &augmID) { pImpl->indiv_vector[i].clear_augm(augmID); }
 
 //===== DIAGNOSTICS =====//
 

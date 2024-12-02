@@ -118,7 +118,7 @@ void Monte_Carlo_Build::adapt_param_rule(const std::string &parID, double ratio)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
-double Monte_Carlo_Build::type_to_double(const std::string value, const std::string type, const Household &this_house, int i)
+double Monte_Carlo_Build::type_to_double(const std::string value, const std::string type, const Household &house, indiv i)
 {
     double output = INF_DOUBLE;
 
@@ -146,7 +146,7 @@ double Monte_Carlo_Build::type_to_double(const std::string value, const std::str
             }
             else if (type == TYPE_DATA)
             {
-                output = this_house.data(i, value);
+                output = house.data(i, value);
             }
             else if (type == TYPE_PARAM)
             {
@@ -184,7 +184,7 @@ double Monte_Carlo_Build::type_to_double(const std::string value, const std::str
 }
 
 /* Convert a type-std::string to a double-pointer */
-const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, const std::string type, const Household &this_house, int i)
+const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, const std::string type, const Household &house, indiv i)
 {
     const double *output = nullptr;
 
@@ -208,7 +208,7 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, cons
         {
             if (type == TYPE_DATA)
             {
-                output = this_house.data_pointer(i, value);
+                output = house.data_pointer(i, value);
             }
             else if (type == TYPE_PARAM)
             {
@@ -233,7 +233,7 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, cons
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
-dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i)
+dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i)
 {
     std::vector<std::string> keys = tools::parse_list_args(tkn_key);
     std::vector<std::string> vals = tools::parse_list_args(tkn_val);
@@ -250,7 +250,7 @@ dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const 
     {
         for (size_t x = 0; x < keys.size(); ++x)
         {
-            output.emplace(keys[x], type_to_double(vals[x], typs[x], this_house, i));
+            output.emplace(keys[x], type_to_double(vals[x], typs[x], house, i));
         }
     }
 
@@ -258,7 +258,7 @@ dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const 
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double-pointer */
-dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i)
+dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i)
 {
     std::vector<std::string> keys = tools::parse_list_args(tkn_key);
     std::vector<std::string> vals = tools::parse_list_args(tkn_val);
@@ -275,7 +275,7 @@ dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key
     {
         for (size_t x = 0; x < keys.size(); ++x)
         {
-            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], this_house, i));
+            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], house, i));
         }
     }
 
@@ -292,8 +292,8 @@ dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key
 /* Emplace a new household. */
 void Monte_Carlo_Build::assign_house(const std::string &ID)
 {
-    house_vec.emplace_back(ID, n_house);
-    n_house++;
+    house_vector.emplace_back(ID, n_households);
+    n_households++;
 }
 
 /* Use the loaded data to fill-in the respective report. */
@@ -312,13 +312,13 @@ void Monte_Carlo_Build::update_report_data()
                      {"n.HH.with.max.size", 0}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
-    for (const Household &this_house : house_vec)
+    for (const Household &house : house_vector)
     {
-        int this_house_size = this_house.size();
-        int n_infec = this_house.n_infectious();
+        ushort house_size = house.size();
+        ushort n_infec = house.n_infectious();
 
         _report_data_["n.cases"] += n_infec;
-        _report_data_["n.miss.stat"] += this_house.n_missing_status();
+        _report_data_["n.miss.stat"] += house.n_missing_status();
 
         _report_data_["no.HH.case"] += (n_infec == 0);
         _report_data_["lst.1.case"] += (n_infec > 0);
@@ -336,23 +336,23 @@ void Monte_Carlo_Build::update_report_data()
         }
 
         // minimum house number of members
-        if (_report_data_["min.HH.size"] > this_house_size)
+        if (_report_data_["min.HH.size"] > house_size)
         {
             _report_data_["n.HH.with.min.size"] = 1;
-            _report_data_["min.HH.size"] = this_house_size;
+            _report_data_["min.HH.size"] = house_size;
         }
-        else if (_report_data_["min.HH.size"] == this_house_size)
+        else if (_report_data_["min.HH.size"] == house_size)
         {
             _report_data_["n.HH.with.min.size"] += 1;
         }
 
         // maximum house number of members
-        if (_report_data_["max.HH.size"] < this_house_size)
+        if (_report_data_["max.HH.size"] < house_size)
         {
             _report_data_["n.HH.with.max.size"] = 1;
-            _report_data_["max.HH.size"] = this_house_size;
+            _report_data_["max.HH.size"] = house_size;
         }
-        else if (_report_data_["max.HH.size"] == this_house_size)
+        else if (_report_data_["max.HH.size"] == house_size)
         {
             _report_data_["n.HH.with.max.size"] += 1;
         }
@@ -360,9 +360,9 @@ void Monte_Carlo_Build::update_report_data()
 }
 
 /* Return a value from report data. */
-int Monte_Carlo_Build::report_data(const std::string &key) const
+size_t Monte_Carlo_Build::report_data(const std::string &key) const
 {
-    int output = 0;
+    size_t output = 0;
     if (_report_data_.find(key) != _report_data_.end())
     {
         output = _report_data_.at(key);
@@ -569,13 +569,13 @@ void Monte_Carlo_Build::build_augm()
             }
 
             //===== Assign augmented variables to each individual =====//
-            for (Household &this_house : house_vec)
+            for (Household &house : house_vector)
             {
-                for (int i = 0; i < this_house.size(); ++i)
+                for (indiv i = 0; i < house.size(); ++i)
                 {
                     // allocate memory for all augmented for all individuals
-                    clear_all_augm(this_house, i);
-                    assign_all_augm(this_house, i);
+                    clear_all_augm(house, i);
+                    assign_all_augm(house, i);
                 }
             }
 
@@ -601,7 +601,7 @@ void Monte_Carlo_Build::build_augm()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
-void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
+void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
 {
     try
     {
@@ -611,7 +611,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
             std::string augm_status = _augm_deftable_.at("status")[a];
 
             // assign augmented variable of the corresponding status or undefined status
-            if ((tools::is_na(augm_status)) || (this_house.status(i) == tools::stoi(augm_status, "augmented status")))
+            if ((tools::is_na(augm_status)) || (house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
                 //----- Name -----//
                 const std::string &augmID = _augm_deftable_.at("name")[a];
@@ -619,21 +619,21 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
                 //----- Value -----//
                 double value = type_to_double(_augm_deftable_.at("value")[a],
                                               _augm_deftable_.at("valuetype")[a],
-                                              this_house, i);
+                                              house, i);
 
                 //----- Model -----//
                 const std::string &model_name = _augm_deftable_.at("model")[a];
                 dictargs_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[a],
                                                                  _augm_deftable_.at("argsval")[a],
                                                                  _augm_deftable_.at("argstype")[a],
-                                                                 this_house, i);
+                                                                 house, i);
 
                 //----- Range -----//
                 dictargs range = {};
                 // minimum value
                 double aux_min = type_to_double(_augm_deftable_.at("min")[a],
                                                 _augm_deftable_.at("mintype")[a],
-                                                this_house, i);
+                                                house, i);
                 if (aux_min != INF_DOUBLE)
                 {
                     range.emplace("min", aux_min);
@@ -641,7 +641,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
                 // maximum value
                 double aux_max = type_to_double(_augm_deftable_.at("max")[a],
                                                 _augm_deftable_.at("maxtype")[a],
-                                                this_house, i);
+                                                house, i);
                 if (aux_max != INF_DOUBLE)
                 {
                     range.emplace("max", aux_max);
@@ -652,20 +652,20 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
                 dictargs rule_args = typedict_to_sdargs(_augm_deftable_.at("rule_args")[a],
                                                         _augm_deftable_.at("rule_argsval")[a],
                                                         _augm_deftable_.at("rule_argstype")[a],
-                                                        this_house, i);
+                                                        house, i);
                 double rule_from = type_to_double(_augm_deftable_.at("rule_from")[a],
                                                   _augm_deftable_.at("rule_fromtype")[a],
-                                                  this_house, i);
+                                                  house, i);
 
                 //----- Assign Augmented Variable -----//
-                this_house.assign_augm(i, augmID, value,
-                                       model_name, model_args, range,
-                                       rule_name, rule_args, rule_from);
+                house.assign_augm(i, augmID, value,
+                                  model_name, model_args, range,
+                                  rule_name, rule_args, rule_from);
 
                 // random initialization at assignment
                 if (tools::stobool(_augm_deftable_.at("init_rand")[a]))
                 {
-                    this_house.augm_model_rand(i, augmID, get_prng());
+                    house.augm_model_rand(i, augmID, get_prng());
                 }
             }
         }
@@ -677,11 +677,11 @@ void Monte_Carlo_Build::assign_all_augm(Household &this_house, int i)
 }
 
 /* Clear all augmented definition of individual. */
-void Monte_Carlo_Build::clear_all_augm(Household &this_house, int i)
+void Monte_Carlo_Build::clear_all_augm(Household &house, indiv i)
 {
     for (const std::string &augmID : augm_list_full)
     {
-        this_house.clear_augm(i, augmID);
+        house.clear_augm(i, augmID);
     }
 }
 
@@ -710,9 +710,9 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
         pCore->init_param_diagnostics(sample_size);
 
         // diagnostics over households
-        for (size_t H = 0; H < n_house; ++H)
+        for (size_t H = 0; H < n_households; ++H)
         {
-            house_vec[H].init_diagnostics(sample_size);
+            house_vector[H].init_diagnostics(sample_size);
         }
     }
 }
@@ -729,9 +729,9 @@ void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_po
         pCore->update_param_diagnostics();
 
         // diagnostics over households
-        for (size_t H = 0; H < n_house; ++H)
+        for (size_t H = 0; H < n_households; ++H)
         {
-            house_vec[H].update_diagnostics();
+            house_vector[H].update_diagnostics();
         }
     }
 }
@@ -742,44 +742,47 @@ void Monte_Carlo_Build::disable_assert()
     pCore->disable_assert_param();
 
     // disable augmented variable assertion for all individuals
-    for (Household &this_house : house_vec)
+    for (Household &house : house_vector)
     {
-        this_house.disable_assert();
+        house.disable_assert();
     }
 }
 
+/* Compute the loglikelihood term associated to augmented variables. */
+double Monte_Carlo_Build::compute_augm_model_loglike(const Household &house) const { return (this->*_func_augm_model_loglike_)(house); }
+
 /* No model contributions. */
-double Monte_Carlo_Build::_no_augm_model_loglike_(const Household &this_house) const
+double Monte_Carlo_Build::_no_augm_model_loglike_(const Household &house) const
 {
-    UNUSED(this_house);
+    UNUSED(house);
     return 0.0;
 }
 
 /* House loglikelihood including augmented modl contribution. */
-double Monte_Carlo_Build::_augm_model_loglike_(const Household &this_house) const
+double Monte_Carlo_Build::_augm_model_loglike_(const Household &house) const
 {
     double hh_loglike = 0.;
     // Contribution of model associated to augmented variables
-    for (int i : this_house.infectious_set())
+    for (const indiv &i : house.infectious_set())
     {
-        (this->*_func_augm_model_by_definition_)(this_house, i, hh_loglike);
+        (this->*_func_augm_model_by_definition_)(house, i, hh_loglike);
     }
     return hh_loglike;
 }
 
-void Monte_Carlo_Build::_augm_model_by_status_(const Household &this_house, int i, double &delta) const
+void Monte_Carlo_Build::_augm_model_by_status_(const Household &house, indiv i, double &delta) const
 {
-    for (const std::string &augmID : augm_status_map_model.at(this_house.status(i)))
+    for (const std::string &augmID : augm_status_map_model.at(house.status(i)))
     {
-        delta += this_house.augm_model_logpdf(i, augmID);
+        delta += house.augm_model_logpdf(i, augmID);
     }
 }
 
-void Monte_Carlo_Build::_augm_model_generic_(const Household &this_house, int i, double &delta) const
+void Monte_Carlo_Build::_augm_model_generic_(const Household &house, indiv i, double &delta) const
 {
     for (const std::string &augmID : augm_list_model)
     {
-        delta += this_house.augm_model_logpdf(i, augmID);
+        delta += house.augm_model_logpdf(i, augmID);
     }
 }
 
@@ -805,36 +808,36 @@ void Monte_Carlo_Build::show_summary() const
 {
     std::ostringstream oss;
 
-    oss << "n. of individuals: " << n_indiv
+    oss << "n. of individuals: " << n_individuals
         << "\n    * n. of cases: " << _report_data_.at("n.cases")
-        << " " << _aux_percent_(_report_data_.at("n.cases"), n_indiv);
+        << " " << _aux_percent_(_report_data_.at("n.cases"), n_individuals);
     if (_report_data_.at("n.miss.stat") > 0)
     {
         oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
-            << " " << _aux_percent_(_report_data_.at("n.miss.stat"), n_indiv);
+            << " " << _aux_percent_(_report_data_.at("n.miss.stat"), n_individuals);
     }
 
-    oss << "\nn. of households: " << n_house;
+    oss << "\nn. of households: " << n_households;
     if (_report_data_.at("no.HH.case") > 0)
     {
         oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
-            << " " << _aux_percent_(_report_data_.at("no.HH.case"), n_house);
+            << " " << _aux_percent_(_report_data_.at("no.HH.case"), n_households);
     }
 
     oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
-        << " " << _aux_percent_(_report_data_.at("lst.1.case"), n_house);
+        << " " << _aux_percent_(_report_data_.at("lst.1.case"), n_households);
     if (_report_data_.at("lst.1.case") > 0)
     {
         oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
-            << " " << _aux_percent_(_report_data_.at("lst.2.case"), n_house);
+            << " " << _aux_percent_(_report_data_.at("lst.2.case"), n_households);
     }
 
     oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.cases"), n_house)
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.cases"), n_households)
         << "\nmin n. house members: " << _report_data_.at("min.HH.size")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.min.size"), n_house)
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.min.size"), n_households)
         << "\nmax n. house members: " << _report_data_.at("max.HH.size")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.size"), n_house);
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.size"), n_households);
 
     tools::print_stdout(oss.str() + "\n");
 }
@@ -857,7 +860,7 @@ void Monte_Carlo_Build::show_group_classes() const
             for (const auto &x : entry.second)
             {
                 oss << "\n    * " << x.first << ": " << x.second
-                    << " " << _aux_percent_(x.second, n_indiv);
+                    << " " << _aux_percent_(x.second, n_individuals);
             }
             oss << "\n";
         }
@@ -969,33 +972,33 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
 {
     using namespace Rcpp;
 
-    CharacterVector df_index(n_indiv);
-    CharacterVector df_house_index(n_indiv);
-    IntegerVector df_status(n_indiv);
+    CharacterVector df_index(n_individuals);
+    CharacterVector df_house_index(n_individuals);
+    IntegerVector df_status(n_individuals);
     std::vector<NumericVector> df_dbl;
     for (size_t s = 0; s < data_headers.size() + augm_list_full.size(); ++s)
     {
-        df_dbl.emplace_back(n_indiv);
+        df_dbl.emplace_back(n_individuals);
     }
 
     size_t r = 0, c = 0;
-    for (const Household &this_house : house_vec)
+    for (const Household &house : house_vector)
     {
-        for (int i = 0; i < this_house.size(); ++i)
+        for (indiv i = 0; i < house.size(); ++i)
         {
-            df_index[r] = this_house.ID(i);
-            df_house_index[r] = this_house.house_ID();
-            df_status[r] = this_house.status(i);
+            df_index[r] = house.ID(i);
+            df_house_index[r] = house.house_ID();
+            df_status[r] = house.status(i);
 
             c = 0;
             for (const std::string &dataID : data_headers)
             {
-                df_dbl[c][r] = this_house.data(i, dataID);
+                df_dbl[c][r] = house.data(i, dataID);
                 ++c;
             }
             for (const std::string &augmID : augm_list_full)
             {
-                df_dbl[c][r] = this_house.augm(i, augmID);
+                df_dbl[c][r] = house.augm(i, augmID);
                 ++c;
             }
 
@@ -1031,12 +1034,12 @@ Rcpp::NumericMatrix Monte_Carlo_Build::export_loglike_matrix() const
 
     // Create a NumericMatrix with n_house columns
     ulong sample_size = pCore->setup_n_chains * pCore->setup_c_sample_size;
-    NumericMatrix output(sample_size, n_house);
+    NumericMatrix output(sample_size, n_households);
 
     // Assign each NumericVector to a column of the matrix
-    for (size_t H = 0; H < n_house; ++H)
+    for (size_t H = 0; H < n_households; ++H)
     {
-        NumericVector column = wrap(house_vec[H].get_dgn_loglike());
+        NumericVector column = wrap(house_vector[H].get_dgn_loglike());
         output(_, H) = column;
     }
 
@@ -1086,24 +1089,24 @@ void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) cons
             augm_ofstream << std::endl;
 
             //===== Print data and augmented variables =====//
-            for (const Household &this_house : house_vec)
+            for (const Household &house : house_vector)
             {
-                for (int i = 0; i < this_house.size(); ++i)
+                for (indiv i = 0; i < house.size(); ++i)
                 {
-                    augm_ofstream << this_house.ID(i)
-                                  << C_DELIM << this_house.house_ID()
-                                  << C_DELIM << this_house.status(i);
+                    augm_ofstream << house.ID(i)
+                                  << C_DELIM << house.house_ID()
+                                  << C_DELIM << house.status(i);
                     for (const std::string &dataID : data_headers)
                     {
-                        augm_ofstream << C_DELIM << this_house.data(i, dataID);
+                        augm_ofstream << C_DELIM << house.data(i, dataID);
                     }
 
                     // FIXME
                     for (const std::string &augmID : augm_list_full)
                     {
-                        if (this_house.status(i) == INFECTIOUS)
+                        if (house.status(i) == INFECTIOUS)
                         {
-                            augm_ofstream << C_DELIM << this_house.augm(i, augmID);
+                            augm_ofstream << C_DELIM << house.augm(i, augmID);
                         }
                         else
                         {

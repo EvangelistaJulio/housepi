@@ -14,7 +14,7 @@
 #include <map>
 #include <memory>
 
-#include "varia.h"
+#include "variable.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -43,11 +43,12 @@ public:
     //===== Diagnostics =====//
     ulong dgn_count = 0;
     std::vector<double> dgn_value = {};
+
     void init_diagnostics(ulong sample_size);
     void update_diagnostics();
     std::string show_diagnostics() const;
-    const std::vector<double> &get_dgn_value() const { return dgn_value; }
-    double get_dgn_value(size_t i) const { return dgn_value[i]; }
+    const std::vector<double> &get_dgn_value() const;
+    double get_dgn_value(size_t i) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -77,17 +78,17 @@ public:
     unsigned long long setup_seed = 1; // random generator seed
     bool setup_rnd_init_params = true; // random initialization of parameters
 
-    ulong setup_n_chains = 1;   // n. chains
+    ulong setup_n_chains = 1;    // n. chains
     ulong setup_n_steps = 10000; // n. iterations
-    ulong setup_n_adapt = 0;    // n. (finite) adaptive steps
-    ulong setup_thin = 1;         // n. thinning iterations
-    ulong setup_n_burnin = 0;      // n. burnin iterations
+    ulong setup_n_adapt = 0;     // n. (finite) adaptive steps
+    ulong setup_thin = 1;        // n. thinning iterations
+    ulong setup_n_burnin = 0;    // n. burnin iterations
 
-    double setup_inv_T = 1.0;       // inverse temperature
+    double setup_inv_T = 1.0;     // inverse temperature
     unsigned setup_n_threads = 1; // number of OMP threads
 
     ulong setup_c_sample_size; // single chain sample size
-    ulong setup_c_n_sweeps;  // single chain n. of sweeps
+    ulong setup_c_n_sweeps;    // single chain n. of sweeps
 
     //===== Diagnostics Attributes=====//
     ulong dgn_count = 0;
@@ -112,22 +113,22 @@ public:
     //===== PARAM : getter =====//
     void disable_assert_param();
     void assert_param(const std::string &parID) const;
-    double get_param(const std::string &parID) const { return (this->*_func_get_param_)(parID); }
-    const double *get_param_pointer(const std::string &parID) const { return (this->*_func_get_param_pointer_)(parID); }
-    bool get_infer(const std::string &parID) const { return param_map.at(parID).get_infer(); }
-    double get_accept_rate(const std::string &parID) const { return param_map.at(parID).get_accept_rate(); }
+    double get_param(const std::string &parID) const;
+    const double *get_param_pointer(const std::string &parID) const;
+    bool get_infer(const std::string &parID) const;
+    double get_accept_rate(const std::string &parID) const;
 
     //===== PARAM SETTER =====//
     void init_rand_params();
-    void reset_accept_rate(const std::string &parID) { param_map.at(parID).reset_accept_rate(); }
+    void reset_accept_rate(const std::string &parID);
     const double *assign_scalar_pointer(double val);
 
     //===== Metropolis-Hastings moves =====//
     bool propose_valid_param_move(const std::string &parID);
-    void restore_param_value(const std::string &parID) { param_map.at(parID).restore_value(); }
-    void update_param_accept_rate(const std::string &parID, bool is_accepted) { param_map.at(parID).update_accept_rate(is_accepted); }
-    double param_move_logratio(const std::string &parID) const { return param_map.at(parID).get_move_logratio(); }
-    void adapt_param_rule(const std::string &parID, double ratio) { param_map.at(parID).adapt_rule(ratio); }
+    void restore_param_value(const std::string &parID);
+    void update_param_accept_rate(const std::string &parID, bool is_accepted);
+    double param_move_logratio(const std::string &parID) const;
+    void adapt_param_rule(const std::string &parID, double ratio);
     void init_param_diagnostics(ulong sample_size);
     void update_param_diagnostics();
     void init_param_move_counts();
@@ -135,11 +136,11 @@ public:
     void dgn_glob_ll_stats(double &avg, double &var) const;
 
     //===== Pseudo-Random Number Generator =====//
-    sys_rnd_gen &get_prng() { return (this->*_func_prng_)(); }
-    double uniform() { return _uniform_distr_(get_prng()); }
+    sys_rnd_gen &get_prng();
+    double uniform();
 
     //===== Show =====//
-    std::string show_param(const std::string &parID) const { return parID + C_DELIM + param_map.at(parID).show(); }
+    std::string show_param(const std::string &parID) const;
 
 #ifdef _HOUSEPI_RCPP
     //===== Rcpp IMPORTS =====//
@@ -175,12 +176,12 @@ private:
 
     //===== get param (functional methods) =====//
     double (Monte_Carlo_Core::*_func_get_param_)(const std::string &) const = &Monte_Carlo_Core::_get_param_assert_;
-    double _get_param_default_(const std::string &parID) const { return param_map.at(parID).get_value(); };
+    double _get_param_default_(const std::string &parID) const;
     double _get_param_assert_(const std::string &parID) const;
 
     //===== get param pointer (functional methods) =====//
     const double *(Monte_Carlo_Core::*_func_get_param_pointer_)(const std::string &) const = &Monte_Carlo_Core::_get_param_pointer_assert_;
-    const double *_get_param_pointer_default_(const std::string &parID) const { return param_map.at(parID).get_pointer(); }
+    const double *_get_param_pointer_default_(const std::string &parID) const;
     const double *_get_param_pointer_assert_(const std::string &parID) const;
 
     //===== Pseudo Random Number Generator (auxiliary methods) =====//

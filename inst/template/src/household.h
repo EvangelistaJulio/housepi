@@ -37,64 +37,64 @@ public:
 	//===== CONSTRUCTOR =====//
 	Household();
 	Household(const std::string &ID, int index);
-	Household(Household&& other) noexcept;        // Move constructor
-    Household& operator=(Household&& other) noexcept; // Move assignment
+	Household(Household &&other) noexcept;			  // Move constructor
+	Household &operator=(Household &&other) noexcept; // Move assignment
 	~Household();
 
 	//===== SETTER =====//
 	void assign_individual(const std::string &ID, int status, const dictargs &data);
-	bool change_status(int i, int new_status);
+	bool change_status(indiv i, int new_status);
 	void init_contact_matrix();
-	void assign_contact_rate(int from, int to, const std::string &parID);
-	void set_contact_rate(int from, int to, const double *x);
+	void assign_contact_rate(indiv from, indiv to, const std::string &parID);
+	void set_contact_rate(indiv from, indiv to, const double *x);
 	void disable_assert();
 
 	//===== GETTER =====//
 	const std::string &house_ID() const;
 	int index() const;
-	int size() const;
-	int n_infectious() const;
-	int n_susceptible() const;
-	int n_missing_status() const;
-	const std::set<int> &infectious_set() const;
-	const std::set<int> &susceptible_set() const;
-	const std::set<int> &missing_status_set() const;
+	ushort size() const;
+	ushort n_infectious() const;
+	ushort n_susceptible() const;
+	ushort n_missing_status() const;
+	const std::set<indiv> &infectious_set() const;
+	const std::set<indiv> &susceptible_set() const;
+	const std::set<indiv> &missing_status_set() const;
 
 	//===== INDIVIDUAL =====//
 
 	//----- Individual : Setter -----//
-	void assign_group_rate(int i, const std::string &rateID, const std::string &parID);
-	void set_rate(int i, const std::string &rateID, const double *ptr);
+	void assign_group_rate(indiv i, const std::string &rateID, const std::string &parID);
+	void set_rate(indiv i, const std::string &rateID, const double *ptr);
 
 	//----- Individual : Getter -----//
-	const std::string &ID(int i) const;
-	double data(int i, const std::string &dataID) const;
-	const double *data_pointer(int i, const std::string &dataID) const;
-	const std::unordered_map<std::string, std::string> &get_group_rate_map(int i) const;
-	double group_rate(int i, const std::string &rateID) const;
-	int status(int i) const;
+	const std::string &ID(indiv i) const;
+	double data(indiv i, const std::string &dataID) const;
+	const double *data_pointer(indiv i, const std::string &dataID) const;
+	const std::unordered_map<std::string, std::string> &get_group_rate_map(indiv i) const;
+	double group_rate(indiv i, const std::string &rateID) const;
+	int status(indiv i) const;
 
-	const std::string &get_contact_rate_map(int from, int to) const;
-	double contact_rate(int from, int to) const;
+	const std::string &get_contact_rate_map(indiv from, indiv to) const;
+	double contact_rate(indiv from, indiv to) const;
 
 	//===== AUGMENTED =====//
 
 	//----- Augmented : Setter -----//
-	void assign_augm(int i, const std::string &augmID = UNDEFINED, double value = std::numeric_limits<double>::quiet_NaN(),
+	void assign_augm(indiv i, const std::string &augmID = UNDEFINED, double value = std::numeric_limits<double>::quiet_NaN(),
 					 const std::string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {}, dictargs range = {},
 					 const std::string &rule_name = UNDEFINED, dictargs rule_args = {}, double rule_from = INF_DOUBLE);
-	void set_augm_value(int i, const std::string &augmID, double x);	
-	void augm_model_rand(int i, const std::string &augmID, sys_rnd_gen &prng);
-	bool propose_valid_augm_move(int i, const std::string &augmID, sys_rnd_gen &prng);
-	void restore_augm_value(int i, const std::string &augmID);
-	void clear_augm(int i, const std::string &augmID);
+	void set_augm_value(indiv i, const std::string &augmID, double x);
+	void augm_model_rand(indiv i, const std::string &augmID, sys_rnd_gen &prng);
+	bool propose_valid_augm_move(indiv i, const std::string &augmID, sys_rnd_gen &prng);
+	void restore_augm_value(indiv i, const std::string &augmID);
+	void clear_augm(indiv i, const std::string &augmID);
 
 	//----- Augmented : Getter -----//
-	double augm(int i, const std::string &augmID) const;
-	double augm_model_logpdf(int i, const std::string &augmID) const;
-	double augm_model_logratio(int i, const std::string &augmID) const;
-	double augm_propose_logratio(int i, const std::string &augmID) const;
-	double augm_move_logratio(int i, const std::string &augmID) const;
+	double augm(indiv i, const std::string &augmID) const;
+	double augm_model_logpdf(indiv i, const std::string &augmID) const;
+	double augm_model_logratio(indiv i, const std::string &augmID) const;
+	double augm_propose_logratio(indiv i, const std::string &augmID) const;
+	double augm_move_logratio(indiv i, const std::string &augmID) const;
 
 	//===== EXTRA ATTRIBUTES =====//
 	void _buffer_all_extra();

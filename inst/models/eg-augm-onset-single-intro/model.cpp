@@ -20,7 +20,7 @@
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* [CHANGE-ME] Assign the parameters controlling infectivity for each individual. */
-void Model::assign_group_rate_to_individual(Household &house, int i)
+void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	std::string rateID;
 	bool is_not_vacc = (house.data(i, "vacc_status") == 0);
@@ -41,7 +41,7 @@ void Model::assign_group_rate_to_individual(Household &house, int i)
 }
 
 /* [CHANGE-ME] Assign the contact patterns between a couple of individuals. */
-void Model::assign_contact_rate_to_household(Household &house, int from, int to)
+void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
 	// child if younger than 'child_age'; adult otherwise
 	bool is_from_adult = (house.data(from, "age") < param("child_age"));
@@ -116,12 +116,12 @@ double Model::time_end_followup(const Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::_houseROI_(const Household &house, int i, const squarematrix &profiles) const
+double Model::_houseROI_(const Household &house, indiv i, const squarematrix &profiles) const
 {
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (int k : house.infectious_set())
+	for (indiv k : house.infectious_set())
 	{
 		if (k != i)
 		{
@@ -135,15 +135,15 @@ double Model::_houseROI_(const Household &house, int i, const squarematrix &prof
 }
 
 /* Instantaneous Risk of Infection for individual i. */
-double Model::ROI_inst(const Household &house, int i) const
+double Model::ROI_inst(const Household &house, indiv i) const
 {
 	return param("alpha") + _houseROI_(house, i, house.extra_matrix("inst"));
 }
 
 /* Cumulative Risk of Infection for infectious individual i. */
-double Model::ROI_cumul_infec(const Household &house, int i) const
+double Model::ROI_cumul_infec(const Household &house, indiv i) const
 {
-	int i0 = house.extra_int("intro-case");
+	indiv i0 = house.extra_int("intro-case");
 	double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
 	double exposure = house.augm(i, "onset_date") - house.augm(i, "incub_period") - t_intro;
 
@@ -151,9 +151,9 @@ double Model::ROI_cumul_infec(const Household &house, int i) const
 }
 
 /* Cumulative Risk of Infection for susceptible individual i. */
-double Model::ROI_cumul_suscept(const Household &house, int i) const
+double Model::ROI_cumul_suscept(const Household &house, indiv i) const
 {
-	int i0 = house.extra_int("intro-case");
+	indiv i0 = house.extra_int("intro-case");
 	double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
 	double exposure = time_end_followup(house) - t_intro;
 
@@ -167,9 +167,9 @@ double Model::ROI_cumul_suscept(const Household &house, int i) const
 /* Store cumulative and instantaneous infectivity profiles according to an infector.
    WARNING: unpredictable behavior if i is not an infector.
    WARNING: this function should not call any mutable parameter. */
-void Model::update_augm_dependecies(Household &house, int i)
+void Model::update_augm_dependecies(Household &house, indiv i)
 {
-	double t_ost;
+	double serial;
 
 	//==============================//
 	//===== Infectious Members =====//
@@ -177,47 +177,47 @@ void Model::update_augm_dependecies(Household &house, int i)
 
 	double onset_i = house.augm(i, "onset_date");
 	double incub_i = house.augm(i, "incub_period");
-	double t_trasm_i = onset_i - incub_i;
+	double t_infec_i = onset_i - incub_i;
 
 	// init new first case to i
-	double new_t0 = t_trasm_i;
+	double new_t0 = t_infec_i;
 	house.set_extra_int("intro-case", i);
 
 	//----- Update Lookup Tables for infectious -----//
-	double onset_k, incub_k, t_trasm_k;
+	double onset_k, incub_k, t_infec_k;
 
-	for (int k : house.infectious_set())
+	for (indiv k : house.infectious_set())
 	{
 		if (k != i)
 		{
 			onset_k = house.augm(k, "onset_date");
 			incub_k = house.augm(k, "incub_period");
-			t_trasm_k = onset_k - incub_k;
+			t_infec_k = onset_k - incub_k;
 
-			if (t_trasm_i < t_trasm_k)
+			if (t_infec_i < t_infec_k)
 			{ //----- `i` : infector, `k` : infectee -----//
-				t_ost = t_trasm_k - onset_i;
+				serial = t_infec_k - t_infec_i;
 
-				house.set_extra_matrix("inst", i, k, infec_profile_inst({t_ost, incub_i}));
+				house.set_extra_matrix("inst", i, k, infec_profile_inst(serial, {incub_i}));
 				house.set_extra_matrix("inst", k, i, 0.0);
 
-				house.set_extra_matrix("cumul", i, k, infec_profile_cumul({t_ost, incub_i}));
+				house.set_extra_matrix("cumul", i, k, infec_profile_cumul(serial, {incub_i}));
 				house.set_extra_matrix("cumul", k, i, 0.0);
 			}
 			else
 			{ //----- `k` : infector, `i` : infectee -----//
-				t_ost = t_trasm_i - onset_k;
+				serial = t_infec_i - t_infec_k;
 
 				house.set_extra_matrix("inst", i, k, 0.0);
-				house.set_extra_matrix("inst", k, i, infec_profile_inst({t_ost, incub_k}));
+				house.set_extra_matrix("inst", k, i, infec_profile_inst(serial, {incub_k}));
 
 				house.set_extra_matrix("cumul", i, k, 0.0);
-				house.set_extra_matrix("cumul", k, i, infec_profile_cumul({t_ost, incub_k}));
+				house.set_extra_matrix("cumul", k, i, infec_profile_cumul(serial, {incub_k}));
 
 				//----- update first case -----//
-				if (t_trasm_k < new_t0)
+				if (t_infec_k < new_t0)
 				{
-					new_t0 = t_trasm_k;
+					new_t0 = t_infec_k;
 					house.set_extra_int("intro-case", k);
 				}
 			}
@@ -228,10 +228,10 @@ void Model::update_augm_dependecies(Household &house, int i)
 	//===== Susceptible Members =====//
 	//===============================//
 
-	t_ost = time_end_followup(house) - onset_i;
-	for (int k : house.susceptible_set())
+	serial = time_end_followup(house) - t_infec_i;
+	for (indiv k : house.susceptible_set())
 	{
-		house.set_extra_matrix("cumul", i, k, infec_profile_cumul({t_ost, incub_i}));
+		house.set_extra_matrix("cumul", i, k, infec_profile_cumul(serial, {incub_i}));
 		house.set_extra_matrix("cumul", k, i, 0.0);
 	}
 }
@@ -252,14 +252,20 @@ double Model::compute_house_loglike(Household &house) const
 {
 	double loglike_house = 0.0;
 
-	// Contribution of healthy members
-	for (int i : house.susceptible_set())
+	//===============================//
+	//===== Susceptible Members =====//
+	//===============================//
+
+	for (indiv i : house.susceptible_set())
 	{
 		loglike_house -= ROI_cumul_suscept(house, i);
 	}
 
-	// Contribution of symptomatic members
-	for (int i : house.infectious_set())
+	//==============================//
+	//===== Infectious Members =====//
+	//==============================//
+	
+	for (indiv i : house.infectious_set())
 	{
 		// Contribution of secondary cases
 		if (i != house.extra_int("intro-case"))
@@ -295,7 +301,7 @@ void Model::simulate_single_house(Household &house)
 	// note: incub_period are initialized according to definitions
 	// - set infectious to susceptible w/o dropping augm variables;
 	// - add augmented variables to all others (also missing);
-	for (int i = 0; i < house.size(); ++i)
+	for (indiv i = 0; i < house.size(); ++i)
 	{
 		if (house.status(i) != INFECTIOUS)
 		{
@@ -305,22 +311,22 @@ void Model::simulate_single_house(Household &house)
 	}
 
 	// pick a random introduction and change it's status
-	int hh_first_case = uniform() * house.size();
-	house.change_status(hh_first_case, INFECTIOUS);
-	house.set_extra_int("intro-case", hh_first_case);
+	indiv i0 = uniform() * house.size();
+	house.change_status(i0, INFECTIOUS);
+	house.set_extra_int("intro-case", i0);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	double t = house.augm(hh_first_case, "onset_date");
+	double t = house.augm(i0, "onset_date");
 	double tf = time_end_followup(house);
 
 	// onset of secondary cases following the first case
 	while ((t < tf) && (house.n_susceptible() > 0))
 	{
 		t += Dt;
-		for (int i = 0; i < house.size(); ++i)
+		for (indiv i = 0; i < house.size(); ++i)
 		{
 			if (house.status(i) == SUSCEPTIBLE)
 			{
@@ -339,7 +345,7 @@ void Model::simulate_single_house(Household &house)
 	}
 
 	// format all augmented variables of susceptibles
-	for (int i : house.susceptible_set())
+	for (indiv i : house.susceptible_set())
 	{
 		clear_all_augm(house, i);
 	}

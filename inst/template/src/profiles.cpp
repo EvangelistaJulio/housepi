@@ -5,21 +5,23 @@
  */
 
 #include "profiles.h"
-
+#include "distribution.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Base_Infectivity_Profile : class ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Base_Infectivity_Profile::pdf(const std::vector<double> &x) const
+double Base_Infectivity_Profile::pdf(double serial, const std::vector<double> &x) const
 {
+	UNUSED(serial);
 	UNUSED(x);
 	tools::error("Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
 	return std::numeric_limits<double>::quiet_NaN();
 }
 
-double Base_Infectivity_Profile::cdf(const std::vector<double> &x) const
+double Base_Infectivity_Profile::cdf(double serial, const std::vector<double> &x) const
 {
+	UNUSED(serial);
 	UNUSED(x);
 	tools::error("Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
 	return std::numeric_limits<double>::quiet_NaN();
@@ -69,10 +71,11 @@ public:
 	~Infec_Prof_Ferretti20() = default;
 
 	//-----  Probability distribution function -----//
-	double pdf(const std::vector<double> &x) const override
+	double pdf(double serial, const std::vector<double> &x) const override
 	{
-		double t_ost = x[0];   // time from onset to transmission
-		double incub = x[1];   // incubation period
+		double incub = x[0];		   // incubation period
+		double t_OST = serial - incub; // t. from onset to transmission
+
 		double a = get_arg(0); // shape argument
 		double m = get_arg(1); // location argument
 		double s = get_arg(2); // scale argument
@@ -80,18 +83,19 @@ public:
 
 		double norm_pdf = (s / a) * (1. + (incub / T - 1.) * pow(1 + exp(m / s), -a) - (incub / T) * (pow(1. + exp((m + T) / s), -a)));
 
-		if (t_ost < 0)
+		if (t_OST < 0)
 		{
-			t_ost *= (T / incub);
+			t_OST *= (T / incub);
 		}
-		return exp((m - t_ost) / s) * pow(1. + exp((m - t_ost) / s), -1. - a) / norm_pdf;
+		return exp((m - t_OST) / s) * pow(1. + exp((m - t_OST) / s), -1. - a) / norm_pdf;
 	}
 
 	//-----  Cumulative distribution function -----//
-	double cdf(const std::vector<double> &x) const override
+	double cdf(double serial, const std::vector<double> &x) const override
 	{
-		double t_ost = x[0];   // time from onset to transmission
-		double incub = x[1];   // incubation period
+		double incub = x[0];		   // incubation period
+		double t_OST = serial - incub; // t. from onset to transmission
+
 		double a = get_arg(0); // shape argument
 		double m = get_arg(1); // location argument
 		double s = get_arg(2); // scale argument
@@ -99,17 +103,17 @@ public:
 
 		double norm_cdf = (1. + (incub / T - 1.) * pow(1 + exp(m / s), -a) - (incub / T) * (pow(1. + exp((m + T) / s), -a)));
 
-		if (t_ost < 0)
+		if (t_OST < 0)
 		{
 			// Integrate from -incub to t_ost
-			return (incub / T) * (pow(1. + exp((m - t_ost * T / incub) / s), -a) - pow(1. + exp((m + T) / s), -a)) / norm_cdf;
+			return (incub / T) * (pow(1. + exp((m - t_OST * T / incub) / s), -a) - pow(1. + exp((m + T) / s), -a)) / norm_cdf;
 		}
 		else
 		{
 			// Integrate from -incub to 0
 			double tmp = (incub / T) * (pow(1. + exp(m / s), -a) - pow(1. + exp((m + T) / s), -a));
 			// Integrate from 0 to t_ost
-			return (tmp + pow(1. + exp((m - t_ost) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
+			return (tmp + pow(1. + exp((m - t_OST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
 		}
 	}
 };
@@ -144,23 +148,27 @@ public:
 			 {"shape", "scale", "shift"});
 		assign_args(new_args);
 		dictargs aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
-		gamma_distr_ptr = distribution_ptr("gamma", aux_args_val, {{"min", get_arg(2)}});
+		gamma_distr_ptr = distribution_switchboard("gamma", aux_args_val, {{"min", get_arg(2)}});
 	}
 	// Deconstructor
 	~Infec_Prof_Ashcroft20() {};
 
-	double pdf(const std::vector<double> &x) const override
+	double pdf(double serial, const std::vector<double> &x) const override
 	{
-		double t_ost = x[0];	   // time from onset to transmission
+		double incub = x[0];		   // incubation period
+		double t_OST = serial - incub; // t. from onset to transmission
+
 		double shift = get_arg(2); // shift argument
-		return gamma_distr_ptr->pdf(shift + t_ost);
+		return gamma_distr_ptr->pdf(shift + t_OST);
 	}
 
-	double cdf(const std::vector<double> &x) const override
+	double cdf(double serial, const std::vector<double> &x) const override
 	{
-		double t_ost = x[0];	   // time from onset to transmission
+		double incub = x[0];		   // incubation period
+		double t_OST = serial - incub; // t. from onset to transmission
+
 		double shift = get_arg(2); // shift argument
-		return gamma_distr_ptr->cdf(shift + t_ost);
+		return gamma_distr_ptr->cdf(shift + t_OST);
 	}
 };
 
@@ -172,11 +180,11 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 //* Return a pointer to infectivity profile */
-std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_ptr(const std::string &name)
+std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_switchboard(const std::string &name)
 {
 	std::unique_ptr<Base_Infectivity_Profile> output = std::make_unique<Base_Infectivity_Profile>();
 	const std::vector<std::string> options = {"ferretti20", "ashcroft20"};
-	
+
 	if (name == "ferretti20")
 	{
 		output = std::make_unique<Infec_Prof_Ferretti20>();
@@ -187,9 +195,9 @@ std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_ptr(const std::str
 	}
 	else if (!tools::is_na(name))
 	{
-        std::string err_message = "Unknown infectivity profile '" + name + "'.";
-        err_message += tools::find_closest_option(name, options);
-        throw std::invalid_argument(err_message);
+		std::string err_message = "Unknown infectivity profile '" + name + "'.";
+		err_message += tools::find_closest_option(name, options);
+		throw std::invalid_argument(err_message);
 	}
 	return output;
 }

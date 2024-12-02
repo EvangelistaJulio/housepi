@@ -21,7 +21,7 @@
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* [CHANGE-ME] Assign the parameters controlling infectivity for each individual. */
-void Model::assign_group_rate_to_individual(Household &house, int i)
+void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	std::string rateID;
 	bool is_adult = house.data(i, "age") > param("child_age");
@@ -91,9 +91,7 @@ void Model::init_model_for_inference()
 {
 	//==== Unknown status are not modeled =====//
 	if (report_data("n.miss.stat") > 0)
-	{
 		tools::error("A missing status was found : incompatible with the model.");
-	}
 
 	//===== Allocate memory for the escape matrix =====//
 	init_model_for_simulation();
@@ -185,31 +183,25 @@ void Model::simulate_single_house(Household &house)
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (int i = 0; i < house.size(); i++)
-	{
+	for (indiv i = 0; i < house.size(); ++i)
 		if (uniform() < house.extra_vector("commu-escprob", i))
-		{
 			house.change_status(i, SUSCEPTIBLE);
-		}
 		else
-		{
 			house.change_status(i, INFECTIOUS);
-		}
-	}
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	std::set<int> old_gen_set = {};
-	std::set<int> new_gen_set = house.infectious_set();
+	std::set<indiv> old_gen_set = {};
+	std::set<indiv> new_gen_set = house.infectious_set();
 
 	while ((house.n_susceptible() > 0) && (!new_gen_set.empty()))
 	{
 		old_gen_set = new_gen_set;
 		new_gen_set.clear();
 
-		for (int i = 0; i < house.size(); i++)
+		for (indiv i = 0; i < house.size(); ++i)
 		{
 			if (house.status(i) == SUSCEPTIBLE)
 			{

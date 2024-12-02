@@ -33,15 +33,15 @@ class Monte_Carlo_Build
 {
 public:
     //===== Household Data =====//
-    size_t n_indiv = 0;
-    size_t n_house = 0;
-    std::vector<Household> house_vec = {};
+    size_t n_individuals = 0;
+    size_t n_households = 0;
+    std::vector<Household> house_vector = {};
 
     //===== Data Reports =====//
     std::vector<std::string> data_headers = {};
     ulong _n_contacts_ = 0;
-    std::map<std::string, int> _report_data_;
-    std::map<std::string, std::map<std::string, int>> _report_group_classes_ = {};
+    std::map<std::string, size_t> _report_data_;
+    std::map<std::string, std::map<std::string, size_t>> _report_group_classes_ = {};
     std::map<std::string, std::string> _report_pathtofile_;
 
     //===== Augmented Variables =====//            
@@ -107,11 +107,11 @@ public:
 
     void assign_house(const std::string &ID);
     void update_report_data();
-    int report_data(const std::string &key) const;
+    size_t report_data(const std::string &key) const;
 
     //===== AUGMENTED =====//
-    void clear_all_augm(Household &this_house, int i);
-    void assign_all_augm(Household &this_house, int i);
+    void clear_all_augm(Household &house, indiv i);
+    void assign_all_augm(Household &house, indiv i);
 
     sys_rnd_gen &get_prng();
     double uniform();
@@ -136,15 +136,15 @@ public:
     void dgn_glob_ll_stats(double &avg, double &var) const;
 
 	//----- Metropolis : augmented moves -----//
-	double compute_augm_model_loglike(const Household &this_house) const { return (this->*_func_augm_model_loglike_)(this_house); }
+	double compute_augm_model_loglike(const Household &house) const;
 	
     double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
-	double _no_augm_model_loglike_(const Household &this_house) const;
-	double _augm_model_loglike_(const Household &this_house) const;
+	double _no_augm_model_loglike_(const Household &house) const;
+	double _augm_model_loglike_(const Household &house) const;
 
-    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, int, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
-	void _augm_model_by_status_(const Household &this_house, int i, double &delta) const;
-	void _augm_model_generic_(const Household &this_house, int i, double &delta) const;
+    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
+	void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
+	void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
 
 private:
     //===== Pointer to Core =====//
@@ -156,10 +156,10 @@ private:
     std::map<std::string, std::vector<std::string>> _augm_deftable_ = {};
     
     //----- build : type-specified variables -----//
-    double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
-    const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
-    dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
-    dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &this_house, int i);
+    double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
+    const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
+    dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
+    dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
 
     //----- build : Augmented Variables -----//
     void build_augm();

@@ -43,9 +43,7 @@ void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
 	if (report_data("n.miss.stat") > 0)
-	{
 		tools::error("A missing status was found : incompatible with the model.");
-	}
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_generations_lookuptable(report_data("max.n.HH.cases"));
@@ -65,13 +63,13 @@ void Model::init_model_for_inference()
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(Household &house) const
 {
-	int n_positive = house.n_infectious();
+	double log_likelihood = 0.;
 
 	double log_commu_esc_proba = -community_risk();
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
 	double log_p2p_esc_proba = -person_to_person_risk();
 
-	double log_likelihood = 0.;
+	ushort n_positive = house.n_infectious();
 
 	//================================================//
 	//======== Contribution of Sero-Negatives ========//
@@ -141,24 +139,18 @@ void Model::simulate_single_house(Household &house)
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (int i = 0; i < house.size(); i++)
-	{
+	for (indiv i = 0; i < house.size(); ++i)
 		if (uniform() < commu_esc_proba)
-		{
 			house.change_status(i, SUSCEPTIBLE);
-		}
 		else
-		{
 			house.change_status(i, INFECTIOUS);
-		}
-	}
 
 	//==============================================================//
 	//===== GENERATION >=1 : infection by previous generation ======//
 	//==============================================================//
 
-	int n_old_gen = 0;
-	int n_new_gen = house.n_infectious();
+	ushort n_old_gen = 0;
+	ushort n_new_gen = house.n_infectious();
 
 	while ((house.n_infectious() > 0) && (n_new_gen > 0))
 	{
@@ -166,14 +158,14 @@ void Model::simulate_single_house(Household &house)
 		n_new_gen = 0;
 
 		// note : here househ[h].susceptible_set is not allowed because of change_status
-		for (int i = 0; i < house.size(); i++)
+		for (indiv i = 0; i < house.size(); ++i)
 		{
 			if (house.status(i) == SUSCEPTIBLE)
 			{
 				if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 				{
 					house.change_status(i, INFECTIOUS);
-					n_new_gen++;
+					++n_new_gen;
 				}
 			}
 		}

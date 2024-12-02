@@ -20,7 +20,7 @@
 #include <Rcpp.h>
 #endif
 
-#include "varia.h"
+#include "variable.h"
 #include "household.h"
 #include "profiles.h"
 
@@ -81,15 +81,15 @@ public:
 
 	//===== DATA =====//
 	size_t n_houses() const;
-	int report_data(const std::string &key) const;
+	size_t report_data(const std::string &key) const;
 
 	// note : I didn't find a way to PIMPL these because of the virtual functions
 	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
-	void set_rate_per_group(Household &house, int i);
+	void set_rate_per_group(Household &house, indiv i);
 	void set_rate_per_contact(Household &house);
 
-	virtual void assign_group_rate_to_individual(Household &house, int i);
-	virtual void assign_contact_rate_to_household(Household &house, int from, int to);
+	virtual void assign_group_rate_to_individual(Household &house, indiv i);
+	virtual void assign_contact_rate_to_household(Household &house, indiv from, indiv to);
 
 	//===== RAND NUMBER GENERATOR =====//
 	double uniform();
@@ -100,9 +100,9 @@ public:
 
 	//===== AUGMENTED VARIABLES =====//
 	void init_augmented_variables();
-	virtual void update_augm_dependecies(Household &house, int i);
-	void assign_all_augm(Household &house, int i);
-	void clear_all_augm(Household &house, int i);
+	virtual void update_augm_dependecies(Household &house, indiv i);
+	void assign_all_augm(Household &house, indiv i);
+	void clear_all_augm(Household &house, indiv i);
 
 	//===== EXTRA ATTRIBUTES =====//
 	void assign_extra_integer_to_all_houses(const std::vector<std::string> &names, int init_value = 0.0);
@@ -112,8 +112,8 @@ public:
 
 	//===== INFECTIVITY PROFILE =====//
 	void assign_infectivity_profile(const std::string &name);
-	double infec_profile_inst(const std::vector<double> &x);
-	double infec_profile_cumul(const std::vector<double> &x);
+	double infec_profile_inst(double serial, const std::vector<double> &x = {});
+	double infec_profile_cumul(double serial, const std::vector<double> &x = {});
 
 	//===== EVALUATE (loglikelihood) =====//
 	virtual double compute_house_loglike(Household &house) const;
@@ -180,20 +180,20 @@ private:
 
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);
-	void metropolis_augm_single_move(Household &house, int i, const std::string &augmID, double &delta);
+	void metropolis_augm_single_move(Household &house, indiv i, const std::string &augmID, double &delta);
 
 	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
 	void _move_no_augm_() {};
 	void _move_all_augm_();
 
-	void (MCMC::*_func_move_augm_indiv_)(Household &, int, double &) = &MCMC::_move_augm_indiv_by_status_;
-	void _move_augm_indiv_by_status_(Household &house, int i, double &delta);
-	void _move_augm_indiv_generic_(Household &house, int i, double &delta);
+	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &) = &MCMC::_move_augm_indiv_by_status_;
+	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
+	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);
 
-	bool (MCMC::*_func_augm_metropolis_)(const Household &, int, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
-	bool _augm_metropolis_1_(const Household &house, int i, const std::string &augmID, double &delta);
-	bool _augm_metropolis_0_(const Household &house, int i, const std::string &augmID, double &delta);
-	bool _augm_metropolis_T_(const Household &house, int i, const std::string &augmID, double &delta);
+	bool (MCMC::*_func_augm_metropolis_)(const Household &, indiv, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
+	bool _augm_metropolis_1_(const Household &house, indiv i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_0_(const Household &house, indiv i, const std::string &augmID, double &delta);
+	bool _augm_metropolis_T_(const Household &house, indiv i, const std::string &augmID, double &delta);
 };
 
 #endif // HOUSEPI__MCMC__H

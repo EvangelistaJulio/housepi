@@ -1,11 +1,11 @@
 /*
- * varia.h
+ * variable.h
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#ifndef HOUSEPI__VARIA__H
-#define HOUSEPI__VARIA__H
+#ifndef HOUSEPI__VARIABLE__H
+#define HOUSEPI__VARIABLE__H
 
 #include <memory>
 #include <random>
@@ -16,109 +16,7 @@
 #include <cmath>
 
 #include "tools.h"
-#include "function.h"
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base Distribution : class  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* A parent class to all distributions. */
-class Base_Distribution : public Base_Function
-{
-public:
-	using Base_Function::Base_Function;
-
-	double pdf(double x) const { return (this->*_func_pdf_)(x); }
-	double cdf(double x) const { return (this->*_func_cdf_)(x); }
-	double logpdf(double x) const { return (this->*_func_logpdf_)(x); }
-	double logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
-	double rand(sys_rnd_gen &prng) { return (this->*_func_rand_)(prng); }
-
-protected:
-	//----- Distribution specific virtual methods -----//
-	virtual double _pdf_(double x) const;
-	virtual double _cdf_(double x) const;
-	virtual double _logpdf_(double x) const;
-	virtual double _logratio_(double xold, double xnew) const;
-	virtual double _rand_(sys_rnd_gen &prng);
-
-	//----- Adjust methods for truncation and/or discretizat -----//
-	void _assign_reshaping_(const dictargs &range, const std::string &discr);
-	void _check_rand_attempts_(int &n_attempts) const;
-
-	//----- Functional methods for public methods -----//
-	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
-	double (Base_Distribution::*_func_cdf_)(double) const = &Base_Distribution::_default_cdf_;
-	double (Base_Distribution::*_func_logpdf_)(double) const = &Base_Distribution::_default_logpdf_;
-	double (Base_Distribution::*_func_logratio_)(double, double) const = &Base_Distribution::_default_logratio_;
-	double (Base_Distribution::*_func_rand_)(sys_rnd_gen &) = &Base_Distribution::_default_rand_;
-
-	//----- Functional methods for truncation -----//
-	double (Base_Distribution::*_func_trunc_)(double) const = &Base_Distribution::_trunc_dummy_;
-	double (Base_Distribution::*_func_logtrunc_)(double) const = &Base_Distribution::_logtrunc_dummy_;
-	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
-
-private:
-	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
-
-	//----- Deafult functional methods -----//
-	double _default_pdf_(double x) const;
-	double _default_cdf_(double x) const;
-	double _default_logpdf_(double x) const;
-	double _default_logratio_(double xold, double xnew) const;
-	double _default_rand_(sys_rnd_gen &prng);
-
-	//----- Functional methods for the center adjusted discretization -----//
-	double _discr_center_pdf_(double x) const;
-	double _discr_center_cdf_(double x) const;
-	double _discr_center_logpdf_(double x) const;
-	double _discr_center_logratio_(double xold, double xnew) const;
-	double _discr_center_rand_(sys_rnd_gen &prng);
-
-	//----- Functional methods for the left adjusted discretization -----//
-	double _discr_left_pdf_(double x) const;
-	double _discr_left_cdf_(double x) const;
-	double _discr_left_logpdf_(double x) const;
-	double _discr_left_logratio_(double xold, double xnew) const;
-	double _discr_left_rand_(sys_rnd_gen &prng);
-
-	//----- Functional methods for the truncation and/or discretization -----//
-	double _trunc_dummy_(double x) const;
-	double _trunc_min_(double x) const;
-	double _trunc_max_(double x) const;
-	double _trunc_both_sides_(double x) const;
-
-	//----- Functional methods for the (log) truncation -----//
-	double _logtrunc_dummy_(double x) const;
-	double _logtrunc_min_(double x) const;
-	double _logtrunc_max_(double x) const;
-	double _logtrunc_both_sides_(double x) const;
-
-	//----- Functional methods to shift cumulative -----//
-	double _shift_dummy_(double x) const;
-	double _shift_min_(double x) const;
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  distribution switchboard  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* overloaded distribution with static values. */
-std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name = UNDEFINED,
-													const dictargs &args = {},
-													const dictargs &range = {});
-
-/* overloaded distribution with pointer to values. */
-std::shared_ptr<Base_Distribution> distribution_ptr(const std::string &name = UNDEFINED,
-													const dictargs_ptr &args = {},
-													const dictargs &range = {});
+#include "distribution.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -143,28 +41,26 @@ public:
 	virtual ~Base_Proposer() {};
 
 	//===== Getter =====//
-	const std::string &get_name() const { return distr_ptr->get_name(); }
-	double get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
-	double get_from_value() const { return from_value; }
-	bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
+	const std::string &get_name() const;
+	double get_arg(int argID) const;
+	double get_from_value() const;
+	bool is_rule_start_from_zero() const;
 
 	//===== Setter =====//
-	void set_rule_start_value(double x) { from_value = x; }
-
-	double rand(sys_rnd_gen &prng) { return (distr_ptr->rand)(prng); }
-
-	virtual double propose(sys_rnd_gen &prng, double start = 0.0) { return (this->*_func_propose_)(prng, start); }
-	virtual double logratio(double xold, double xnew) const { return (this->*_logratio_method_)(xold, xnew); }
+	void set_rule_start_value(double x);
+	double rand(sys_rnd_gen &prng);
+	virtual double propose(sys_rnd_gen &prng, double start = 0.0);
+	virtual double logratio(double xold, double xnew) const;
 
 	//=====Finite Adaptive=====//
-	double get_accept_rate() const { return accept_rate; };
+	double get_accept_rate() const;
 	void update_accept_rate(bool is_accepted);
 	void reset_accept_rate();
 	void adapt(double ratio);
 
 	//===== Show =====//
-	const std::string show_arg_names() const { return distr_ptr->show_arg_names(); }
-	const std::string show_arg_values() const { return distr_ptr->show_arg_values(); }
+	const std::string show_arg_names() const;
+	const std::string show_arg_values() const;
 
 protected:
 	//===== Attributes =====//
@@ -261,7 +157,7 @@ public:
 			tools::error("Mismatching definitions in arguments of '" + name + "'.");
 		}
 
-		distr_ptr = distribution_ptr(distr_name, distr_args, range);
+		distr_ptr = distribution_switchboard(distr_name, distr_args, range);
 	}
 
 	// Assing a proposer rule with associated state 'infer'.
@@ -358,4 +254,4 @@ private:
 	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
 };
 
-#endif // HOUSEPI__VARIA__H
+#endif // HOUSEPI__VARIABLE__H

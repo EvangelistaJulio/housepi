@@ -58,6 +58,7 @@ typedef unsigned long int ulong;
 typedef std::vector<std::vector<double>> squarematrix;
 typedef std::unordered_map<std::string, double> dictargs;
 typedef std::unordered_map<std::string, const double *> dictargs_ptr;
+typedef unsigned short int indiv;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////

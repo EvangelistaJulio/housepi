@@ -32,10 +32,10 @@ void Model::init_model_for_inference()
 {
 	// external arguments: pointers to the respective parameters
 	dictargs_ptr args = {{"shape", param_pointer("shape")},
-					   {"scale", param_pointer("scale")}};				   
+						 {"scale", param_pointer("scale")}};
 
 	// choose the incubation period distribution
-	incub_distr_ptr = distribution_ptr("gamma", args);
+	incub_distr_ptr = distribution_switchboard("gamma", args);
 }
 
 //------------------------------------------- /\ ------------------------------------------------//
@@ -51,18 +51,20 @@ void Model::init_model_for_inference()
 
 /* Compute the log-likelihood within household. */
 double Model::compute_house_loglike(Household &house) const
-{	
-	// note : incubation period = onset - exposure
-	double incub = house.augm(0, "onset") - house.augm(0, "exposure");
+{
+	double incub, output = 0.0;
 
-	if (incub_distr_ptr->valid(incub))
+	for (indiv i = 0; i < house.size(); ++i)
 	{
-		return incub_distr_ptr->logpdf(incub);
+		incub = house.augm(i, "onset") - house.augm(i, "exposure");
+
+		if (incub_distr_ptr->valid(incub))
+			output *= incub_distr_ptr->logpdf(incub);
+		else
+			return -INF_DOUBLE;
 	}
-	else 
-	{
-		return -INF_DOUBLE;
-	}
+
+	return output;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -80,6 +82,6 @@ double Model::compute_house_loglike(Household &house) const
 /*
 void Model::simulate_single_house(Household &house)
 {
-	
+
 }
 */

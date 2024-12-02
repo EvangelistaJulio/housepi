@@ -114,10 +114,7 @@ void Parameter::init_diagnostics(ulong sample_size)
 }
 
 /* Update the values for the Bayesian diagnostics. */
-void Parameter::update_diagnostics()
-{
-    dgn_value[dgn_count++] = get_value();
-}
+void Parameter::update_diagnostics() { dgn_value[dgn_count++] = get_value(); }
 
 /* Message to be used at the moment of display diagnostics. (TEMPORARY) */
 std::string Parameter::show_diagnostics() const
@@ -136,6 +133,9 @@ std::string Parameter::show_diagnostics() const
     return oss.str();
 }
 
+const std::vector<double> &Parameter::get_dgn_value() const { return dgn_value; }
+double Parameter::get_dgn_value(size_t i) const { return dgn_value[i]; }
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -147,11 +147,23 @@ std::string Parameter::show_diagnostics() const
 //////////////////////////////  Monte_Carlo_Core : methods (getter)  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Default functional method to return parameter. */
+double Monte_Carlo_Core::_get_param_default_(const std::string &parID) const
+{
+    return param_map.at(parID).get_value();
+}
+
 /* Safe method to get a value with previous assertion. */
 double Monte_Carlo_Core::_get_param_assert_(const std::string &parID) const
 {
     assert_param(parID);
     return _get_param_default_(parID);
+}
+
+/* Default functional method to return pointer to parameter. */
+const double *Monte_Carlo_Core::_get_param_pointer_default_(const std::string &parID) const
+{
+    return param_map.at(parID).get_pointer();
 }
 
 /* Safe method to get a pointer to a parameter with previous assertion. */
@@ -282,7 +294,31 @@ void Monte_Carlo_Core::assert_param(const std::string &parID) const
     }
 }
 
-/* randomly initialize values of the parameters to be inferred */
+/* Wrapper of functional method to return the parameter value. */
+double Monte_Carlo_Core::get_param(const std::string &parID) const
+{
+    return (this->*_func_get_param_)(parID);
+}
+
+/* Wrapper of functional method to return a pointer to the parameter. */
+const double *Monte_Carlo_Core::get_param_pointer(const std::string &parID) const
+{
+    return (this->*_func_get_param_pointer_)(parID);
+}
+
+/* Getter for the infer attribute of parameter (mutable/constant). */
+bool Monte_Carlo_Core::get_infer(const std::string &parID) const
+{
+    return param_map.at(parID).get_infer();
+}
+
+/* Getter for accept rate of parameter. */
+double Monte_Carlo_Core::get_accept_rate(const std::string &parID) const
+{
+    return param_map.at(parID).get_accept_rate();
+}
+
+/* Randomly initialize values of the parameters to be inferred */
 void Monte_Carlo_Core::init_rand_params()
 {
     if (setup_rnd_init_params)
@@ -300,6 +336,12 @@ void Monte_Carlo_Core::init_rand_params()
                 "Parameters with undefined values are not allowed.");
         }
     }
+}
+
+/* Reset the acceptance rate of the parameter. */
+void Monte_Carlo_Core::reset_accept_rate(const std::string &parID)
+{
+    param_map.at(parID).reset_accept_rate();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,6 +375,30 @@ bool Monte_Carlo_Core::propose_valid_param_move(const std::string &parID)
         restore_param_value(parID);
         return false;
     }
+}
+
+/* Restore the parameter value in the buffer. */
+void Monte_Carlo_Core::restore_param_value(const std::string &parID)
+{
+    param_map.at(parID).restore_value();
+}
+
+/* Update the acceptance rate of the paramter. */
+void Monte_Carlo_Core::update_param_accept_rate(const std::string &parID, bool is_accepted)
+{
+    param_map.at(parID).update_accept_rate(is_accepted);
+}
+
+/* Metropolis logratio associate to the current move. */
+double Monte_Carlo_Core::param_move_logratio(const std::string &parID) const
+{
+    return param_map.at(parID).get_move_logratio();
+}
+
+/* Adapt the parameter Metropolis move. */
+void Monte_Carlo_Core::adapt_param_rule(const std::string &parID, double ratio)
+{
+    param_map.at(parID).adapt_rule(ratio);
 }
 
 /* Init diagnostics for all parameters */
@@ -680,6 +746,24 @@ void Monte_Carlo_Core::dgn_glob_ll_stats(double &avg, double &var) const
     compute_stats(dgn_glob_loglike, avg, var);
 }
 
+/* Return the pseudo random number generator. */
+sys_rnd_gen &Monte_Carlo_Core::get_prng()
+{
+    return (this->*_func_prng_)();
+}
+
+/* Draw a random variable uniformly distributed. */
+double Monte_Carlo_Core::uniform()
+{
+    return _uniform_distr_(get_prng());
+}
+
+/* String with parameter definitions at the current state. */
+std::string Monte_Carlo_Core::show_param(const std::string &parID) const
+{
+    return parID + C_DELIM + param_map.at(parID).show();
+}
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -901,14 +985,14 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
         if (inferstate_ofstream.is_open())
         {
             //----- HEADERS -----//
-            // header : loglikelihood
+            // header loglikelihood
             inferstate_ofstream << "loglikelihood";
-            // header : parameters
+            // header parameters
             for (const std::string &parID : param_to_be_inferred)
             {
                 inferstate_ofstream << C_DELIM << parID;
             }
-            // header : chain
+            // header chain
             if (setup_n_chains > 1)
             {
                 inferstate_ofstream << C_DELIM << "CHAIN__";
@@ -923,16 +1007,16 @@ void Monte_Carlo_Core::print_infer_state(const std::string &output_filename) con
                 for (size_t k = 0; k < setup_c_sample_size; k++)
                 {
                     size_t i = k + c * setup_c_sample_size;
-                    // print : loglikelihood
+                    // print loglikelihood
                     inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
-                    // print : parameter values
+                    // print parameter values
                     for (const std::string &parID : param_to_be_inferred)
                     {
                         // FIXME
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
                                             << std::fixed << param_map.at(parID).get_dgn_value(i);
                     }
-                    // print : which chain
+                    // print which chain
                     if (setup_n_chains > 1)
                     {
                         inferstate_ofstream << C_DELIM << (c + 1);

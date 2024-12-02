@@ -129,7 +129,7 @@ compile_dll_model <- function(model_path = ".", force = FALSE, quiet = TRUE, as_
     # temporary folder where to store source code
     cache_path <- file.path(tempdir(), paste0("housepi", format_name(basename(model_path))))
     # check for previous cached dll files
-    cache_dll_files <- list.files(pattern = .Platform$dynlib.ext)
+    cache_dll_files <- list.files(cache_path, pattern = .Platform$dynlib.ext)
 
     if ((length(cache_dll_files) == 1) && isFALSE(force)) {
       cli::cli_alert_info("Using chached {.pkg {basename(model_path)}}")
