@@ -39,17 +39,9 @@ We can then generate an instance of our custom model from its path. All other me
 hemi <- housepi::HouseholdModelClass$new(my_model_path)
 ```
 
-By default a new instance requires the model compilation which is repeated at every R session. In certain conditions, e. g. when running different scripts in parallel, it is recommended to avoid this. Consider storing the associated model environment to a given folder through the options `save`:
-
-```{r, eval = FALSE}
-# store the compiled model ...
-hmc <- housepi::HouseholdModelClass$new("chain-binomial",
-                                        store_path = "ready_cb")
-
-# ... and load it straightway during next session
-hmc <- housepi::HouseholdModelClass$new("ready_cb")
-```
-
+By default a new instance requires the model compilation which is repeated at every R session. 
+In certain conditions, e. g. when running different scripts in parallel, we might want to avoid this.
+Consider storing the associated model environment as if it was a template with the option `as_template= TRUE`. 
 
 ## Hints of the Coding Framework
 

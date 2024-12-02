@@ -47,9 +47,9 @@ If not specified otherwise, it create a one per session model environment.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$new(
   model = ".",
-  store_path = NA,
   quiet = TRUE,
-  force = FALSE
+  force = FALSE,
+  as_template = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -59,14 +59,14 @@ If not specified otherwise, it create a one per session model environment.
 \item{\code{model}}{(\code{character(1)})\cr
 Template name, path to folder with implementation or with previously compiled model.}
 
-\item{\code{store_path}}{(\code{character(1)})\cr
-Path to folder where to store the compiled model environment.}
-
 \item{\code{quiet}}{(\code{logical(1)})\cr
 If \code{TRUE} hide compilation commands.}
 
 \item{\code{force}}{(\code{logical(1)})\cr
 If \code{TRUE} compile even if a cached model already exists.}
+
+\item{\code{as_template}}{(\code{logical(1)})\cr
+Store the dynamic library as a template to avoid recompilation in different session.}
 }
 \if{html}{\out{</div>}}
 }

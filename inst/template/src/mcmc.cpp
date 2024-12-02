@@ -63,6 +63,13 @@ void MCMC::assign_extra_integer_to_all_houses(const std::vector<std::string> &na
         pBuild->house_vec[H].allocate_extra_int(names, init_value);
     }
 }
+void MCMC::assign_extra_double_to_all_houses(const std::vector<std::string> &names, double init_value)
+{
+    for (size_t H = 0; H < n_houses(); ++H)
+    {
+        pBuild->house_vec[H].allocate_extra_double(names, init_value);
+    }
+}
 void MCMC::assign_extra_vector_to_all_houses(const std::vector<std::string> &names, double init_value)
 {
     for (size_t H = 0; H < n_houses(); ++H)

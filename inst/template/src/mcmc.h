@@ -106,6 +106,7 @@ public:
 
 	//===== EXTRA ATTRIBUTES =====//
 	void assign_extra_integer_to_all_houses(const std::vector<std::string> &names, int init_value = 0.0);
+	void assign_extra_double_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
 	void assign_extra_vector_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
 	void assign_extra_matrix_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
 

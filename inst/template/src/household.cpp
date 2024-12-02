@@ -60,6 +60,7 @@ public:
 
 	//----- Extra Attributes -----//
 	std::unordered_map<std::string, int> extra_int = {};
+	std::unordered_map<std::string, double> extra_double = {};
 	std::unordered_map<std::string, std::vector<double>> extra_vec = {};
 	std::unordered_map<std::string, squarematrix> extra_mtx = {};
 
@@ -334,7 +335,6 @@ void Household::allocate_extra_int(const std::vector<std::string> names, int ini
 		pImpl->extra_int.emplace(intID, init_value);
 	}
 }
-
 void Household::set_extra_int(const std::string &intID, int new_value)
 {
 	pImpl->extra_int.at(intID) = new_value;
@@ -343,6 +343,24 @@ void Household::set_extra_int(const std::string &intID, int new_value)
 int Household::extra_int(const std::string &intID) const
 {
 	return pImpl->extra_int.at(intID);
+}
+
+
+void Household::allocate_extra_double(const std::vector<std::string> names, double init_value)
+{
+	for (const std::string &dblID : names)
+	{
+		pImpl->extra_double.emplace(dblID, init_value);
+	}
+}
+void Household::set_extra_double(const std::string &dblID, double new_value)
+{
+	pImpl->extra_double.at(dblID) = new_value;
+}
+
+double Household::extra_double(const std::string &dblID) const
+{
+	return pImpl->extra_double.at(dblID);
 }
 
 void Household::allocate_extra_vector(const std::vector<std::string> names, double init_value)

@@ -104,6 +104,10 @@ public:
 	void set_extra_int(const std::string &intID, int new_value);
 	int extra_int(const std::string &intID) const;
 
+	void allocate_extra_double(const std::vector<std::string> names, double init_value = 0.0);
+	void set_extra_double(const std::string &dblID, double new_value);
+	double extra_double(const std::string &dblID) const;
+
 	void allocate_extra_vector(const std::vector<std::string> names, double init_value = 0.0);
 	void set_extra_vector(const std::string &vecID, size_t i, double new_value);
 	double extra_vector(const std::string &vecID, size_t i) const;

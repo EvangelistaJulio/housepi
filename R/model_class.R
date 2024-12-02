@@ -151,30 +151,34 @@ HouseholdModelClass <- R6::R6Class(
     #' If not specified otherwise, it create a one per session model environment.
     #' @param model (`character(1)`)\cr
     #' Template name, path to folder with implementation or with previously compiled model.
-    #' @param store_path (`character(1)`)\cr
-    #' Path to folder where to store the compiled model environment.
     #' @param quiet (`logical(1)`)\cr
     #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
     #' If `TRUE` compile even if a cached model already exists.
+    #' @param as_template (`logical(1)`)\cr
+    #' Store the dynamic library as a template to avoid recompilation in different session.
     initialize = function(model = ".",
-                          store_path = NA,
                           quiet = TRUE,
-                          force = FALSE) {
+                          force = FALSE,
+                          as_template = FALSE) {
 
-      dll <- generate_model(model, store_path = store_path, 
-                            quiet = quiet, force = force)
+      dll <- generate_dll_model(model, force = force, quiet = quiet, as_template = as_template)
+
+      package <- tools::file_path_sans_ext(basename(dll))
 
       # remove environment if already loaded
-      if (is.loaded(dll)) {
-        dyn.unload(dll)
-      }
+      # FIXME: can't remove from cash memory!
+      # otherwise thinfs defined with previous will crash
+      # need to change names
+      #if (is.loaded(dll)) {
+      #  dyn.unload(dll)
+      #  gc(verbose = FALSE)
+      #}
       # load shared library
       dyn.load(dll)
   
       # expose internally the module
-      m <- Rcpp::Module("model_housepi_rcpp", 
-                        PACKAGE = "housepienvironment")
+      m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = package)
 
       #----- assign fields -----#
       # assign the path to model environment source

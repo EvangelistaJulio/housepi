@@ -58,3 +58,8 @@ str_split_ <- function(lst) {
 str_join_ <- function(x) {
   return(paste(x, collapse = "/"))
 }
+
+# Generate a random string
+rnd_string <- function(size = 8){
+  return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE), collapse = ""))
+}
