@@ -1,7 +1,8 @@
 list(
   onset_date = list(
     value = "onset_date@D",
-    rule = "norm", rule_args = list(sd = 0.25), rule_from = "onset_date@D"
+    rule = "norm", rule_scale = 0.5,
+    rule_from = "onset_date@D"
   ),
   incub_period = list(
     init_rand = TRUE, model = "gamma",

@@ -54,15 +54,15 @@ public:
 private:
     //===== Argument getter : functional methods =====//
     double (Base_Function_Impl::*_func_get_arg_)(int) const;
-    double _get_arg_val_(int i) const { return _args_val_[i]; }
-    double _get_arg_ptr_(int i) const { return *(_args_ptr_[i]); }
+    double _get_arg_value_(int i) const { return _args_val_[i]; }
+    double _get_arg_pointer_(int i) const { return *(_args_ptr_[i]); }
 
     //===== Argument setter : functional methods =====//
     // note : the set_arg is only used for the adaptive
     // for this reason a pointer argument can't be set, but just assigned
     void (Base_Function_Impl::*_func_set_arg_)(int, double);
-    void _set_arg_val_(int i, double new_value) { _args_val_[i] = new_value; }
-    void _set_arg_ptr_(int i, double new_value)
+    void _set_arg_value_(int i, double new_value) { _args_val_[i] = new_value; }
+    void _set_arg_pointer_(int i, double new_value)
     {
         UNUSED(new_value);
         tools::error(
@@ -92,19 +92,15 @@ private:
 /* Assign argument getter and setter for scalar value mode. */
 void Base_Function_Impl::assign_val_mode()
 {
-    // assign getter
-    _func_get_arg_ = &Base_Function_Impl::_get_arg_val_;
-    // assign setter
-    _func_set_arg_ = &Base_Function_Impl::_set_arg_val_;
+    _func_get_arg_ = &Base_Function_Impl::_get_arg_value_;
+    _func_set_arg_ = &Base_Function_Impl::_set_arg_value_;
 }
 
 /* Assign argument getter and setter for pointer mode. */
 void Base_Function_Impl::assign_ptr_mode()
 {
-    // assign getter
-    _func_get_arg_ = &Base_Function_Impl::_get_arg_ptr_;
-    // assign setter
-    _func_set_arg_ = &Base_Function_Impl::_set_arg_ptr_;
+    _func_get_arg_ = &Base_Function_Impl::_get_arg_pointer_;
+    _func_set_arg_ = &Base_Function_Impl::_set_arg_pointer_;
 }
 
 /* Overload assignment of non default POINTER arguments. */
@@ -114,14 +110,10 @@ void Base_Function_Impl::assign_args(const dictargs &args_val)
     {
         auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
         if (it == _args_names_.end())
-        {
             throw std::invalid_argument(
                 "Unknown argument '" + pair.first + "' for '" + _name_ + "'.");
-        }
         else
-        {
             _args_val_[std::distance(_args_names_.begin(), it)] = pair.second;
-        }
     }
 }
 
@@ -132,14 +124,10 @@ void Base_Function_Impl::assign_args(const dictargs_ptr &args_ptr)
     {
         auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
         if (it == _args_names_.end())
-        {
             throw std::invalid_argument(
                 "Unknown argument '" + pair.first + "' for '" + _name_ + "'.");
-        }
         else
-        {
             _args_ptr_[std::distance(_args_names_.begin(), it)] = pair.second;
-        }
     }
 }
 
@@ -298,9 +286,8 @@ const std::string Base_Function_Impl::show_arg_names() const
     {
         std::string output = _args_names_[0];
         for (size_t i = 1; i < _args_names_.size(); ++i)
-        {
             output += C_LIST_DELIM + _args_names_[i];
-        }
+
         return output;
     }
 }
@@ -316,9 +303,8 @@ const std::string Base_Function_Impl::show_arg_values() const
     {
         std::string output = std::to_string(get_arg(0));
         for (size_t i = 1; i < _args_names_.size(); ++i)
-        {
             output += C_LIST_DELIM + std::to_string(get_arg(i));
-        }
+
         return output;
     }
 }
@@ -387,9 +373,8 @@ void Base_Function::init(const std::string &name,
     pImpl->_args_val_ = new double[args_val.size()];
     size_t i = 0;
     for (const std::string &argID : order)
-    {
         pImpl->_args_val_[i++] = args_val.at(argID);
-    }
+    
     // assign getter and setter for scalar value mode
     pImpl->assign_val_mode();
     // assign domain
@@ -410,14 +395,11 @@ void Base_Function::init(const std::string &name,
     for (const std::string &argID : order)
     {
         if (args_ptr.find(argID) == args_ptr.end())
-        {
             throw std::invalid_argument(
                 "Argument '" + argID + "' not provided for '" + pImpl->_name_ + "'.");
-        }
         else 
-        {
             pImpl->_args_ptr_[i] = args_ptr.at(argID);
-        }
+
         ++i;
     }
 

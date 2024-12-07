@@ -80,18 +80,18 @@ knitr::kable(head(aux_))
 
 ### Parameter Definitions
 
-Parameter definitions, like priors and proposer rules needed for the Bayesian Monte Carlo, can be provide using the method `param_append`.
+Single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `param_add`.
 
 ```{r, echo=TRUE}
-hmc$param_append(
-  alpha = list(
-    prior = "unif", args = list(min = 0, max = 3),
-    rule = "lnorm", rule_args = list(sdlog = 1)
-  ),
-  beta = list(
-    prior = "unif", args = list(min = 0, max = 3),
-    rule = "lnorm", rule_args = list(sdlog = 1)
-  )
+hmc$param_add(
+  name = "alpha",
+  prior = "unif", args = list(min = 0, max = 3),
+  rule = "lnorm", rule_scale = 1
+)
+hmc$param_add(
+  name = "beta",
+  prior = "unif", args = list(min = 0, max = 3),
+  rule = "lnorm", rule_scale = 1
 )
 ```
 
@@ -99,8 +99,8 @@ hmc$param_append(
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and a `value`.
 
 Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param_template()`.
-The `param_append` method calls internally the `param_check()` to ensure that the definition list matches the model, raising a warning if it does not. 
-If some parameters are missing from your list, you can fill them calling the method `param_check(fill_template = TRUE)`.
+To check that all parameters have been defined, you can call the method `param_check()`.
+If some parameters are missing, you can fill them from the template defaults calling the method `param_check(fill_template = TRUE)`.
 
 For models requiring augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html) for an example.
 
@@ -109,7 +109,7 @@ For models requiring augmented variables the procedure is analogous. See the vig
 Now we can safely perform inference with the method `infer`.
 
 ```{r}
-# run the Monte Carlo with setup options like number of steps, seed, etc.
+# run the Monte Carlo specifying setup options (steps, seed, etc.)
 hmc$infer(data = survey, n_steps = 50000, n_burnin = 5000,
           thin = 15, n_adapt = 3000, n_chains = 4, seed = 6043)
 ```
@@ -158,9 +158,12 @@ In order to produce a simulation, our models require a pre-loaded database for t
 simu_cb <- housepi::HouseholdModelClass$new("chain-binomial")
 
 # define constant parameters from the inference results
-simu_cb$param_append(
-  alpha = list(value = results["alpha", "Mean"]),
-  beta = list(value = results["beta", "Mean"])
+# here we introduce the method 'param_from_list'
+simu_cb$param_from_list(
+  list(
+    alpha = list(value = results["alpha", "Mean"]),
+    beta = list(value = results["beta", "Mean"])
+  )
 )
 
 # build the new model using the same household compositions

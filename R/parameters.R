@@ -19,30 +19,14 @@ HousepiParameterClass <- R6::R6Class(
 
     # @description
     # Add a new parameter definition.
-    # @param name (`character(1)`)\cr
-    # Name of the parameter.
-    # @param value (`double(1)`)\cr
-    # Initial value of the parameter.
-    # @param infer (`logical(1)`)\cr
-    # If `FALSE` the parameter is treated as a constant.
-    # @param prior (`character(1)`)\cr
-    # Name of the prior distribution.
-    # @param args (named `list()` of `double(1)`)\cr
-    # Arguments for the prior distribution.
-    # @param rule (`character(1)`)\cr
-    # Name of the inference rule.
-    # @param rule_args (named `list()` of `double(1)`)\cr
-    # Arguments for the inference rule.
-    # They can be changed automatically during iterations with adaptation.
-    # @param range (named `list()` of `double(1)`)\cr
-    # The prior truncation 'min', 'max' or no bound for the parameter value.
     add = function(name = NA,
                    value = NA,
                    infer = NA,
+                   discrete = FALSE,
                    prior = NA,
                    args = list(),
                    rule = NA,
-                   rule_args = list(),
+                   rule_scale = NA,
                    range = list()) {
       if (is.na(name)) {
         stop(cli::format_error("Incomplete definition: missing name."))
@@ -68,6 +52,7 @@ HousepiParameterClass <- R6::R6Class(
       }
 
       if (isTRUE(infer)) {
+
         #----- prior -----#
         if (is.na(prior)) {
           stop(cli::format_error(
@@ -88,31 +73,25 @@ HousepiParameterClass <- R6::R6Class(
           stop(cli::format_error(
             sprintf("Incomplete definition: provide rule name for '%s'.", name)
           ))
-        } else if (length(rule_args) == 0) {
-          rule_args_ <- NA
-          rule_argsval_ <- NA
-        } else {
-          rule_args_ <- str_join_(names(rule_args))
-          rule_argsval_ <- str_join_(unname(unlist(rule_args)))
         }
 
         #----- range -----#
         min_ <- get_val_(names(range), "min")
         max_ <- get_val_(names(range), "max")
 
-        #----- self$defs : append -----#
+        #----- self$defs : add row -----#
         self$defs <- rbind(
           self$defs,
           data.frame(
             name = name,
             value = value,
             infer = TRUE,
+            discrete = isTRUE(discrete),
             prior = prior,
             args = args_,
             argsval = argsval_,
             rule = rule,
-            rule_args = rule_args_,
-            rule_argsval = rule_argsval_,
+            rule_scale = rule_scale,
             min = min_,
             max = max_,
             stringsAsFactors = FALSE
@@ -131,12 +110,12 @@ HousepiParameterClass <- R6::R6Class(
             name = name,
             value = value,
             infer = FALSE,
+            discrete = FALSE,
             prior = NA,
             args = NA,
             argsval = NA,
             rule = NA,
-            rule_args = NA,
-            rule_argsval = NA,
+            rule_scale = NA,
             min = NA,
             max = NA,
             stringsAsFactors = FALSE
@@ -153,12 +132,12 @@ HousepiParameterClass <- R6::R6Class(
         name = character(),
         value = numeric(),
         infer = logical(),
+        discrete = logical(),
         prior = character(),
         args = character(),
         argsval = character(),
         rule = character(),
-        rule_args = character(),
-        rule_argsval = character(),
+        rule_scale = numeric(),
         min = numeric(),
         max = numeric(),
         stringsAsFactors = FALSE
@@ -167,35 +146,20 @@ HousepiParameterClass <- R6::R6Class(
     },
 
     # @description
-    # Append a list of parameter definitions.
-    # @param ... (named `list()`s)\cr
-    # Parameter names with respective list of definitions.
-    append = function(...) {
-      # convert definitions to list
-      defs <- list(...)
-
-      if (length(defs) == 0) {
-        # reinitialize according to templated parameters
-        stop(cli::format_error(c(
-          x = "No definitions were provided.",
-          i = "To use template definitions use method param_template()."
-        )))
-
-      } else {
-        # user definitions
-        for (p in names(defs)) {
-          this <- defs[[p]]
-          self$add(
-            name = p,
-            value = get_val_(this, "value"),
-            infer = get_val_(this, "infer"),
-            prior = get_val_(this, "prior"),
-            args = get_val_(this, "args", default = list()),
-            rule = get_val_(this, "rule"),
-            rule_args = get_val_(this, "rule_args", default = list()),
-            range = get_val_(this, "range", default = list())
-          )
-        }
+    # Associate parameters from a list. Previous definitions are dropped.
+    # @param def_list (named `list()`)\cr
+    # A list containg parameter names with respective list of definitions.
+    from_list = function(definitions, append = FALSE) {
+      if (!is.list(definitions)) {
+        stop("The argument def_list should be a list.")
+      }
+      if (!append) {
+        self$clear()
+      }
+      for (i in seq_along(definitions)){
+        this_def <- definitions[[i]]
+        this_def[["name"]] <- names(definitions[i])
+        do.call(self$add, this_def)
       }
 
       invisible(self)
@@ -208,14 +172,12 @@ HousepiParameterClass <- R6::R6Class(
       templ_params_file <- file.path(envir_path, "template_params.R")
       if (!file.exists((templ_params_file))) {
         stop(cli::format_error(c(
-          x = "Impossible to automatically initialize parameters.",
+          "Impossible to automatically initialize parameters.",
           i = "A file with template definitionse was not found."
         )))
       }
       # remove previous definitions
-      self$clear()
-      # append definitions
-      do.call(self$append, dget(templ_params_file))
+      self$from_list(dget(templ_params_file), append = FALSE)
       invisible(self)
     },
 
@@ -232,8 +194,8 @@ HousepiParameterClass <- R6::R6Class(
 
       if (!file.exists(file.path(envir_path, ".source"))) {
         cli::cli_alert_warning(cli::format_warning(c(
-         x = "Impossible to find '.source': file moved or deleted.",
-         i = "Try to generate a new model object with {.code force = TRUE}."
+          "Impossible to find '.source': file moved or deleted.",
+          i = "Try to generate a new model object with {.code force = TRUE}."
         )))
 
       } else {
@@ -245,7 +207,7 @@ HousepiParameterClass <- R6::R6Class(
         regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
         matches <- stringr::str_match_all(script, regular_expr)
         model_params_set <- unique(unlist(matches[[1]][, 2]))
-        
+
         # param from : param_pointer("string" or param_pointer('string'
         regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
         matches <- stringr::str_match_all(script, regular_expr)
@@ -291,12 +253,11 @@ HousepiParameterClass <- R6::R6Class(
             templ_file <- file.path(envir_path, "template_params.R")
             if (!file.exists((templ_file))) {
               stop(cli::format_error(c(
-                x = "Impossible to fill missing parameters without a template.",
-                i = "If you just want to check, set {.code fill_template = FALSE}."
+                "Impossible to fill missing parameters without a template.",
+                i = "Set {.code fill_template = FALSE} to silence this warning."
               )))
             }
-            templ_params_list <- dget(templ_file)[missing]
-            do.call(self$append, templ_params_list)
+            self$from_list(dget(templ_file)[missing], append = TRUE)
             oss <- sprintf("Added missing parameter(s) from template: '%s'", missing[[1]])
           } else {
             oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])

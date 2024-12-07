@@ -26,14 +26,14 @@ Compile household model, manage your data and parameters from a single class.
 \item \href{#method-HouseholdModelClass-evidence}{\code{HouseholdModelClass$evidence()}}
 \item \href{#method-HouseholdModelClass-param_export}{\code{HouseholdModelClass$param_export()}}
 \item \href{#method-HouseholdModelClass-param_clear}{\code{HouseholdModelClass$param_clear()}}
+\item \href{#method-HouseholdModelClass-param_add}{\code{HouseholdModelClass$param_add()}}
 \item \href{#method-HouseholdModelClass-param_from_list}{\code{HouseholdModelClass$param_from_list()}}
-\item \href{#method-HouseholdModelClass-param_append}{\code{HouseholdModelClass$param_append()}}
 \item \href{#method-HouseholdModelClass-param_check}{\code{HouseholdModelClass$param_check()}}
 \item \href{#method-HouseholdModelClass-param_template}{\code{HouseholdModelClass$param_template()}}
 \item \href{#method-HouseholdModelClass-augm_export}{\code{HouseholdModelClass$augm_export()}}
 \item \href{#method-HouseholdModelClass-augm_clear}{\code{HouseholdModelClass$augm_clear()}}
+\item \href{#method-HouseholdModelClass-augm_add}{\code{HouseholdModelClass$augm_add()}}
 \item \href{#method-HouseholdModelClass-augm_from_list}{\code{HouseholdModelClass$augm_from_list()}}
-\item \href{#method-HouseholdModelClass-augm_append}{\code{HouseholdModelClass$augm_append()}}
 \item \href{#method-HouseholdModelClass-augm_check}{\code{HouseholdModelClass$augm_check()}}
 \item \href{#method-HouseholdModelClass-augm_template}{\code{HouseholdModelClass$augm_template()}}
 }
@@ -42,11 +42,10 @@ Compile household model, manage your data and parameters from a single class.
 \if{html}{\out{<a id="method-HouseholdModelClass-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-new}{}}}
 \subsection{Method \code{new()}}{
-Creates a new instance of class \link[=HouseholdModelClass]{HouseholdModelClass}.
-If not specified otherwise, it create a one per session model environment.
+Create a new instance of class \link[=HouseholdModelClass]{HouseholdModelClass}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$new(
-  model = ".",
+  model,
   quiet = TRUE,
   force = FALSE,
   as_template = FALSE
@@ -57,7 +56,13 @@ If not specified otherwise, it create a one per session model environment.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{model}}{(\code{character(1)})\cr
-Template name, path to folder with implementation or with previously compiled model.}
+One between:
+\itemize{
+\item Template name;
+\item path/to/folder with implementation;
+\item path/to/folder with previously compiled model;
+\item "developer".
+}}
 
 \item{\code{quiet}}{(\code{logical(1)})\cr
 If \code{TRUE} hide compilation commands.}
@@ -66,7 +71,8 @@ If \code{TRUE} hide compilation commands.}
 If \code{TRUE} compile even if a cached model already exists.}
 
 \item{\code{as_template}}{(\code{logical(1)})\cr
-Store the dynamic library as a template to avoid recompilation in different session.}
+If \code{TRUE} store the dynamic library as a local template.
+IF \code{FALSE} recompile the model at every new session.}
 }
 \if{html}{\out{</div>}}
 }
@@ -363,37 +369,76 @@ Clear all current parameter definitions.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_from_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_from_list}{}}}
-\subsection{Method \code{param_from_list()}}{
-Associate parameters from a list. Previous definitions are dropped.
+\if{html}{\out{<a id="method-HouseholdModelClass-param_add"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_add}{}}}
+\subsection{Method \code{param_add()}}{
+Add a new parameter definition.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_from_list(def_list)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_add(
+  name = NA,
+  value = NA,
+  infer = NA,
+  discrete = FALSE,
+  prior = NA,
+  args = list(),
+  rule = NA,
+  rule_scale = NA,
+  range = list()
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{def_list}}{(named \code{list()})\cr
-A list containg parameter names with respective list of definitions.}
+\item{\code{name}}{(\code{character(1)})\cr
+Name of the parameter.}
+
+\item{\code{value}}{(\code{double(1)})\cr
+Initial value of the parameter.}
+
+\item{\code{infer}}{(\code{logical(1)})\cr
+If \code{FALSE} the parameter is treated as a constant.}
+
+\item{\code{discrete}}{(\code{logical(1)})\cr
+If \code{TRUE} the parameter is discrete.}
+
+\item{\code{prior}}{(\code{character(1)})\cr
+Name of the prior distribution.}
+
+\item{\code{args}}{(named \code{list()})\cr
+Arguments for the prior distribution.}
+
+\item{\code{rule}}{(\code{character(1)})\cr
+Name of the inference proposal rule.}
+
+\item{\code{rule_scale}}{(\code{double(1)})\cr
+Scale parameter for the proposal rule.
+Changed automatically during inference if \code{n_adpat}>0.}
+
+\item{\code{range}}{(named \code{list()})\cr
+The prior truncation 'min', 'max' or no bound.}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_append"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_append}{}}}
-\subsection{Method \code{param_append()}}{
-Append a list of parameter definitions.
+\if{html}{\out{<a id="method-HouseholdModelClass-param_from_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_from_list}{}}}
+\subsection{Method \code{param_from_list()}}{
+Associate parameters from a list. Previous definitions are dropped.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_append(...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_from_list(definitions, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{(named \code{list()}s)\cr
-Parameter names with respective list of definitions.}
+\item{\code{definitions}}{(named \code{list()})\cr
+A list containg parameter names with respective list of definitions.}
+
+\item{\code{append}}{(\code{logical(1)})\cr
+If \code{TRUE} appends the list to current definition.
+If \code{FALSE} clears previous definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -451,38 +496,87 @@ Remove all current augmented variable definitions.
 
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-augm_add"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_add}{}}}
+\subsection{Method \code{augm_add()}}{
+Add a new augmented variable definition.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_add(
+  name = NA,
+  value = NA,
+  discrete = FALSE,
+  model = NA,
+  args = list(),
+  rule = NA,
+  rule_scale = NA,
+  rule_from = NA,
+  range = list(),
+  init_rand = FALSE,
+  status = NA
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{(\code{character(1)})\cr
+Name of the augmented variable.}
+
+\item{\code{value}}{(\code{double(1)} | \code{character(1)})\cr
+Scalar value
+or parameter name (followed by \verb{@P})
+or data name (followed by \verb{@D}).}
+
+\item{\code{discrete}}{(\code{logical(1)})\cr
+IF \code{TRUE} the parameter is discrete.}
+
+\item{\code{model}}{(\code{character(1)})\cr
+Name of the model distribution.}
+
+\item{\code{args}}{(named \code{list()})\cr
+Arguments for the model distribution.}
+
+\item{\code{rule}}{(\code{character(1)})\cr
+Name of the inference proposal rule.}
+
+\item{\code{rule_scale}}{(\code{double(1)})\cr
+Scale parameter for the proposal rule.}
+
+\item{\code{rule_from}}{(\code{double(1)} | \code{character(1)})\cr
+Advanced options for non random walk moves.}
+
+\item{\code{range}}{(named \code{list()})\cr
+List with 'min' and/or 'max' values (or none).}
+
+\item{\code{init_rand}}{(\code{character(1)})\cr
+If \code{TRUE} draw initial vale from model distribution.}
+
+\item{\code{status}}{(\code{integer(1)})\cr
+The associated status of the definition.
+Default NA is for all infectious.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-augm_from_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_from_list}{}}}
 \subsection{Method \code{augm_from_list()}}{
 Associate augmented variables from a list.
 Previous definitions are dropped.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_from_list(def_list)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_from_list(definitions, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{def_list}}{(named \code{list()})\cr
+\item{\code{definitions}}{(named \code{list()})\cr
 Augmented variable names with respective list of definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_append"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_append}{}}}
-\subsection{Method \code{augm_append()}}{
-Append augmented variable definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_append(...)}\if{html}{\out{</div>}}
-}
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{(named \code{list()}s)\cr
-Augmented variable names with respective list of definitions.}
+\item{\code{append}}{(\code{logical(1)})\cr
+If \code{TRUE} appends the list to current definition.
+If \code{FALSE} clears previous definitions (default).}
 }
 \if{html}{\out{</div>}}
 }

@@ -6,8 +6,8 @@
 
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
-  success <- TRUE 
-  if (from != to) {   
+  success <- TRUE
+  if (from != to) {
     success <- file.copy(from, to, overwrite = TRUE, ...)
   }
   return(success)
@@ -62,4 +62,9 @@ str_join_ <- function(x) {
 # Generate a random string
 rnd_string <- function(size = 8){
   return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE), collapse = ""))
+}
+
+# Returns the path/to/models folder
+template_models_dir <- function() {
+  return(file.path(system.file(package = "housepi"), "models"))
 }

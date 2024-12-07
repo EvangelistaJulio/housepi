@@ -15,9 +15,10 @@
 #' @export
 household_model_template <- function(template_name = NULL, path = NULL) {
   # system path to housepi
-  models_dir <- file.path(system.file(package = "housepi"), "models")
+  models_dir <- template_models_dir()
 
   if (is.null(template_name)) {
+    #===== Asking for model names =====#
     cli::cli_alert_info("Template model names:")
     ulid <- cli::cli_ul()
     for (name in list.files(models_dir)) {
@@ -29,7 +30,7 @@ household_model_template <- function(template_name = NULL, path = NULL) {
 
     if (template_name %in% list.files(models_dir)) {
       if (is.null(path)) {
-        #----- show model description -----#
+        #===== Asking for model description =====#
         templ_info_file <- file.path(models_dir, template_name, "template_info.Rd")
         if (!file.exists((templ_info_file))) {
           stop(cli::format_error(
@@ -41,22 +42,24 @@ household_model_template <- function(template_name = NULL, path = NULL) {
         rstudioapi::previewRd(templ_info_file)
 
       } else if (any(file.exists(source_files(path)))) {
+        #===== Asking for copying template to folder with model =====#
         cli::cli_alert_warning(cli::format_warning(c(
           sprintf("A model already exists in folder '%s'.", path),
           i = "To create a model in the same folder, delete its content first."
         )))
+
       } else {
-        #----- copy files -----#
+        #===== Asking for copying template to empty folder =====#
         dir.create(path, recursive = TRUE, showWarnings = FALSE)
         if (dir.exists(path)) {
           # UPDATE : maybe don't copy the copyright section
-          
+
           for (f in c("model.cpp", "model.h", "template_params.R", "template_info.Rd")) {
             from_file <- file.path(models_dir, template_name, f)
             to_file <- file.path(path, f)
             if (!overwrite(from_file, to_file)) {
               stop(cli::format_error(c(
-                x = "Failed to copy model files.",
+                "Failed to copy model files.",
                 i = "Check your user permissions."
               )))
             }
@@ -69,7 +72,7 @@ household_model_template <- function(template_name = NULL, path = NULL) {
 
         } else {
           stop(cli::format_error(c(
-            x = sprintf("Impossibile to create directory '%s'.", path),
+            sprintf("Impossibile to create directory '%s'.", path),
             i = "Check your user permissions."
           )))
         }
@@ -77,8 +80,8 @@ household_model_template <- function(template_name = NULL, path = NULL) {
 
     } else {
       stop(cli::format_error(c(
-        x = sprintf("Provided model name '%s' is unknown.", template_name),
-        i = "To see the available template models, run: {.code template_model()}"
+        sprintf("Provided model name '%s' is unknown.", template_name),
+        i = "Run {.code household_model_template()} to see available template names."
       )))
     }
 

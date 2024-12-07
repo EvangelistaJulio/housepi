@@ -24,21 +24,14 @@ namespace tools
     /* An internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
+        std::vector<std::string> forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
+
         if (txt.size() == 0)
-        {
             return true;
-        }
         else
-        {
-            std::vector<std::string> forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
             for (const std::string &txtnan : forbidden)
-            {
                 if (txt == txtnan)
-                {
                     return true;
-                }
-            }
-        }
 
         return false;
     }
@@ -102,10 +95,9 @@ namespace tools
         if (verbose)
         {
             string sms = string(DECOR_LEFT, decor) + " " + title + " " + string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) + "\n";
-            if (!is_na(txt))
-            {
+            if (!is_na(txt)) 
                 sms += txt + "\n";
-            }
+
             print_stdout(sms);
         }
     }
@@ -145,6 +137,7 @@ namespace tools
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
+        print_stderr("\n");
         Rcpp::stop(txt);
 #else
         std::cerr << "\nError: " + txt + "\nExit...\n"
@@ -199,17 +192,13 @@ namespace tools
     bool stobool(const std::string &tkn)
     {
         if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
-        {
             return true;
-        }
+
         else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
-        {
             return false;
-        }
+
         else
-        {
             throw std::invalid_argument("Unrecognized boolean value '" + tkn + "'.");
-        }
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -248,15 +237,11 @@ namespace tools
     {
         // forbidden characters
         for (char r : {'"', '\r', '\n'})
-        {
             tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
-        }
 
         // check for undefined
         if (is_na(tkn))
-        {
             tkn = UNDEFINED;
-        }
 
         return tkn;
     }
@@ -274,9 +259,7 @@ namespace tools
 
         // get headers from first line
         while (getline(iss, tkn, C_DELIM))
-        {
             headers.push_back(strcleaner(tkn));
-        }
 
         // check that all required headers are present
         if (!required_headers.empty())
@@ -323,15 +306,11 @@ namespace tools
             size_t n_cols = 0;
 
             while (getline(iss, tkn, C_DELIM))
-            {
                 this_row.emplace(headers[n_cols++], strcleaner(tkn));
-            }
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
-            {
                 this_row.emplace(headers[i], UNDEFINED);
-            }
 
             return true;
         }
@@ -357,9 +336,7 @@ namespace tools
 
         // rea the entries of the dictionary
         while (getline(args_ss, tmp, delim))
-        {
             output.push_back(tmp);
-        }
 
         return output;
     }
@@ -384,9 +361,7 @@ namespace tools
                     while (read_row_by_headers(input, headers, this_row))
                     {
                         for (const auto &x : this_row)
-                        {
                             csv_parsed_table[x.first].push_back(x.second);
-                        }
                         this_row.clear();
                     }
                 }
@@ -432,7 +407,7 @@ namespace tools
     }
 
     // Function to find the closest match
-    std::string find_closest_option(const std::string& input, const std::vector<std::string>& options) {
+    std::string find_closest(const std::string& input, const std::vector<std::string>& options) {
         std::string closest = "", output = "";
         int minDistance = 2;
 
@@ -445,9 +420,7 @@ namespace tools
         }
 
         if (!closest.empty())
-        {
             output = " Did you mean '" + closest + "'?";
-        }
 
         return output; 
     }

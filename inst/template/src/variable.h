@@ -29,8 +29,6 @@
 ///////////////////////////////////  Base_Proposer : class  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// FIXME : impose mean=0, etc...
-
 class Base_Proposer
 {
 public:
@@ -63,59 +61,30 @@ public:
 	const std::string show_arg_values() const;
 
 protected:
-	//===== Attributes =====//
 	std::shared_ptr<Base_Distribution> distr_ptr;
 	double from_value = INF_DOUBLE;
 
-	int n_proposed_moves = 0;
+	ulong n_proposed_moves = 0;
 	double accept_rate = 0.0;
 
-	//==== State attributes ====//
 	bool _is_start_from_zero_ = false;
+	std::vector<int> _args_to_adapt_ = {};
 
 	//===== propose : functional methods =====//
 	double (Base_Proposer::*_func_propose_)(sys_rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
-
-	// alternative proposer methods
-	double _propose_undefined_(sys_rnd_gen &prng, double start)
-	{
-		tools::error("Attempt to call a method of an undefined proposer.");
-		UNUSED(prng);
-		UNUSED(start);
-		return std::numeric_limits<double>::quiet_NaN();
-	}
-	double _propose_sum_to_previous_(sys_rnd_gen &prng, double start) { return start + rand(prng); }
-	double _propose_times_previous_(sys_rnd_gen &prng, double start) { return start * rand(prng); }
-	double _propose_draw_rand_(sys_rnd_gen &prng, double start)
-	{
-		UNUSED(start);
-		return rand(prng);
-	}
+	double _propose_undefined_(sys_rnd_gen &prng, double start);
+	double _propose_sum_to_previous_(sys_rnd_gen &prng, double start);
+	double _propose_times_previous_(sys_rnd_gen &prng, double start);
+	double _propose_draw_rand_(sys_rnd_gen &prng, double start);
 
 	//===== logratio : functional methods =====//
 	double (Base_Proposer::*_logratio_method_)(double, double) const = &Base_Proposer::_logratio_undefined_;
-
-	// alternative logratios
-	double _logratio_undefined_(double old_val, double new_val) const
-	{
-		UNUSED(old_val);
-		UNUSED(new_val);
-		return 0.0;
-	}
-	double _logratio_pdf_(double old_val, double new_val) const { return distr_ptr->logratio(old_val, new_val); }
-	// FIXME : double check these
-	double _logratio_sum_to_zero_(double old_val, double new_val) const { return _logratio_pdf_(old_val - get_from_value(), new_val - get_from_value()); }
-	double _logratio_times_zero_(double old_val, double new_val) const { return _logratio_pdf_(old_val / get_from_value(), new_val / get_from_value()); }
-	double _logratio_symm_(double old_val, double new_val) const
-	{
-		UNUSED(old_val);
-		UNUSED(new_val);
-		return 0.0;
-	}
-	double _logratio_lognorm_symm_(double old_val, double new_val) const { return log(old_val) - log(new_val); }
-
-	//===== State Attributes =====//
-	std::vector<int> _args_to_adapt_ = {};
+	double _logratio_undefined_(double xold, double xnew) const;
+	double _logratio_pdf_(double xold, double xnew) const;
+	double _logratio_sum_to_zero_(double xold, double xnew) const;
+	double _logratio_times_zero_(double xold, double xnew) const;
+	double _logratio_symm_(double xold, double xnew) const;
+	double _logratio_lognorm_symm_(double xold, double xnew) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -132,126 +101,100 @@ protected:
 class Base_Variable
 {
 protected:
-	std::string name = UNDEFINED;							// name of the variable
-	double value = INF_DOUBLE;								// value of the variable
-	double buffer = INF_DOUBLE;								// buffer of the variable
-	bool infer = false;										// to be inferred or immutable
-	std::shared_ptr<Base_Distribution> distr_ptr = nullptr; // prior/model distribution of the parameter
-	std::shared_ptr<Base_Proposer> prop_ptr = nullptr;		// proposer for Monte Carlo Markov Chain
+	std::string name = UNDEFINED; // name of the variable
+	double value = INF_DOUBLE;	  // value of the variable
+	double buffer = INF_DOUBLE;	  // buffer of the variable
+	bool is_discr = false;        // wheter the variable is discrete or not
+	bool infer = false;			  // to be inferred or immutable
+
+	std::shared_ptr<Base_Distribution> distr_ptr = nullptr; // prior/model distribution of the variable
+	std::shared_ptr<Base_Proposer> prop_ptr = nullptr;		// proposer for Monte Carlo
 
 public:
-	//=====Constructor=====//
-	Base_Variable(const std::string &name_ = UNDEFINED,
-				  double value_ = std::numeric_limits<double>::quiet_NaN()) : name(name_), value(value_) {}
+	//===== CONSTRUCTOR =====//
+	Base_Variable(const std::string &name = UNDEFINED,
+				  double value = std::numeric_limits<double>::quiet_NaN(),
+				  bool is_discr = false);
 	virtual ~Base_Variable() {};
 
-	// define a pointer to distribution
-	template <typename dictargs_val_or_ptr>
-	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 dictargs_val_or_ptr distr_args = {},
-							 dictargs range = {})
-	{
-		// check that distribution args have no mismatch
-		if (distr_args.find(IO_MISMATCH) != distr_args.end())
-		{
-			tools::error("Mismatching definitions in arguments of '" + name + "'.");
-		}
+	//===== GETTER =====//
+	const std::string &get_name() const;
+	double get_value() const;
+	const double *get_pointer() const;
+	bool get_infer() const;
+	bool is_from_zero() const;
+	double get_from_value() const;
 
-		distr_ptr = distribution_switchboard(distr_name, distr_args, range);
-	}
+	//===== SETTER =====//
+	void set_name(const std::string &x);
+	void set_value(double x);
+	void restore_value();
+
+	// define a pointer to distribution
+	void assign_distribution(const std::string &distr_name = UNDEFINED,
+							 dictargs distr_args = {},
+							 dictargs range = {});
+	void assign_distribution(const std::string &distr_name = UNDEFINED,
+							 dictargs_ptr distr_args = {},
+							 dictargs range = {});
 
 	// Assing a proposer rule with associated state 'infer'.
 	void assign_proposer(const std::string &rule_name = UNDEFINED,
-						 dictargs rule_args = {},
+						 double rule_args = INF_DOUBLE,
 						 double rule_from = INF_DOUBLE);
 
-	//===== Getter =====//const
-	const std::string &get_name() const { return name; }
-	double get_value() const { return value; }
-	const double *get_pointer() const { return &value; }
-	bool get_infer() const { return infer; }
-	bool is_from_zero() const { return (prop_ptr->is_rule_start_from_zero)(); }
-	double get_from_value() const { return (prop_ptr->get_from_value)(); }
+	//===== METROPOLIS-HASTINGS =====//
 
-	//===== Setter =====//
-	void set_name(const std::string &x) { name = x; }
-	void set_value(double x)
-	{
-		buffer = value;
-		value = x;
-	}
-	void restore_value() { value = buffer; }
-
-	//===== Metropolis-Hastings =====//
-
-	double get_move_logratio() const { return (this->*_func_move_logratio_)(); }
-	bool valid_move() const { return (this->*_func_valid_move_)(); }
+	double get_move_logratio() const;
+	bool valid_move() const;
 
 	//----- distr_ptr : prior/model methods -----//
-	void rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
+	void rand(sys_rnd_gen &prng);
 
-	double distr_logpdf() const { return distr_ptr->logpdf(value); }
-	double distr_logratio() const { return distr_ptr->logratio(buffer, value); }
+	double distr_logpdf() const;
+	double distr_logratio() const;
 
 	//----- prop_ptr : propose methods -----//
-	void propose(sys_rnd_gen &prng) { return set_value((this->*_func_propose_)(prng)); }
-	double propose_logratio() const { return (prop_ptr->logratio)(buffer, value); }
+	void propose(sys_rnd_gen &prng);
+	double propose_logratio() const;
 
 	//----- prop_ptr : adaptive methods -----//
-	double get_accept_rate() const { return prop_ptr->get_accept_rate(); }
-	void update_accept_rate(bool is_accepted) { prop_ptr->update_accept_rate(is_accepted); }
-	void reset_accept_rate() { prop_ptr->reset_accept_rate(); }
-	void adapt_rule(double ratio) { (prop_ptr->adapt)(ratio); }
+	double get_accept_rate() const;
+	void update_accept_rate(bool is_accepted);
+	void reset_accept_rate();
+	void adapt_rule(double ratio);
 
-	//===== Show =====//
-	const std::string show_distr_name() const { return distr_ptr->get_name(); }
-	const std::string show_distr_arg_names() const { return distr_ptr->show_arg_names(); }
-	const std::string show_distr_arg_values() const { return distr_ptr->show_arg_values(); }
+	//===== SHOW =====//
+	const std::string show_distr_name() const;
+	const std::string show_distr_arg_names() const;
+	const std::string show_distr_arg_values() const;
 
-	const std::string show_prop_name() const { return prop_ptr->get_name(); }
-	const std::string show_prop_arg_names() const { return prop_ptr->show_arg_names(); }
-	const std::string show_prop_arg_values() const { return prop_ptr->show_arg_values(); }
+	const std::string show_prop_name() const;
+	const std::string show_prop_arg_names() const;
+	const std::string show_prop_arg_values() const;
 
-	const std::string show_range_min() const { return distr_ptr->show_range_min(); }
-	const std::string show_range_max() const { return distr_ptr->show_range_max(); }
+	const std::string show_range_min() const;
+	const std::string show_range_max() const;
 
-	const std::string show() const
-	{
-		using namespace tools;
-		std::ostringstream oss;
-		oss << get_value() << C_DELIM << truth(infer);
-		if (infer)
-		{
-			oss << C_DELIM << show_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
-				<< C_DELIM << show_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-				<< C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
-				<< C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
-		}
-		return oss.str();
-	}
+	const std::string show() const;
 
 private:
 	//===== Valid move : functional methods =====//
 	bool (Base_Variable::*_func_valid_move_)() const = &Base_Variable::_valid_move_default_;
-	bool _valid_move_default_() const { return distr_ptr->valid(value); }
-	bool _valid_move_gibbs_() const { return true; }
+	bool _valid_move_default_() const;
+	bool _valid_move_gibbs_() const;
 
 	//===== Move logratio : functional methods =====//
 	double (Base_Variable::*_func_move_logratio_)() const = &Base_Variable::_move_logratio_default_;
-	double _move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
-	double _move_logratio_gibbs_() const { return 0.0; }
+	double _move_logratio_default_() const;
+	double _move_logratio_gibbs_() const;
 
 	//===== Propose : functional methods =====//
-	double (Base_Variable::*_func_propose_)(sys_rnd_gen &);
-	double _propose_error_(sys_rnd_gen &prng)
-	{
-		UNUSED(prng);
-		tools::error("Call to proposer of immutable variable '" + get_name() + "'.");
-		return 0.;
-	}
-	double _propose_gibbs_sample_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
-	double _propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
-	double _propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
+	double (Base_Variable::*_func_propose_)(sys_rnd_gen &) = &Base_Variable::_propose_error_;
+	double _propose_error_(sys_rnd_gen &prng);
+	double _propose_gibbs_sample_(sys_rnd_gen &prng);
+	double _propose_from_previous_(sys_rnd_gen &prng);
+	double _propose_from_zero_(sys_rnd_gen &prng);
 };
 
 #endif // HOUSEPI__VARIABLE__H

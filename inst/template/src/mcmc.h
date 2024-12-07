@@ -65,12 +65,6 @@ public:
 	Rcpp::DataFrame export_data() const;
 	Rcpp::DataFrame export_traces() const;
 	Rcpp::NumericMatrix export_loglike_matrix() const;
-	//=====  SHOW =====//
-
-#else
-	//===== Cpp PRINT =====//
-	void print_infer_state(const std::string &output_filename = UNDEFINED) const;
-	void print_augm_variables(const std::string &output_filename = UNDEFINED) const;
 #endif
 
 	//===== SHOW =====//
@@ -78,6 +72,10 @@ public:
 	void show_results() const;
 	void show_summary() const;
 	void show_group_classes() const;
+
+	//===== C++ PRINT =====//
+	void print_infer_state(const std::string &output_filename = UNDEFINED) const;
+	void print_augm_variables(const std::string &output_filename = UNDEFINED) const;
 
 	//===== DATA =====//
 	size_t n_houses() const;
@@ -117,6 +115,7 @@ public:
 
 	//===== EVALUATE (loglikelihood) =====//
 	virtual double compute_house_loglike(Household &house) const;
+	void update_global_loglike();
 	double evaluate();
 
 	//===== INFER =====//
@@ -135,10 +134,6 @@ private:
 	//===== Pointer to Implementation =====//
 	std::unique_ptr<Monte_Carlo_Build> pBuild;
 
-	//===== Global Loglikelihood =====//
-	double buffer = INF_DOUBLE;
-	double global_loglike = 0.0;
-
 	//===== Internal =====//
 	ulong _chain_ = 1;			 // current chain
 	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
@@ -154,13 +149,6 @@ private:
 
 	//===== PRINTS =====//
 	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
-
-	//===== EVALUATE =====//
-	double get_global_loglike() const { return global_loglike; };
-	double get_delta_global_loglike() const { return global_loglike - buffer; }
-	void restore_global_loglike() { global_loglike = buffer; }
-	void increment_global_loglike(double delta) { global_loglike += delta; };
-	void update_global_loglike();
 
 	//===== INFER =====//
 

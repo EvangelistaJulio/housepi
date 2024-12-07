@@ -4,11 +4,6 @@
 # Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-# Returns the path/to/models folder
-template_models_dir <- function() {
-  return(file.path(system.file(package = "housepi"), "models"))
-}
-
 # Source code files
 source_files <- function(path) {
   return(file.path(path, paste0("model.", c("cpp", "h"))))
@@ -19,7 +14,7 @@ assert_source_files <- function(path) {
   for (file_name in source_files(path)) {
     if (!file.exists(file_name)) {
       stop(cli::format_error(c(
-        x = sprintf("File '%s' was not found.", file_name),
+        sprintf("File '%s' was not found.", file_name),
         i = "Check your model directory"
       )))
     }
@@ -61,9 +56,10 @@ template_dll_file <- function(path) {
 # user permission error (tipically)
 internal_error <- function() {
   stop(cli::format_error(c(
-    x = "Failed to setup internal files.",
+    "Failed to setup internal files.",
     i = "Check your user permissions."
   )))
+
   invisible()
 }
 
@@ -79,15 +75,30 @@ internal_error <- function() {
 # @param force (`logical(1)`)\cr
 # @param quiet (`logical(1)`)\cr
 # @param as_template (`logical(1)`)\cr
-generate_dll_model <- function(model_path = ".", force = FALSE, quiet = TRUE, as_template = FALSE) {
+generate_dll_model <- function(model_path,
+                               force = FALSE,
+                               quiet = TRUE,
+                               as_template = FALSE) {
 
-  if ((file.exists(template_dll_file(model_path))) && isFALSE(force)) {
+  if (model_path == ".") {
+    stop(cli::format_error(c(
+      "'.' is not a valid folder name for housepi models.",
+      i = "Move your implementation in a folder with a literal name."
+    )))
+
+  } else if (model_path == "developer") {
+    #===== Developer mode =====#
+    cli::cli_alert_info("Loading {.pkg {basename(model_path)}}")
+    output <- file.path(system.file(package = "housepi"),
+                        "template", "src",
+                        dll_file_ext("housepienvironment"))
+
+  } else if ((file.exists(template_dll_file(model_path))) && isFALSE(force)) {
     #===== Folder Contains Executable =====#
     cli::cli_alert_info("Loading {.pkg {basename(model_path)}}")
     output <- template_dll_file(model_path)
-  }
 
-  else if (dir.exists(model_path)) {
+  } else if (dir.exists(model_path)) {
     #===== Folder Contains Source Code =====#
     output <- compile_dll_model(model_path, force, quiet, as_template)
 
@@ -108,11 +119,10 @@ generate_dll_model <- function(model_path = ".", force = FALSE, quiet = TRUE, as
   } else {
     #===== ERROR =====#
     stop(cli::format_error(c(
-      x = sprintf("'%s' is not a folder nor a template name.", model_path),
-      i = "To check available template names execute: `household_model_template()`"
+      sprintf("'%s' is not a folder nor a template name.", model_path),
+      i = "Run {.code household_model_template()} to see available template names."
     )))
   }
-  
   return(output)
 }
 
@@ -122,61 +132,60 @@ generate_dll_model <- function(model_path = ".", force = FALSE, quiet = TRUE, as
 ############################################################################
 ############################################################################
 
-compile_dll_model <- function(model_path = ".", force = FALSE, quiet = TRUE, as_template = FALSE) {
+compile_dll_model <- function(model_path = ".",
+                              force = FALSE,
+                              quiet = TRUE,
+                              as_template = FALSE) {
 
-    # path must contain source files                          
-    assert_source_files(model_path)                
-    # temporary folder where to store source code
-    cache_path <- file.path(tempdir(), paste0("housepi", format_name(basename(model_path))))
-    # check for previous cached dll files
-    cache_dll_files <- list.files(cache_path, pattern = .Platform$dynlib.ext)
+  # path must contain source files
+  assert_source_files(model_path)
+  # temporary folder where to store source code
+  cache_path <- file.path(tempdir(),
+                          paste0("housepi", format_name(basename(model_path))))
+  # check for previous cached dll files
+  cache_dll_files <- list.files(cache_path, pattern = .Platform$dynlib.ext)
 
-    if ((length(cache_dll_files) == 1) && isFALSE(force)) {
-      cli::cli_alert_info("Using chached {.pkg {basename(model_path)}}")
-      output <- cache_dll_files[1]
-      
-    } else {
-      #===== ORGANIZE SOURCE CODE =====#
-  
-      # clean previous dll files
-      unlink(cache_dll_files)
+  if ((length(cache_dll_files) == 1) && isFALSE(force)) {
+    cli::cli_alert_info("Using chached {.pkg {basename(model_path)}}")
+    output <- cache_dll_files[1]
 
-      # create a temporary folder for model source code
-      copy_src_code(cache_path)
-  
-      # copy model specific source files in the new folder =====#
-      for (from_file in source_files(model_path)) {
-        to_file <- file.path(cache_path, "src", basename(from_file))
-        if (!overwrite(from_file, to_file)) {
-          internal_error()
-        }
+  } else {
+    #===== ORGANIZE SOURCE CODE =====#
+
+    # clean previous dll files
+    unlink(cache_dll_files)
+
+    # create a temporary folder for model source code
+    copy_src_code(cache_path)
+
+    # copy model specific source files in the new folder =====#
+    for (from_file in source_files(model_path)) {
+      to_file <- file.path(cache_path, "src", basename(from_file))
+      if (!overwrite(from_file, to_file)) {
+        internal_error()
       }
+    }
 
-      # FIXME : to avoid breaking pre-compilation
-      # I attempt to just change the name of the so file after...
-      # let's see if it works...
-      # FIXME-END
+    #===== COMPILE PACKAGE =====#
+    # note: tricking pkgbuild::compile_dll and R CMD INSTALL
+    #       to avoid recompiling immutable files
 
-      #===== COMPILE PACKAGE =====#
-      # note: tricking pkgbuild::compile_dll and R CMD INSTALL
-      #       to avoid recompiling immutable files
+    # remove object file
+    unlink(file.path(cache_path, "src", "model.o"))
 
-      # remove object file
-      unlink(file.path(cache_path, "src", "model.o"))
-  
-      # touch installation files
-      touch_time <- Sys.time()
-      for (f in list.files(file.path(cache_path, "src"), full.names = TRUE)) {
-        Sys.setFileTime(f, touch_time)
-      }
-      Sys.setFileTime(file.path(cache_path, "src", "model.cpp"), touch_time + 1)
-  
-      # compile the dynamic library
-      cli::cli_alert_info("Compiling {.pkg {basename(model_path)}}")
-      pkgbuild::compile_dll(cache_path, quiet = quiet, debug = FALSE)
-  
-      #===== SAVE OUTPUT =====#
-      output <- save_environment(model_path, cache_path, as_template)
+    # touch installation files
+    touch_time <- Sys.time()
+    for (f in list.files(file.path(cache_path, "src"), full.names = TRUE)) {
+      Sys.setFileTime(f, touch_time)
+    }
+    Sys.setFileTime(file.path(cache_path, "src", "model.cpp"), touch_time + 1)
+
+    # compile the dynamic library
+    cli::cli_alert_info("Compiling {.pkg {basename(model_path)}}")
+    pkgbuild::compile_dll(cache_path, quiet = quiet, debug = FALSE)
+
+    #===== SAVE OUTPUT =====#
+    output <- save_environment(model_path, cache_path, as_template)
   }
 
   return(output)
@@ -192,7 +201,7 @@ compile_dll_model <- function(model_path = ".", force = FALSE, quiet = TRUE, as_
 # Create temporary folder and copy source code there.
 # @param pkg_dir
 # Temporary folder where to compile package.
-copy_src_code <- function(pkg_dir) { 
+copy_src_code <- function(pkg_dir) {
   # create temporary directory if necessary
   if (dir.exists(pkg_dir)) {
     unlink(list.files(pkg_dir, full.names = TRUE), recursive = TRUE)
@@ -200,13 +209,13 @@ copy_src_code <- function(pkg_dir) {
   } else {
     if (!dir.create(pkg_dir, recursive = TRUE, showWarnings = FALSE)) {
       stop(cli::format_error(c(
-        x = "Impossibile to create temporary directory for compilation.",
+        "Impossibile to create temporary directory for compilation.",
         i = "Check your user permissions."
       )))
     }
   }
 
-  # copy single package files 
+  # copy single package files
   for (f in c("NAMESPACE", "DESCRIPTION")) {
     from_file <- file.path(system.file(package = "housepi"), "template", f)
     to_file <- file.path(pkg_dir, f)
@@ -233,7 +242,9 @@ copy_src_code <- function(pkg_dir) {
 ############################################################################
 
 # save DLL and helper files
-save_environment <- function(model_path, cache_path, as_template = FALSE) {
+save_environment <- function(model_path,
+                             cache_path,
+                             as_template = FALSE) {
 
   #===== DYNAMIC LIBRARY =====#
 
@@ -256,14 +267,14 @@ save_environment <- function(model_path, cache_path, as_template = FALSE) {
 
   # copy source code without commented lines as a reference
   lines <- readLines(file.path(cache_path, "src", "model.cpp"), warn = FALSE)
-  
+
   # Remove single-line comments (//) 
   lines <- stringr::str_remove_all(lines, "//.*")
   # Remove inline comments (/* ... */)
   lines <- stringr::str_remove_all(lines, "/\\*.*?\\*/")
   # Filter out empty or whitespace-only lines
   cleaned_lines <- lines[stringr::str_detect(lines, "\\S")]
-  
+
   writeLines(cleaned_lines, file.path(out_dir, ".source"))
 
   # copy helper files in the output directory
@@ -279,7 +290,7 @@ save_environment <- function(model_path, cache_path, as_template = FALSE) {
 
   #===== CLEANING =====#
   unlink(file.path(cache_path, c("src", "R", "NAMESPACE", "DESCRIPTION")), recursive = TRUE)
-  
+
   return(output)
 }
 
@@ -296,11 +307,12 @@ save_environment <- function(model_path, cache_path, as_template = FALSE) {
 # Name of the package.
 # @param force
 # Force compilation even if it already exists.
-re_compile_library <- function(pkgname, force = FALSE) {
+re_compile_library <- function(pkgname, 
+                               force = FALSE) {
   # compile the core
   template_models_dir <- file.path(system.file(package = pkgname), "template")
   pkgbuild::compile_dll(template_models_dir, debug = FALSE)
-  
+
   # compile each model
   models_dir <- file.path(system.file(package = pkgname), "models")
   for (m in list.files(models_dir, full.names = TRUE)) {

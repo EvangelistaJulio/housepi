@@ -18,12 +18,12 @@
 void Model::init_model_for_inference()
 {
 	tools::warning(
-		"Computing the likelihood with undefined model (developer mode).");
+		"Computing the likelihood with undefined model [developer mode].");
 }
 
 /* Raise error for undefined model usage. */
 void Model::init_model_for_simulation()
 {
-	tools::warning(
-		"Performing simulation with undefined model (developer mode).");
+	tools::error(
+		"Impossible to perform simulation with undefined model [developer mode].");
 }

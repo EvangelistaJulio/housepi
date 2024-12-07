@@ -71,7 +71,6 @@ const std::string UNDEFINED = "<NA>"; // name for undefined choice
 // constants
 constexpr int MAX_NUMBER_ATTEMPTS = 50;            // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234;       // target acceptation rate for MCMC
-const std::string IO_MISMATCH = "__io_mismatch__"; // mismatch in type/key/val dictionary
 
 // status aliases
 constexpr int INFECTIOUS = 1;	   // status of infectious (>=)
@@ -140,11 +139,10 @@ namespace tools
                         const std::vector<std::string> &required_headers = {});
     const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
 
-    // Function to calculate Levenshtein distance
+    // Calculate Levenshtein distance
     size_t levenshtein(const std::string& s1, const std::string& s2);
-
-    // Function to find the closest match
-    std::string find_closest_option(const std::string& input, const std::vector<std::string>& options);
+    // Find the closest match
+    std::string find_closest(const std::string& input, const std::vector<std::string>& options);
 
 }
 

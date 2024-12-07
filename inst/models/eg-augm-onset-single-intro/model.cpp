@@ -122,12 +122,8 @@ double Model::_houseROI_(const Household &house, indiv i, const squarematrix &pr
 
 	// Risk of infection from other household members (k)
 	for (indiv k : house.infectious_set())
-	{
 		if (k != i)
-		{
 			output += house.contact_rate(k, i) * house.group_rate(k, "Infectivity") * profiles[k][i];
-		}
-	}
 
 	output *= house.group_rate(i, "Susceptibility") * transmission_rate(house);
 
@@ -257,22 +253,16 @@ double Model::compute_house_loglike(Household &house) const
 	//===============================//
 
 	for (indiv i : house.susceptible_set())
-	{
 		loglike_house -= ROI_cumul_suscept(house, i);
-	}
 
 	//==============================//
 	//===== Infectious Members =====//
 	//==============================//
 	
 	for (indiv i : house.infectious_set())
-	{
 		// Contribution of secondary cases
 		if (i != house.extra_int("intro-case"))
-		{
 			loglike_house += log(ROI_inst(house, i)) - ROI_cumul_infec(house, i);
-		}
-	}
 
 	return loglike_house;
 }
@@ -304,9 +294,8 @@ void Model::simulate_single_house(Household &house)
 	for (indiv i = 0; i < house.size(); ++i)
 	{
 		if (house.status(i) != INFECTIOUS)
-		{
 			assign_all_augm(house, i);
-		}
+
 		house.change_status(i, SUSCEPTIBLE);
 	}
 
@@ -337,16 +326,12 @@ void Model::simulate_single_house(Household &house)
 
 				// restore status id escaped infection
 				if (uniform() < exp(-ROI_inst(house, i) * Dt))
-				{
 					house.change_status(i, SUSCEPTIBLE);
-				}
 			}
 		}
 	}
 
 	// format all augmented variables of susceptibles
 	for (indiv i : house.susceptible_set())
-	{
 		clear_all_augm(house, i);
-	}
 }

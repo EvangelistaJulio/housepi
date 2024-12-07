@@ -148,7 +148,7 @@ public:
 			 {"shape", "scale", "shift"});
 		assign_args(new_args);
 		dictargs aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
-		gamma_distr_ptr = distribution_switchboard("gamma", aux_args_val, {{"min", get_arg(2)}});
+		gamma_distr_ptr = distribution("gamma", aux_args_val, {{"min", get_arg(2)}});
 	}
 	// Deconstructor
 	~Infec_Prof_Ashcroft20() {};
@@ -196,7 +196,7 @@ std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_switchboard(const 
 	else if (!tools::is_na(name))
 	{
 		std::string err_message = "Unknown infectivity profile '" + name + "'.";
-		err_message += tools::find_closest_option(name, options);
+		err_message += tools::find_closest(name, options);
 		throw std::invalid_argument(err_message);
 	}
 	return output;

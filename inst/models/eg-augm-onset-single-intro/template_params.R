@@ -1,23 +1,23 @@
 list(
   alpha = list(
     value = 0.0001, prior = "unif", args = list(min = 0, max = 1),
-    rule = "lnorm", rule_args = list(sdlog = 1)
+    rule = "lnorm", rule_scale = 1
   ),
   beta = list(
     value = 0.07, prior = "unif", args = list(min = 0, max = 1),
-    rule = "lnorm", rule_args = list(sdlog = 1)
+    rule = "lnorm", rule_scale = 1
   ),
   gamma = list(
     value = 0.85, prior = "unif", args = list(min = 0, max = 4),
-    rule = "norm", rule_args = list(sd = 1)
+    rule = "norm", rule_scale = 1
   ),
   sus_vacc = list(
     value = 0.25, prior = "unif", args = list(min = 0, max = 5),
-    rule = "lnorm", rule_args = list(sdlog = 1)
+    rule = "lnorm", rule_scale = 1
   ),
   inf_vacc = list(
     value = 0.5, prior = "unif", args = list(min = 0, max = 5),
-    rule = "lnorm", rule_args = list(sdlog = 1)
+    rule = "lnorm", rule_scale = 1
   ),
   cont_adult_child = list(value = 0.75),
   cont_child_adult = list(value = 1.1),

@@ -26,7 +26,7 @@ public:
 
 	std::string ID = UNDEFINED; // user ID
 	int index = -1;				// index of household
-	ushort house_size = 0;			// number of house members
+	ushort house_size = 0;		// number of house members
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
 	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
@@ -288,13 +288,13 @@ void Household::disable_assert()
 	}
 }
 
-void Household::assign_augm(indiv i, const std::string &augmID, double value,
+void Household::assign_augm(indiv i, const std::string &augmID, double value, bool is_discr,
 							const std::string &model_name, dictargs_ptr model_args_ptr, dictargs range,
-							const std::string &rule_name, dictargs rule_args, double rule_from)
+							const std::string &rule_name, double rule_scale, double rule_from)
 {
-	pImpl->indiv_vector[i].assign_augm(augmID, value,
-								model_name, model_args_ptr, range,
-								rule_name, rule_args, rule_from);
+	pImpl->indiv_vector[i].assign_augm(augmID, value, is_discr,
+									   model_name, model_args_ptr, range,
+									   rule_name, rule_scale, rule_from);
 }
 void Household::set_augm_value(indiv i, const std::string &augmID, double x) { pImpl->indiv_vector[i].set_augm_value(augmID, x); }
 void Household::augm_model_rand(indiv i, const std::string &augmID, sys_rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(augmID, prng); }
@@ -347,7 +347,6 @@ int Household::extra_int(const std::string &intID) const
 {
 	return pImpl->extra_int.at(intID);
 }
-
 
 void Household::allocate_extra_double(const std::vector<std::string> names, double init_value)
 {

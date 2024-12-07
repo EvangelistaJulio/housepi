@@ -49,7 +49,7 @@ protected:
 	virtual double _logratio_(double xold, double xnew) const;
 	virtual double _rand_(sys_rnd_gen &prng);
 
-	//----- Adjust methods for truncation and/or discretizat -----//
+	//----- Adjust methods for truncation and/or discretization -----//
 	void _assign_reshaping_(const dictargs &range, const std::string &discr);
 	void _check_rand_attempts_(int &n_attempts) const;
 
@@ -111,13 +111,15 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* overloaded distribution with static values. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name = UNDEFINED,
-															const dictargs &args = {},
-															const dictargs &range = {});
+std::shared_ptr<Base_Distribution> distribution(const std::string &name = UNDEFINED,
+												const dictargs &args = {},
+												const dictargs &range = {},
+												bool discr = false);
 
 /* overloaded distribution with pointer to values. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name = UNDEFINED,
-															const dictargs_ptr &args = {},
-															const dictargs &range = {});
+std::shared_ptr<Base_Distribution> distribution(const std::string &name,
+												const dictargs_ptr &args,
+												const dictargs &range = {},
+												bool discr = false);
 
 #endif // HOUSEPI__DISTRIBUTION__H

@@ -8,14 +8,17 @@
 #define HOUSEPI__MCMC__BUILD__H
 
 #include <string>
-#include <map>
+#include <chrono>
 #include <vector>
+#include <algorithm>
+#include <map>
 #include <memory>
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
+#include "variable.h"
 #include "household.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -25,26 +28,126 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Forward declaration of core implementation. */
-class Monte_Carlo_Core;
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Parameter : class  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Class to operate on data and augmented variables. */
+class Parameter : public Base_Variable
+{
+public:
+    //===== Constructor =====//
+    // NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
+    Parameter(const std::string &name = UNDEFINED,
+              double value = std::numeric_limits<double>::quiet_NaN(),
+              bool is_discr = false,
+              const std::string &prior_name = UNDEFINED,
+              dictargs prior_args = {},
+              dictargs range = {},
+              const std::string &rule_name = UNDEFINED,
+              double rule_scale = INF_DOUBLE) : Base_Variable(name, value, is_discr)
+    {
+        assign_distribution(prior_name, prior_args, range);
+        assign_proposer(rule_name, rule_scale);
+    }
+
+    //----- Diagnostics -----//
+    ulong dgn_count = 0;
+    std::vector<double> dgn_value = {};
+
+    void init_diagnostics(ulong sample_size);
+    void update_diagnostics();
+    std::string show_diagnostics() const;
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Implementation class. */
 class Monte_Carlo_Build
 {
 public:
-    //===== Household Data =====//
+    //=========================//
+    //===== LOGLIKELIHOOD =====//
+    //=========================//
+
+    double buffer = INF_DOUBLE;
+    double global_loglike = 0.0;
+
+    double get_global_loglike() const;
+    double get_delta_global_loglike() const;
+
+    void set_global_loglike(double new_ll);
+    void restore_global_loglike();
+    void increment_global_loglike(double delta);
+    void dgn_glob_ll_stats(double &avg, double &var) const;
+
+    //=================//
+    //===== SETUP =====//
+    //=================//
+
+    unsigned long long setup_seed = 1; // random generator seed
+    bool setup_rnd_init_params = true; // random initialization of parameters
+
+    ulong setup_n_chains = 1;    // n. chains
+    ulong setup_n_steps = 10000; // n. iterations
+    ulong setup_n_adapt = 0;     // n. (finite) adaptive steps
+    ulong setup_thin = 1;        // n. thinning iterations
+    ulong setup_n_burnin = 0;    // n. burnin iterations
+
+    double setup_inv_T = 1.0;     // inverse temperature
+    unsigned setup_n_threads = 1; // number of OMP threads
+
+    ulong setup_c_sample_size; // single chain sample size
+    ulong setup_c_n_sweeps;    // single chain n. of sweeps
+
+    //=====================//
+    //===== PARAMETER =====//
+    //=====================//
+
+    //----- Parameter - Attributes -----//
+    std::vector<std::string> param_file_headers = {"name", "value",
+                                                   "infer", "discrete",
+                                                   "prior", "args", "argsval",
+                                                   "rule", "rule_scale",
+                                                   "min", "max"};
+    std::vector<std::string> param_to_be_inferred = {};
+    std::vector<std::string> param_to_be_static = {};
+
+    //----- Parameter - Getter -----//
+    void assert_param(const std::string &parID) const;
+    double get_param(const std::string &parID) const;
+    const double *get_param_pointer(const std::string &parID) const;
+    bool get_infer(const std::string &parID) const;
+
+    //----- Parameter - Setter -----//
+    void assign_param(const std::string &parID, const Parameter &new_param);
+    void init_rand_params();
+    const double *assign_scalar_pointer(double val);
+
+    //----- Parameter - Metropolis-Hastings -----//
+    bool propose_valid_param_move(const std::string &parID);
+    void restore_param_value(const std::string &parID);
+    void update_param_accept_rate(const std::string &parID, bool is_accepted);
+    double param_move_logratio(const std::string &parID) const;
+    void adapt_param_rule(const std::string &parID, double ratio);
+
+    //===== HOUSEHOLD DATA : Attributes =====//
     size_t n_individuals = 0;
     size_t n_households = 0;
     std::vector<Household> house_vector = {};
 
-    //===== Data Reports =====//
+    //----- Data Reports : Attributes -----//
     std::vector<std::string> data_headers = {};
     ulong _n_contacts_ = 0;
     std::map<std::string, size_t> _report_data_;
     std::map<std::string, std::map<std::string, size_t>> _report_group_classes_ = {};
     std::map<std::string, std::string> _report_pathtofile_;
 
-    //===== Augmented Variables =====//            
+    //===== AUGMENTED : Attributes =====//
     std::unordered_set<std::string> augm_list_full = {};
     std::unordered_set<std::string> augm_list_infer = {};
     std::unordered_set<std::string> augm_list_model = {};
@@ -54,15 +157,36 @@ public:
     bool is_augm_model = false;
 
     //===== CONSTRUCTOR =====//
-    Monte_Carlo_Build();
-    ~Monte_Carlo_Build();
+    Monte_Carlo_Build() : _uniform_distr_(0., 1.)
+    {
+#ifdef _OPENMP
+        _max_n_available_threads = omp_get_max_threads();
+#endif
+    }
+    ~Monte_Carlo_Build() {};
 
-    //===== IMPORT\EXPORT =====//
+    //===== READ =====//
+    void read_setup(const std::string &pathtofile);
+    void read_params(const std::string &pathtofile);
+    void read_augm(const std::string &pathtofile);
+
+    //===== SHOW =====//
+    void show_setup() const;
+    std::string show_param(const std::string &parID) const;
+    void show_all_params() const;
+    void show_results() const;
+    void show_group_classes() const;
+    void show_summary() const;
+    void show_full_build() const;
+
+    //===== Cpp PRINTS =====//
+    void print_infer_state(const std::string &pathtofile) const;
+    void print_augm_variables(const std::string &pathtofile) const;
 
 #ifdef _HOUSEPI_RCPP
-	//===== Rcpp IMPORTS =====//
-	void import_setup(const Rcpp::List &x);
-	void import_params(const Rcpp::DataFrame &x);
+    //===== Rcpp IMPORTS =====//
+    void import_setup(const Rcpp::List &x);
+    void import_params(const Rcpp::DataFrame &x);
     void import_augm(const Rcpp::DataFrame &x);
 
     //===== Rcpp EXPORTS =====//
@@ -71,40 +195,16 @@ public:
     Rcpp::DataFrame export_data() const;
     Rcpp::DataFrame export_traces() const;
     Rcpp::NumericMatrix export_loglike_matrix() const;
-#else
-    //===== Cpp PRINTS =====//
-    void print_infer_state(const std::string &pathtofile) const;
-    void print_augm_variables(const std::string &pathtofile) const;
 #endif
 
-    //===== READ =====//
-    void read_setup(const std::string &pathtofile);
-    void read_params(const std::string &pathtofile);
-    void read_augm(const std::string &pathtofile);
+    //===== SETUP =====//
+    void set_n_threads(unsigned n = 1);
 
-    //===== SHOW =====//
-    void show_results() const;
-    void show_group_classes() const;
-    void show_summary() const;
-    void show_full_build() const;
+    //===== DIAGNOSTICS =====//
+    ulong dgn_count = 0;
+    std::vector<double> dgn_glob_loglike = {};
 
     //===== SETUP =====//
-
-    //----- Setup : Getter -----//
-    bool get_rnd_init_params() const;
-    ulong get_n_chains() const;
-    ulong get_n_steps() const;
-    ulong get_n_adapt() const;
-    ulong get_thin() const;
-    ulong get_n_burnin() const;
-    double get_inv_T() const;
-    unsigned get_n_threads() const;
-    ulong get_c_n_sweeps() const;
-
-    //===== SETUP : setter =====//
-    void set_rnd_init_params(bool x);
-    void set_inv_T(double x);
-
     void assign_house(const std::string &ID);
     void update_report_data();
     size_t report_data(const std::string &key) const;
@@ -113,56 +213,70 @@ public:
     void clear_all_augm(Household &house, indiv i);
     void assign_all_augm(Household &house, indiv i);
 
-    sys_rnd_gen &get_prng();
-    double uniform();
-
-    void init_rand_params();
-    double get_param(const std::string &parID);
-    bool get_infer(const std::string &parID);
-    const double *get_param_pointer(const std::string &parID) const;
-    void assert_param(const std::string &parID) const;
-    std::vector<std::string> get_param_to_be_inferred() const;
-
-    bool propose_valid_param_move(const std::string &parID);
-    void restore_param_value(const std::string &parID);
-    void update_param_accept_rate(const std::string &parID, bool is_accepted);
-    double param_move_logratio(const std::string &parID) const;
-    void adapt_param_rule(const std::string &parID, double ratio);
-
     void disable_assert();
     void init_move_counts();
     void init_diagnostics(bool is_power_post);
     void update_diagnostics(double glob_loglike, bool is_power_post);
-    void dgn_glob_ll_stats(double &avg, double &var) const;
 
-	//----- Metropolis : augmented moves -----//
-	double compute_augm_model_loglike(const Household &house) const;
-	
+    //----- Metropolis : augmented moves -----//
+    double compute_augm_model_loglike(const Household &house) const;
+
     double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
-	double _no_augm_model_loglike_(const Household &house) const;
-	double _augm_model_loglike_(const Household &house) const;
+    double _no_augm_model_loglike_(const Household &house) const;
+    double _augm_model_loglike_(const Household &house) const;
 
     void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
-	void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
-	void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
+    void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
+    void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
 
-private:
-    //===== Pointer to Core =====//
-    std::unique_ptr<Monte_Carlo_Core> pCore;
+    //===== Internal Attributes =====//
+    std::unordered_map<std::string, Parameter> param_map = {};       // parameters dictionary
+    std::unordered_map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
+
+    bool _is_undef_params_ = false; // undefined parameters valid only if infer
+
+    //===== get param (functional methods) =====//
+    double (Monte_Carlo_Build::*_func_get_param_)(const std::string &) const = &Monte_Carlo_Build::_get_param_assert_;
+    double _get_param_default_(const std::string &parID) const;
+    double _get_param_assert_(const std::string &parID) const;
+
+    //===== get param pointer (functional methods) =====//
+    const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const std::string &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
+    const double *_get_param_pointer_default_(const std::string &parID) const;
+    const double *_get_param_pointer_assert_(const std::string &parID) const;
+
+    //===== Pseudo Random Number Generator (auxiliary methods) =====//
+    std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
+    double uniform();
+
+    //===== Pseudo-Random Number Generator =====//
+    sys_rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
+    std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
+    sys_rnd_gen &get_prng();
+
+    sys_rnd_gen &(Monte_Carlo_Build::*_func_prng_)();
+    sys_rnd_gen &_prng_unique_thread_() { return prng; }
+#ifdef _OPENMP
+    unsigned _max_n_available_threads = 1;
+    sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+#endif
+    void set_prng_seed(int seed);
 
     //===== BUILD =====//
+    void build_augm();
+    void build_setup();
+    void build_params();
 
     //----- build : auxiliary attributes -----//
+    std::map<std::string, std::string> _setup_deflist_ = {};
+    std::map<std::string, std::vector<std::string>> _param_deftable_ = {};
     std::map<std::string, std::vector<std::string>> _augm_deftable_ = {};
-    
+
     //----- build : type-specified variables -----//
     double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
     const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
     dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
     dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
-
-    //----- build : Augmented Variables -----//
-    void build_augm();
 };
 
 #endif // HOUSEPI__MCMC__BUILD__H

@@ -47,16 +47,12 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 hmc_1 <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
-hmc_1$param_append(
-  shape = list(
-    prior = "unif", args = list(min = 0, max = 5),
-    rule = "norm", rule_args = list(sd = 1)
-  ),
-  scale = list(
-    prior = "unif", args = list(min = 0, max = 5),
-    rule = "norm", rule_args = list(sd = 1)
-  )
-)
+hmc_1$param_add(name = "shape",
+                prior = "unif", args = list(min = 0, max = 5),
+                rule = "norm", rule_scale = 1)
+hmc_1$param_add(name = "scale",
+                prior = "unif", args = list(min = 0, max = 5),
+                rule = "norm", rule_scale = 1)
 ```
 
 ### Build Augmented Variables
@@ -67,23 +63,23 @@ We state which value should be imported from the database by formatting the stri
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
-hmc_1$augm_append(
-  # define 'exposure' time
-  exposure = list(
-    value = "exposure_min@D",            # start from data value 'exposure_min'
-    model = "unif",                      # associate a uniform model
-    args = list(min = "exposure_min@D",  # within the range 'exposure_min'
-                max = "exposure_max@D"), # and 'exposure_max'
-    rule = "norm",                       # normal rule for the Monte Carlo
-    rule_args = list(sd = 0.5)           # with a std. dev. of 0.25
-  ),
+# add 'exposure' time definition
+hmc_1$augm_add(
+  name = "exposure",
+  value = "exposure_min@D",            # start from data value 'exposure_min'
+  model = "unif",                      # associate a uniform model
+  args = list(min = "exposure_min@D",  # within the range 'exposure_min'
+              max = "exposure_max@D"), # and 'exposure_max'
+  rule = "norm",                       # normal rule for the Monte Carlo
+  rule_scale = 0.5                     # with std. dev. 0.5
+)
 
-  # define 'onset' time
-  onset = list(
-    value = "onset_max@D",
-    model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
-    rule = "norm", rule_args = list(sd = 0.5)
-  )
+# add 'onset' time definition
+hmc_1$augm_add(
+  name = "onset",
+  value = "onset_max@D",
+  model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
+  rule = "norm", rule_scale = 0.5
 )
 ```
 
@@ -125,8 +121,8 @@ knitr::kable(par_2)
 We propose the following definitions for the augmented variable
 
 ```{r}
-
-hmc_2$augm_append(
+# associate defininitions from a list
+aug_defs <- list(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
@@ -142,10 +138,11 @@ hmc_2$augm_append(
     range = list(max = 14)
   )
 )
+hmc_2$augm_from_list(aug_defs)
 
 # use inferred values from first example as constant parameters
-hmc_2$param_append(inc_shape = list(value = results_1["shape", "Mean"]),
-                   inc_scale = list(value = results_1["scale", "Mean"]))
+hmc_2$param_add(name = "inc_shape", value = results_1["shape", "Mean"])
+hmc_2$param_add(name = "inc_scale", value = results_1["scale", "Mean"])
 ```
 
 ### Simulate an Outbreak
@@ -190,7 +187,7 @@ new_augm_defs <- list(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
-    rule = "norm", rule_args = list(sd = 0.25),
+    rule = "norm", rule_scale = 0.25,
     rule_from = "onset_date@D"
   ),
   # add 'incub_period' definition

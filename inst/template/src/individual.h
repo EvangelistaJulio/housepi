@@ -40,7 +40,7 @@ public:
 	//===== SETTER =====//
 	void set_status(int s);
 	void disable_assert();
-	void set_rate(const std::string &rateID, const double *ptr);	
+	void set_rate(const std::string &rateID, const double *ptr);
 	void assign_group_rate(const std::string &rateID, const std::string &parID);
 
 	//===== GETTER =====//
@@ -61,9 +61,15 @@ public:
 	double augm_move_logratio(const std::string &augmID) const;
 
 	//---- Setter -----//
-	void assign_augm(const std::string &augmID = UNDEFINED, double value = std::numeric_limits<double>::quiet_NaN(),
-					 const std::string &model_name = UNDEFINED, dictargs_ptr model_args_ptr = {}, dictargs range = {},
-					 const std::string &rule_name = UNDEFINED, dictargs rule_args = {}, double rule_from = INF_DOUBLE);
+	void assign_augm(const std::string &augmID = UNDEFINED,
+					 double value = std::numeric_limits<double>::quiet_NaN(),
+					 bool is_discr = false,
+					 const std::string &model_name = UNDEFINED, 
+					 dictargs_ptr model_args_ptr = {}, 
+					 dictargs range = {},
+					 const std::string &rule_name = UNDEFINED, 
+					 double rule_scale = INF_DOUBLE, 
+					 double rule_from = INF_DOUBLE);
 	void set_augm_value(const std::string &augmID, double x);
 	void augm_model_rand(const std::string &augmID, sys_rnd_gen &prng);
 	bool propose_valid_augm_move(const std::string &augmID, sys_rnd_gen &prng);

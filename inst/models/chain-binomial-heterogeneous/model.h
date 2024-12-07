@@ -31,6 +31,8 @@ class Model : public MCMC
 	void init_model_for_simulation() override;
 	double compute_house_loglike(Household &house) const override;
 	void simulate_single_house(Household &house) override;
+
+	//----- Rate Choices -----//
 	void assign_group_rate_to_individual(Household &house, indiv i) override;
 };
 

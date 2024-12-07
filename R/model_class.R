@@ -15,6 +15,7 @@ HouseholdModelClass <- R6::R6Class(
   private = list(
     rcppmodel = NULL,
     envir_path = NA,
+    is_develop_mode = FALSE,
     setup = NULL,
     param = NULL,
     augm = NULL,
@@ -39,7 +40,9 @@ HouseholdModelClass <- R6::R6Class(
     # If `TRUE` prints automatic build information.
     # @param ...
     # further arguments passed to \code{setup}.
-    build = function(dataset = NULL, verbose = FALSE, ...) {
+    build = function(dataset = NULL,
+                     verbose = FALSE,
+                     ...) {
       # change scientific notation
       store_scipen <- options()$scipen
       options(scipen = 500)
@@ -80,13 +83,13 @@ HouseholdModelClass <- R6::R6Class(
         }
 
       } else {
-        stop(cli::format_error(
-          c("Unsupported type for dataset.",
-            i = "It should be data.frame or path/to/csv.")
-          ))
+        stop(cli::format_error(c(
+          "Unsupported type for dataset.",
+          i = "It should be data.frame or path/to/csv."
+        )))
       }
 
-      #----- 4) AUGMENTED VARIABLES -----#
+      #----- 4) AUGMENTED -----#
       augm <- data.frame(lapply(private$augm$defs, as.character))
       private$rcppmodel$import_augm(augm)
       if (isTRUE(verbose)) {
@@ -147,37 +150,32 @@ HouseholdModelClass <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Creates a new instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
-    #' If not specified otherwise, it create a one per session model environment.
+    #' Create a new instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
     #' @param model (`character(1)`)\cr
-    #' Template name, path to folder with implementation or with previously compiled model.
+    #' One between:
+    #' - Template name;
+    #' - path/to/folder with implementation;
+    #' - path/to/folder with previously compiled model;
+    #' - "developer".
     #' @param quiet (`logical(1)`)\cr
     #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
     #' If `TRUE` compile even if a cached model already exists.
     #' @param as_template (`logical(1)`)\cr
-    #' Store the dynamic library as a template to avoid recompilation in different session.
-    initialize = function(model = ".",
+    #' If `TRUE` store the dynamic library as a local template.
+    #' IF `FALSE` recompile the model at every new session.
+    initialize = function(model,
                           quiet = TRUE,
                           force = FALSE,
                           as_template = FALSE) {
-
-      dll <- generate_dll_model(model, force = force, quiet = quiet, as_template = as_template)
-
-      package <- tools::file_path_sans_ext(basename(dll))
-
-      # remove environment if already loaded
-      # FIXME: can't remove from cash memory!
-      # otherwise thinfs defined with previous will crash
-      # need to change names
-      #if (is.loaded(dll)) {
-      #  dyn.unload(dll)
-      #  gc(verbose = FALSE)
-      #}
-      # load shared library
+      #----- load dynamic library -----#
+      dll <- generate_dll_model(model, force = force, quiet = quiet,
+                                as_template = as_template)
       dyn.load(dll)
-  
+      private$is_develop_mode <- (model == "developer")
+
       # expose internally the module
+      package <- tools::file_path_sans_ext(basename(dll))
       m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = package)
 
       #----- assign fields -----#
@@ -202,7 +200,7 @@ HouseholdModelClass <- R6::R6Class(
       templ_info_file <- file.path(private$envir_path, "template_info.Rd")
       if (!file.exists((templ_info_file))) {
         stop(cli::format_error(c(
-          "Impossible to show model description.", 
+          "Impossible to show model description.",
           i = "No template info were found."
         )))
       }
@@ -226,10 +224,12 @@ HouseholdModelClass <- R6::R6Class(
     #' further arguments passed to \code{setup}.
     #' @return (`double(1)`)\cr
     #' The value of the loglikelihood.
-    loglikelihood = function(dataset = NULL, verbose = FALSE, ...) {
+    loglikelihood = function(dataset = NULL,
+                             verbose = FALSE,
+                             ...) {
       # internal build function
       private$build(dataset, verbose, ...)
-  
+
       # evaluate loglikelihood from the internal Rcpp object
       return(private$rcppmodel$evaluate())
     },
@@ -244,7 +244,16 @@ HouseholdModelClass <- R6::R6Class(
     #' If `TRUE` prints automatic build information.
     #' @param ...
     #' further arguments passed to \code{setup}.
-    infer = function(dataset = NULL, progress = TRUE, verbose = FALSE, ...) {
+    infer = function(dataset = NULL,
+                     progress = TRUE,
+                     verbose = FALSE,
+                     ...) {
+
+      if (!private$is_develop_mode) {
+        self$param_check(FALSE)
+        self$augm_check(FALSE)
+      }
+
       # internal build function
       private$build(dataset, verbose, ...)
 
@@ -323,7 +332,9 @@ HouseholdModelClass <- R6::R6Class(
     #' Color names.
     #' @param ...
     #' Further arguments pass to [xyplot][lattice::xyplot].
-    traces_plot = function(chain = NA, col = "dodgerblue", ...) {
+    traces_plot = function(chain = NA,
+                           col = "dodgerblue",
+                           ...) {
       private$traces_check()
       xlab <- "iteration"
 
@@ -352,7 +363,16 @@ HouseholdModelClass <- R6::R6Class(
     #' If `TRUE` prints automatic build information.
     #' @param ...
     #' further arguments passed to \code{setup}.
-    simulate = function(dataset = NULL, progress = TRUE, verbose = FALSE, ...) {
+    simulate = function(dataset = NULL,
+                        progress = TRUE,
+                        verbose = FALSE,
+                        ...) {
+
+      if (!private$is_develop_mode) {
+        self$param_check(FALSE)
+        self$augm_check(FALSE)
+      }
+
       # internal build function
       private$build(dataset, verbose, ...)
 
@@ -429,7 +449,7 @@ HouseholdModelClass <- R6::R6Class(
       output <- private$rcppmodel$evaluate_marginal(n_rungs, adaptive, progress)
       # drop traces
       private$traces_frame <- NULL
-  
+
       return(output)
     },
 
@@ -455,31 +475,51 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Associate parameters from a list. Previous definitions are dropped.
-    #' @param def_list (named `list()`)\cr
-    #' A list containg parameter names with respective list of definitions.
-    param_from_list = function(def_list) {
-      if (!is.list(def_list)) {
-        stop("The argument def_list should be a list.")
-      }
-      self$param_clear()
-      for (i in seq_along(def_list)){
-        this_list <- def_list[[i]]
-        this_list[["name"]] <- names(def_list[i])
-        do.call(private$param$add, this_list)
-      }
-      self$param_check(FALSE)
+    #' Add a new parameter definition.
+    #' @param name (`character(1)`)\cr
+    #' Name of the parameter.
+    #' @param value (`double(1)`)\cr
+    #' Initial value of the parameter.
+    #' @param infer (`logical(1)`)\cr
+    #' If `FALSE` the parameter is treated as a constant.
+    #' @param discrete (`logical(1)`)\cr
+    #' If `TRUE` the parameter is discrete.
+    #' @param prior (`character(1)`)\cr
+    #' Name of the prior distribution.
+    #' @param args (named `list()`)\cr
+    #' Arguments for the prior distribution.
+    #' @param rule (`character(1)`)\cr
+    #' Name of the inference proposal rule.
+    #' @param rule_scale (`double(1)`)\cr
+    #' Scale parameter for the proposal rule.
+    #' Changed automatically during inference if `n_adpat`>0.
+    #' @param range (named `list()`)\cr
+    #' The prior truncation 'min', 'max' or no bound.
+    param_add = function(name = NA,
+                         value = NA,
+                         infer = NA,
+                         discrete = FALSE,
+                         prior = NA,
+                         args = list(),
+                         rule = NA,
+                         rule_scale = NA,
+                         range = list()) {
+      private$param$add(name = name, value = value, infer = infer,
+                        discrete = discrete, prior = prior, args = args,
+                        rule = rule, rule_scale = rule_scale, range = range)
 
       invisible(self)
     },
 
     #' @description
-    #' Append a list of parameter definitions.
-    #' @param ... (named `list()`s)\cr
-    #' Parameter names with respective list of definitions.
-    param_append = function(...) {
-      private$param$append(...)
-      self$param_check(FALSE)
+    #' Associate parameters from a list. Previous definitions are dropped.
+    #' @param definitions (named `list()`)\cr
+    #' A list containg parameter names with respective list of definitions.
+    #' @param append (`logical(1)`)\cr
+    #' If `TRUE` appends the list to current definition.
+    #' If `FALSE` clears previous definitions (default).
+    param_from_list = function(definitions, append = FALSE) {
+      private$param$from_list(definitions, append = append)
       invisible(self)
     },
 
@@ -488,14 +528,28 @@ HouseholdModelClass <- R6::R6Class(
     #' @param fill_template (`logical(1)`)\cr
     #' If `TRUE` fills the missing parameter with template definitions.
     param_check = function(fill_template = FALSE) {
-      private$param$check(private$envir_path, private$augm$defs, fill_template)
+      if (private$is_develop_mode) {
+        cli::cli_alert_warning(cli::format_warning(
+          "No check available in developer mode."
+        ))
+      } else {
+        private$param$check(private$envir_path,
+                            private$augm$defs,
+                            fill_template)
+      }
       invisible(self)
     },
 
     #' @description
     #' Overwrite current parameter definitions with template definitions.
     param_template = function() {
-      private$param$template(private$envir_path)
+      if (private$is_develop_mode) {
+        cli::cli_alert_warning(cli::format_warning(
+          "No template available in developer mode."
+        ))
+      } else {
+        private$param$template(private$envir_path)
+      }
       invisible(self)
     },
 
@@ -521,33 +575,60 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Associate augmented variables from a list.
-    #' Previous definitions are dropped.
-    #' @param def_list (named `list()`)\cr
-    #' Augmented variable names with respective list of definitions.
-    augm_from_list = function(def_list) {
-      if (!is.list(def_list)) {
-        stop("The argument def_list should be a list.")
-      }
-
-      self$augm_clear()
-      for (i in seq_along(def_list)){
-        this_list <- def_list[[i]]
-        this_list[["name"]] <- names(def_list[i])
-        do.call(private$augm$add, this_list)
-      }
-      self$augm_check(FALSE)
-
+    #' Add a new augmented variable definition.
+    #' @param name (`character(1)`)\cr
+    #' Name of the augmented variable.
+    #' @param value (`double(1)` | `character(1)`)\cr
+    #' Scalar value
+    #' or parameter name (followed by `@P`)
+    #' or data name (followed by `@D`).
+    #' @param discrete (`logical(1)`)\cr
+    #' IF `TRUE` the parameter is discrete.
+    #' @param model (`character(1)`)\cr
+    #' Name of the model distribution.
+    #' @param args (named `list()`)\cr
+    #' Arguments for the model distribution.
+    #' @param rule (`character(1)`)\cr
+    #' Name of the inference proposal rule.
+    #' @param rule_scale (`double(1)`)\cr
+    #' Scale parameter for the proposal rule.
+    #' @param rule_from (`double(1)` | `character(1)`)\cr
+    #' Advanced options for non random walk moves.
+    #' @param range  (named `list()`)\cr
+    #' List with 'min' and/or 'max' values (or none).
+    #' @param init_rand (`character(1)`)\cr
+    #' If `TRUE` draw initial vale from model distribution.
+    #' @param status (`integer(1)`)\cr
+    #' The associated status of the definition.
+    #' Default NA is for all infectious.
+    augm_add = function(name = NA,
+                        value = NA,
+                        discrete = FALSE,
+                        model = NA,
+                        args = list(),
+                        rule = NA,
+                        rule_scale = NA,
+                        rule_from = NA,
+                        range = list(),
+                        init_rand = FALSE,
+                        status = NA) {
+      private$augm$add(name = name, value = value, discrete = discrete,
+                       model = model, args = args,
+                       rule = rule, rule_scale = rule_scale, rule_from = rule_from,
+                       range = range, init_rand = init_rand, status = status)
       invisible(self)
     },
 
     #' @description
-    #' Append augmented variable definitions.
-    #' @param ... (named `list()`s)\cr
+    #' Associate augmented variables from a list.
+    #' Previous definitions are dropped.
+    #' @param definitions (named `list()`)\cr
     #' Augmented variable names with respective list of definitions.
-    augm_append = function(...) {
-      private$augm$append(...)
-      self$augm_check(FALSE)
+    #' @param append (`logical(1)`)\cr
+    #' If `TRUE` appends the list to current definition.
+    #' If `FALSE` clears previous definitions (default).
+    augm_from_list = function(definitions, append = FALSE) {
+      private$augm$from_list(definitions, append = append)
       invisible(self)
     },
 
@@ -556,14 +637,26 @@ HouseholdModelClass <- R6::R6Class(
     #' @param fill_template (`logical(1)`)\cr
     #' If `TRUE` fills missing augmented variables with template definitions.
     augm_check = function(fill_template = FALSE) {
-      private$augm$check(private$envir_path, fill_template)
+      if (private$is_develop_mode) {
+        cli::cli_alert_warning(cli::format_warning(
+          "No check available in developer mode."
+        ))
+      } else {
+        private$augm$check(private$envir_path, fill_template)
+      }
       invisible(self)
     },
 
     #' @description
     #' Overwrite augmented variable definitions with template definitions.
     augm_template = function() {
-      private$augm$template(private$envir_path)
+      if (private$is_develop_mode) {
+        cli::cli_alert_warning(cli::format_warning(
+          "No template available in developer mode."
+        ))
+      } else {
+        private$augm$template(private$envir_path)
+      }
       invisible(self)
     }
   )

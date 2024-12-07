@@ -262,13 +262,10 @@ void Base_Distribution::_assign_reshaping_(const dictargs &range, const std::str
             _func_rand_ = &Base_Distribution::_discr_center_rand_;
 
             if (range.find("min") != range.end())
-            {
                 new_range["min"] = std::floor(range.at("min")) + 0.5;
-            }
+
             if (range.find("max") != range.end())
-            {
                 new_range["max"] = std::ceil(range.at("max")) - 0.5;
-            }
         }
         else if (discr == "left")
         { // left adjusted discretization
@@ -279,13 +276,10 @@ void Base_Distribution::_assign_reshaping_(const dictargs &range, const std::str
             _func_rand_ = &Base_Distribution::_discr_left_rand_;
 
             if (range.find("min") != range.end())
-            {
                 new_range["min"] = std::floor(range.at("min"));
-            }
+
             if (range.find("max") != range.end())
-            {
                 new_range["max"] = std::ceil(range.at("max"));
-            }
         }
         else
         {
@@ -828,9 +822,11 @@ protected:
 
 /* Auxiliary hidden template to return the chosen distribution. */
 template <typename dictargs_val_or_ptr>
-std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string &name, const dictargs_val_or_ptr &args, const dictargs &range)
+std::shared_ptr<Base_Distribution> _distribution_(const std::string &name,
+                                                  const dictargs_val_or_ptr &args,
+                                                  const dictargs &range,
+                                                  bool discr)
 {
-    std::shared_ptr<Base_Distribution> output = std::make_shared<Base_Distribution>();
     const std::vector<std::string> options = {
         "unif",
         "norm",
@@ -840,38 +836,36 @@ std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string 
         "rayleigh",
         "exp"};
 
-    if (name == "unif")
-    {
-        output = std::make_shared<Uniform_Distribution>(args, range);
-    }
+    std::shared_ptr<Base_Distribution> output;
+
+    if (tools::is_na(name))
+        output = std::make_shared<Base_Distribution>();
+
+    else if (name == "unif")
+        output = std::make_shared<Uniform_Distribution>(args, range, discr);
+
     else if (name == "norm")
-    {
-        output = std::make_shared<Normal_Distribution>(args, range);
-    }
+        output = std::make_shared<Normal_Distribution>(args, range, discr);
+
     else if (name == "lnorm")
-    {
-        output = std::make_shared<Lognorm_Distribution>(args, range);
-    }
+        output = std::make_shared<Lognorm_Distribution>(args, range, discr);
+
     else if (name == "gamma")
-    {
-        output = std::make_shared<Gamma_Distribution>(args, range);
-    }
+        output = std::make_shared<Gamma_Distribution>(args, range, discr);
+
     else if (name == "weibull")
-    {
-        output = std::make_shared<Weibull_Distribution>(args, range);
-    }
+        output = std::make_shared<Weibull_Distribution>(args, range, discr);
+
     else if (name == "rayleigh")
-    {
-        output = std::make_shared<Rayleigh_Distribution>(args, range);
-    }
+        output = std::make_shared<Rayleigh_Distribution>(args, range, discr);
+
     else if (name == "exp")
-    {
-        output = std::make_shared<Exponential_Distribution>(args, range);
-    }
-    else if (!tools::is_na(name))
+        output = std::make_shared<Exponential_Distribution>(args, range, discr);
+
+    else
     {
         std::string err_message = "Unknown distribution '" + name + "'.";
-        err_message += tools::find_closest_option(name, options);
+        err_message += tools::find_closest(name, options);
         throw std::invalid_argument(err_message);
     }
 
@@ -879,17 +873,19 @@ std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string 
 }
 
 /* Pointer to distribution with scalar arguments. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name,
-                                                            const dictargs &args,
-                                                            const dictargs &range)
+std::shared_ptr<Base_Distribution> distribution(const std::string &name,
+                                                const dictargs &args,
+                                                const dictargs &range,
+                                                bool discr)
 {
-    return _distribution_switchboard_(name, args, range);
+    return _distribution_(name, args, range, discr);
 }
 
 /* Pointer to distribution with pointer arguments. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name,
-                                                            const dictargs_ptr &args,
-                                                            const dictargs &range)
+std::shared_ptr<Base_Distribution> distribution(const std::string &name,
+                                                const dictargs_ptr &args,
+                                                const dictargs &range,
+                                                bool discr)
 {
-    return _distribution_switchboard_(name, args, range);
+    return _distribution_(name, args, range, discr);
 }

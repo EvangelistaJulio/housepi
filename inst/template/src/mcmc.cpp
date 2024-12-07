@@ -33,12 +33,11 @@ Rcpp::DataFrame MCMC::export_params() const { return pBuild->export_params(); }
 Rcpp::DataFrame MCMC::export_data() const { return pBuild->export_data(); }
 Rcpp::DataFrame MCMC::export_traces() const { return pBuild->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_loglike_matrix() const { return pBuild->export_loglike_matrix(); }
-#else
+#endif
 
-//===== Cpp PRINT =====//
+//===== C++ PRINT =====//
 void MCMC::print_infer_state(const string &pathtofile) const { pBuild->print_infer_state(pathtofile); }
 void MCMC::print_augm_variables(const string &pathtofile) const { pBuild->print_augm_variables(pathtofile); }
-#endif
 
 //===== SHOW =====//
 void MCMC::show_full_build() const { pBuild->show_full_build(); }
@@ -463,10 +462,9 @@ void MCMC::set_rate_per_contact(Household &house)
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
 void MCMC::update_global_loglike()
 {
-    buffer = global_loglike;
-    global_loglike = 0.0;
+    double new_ll = 0.0;
 
-#pragma omp parallel for reduction(+ : global_loglike)
+#pragma omp parallel for reduction(+ : new_ll)
     for (size_t H = 0; H < n_houses(); ++H)
     {
         if (_error_occurred_)
@@ -478,7 +476,7 @@ void MCMC::update_global_loglike()
             Household &house = pBuild->house_vector[H];
             // update house loglikelihood
             house.set_loglike(compute_house_loglike(house));
-            global_loglike += house.get_loglike() + pBuild->compute_augm_model_loglike(house);
+            new_ll += house.get_loglike() + pBuild->compute_augm_model_loglike(house);
         }
         catch (const std::exception &e)
         {
@@ -496,6 +494,8 @@ void MCMC::update_global_loglike()
     {
         tools::error(_error_message_);
     }
+
+    pBuild->set_global_loglike(new_ll);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -527,7 +527,7 @@ void MCMC::move_single_param(const string &parID)
             pBuild->restore_param_value(parID);
 
             // restore buffered value of global loglike
-            restore_global_loglike();
+            pBuild->restore_global_loglike();
 
             // restore buffered loglikelihood in households
             for (size_t H = 0; H < n_houses(); ++H)
@@ -545,7 +545,7 @@ bool MCMC::_param_metropolis_1_(const string &parID)
 {
     update_global_loglike();
 
-    if (uniform() < exp(get_delta_global_loglike() + pBuild->param_move_logratio(parID)))
+    if (uniform() < exp(pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(parID)))
     {
         return true;
     }
@@ -572,7 +572,7 @@ bool MCMC::_param_metropolis_T_(const string &parID)
 {
     update_global_loglike();
 
-    if (uniform() < exp(pBuild->get_inv_T() * get_delta_global_loglike() + pBuild->param_move_logratio(parID)))
+    if (uniform() < exp(pBuild->setup_inv_T * pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(parID)))
     {
         return true;
     }
@@ -585,7 +585,7 @@ bool MCMC::_param_metropolis_T_(const string &parID)
 /* Move all model parameters. */
 void MCMC::move_all_parameters()
 {
-    for (const string &parID : pBuild->get_param_to_be_inferred())
+    for (const string &parID : pBuild->param_to_be_inferred)
     {
         move_single_param(parID);
     }
@@ -594,9 +594,9 @@ void MCMC::move_all_parameters()
 /* Move all model parameters and adapt their rule arguments. */
 void MCMC::move_and_adapt_all_parameters(ulong step)
 {
-    double adapt_ratio = static_cast<double>(step) / pBuild->get_n_adapt();
+    double adapt_ratio = static_cast<double>(step) / pBuild->setup_n_adapt;
 
-    for (const string &parID : pBuild->get_param_to_be_inferred())
+    for (const string &parID : pBuild->param_to_be_inferred)
     {
         move_single_param(parID);
         pBuild->adapt_param_rule(parID, adapt_ratio);
@@ -674,7 +674,7 @@ void MCMC::_move_all_augm_()
     }
     else
     {
-        increment_global_loglike(delta_ll);
+        pBuild->increment_global_loglike(delta_ll);
     }
 }
 
@@ -771,7 +771,7 @@ bool MCMC::_augm_metropolis_0_(const Household &house, indiv i, const string &au
 bool MCMC::_augm_metropolis_T_(const Household &house, indiv i, const string &augmID, double &delta)
 {
     double D_ll = house.get_delta_loglike() + house.augm_model_logratio(i, augmID);
-    if (uniform() < exp(pBuild->get_inv_T() * D_ll - house.augm_propose_logratio(i, augmID)))
+    if (uniform() < exp(pBuild->setup_inv_T * D_ll - house.augm_propose_logratio(i, augmID)))
     {
         delta += D_ll;
         return true;
@@ -799,7 +799,7 @@ double MCMC::evaluate()
     try
     {
         //----- Check no undefined parameters -----//
-        pBuild->set_rnd_init_params(false);
+        pBuild->setup_rnd_init_params = false;
         pBuild->init_rand_params();
 
         //----- Initialize model -----//
@@ -816,7 +816,7 @@ double MCMC::evaluate()
         tools::error(e.what());
     }
 
-    return get_global_loglike();
+    return pBuild->get_global_loglike();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -834,17 +834,13 @@ double MCMC::evaluate()
 const string MCMC::fmt_progtxt(const string &txt, bool is_power_post)
 {
     if (is_power_post)
-    {
         return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
-    }
-    else if (pBuild->get_n_chains() > 1)
-    {
-        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pBuild->get_n_chains());
-    }
+
+    else if (pBuild->setup_n_chains > 1)
+        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pBuild->setup_n_chains);
+
     else
-    {
         return txt;
-    }
 }
 
 /* Markov chain core, used for inference and power posteriors.
@@ -855,6 +851,10 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
     //===== Initialization =====//
     //==========================//
 
+    //----- Check if there is something to infer -----//
+    if (pBuild->param_to_be_inferred.empty())
+        tools::error("No parameters to be inferred were found.");
+
     //----- Initialize model -----//
     init_model_for_inference();
 
@@ -862,7 +862,7 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
     pBuild->init_diagnostics(is_power_post);
 
     //===== Run Multiple MCMC Chains =====//
-    for (_chain_ = 1; _chain_ <= pBuild->get_n_chains(); ++_chain_)
+    for (_chain_ = 1; _chain_ <= pBuild->setup_n_chains; ++_chain_)
     {
         // update progressbar text
         progressbar.set_text(fmt_progtxt("infer", is_power_post));
@@ -886,9 +886,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         // initialize the param move counts for adaptive
         pBuild->init_move_counts();
 
-        for (ulong i = 0; i < pBuild->get_n_adapt(); i += pBuild->get_thin())
+        for (ulong i = 0; i < pBuild->setup_n_adapt; i += pBuild->setup_thin)
         {
-            for (ulong t = 1; t <= pBuild->get_thin(); ++t)
+            for (ulong t = 1; t <= pBuild->setup_thin; ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_and_adapt_all_parameters(i + t);
@@ -902,9 +902,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         //========= MCMC Burn-in Iterations ==========//
         //============================================//
 
-        for (ulong i = 0; i < pBuild->get_n_burnin(); i += pBuild->get_thin())
+        for (ulong i = 0; i < pBuild->setup_n_burnin; i += pBuild->setup_thin)
         {
-            for (ulong t = 1; t <= pBuild->get_thin(); ++t)
+            for (ulong t = 1; t <= pBuild->setup_thin; ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_all_parameters();
@@ -918,10 +918,10 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         //========= MCMC Posterior Sampling ==========//
         //============================================//
 
-        for (ulong i = pBuild->get_n_burnin(); i < pBuild->get_n_steps(); i += pBuild->get_thin())
+        for (ulong i = pBuild->setup_n_burnin; i < pBuild->setup_n_steps; i += pBuild->setup_thin)
         {
             // thinning mcmc moves
-            for (ulong t = 1; t <= pBuild->get_thin(); ++t)
+            for (ulong t = 1; t <= pBuild->setup_thin; ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_all_parameters();
@@ -929,7 +929,7 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
             ++sweep;
 
             // compute diagnostics for the previous iterations
-            pBuild->update_diagnostics(get_global_loglike(), is_power_post);
+            pBuild->update_diagnostics(pBuild->get_global_loglike(), is_power_post);
             progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
         }
     }
@@ -942,17 +942,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 /* Performs the inference using Metropolis-Hastings. */
 void MCMC::infer(bool is_progbar)
 {
-    // UPDATE : Check if data is meaningful
-    /*
-    if (report_data("n.miss.stat") == static_cast<int>(pBuild->n_individuals))
-    {
-        tools::error("No infectious status has been provided in the data file.");
-    }
-    */
-
     //----- total number of mcmc sweeps -----//
     _chain_ = 1;
-    _tot_thin_sweeps_ = pBuild->get_c_n_sweeps() * pBuild->get_n_chains();
+    _tot_thin_sweeps_ = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
 
     //----- Start progress bar and chrono -----//
     CustomProgressBar progressbar(is_progbar);
@@ -982,19 +974,19 @@ void MCMC::update_inver_temper(double inv_T)
     }
     else if (inv_T == 1.0)
     {
-        pBuild->set_inv_T(1.0);
+        pBuild->setup_inv_T = 1.0;
         _func_param_metropolis_ = &MCMC::_param_metropolis_1_;
         _func_augm_metropolis_ = &MCMC::_augm_metropolis_1_;
     }
     else if (inv_T == 0.0)
     {
-        pBuild->set_inv_T(0.0);
+        pBuild->setup_inv_T = 0.0;
         _func_param_metropolis_ = &MCMC::_param_metropolis_0_;
         _func_augm_metropolis_ = &MCMC::_augm_metropolis_0_;
     }
     else
     {
-        pBuild->set_inv_T(inv_T);
+        pBuild->setup_inv_T = inv_T;
         _func_param_metropolis_ = &MCMC::_param_metropolis_T_;
         _func_augm_metropolis_ = &MCMC::_augm_metropolis_T_;
     }
@@ -1011,19 +1003,16 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).*/
 
-    if (n_rungs < 2)
-    {
-        tools::error("Number of rungs must be greater than 1.");
-    }
-    else
-    {
-        // fix internal number of rungs (for progress bar)
+    // fix internal number of rungs (for progress bar)
+    if (n_rungs >= 2)
         _n_rungs_ = n_rungs;
-    }
+
+    else
+        tools::error("Number of rungs must be greater than 1.");
 
     //----- Backup user setup to restore them later -----//
-    bool bkp_rnd_init_params = pBuild->get_rnd_init_params();
-    double bkp_inv_T = pBuild->get_inv_T();
+    bool bkp_rnd_init_params = pBuild->setup_rnd_init_params;
+    double bkp_inv_T = pBuild->setup_inv_T;
 
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
@@ -1033,7 +1022,7 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
     vector<double> var_vec = {}; // variance loglikelihood
 
     //----- Total number of mcmc sweeps -----//
-    ulong rung_sweeps = pBuild->get_c_n_sweeps() * pBuild->get_n_chains();
+    ulong rung_sweeps = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
     // internal state variables
     _tot_thin_sweeps_ = rung_sweeps * (_n_rungs_ + 1);
     _rung_ = 0;
@@ -1047,7 +1036,7 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
     //==================================//
 
     update_inver_temper(0.0);
-    pBuild->set_rnd_init_params(true);
+    pBuild->setup_rnd_init_params = true;
     run_monte_carlo(progressbar, 0, true);
     pBuild->dgn_glob_ll_stats(avg, var);
 
@@ -1065,7 +1054,7 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
         //----- Inverse Temperature 1 -----//
         _rung_ = 1;
         update_inver_temper(1.0);
-        pBuild->set_rnd_init_params(false);
+        pBuild->setup_rnd_init_params = false;
         run_monte_carlo(progressbar, rung_sweeps, true);
         pBuild->dgn_glob_ll_stats(avg, var);
 
@@ -1095,10 +1084,10 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
             pBuild->dgn_glob_ll_stats(avg, var);
 
             //----- find larger rectangular discretization error -----//
-            is_right = (inv_t[k + 1] - pBuild->get_inv_T()) * (avg_vec[k + 1] - avg) > (new_inv_T - inv_t[k]) * (avg - avg_vec[k]);
+            is_right = (inv_t[k + 1] - pBuild->setup_inv_T) * (avg_vec[k + 1] - avg) > (new_inv_T - inv_t[k]) * (avg - avg_vec[k]);
 
             //----- insert in-between for all lists -----//
-            inv_t.insert(inv_t.begin() + k + 1, pBuild->get_inv_T());
+            inv_t.insert(inv_t.begin() + k + 1, pBuild->setup_inv_T);
             avg_vec.insert(avg_vec.begin() + k + 1, avg);
             var_vec.insert(var_vec.begin() + k + 1, var);
 
@@ -1113,14 +1102,14 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
         //==================================//
 
         //----- Inverse Temperatures (0, 1] -----//
-        pBuild->set_rnd_init_params(false);
+        pBuild->setup_rnd_init_params = false;
         for (_rung_ = 1; _rung_ < _n_rungs_; ++_rung_)
         {
             update_inver_temper(std::pow(static_cast<double>(_rung_) / (_n_rungs_ - 1), 5));
             run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
             pBuild->dgn_glob_ll_stats(avg, var);
 
-            inv_t.push_back(pBuild->get_inv_T());
+            inv_t.push_back(pBuild->setup_inv_T);
             avg_vec.push_back(avg);
             var_vec.push_back(var);
         }
@@ -1139,7 +1128,7 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
 
     //----- Restore user setup -----//
     update_inver_temper(bkp_inv_T);
-    pBuild->set_rnd_init_params(bkp_rnd_init_params);
+    pBuild->setup_rnd_init_params = bkp_rnd_init_params;
 
     return output;
 }
@@ -1165,7 +1154,7 @@ void MCMC::simulate_single_house(Household &house)
 void MCMC::simulate(bool is_progbar)
 {
     //----- Check no undefined parameters -----//
-    pBuild->set_rnd_init_params(false);
+    pBuild->setup_rnd_init_params = false;
     pBuild->init_rand_params();
 
     //----- Initialize model -----//
@@ -1177,7 +1166,7 @@ void MCMC::simulate(bool is_progbar)
     progressbar.initialize("simulate");
 
 #ifdef _OPENMP
-    int thin_n_house = n_houses() / pBuild->get_n_threads();
+    int thin_n_house = n_houses() / pBuild->setup_n_threads;
 #pragma omp parallel for default(shared)
     for (size_t H = 0; H < n_houses(); ++H)
     {

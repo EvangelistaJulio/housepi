@@ -86,13 +86,13 @@ double Individual::augm_propose_logratio(const std::string &augmID) const { retu
 double Individual::augm_move_logratio(const std::string &augmID) const { return this->augm_map.at(augmID).get_move_logratio(); }
 
 //---- Setter -----//
-void Individual::assign_augm(const std::string &augmID, double value,
+void Individual::assign_augm(const std::string &augmID, double value, bool is_discr,
 							 const std::string &model_name, dictargs_ptr model_args_ptr, dictargs range,
-							 const std::string &rule_name, dictargs rule_args, double rule_from)
+							 const std::string &rule_name, double rule_scale, double rule_from)
 {
-	this->augm_map[augmID] = Base_Variable(augmID, value);
+	this->augm_map[augmID] = Base_Variable(augmID, value, is_discr);
 	this->augm_map[augmID].assign_distribution(model_name, model_args_ptr, range);
-	this->augm_map[augmID].assign_proposer(rule_name, rule_args, rule_from);
+	this->augm_map[augmID].assign_proposer(rule_name, rule_scale, rule_from);
 }
 
 /* Clear the augmented variable definitions. */
