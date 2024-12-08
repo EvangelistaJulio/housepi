@@ -21,12 +21,20 @@ dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_val
     dictargs output = {};
 
     if (keys.size() == vals.size())
+    {
         for (size_t i = 0; i < keys.size(); ++i)
+        {
             if ((!tools::is_na(keys[i])) && (!tools::is_na(vals[i])))
+            {
                 output.emplace(keys[i], tools::stod(vals[i], "Value of '" + keys[i] + "'"));
+            }
+        }
+    }
     else
+    {
         throw std::invalid_argument(
             "Mismatching definitions in arguments.");
+    }
 
     return output;
 }
@@ -575,7 +583,7 @@ void Monte_Carlo_Build::build_params()
 
                     if (!tools::is_na(_param_deftable_.at("max")[p]))
                         range.emplace("max", tools::stod(_param_deftable_.at("max")[p], "parameter maximum"));
-                    
+
                     // load rule scale
                     double rule_scale = INF_DOUBLE;
                     if (!tools::is_na(_param_deftable_.at("rule_scale")[p]))
@@ -583,8 +591,8 @@ void Monte_Carlo_Build::build_params()
 
                     // assign parameter to the set of variables
                     Parameter new_param(
-                        parID, 
-                        value, 
+                        parID,
+                        value,
                         is_discr,
                         _param_deftable_.at("prior")[p],
                         merge_list_args(_param_deftable_.at("args")[p],
@@ -690,7 +698,7 @@ void Monte_Carlo_Build::show_all_params() const
 {
     std::ostringstream oss;
     oss << param_file_headers[0];
-    
+
     for (size_t k = 1; k < param_file_headers.size(); ++k)
         oss << C_DELIM << param_file_headers[k];
 

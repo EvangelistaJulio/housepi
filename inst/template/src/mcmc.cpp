@@ -799,7 +799,6 @@ double MCMC::evaluate()
     try
     {
         //----- Check no undefined parameters -----//
-        pBuild->setup_rnd_init_params = false;
         pBuild->init_rand_params();
 
         //----- Initialize model -----//
@@ -996,14 +995,17 @@ void MCMC::update_inver_temper(double inv_T)
 /////////////////////////////////////  MCMC : power posteriors  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Evaluate the logarithm of marginal likelihood with power posteriors. */
-double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
-{
-    /* Ref: Friel, N., Hurn, M. & Wyse, J.
+/* Evaluate the logarithm of marginal likelihood with power posteriors.
+    -----
+    Ref: Friel, N., Hurn, M. & Wyse, J.
     Improving power posterior estimation of statistical evidence.
-    Stat Comput 24, 709–723 (2014).*/
+    Stat Comput 24, 709–723 (2014).
+*/
+double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
+{
+    const std::vector<std::string> options = {"adaptive", "power-fractions"};
 
-    // fix internal number of rungs (for progress bar)
+    //----- fix internal number of rungs (for progress bar) -----//
     if (n_rungs >= 2)
         _n_rungs_ = n_rungs;
 
@@ -1044,8 +1046,7 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
     avg_vec.push_back(avg);
     var_vec.push_back(var);
 
-    // thermodynamic ladder: use modified power fractions or adaptive scheme
-    if (adaptive)
+    if (scheme == "adaptive")
     {
         //===========================//
         //===== ADAPTIVE LADDER =====//
@@ -1095,7 +1096,7 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
             k += (is_right);
         }
     }
-    else
+    else if (scheme == "power-fractions")
     {
         //==================================//
         //===== POWER FRACTIONS LADDER =====//
@@ -1113,6 +1114,11 @@ double MCMC::evaluate_marginal(int n_rungs, bool adaptive, bool is_progbar)
             avg_vec.push_back(avg);
             var_vec.push_back(var);
         }
+    }
+    else 
+    {
+        tools::error(
+            "Unknown power posterior scheme '" + scheme + "'." + tools::find_closest(scheme, options, 3));
     }
 
     //----- trapezoidal rule to compute marginal likelihood -----//

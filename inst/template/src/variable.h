@@ -32,31 +32,31 @@
 class Base_Proposer
 {
 public:
-	//=====Constructors=====//
+	//===== CONSTRUCTOR =====//
 	Base_Proposer(std::shared_ptr<Base_Distribution>,
 				  double rule_start_value = INF_DOUBLE,
-				  std::vector<int> args_to_adapt = {});
+				  std::vector<ushort> args_to_adapt = {});
 	virtual ~Base_Proposer() {};
 
-	//===== Getter =====//
+	//===== GETTER =====//
 	const std::string &get_name() const;
-	double get_arg(int argID) const;
+	double get_arg(ushort argID) const;
 	double get_from_value() const;
 	bool is_rule_start_from_zero() const;
 
-	//===== Setter =====//
+	//===== SETTER =====//
 	void set_rule_start_value(double x);
 	double rand(sys_rnd_gen &prng);
 	virtual double propose(sys_rnd_gen &prng, double start = 0.0);
 	virtual double logratio(double xold, double xnew) const;
 
-	//=====Finite Adaptive=====//
+	//===== ADAPTATION =====//
 	double get_accept_rate() const;
 	void update_accept_rate(bool is_accepted);
 	void reset_accept_rate();
 	void adapt(double ratio);
 
-	//===== Show =====//
+	//===== SHOW =====//
 	const std::string show_arg_names() const;
 	const std::string show_arg_values() const;
 
@@ -68,7 +68,7 @@ protected:
 	double accept_rate = 0.0;
 
 	bool _is_start_from_zero_ = false;
-	std::vector<int> _args_to_adapt_ = {};
+	std::vector<ushort> _args_to_adapt_ = {};
 
 	//===== propose : functional methods =====//
 	double (Base_Proposer::*_func_propose_)(sys_rnd_gen &, double) = &Base_Proposer::_propose_undefined_;

@@ -69,12 +69,12 @@ constexpr double INF_DOUBLE = 1e10;   // numerical infinity value
 const std::string UNDEFINED = "<NA>"; // name for undefined choice
 
 // constants
-constexpr int MAX_NUMBER_ATTEMPTS = 50;            // max n. of attempts for initialization
-constexpr double TARGET_ACCEPT_RATE = 0.234;       // target acceptation rate for MCMC
+constexpr int MAX_NUMBER_ATTEMPTS = 50;      // max n. of attempts for initialization
+constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases
-constexpr int INFECTIOUS = 1;	   // status of infectious (>=)
-constexpr int SUSCEPTIBLE = 0;	   // status of susceptible (==)
+constexpr int INFECTIOUS = 1;      // status of infectious (>=)
+constexpr int SUSCEPTIBLE = 0;     // status of susceptible (==)
 constexpr int MISSING_STATUS = -1; // missing status (==)
 
 // group rates
@@ -140,9 +140,11 @@ namespace tools
     const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
 
     // Calculate Levenshtein distance
-    size_t levenshtein(const std::string& s1, const std::string& s2);
+    ushort levenshtein(const std::string &s1, const std::string &s2);
     // Find the closest match
-    std::string find_closest(const std::string& input, const std::vector<std::string>& options);
+    const std::string find_closest(const std::string &input,
+                                   const std::vector<std::string> &options,
+                                   ushort min_dist = 2);
 
 }
 
@@ -174,9 +176,8 @@ public:
     void finalize();
 
 private:
-	//===== Pointer to Implementation =====//
-	std::unique_ptr<CustomProgressBarImpl> pImpl;
+    //===== Pointer to Implementation =====//
+    std::unique_ptr<CustomProgressBarImpl> pImpl;
 };
-
 
 #endif // HOUSEPI__TOOLS__H

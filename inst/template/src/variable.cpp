@@ -19,7 +19,7 @@
 
 Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
                              double rule_start_value,
-                             std::vector<int> args_to_adapt) : distr_ptr(distr)
+                             std::vector<ushort> args_to_adapt) : distr_ptr(distr)
 {
     _args_to_adapt_ = args_to_adapt;
 
@@ -39,7 +39,7 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const std::string &Base_Proposer::get_name() const { return distr_ptr->get_name(); }
-double Base_Proposer::get_arg(int argID) const { return (distr_ptr->get_arg)(argID); }
+double Base_Proposer::get_arg(ushort argID) const { return (distr_ptr->get_arg)(argID); }
 double Base_Proposer::get_from_value() const { return from_value; }
 bool Base_Proposer::is_rule_start_from_zero() const { return _is_start_from_zero_; }
 
@@ -80,7 +80,7 @@ void Base_Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
-    for (const int &argID : _args_to_adapt_)
+    for (const ushort &argID : _args_to_adapt_)
         (distr_ptr->set_arg)(argID, ((distr_ptr->get_arg)(argID)) * factor);
 }
 

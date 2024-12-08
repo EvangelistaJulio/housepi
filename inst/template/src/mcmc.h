@@ -123,7 +123,7 @@ public:
 	void infer(bool is_progbar = true);
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
-	double evaluate_marginal(int n_rungs, bool adaptive = true, bool is_progbar = true);
+	double evaluate_marginal(int n_rungs, std::string scheme = "adaptive", bool is_progbar = true);
 
 	//===== SIMULATE =====//
 	virtual void init_model_for_simulation() {}

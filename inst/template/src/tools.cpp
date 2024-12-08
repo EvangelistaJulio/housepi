@@ -95,7 +95,7 @@ namespace tools
         if (verbose)
         {
             string sms = string(DECOR_LEFT, decor) + " " + title + " " + string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) + "\n";
-            if (!is_na(txt)) 
+            if (!is_na(txt))
                 sms += txt + "\n";
 
             print_stdout(sms);
@@ -386,42 +386,62 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     // Function to calculate Levenshtein distance
-    // FIXME : unreferenced 
-    size_t levenshtein(const std::string& s1, const std::string& s2) {
-        size_t len1 = s1.size();
-        size_t len2 = s2.size();
-        std::vector<std::vector<int>> dp(len1 + 1, std::vector<int>(len2 + 1, 0));
+    // FIXME : unreferenced
+    ushort levenshtein(const std::string &s1, const std::string &s2)
+    {
+        ushort len1 = s1.size();
+        ushort len2 = s2.size();
+        std::vector<std::vector<ushort>> dp(len1 + 1, std::vector<ushort>(len2 + 1, 0));
 
-        for (size_t i = 0; i <= len1; ++i) dp[i][0] = i;
-        for (size_t j = 0; j <= len2; ++j) dp[0][j] = j;
+        for (ushort i = 0; i <= len1; ++i)
+            dp[i][0] = i;
+        for (ushort j = 0; j <= len2; ++j)
+            dp[0][j] = j;
 
-        for (size_t i = 1; i <= len1; ++i)
-            for (size_t j = 1; j <= len2; ++j)
+        for (ushort i = 1; i <= len1; ++i)
+            for (ushort j = 1; j <= len2; ++j)
                 if (s1[i - 1] == s2[j - 1])
                     dp[i][j] = dp[i - 1][j - 1];
                 else
                     dp[i][j] = std::min({dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]}) + 1;
 
-
         return dp[len1][len2];
     }
 
     // Function to find the closest match
-    std::string find_closest(const std::string& input, const std::vector<std::string>& options) {
-        std::string closest = "", output = "";
-        int minDistance = 2;
+    const std::string find_closest(const std::string &input,
+                             const std::vector<std::string> &options,
+                             ushort min_dist)
+    {
+        std::string closest = "";
+        ushort dist_closest = min_dist;
 
-        for (const std::string& opt : options) {
-            int distance = levenshtein(input, opt);
-            if (distance <= minDistance) {
-                minDistance = distance;
-                closest = opt;
+        for (const std::string &x : options)
+        {
+            ushort distance = levenshtein(input, x);
+            if (distance <= dist_closest)
+            {
+                dist_closest = distance;
+                closest = x;
             }
         }
 
-        if (!closest.empty())
-            output = " Did you mean '" + closest + "'?";
-
-        return output; 
+        // prepare a message
+        if (options.empty())
+            return "";
+        else
+            if (dist_closest == 0) 
+                return "";
+            else if (closest.empty())
+            {
+                std::ostringstream oss;
+                oss << " Available option(s): '" << options[0] << "'"; 
+                    for (size_t i = 1; i < options.size(); ++i)
+                        oss << ", '" << options[i] << "'";
+                oss << ".";
+                return oss.str() ;
+            }
+            else 
+                return " Did you mean '" + closest + "'?";
     }
 } // TOOLS NAMESPACE

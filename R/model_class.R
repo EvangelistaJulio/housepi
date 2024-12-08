@@ -12,6 +12,11 @@
 HouseholdModelClass <- R6::R6Class(
   classname = "HouseholdModelClass",
   cloneable = FALSE,
+
+  ###################
+  ##### PRIVATE #####
+  ###################
+
   private = list(
     rcppmodel = NULL,
     envir_path = NA,
@@ -22,33 +27,40 @@ HouseholdModelClass <- R6::R6Class(
     traces_frame = NULL,
 
     # @description
-    # Check that traces exists, otherwise raise error
-    traces_check = function() {
-      if (is.null(private$traces_frame)) {
-        stop(cli::format_error(c(
-          "No MCMC traces were found.",
-          i = "Be sure to run your inference first."
-        )))
-      }
-    },
-
-    # @description
-    # Associate dataset to the model.
-    # @param dataset (`character(1)` | `data.frame`)\cr
-    # Path to a csv file or a data.frame containing the dataset.
-    # @param verbose (`logical(1)`)\cr
-    # If `TRUE` prints automatic build information.
-    # @param ...
-    # further arguments passed to \code{setup}.
+    # Associate dataset to the model and ptions for the setup.
     build = function(dataset = NULL,
-                     verbose = FALSE,
-                     ...) {
+                     n_steps = 1000,
+                     n_burnin = 0,
+                     thin = 1,
+                     n_adapt = 0,
+                     n_chains = 1,
+                     n_threads = 1,
+                     rnd_init_params = TRUE,
+                     inv_temper = 1.0,
+                     seed = NA,
+                     verbose = FALSE) {
+
       # change scientific notation
       store_scipen <- options()$scipen
       options(scipen = 500)
 
+      # if not developer mode, check definitions
+      if (!private$is_develop_mode) {
+        self$param_check(FALSE)
+        self$augm_check(FALSE)
+      }
+
       #----- 1) SETUP -----#
-      do.call(private$setup_list, list(...))
+      private$setup[["n_steps"]] <- n_steps
+      private$setup[["n_burnin"]] <- n_burnin
+      private$setup[["thin"]] <- thin
+      private$setup[["n_adapt"]] <- n_adapt
+      private$setup[["n_chains"]] <- n_chains
+      private$setup[["n_threads"]] <- n_threads
+      private$setup[["rnd_init_params"]] <- rnd_init_params
+      private$setup[["inv_temper"]] <- inv_temper
+      private$setup[["seed"]] <- seed
+
       setup <- lapply(private$setup[!is.na(private$setup)], as.character)
       private$rcppmodel$import_setup(setup)
       if (isTRUE(verbose)) {
@@ -101,44 +113,14 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     # @description
-    # Setup the list of configurations for the different analysis.
-    # @param seed (`integer(1)`)\cr
-    # Seed of the random number generator.
-    # @param n_steps (`integer(1)`)\cr
-    # Number of iterations.
-    # @param n_burnin (`integer(1)`)\cr
-    # Number of iterations to discard.
-    # @param thin (`integer(1)`)\cr
-    # Name of the parameter.
-    # @param n_chains (`integer(1)`)\cr
-    # Name of the parameter.
-    # @param n_adapt (`integer(1)`)\cr
-    # Name of the parameter.
-    # @param n_threads (`integer(1)`)\cr
-    # Name of the parameter.
-    # @param rnd_init_params (`logical(1)`)\cr
-    # Name of the parameter.
-    # @param inv_temper (`double(1)`)\cr
-    # Name of the parameter.
-    setup_list = function(seed = NA,
-                          n_steps = 1000,
-                          n_burnin = 0,
-                          thin = 1,
-                          n_chains = 1,
-                          n_adapt = 0,
-                          n_threads = 1,
-                          rnd_init_params = TRUE,
-                          inv_temper = 1.0) {
-      private$setup[["seed"]] <- seed
-      private$setup[["n_steps"]] <- n_steps
-      private$setup[["n_burnin"]] <- n_burnin
-      private$setup[["thin"]] <- thin
-      private$setup[["n_chains"]] <- n_chains
-      private$setup[["n_adapt"]] <- n_adapt
-      private$setup[["n_threads"]] <- n_threads
-      private$setup[["rnd_init_params"]] <- rnd_init_params
-      private$setup[["inv_temper"]] <- inv_temper
-      invisible(self)
+    # Check that traces exists, otherwise raise error
+    traces_check = function() {
+      if (is.null(private$traces_frame)) {
+        stop(cli::format_error(c(
+          "No MCMC traces were found.",
+          i = "Be sure to run your inference first."
+        )))
+      }
     }
   ),
 
@@ -147,6 +129,10 @@ HouseholdModelClass <- R6::R6Class(
   ############################################################################
   ############################################################################
   ############################################################################
+
+  ###################
+  ##### PUBLIC #####
+  ###################
 
   public = list(
     #' @description
@@ -218,17 +204,28 @@ HouseholdModelClass <- R6::R6Class(
     #' Estimate the loglikelihood for the given parameters.
     #' @param dataset (`character(1)` | `data.frame`)\cr
     #' Path to a csv file or a data.frame containing the dataset.
+    #' @param n_threads (`integer(1)`)\cr
+    #' Number of threads for the parallelization of the loglikelihood.
+    #' @param rnd_init_params (`logical(1)`)\cr
+    #' If `TRUE` the initial value of parameters is drawn from prior.
+    #' Default is `FALSE`.
+    #' @param inv_temper (`double(1)`)\cr
+    #' Value of the inverse temperature in the range [0, 1].
+    #' For standard usage this is 1.
     #' @param verbose (`logical(1)`)\cr
     #' If `TRUE` prints automatic build information.
-    #' @param ...
-    #' further arguments passed to \code{setup}.
     #' @return (`double(1)`)\cr
     #' The value of the loglikelihood.
     loglikelihood = function(dataset = NULL,
-                             verbose = FALSE,
-                             ...) {
+                             n_threads = 1,
+                             rnd_init_params = FALSE,
+                             inv_temper = 1.0,
+                             verbose = FALSE) {
+
       # internal build function
-      private$build(dataset, verbose, ...)
+      private$build(dataset = dataset, n_threads = n_threads,
+                    rnd_init_params = rnd_init_params,
+                    inv_temper = inv_temper, verbose = verbose)
 
       # evaluate loglikelihood from the internal Rcpp object
       return(private$rcppmodel$evaluate())
@@ -238,24 +235,47 @@ HouseholdModelClass <- R6::R6Class(
     #' Run Bayesian MCMC inference and store internally the chain traces.
     #' @param dataset (`character(1)` | `data.frame`)\cr
     #' Path to a csv file or a data.frame containing the dataset.
+    #' @param n_steps (`integer(1)`)\cr
+    #' Number of MCMC steps.
+    #' @param n_burnin (`integer(1)`)\cr
+    #' Number of steps to discard from the sample.
+    #' @param thin (`integer(1)`)\cr
+    #' Steps discarded between each sample.
+    #' @param n_adapt (`integer(1)`)\cr
+    #' Number of steps with finite adptation before sampling.
+    #' @param n_chains (`integer(1)`)\cr
+    #' Number of independent MCMC chains.
+    #' @param n_threads (`integer(1)`)\cr
+    #' Number of threads for the parallelization of the loglikelihood.
+    #' @param rnd_init_params (`logical(1)`)\cr
+    #' If `TRUE` the initial value of the parameters is drawn from prior.
+    #' @param inv_temper (`double(1)`)\cr
+    #' Value of the inverse temperature.
+    #' For standard usage this is 1.
+    #' @param seed (`integer(1)`)\cr
+    #' Seed of the random number generator.
+    #' If `NA` uses the internal clock (default).
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
     #' @param verbose (`logical(1)`)\cr
     #' If `TRUE` prints automatic build information.
-    #' @param ...
-    #' further arguments passed to \code{setup}.
     infer = function(dataset = NULL,
+                     n_steps = 1000,
+                     n_burnin = 0,
+                     thin = 1,
+                     n_adapt = 0,
+                     n_chains = 1,
+                     n_threads = 1,
+                     rnd_init_params = TRUE,
+                     inv_temper = 1.0,
+                     seed = NA,
                      progress = TRUE,
-                     verbose = FALSE,
-                     ...) {
-
-      if (!private$is_develop_mode) {
-        self$param_check(FALSE)
-        self$augm_check(FALSE)
-      }
-
+                     verbose = FALSE) {
       # internal build function
-      private$build(dataset, verbose, ...)
+      private$build(dataset, n_steps = n_steps, n_burnin = n_burnin,
+                    thin = thin, n_adapt = n_adapt, n_chains = n_chains,
+                    n_threads = n_threads, rnd_init_params = rnd_init_params,
+                    inv_temper = inv_temper, seed = seed, verbose = verbose)
 
       # infer method from cpp model object
       private$rcppmodel$infer(progress)
@@ -325,16 +345,16 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Calls coda version of lattice:xyplot for the traces traces.
+    #' Calls coda wrapper of lattice:xyplot for the traces traces.
     #' @param chain (`integer(1)`)
     #' Option to specifiy which chain to plot if multiple chains.
     #' @param col (`character()`)
     #' Color names.
     #' @param ...
     #' Further arguments pass to [xyplot][lattice::xyplot].
-    traces_plot = function(chain = NA,
-                           col = "dodgerblue",
-                           ...) {
+    traces_xyplot = function(chain = NA,
+                             col = "dodgerblue",
+                             ...) {
       private$traces_check()
       xlab <- "iteration"
 
@@ -357,24 +377,28 @@ HouseholdModelClass <- R6::R6Class(
     #' Run the simulation.
     #' @param dataset (`character(1)` | `data.frame`)\cr
     #' Path to a csv file or a data.frame containing the dataset.
+    #' @param n_threads (`integer(1)`)\cr
+    #' Number of threads for the parallelization of the loglikelihood.
+    #' @param rnd_init_params (`logical(1)`)\cr
+    #' If `TRUE` the initial value of the parameters is drawn from prior.
+    #' Default is `FALSE`.
+    #' @param seed (`integer(1)`)\cr
+    #' Seed of the random number generator.
+    #' If `NA` uses the internal clock (default).
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
     #' @param verbose (`logical(1)`)\cr
     #' If `TRUE` prints automatic build information.
-    #' @param ...
-    #' further arguments passed to \code{setup}.
     simulate = function(dataset = NULL,
+                        n_threads = 1,
+                        rnd_init_params = FALSE,
+                        seed = NA,
                         progress = TRUE,
-                        verbose = FALSE,
-                        ...) {
-
-      if (!private$is_develop_mode) {
-        self$param_check(FALSE)
-        self$augm_check(FALSE)
-      }
-
+                        verbose = FALSE) {
       # internal build function
-      private$build(dataset, verbose, ...)
+      private$build(dataset, n_threads = n_threads,
+                    rnd_init_params = rnd_init_params,
+                    seed = seed, verbose = verbose)
 
       # simulate method from internal Rcpp object
       private$rcppmodel$simulate(progress)
@@ -425,28 +449,50 @@ HouseholdModelClass <- R6::R6Class(
     #' Path to a csv file or a data.frame containing the dataset.
     #' @param n_rungs (`integer`)\cr
     #' The number of rungs in the thermodynamic ladder.
-    #' @param adaptive (`logical(1)`)\cr
-    #' If `TRUE` uses adaptive scheme for thermodynamic ladder.
-    #' Else use power fractions.
+    #' @param scheme (`character(1)`)\cr
+    #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
+    #' Other available scheme is "power-fractions".
+    #' @param n_steps (`integer(1)`)\cr
+    #' Number of MCMC steps.
+    #' @param n_burnin (`integer(1)`)\cr
+    #' Number of steps to discard from the sample.
+    #' @param thin (`integer(1)`)\cr
+    #' Steps discarded between each sample.
+    #' @param n_adapt (`integer(1)`)\cr
+    #' Number of steps with finite adptation before sampling.
+    #' @param n_chains (`integer(1)`)\cr
+    #' Number of independent MCMC chains.
+    #' @param n_threads (`integer(1)`)\cr
+    #' Number of threads for the parallelization of the loglikelihood.
+    #' @param seed (`integer(1)`)\cr
+    #' Seed of the random number generator.
+    #' If `NA` uses the internal clock (default).
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the simulation progress bar.
     #' @param verbose (`logical(1)`)\cr
     #' If `TRUE` prints automatic build information.
-    #' @param ...
-    #' further arguments passed to \code{setup}.
     #' @return (`double(1)`)\cr
     #' The value of the model evidence.
     evidence = function(dataset = NULL,
                         n_rungs = 40,
-                        adaptive = TRUE,
+                        scheme = "adaptive",
+                        n_steps = 1000,
+                        n_burnin = 0,
+                        thin = 1,
+                        n_adapt = 0,
+                        n_chains = 1,
+                        n_threads = 1,
+                        seed = NA,
                         progress = TRUE,
-                        verbose = FALSE,
-                        ...) {
-
+                        verbose = FALSE) {
       # internal build function
-      private$build(dataset, verbose, ...)
+      private$build(dataset, n_steps = n_steps, n_burnin = n_burnin,
+                    thin = thin, n_adapt = n_adapt, n_chains = n_chains,
+                    n_threads = n_threads, rnd_init_params = TRUE,
+                    seed = seed, verbose = verbose)
+
       # evaluate marginal from the internal Rcpp object
-      output <- private$rcppmodel$evaluate_marginal(n_rungs, adaptive, progress)
+      output <- private$rcppmodel$evaluate_marginal(n_rungs, scheme, progress)
       # drop traces
       private$traces_frame <- NULL
 
@@ -613,8 +659,8 @@ HouseholdModelClass <- R6::R6Class(
                         init_rand = FALSE,
                         status = NA) {
       private$augm$add(name = name, value = value, discrete = discrete,
-                       model = model, args = args,
-                       rule = rule, rule_scale = rule_scale, rule_from = rule_from,
+                       model = model, args = args, rule = rule,
+                       rule_scale = rule_scale, rule_from = rule_from,
                        range = range, init_rand = init_rand, status = status)
       invisible(self)
     },

@@ -48,13 +48,13 @@ public:
 
     //===== GETTER =====//
     const std::string &get_name() const;
-    double get_arg(int i) const;
+    double get_arg(ushort i) const;
     bool valid(double x) const;
 
     //===== ARGUMENTS =====//
     void assign_args(const dictargs &new_args_val);
     void assign_args(const dictargs_ptr &new_args_ptr);
-    void set_arg(int i, double new_value);
+    void set_arg(ushort i, double new_value);
 
     //===== SHOW =====//
     const std::string show_arg_names() const;

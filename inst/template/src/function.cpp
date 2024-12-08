@@ -340,8 +340,8 @@ Base_Function::~Base_Function() = default;
 const std::string &Base_Function::get_name() const { return pImpl->_name_; }
 
 //----- ARGUMENTS -----//
-double Base_Function::get_arg(int i) const { return pImpl->get_arg(i); }
-void Base_Function::set_arg(int i, double x) { pImpl->set_arg(i, x); }
+double Base_Function::get_arg(ushort i) const { return pImpl->get_arg(i); }
+void Base_Function::set_arg(ushort i, double x) { pImpl->set_arg(i, x); }
 const std::string Base_Function::show_arg_names() const { return pImpl->show_arg_names(); }
 const std::string Base_Function::show_arg_values() const { return pImpl->show_arg_values(); }
 

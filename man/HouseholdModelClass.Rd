@@ -17,7 +17,7 @@ Compile household model, manage your data and parameters from a single class.
 \item \href{#method-HouseholdModelClass-traces_export}{\code{HouseholdModelClass$traces_export()}}
 \item \href{#method-HouseholdModelClass-traces_crosscorr}{\code{HouseholdModelClass$traces_crosscorr()}}
 \item \href{#method-HouseholdModelClass-traces_summary}{\code{HouseholdModelClass$traces_summary()}}
-\item \href{#method-HouseholdModelClass-traces_plot}{\code{HouseholdModelClass$traces_plot()}}
+\item \href{#method-HouseholdModelClass-traces_xyplot}{\code{HouseholdModelClass$traces_xyplot()}}
 \item \href{#method-HouseholdModelClass-simulate}{\code{HouseholdModelClass$simulate()}}
 \item \href{#method-HouseholdModelClass-data_export}{\code{HouseholdModelClass$data_export()}}
 \item \href{#method-HouseholdModelClass-data_summary}{\code{HouseholdModelClass$data_summary()}}
@@ -93,7 +93,13 @@ Show model description in RStudio Help window.
 \subsection{Method \code{loglikelihood()}}{
 Estimate the loglikelihood for the given parameters.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$loglikelihood(dataset = NULL, verbose = FALSE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$loglikelihood(
+  dataset = NULL,
+  n_threads = 1,
+  rnd_init_params = FALSE,
+  inv_temper = 1,
+  verbose = FALSE
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -102,10 +108,19 @@ Estimate the loglikelihood for the given parameters.
 \item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
 Path to a csv file or a data.frame containing the dataset.}
 
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{rnd_init_params}}{(\code{logical(1)})\cr
+If \code{TRUE} the initial value of parameters is drawn from prior.
+Default is \code{FALSE}.}
+
+\item{\code{inv_temper}}{(\code{double(1)})\cr
+Value of the inverse temperature in the range \link{0, 1}.
+For standard usage this is 1.}
+
 \item{\code{verbose}}{(\code{logical(1)})\cr
 If \code{TRUE} prints automatic build information.}
-
-\item{\code{...}}{further arguments passed to \code{setup}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -122,9 +137,17 @@ Run Bayesian MCMC inference and store internally the chain traces.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$infer(
   dataset = NULL,
+  n_steps = 1000,
+  n_burnin = 0,
+  thin = 1,
+  n_adapt = 0,
+  n_chains = 1,
+  n_threads = 1,
+  rnd_init_params = TRUE,
+  inv_temper = 1,
+  seed = NA,
   progress = TRUE,
-  verbose = FALSE,
-  ...
+  verbose = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -134,13 +157,40 @@ Run Bayesian MCMC inference and store internally the chain traces.
 \item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
 Path to a csv file or a data.frame containing the dataset.}
 
+\item{\code{n_steps}}{(\code{integer(1)})\cr
+Number of MCMC steps.}
+
+\item{\code{n_burnin}}{(\code{integer(1)})\cr
+Number of steps to discard from the sample.}
+
+\item{\code{thin}}{(\code{integer(1)})\cr
+Steps discarded between each sample.}
+
+\item{\code{n_adapt}}{(\code{integer(1)})\cr
+Number of steps with finite adptation before sampling.}
+
+\item{\code{n_chains}}{(\code{integer(1)})\cr
+Number of independent MCMC chains.}
+
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{rnd_init_params}}{(\code{logical(1)})\cr
+If \code{TRUE} the initial value of the parameters is drawn from prior.}
+
+\item{\code{inv_temper}}{(\code{double(1)})\cr
+Value of the inverse temperature.
+For standard usage this is 1.}
+
+\item{\code{seed}}{(\code{integer(1)})\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
+
 \item{\code{progress}}{(\code{logical(1)})\cr
 If \code{FALSE} suppress the inference progress bar.}
 
 \item{\code{verbose}}{(\code{logical(1)})\cr
 If \code{TRUE} prints automatic build information.}
-
-\item{\code{...}}{further arguments passed to \code{setup}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -185,12 +235,12 @@ Export the traces of last inference call as a coda object.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-traces_plot"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-traces_plot}{}}}
-\subsection{Method \code{traces_plot()}}{
-Calls coda version of lattice:xyplot for the traces traces.
+\if{html}{\out{<a id="method-HouseholdModelClass-traces_xyplot"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-traces_xyplot}{}}}
+\subsection{Method \code{traces_xyplot()}}{
+Calls coda wrapper of lattice:xyplot for the traces traces.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$traces_plot(chain = NA, col = "dodgerblue", ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$traces_xyplot(chain = NA, col = "dodgerblue", ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -215,9 +265,11 @@ Run the simulation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$simulate(
   dataset = NULL,
+  n_threads = 1,
+  rnd_init_params = FALSE,
+  seed = NA,
   progress = TRUE,
-  verbose = FALSE,
-  ...
+  verbose = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -227,13 +279,22 @@ Run the simulation.
 \item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
 Path to a csv file or a data.frame containing the dataset.}
 
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{rnd_init_params}}{(\code{logical(1)})\cr
+If \code{TRUE} the initial value of the parameters is drawn from prior.
+Default is \code{FALSE}.}
+
+\item{\code{seed}}{(\code{integer(1)})\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
+
 \item{\code{progress}}{(\code{logical(1)})\cr
 If \code{FALSE} suppress the simulation progress bar.}
 
 \item{\code{verbose}}{(\code{logical(1)})\cr
 If \code{TRUE} prints automatic build information.}
-
-\item{\code{...}}{further arguments passed to \code{setup}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -309,10 +370,16 @@ It uses the method of power posteriors.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$evidence(
   dataset = NULL,
   n_rungs = 40,
-  adaptive = TRUE,
+  scheme = "adaptive",
+  n_steps = 1000,
+  n_burnin = 0,
+  thin = 1,
+  n_adapt = 0,
+  n_chains = 1,
+  n_threads = 1,
+  seed = NA,
   progress = TRUE,
-  verbose = FALSE,
-  ...
+  verbose = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -325,17 +392,37 @@ Path to a csv file or a data.frame containing the dataset.}
 \item{\code{n_rungs}}{(\code{integer})\cr
 The number of rungs in the thermodynamic ladder.}
 
-\item{\code{adaptive}}{(\code{logical(1)})\cr
-If \code{TRUE} uses adaptive scheme for thermodynamic ladder.
-Else use power fractions.}
+\item{\code{scheme}}{(\code{character(1)})\cr
+If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
+Other available scheme is "power-fractions".}
+
+\item{\code{n_steps}}{(\code{integer(1)})\cr
+Number of MCMC steps.}
+
+\item{\code{n_burnin}}{(\code{integer(1)})\cr
+Number of steps to discard from the sample.}
+
+\item{\code{thin}}{(\code{integer(1)})\cr
+Steps discarded between each sample.}
+
+\item{\code{n_adapt}}{(\code{integer(1)})\cr
+Number of steps with finite adptation before sampling.}
+
+\item{\code{n_chains}}{(\code{integer(1)})\cr
+Number of independent MCMC chains.}
+
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{seed}}{(\code{integer(1)})\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
 
 \item{\code{progress}}{(\code{logical(1)})\cr
 If \code{FALSE} suppress the simulation progress bar.}
 
 \item{\code{verbose}}{(\code{logical(1)})\cr
 If \code{TRUE} prints automatic build information.}
-
-\item{\code{...}}{further arguments passed to \code{setup}.}
 }
 \if{html}{\out{</div>}}
 }
