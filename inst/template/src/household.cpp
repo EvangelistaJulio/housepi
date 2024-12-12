@@ -252,16 +252,15 @@ const std::string &Household::ID(indiv i) const { return pImpl->indiv_vector[i].
 int Household::index() const { return pImpl->index; }
 ushort Household::size() const { return pImpl->house_size; }
 
-const std::unordered_map<std::string, std::vector<std::string>> &Household::get_group_rate_map(indiv i) const { return pImpl->indiv_vector[i].get_group_rate_map(); }
 double Household::group_rate(indiv i, const std::string &rateID) const { return pImpl->indiv_vector[i].get_group_rate(rateID); }
 
 const std::string &Household::get_contact_rate_map(indiv from, indiv to) const { return pImpl->_which_rate_[from][to]; }
 double Household::contact_rate(indiv from, indiv to) const { return *pImpl->contact_rates[from][to]; }
 
 int Household::status(indiv i) const { return pImpl->indiv_vector[i].get_status(); }
-double Household::augm(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].get_augm(augmID); }
-double Household::data(indiv i, const std::string &dataID) const { return pImpl->indiv_vector[i].get_data(dataID); }
-const double *Household::data_pointer(indiv i, const std::string &dataID) const { return pImpl->indiv_vector[i].get_data_pointer(dataID); }
+double Household::augm(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].get_augm(a); }
+double Household::data(indiv i, const dataID &d) const { return pImpl->indiv_vector[i].get_data(d); }
+const double *Household::data_pointer(indiv i, const dataID &d) const { return pImpl->indiv_vector[i].get_data_pointer(d); }
 
 ushort Household::n_infectious() const { return pImpl->n_infectious; }
 ushort Household::n_susceptible() const { return pImpl->n_susceptible; }
@@ -274,39 +273,34 @@ const std::set<indiv> &Household::missing_status_set() const { return pImpl->mis
 double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }
 
-double Household::augm_model_logpdf(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_model_logpdf(augmID); }
-double Household::augm_model_logratio(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_model_logratio(augmID); }
-double Household::augm_propose_logratio(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_propose_logratio(augmID); }
-double Household::augm_move_logratio(indiv i, const std::string &augmID) const { return pImpl->indiv_vector[i].augm_move_logratio(augmID); }
+double Household::augm_model_logpdf(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_model_logpdf(a); }
+double Household::augm_model_logratio(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_model_logratio(a); }
+double Household::augm_propose_logratio(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_propose_logratio(a); }
+double Household::augm_move_logratio(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_move_logratio(a); }
 
 //===== SETTER =====//
+
 void Household::disable_assert()
 {
 	for (indiv i = 0; i < size(); ++i)
-	{
 		pImpl->indiv_vector[i].disable_assert();
-	}
 }
 
-void Household::assign_augm(indiv i, const std::string &augmID, double value, bool is_discr,
+void Household::assign_all_group_rates(indiv i, const dict_rates_ptr &group_rate_ptrs) { pImpl->indiv_vector[i].assign_all_group_rates(group_rate_ptrs); }
+
+void Household::assign_augm(indiv i, const augmID &a, double value, bool is_discr,
 							const std::string &model_name, dictargs_ptr model_args_ptr, dictargs range,
 							const std::string &rule_name, double rule_scale, double rule_from)
 {
-	pImpl->indiv_vector[i].assign_augm(augmID, value, is_discr,
+	pImpl->indiv_vector[i].assign_augm(a, value, is_discr,
 									   model_name, model_args_ptr, range,
 									   rule_name, rule_scale, rule_from);
 }
-void Household::set_augm_value(indiv i, const std::string &augmID, double x) { pImpl->indiv_vector[i].set_augm_value(augmID, x); }
-void Household::augm_model_rand(indiv i, const std::string &augmID, sys_rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(augmID, prng); }
-bool Household::propose_valid_augm_move(indiv i, const std::string &augmID, sys_rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(augmID, prng); }
-void Household::restore_augm_value(indiv i, const std::string &augmID) { pImpl->indiv_vector[i].restore_augm_value(augmID); }
-
-void Household::assign_group_rate(indiv i, const std::string &rateID, const std::vector<std::string> &vec_parID) { pImpl->indiv_vector[i].assign_group_rate(rateID, vec_parID); }
-void Household::_set_group_rate(indiv i, const std::string &rateID, const std::vector<const double *> &vec_par_ptr)
-{
-	pImpl->indiv_vector[i].set_group_rate(rateID, vec_par_ptr);
-}
-void Household::clear_augm(indiv i, const std::string &augmID) { pImpl->indiv_vector[i].clear_augm(augmID); }
+void Household::set_augm_value(indiv i, const augmID &a, double x) { pImpl->indiv_vector[i].set_augm_value(a, x); }
+void Household::augm_model_rand(indiv i, const augmID &a, sys_rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(a, prng); }
+bool Household::propose_valid_augm_move(indiv i, const augmID &a, sys_rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(a, prng); }
+void Household::restore_augm_value(indiv i, const augmID &a) { pImpl->indiv_vector[i].restore_augm_value(a); }
+void Household::clear_augm(indiv i, const augmID &a) { pImpl->indiv_vector[i].clear_augm(a); }
 
 //===== DIAGNOSTICS =====//
 
@@ -337,9 +331,7 @@ void Household::_restore_all_extra() { pImpl->restore_all_extra(); }
 void Household::allocate_extra_int(const std::vector<std::string> names, int init_value)
 {
 	for (const std::string &intID : names)
-	{
 		pImpl->extra_int.emplace(intID, init_value);
-	}
 }
 void Household::set_extra_int(const std::string &intID, int new_value)
 {
@@ -354,9 +346,7 @@ int Household::extra_int(const std::string &intID) const
 void Household::allocate_extra_double(const std::vector<std::string> names, double init_value)
 {
 	for (const std::string &dblID : names)
-	{
 		pImpl->extra_double.emplace(dblID, init_value);
-	}
 }
 void Household::set_extra_double(const std::string &dblID, double new_value)
 {
@@ -371,9 +361,7 @@ double Household::extra_double(const std::string &dblID) const
 void Household::allocate_extra_vector(const std::vector<std::string> names, double init_value)
 {
 	for (const std::string &vecID : names)
-	{
 		pImpl->extra_vec.emplace(vecID, std::vector<double>(size(), init_value));
-	}
 }
 void Household::set_extra_vector(const std::string &vecID, size_t i, double new_value)
 {
@@ -391,9 +379,7 @@ const std::vector<double> &Household::extra_vector(const std::string &vecID) con
 void Household::allocate_extra_matrix(const std::vector<std::string> names, double init_value)
 {
 	for (const std::string &mtxID : names)
-	{
 		pImpl->extra_mtx.emplace(mtxID, std::vector<std::vector<double>>(size(), std::vector<double>(size(), init_value)));
-	}
 }
 
 void Household::set_extra_matrix(const std::string &mtxID, size_t from, size_t to, double new_value)

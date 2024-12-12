@@ -38,7 +38,7 @@ public:
 	void simulate_single_house(Household &house) override;
 
 	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Household &house, indiv i) override;
+	dict_rates assign_group_rate_to_individual(Household &house, indiv i) override;
 	void assign_contact_rate_to_household(Household &house, indiv from, indiv to) override;
 };
 

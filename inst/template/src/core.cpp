@@ -150,29 +150,33 @@ std::string Parameter::show_diagnostics() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default functional method to return parameter. */
-double Monte_Carlo_Build::_get_param_default_(const std::string &parID) const
+double Monte_Carlo_Build::_get_param_default_(const parID &p) const
 {
-    return param_map.at(parID).get_value();
+    return param_map.at(p).get_value();
 }
 
 /* Safe method to get a value with previous assertion. */
-double Monte_Carlo_Build::_get_param_assert_(const std::string &parID) const
+double Monte_Carlo_Build::_get_param_assert_(const parID &p) const
 {
-    assert_param(parID);
-    return _get_param_default_(parID);
+    if (assert_param(p))
+        return _get_param_default_(p);
+    else
+        return INF_DOUBLE;
 }
 
 /* Default functional method to return pointer to parameter. */
-const double *Monte_Carlo_Build::_get_param_pointer_default_(const std::string &parID) const
+const double *Monte_Carlo_Build::_get_param_pointer_default_(const parID &p) const
 {
-    return param_map.at(parID).get_pointer();
+    return param_map.at(p).get_pointer();
 }
 
 /* Safe method to get a pointer to a parameter with previous assertion. */
-const double *Monte_Carlo_Build::_get_param_pointer_assert_(const std::string &parID) const
+const double *Monte_Carlo_Build::_get_param_pointer_assert_(const parID &p) const
 {
-    assert_param(parID);
-    return _get_param_pointer_default_(parID);
+    if (assert_param(p))
+        return _get_param_pointer_default_(p);
+    else
+        return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,23 +184,23 @@ const double *Monte_Carlo_Build::_get_param_pointer_assert_(const std::string &p
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a new parameter to the dictionary. */
-void Monte_Carlo_Build::assign_param(const std::string &parID, const Parameter &new_param)
+void Monte_Carlo_Build::assign_param(const parID &p, const Parameter &new_param)
 {
     // create the new parameter if it's not already defined
-    if (param_map.find(parID) != param_map.end())
+    if (param_map.find(p) != param_map.end())
         throw std::invalid_argument(
-            "Parameter '" + parID + "' has multiple definitions.");
+            "Parameter '" + p + "' has multiple definitions.");
     else
     {
         // emplace the new parameter
-        param_map.emplace(parID, new_param);
+        param_map.emplace(p, new_param);
 
         // update the lists of parameters to be inferred, and these to be static
         if (new_param.get_infer())
-            param_to_be_inferred.push_back(parID);
+            param_to_be_inferred.push_back(p);
 
         else
-            param_to_be_static.push_back(parID);
+            param_to_be_static.push_back(p);
     }
 }
 
@@ -272,37 +276,41 @@ void Monte_Carlo_Build::set_prng_seed(int seed)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the given parameter is defined, otherwise raise error. */
-void Monte_Carlo_Build::assert_param(const std::string &parID) const
+bool Monte_Carlo_Build::assert_param(const parID &p) const
 {
-    if (param_map.find(parID) == param_map.end())
+    if (param_map.find(p) == param_map.end())
         throw std::invalid_argument(
-            "Parameter '" + parID + "' not found. Check your model and parameter definitions.");
+            "Parameter '" + p + "' not found. Check your model and parameter definitions.");
+    else
+        return true;
+    
+    return false;
 }
 
 /* Wrapper of functional method to return the parameter value. */
-double Monte_Carlo_Build::get_param(const std::string &parID) const
+double Monte_Carlo_Build::get_param(const parID &p) const
 {
-    return (this->*_func_get_param_)(parID);
+    return (this->*_func_get_param_)(p);
 }
 
 /* Wrapper of functional method to return a pointer to the parameter. */
-const double *Monte_Carlo_Build::get_param_pointer(const std::string &parID) const
+const double *Monte_Carlo_Build::get_param_pointer(const parID &p) const
 {
-    return (this->*_func_get_param_pointer_)(parID);
+    return (this->*_func_get_param_pointer_)(p);
 }
 
 /* Getter for the infer attribute of parameter (mutable/constant). */
-bool Monte_Carlo_Build::get_infer(const std::string &parID) const
+bool Monte_Carlo_Build::get_infer(const parID &p) const
 {
-    return param_map.at(parID).get_infer();
+    return param_map.at(p).get_infer();
 }
 
 /* Randomly initialize values of the parameters to be inferred */
 void Monte_Carlo_Build::init_rand_params()
 {
     if (setup_rnd_init_params)
-        for (const std::string &parID : param_to_be_inferred)
-            param_map.at(parID).rand(prng);
+        for (const parID &p : param_to_be_inferred)
+            param_map.at(p).rand(prng);
 
     else if (_is_undef_params_)
         throw std::invalid_argument(
@@ -312,8 +320,8 @@ void Monte_Carlo_Build::init_rand_params()
 /* Set accept rates to zero. */
 void Monte_Carlo_Build::init_move_counts()
 {
-    for (const std::string &parID : param_to_be_inferred)
-        param_map.at(parID).reset_accept_rate();
+    for (const parID &p : param_to_be_inferred)
+        param_map.at(p).reset_accept_rate();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -323,17 +331,17 @@ void Monte_Carlo_Build::init_move_counts()
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
 // FIXME : Gibbs sampling is missing here!
 // 1) always valid 2) move_logratio == 0
-bool Monte_Carlo_Build::propose_valid_param_move(const std::string &parID)
+bool Monte_Carlo_Build::propose_valid_param_move(const parID &p)
 {
     bool output = true;
 
     // set new value of the parameter and store the old to buffer
-    param_map.at(parID).propose(prng);
+    param_map.at(p).propose(prng);
 
     // restore buffer if not valid move
-    if (!param_map.at(parID).valid_move())
+    if (!param_map.at(p).valid_move())
     {
-        restore_param_value(parID);
+        restore_param_value(p);
         output = false;
     }
 
@@ -341,27 +349,27 @@ bool Monte_Carlo_Build::propose_valid_param_move(const std::string &parID)
 }
 
 /* Restore the parameter value in the buffer. */
-void Monte_Carlo_Build::restore_param_value(const std::string &parID)
+void Monte_Carlo_Build::restore_param_value(const parID &p)
 {
-    param_map.at(parID).restore_value();
+    param_map.at(p).restore_value();
 }
 
 /* Update the acceptance rate of the paramter. */
-void Monte_Carlo_Build::update_param_accept_rate(const std::string &parID, bool is_accepted)
+void Monte_Carlo_Build::update_param_accept_rate(const parID &p, bool is_accepted)
 {
-    param_map.at(parID).update_accept_rate(is_accepted);
+    param_map.at(p).update_accept_rate(is_accepted);
 }
 
 /* Metropolis logratio associate to the current move. */
-double Monte_Carlo_Build::param_move_logratio(const std::string &parID) const
+double Monte_Carlo_Build::param_move_logratio(const parID &p) const
 {
-    return param_map.at(parID).get_move_logratio();
+    return param_map.at(p).get_move_logratio();
 }
 
 /* Adapt the parameter Metropolis move. */
-void Monte_Carlo_Build::adapt_param_rule(const std::string &parID, double ratio)
+void Monte_Carlo_Build::adapt_param_rule(const parID &p, double ratio)
 {
-    param_map.at(parID).adapt_rule(ratio);
+    param_map.at(p).adapt_rule(ratio);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -550,70 +558,70 @@ void Monte_Carlo_Build::build_params()
             param_to_be_inferred.clear();
 
             //===== Load parameters from the row with options =====//
-            for (size_t p = 0; p < table_length; ++p)
+            for (size_t k = 0; k < table_length; ++k)
             {
-                std::string parID = _param_deftable_.at("name")[p];
+                parID p = _param_deftable_.at("name")[k];
                 double value = INF_DOUBLE;
 
                 // add entry to shared parameter dictionary
-                if (tools::stobool(_param_deftable_.at("infer")[p]))
+                if (tools::stobool(_param_deftable_.at("infer")[k]))
                 {
                     // load is discrete
                     bool is_discr = false;
-                    if (!tools::is_na(_param_deftable_.at("discrete")[p]))
-                        is_discr = tools::stobool(_param_deftable_.at("discrete")[p]);
+                    if (!tools::is_na(_param_deftable_.at("discrete")[k]))
+                        is_discr = tools::stobool(_param_deftable_.at("discrete")[k]);
 
                     // load value
-                    if (tools::is_na(_param_deftable_.at("value")[p]))
+                    if (tools::is_na(_param_deftable_.at("value")[k]))
                     {
                         _is_undef_params_ = true;
                         if (!setup_rnd_init_params)
                             throw std::invalid_argument(
-                                "Undefined value without random initialization for parameter to infer '" + parID + "'.");
+                                "Undefined value without random initialization for parameter to infer '" + p + "'.");
                     }
                     else
                     {
-                        value = tools::stod(_param_deftable_.at("value")[p], "parameter");
+                        value = tools::stod(_param_deftable_.at("value")[k], "parameter");
                     }
 
                     // load range
                     dictargs range = {};
-                    if (!tools::is_na(_param_deftable_.at("min")[p]))
-                        range.emplace("min", tools::stod(_param_deftable_.at("min")[p], "parameter minimum"));
+                    if (!tools::is_na(_param_deftable_.at("min")[k]))
+                        range.emplace("min", tools::stod(_param_deftable_.at("min")[k], "parameter minimum"));
 
-                    if (!tools::is_na(_param_deftable_.at("max")[p]))
-                        range.emplace("max", tools::stod(_param_deftable_.at("max")[p], "parameter maximum"));
+                    if (!tools::is_na(_param_deftable_.at("max")[k]))
+                        range.emplace("max", tools::stod(_param_deftable_.at("max")[k], "parameter maximum"));
 
                     // load rule scale
                     double rule_scale = INF_DOUBLE;
-                    if (!tools::is_na(_param_deftable_.at("rule_scale")[p]))
-                        rule_scale = tools::stod(_param_deftable_.at("rule_scale")[p]);
+                    if (!tools::is_na(_param_deftable_.at("rule_scale")[k]))
+                        rule_scale = tools::stod(_param_deftable_.at("rule_scale")[k]);
 
                     // assign parameter to the set of variables
                     Parameter new_param(
-                        parID,
+                        p,
                         value,
                         is_discr,
-                        _param_deftable_.at("prior")[p],
-                        merge_list_args(_param_deftable_.at("args")[p],
-                                        _param_deftable_.at("argsval")[p]),
+                        _param_deftable_.at("prior")[k],
+                        merge_list_args(_param_deftable_.at("args")[k],
+                                        _param_deftable_.at("argsval")[k]),
                         range,
-                        _param_deftable_.at("rule")[p],
+                        _param_deftable_.at("rule")[k],
                         rule_scale);
-                    assign_param(parID, new_param);
+                    assign_param(p, std::move(new_param));
                 }
                 else
                 {
                     // assign immutable parameter to the set of variables
                     // load value
-                    if (tools::is_na(_param_deftable_.at("value")[p]))
+                    if (tools::is_na(_param_deftable_.at("value")[k]))
                         throw std::invalid_argument(
-                            "Undefined value for immutable parameter '" + parID + "'.");
+                            "Undefined value for immutable parameter '" + p + "'.");
                     else
-                        value = tools::stod(_param_deftable_.at("value")[p], "parameter");
+                        value = tools::stod(_param_deftable_.at("value")[k], "parameter");
 
-                    Parameter new_param(parID, value);
-                    assign_param(parID, new_param);
+                    Parameter new_param(p, value);
+                    assign_param(p, std::move(new_param));
                 }
             }
         }
@@ -654,9 +662,9 @@ double Monte_Carlo_Build::uniform()
 }
 
 /* String with parameter definitions at the current state. */
-std::string Monte_Carlo_Build::show_param(const std::string &parID) const
+std::string Monte_Carlo_Build::show_param(const parID &p) const
 {
-    return parID + C_DELIM + param_map.at(parID).show();
+    return p + C_DELIM + param_map.at(p).show();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -704,11 +712,11 @@ void Monte_Carlo_Build::show_all_params() const
 
     oss << "\n";
 
-    for (const std::string &parID : param_to_be_inferred)
-        oss << show_param(parID) << "\n";
+    for (const parID &p : param_to_be_inferred)
+        oss << show_param(p) << "\n";
 
-    for (const std::string &parID : param_to_be_static)
-        oss << show_param(parID) << "\n";
+    for (const parID &p : param_to_be_static)
+        oss << show_param(p) << "\n";
 
     tools::print_stdout(oss.str());
 }
@@ -728,8 +736,8 @@ void Monte_Carlo_Build::show_results() const
 
     oss << "\n";
 
-    for (const std::string &parID : param_to_be_inferred)
-        oss << parID << C_DELIM << param_map.at(parID).show_diagnostics() << "\n";
+    for (const parID &p : param_to_be_inferred)
+        oss << p << C_DELIM << param_map.at(p).show_diagnostics() << "\n";
 
     tools::print_stdout(oss.str());
 }
@@ -760,8 +768,8 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
             inferstate_ofstream << "loglikelihood";
 
             // header parameters
-            for (const std::string &parID : param_to_be_inferred)
-                inferstate_ofstream << C_DELIM << parID;
+            for (const parID &p : param_to_be_inferred)
+                inferstate_ofstream << C_DELIM << p;
 
             // header chain
             if (setup_n_chains > 1)
@@ -781,9 +789,9 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
                     inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
 
                     // print parameter values
-                    for (const std::string &parID : param_to_be_inferred)
+                    for (const parID &p : param_to_be_inferred)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
-                                            << std::fixed << param_map.at(parID).dgn_value[i];
+                                            << std::fixed << param_map.at(p).dgn_value[i];
 
                     // print which chain
                     if (setup_n_chains > 1)
@@ -874,7 +882,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_params() const
 {
     using namespace Rcpp;
 
-    std::vector<std::string> V_names = {};
+    std::vector<parID> V_names = {};
 
     if (!param_to_be_inferred.empty())
         V_names.insert(V_names.end(), param_to_be_inferred.begin(), param_to_be_inferred.end());
@@ -886,9 +894,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_params() const
 
     // check if not empty
     if (V_names.empty())
-    {
         tools::error("No parameters to be exported.");
-    }
 
     // pre-allocate memory
     NumericVector V_value(n_rows), V_min(n_rows), V_max(n_rows);
@@ -899,20 +905,20 @@ Rcpp::DataFrame Monte_Carlo_Build::export_params() const
     // fill datafrane columns
     for (size_t c = 0; c < n_rows; ++c)
     {
-        std::string parID = V_names[c];
-        V_value[c] = get_param(parID);
-        V_infer[c] = get_infer(parID);
+        parID p = V_names[c];
+        V_value[c] = get_param(p);
+        V_infer[c] = get_infer(p);
 
-        V_prior[c] = stoRString(param_map.at(parID).show_distr_name());
-        V_args[c] = stoRString(param_map.at(parID).show_distr_arg_names());
-        V_argsval[c] = stoRString(param_map.at(parID).show_distr_arg_values());
+        V_prior[c] = stoRString(param_map.at(p).show_distr_name());
+        V_args[c] = stoRString(param_map.at(p).show_distr_arg_names());
+        V_argsval[c] = stoRString(param_map.at(p).show_distr_arg_values());
 
-        V_rule[c] = stoRString(param_map.at(parID).show_prop_name());
-        V_rule_args[c] = stoRString(param_map.at(parID).show_prop_arg_names());
-        V_rule_argsval[c] = stoRString(param_map.at(parID).show_prop_arg_values());
+        V_rule[c] = stoRString(param_map.at(p).show_prop_name());
+        V_rule_args[c] = stoRString(param_map.at(p).show_prop_arg_names());
+        V_rule_argsval[c] = stoRString(param_map.at(p).show_prop_arg_values());
 
-        const std::string min_val = param_map.at(parID).show_range_min();
-        const std::string max_val = param_map.at(parID).show_range_max();
+        const std::string min_val = param_map.at(p).show_range_min();
+        const std::string max_val = param_map.at(p).show_range_max();
         V_min[c] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
         V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
     }
@@ -931,8 +937,8 @@ Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
     DataFrame output = DataFrame::create(
         _["loglikelihood"] = wrap(dgn_glob_loglike));
 
-    for (const std::string &parID : param_to_be_inferred)
-        output.push_back(wrap(param_map.at(parID).dgn_value), parID);
+    for (const parID &p : param_to_be_inferred)
+        output.push_back(wrap(param_map.at(p).dgn_value), p);
 
     // retrieve chain identities
     if (setup_n_chains > 1)

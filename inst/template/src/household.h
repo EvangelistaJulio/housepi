@@ -63,14 +63,12 @@ public:
 	//===== INDIVIDUAL =====//
 
 	//----- Individual : Setter -----//
-	void assign_group_rate(indiv i, const std::string &rateID, const std::vector<std::string> &vec_parID);
-	void _set_group_rate(indiv i, const std::string &rateID, const std::vector<const double *> &vec_par_ptr);
+	void assign_all_group_rates(indiv i, const dict_rates_ptr &group_rate_ptrs);
 
 	//----- Individual : Getter -----//
 	const std::string &ID(indiv i) const;
-	double data(indiv i, const std::string &dataID) const;
-	const double *data_pointer(indiv i, const std::string &dataID) const;
-	const std::unordered_map<std::string, std::vector<std::string>> &get_group_rate_map(indiv i) const;
+	double data(indiv i, const dataID &d) const;
+	const double *data_pointer(indiv i, const dataID &d) const;
 	double group_rate(indiv i, const std::string &rateID) const;
 	int status(indiv i) const;
 
@@ -81,7 +79,7 @@ public:
 
 	//----- Augmented : Setter -----//
 	void assign_augm(indiv i,
-					 const std::string &augmID = UNDEFINED,
+					 const augmID &a = UNDEFINED,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discr = false,
 					 const std::string &model_name = UNDEFINED,
@@ -90,18 +88,18 @@ public:
 					 const std::string &rule_name = UNDEFINED,
 					 double rule_scale = INF_DOUBLE, 
 					 double rule_from = INF_DOUBLE);
-	void set_augm_value(indiv i, const std::string &augmID, double x);
-	void augm_model_rand(indiv i, const std::string &augmID, sys_rnd_gen &prng);
-	bool propose_valid_augm_move(indiv i, const std::string &augmID, sys_rnd_gen &prng);
-	void restore_augm_value(indiv i, const std::string &augmID);
-	void clear_augm(indiv i, const std::string &augmID);
+	void set_augm_value(indiv i, const augmID &a, double x);
+	void augm_model_rand(indiv i, const augmID &a, sys_rnd_gen &prng);
+	bool propose_valid_augm_move(indiv i, const augmID &a, sys_rnd_gen &prng);
+	void restore_augm_value(indiv i, const augmID &a);
+	void clear_augm(indiv i, const augmID &a);
 
 	//----- Augmented : Getter -----//
-	double augm(indiv i, const std::string &augmID) const;
-	double augm_model_logpdf(indiv i, const std::string &augmID) const;
-	double augm_model_logratio(indiv i, const std::string &augmID) const;
-	double augm_propose_logratio(indiv i, const std::string &augmID) const;
-	double augm_move_logratio(indiv i, const std::string &augmID) const;
+	double augm(indiv i, const augmID &a) const;
+	double augm_model_logpdf(indiv i, const augmID &a) const;
+	double augm_model_logratio(indiv i, const augmID &a) const;
+	double augm_propose_logratio(indiv i, const augmID &a) const;
+	double augm_move_logratio(indiv i, const augmID &a) const;
 
 	//===== EXTRA ATTRIBUTES =====//
 	void _buffer_all_extra();

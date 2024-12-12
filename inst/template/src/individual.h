@@ -40,28 +40,26 @@ public:
 	//===== SETTER =====//
 	void set_status(int s);
 	void disable_assert();
-	void set_group_rate(const std::string &rateID, const std::vector<const double *> vec_par_ptr);
-	void assign_group_rate(const std::string &rateID, const std::vector<std::string> &vec_parID);
+	void assign_all_group_rates(const dict_rates_ptr &group_rate_ptrs);
 
 	//===== GETTER =====//
 	const std::string &get_ID() const;
 	int get_status() const;
-	double get_data(const std::string &dataID) const;
-	const double *get_data_pointer(const std::string &dataID) const;
+	double get_data(const dataID &d) const;
+	const double *get_data_pointer(const dataID &d) const;
 	double get_group_rate(const std::string &rateID) const;
-	const std::unordered_map<std::string, std::vector<std::string>> &get_group_rate_map() const;
 
 	//===== AUGMENTED VARIABLES =====//
 
 	//---- Getter -----//
-	double get_augm(const std::string &augmID) const;
-	double augm_model_logpdf(const std::string &augmID) const;
-	double augm_model_logratio(const std::string &augmID) const;
-	double augm_propose_logratio(const std::string &augmID) const;
-	double augm_move_logratio(const std::string &augmID) const;
+	double get_augm(const augmID &a) const;
+	double augm_model_logpdf(const augmID &a) const;
+	double augm_model_logratio(const augmID &a) const;
+	double augm_propose_logratio(const augmID &a) const;
+	double augm_move_logratio(const augmID &a) const;
 
 	//---- Setter -----//
-	void assign_augm(const std::string &augmID = UNDEFINED,
+	void assign_augm(const augmID &a = UNDEFINED,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discr = false,
 					 const std::string &model_name = UNDEFINED, 
@@ -70,11 +68,11 @@ public:
 					 const std::string &rule_name = UNDEFINED, 
 					 double rule_scale = INF_DOUBLE, 
 					 double rule_from = INF_DOUBLE);
-	void set_augm_value(const std::string &augmID, double x);
-	void augm_model_rand(const std::string &augmID, sys_rnd_gen &prng);
-	bool propose_valid_augm_move(const std::string &augmID, sys_rnd_gen &prng);
-	void restore_augm_value(const std::string &augmID);
-	void clear_augm(const std::string &augmID);
+	void set_augm_value(const augmID &a, double x);
+	void augm_model_rand(const augmID &a, sys_rnd_gen &prng);
+	bool propose_valid_augm_move(const augmID &a, sys_rnd_gen &prng);
+	void restore_augm_value(const augmID &a);
+	void clear_augm(const augmID &a);
 
 private:
 	std::string ID = UNDEFINED; // user ID
@@ -82,30 +80,29 @@ private:
 	dictargs data = {};			// database associated to individual
 
 	std::unordered_map<std::string, std::vector<const double *>> rate_ptr = {};
-	std::unordered_map<std::string, std::vector<std::string>> _which_rate_ = {};
 	std::unordered_map<std::string, Base_Variable> augm_map = {};
 
 	//===== Auxxiliary Assert =====//
-	void assert_data(const std::string &dataID) const;
-	void assert_augm(const std::string &augmID) const;
+	bool assert_data(const dataID &d) const;
+	bool assert_augm(const augmID &a) const;
 
 	//===== Setter (auxiliary methods) =====//
 	void (Individual::*_func_set_augm_)(const std::string &, double) = &Individual::_set_augm_assert_;
-	void _set_augm_assert_(const std::string &augmID, double new_value);
-	void _set_augm_default_(const std::string &augmID, double new_value);
+	void _set_augm_assert_(const augmID &a, double new_value);
+	void _set_augm_default_(const augmID &a, double new_value);
 
 	//===== Getter (auxiliary methods) =====//
 	double (Individual::*_func_get_augm_)(const std::string &) const = &Individual::_get_augm_assert_;
-	double _get_augm_assert_(const std::string &augmID) const;
-	double _get_augm_default_(const std::string &augmID) const;
+	double _get_augm_assert_(const augmID &a) const;
+	double _get_augm_default_(const augmID &a) const;
 
 	double (Individual::*_func_get_data_)(const std::string &) const = &Individual::_get_data_assert_;
-	double _get_data_assert_(const std::string &dataID) const;
-	double _get_data_default_(const std::string &dataID) const;
+	double _get_data_assert_(const dataID &d) const;
+	double _get_data_default_(const dataID &d) const;
 
 	const double *(Individual::*_func_get_data_pointer_)(const std::string &) const = &Individual::_get_data_pointer_assert_;
-	const double *_get_data_pointer_assert_(const std::string &dataID) const;
-	const double *_get_data_pointer_default_(const std::string &dataID) const;
+	const double *_get_data_pointer_assert_(const dataID &d) const;
+	const double *_get_data_pointer_default_(const dataID &d) const;
 };
 
 #endif // HOUSEPI__INDIVIDUAL__H

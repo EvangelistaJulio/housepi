@@ -22,6 +22,5 @@
 #' @field export_loglike_matrix Return matrix with loglikelihood values.
 #' @field show_full_build Show all build messages.
 #' @field show_summary Show a summary of the current database.
-#' @field show_group_classes Show the group classes.
 NULL
 

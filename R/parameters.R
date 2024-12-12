@@ -218,8 +218,9 @@ HousepiParameterClass <- R6::R6Class(
         matches <- stringr::str_match_all(script, regular_expr)
         model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
 
-        # param from : assign_group_rate(, , "string"
-        regular_expr <- 'assign_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        # param from : vec_parID.emplace_back("string"
+        # UPDATE: need for smtg more solid here
+        regular_expr <- 'vec_parID.emplace_back\\s*\\(\\s*["\'](.*?)["\']'
         matches <- stringr::str_match_all(script, regular_expr)
         model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
 

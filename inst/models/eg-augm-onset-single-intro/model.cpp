@@ -19,28 +19,47 @@
 //------------------------------------------- || ------------------------------------------------//
 //------------------------------------------- \/ ------------------------------------------------//
 
-/* [CHANGE-ME] Assign the parameters controlling infectivity for each individual. */
-void Model::assign_group_rate_to_individual(Household &house, indiv i)
+/* [CHANGE-ME] Time of infection */
+double Model::transmission_rate(const Household &house) const
 {
-	std::string rateID;
+	return param("beta") * pow(param("size_ref") / house.size(), param("gamma"));
+}
+
+//------------------------------------------- /\ ------------------------------------------------//
+//------------------------------------------- || ------------------------------------------------//
+//------------------------------------------- || ------------------------------------------------//
+//------------------------------------------- || ------------------------------------------------//
+//---------------------------------------- CHANGE-ME --------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Assign all group rates for each individual. */
+dict_rates Model::assign_group_rate_to_individual(Household &house, indiv i)
+{
+	dict_rates output = {};
+	std::vector<std::string> vec_parID = {};
+
 	bool is_not_vacc = (house.data(i, "vacc_status") == 0);
 
 	//===== Infectivity =====//
-	rateID = "Infectivity";
+	vec_parID.clear();
 	if (is_not_vacc)
-		house.assign_group_rate(i, rateID, REFERENCE);
+		vec_parID.emplace_back(REFERENCE);
 	else
-		house.assign_group_rate(i, rateID, "inf_vacc");
+		vec_parID.emplace_back("inf_vacc");
+	output.emplace("Infectivity", vec_parID);
 
 	//===== Susceptibility =====//
-	rateID = "Susceptibility";
+	vec_parID.clear();
 	if (is_not_vacc)
-		house.assign_group_rate(i, rateID, REFERENCE);
+		vec_parID.emplace_back(REFERENCE);
 	else
-		house.assign_group_rate(i, "Susceptibility", "sus_vacc");
+		vec_parID.emplace_back("sus_vacc");
+	output.emplace("Susceptibility", vec_parID);
+
+	return output;
 }
 
-/* [CHANGE-ME] Assign the contact patterns between a couple of individuals. */
+/* Assign the contact patterns between a couple of individuals. */
 void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
 	// child if younger than 'child_age'; adult otherwise
@@ -59,19 +78,6 @@ void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv
 	else
 		house.assign_contact_rate(from, to, "cont_child_child");
 }
-
-/* [CHANGE-ME] Time of infection */
-double Model::transmission_rate(const Household &house) const
-{
-	return param("beta") * pow(param("size_ref") / house.size(), param("gamma"));
-}
-
-//------------------------------------------- /\ ------------------------------------------------//
-//------------------------------------------- || ------------------------------------------------//
-//------------------------------------------- || ------------------------------------------------//
-//------------------------------------------- || ------------------------------------------------//
-//---------------------------------------- CHANGE-ME --------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  Model : initialization for simulation  ///////////////////////////

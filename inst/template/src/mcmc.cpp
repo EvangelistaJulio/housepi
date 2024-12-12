@@ -7,9 +7,6 @@
 #include "mcmc.h"
 #include "build.h"
 
-using std::string;
-using std::vector;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -17,9 +14,9 @@ using std::vector;
 MCMC::MCMC() : pBuild(std::make_unique<Monte_Carlo_Build>()) {}
 MCMC::~MCMC() = default;
 
-void MCMC::read_setup(const string &pathtofile) { pBuild->read_setup(pathtofile); }
-void MCMC::read_params(const string &pathtofile) { pBuild->read_params(pathtofile); }
-void MCMC::read_augm(const string &pathtofile) { pBuild->read_augm(pathtofile); }
+void MCMC::read_setup(const std::string &pathtofile) { pBuild->read_setup(pathtofile); }
+void MCMC::read_params(const std::string &pathtofile) { pBuild->read_params(pathtofile); }
+void MCMC::read_augm(const std::string &pathtofile) { pBuild->read_augm(pathtofile); }
 
 #ifdef _HOUSEPI_RCPP
 //===== Rcpp IMPORTS =====//
@@ -36,8 +33,8 @@ Rcpp::NumericMatrix MCMC::export_loglike_matrix() const { return pBuild->export_
 #endif
 
 //===== C++ PRINT =====//
-void MCMC::print_infer_state(const string &pathtofile) const { pBuild->print_infer_state(pathtofile); }
-void MCMC::print_augm_variables(const string &pathtofile) const { pBuild->print_augm_variables(pathtofile); }
+void MCMC::print_infer_state(const std::string &pathtofile) const { pBuild->print_infer_state(pathtofile); }
+void MCMC::print_augm_variables(const std::string &pathtofile) const { pBuild->print_augm_variables(pathtofile); }
 
 //===== SHOW =====//
 void MCMC::show_full_build() const { pBuild->show_full_build(); }
@@ -46,57 +43,49 @@ void MCMC::show_summary() const { pBuild->show_summary(); }
 
 //===== DATA =====//
 size_t MCMC::n_houses() const { return pBuild->n_households; }
-size_t MCMC::report_data(const string &key) const { return pBuild->report_data(key); }
+size_t MCMC::report_data(const std::string &key) const { return pBuild->report_data(key); }
 double MCMC::uniform() { return pBuild->uniform(); }
 
 //===== AUGMENTED =====//
-double MCMC::param(const string &parID) const { return pBuild->get_param(parID); }
-const double *MCMC::param_pointer(const string &parID) const { return pBuild->get_param_pointer(parID); }
+double MCMC::param(const parID &p) const { return pBuild->get_param(p); }
+const double *MCMC::param_pointer(const parID &p) const { return pBuild->get_param_pointer(p); }
 void MCMC::assign_all_augm(Household &house, indiv i) { pBuild->assign_all_augm(house, i); }
 void MCMC::clear_all_augm(Household &house, indiv i) { pBuild->clear_all_augm(house, i); }
 
 //===== EXTRA ATTRIBUTES =====//
 
-void MCMC::assign_extra_integer_to_all_houses(const vector<string> &names, int init_value)
+void MCMC::assign_extra_integer_to_all_houses(const std::vector<std::string> &names, int init_value)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-    {
         pBuild->house_vector[H].allocate_extra_int(names, init_value);
-    }
 }
-void MCMC::assign_extra_double_to_all_houses(const vector<string> &names, double init_value)
+void MCMC::assign_extra_double_to_all_houses(const std::vector<std::string> &names, double init_value)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-    {
         pBuild->house_vector[H].allocate_extra_double(names, init_value);
-    }
 }
-void MCMC::assign_extra_vector_to_all_houses(const vector<string> &names, double init_value)
+void MCMC::assign_extra_vector_to_all_houses(const std::vector<std::string> &names, double init_value)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-    {
         pBuild->house_vector[H].allocate_extra_vector(names, init_value);
-    }
 }
-void MCMC::assign_extra_matrix_to_all_houses(const vector<string> &names, double init_value)
+void MCMC::assign_extra_matrix_to_all_houses(const std::vector<std::string> &names, double init_value)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-    {
         pBuild->house_vector[H].allocate_extra_matrix(names, init_value);
-    }
 }
 
 //===== INFECTIVITY PROFILE =====//
-void MCMC::assign_infectivity_profile(const string &name)
+void MCMC::assign_infectivity_profile(const std::string &name)
 {
     _infec_profile_ = infectivity_profile_switchboard(name);
 }
-double MCMC::infec_profile_inst(double serial, const vector<double> &x)
+double MCMC::infec_profile_inst(double serial, const std::vector<double> &x)
 {
     return _infec_profile_->pdf(serial, x);
 }
 
-double MCMC::infec_profile_cumul(double serial, const vector<double> &x)
+double MCMC::infec_profile_cumul(double serial, const std::vector<double> &x)
 {
     return _infec_profile_->cdf(serial, x);
 }
@@ -127,10 +116,12 @@ double MCMC::compute_house_loglike(Household &house) const
 };
 
 /* Assign group rate to an individual  */
-void MCMC::assign_group_rate_to_individual(Household &house, indiv i)
+dict_rates MCMC::assign_group_rate_to_individual(Household &house, indiv i)
 {
     UNUSED(house);
     UNUSED(i);
+
+    return {};
 }
 
 /* Assign the contact patterns between a couple of individuals. */
@@ -151,9 +142,9 @@ void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read data file and then run assignment. */
-void MCMC::read_data(const string &pathtofile)
+void MCMC::read_data(const std::string &pathtofile)
 {
-    std::map<string, vector<string>> datatable = {};
+    std::map<std::string, std::vector<std::string>> datatable = {};
     tools::read_csv_table(pathtofile, datatable);
     build_data(datatable);
 
@@ -168,18 +159,16 @@ void MCMC::read_data(const string &pathtofile)
 /* Import data from R DataFrame and run build. */
 void MCMC::import_data(const Rcpp::DataFrame &data)
 {
-    std::map<string, vector<string>> datatable = {};
+    std::map<std::string, std::vector<std::string>> datatable = {};
     tools::rdataframe_to_map(data, datatable);
     build_data(datatable);
     if (pBuild->_report_pathtofile_.find("data") != pBuild->_report_pathtofile_.end())
-    {
         pBuild->_report_pathtofile_.erase("data");
-    }
 }
 #endif
 
 /* Assign data after pre-processing. */
-void MCMC::build_data(const std::map<string, vector<string>> &datatable)
+void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &datatable)
 {
     try
     {
@@ -187,72 +176,56 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
         {
             // If nothing was previously defined
             if (pBuild->house_vector.empty())
-            {
                 throw std::length_error("No database was found.");
-            }
         }
         else
         {
             //=====  Drop all Previous Data and Prepare for New  =====//
             pBuild->data_headers.clear();
             for (const auto &x : datatable)
-            {
                 pBuild->data_headers.push_back(x.first);
-            }
             pBuild->n_individuals = datatable.at(pBuild->data_headers[0]).size();
             pBuild->n_households = 0;
             pBuild->house_vector.clear();
 
             //===== Assess the presence of house IDs =====//
             if (std::find(pBuild->data_headers.begin(), pBuild->data_headers.end(), "house_id") == pBuild->data_headers.end())
-            {
                 tools::warning(
                     "Unknown household structure: missing data column 'house_id'.");
-            }
 
             //===== Safe Load of Households =====//
-            std::unordered_map<string, size_t> hh_ID_to_index = {};
+            std::unordered_map<std::string, size_t> hh_ID_to_index = {};
             for (size_t i = 0; i < pBuild->n_individuals; ++i)
             {
                 //----- Read individual data -----//
-                string this_indiv_ID = std::to_string(i);     // default value
-                string house_ID = std::to_string(n_houses()); // default value
+                std::string this_indiv_ID = std::to_string(i);     // default value
+                std::string house_ID = std::to_string(n_houses()); // default value
                 int this_status = MISSING_STATUS;
                 dictargs args = {};
 
-                for (const string &key : pBuild->data_headers)
+                for (const std::string &key : pBuild->data_headers)
                 {
                     if (key == "id")
                     {
                         if (tools::is_na(datatable.at("id")[i]))
-                        {
                             throw std::invalid_argument(
                                 "Missing id for individual in row n." + std::to_string(i + 2) + ".");
-                        }
                         else
-                        {
                             this_indiv_ID = datatable.at("id")[i];
-                        }
                     }
                     else if (key == "house_id")
                     {
                         if (tools::is_na(datatable.at("house_id")[i]))
-                        {
                             throw std::invalid_argument(
                                 "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
-                        }
                         else
-                        {
                             house_ID = datatable.at("house_id")[i];
-                        }
                     }
                     else if (key == "status")
                     {
                         // NA status is a missing status
                         if (!tools::is_na(datatable.at("status")[i]))
-                        {
                             this_status = tools::stoul(datatable.at("status")[i], "individual status");
-                        }
                     }
                     else if (tools::is_na(datatable.at(key)[i]))
                     {
@@ -285,16 +258,14 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
             //===== Set Contact Rates =====//
             pBuild->_n_contacts_ = 0;
             for (Household &house : pBuild->house_vector)
-            {
                 set_rate_per_contact(house);
-            }
 
             //===== Update Report for Data =====//
             pBuild->update_report_data();
 
             //===== Clean up data entries for output files =====//
             // eventually remove standard headers to reorder them at the end
-            for (const string &col : {"house_id", "id", "status"})
+            for (const std::string &col : {"house_id", "id", "status"})
             {
                 pBuild->data_headers.erase(
                     std::remove(pBuild->data_headers.begin(), pBuild->data_headers.end(), col),
@@ -317,59 +288,57 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 {
     try
     {
-        assign_group_rate_to_individual(house, i);
+        dict_rates group_rates_parIDs = assign_group_rate_to_individual(house, i);
+        dict_rates_ptr group_rates_ptrs = {};
 
-        for (const auto &pair : house.get_group_rate_map(i))
+        // convert to dict_rates_ptr and assert parameters
+        for (const auto &pair : group_rates_parIDs)
         {
-            string rateID = pair.first;
+            std::string rateID = pair.first;
+
             if (rateID == CONTACT_RATE)
             {
                 throw std::invalid_argument(
                     "The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
             }
-
-            vector<string> vec_parID = pair.second;
-            if (vec_parID.empty())
+            else if (!tools::is_na(rateID))
             {
-                // error : undefined rate
-                std::invalid_argument(
-                    "Missing rate '" + rateID + "' for individual " + house.ID(i) + ".");
-            }
-            else
-            {
-                //===== SINGLE or MULTIPLE PARAMETERS =====//
+                // assert parameters and in the case return pointer
                 bool is_all_reference = true; // all reference state
-                vector<const double *> vec_par_ptr = {};
+                std::vector<const double *> vec_par_ptr = {};
 
-                for (const string &parID : vec_parID)
+                for (const parID &p : pair.second)
                 {
-                    if ((tools::is_na(parID)) || (parID == MISSING_RATE))
+                    if ((tools::is_na(p)) || (p == MISSING_RATE))
                     {
-                        // error : undefined rate
                         std::invalid_argument(
                             "Missing rate '" + rateID + "' for individual " + house.ID(i) + ".");
                     }
-                    else if (parID == REFERENCE)
+                    else if (p == REFERENCE)
                     {
                         vec_par_ptr.emplace_back(&REFERENCE_VALUE);
                     }
                     else
                     {
-                        // rate associated to parameter
                         is_all_reference = false;
-                        pBuild->assert_param(parID);
-                        vec_par_ptr.emplace_back(pBuild->get_param_pointer(parID));
+                        pBuild->assert_param(p);
+                        vec_par_ptr.emplace_back(pBuild->get_param_pointer(p));
                     }
                 }
 
+                // simplify for the combined reference values
                 if (is_all_reference)
                 {
-                    vector<const double *> vec_par_ptr = {&REFERENCE_VALUE};
+                    vec_par_ptr.clear();
+                    vec_par_ptr = {&REFERENCE_VALUE};
                 }
 
-                house._set_group_rate(i, rateID, vec_par_ptr);
+                group_rates_ptrs.emplace(rateID, vec_par_ptr);
             }
         }
+
+        // pass the pointers to the individual
+        house.assign_all_group_rates(i, group_rates_ptrs);
     }
     catch (const std::exception &e)
     {
@@ -378,7 +347,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Monte_Carlo_Build : set rate per contact  ///////////////////////////////////
+///////////////////////////  Monte_Carlo_Build : set rate per contact  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set contact rate according to user assignement. */
@@ -398,22 +367,22 @@ void MCMC::set_rate_per_contact(Household &house)
                 if (k != i)
                 {
                     assign_contact_rate_to_household(house, k, i);
-                    string parID = house.get_contact_rate_map(k, i);
+                    parID p = house.get_contact_rate_map(k, i);
 
-                    if (tools::is_na(parID) || (parID == MISSING_RATE))
+                    if (tools::is_na(p) || (p == MISSING_RATE))
                     {
-                        string sms = "Contact rate not provided for individuals " + house.ID(k);
+                        std::string sms = "Contact rate not provided for individuals " + house.ID(k);
                         sms += " and " + house.ID(i) + " within household " + house.house_ID() + ".";
                         throw std::invalid_argument(sms);
                     }
-                    else if (parID == REFERENCE)
+                    else if (p == REFERENCE)
                     {
                         house.set_contact_rate(k, i, &REFERENCE_VALUE); // reference rate
                     }
                     else
                     {
-                        pBuild->assert_param(parID);
-                        house.set_contact_rate(k, i, pBuild->get_param_pointer(parID)); // parameter rate
+                        pBuild->assert_param(p);
+                        house.set_contact_rate(k, i, pBuild->get_param_pointer(p)); // parameter rate
                     }
 
                     // count the total number of pairs
@@ -447,10 +416,9 @@ void MCMC::update_global_loglike()
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t H = 0; H < n_houses(); ++H)
     {
-        if (_error_occurred_)
-        {
+        if (!_error_message_.empty())
             continue;
-        }
+
         try
         {
             Household &house = pBuild->house_vector[H];
@@ -462,18 +430,13 @@ void MCMC::update_global_loglike()
         {
 #pragma omp critical
             {
-                if (!_error_occurred_)
-                {
-                    _error_occurred_ = true;
+                if (_error_message_.empty())
                     _error_message_ = e.what();
-                }
             }
         }
     }
-    if (_error_occurred_)
-    {
+    if (!_error_message_.empty())
         tools::error(_error_message_);
-    }
 
     pBuild->set_global_loglike(new_ll);
 }
@@ -490,52 +453,50 @@ void MCMC::update_global_loglike()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::move_single_param(const string &parID)
+void MCMC::move_single_param(const parID &p)
 {
     bool is_accepted = false;
 
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
-    if (pBuild->propose_valid_param_move(parID))
+    if (pBuild->propose_valid_param_move(p))
     {
-        if ((this->*_func_param_metropolis_)(parID))
+        if ((this->*_func_param_metropolis_)(p))
         {
             is_accepted = true;
         }
         else
         {
             // restore buffered value of parameter
-            pBuild->restore_param_value(parID);
+            pBuild->restore_param_value(p);
 
             // restore buffered value of global loglike
             pBuild->restore_global_loglike();
 
             // restore buffered loglikelihood in households
             for (size_t H = 0; H < n_houses(); ++H)
-            {
                 pBuild->house_vector[H].restore_loglike();
-            }
         }
     }
 
     // update counts for acceptance rate
-    pBuild->update_param_accept_rate(parID, is_accepted);
+    pBuild->update_param_accept_rate(p, is_accepted);
 }
 
-bool MCMC::_param_metropolis_1_(const string &parID)
+/* Metropolis at inverse temperature 1 (standard). */
+bool MCMC::_param_metropolis_1_(const parID &p)
 {
     update_global_loglike();
 
-    if (uniform() < exp(pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(parID)))
-    {
+    if (uniform() < exp(pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(p)))
         return true;
-    }
 
     return false;
 }
 
-bool MCMC::_param_metropolis_0_(const string &parID)
+/* Metropolis at inverse temperature 0 (only prior). */
+bool MCMC::_param_metropolis_0_(const parID &p)
 {
-    if (uniform() < exp(pBuild->param_move_logratio(parID)))
+    if (uniform() < exp(pBuild->param_move_logratio(p)))
     {
         update_global_loglike();
         return true;
@@ -544,14 +505,13 @@ bool MCMC::_param_metropolis_0_(const string &parID)
     return false;
 }
 
-bool MCMC::_param_metropolis_T_(const string &parID)
+/* Metropolis at inverse temperature inv T (only prior). */
+bool MCMC::_param_metropolis_T_(const parID &p)
 {
     update_global_loglike();
 
-    if (uniform() < exp(pBuild->setup_inv_T * pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(parID)))
-    {
+    if (uniform() < exp(pBuild->setup_inv_T * pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(p)))
         return true;
-    }
 
     return false;
 }
@@ -559,10 +519,8 @@ bool MCMC::_param_metropolis_T_(const string &parID)
 /* Move all model parameters. */
 void MCMC::move_all_parameters()
 {
-    for (const string &parID : pBuild->param_to_be_inferred)
-    {
-        move_single_param(parID);
-    }
+    for (const parID &p : pBuild->param_to_be_inferred)
+        move_single_param(p);
 }
 
 /* Move all model parameters and adapt their rule arguments. */
@@ -570,10 +528,10 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 {
     double adapt_ratio = static_cast<double>(step) / pBuild->setup_n_adapt;
 
-    for (const string &parID : pBuild->param_to_be_inferred)
+    for (const parID &p : pBuild->param_to_be_inferred)
     {
-        move_single_param(parID);
-        pBuild->adapt_param_rule(parID, adapt_ratio);
+        move_single_param(p);
+        pBuild->adapt_param_rule(p, adapt_ratio);
     }
 }
 
@@ -598,18 +556,14 @@ void MCMC::init_augmented_variables()
             _func_move_all_augm_ = &MCMC::_move_all_augm_;
 
             if (!pBuild->augm_list_infer.empty())
-            {
                 _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
-            }
         }
 
         for (size_t H = 0; H < n_houses(); ++H)
         {
             Household &house = pBuild->house_vector[H];
             for (const indiv &i : house.infectious_set())
-            {
                 update_augm_dependecies(house, i);
-            }
         }
     }
 }
@@ -622,10 +576,9 @@ void MCMC::_move_all_augm_()
 #pragma omp parallel for reduction(+ : delta_ll)
     for (size_t H = 0; H < n_houses(); ++H)
     {
-        if (_error_occurred_)
-        {
+        if (!_error_message_.empty())
             continue;
-        }
+
         try
         {
             delta_ll += move_augm_single_house(pBuild->house_vector[H]);
@@ -634,22 +587,16 @@ void MCMC::_move_all_augm_()
         {
 #pragma omp critical
             {
-                if (!_error_occurred_)
-                {
-                    _error_occurred_ = true;
+                if (_error_message_.empty())
                     _error_message_ = e.what();
-                }
             }
         }
     }
-    if (_error_occurred_)
-    {
+
+    if (!_error_message_.empty())
         tools::error(_error_message_);
-    }
-    else
-    {
-        pBuild->increment_global_loglike(delta_ll);
-    }
+     
+    pBuild->increment_global_loglike(delta_ll);
 }
 
 /* Move augmented variables for infectious members of a single household.
@@ -661,9 +608,7 @@ double MCMC::move_augm_single_house(Household &house)
 
     // Loop over infectious residents of the househould
     for (const indiv &i : house.infectious_set())
-    {
         (this->*_func_move_augm_indiv_)(house, i, delta_global_loglike);
-    }
 
     return delta_global_loglike;
 }
@@ -672,27 +617,23 @@ double MCMC::move_augm_single_house(Household &house)
 void MCMC::_move_augm_indiv_generic_(Household &house, indiv i, double &delta)
 {
     // Loop over augmented variables of infectious
-    for (const string &augmID : pBuild->augm_list_infer)
-    {
-        metropolis_augm_single_move(house, i, augmID, delta);
-    }
+    for (const augmID &a : pBuild->augm_list_infer)
+        metropolis_augm_single_move(house, i, a, delta);
 }
 
 /* Move augmented variables by status one variable at a time. */
 void MCMC::_move_augm_indiv_by_status_(Household &house, indiv i, double &delta)
 {
     // Loop over augmented variables of infectious
-    for (const string &augmID : pBuild->augm_status_map_infer.at(house.status(i)))
-    {
-        metropolis_augm_single_move(house, i, augmID, delta);
-    }
+    for (const augmID &a : pBuild->augm_status_map_infer.at(house.status(i)))
+        metropolis_augm_single_move(house, i, a, delta);
 }
 
 /* Take care of a a single augmented Metropolis move. */
-void MCMC::metropolis_augm_single_move(Household &house, indiv i, const string &augmID, double &delta)
+void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta)
 {
     // proceed only if the new value is consistent
-    if (house.propose_valid_augm_move(i, augmID, pBuild->get_prng()))
+    if (house.propose_valid_augm_move(i, a, pBuild->get_prng()))
     {
         // update dependencies to perform computations
         house._buffer_all_extra();
@@ -702,10 +643,10 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const string &
         house.set_loglike(compute_house_loglike(house));
 
         // Metropolis-Hasting algorithm
-        if (!(this->*_func_augm_metropolis_)(house, i, augmID, delta))
+        if (!(this->*_func_augm_metropolis_)(house, i, a, delta))
         {
             // restore value and its dependencies
-            house.restore_augm_value(i, augmID);
+            house.restore_augm_value(i, a);
             house._restore_all_extra();
             house.restore_loglike();
         }
@@ -713,12 +654,12 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const string &
 }
 
 /* Metropolis algorithm for single augmented variable move (default, inverse temperature 1). */
-bool MCMC::_augm_metropolis_1_(const Household &house, indiv i, const string &augmID, double &delta)
+bool MCMC::_augm_metropolis_1_(const Household &house, indiv i, const augmID &a, double &delta)
 {
     double D_hh_ll = house.get_delta_loglike();
-    if (uniform() < exp(D_hh_ll + house.augm_move_logratio(i, augmID)))
+    if (uniform() < exp(D_hh_ll + house.augm_move_logratio(i, a)))
     {
-        delta += D_hh_ll + house.augm_model_logratio(i, augmID);
+        delta += D_hh_ll + house.augm_model_logratio(i, a);
         return true;
     }
 
@@ -726,11 +667,11 @@ bool MCMC::_augm_metropolis_1_(const Household &house, indiv i, const string &au
 }
 
 /* Metropolis algorithm for single augmented variable move (inverse temperature 0). */
-bool MCMC::_augm_metropolis_0_(const Household &house, indiv i, const string &augmID, double &delta)
+bool MCMC::_augm_metropolis_0_(const Household &house, indiv i, const augmID &a, double &delta)
 {
-    if (uniform() < exp(-house.augm_propose_logratio(i, augmID)))
+    if (uniform() < exp(-house.augm_propose_logratio(i, a)))
     {
-        delta += house.get_delta_loglike() + house.augm_model_logratio(i, augmID);
+        delta += house.get_delta_loglike() + house.augm_model_logratio(i, a);
         return true;
     }
 
@@ -738,10 +679,10 @@ bool MCMC::_augm_metropolis_0_(const Household &house, indiv i, const string &au
 }
 
 /* Metropolis algorithm for single augmented variable move (all inverse temperatures). */
-bool MCMC::_augm_metropolis_T_(const Household &house, indiv i, const string &augmID, double &delta)
+bool MCMC::_augm_metropolis_T_(const Household &house, indiv i, const augmID &a, double &delta)
 {
-    double D_ll = house.get_delta_loglike() + house.augm_model_logratio(i, augmID);
-    if (uniform() < exp(pBuild->setup_inv_T * D_ll - house.augm_propose_logratio(i, augmID)))
+    double D_ll = house.get_delta_loglike() + house.augm_model_logratio(i, a);
+    if (uniform() < exp(pBuild->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
     {
         delta += D_ll;
         return true;
@@ -791,20 +732,14 @@ double MCMC::evaluate()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* The text to print in the Markov chian progress bar. */
-const string MCMC::fmt_progtxt(const string &txt, bool is_power_post)
+const std::string MCMC::fmt_progtxt(const std::string &txt, bool is_power_post)
 {
     if (is_power_post)
-    {
         return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
-    }
     else if (pBuild->setup_n_chains > 1)
-    {
         return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pBuild->setup_n_chains);
-    }
     else
-    {
         return txt;
-    }
 }
 
 /* Markov chain core, used for inference and power posteriors.
@@ -815,19 +750,18 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
     //===== Initialization =====//
     //==========================//
 
-    //----- Check if there is something to infer -----//
+    // check if there is something to infer
     if (pBuild->param_to_be_inferred.empty())
-    {
-        tools::error("No parameters to be inferred were found.");
-    }
+        tools::error(
+            "No parameters to be inferred were found.");
 
-    //----- Initialize model -----//
+    // initialize model
     init_model_for_inference();
 
-    //----- Initialize diagnostics -----//
+    // initialize diagnostics
     pBuild->init_diagnostics(is_power_post);
 
-    //===== Run Multiple MCMC Chains =====//
+    // run Multiple MCMC Chains
     for (_chain_ = 1; _chain_ <= pBuild->setup_n_chains; ++_chain_)
     {
         // update progressbar text
@@ -908,18 +842,18 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 /* Performs the inference using Metropolis-Hastings. */
 void MCMC::infer(bool is_progbar)
 {
-    //----- total number of mcmc sweeps -----//
+    // total number of mcmc sweeps
     _chain_ = 1;
     _tot_thin_sweeps_ = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
 
-    //----- Start progress bar and chrono -----//
+    // start progress bar and chrono
     CustomProgressBar progressbar(is_progbar);
     progressbar.initialize(fmt_progtxt("infer"));
 
-    //----- Run Markov Chain -----//
+    // run Markov Chain 
     run_monte_carlo(progressbar);
 
-    //----- Close progress bar -----//
+    // close progress bar
     progressbar.finalize();
 }
 
@@ -968,19 +902,15 @@ void MCMC::update_inver_temper(double inv_T)
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-double MCMC::evaluate_marginal(int n_rungs, string scheme, bool is_progbar)
+double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 {
-    const vector<string> options = {"adaptive", "power-fractions"};
+    const std::vector<std::string> options = {"adaptive", "power-fractions"};
 
     //----- fix internal number of rungs (for progress bar) -----//
     if (n_rungs >= 2)
-    {
         _n_rungs_ = n_rungs;
-    }
     else
-    {
         tools::error("Number of rungs must be greater than 1.");
-    }
 
     //----- Backup user setup to restore them later -----//
     bool bkp_rnd_init_params = pBuild->setup_rnd_init_params;
@@ -989,9 +919,9 @@ double MCMC::evaluate_marginal(int n_rungs, string scheme, bool is_progbar)
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
     double avg, var;
-    vector<double> inv_t = {};   // inverse temperature
-    vector<double> avg_vec = {}; // mean loglikelihood
-    vector<double> var_vec = {}; // variance loglikelihood
+    std::vector<double> inv_t = {};   // inverse temperature
+    std::vector<double> avg_vec = {}; // mean loglikelihood
+    std::vector<double> var_vec = {}; // variance loglikelihood
 
     //----- Total number of mcmc sweeps -----//
     ulong rung_sweeps = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
@@ -1045,9 +975,7 @@ double MCMC::evaluate_marginal(int n_rungs, string scheme, bool is_progbar)
 
             // otherwise weighted average
             if ((new_inv_T <= inv_t[k]) || (new_inv_T >= inv_t[k + 1]))
-            {
                 new_inv_T = inv_t[k] + var_vec[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_vec[k] + var_vec[k + 1]);
-            }
 
             //----- power posterior sampling -----//
             update_inver_temper(new_inv_T);
@@ -1146,10 +1074,9 @@ void MCMC::simulate(bool is_progbar)
 #pragma omp parallel for default(shared)
     for (size_t H = 0; H < n_houses(); ++H)
     {
-        if (_error_occurred_)
-        {
+        if (!_error_message_.empty())
             continue;
-        }
+
         try
         {
             simulate_single_house(pBuild->house_vector[H]);
@@ -1158,45 +1085,35 @@ void MCMC::simulate(bool is_progbar)
         {
 #pragma omp critical
             {
-                if (!_error_occurred_)
-                {
-                    _error_occurred_ = true;
+                if (_error_message_.empty())
                     _error_message_ = e.what();
-                }
             }
         }
+
         if (omp_get_thread_num() == 0)
-        {
             progressbar.update(static_cast<double>(H) / thin_n_house);
-        }
     }
 #else
     for (size_t H = 0; H < n_houses(); ++H)
     {
-        if (_error_occurred_)
-        {
+        if (!_error_message_.empty())
             continue;
-        }
+
         try
         {
             simulate_single_house(pBuild->house_vector[H]);
         }
         catch (const std::exception &e)
         {
-            _error_occurred_ = true;
             _error_message_ = e.what();
         }
         progressbar.update(static_cast<double>(H) / n_houses());
     }
 #endif
 
-    if (_error_occurred_)
-    {
+    if (!_error_message_.empty())
         tools::error(_error_message_);
-    }
-    else
-    {
-        progressbar.finalize();
-        pBuild->update_report_data();
-    }
+
+    progressbar.finalize();
+    pBuild->update_report_data();
 }

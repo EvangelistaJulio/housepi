@@ -85,15 +85,15 @@ public:
 	void set_rate_per_group(Household &house, indiv i);
 	void set_rate_per_contact(Household &house);
 
-	virtual void assign_group_rate_to_individual(Household &house, indiv i);
+	virtual dict_rates assign_group_rate_to_individual(Household &house, indiv i);
 	virtual void assign_contact_rate_to_household(Household &house, indiv from, indiv to);
 
 	//===== RAND NUMBER GENERATOR =====//
 	double uniform();
 
 	//===== PARAMETERS =====//
-	double param(const std::string &parID) const;
-	const double *param_pointer(const std::string &parID) const;
+	double param(const parID &p) const;
+	const double *param_pointer(const parID &p) const;
 
 	//===== AUGMENTED VARIABLES =====//
 	void init_augmented_variables();
@@ -140,7 +140,6 @@ private:
 	ulong _n_rungs_ = 0;		 // number of rungs
 
 	// errors
-	bool _error_occurred_ = false;
 	std::string _error_message_ = "";
 
 	//===== Infectivity_Profile =====//
@@ -158,16 +157,16 @@ private:
 	//----- Metropolis : parameter moves -----//
 	void move_all_parameters();
 	void move_and_adapt_all_parameters(ulong step);
-	void move_single_param(const std::string &parID);
+	void move_single_param(const parID &p);
 	
-	bool (MCMC::*_func_param_metropolis_)(const std::string &) = &MCMC::_param_metropolis_1_;
-	bool _param_metropolis_1_(const std::string &parID);
-	bool _param_metropolis_0_(const std::string &parID);
-	bool _param_metropolis_T_(const std::string &parID);
+	bool (MCMC::*_func_param_metropolis_)(const parID &) = &MCMC::_param_metropolis_1_;
+	bool _param_metropolis_1_(const parID &p);
+	bool _param_metropolis_0_(const parID &p);
+	bool _param_metropolis_T_(const parID &p);
 
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);
-	void metropolis_augm_single_move(Household &house, indiv i, const std::string &augmID, double &delta);
+	void metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
 
 	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
 	void _move_no_augm_() {};
@@ -177,10 +176,10 @@ private:
 	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
 	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);
 
-	bool (MCMC::*_func_augm_metropolis_)(const Household &, indiv, const std::string &, double &) = &MCMC::_augm_metropolis_1_;
-	bool _augm_metropolis_1_(const Household &house, indiv i, const std::string &augmID, double &delta);
-	bool _augm_metropolis_0_(const Household &house, indiv i, const std::string &augmID, double &delta);
-	bool _augm_metropolis_T_(const Household &house, indiv i, const std::string &augmID, double &delta);
+	bool (MCMC::*_func_augm_metropolis_)(const Household &, indiv, const augmID &, double &) = &MCMC::_augm_metropolis_1_;
+	bool _augm_metropolis_1_(const Household &house, indiv i, const augmID &a, double &delta);
+	bool _augm_metropolis_0_(const Household &house, indiv i, const augmID &a, double &delta);
+	bool _augm_metropolis_T_(const Household &house, indiv i, const augmID &a, double &delta);
 };
 
 #endif // HOUSEPI__MCMC__H

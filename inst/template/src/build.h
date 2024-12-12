@@ -118,22 +118,22 @@ public:
     std::vector<std::string> param_to_be_static = {};
 
     //----- Parameter - Getter -----//
-    void assert_param(const std::string &parID) const;
-    double get_param(const std::string &parID) const;
-    const double *get_param_pointer(const std::string &parID) const;
-    bool get_infer(const std::string &parID) const;
+    bool assert_param(const parID &p) const;
+    double get_param(const parID &p) const;
+    const double *get_param_pointer(const parID &p) const;
+    bool get_infer(const parID &p) const;
 
     //----- Parameter - Setter -----//
-    void assign_param(const std::string &parID, const Parameter &new_param);
+    void assign_param(const parID &p, const Parameter &new_param);
     void init_rand_params();
     const double *assign_scalar_pointer(double val);
 
     //----- Parameter - Metropolis-Hastings -----//
-    bool propose_valid_param_move(const std::string &parID);
-    void restore_param_value(const std::string &parID);
-    void update_param_accept_rate(const std::string &parID, bool is_accepted);
-    double param_move_logratio(const std::string &parID) const;
-    void adapt_param_rule(const std::string &parID, double ratio);
+    bool propose_valid_param_move(const parID &p);
+    void restore_param_value(const parID &p);
+    void update_param_accept_rate(const parID &p, bool is_accepted);
+    double param_move_logratio(const parID &p) const;
+    void adapt_param_rule(const parID &p, double ratio);
 
     //===== HOUSEHOLD DATA : Attributes =====//
     size_t n_individuals = 0;
@@ -171,7 +171,7 @@ public:
 
     //===== SHOW =====//
     void show_setup() const;
-    std::string show_param(const std::string &parID) const;
+    std::string show_param(const parID &p) const;
     void show_all_params() const;
     void show_results() const;
     void show_summary() const;
@@ -235,13 +235,13 @@ public:
 
     //===== get param (functional methods) =====//
     double (Monte_Carlo_Build::*_func_get_param_)(const std::string &) const = &Monte_Carlo_Build::_get_param_assert_;
-    double _get_param_default_(const std::string &parID) const;
-    double _get_param_assert_(const std::string &parID) const;
+    double _get_param_default_(const parID &p) const;
+    double _get_param_assert_(const parID &p) const;
 
     //===== get param pointer (functional methods) =====//
     const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const std::string &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
-    const double *_get_param_pointer_default_(const std::string &parID) const;
-    const double *_get_param_pointer_assert_(const std::string &parID) const;
+    const double *_get_param_pointer_default_(const parID &p) const;
+    const double *_get_param_pointer_assert_(const parID &p) const;
 
     //===== Pseudo Random Number Generator (auxiliary methods) =====//
     std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution

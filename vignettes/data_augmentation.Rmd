@@ -86,8 +86,9 @@ hmc_1$augm_add(
 We run the inference and we extract the results
 
 ```{r}
-hmc_1$infer(data = delays, n_steps = 100000, n_burnin = 10000,
-            thin = 10, n_adapt = 2500, seed = 4349)
+hmc_1$infer(data = delays, n_steps = 100000, 
+            n_burnin = 10000, thin = 10, 
+            n_adapt = 2500, seed = 4349)
 # Note: The warning tells us that our database has no demographic structure:
 # it will be interpreted as single individuals living in separate households.
 
