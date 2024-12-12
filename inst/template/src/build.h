@@ -144,7 +144,6 @@ public:
     std::vector<std::string> data_headers = {};
     ulong _n_contacts_ = 0;
     std::map<std::string, size_t> _report_data_;
-    std::map<std::string, std::map<std::string, size_t>> _report_group_classes_ = {};
     std::map<std::string, std::string> _report_pathtofile_;
 
     //===== AUGMENTED : Attributes =====//
@@ -175,7 +174,6 @@ public:
     std::string show_param(const std::string &parID) const;
     void show_all_params() const;
     void show_results() const;
-    void show_group_classes() const;
     void show_summary() const;
     void show_full_build() const;
 

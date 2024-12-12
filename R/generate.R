@@ -27,15 +27,13 @@ helper_files <- function(path) {
   return(file.path(path, paste0("template_", c("params.R", "info.Rd", "augm.R"))))
 }
 
-format_name <- function(name) {
-  fmt_name <- gsub("_", "", name)
-  fmt_name <- gsub("-", "", fmt_name)
-  return(fmt_name)
+format_string <- function(name) {
+  return(gsub("[[:punct:]]", "", name))
 }
 
 # Templated name convention
 template_name <- function(path) {
-  return(paste0("housepi", format_name(basename(path))))
+  return(paste0("housepi", format_string(basename(path))))
 }
 
 # Add random string to templated name
@@ -141,7 +139,7 @@ compile_dll_model <- function(model_path = ".",
   assert_source_files(model_path)
   # temporary folder where to store source code
   cache_path <- file.path(tempdir(),
-                          paste0("housepi", format_name(basename(model_path))))
+                          paste0("housepi", format_string(basename(model_path))))
   # check for previous cached dll files
   cache_dll_files <- list.files(cache_path, pattern = .Platform$dynlib.ext)
 

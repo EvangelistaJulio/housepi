@@ -25,7 +25,6 @@
 //' @field export_loglike_matrix Return matrix with loglikelihood values.
 //' @field show_full_build Show all build messages.
 //' @field show_summary Show a summary of the current database.
-//' @field show_group_classes Show the group classes.
 
 #include <Rcpp.h>
 #include "model.h"
@@ -55,8 +54,7 @@ RCPP_MODULE(model_housepi_rcpp)
       .method("export_traces", &MCMC::export_traces)
       .method("export_loglike_matrix", &MCMC::export_loglike_matrix)
       .method("show_full_build", &MCMC::show_full_build)
-      .method("show_summary", &MCMC::show_summary)
-      .method("show_group_classes", &MCMC::show_group_classes);
+      .method("show_summary", &MCMC::show_summary);
 
   class_<Model>("ModelHousepi")
       .constructor()

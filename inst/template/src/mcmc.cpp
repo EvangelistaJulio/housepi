@@ -43,7 +43,6 @@ void MCMC::print_augm_variables(const string &pathtofile) const { pBuild->print_
 void MCMC::show_full_build() const { pBuild->show_full_build(); }
 void MCMC::show_results() const { pBuild->show_results(); }
 void MCMC::show_summary() const { pBuild->show_summary(); }
-void MCMC::show_group_classes() const { pBuild->show_group_classes(); }
 
 //===== DATA =====//
 size_t MCMC::n_houses() const { return pBuild->n_households; }
@@ -130,7 +129,6 @@ double MCMC::compute_house_loglike(Household &house) const
 /* Assign group rate to an individual  */
 void MCMC::assign_group_rate_to_individual(Household &house, indiv i)
 {
-    // this_indiv.assign_group_rate(EMPTY_RATE, EMPTY_RATE);
     UNUSED(house);
     UNUSED(i);
 }
@@ -138,7 +136,7 @@ void MCMC::assign_group_rate_to_individual(Household &house, indiv i)
 /* Assign the contact patterns between a couple of individuals. */
 void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
-    house.assign_contact_rate(from, to, EMPTY_RATE);
+    house.assign_contact_rate(from, to, MISSING_RATE);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -204,7 +202,6 @@ void MCMC::build_data(const std::map<string, vector<string>> &datatable)
             pBuild->n_individuals = datatable.at(pBuild->data_headers[0]).size();
             pBuild->n_households = 0;
             pBuild->house_vector.clear();
-            pBuild->_report_group_classes_.clear();
 
             //===== Assess the presence of house IDs =====//
             if (std::find(pBuild->data_headers.begin(), pBuild->data_headers.end(), "house_id") == pBuild->data_headers.end())
@@ -331,38 +328,46 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                     "The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
             }
 
-            string parID = pair.second;
-
-            //=====initialize model report=====//
-            // if first individual, initialize rateID-report
-            pBuild->_report_group_classes_.emplace(rateID, std::map<string, size_t>());
-            pBuild->_report_group_classes_.at(rateID).emplace("[reference]", 0);
-
-            //=====set rates and update report=====//
-            if (tools::is_na(parID))
+            vector<string> vec_parID = pair.second;
+            if (vec_parID.empty())
             {
                 // error : undefined rate
-                std::invalid_argument("Rate '" + rateID + "' is not provided for individual " + house.ID(i) + ".");
+                std::invalid_argument(
+                    "Missing rate '" + rateID + "' for individual " + house.ID(i) + ".");
             }
-            else if (parID == REFERENCE)
+            else
             {
-                // rate set to reference
-                house.set_rate(i, rateID, &REFERENCE_VALUE);
-                pBuild->_report_group_classes_.at(rateID).at("[reference]") += 1;
-            }
-            else if (parID != REFERENCE)
-            {
-                // rate associated to parameter
-                pBuild->assert_param(parID);
-                house.set_rate(i, rateID, pBuild->get_param_pointer(parID));
-                if (pBuild->_report_group_classes_.at(rateID).find(parID) == pBuild->_report_group_classes_.at(rateID).end())
+                //===== SINGLE or MULTIPLE PARAMETERS =====//
+                bool is_all_reference = true; // all reference state
+                vector<const double *> vec_par_ptr = {};
+
+                for (const string &parID : vec_parID)
                 {
-                    pBuild->_report_group_classes_.at(rateID).emplace(parID, 1);
+                    if ((tools::is_na(parID)) || (parID == MISSING_RATE))
+                    {
+                        // error : undefined rate
+                        std::invalid_argument(
+                            "Missing rate '" + rateID + "' for individual " + house.ID(i) + ".");
+                    }
+                    else if (parID == REFERENCE)
+                    {
+                        vec_par_ptr.emplace_back(&REFERENCE_VALUE);
+                    }
+                    else
+                    {
+                        // rate associated to parameter
+                        is_all_reference = false;
+                        pBuild->assert_param(parID);
+                        vec_par_ptr.emplace_back(pBuild->get_param_pointer(parID));
+                    }
                 }
-                else
+
+                if (is_all_reference)
                 {
-                    pBuild->_report_group_classes_.at(rateID).at(parID) += 1;
+                    vector<const double *> vec_par_ptr = {&REFERENCE_VALUE};
                 }
+
+                house._set_group_rate(i, rateID, vec_par_ptr);
             }
         }
     }
@@ -384,22 +389,6 @@ void MCMC::set_rate_per_contact(Household &house)
         // allocate contact patterns
         house.init_contact_matrix();
 
-        if (house.index() == 0)
-        {
-            // if first household, initialize contact rate report
-            pBuild->_report_group_classes_.emplace(CONTACT_RATE, std::map<string, size_t>());
-            pBuild->_report_group_classes_.at(CONTACT_RATE).emplace("[reference]", 0);
-        }
-        else
-        {
-            // all household must have a contact rate
-            if (pBuild->_report_group_classes_.find(CONTACT_RATE) == pBuild->_report_group_classes_.end())
-            {
-                throw std::invalid_argument(
-                    "Contact rate has not been provided for all households.");
-            }
-        }
-
         // loop over all couples
         for (indiv k = 0; k < house.size(); ++k) // from
         {
@@ -411,7 +400,7 @@ void MCMC::set_rate_per_contact(Household &house)
                     assign_contact_rate_to_household(house, k, i);
                     string parID = house.get_contact_rate_map(k, i);
 
-                    if (tools::is_na(parID))
+                    if (tools::is_na(parID) || (parID == MISSING_RATE))
                     {
                         string sms = "Contact rate not provided for individuals " + house.ID(k);
                         sms += " and " + house.ID(i) + " within household " + house.house_ID() + ".";
@@ -420,20 +409,11 @@ void MCMC::set_rate_per_contact(Household &house)
                     else if (parID == REFERENCE)
                     {
                         house.set_contact_rate(k, i, &REFERENCE_VALUE); // reference rate
-                        pBuild->_report_group_classes_.at(CONTACT_RATE).at("[reference]") += 1;
                     }
-                    else if (parID != EMPTY_RATE)
+                    else
                     {
                         pBuild->assert_param(parID);
                         house.set_contact_rate(k, i, pBuild->get_param_pointer(parID)); // parameter rate
-                        if (pBuild->_report_group_classes_.at(CONTACT_RATE).find(parID) == pBuild->_report_group_classes_.at(CONTACT_RATE).end())
-                        {
-                            pBuild->_report_group_classes_.at(CONTACT_RATE).emplace(parID, 1);
-                        }
-                        else
-                        {
-                            pBuild->_report_group_classes_.at(CONTACT_RATE).at(parID) += 1;
-                        }
                     }
 
                     // count the total number of pairs
@@ -549,10 +529,8 @@ bool MCMC::_param_metropolis_1_(const string &parID)
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 bool MCMC::_param_metropolis_0_(const string &parID)
@@ -562,10 +540,8 @@ bool MCMC::_param_metropolis_0_(const string &parID)
         update_global_loglike();
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 bool MCMC::_param_metropolis_T_(const string &parID)
@@ -576,10 +552,8 @@ bool MCMC::_param_metropolis_T_(const string &parID)
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 /* Move all model parameters. */
@@ -747,10 +721,8 @@ bool MCMC::_augm_metropolis_1_(const Household &house, indiv i, const string &au
         delta += D_hh_ll + house.augm_model_logratio(i, augmID);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 /* Metropolis algorithm for single augmented variable move (inverse temperature 0). */
@@ -761,10 +733,8 @@ bool MCMC::_augm_metropolis_0_(const Household &house, indiv i, const string &au
         delta += house.get_delta_loglike() + house.augm_model_logratio(i, augmID);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 /* Metropolis algorithm for single augmented variable move (all inverse temperatures). */
@@ -776,10 +746,8 @@ bool MCMC::_augm_metropolis_T_(const Household &house, indiv i, const string &au
         delta += D_ll;
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -798,17 +766,10 @@ double MCMC::evaluate()
 {
     try
     {
-        //----- Check no undefined parameters -----//
-        pBuild->init_rand_params();
-
-        //----- Initialize model -----//
-        init_model_for_inference();
-
-        //----- Initialize augmented dependencies -----//
-        init_augmented_variables();
-
-        //----- Initialize global loglikelihood -----//
-        update_global_loglike();
+        pBuild->init_rand_params(); // check no undefined parameters
+        init_model_for_inference(); // initialize model
+        init_augmented_variables(); // initialize augmented dependencies
+        update_global_loglike();    // initialize global loglikelihood
     }
     catch (const std::exception &e)
     {
@@ -833,13 +794,17 @@ double MCMC::evaluate()
 const string MCMC::fmt_progtxt(const string &txt, bool is_power_post)
 {
     if (is_power_post)
+    {
         return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
-
+    }
     else if (pBuild->setup_n_chains > 1)
+    {
         return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pBuild->setup_n_chains);
-
+    }
     else
+    {
         return txt;
+    }
 }
 
 /* Markov chain core, used for inference and power posteriors.
@@ -852,7 +817,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 
     //----- Check if there is something to infer -----//
     if (pBuild->param_to_be_inferred.empty())
+    {
         tools::error("No parameters to be inferred were found.");
+    }
 
     //----- Initialize model -----//
     init_model_for_inference();
@@ -1001,16 +968,19 @@ void MCMC::update_inver_temper(double inv_T)
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
+double MCMC::evaluate_marginal(int n_rungs, string scheme, bool is_progbar)
 {
-    const std::vector<std::string> options = {"adaptive", "power-fractions"};
+    const vector<string> options = {"adaptive", "power-fractions"};
 
     //----- fix internal number of rungs (for progress bar) -----//
     if (n_rungs >= 2)
+    {
         _n_rungs_ = n_rungs;
-
+    }
     else
+    {
         tools::error("Number of rungs must be greater than 1.");
+    }
 
     //----- Backup user setup to restore them later -----//
     bool bkp_rnd_init_params = pBuild->setup_rnd_init_params;
@@ -1115,7 +1085,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
             var_vec.push_back(var);
         }
     }
-    else 
+    else
     {
         tools::error(
             "Unknown power posterior scheme '" + scheme + "'." + tools::find_closest(scheme, options, 3));

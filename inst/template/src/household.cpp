@@ -252,7 +252,7 @@ const std::string &Household::ID(indiv i) const { return pImpl->indiv_vector[i].
 int Household::index() const { return pImpl->index; }
 ushort Household::size() const { return pImpl->house_size; }
 
-const std::unordered_map<std::string, std::string> &Household::get_group_rate_map(indiv i) const { return pImpl->indiv_vector[i].get_group_rate_map(); }
+const std::unordered_map<std::string, std::vector<std::string>> &Household::get_group_rate_map(indiv i) const { return pImpl->indiv_vector[i].get_group_rate_map(); }
 double Household::group_rate(indiv i, const std::string &rateID) const { return pImpl->indiv_vector[i].get_group_rate(rateID); }
 
 const std::string &Household::get_contact_rate_map(indiv from, indiv to) const { return pImpl->_which_rate_[from][to]; }
@@ -301,8 +301,11 @@ void Household::augm_model_rand(indiv i, const std::string &augmID, sys_rnd_gen 
 bool Household::propose_valid_augm_move(indiv i, const std::string &augmID, sys_rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(augmID, prng); }
 void Household::restore_augm_value(indiv i, const std::string &augmID) { pImpl->indiv_vector[i].restore_augm_value(augmID); }
 
-void Household::assign_group_rate(indiv i, const std::string &rateID, const std::string &parID) { pImpl->indiv_vector[i].assign_group_rate(rateID, parID); }
-void Household::set_rate(indiv i, const std::string &rateID, const double *ptr) { pImpl->indiv_vector[i].set_rate(rateID, ptr); }
+void Household::assign_group_rate(indiv i, const std::string &rateID, const std::vector<std::string> &vec_parID) { pImpl->indiv_vector[i].assign_group_rate(rateID, vec_parID); }
+void Household::_set_group_rate(indiv i, const std::string &rateID, const std::vector<const double *> &vec_par_ptr)
+{
+	pImpl->indiv_vector[i].set_group_rate(rateID, vec_par_ptr);
+}
 void Household::clear_augm(indiv i, const std::string &augmID) { pImpl->indiv_vector[i].clear_augm(augmID); }
 
 //===== DIAGNOSTICS =====//

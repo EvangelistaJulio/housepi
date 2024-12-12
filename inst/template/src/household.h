@@ -63,14 +63,14 @@ public:
 	//===== INDIVIDUAL =====//
 
 	//----- Individual : Setter -----//
-	void assign_group_rate(indiv i, const std::string &rateID, const std::string &parID);
-	void set_rate(indiv i, const std::string &rateID, const double *ptr);
+	void assign_group_rate(indiv i, const std::string &rateID, const std::vector<std::string> &vec_parID);
+	void _set_group_rate(indiv i, const std::string &rateID, const std::vector<const double *> &vec_par_ptr);
 
 	//----- Individual : Getter -----//
 	const std::string &ID(indiv i) const;
 	double data(indiv i, const std::string &dataID) const;
 	const double *data_pointer(indiv i, const std::string &dataID) const;
-	const std::unordered_map<std::string, std::string> &get_group_rate_map(indiv i) const;
+	const std::unordered_map<std::string, std::vector<std::string>> &get_group_rate_map(indiv i) const;
 	double group_rate(indiv i, const std::string &rateID) const;
 	int status(indiv i) const;
 

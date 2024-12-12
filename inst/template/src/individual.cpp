@@ -54,9 +54,9 @@ void Individual::set_status(int s)
 	this->status = s;
 }
 
-void Individual::set_rate(const std::string &rateID, const double *x)
+void Individual::set_group_rate(const std::string &rateID, const std::vector<const double *> vec_par_ptr)
 {
-	this->rate_ptr.emplace(rateID, x);
+	this->rate_ptr.emplace(rateID, vec_par_ptr);
 }
 
 /* Disable data and augmented variable assertions. */
@@ -74,7 +74,7 @@ int Individual::get_status() const { return this->status; }
 double Individual::get_data(const std::string &dataID) const { return (this->*_func_get_data_)(dataID); }
 const double *Individual::get_data_pointer(const std::string &dataID) const { return (this->*_func_get_data_pointer_)(dataID); }
 double Individual::get_group_rate(const std::string &rateID) const { return *this->rate_ptr.at(rateID); }
-const std::unordered_map<std::string, std::string> &Individual::get_group_rate_map() const { return this->_which_rate_; }
+const std::unordered_map<std::string, std::vector<std::string>> &Individual::get_group_rate_map() const { return this->_which_rate_; }
 
 //===== AUGMENTED VARIABLES =====//
 
@@ -192,12 +192,12 @@ const double *Individual::_get_data_pointer_assert_(const std::string &dataID) c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a model rate r */
-void Individual::assign_group_rate(const std::string &rateID, const std::string &parID)
+void Individual::assign_group_rate(const std::string &rateID, const std::vector<std::string> &vec_parID)
 {
 	if (this->_which_rate_.find(rateID) == this->_which_rate_.end())
 	{
 		// if rateID was undeclared, add it
-		this->_which_rate_.emplace(rateID, parID);
+		this->_which_rate_.emplace(rateID, vec_parID);
 	}
 	else
 	{

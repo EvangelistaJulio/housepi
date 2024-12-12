@@ -78,10 +78,10 @@ constexpr int SUSCEPTIBLE = 0;     // status of susceptible (==)
 constexpr int MISSING_STATUS = -1; // missing status (==)
 
 // group rates
-const std::string REFERENCE = "__reference__"; // name for reference choice
-const std::string CONTACT_RATE = "Contact";    // name for Contact rate
-constexpr double REFERENCE_VALUE = 1.0;        // auxiliary reference value for the parameters
-const std::string EMPTY_RATE = "__empty__";    // name for Contact rate
+const std::string REFERENCE = "REFERENCE";       // name for reference choice
+const std::string CONTACT_RATE = "Contact";      // name for Contact rate
+constexpr double REFERENCE_VALUE = 1.0;          // auxiliary reference value for the parameters
+const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
 
 // file formatters
 constexpr char C_DELIM = ',';      // file delimiter

@@ -118,7 +118,7 @@ hmc$infer(data = survey, n_steps = 50000, n_burnin = 5000,
 
 ```{r, fig.align = 'center'}
 # visualize the traces of the first chain
-hmc$traces_plot(chain = 1)
+hmc$traces_xyplot(chain = 1)
 ```
 
 ```{r}
@@ -190,7 +190,7 @@ hmc$infer(data = df, n_steps = 50000, n_burnin = 5000,
 
 ```{r, fig.align = 'center'}
 # visualize traces of the first chain
-hmc$traces_plot(chain = 1)
+hmc$traces_xyplot(chain = 1)
 ```
 
 ```{r}

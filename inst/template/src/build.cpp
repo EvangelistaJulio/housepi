@@ -675,43 +675,6 @@ void Monte_Carlo_Build::show_summary() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Monte_Carlo_Build : show group classes  ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Show model group classes. */
-void Monte_Carlo_Build::show_group_classes() const
-{
-    std::ostringstream oss;
-
-    // format group classes
-    for (const auto &entry : _report_group_classes_)
-    {
-        if ((entry.first != CONTACT_RATE) && (entry.first != EMPTY_RATE))
-        {
-            oss << entry.first << ":";
-            for (const auto &x : entry.second)
-                oss << "\n    * " << x.first << ": " << x.second
-                    << " " << _aux_percent_(x.second, n_individuals);
-            oss << "\n";
-        }
-    }
-
-    // format contact rates
-    if (_report_group_classes_.at(CONTACT_RATE).find(EMPTY_RATE) != _report_group_classes_.at(CONTACT_RATE).end())
-    {
-        oss << CONTACT_RATE << ":";
-        for (const auto &x : _report_group_classes_.at(CONTACT_RATE))
-            oss << "\n    * " << x.first << ": " << x.second
-                << " " << _aux_percent_(x.second, _n_contacts_);
-        oss << "\n";
-    }
-
-    // print only if there's something to print
-    if (oss.str().size() > 0)
-        tools::print_stdout(oss.str());
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -743,7 +706,6 @@ void Monte_Carlo_Build::show_full_build() const
 
     tools::print_decorator("Database", add_file_info);
     show_summary();
-    show_group_classes();
 
     //----- AUGMENTED -----//
     if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())

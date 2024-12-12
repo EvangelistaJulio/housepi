@@ -71,7 +71,6 @@ public:
 	void show_full_build() const;
 	void show_results() const;
 	void show_summary() const;
-	void show_group_classes() const;
 
 	//===== C++ PRINT =====//
 	void print_infer_state(const std::string &output_filename = UNDEFINED) const;

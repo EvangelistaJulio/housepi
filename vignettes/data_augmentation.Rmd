@@ -210,7 +210,7 @@ hmc_2$infer(data = df, n_steps = 10000, n_burnin = 1000, thin = 10,
 
 ```{r, fig.align = 'center'}
 # plot the traces of all chains 
-hmc_2$traces_plot()
+hmc_2$traces_xyplot()
 ```
 
 ```{r}

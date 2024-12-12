@@ -40,8 +40,8 @@ public:
 	//===== SETTER =====//
 	void set_status(int s);
 	void disable_assert();
-	void set_rate(const std::string &rateID, const double *ptr);
-	void assign_group_rate(const std::string &rateID, const std::string &parID);
+	void set_group_rate(const std::string &rateID, const std::vector<const double *> vec_par_ptr);
+	void assign_group_rate(const std::string &rateID, const std::vector<std::string> &vec_parID);
 
 	//===== GETTER =====//
 	const std::string &get_ID() const;
@@ -49,7 +49,7 @@ public:
 	double get_data(const std::string &dataID) const;
 	const double *get_data_pointer(const std::string &dataID) const;
 	double get_group_rate(const std::string &rateID) const;
-	const std::unordered_map<std::string, std::string> &get_group_rate_map() const;
+	const std::unordered_map<std::string, std::vector<std::string>> &get_group_rate_map() const;
 
 	//===== AUGMENTED VARIABLES =====//
 
@@ -81,8 +81,8 @@ private:
 	int status = 0;				// status of the individual
 	dictargs data = {};			// database associated to individual
 
-	dictargs_ptr rate_ptr = {};
-	std::unordered_map<std::string, std::string> _which_rate_ = {};
+	std::unordered_map<std::string, std::vector<const double *>> rate_ptr = {};
+	std::unordered_map<std::string, std::vector<std::string>> _which_rate_ = {};
 	std::unordered_map<std::string, Base_Variable> augm_map = {};
 
 	//===== Auxxiliary Assert =====//
