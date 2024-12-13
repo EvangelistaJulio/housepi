@@ -31,7 +31,7 @@ std::shared_ptr<Base_Distribution> incub_distr_ptr;
 void Model::init_model_for_inference()
 {
 	// external arguments: pointers to the respective parameters
-	dictargs_ptr args = {{"shape", param_pointer("shape")},
+	dict_args_ptr args = {{"shape", param_pointer("shape")},
 						 {"scale", param_pointer("scale")}};
 
 	// choose the incubation period distribution

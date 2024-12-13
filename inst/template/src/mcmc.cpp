@@ -5,7 +5,7 @@
  */
 
 #include "mcmc.h"
-#include "build.h"
+#include "mcmc_build.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
@@ -29,7 +29,7 @@ Rcpp::List MCMC::export_setup() const { return pBuild->export_setup(); }
 Rcpp::DataFrame MCMC::export_params() const { return pBuild->export_params(); }
 Rcpp::DataFrame MCMC::export_data() const { return pBuild->export_data(); }
 Rcpp::DataFrame MCMC::export_traces() const { return pBuild->export_traces(); }
-Rcpp::NumericMatrix MCMC::export_loglike_matrix() const { return pBuild->export_loglike_matrix(); }
+Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pBuild->export_household_loglike_traces(); }
 #endif
 
 //===== C++ PRINT =====//
@@ -54,37 +54,46 @@ void MCMC::clear_all_augm(Household &house, indiv i) { pBuild->clear_all_augm(ho
 
 //===== EXTRA ATTRIBUTES =====//
 
-void MCMC::assign_extra_integer_to_all_houses(const std::vector<std::string> &names, int init_value)
+/* Extra single integers for all households. */
+void MCMC::assign_extra_integer_to_all_houses(const std::vector<extraID> &names, int xinit)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pBuild->house_vector[H].allocate_extra_int(names, init_value);
+        pBuild->house_vector[H].allocate_extra_integer(names, xinit);
 }
-void MCMC::assign_extra_double_to_all_houses(const std::vector<std::string> &names, double init_value)
+/* Extra single doubles for all households. */
+void MCMC::assign_extra_double_to_all_houses(const std::vector<extraID> &names, double xinit)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pBuild->house_vector[H].allocate_extra_double(names, init_value);
+        pBuild->house_vector[H].allocate_extra_double(names, xinit);
 }
-void MCMC::assign_extra_vector_to_all_houses(const std::vector<std::string> &names, double init_value)
+/* Extra double vectors for all households. */
+void MCMC::assign_extra_vector_to_all_houses(const std::vector<extraID> &names, double xinit)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pBuild->house_vector[H].allocate_extra_vector(names, init_value);
+        pBuild->house_vector[H].allocate_extra_vector(names, xinit);
 }
-void MCMC::assign_extra_matrix_to_all_houses(const std::vector<std::string> &names, double init_value)
+/* Extra double square matrix for all households. */
+void MCMC::assign_extra_matrix_to_all_houses(const std::vector<extraID> &names, double xinit)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pBuild->house_vector[H].allocate_extra_matrix(names, init_value);
+        pBuild->house_vector[H].allocate_extra_matrix(names, xinit);
 }
 
 //===== INFECTIVITY PROFILE =====//
+
+/* Assign the infectivity profile. */
 void MCMC::assign_infectivity_profile(const std::string &name)
 {
     _infec_profile_ = infectivity_profile_switchboard(name);
 }
+
+/* Value of the instantaneous infectivity profile. */
 double MCMC::infec_profile_inst(double serial, const std::vector<double> &x)
 {
     return _infec_profile_->pdf(serial, x);
 }
 
+/* Value of the cumulative infectivity profile. */
 double MCMC::infec_profile_cumul(double serial, const std::vector<double> &x)
 {
     return _infec_profile_->cdf(serial, x);
@@ -116,7 +125,7 @@ double MCMC::compute_house_loglike(Household &house) const
 };
 
 /* Assign group rate to an individual  */
-dict_rates MCMC::assign_group_rate_to_individual(Household &house, indiv i)
+const rateIDmapvec<parID> MCMC::assign_group_rate_to_individual(Household &house, indiv i)
 {
     UNUSED(house);
     UNUSED(i);
@@ -125,9 +134,9 @@ dict_rates MCMC::assign_group_rate_to_individual(Household &house, indiv i)
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
+const parID MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
-    house.assign_contact_rate(from, to, MISSING_RATE);
+    return UNDEFINED;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -144,7 +153,7 @@ void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv 
 /* Read data file and then run assignment. */
 void MCMC::read_data(const std::string &pathtofile)
 {
-    std::map<std::string, std::vector<std::string>> datatable = {};
+    dict_str_vec datatable = {};
     tools::read_csv_table(pathtofile, datatable);
     build_data(datatable);
 
@@ -159,8 +168,8 @@ void MCMC::read_data(const std::string &pathtofile)
 /* Import data from R DataFrame and run build. */
 void MCMC::import_data(const Rcpp::DataFrame &data)
 {
-    std::map<std::string, std::vector<std::string>> datatable = {};
-    tools::rdataframe_to_map(data, datatable);
+    dict_str_vec datatable = {};
+    rdataframe_to_map(data, datatable);
     build_data(datatable);
     if (pBuild->_report_pathtofile_.find("data") != pBuild->_report_pathtofile_.end())
         pBuild->_report_pathtofile_.erase("data");
@@ -168,7 +177,7 @@ void MCMC::import_data(const Rcpp::DataFrame &data)
 #endif
 
 /* Assign data after pre-processing. */
-void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &datatable)
+void MCMC::build_data(const dict_str_vec &datatable)
 {
     try
     {
@@ -198,10 +207,10 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
             for (size_t i = 0; i < pBuild->n_individuals; ++i)
             {
                 //----- Read individual data -----//
-                std::string this_indiv_ID = std::to_string(i);     // default value
+                std::string ID = std::to_string(i);                // default value
                 std::string house_ID = std::to_string(n_houses()); // default value
-                int this_status = MISSING_STATUS;
-                dictargs args = {};
+                int status = MISSING_STATUS;
+                dataIDmap<double> data = {};
 
                 for (const std::string &key : pBuild->data_headers)
                 {
@@ -211,7 +220,7 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                             throw std::invalid_argument(
                                 "Missing id for individual in row n." + std::to_string(i + 2) + ".");
                         else
-                            this_indiv_ID = datatable.at("id")[i];
+                            ID = datatable.at("id")[i];
                     }
                     else if (key == "house_id")
                     {
@@ -225,16 +234,16 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     {
                         // NA status is a missing status
                         if (!tools::is_na(datatable.at("status")[i]))
-                            this_status = tools::stoul(datatable.at("status")[i], "individual status");
+                            status = tools::stoul(datatable.at("status")[i], "individual status");
                     }
                     else if (tools::is_na(datatable.at(key)[i]))
                     {
-                        args.emplace(key, std::numeric_limits<double>::quiet_NaN());
+                        data.emplace(key, std::numeric_limits<double>::quiet_NaN());
                         tools::warning("Found NA value(s) in the database.");
                     }
                     else
                     {
-                        args.emplace(key, tools::stod(datatable.at(key)[i], "data '" + key + "'"));
+                        data.emplace(key, tools::stod(datatable.at(key)[i], "data '" + key + "'"));
                     }
                 }
 
@@ -248,9 +257,12 @@ void MCMC::build_data(const std::map<std::string, std::vector<std::string>> &dat
                     pBuild->assign_house(house_ID);
                 }
 
+                // extract the household reference
                 Household &house = pBuild->house_vector[hh_ID_to_index.at(house_ID)];
+
                 // Assign the individual the respective household
-                house.assign_individual(this_indiv_ID, this_status, args);
+                house.assign_individual(ID, status, data);
+
                 // Assign and set rate per group
                 set_rate_per_group(house, house.size() - 1);
             }
@@ -288,20 +300,20 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 {
     try
     {
-        dict_rates group_rates_parIDs = assign_group_rate_to_individual(house, i);
-        dict_rates_ptr group_rates_ptrs = {};
+        const rateIDmapvec<parID> group_rates_parIDs = assign_group_rate_to_individual(house, i);
+        rateIDmapvec<const double *> group_rates_ptrs = {};
 
         // convert to dict_rates_ptr and assert parameters
         for (const auto &pair : group_rates_parIDs)
         {
-            std::string rateID = pair.first;
+            rateID r = pair.first;
 
-            if (rateID == CONTACT_RATE)
+            if (r == CONTACT_RATE)
             {
                 throw std::invalid_argument(
                     "The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
             }
-            else if (!tools::is_na(rateID))
+            else if (!tools::is_na(r))
             {
                 // assert parameters and in the case return pointer
                 bool is_all_reference = true; // all reference state
@@ -312,7 +324,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                     if ((tools::is_na(p)) || (p == MISSING_RATE))
                     {
                         std::invalid_argument(
-                            "Missing rate '" + rateID + "' for individual " + house.ID(i) + ".");
+                            "Missing rate '" + r + "' for individual " + house.ID(i) + ".");
                     }
                     else if (p == REFERENCE)
                     {
@@ -333,7 +345,8 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                     vec_par_ptr = {&REFERENCE_VALUE};
                 }
 
-                group_rates_ptrs.emplace(rateID, vec_par_ptr);
+                // emplace
+                group_rates_ptrs[r] = vec_par_ptr;
             }
         }
 
@@ -355,9 +368,6 @@ void MCMC::set_rate_per_contact(Household &house)
 {
     try
     {
-        // allocate contact patterns
-        house.init_contact_matrix();
-
         // loop over all couples
         for (indiv k = 0; k < house.size(); ++k) // from
         {
@@ -366,23 +376,25 @@ void MCMC::set_rate_per_contact(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    assign_contact_rate_to_household(house, k, i);
-                    parID p = house.get_contact_rate_map(k, i);
+                    const parID &p = assign_contact_rate_to_household(house, k, i);
 
-                    if (tools::is_na(p) || (p == MISSING_RATE))
+                    if (!tools::is_na(p))
                     {
-                        std::string sms = "Contact rate not provided for individuals " + house.ID(k);
-                        sms += " and " + house.ID(i) + " within household " + house.house_ID() + ".";
-                        throw std::invalid_argument(sms);
-                    }
-                    else if (p == REFERENCE)
-                    {
-                        house.set_contact_rate(k, i, &REFERENCE_VALUE); // reference rate
-                    }
-                    else
-                    {
-                        pBuild->assert_param(p);
-                        house.set_contact_rate(k, i, pBuild->get_param_pointer(p)); // parameter rate
+                        if (p == MISSING_RATE)
+                        {
+                            std::string sms = "Missing contact rate for individuals " + house.ID(k);
+                            sms += " and " + house.ID(i) + " (household " + house.house_ID() + ").";
+                            throw std::invalid_argument(sms);
+                        }
+                        else if (p == REFERENCE)
+                        {
+                            house.assign_contact_rate(k, i, &REFERENCE_VALUE); // reference rate
+                        }
+                        else
+                        {
+                            pBuild->assert_param(p);
+                            house.assign_contact_rate(k, i, pBuild->get_param_pointer(p)); // parameter rate
+                        }
                     }
 
                     // count the total number of pairs
@@ -595,7 +607,7 @@ void MCMC::_move_all_augm_()
 
     if (!_error_message_.empty())
         tools::error(_error_message_);
-     
+
     pBuild->increment_global_loglike(delta_ll);
 }
 
@@ -850,7 +862,7 @@ void MCMC::infer(bool is_progbar)
     CustomProgressBar progressbar(is_progbar);
     progressbar.initialize(fmt_progtxt("infer"));
 
-    // run Markov Chain 
+    // run Markov Chain
     run_monte_carlo(progressbar);
 
     // close progress bar
@@ -904,7 +916,7 @@ void MCMC::update_inver_temper(double inv_T)
 */
 double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 {
-    const std::vector<std::string> options = {"adaptive", "power-fractions"};
+    const str_vec options = {"adaptive", "power-fractions"};
 
     //----- fix internal number of rungs (for progress bar) -----//
     if (n_rungs >= 2)

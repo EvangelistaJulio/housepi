@@ -360,7 +360,7 @@ void Model::assign_contact_rate_to_household(int h, int i, int k)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::force_of_infec(int h, int i, std::vector<squarematrix> &profiles)
+double Model::force_of_infec(int h, int i, std::vector<matrix> &profiles)
 {
 	double output = 0.0;
 

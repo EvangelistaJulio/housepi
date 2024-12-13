@@ -90,7 +90,7 @@ double Base_Distribution::pdf(double x) const { return (this->*_func_pdf_)(x); }
 double Base_Distribution::cdf(double x) const { return (this->*_func_cdf_)(x); }
 double Base_Distribution::logpdf(double x) const { return (this->*_func_logpdf_)(x); }
 double Base_Distribution::logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
-double Base_Distribution::rand(sys_rnd_gen &prng) { return (this->*_func_rand_)(prng); }
+double Base_Distribution::rand(rnd_gen &prng) { return (this->*_func_rand_)(prng); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - virtual  //////////////////////////////////
@@ -105,7 +105,7 @@ double Base_Distribution::_logratio_(double xold, double xnew) const
     UNUSED(xnew);
     return 0.0;
 }
-double Base_Distribution::_rand_(sys_rnd_gen &prng)
+double Base_Distribution::_rand_(rnd_gen &prng)
 {
     UNUSED(prng);
     return _undefined_call_error_("rand");
@@ -119,7 +119,7 @@ double Base_Distribution::_default_pdf_(double x) const { return (this->*_func_t
 double Base_Distribution::_default_cdf_(double x) const { return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x))); }
 double Base_Distribution::_default_logpdf_(double x) const { return (this->*_func_logtrunc_)(_logpdf_(x)); }
 double Base_Distribution::_default_logratio_(double xold, double xnew) const { return _logratio_(xold, xnew); }
-double Base_Distribution::_default_rand_(sys_rnd_gen &prng) { return _rand_(prng); }
+double Base_Distribution::_default_rand_(rnd_gen &prng) { return _rand_(prng); }
 
 /* Internal error for calls to undefined distribution. */
 double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
@@ -171,7 +171,7 @@ double Base_Distribution::_discr_center_logratio_(double xold, double xnew) cons
     return log((_cdf_(dnew + 0.5) - _cdf_(dnew - 0.5)) / (_cdf_(dold + 0.5) - _cdf_(dold - 0.5)));
 }
 
-double Base_Distribution::_discr_center_rand_(sys_rnd_gen &prng)
+double Base_Distribution::_discr_center_rand_(rnd_gen &prng)
 {
     return std::round(_rand_(prng));
 }
@@ -203,7 +203,7 @@ double Base_Distribution::_discr_left_logratio_(double xold, double xnew) const
     return log((_cdf_(dnew + 1.0) - _cdf_(dnew)) / (_cdf_(dold + 1.0) - _cdf_(dold)));
 }
 
-double Base_Distribution::_discr_left_rand_(sys_rnd_gen &prng)
+double Base_Distribution::_discr_left_rand_(rnd_gen &prng)
 {
     return std::floor(_rand_(prng));
 }
@@ -245,9 +245,9 @@ double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_ran
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Truncate and/or discretize distribution at declaration.  */
-void Base_Distribution::_assign_reshaping_(const dictargs &range, const std::string &discr)
+void Base_Distribution::_assign_reshaping_(const dict_args &range, const std::string &discr)
 {
-    dictargs new_range = range;
+    dict_args new_range = range;
 
     //===== DISCRETIZATION =====//
     // asjust range in case of discretization
@@ -335,8 +335,8 @@ private:
     std::uniform_real_distribution<double> distr_gen;
 
 public:
-    Uniform_Distribution(const dictargs &new_args = {},
-                         const dictargs &range = {},
+    Uniform_Distribution(const dict_args &new_args = {},
+                         const dict_args &range = {},
                          bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("unif", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"});
@@ -344,8 +344,8 @@ public:
         _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
 
-    Uniform_Distribution(const dictargs_ptr &new_args_ptr,
-                         const dictargs &range = {},
+    Uniform_Distribution(const dict_args_ptr &new_args_ptr,
+                         const dict_args &range = {},
                          bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("unif", new_args_ptr, {"min", "max"});
@@ -379,7 +379,7 @@ protected:
         return 0.0;
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         distr_gen.param(std::uniform_real_distribution<double>::param_type(get_arg(0), get_arg(1)));
         return distr_gen(prng);
@@ -395,8 +395,8 @@ private:
     std::normal_distribution<double> distr_gen;
 
 public:
-    Normal_Distribution(const dictargs &new_args = {},
-                        const dictargs &range = {},
+    Normal_Distribution(const dict_args &new_args = {},
+                        const dict_args &range = {},
                         bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("norm", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"});
@@ -404,8 +404,8 @@ public:
         _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
 
-    Normal_Distribution(const dictargs_ptr &new_args_ptr,
-                        const dictargs &range = {},
+    Normal_Distribution(const dict_args_ptr &new_args_ptr,
+                        const dict_args &range = {},
                         bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("norm", new_args_ptr, {"mean", "sd"});
@@ -443,7 +443,7 @@ protected:
         return 0.5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         distr_gen.param(std::normal_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
@@ -467,8 +467,8 @@ private:
     std::lognormal_distribution<double> distr_gen;
 
 public:
-    Lognorm_Distribution(const dictargs &new_args = {},
-                         const dictargs &range = {},
+    Lognorm_Distribution(const dict_args &new_args = {},
+                         const dict_args &range = {},
                          bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"}, {{"min", 0}});
@@ -476,8 +476,8 @@ public:
         _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
 
-    Lognorm_Distribution(const dictargs_ptr &new_args_ptr,
-                         const dictargs &range = {},
+    Lognorm_Distribution(const dict_args_ptr &new_args_ptr,
+                         const dict_args &range = {},
                          bool discr = false) : distr_gen(0.0, 1.0)
     {
         init("lnorm", new_args_ptr, {"meanlog", "sdlog"}, {{"min", 0}});
@@ -515,7 +515,7 @@ protected:
         return 0.5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
@@ -539,8 +539,8 @@ private:
     std::gamma_distribution<double> distr_gen;
 
 public:
-    Gamma_Distribution(const dictargs &new_args = {},
-                       const dictargs &range = {},
+    Gamma_Distribution(const dict_args &new_args = {},
+                       const dict_args &range = {},
                        bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
@@ -548,8 +548,8 @@ public:
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
 
-    Gamma_Distribution(const dictargs_ptr &new_args_ptr,
-                       const dictargs &range = {},
+    Gamma_Distribution(const dict_args_ptr &new_args_ptr,
+                       const dict_args &range = {},
                        bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("gamma", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
@@ -587,7 +587,7 @@ protected:
         return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
@@ -611,8 +611,8 @@ private:
     std::weibull_distribution<double> distr_gen;
 
 public:
-    Weibull_Distribution(const dictargs &new_args = {},
-                         const dictargs &range = {},
+    Weibull_Distribution(const dict_args &new_args = {},
+                         const dict_args &range = {},
                          bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
@@ -620,8 +620,8 @@ public:
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
 
-    Weibull_Distribution(const dictargs_ptr new_args_ptr,
-                         const dictargs &range = {},
+    Weibull_Distribution(const dict_args_ptr new_args_ptr,
+                         const dict_args &range = {},
                          bool discr = false) : distr_gen(1.0, 1.0)
     {
         init("weibull", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
@@ -658,7 +658,7 @@ protected:
         return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
         double xnew = distr_gen(prng);
@@ -682,16 +682,16 @@ private:
     std::uniform_real_distribution<double> unif_gen;
 
 public:
-    Rayleigh_Distribution(const dictargs &new_args = {},
-                          const dictargs &range = {},
+    Rayleigh_Distribution(const dict_args &new_args = {},
+                          const dict_args &range = {},
                           bool discr = false) : unif_gen(0.0, 1.0)
     {
         init("rayleigh", {{"scale", 1.0}}, {"scale"}, {{"min", 0}});
         assign_args(new_args);
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
-    Rayleigh_Distribution(const dictargs_ptr &new_args_ptr,
-                          const dictargs &range = {},
+    Rayleigh_Distribution(const dict_args_ptr &new_args_ptr,
+                          const dict_args &range = {},
                           bool discr = false) : unif_gen(0.0, 1.0)
     {
         init("rayleigh", new_args_ptr, {"scale"}, {{"min", 0}});
@@ -724,7 +724,7 @@ protected:
         return log(xnew / xold) + 0.5 * pow(scale, -2) * (pow(xold, 2) - pow(xnew, 2));
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         double xnew = distr_gen(prng);
         int n_attempts = 0;
@@ -737,7 +737,7 @@ protected:
     }
 
 private:
-    double distr_gen(sys_rnd_gen &prng)
+    double distr_gen(rnd_gen &prng)
     {
         return get_arg(0) * sqrt(-2 * unif_gen(prng));
     }
@@ -753,16 +753,16 @@ private:
     std::exponential_distribution<double> distr_gen;
 
 public:
-    Exponential_Distribution(const dictargs &new_args = {},
-                             const dictargs &range = {},
+    Exponential_Distribution(const dict_args &new_args = {},
+                             const dict_args &range = {},
                              bool discr = false) : distr_gen(1.0)
     {
         init("exp", {{"rate", 1.0}}, {"rate"}, {{"min", 0}});
         assign_args(new_args);
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
-    Exponential_Distribution(const dictargs_ptr &new_args_ptr,
-                             const dictargs &range = {},
+    Exponential_Distribution(const dict_args_ptr &new_args_ptr,
+                             const dict_args &range = {},
                              bool discr = false) : distr_gen(1.0)
     {
         init("exp", new_args_ptr, {"rate"}, {{"min", 0}});
@@ -795,7 +795,7 @@ protected:
         return rate * (xold - xnew);
     }
 
-    virtual double _rand_(sys_rnd_gen &prng) override
+    virtual double _rand_(rnd_gen &prng) override
     {
         distr_gen.param(std::exponential_distribution<double>::param_type(get_arg(0)));
         double xnew = distr_gen(prng);
@@ -821,20 +821,14 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary hidden template to return the chosen distribution. */
-template <typename dictargs_val_or_ptr>
+template <typename dict_args_val_or_ptr>
 std::shared_ptr<Base_Distribution> _distribution_(const std::string &name,
-                                                  const dictargs_val_or_ptr &args,
-                                                  const dictargs &range,
+                                                  const dict_args_val_or_ptr &args,
+                                                  const dict_args &range,
                                                   bool discr)
 {
-    const std::vector<std::string> options = {
-        "unif",
-        "norm",
-        "lnorm",
-        "gamma",
-        "weibull",
-        "rayleigh",
-        "exp"};
+    const str_vec options = {"unif", "norm", "lnorm",
+                             "gamma", "weibull", "rayleigh", "exp"};
 
     std::shared_ptr<Base_Distribution> output;
 
@@ -863,19 +857,16 @@ std::shared_ptr<Base_Distribution> _distribution_(const std::string &name,
         output = std::make_shared<Exponential_Distribution>(args, range, discr);
 
     else
-    {
-        std::string err_message = "Unknown distribution '" + name + "'.";
-        err_message += tools::find_closest(name, options);
-        throw std::invalid_argument(err_message);
-    }
+        throw std::invalid_argument(
+            "Unknown distribution '" + name + "'." + tools::find_closest(name, options));
 
     return output;
 }
 
 /* Pointer to distribution with scalar arguments. */
 std::shared_ptr<Base_Distribution> distribution(const std::string &name,
-                                                const dictargs &args,
-                                                const dictargs &range,
+                                                const dict_args &args,
+                                                const dict_args &range,
                                                 bool discr)
 {
     return _distribution_(name, args, range, discr);
@@ -883,8 +874,8 @@ std::shared_ptr<Base_Distribution> distribution(const std::string &name,
 
 /* Pointer to distribution with pointer arguments. */
 std::shared_ptr<Base_Distribution> distribution(const std::string &name,
-                                                const dictargs_ptr &args,
-                                                const dictargs &range,
+                                                const dict_args_ptr &args,
+                                                const dict_args &range,
                                                 bool discr)
 {
     return _distribution_(name, args, range, discr);

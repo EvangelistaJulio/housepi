@@ -22,7 +22,7 @@
 //' @field export_params Return a DataFrame with current parameters.
 //' @field export_data Return a DataFrame with current database.
 //' @field export_traces Return a DataFrame with MCMC traces.
-//' @field export_loglike_matrix Return matrix with loglikelihood values.
+//' @field export_household_loglike_traces Return matrix with loglikelihood values.
 //' @field show_full_build Show all build messages.
 //' @field show_summary Show a summary of the current database.
 
@@ -52,7 +52,7 @@ RCPP_MODULE(model_housepi_rcpp)
       .method("export_params", &MCMC::export_params)
       .method("export_data", &MCMC::export_data)
       .method("export_traces", &MCMC::export_traces)
-      .method("export_loglike_matrix", &MCMC::export_loglike_matrix)
+      .method("export_household_loglike_traces", &MCMC::export_household_loglike_traces)
       .method("show_full_build", &MCMC::show_full_build)
       .method("show_summary", &MCMC::show_summary);
 

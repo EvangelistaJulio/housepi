@@ -30,27 +30,22 @@ const string fmt_time(std::chrono::seconds scs)
 
     // show large time scales only if relevant
     if (dys.count() > 0)
-    {
         oss << dys.count() << "d"
             << std::setfill('0') << std::setw(2) << hrs.count() << "h"
             << std::setfill('0') << std::setw(2) << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
-    }
+
     else if (hrs.count() > 0)
-    {
         oss << hrs.count() << "h"
             << std::setfill('0') << std::setw(2) << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
-    }
+
     else if (mns.count() > 0)
-    {
         oss << mns.count() << "m"
             << std::setfill('0') << std::setw(2) << scs.count() << "s";
-    }
+
     else
-    {
         oss << scs.count() << "s";
-    }
 
     return oss.str();
 }
@@ -79,10 +74,8 @@ public:
     };
     ~CustomProgressBarImpl() {};
 
-    void set_text(const std::string &text)
-    {
-        this->text = text;
-    }
+    /* Set description text of progress bar. */
+    void set_text(const std::string &text) { this->text = text; }
 
     /* Initialize progress bar. */
     void initialize(const string &text)
@@ -117,9 +110,7 @@ public:
                 unsigned where = progress * barwidth;
                 string sms = text + " |";
                 for (unsigned u = 0; u < where; ++u)
-                {
                     sms += symbol;
-                }
                 sms += string(barwidth - where, ' ') + "| " + percentage(progress, 0);
 
                 seconds elapsed = duration_cast<seconds>(now - start);
@@ -143,19 +134,15 @@ public:
             seconds elapsed = duration_cast<seconds>(steady_clock::now() - start);
             string sms = text + " |";
             for (unsigned u = 0; u < barwidth; u++)
-            {
                 sms += symbol;
-            }
             sms += "| " + fmt_time(elapsed);
             display("\r" + sms + string(25, ' ') + "\n");
         }
     }
 
 private:
-    void display(const std::string &sms)
-    {
-        print_stdout(sms);
-    }
+    /* Function to display the progress bar. */
+    void display(const std::string &sms) { print_stdout(sms); }
 };
 
 //-----------------------------------------------------------------------------------------------//

@@ -46,8 +46,8 @@ public:
 
 	//===== SETTER =====//
 	void set_rule_start_value(double x);
-	double rand(sys_rnd_gen &prng);
-	virtual double propose(sys_rnd_gen &prng, double start = 0.0);
+	double rand(rnd_gen &prng);
+	virtual double propose(rnd_gen &prng, double start = 0.0);
 	virtual double logratio(double xold, double xnew) const;
 
 	//===== ADAPTATION =====//
@@ -71,11 +71,11 @@ protected:
 	std::vector<ushort> _args_to_adapt_ = {};
 
 	//===== propose : functional methods =====//
-	double (Base_Proposer::*_func_propose_)(sys_rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
-	double _propose_undefined_(sys_rnd_gen &prng, double start);
-	double _propose_sum_to_previous_(sys_rnd_gen &prng, double start);
-	double _propose_times_previous_(sys_rnd_gen &prng, double start);
-	double _propose_draw_rand_(sys_rnd_gen &prng, double start);
+	double (Base_Proposer::*_func_propose_)(rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
+	double _propose_undefined_(rnd_gen &prng, double start);
+	double _propose_sum_to_previous_(rnd_gen &prng, double start);
+	double _propose_times_previous_(rnd_gen &prng, double start);
+	double _propose_draw_rand_(rnd_gen &prng, double start);
 
 	//===== logratio : functional methods =====//
 	double (Base_Proposer::*_logratio_method_)(double, double) const = &Base_Proposer::_logratio_undefined_;
@@ -132,11 +132,11 @@ public:
 
 	// define a pointer to distribution
 	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 dictargs distr_args = {},
-							 dictargs range = {});
+							 dict_args distr_args = {},
+							 dict_args range = {});
 	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 dictargs_ptr distr_args = {},
-							 dictargs range = {});
+							 dict_args_ptr distr_args = {},
+							 dict_args range = {});
 
 	// Assing a proposer rule with associated state 'infer'.
 	void assign_proposer(const std::string &rule_name = UNDEFINED,
@@ -149,13 +149,13 @@ public:
 	bool valid_move() const;
 
 	//----- distr_ptr : prior/model methods -----//
-	void rand(sys_rnd_gen &prng);
+	void rand(rnd_gen &prng);
 
 	double distr_logpdf() const;
 	double distr_logratio() const;
 
 	//----- prop_ptr : propose methods -----//
-	void propose(sys_rnd_gen &prng);
+	void propose(rnd_gen &prng);
 	double propose_logratio() const;
 
 	//----- prop_ptr : adaptive methods -----//
@@ -190,11 +190,11 @@ private:
 	double _move_logratio_gibbs_() const;
 
 	//===== Propose : functional methods =====//
-	double (Base_Variable::*_func_propose_)(sys_rnd_gen &) = &Base_Variable::_propose_error_;
-	double _propose_error_(sys_rnd_gen &prng);
-	double _propose_gibbs_sample_(sys_rnd_gen &prng);
-	double _propose_from_previous_(sys_rnd_gen &prng);
-	double _propose_from_zero_(sys_rnd_gen &prng);
+	double (Base_Variable::*_func_propose_)(rnd_gen &) = &Base_Variable::_propose_error_;
+	double _propose_error_(rnd_gen &prng);
+	double _propose_gibbs_sample_(rnd_gen &prng);
+	double _propose_from_previous_(rnd_gen &prng);
+	double _propose_from_zero_(rnd_gen &prng);
 };
 
 #endif // HOUSEPI__VARIABLE__H

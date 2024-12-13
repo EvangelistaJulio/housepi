@@ -21,17 +21,18 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
                              double rule_start_value,
                              std::vector<ushort> args_to_adapt) : distr_ptr(distr)
 {
-    _args_to_adapt_ = args_to_adapt;
+    // by default proposal is from previous state
+    _is_start_from_zero_ = false; 
 
-    if (rule_start_value == INF_DOUBLE)
-    {
-        _is_start_from_zero_ = false;
-    }
-    else
+    // proposal alwats starting by given value
+    if (rule_start_value != INF_DOUBLE)
     {
         _is_start_from_zero_ = true;
         set_rule_start_value(rule_start_value);
     }
+
+    // load which are the parameter to be adapted
+    _args_to_adapt_ = args_to_adapt;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,8 +49,8 @@ bool Base_Proposer::is_rule_start_from_zero() const { return _is_start_from_zero
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Base_Proposer::set_rule_start_value(double x) { from_value = x; }
-double Base_Proposer::rand(sys_rnd_gen &prng) { return (distr_ptr->rand)(prng); }
-double Base_Proposer::propose(sys_rnd_gen &prng, double start) { return (this->*_func_propose_)(prng, start); }
+double Base_Proposer::rand(rnd_gen &prng) { return (distr_ptr->rand)(prng); }
+double Base_Proposer::propose(rnd_gen &prng, double start) { return (this->*_func_propose_)(prng, start); }
 double Base_Proposer::logratio(double xold, double xnew) const { return (this->*_logratio_method_)(xold, xnew); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,16 +97,16 @@ const std::string Base_Proposer::show_arg_values() const { return distr_ptr->sho
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // alternative proposer methods
-double Base_Proposer::_propose_undefined_(sys_rnd_gen &prng, double start)
+double Base_Proposer::_propose_undefined_(rnd_gen &prng, double start)
 {
     tools::error("Attempt to call a method of an undefined proposer.");
     UNUSED(prng);
     UNUSED(start);
     return std::numeric_limits<double>::quiet_NaN();
 }
-double Base_Proposer::_propose_sum_to_previous_(sys_rnd_gen &prng, double start) { return start + rand(prng); }
-double Base_Proposer::_propose_times_previous_(sys_rnd_gen &prng, double start) { return start * rand(prng); }
-double Base_Proposer::_propose_draw_rand_(sys_rnd_gen &prng, double start)
+double Base_Proposer::_propose_sum_to_previous_(rnd_gen &prng, double start) { return start + rand(prng); }
+double Base_Proposer::_propose_times_previous_(rnd_gen &prng, double start) { return start * rand(prng); }
+double Base_Proposer::_propose_draw_rand_(rnd_gen &prng, double start)
 {
     UNUSED(start);
     return rand(prng);
@@ -147,7 +148,7 @@ public:
     Uniform_Proposer(
         double rule_scale = 0.5,
         double rule_from = INF_DOUBLE,
-        bool is_discr = false) : Base_Proposer(distribution("unif", dictargs(), dictargs(), is_discr),
+        bool is_discr = false) : Base_Proposer(distribution("unif", dict_args(), dict_args(), is_discr),
                                                rule_from,
                                                {0, 1})
     {
@@ -171,7 +172,7 @@ public:
     Normal_Proposer(
         double rule_scale = 1.0,
         double rule_from = INF_DOUBLE,
-        bool is_discr = false) : Base_Proposer(distribution("norm", dictargs(), dictargs(), is_discr),
+        bool is_discr = false) : Base_Proposer(distribution("norm", dict_args(), dict_args(), is_discr),
                                                rule_from,
                                                {1})
     {
@@ -199,7 +200,7 @@ public:
     Lognorm_Proposer(
         double rule_scale = 1.0,
         double rule_from = INF_DOUBLE,
-        bool is_discr = false) : Base_Proposer(distribution("lnorm", dictargs(), dictargs(), is_discr),
+        bool is_discr = false) : Base_Proposer(distribution("lnorm", dict_args(), dict_args(), is_discr),
                                                rule_from,
                                                {1})
     {
@@ -240,7 +241,7 @@ public:
 
 /* Switchboard to select the custom metropolis proposer rule. */
 std::shared_ptr<Base_Proposer> proposer(std::string rule_name,
-                                        double rule_scale, 
+                                        double rule_scale,
                                         double rule_from,
                                         bool is_discr)
 {
@@ -304,15 +305,15 @@ void Base_Variable::set_value(double x)
 void Base_Variable::restore_value() { value = buffer; }
 
 void Base_Variable::assign_distribution(const std::string &distr_name,
-                                        dictargs distr_args,
-                                        dictargs range)
+                                        dict_args distr_args,
+                                        dict_args range)
 {
     distr_ptr = distribution(distr_name, distr_args, range, is_discr);
 }
 
 void Base_Variable::assign_distribution(const std::string &distr_name,
-                                        dictargs_ptr distr_args,
-                                        dictargs range)
+                                        dict_args_ptr distr_args,
+                                        dict_args range)
 {
     distr_ptr = distribution(distr_name, distr_args, range, is_discr);
 }
@@ -368,13 +369,13 @@ double Base_Variable::get_move_logratio() const { return (this->*_func_move_logr
 bool Base_Variable::valid_move() const { return (this->*_func_valid_move_)(); }
 
 //----- distr_ptr : prior/model methods -----//
-void Base_Variable::rand(sys_rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
+void Base_Variable::rand(rnd_gen &prng) { set_value(distr_ptr->rand(prng)); }
 
 double Base_Variable::distr_logpdf() const { return distr_ptr->logpdf(value); }
 double Base_Variable::distr_logratio() const { return distr_ptr->logratio(buffer, value); }
 
 //----- prop_ptr : propose methods -----//
-void Base_Variable::propose(sys_rnd_gen &prng) { return set_value((this->*_func_propose_)(prng)); }
+void Base_Variable::propose(rnd_gen &prng) { return set_value((this->*_func_propose_)(prng)); }
 double Base_Variable::propose_logratio() const { return (prop_ptr->logratio)(buffer, value); }
 
 //----- prop_ptr : adaptive methods -----//
@@ -422,12 +423,12 @@ bool Base_Variable::_valid_move_gibbs_() const { return true; }
 double Base_Variable::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
 double Base_Variable::_move_logratio_gibbs_() const { return 0.0; }
 
-double Base_Variable::_propose_error_(sys_rnd_gen &prng)
+double Base_Variable::_propose_error_(rnd_gen &prng)
 {
     UNUSED(prng);
     tools::error("Call to proposer of immutable variable '" + get_name() + "'.");
     return 0.;
 }
-double Base_Variable::_propose_gibbs_sample_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
-double Base_Variable::_propose_from_previous_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
-double Base_Variable::_propose_from_zero_(sys_rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }
+double Base_Variable::_propose_gibbs_sample_(rnd_gen &prng) { return (prop_ptr->propose)(prng, 0); }
+double Base_Variable::_propose_from_previous_(rnd_gen &prng) { return (prop_ptr->propose)(prng, get_value()); }
+double Base_Variable::_propose_from_zero_(rnd_gen &prng) { return (prop_ptr->propose)(prng, get_from_value()); }

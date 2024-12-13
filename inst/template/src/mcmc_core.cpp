@@ -1,10 +1,10 @@
 /*
- * core.cpp
+ * mcmc_core.cpp
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#include "build.h"
+#include "mcmc_build.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -14,11 +14,11 @@
 //-----------------------------------------------------------------------------------------------//
 
 /* Combine after control two lists into a dictionary */
-dictargs merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
+dict_args merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
 {
-    std::vector<std::string> keys = tools::parse_list_args(tkn_keys);
-    std::vector<std::string> vals = tools::parse_list_args(tkn_vals);
-    dictargs output = {};
+    str_vec keys = tools::parse_list_args(tkn_keys);
+    str_vec vals = tools::parse_list_args(tkn_vals);
+    dict_args output = {};
 
     if (keys.size() == vals.size())
     {
@@ -403,12 +403,12 @@ void Monte_Carlo_Build::build_setup()
         if (!_setup_deflist_.empty())
         {
             //===== Check that all provided setups are correct =====//
-            std::vector<std::string> file_entries = {"n_threads", "seed", "n_chains",
+            str_vec file_entries = {"n_threads", "seed", "n_chains",
                                                      "n_steps", "n_adapt", "thin",
                                                      "n_burnin", "rnd_init_params",
                                                      "n_rungs", "inv_temper"};
 
-            std::vector<std::string> wrong_entries = {};
+            str_vec wrong_entries = {};
 
             for (const auto &pair : _setup_deflist_)
                 if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
@@ -585,7 +585,7 @@ void Monte_Carlo_Build::build_params()
                     }
 
                     // load range
-                    dictargs range = {};
+                    dict_args range = {};
                     if (!tools::is_na(_param_deftable_.at("min")[k]))
                         range.emplace("min", tools::stod(_param_deftable_.at("min")[k], "parameter minimum"));
 
@@ -650,7 +650,7 @@ void Monte_Carlo_Build::set_global_loglike(double new_ll)
 }
 
 /* Return the pseudo random number generator. */
-sys_rnd_gen &Monte_Carlo_Build::get_prng()
+rnd_gen &Monte_Carlo_Build::get_prng()
 {
     return (this->*_func_prng_)();
 }
@@ -819,6 +819,7 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
 
 #ifdef _HOUSEPI_RCPP
 
+/* Convert R List into map<string, string>. */
 void rlist_to_map(const Rcpp::List &list, std::map<std::string, std::string> &output)
 {
     using namespace Rcpp;
@@ -842,10 +843,26 @@ void Monte_Carlo_Build::import_setup(const Rcpp::List &setup)
         _report_pathtofile_.erase("setup");
 }
 
+/* Convert R dataframe into map<string, vector<string>>. */
+void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output)
+{
+    using namespace Rcpp;
+
+    CharacterVector keys = df.names();
+
+    output.clear();
+    for (size_t i = 0; i < df.size(); ++i)
+    {
+        CharacterVector col_str = as<CharacterVector>(df[i]);
+        str_vec col_data(col_str.begin(), col_str.end());
+        output[as<std::string>(keys[i])] = std::move(col_data);
+    }
+}
+
 /* Import params from R DataFrame and run build. */
 void Monte_Carlo_Build::import_params(const Rcpp::DataFrame &params)
 {
-    tools::rdataframe_to_map(params, _param_deftable_);
+    rdataframe_to_map(params, _param_deftable_);
     build_params();
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
         _report_pathtofile_.erase("params");

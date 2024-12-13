@@ -34,7 +34,7 @@ medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
 //#define TEST_EPI_CURVE
 
 // alias for a square matrix
-typedef std::vector<std::vector<double>> squarematrix; 
+typedef std::vector<std::vector<double>> matrix; 
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -76,8 +76,8 @@ class Model : public MCMC
 {
 public:
 	//=====Attributes for Look-Up-Tables=====//
-	std::vector<squarematrix> inst_profile_LUT = {};
-	std::vector<squarematrix> cumul_profile_LUT = {};
+	std::vector<matrix> inst_profile_LUT = {};
+	std::vector<matrix> cumul_profile_LUT = {};
 
 	//=====Constructor=====//
 	Model() : infec_profile_func(){};
@@ -90,7 +90,7 @@ public:
 	Infectivity_Profile_Function infec_profile_func;
 	double compute_infec_profile_inst(int h, int i, double t_transm);
 	double compute_infec_profile_cumul(int h, int i, double t_transm);
-	double force_of_infec(int h, int i, std::vector<squarematrix> &profiles);
+	double force_of_infec(int h, int i, std::vector<matrix> &profiles);
 
 	//=====Override General Methods=====//
 	void initialize_model() override;

@@ -39,7 +39,7 @@ public:
 	double cdf(double x) const;
 	double logpdf(double x) const;
 	double logratio(double xold, double xnew) const;
-	double rand(sys_rnd_gen &prng);
+	double rand(rnd_gen &prng);
 
 protected:
 	//----- Distribution specific virtual methods -----//
@@ -47,10 +47,10 @@ protected:
 	virtual double _cdf_(double x) const;
 	virtual double _logpdf_(double x) const;
 	virtual double _logratio_(double xold, double xnew) const;
-	virtual double _rand_(sys_rnd_gen &prng);
+	virtual double _rand_(rnd_gen &prng);
 
 	//----- Adjust methods for truncation and/or discretization -----//
-	void _assign_reshaping_(const dictargs &range, const std::string &discr);
+	void _assign_reshaping_(const dict_args &range, const std::string &discr);
 	void _check_rand_attempts_(int &n_attempts) const;
 
 	//----- Functional methods for public methods -----//
@@ -58,7 +58,7 @@ protected:
 	double (Base_Distribution::*_func_cdf_)(double) const = &Base_Distribution::_default_cdf_;
 	double (Base_Distribution::*_func_logpdf_)(double) const = &Base_Distribution::_default_logpdf_;
 	double (Base_Distribution::*_func_logratio_)(double, double) const = &Base_Distribution::_default_logratio_;
-	double (Base_Distribution::*_func_rand_)(sys_rnd_gen &) = &Base_Distribution::_default_rand_;
+	double (Base_Distribution::*_func_rand_)(rnd_gen &) = &Base_Distribution::_default_rand_;
 
 	//----- Functional methods for truncation -----//
 	double (Base_Distribution::*_func_trunc_)(double) const = &Base_Distribution::_trunc_dummy_;
@@ -73,21 +73,21 @@ private:
 	double _default_cdf_(double x) const;
 	double _default_logpdf_(double x) const;
 	double _default_logratio_(double xold, double xnew) const;
-	double _default_rand_(sys_rnd_gen &prng);
+	double _default_rand_(rnd_gen &prng);
 
 	//----- Functional methods for the center adjusted discretization -----//
 	double _discr_center_pdf_(double x) const;
 	double _discr_center_cdf_(double x) const;
 	double _discr_center_logpdf_(double x) const;
 	double _discr_center_logratio_(double xold, double xnew) const;
-	double _discr_center_rand_(sys_rnd_gen &prng);
+	double _discr_center_rand_(rnd_gen &prng);
 
 	//----- Functional methods for the left adjusted discretization -----//
 	double _discr_left_pdf_(double x) const;
 	double _discr_left_cdf_(double x) const;
 	double _discr_left_logpdf_(double x) const;
 	double _discr_left_logratio_(double xold, double xnew) const;
-	double _discr_left_rand_(sys_rnd_gen &prng);
+	double _discr_left_rand_(rnd_gen &prng);
 
 	//----- Functional methods for the truncation and/or discretization -----//
 	double _trunc_dummy_(double x) const;
@@ -112,14 +112,14 @@ private:
 
 /* overloaded distribution with static values. */
 std::shared_ptr<Base_Distribution> distribution(const std::string &name = UNDEFINED,
-												const dictargs &args = {},
-												const dictargs &range = {},
+												const dict_args &args = {},
+												const dict_args &range = {},
 												bool discr = false);
 
 /* overloaded distribution with pointer to values. */
 std::shared_ptr<Base_Distribution> distribution(const std::string &name,
-												const dictargs_ptr &args,
-												const dictargs &range = {},
+												const dict_args_ptr &args,
+												const dict_args &range = {},
 												bool discr = false);
 
 #endif // HOUSEPI__DISTRIBUTION__H

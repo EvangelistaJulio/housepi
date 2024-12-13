@@ -24,7 +24,7 @@ class Model : public MCMC
 public:
 	//===== Model dependent methods =====//
 	double transmission_rate(const Household &house) const;
-	double _houseROI_(const Household &house, indiv i, const squarematrix &profiles) const;
+	double _houseROI_(const Household &house, indiv i, const matrix<double> &profiles) const;
 	double ROI_inst(const Household &house, indiv i) const;
 	double ROI_cumul_infec(const Household &house, indiv i) const;
 	double ROI_cumul_suscept(const Household &house, indiv i) const;
@@ -38,8 +38,8 @@ public:
 	void simulate_single_house(Household &house) override;
 
 	//----- Rate Choices -----//
-	dict_rates assign_group_rate_to_individual(Household &house, indiv i) override;
-	void assign_contact_rate_to_household(Household &house, indiv from, indiv to) override;
+	const rateIDmapvec<parID> assign_group_rate_to_individual(Household &house, indiv i) override;
+	const parID assign_contact_rate_to_household(Household &house, indiv from, indiv to) override;
 };
 
 #endif // HOUSEPI__MODEL__H

@@ -25,7 +25,7 @@ public:
 	std::vector<Individual> indiv_vector = {};
 
 	std::string ID = UNDEFINED; // user ID
-	int index = -1;				// index of household
+	size_t index = -1;			// index of household
 	ushort house_size = 0;		// number of house members
 
 	double house_loglike = -INF_DOUBLE; // current loglikelihood value
@@ -40,7 +40,9 @@ public:
 	std::vector<bool> _is_susceptible_ = {};
 	std::vector<bool> _is_missing_status_ = {};
 
-	void assign_individual(const std::string &ID, int status, const dictargs &data);
+	void assign_individual(const std::string &ID,
+						   int status,
+						   const dataIDmap<double> &data);
 	bool change_status(indiv i, int new_status);
 
 	// diagnostics
@@ -48,8 +50,7 @@ public:
 	std::vector<double> dgn_loglike = {};
 
 	// contact rate pointers
-	std::vector<std::vector<const double *>> contact_rates;
-	std::vector<std::vector<std::string>> _which_rate_;
+	matrix<const double *> contact_rates;
 
 	// list with ONLY indexes of members with a given status
 	std::set<indiv> infectious_set = {};
@@ -59,21 +60,21 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 
 	//----- Extra Attributes -----//
-	std::unordered_map<std::string, int> extra_int = {};
-	std::unordered_map<std::string, double> extra_double = {};
-	std::unordered_map<std::string, std::vector<double>> extra_vec = {};
-	std::unordered_map<std::string, squarematrix> extra_mtx = {};
+	extraIDmap<int> extra_integer = {};
+	extraIDmap<double> extra_double = {};
+	extraIDmap<std::vector<double>> extra_vec = {};
+	extraIDmap<matrix<double>> extra_mtx = {};
 
 	//----- Buffer EXTRA Attributes -----//
-	std::unordered_map<std::string, int> _buffer_extra_int_ = {};
-	std::unordered_map<std::string, double> _buffer_extra_double_ = {};
-	std::unordered_map<std::string, std::vector<double>> _buffer_extra_vec_ = {};
-	std::unordered_map<std::string, squarematrix> _buffer_extra_mtx_ = {};
+	extraIDmap<int> _buffer_extra_integer_ = {};
+	extraIDmap<double> _buffer_extra_double_ = {};
+	extraIDmap<std::vector<double>> _buffer_extra_vec_ = {};
+	extraIDmap<matrix<double>> _buffer_extra_mtx_ = {};
 
 	// deep copies of extra attributes in the buffer
 	void buffer_all_extra()
 	{
-		_buffer_extra_int_ = extra_int;
+		_buffer_extra_integer_ = extra_integer;
 		_buffer_extra_double_ = extra_double;
 		_buffer_extra_vec_ = extra_vec;
 		_buffer_extra_mtx_ = extra_mtx;
@@ -82,7 +83,7 @@ public:
 	// swap buffer into  extra attributes
 	void restore_all_extra()
 	{
-		extra_int.swap(_buffer_extra_int_);
+		extra_integer.swap(_buffer_extra_integer_);
 		extra_double.swap(_buffer_extra_double_);
 		extra_vec.swap(_buffer_extra_vec_);
 		extra_mtx.swap(_buffer_extra_mtx_);
@@ -90,7 +91,9 @@ public:
 };
 
 /* Link an individual to the household */
-void Household_Impl::assign_individual(const std::string &ID, int status, const dictargs &data)
+void Household_Impl::assign_individual(const std::string &ID,
+									   int status,
+									   const dataIDmap<double> &data)
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTIOUS)
@@ -212,7 +215,7 @@ bool Household_Impl::change_status(indiv i, int new_status)
 
 //===== CONSTRUCTOR =====//
 Household::Household() : pImpl(std::make_unique<Household_Impl>()) {};
-Household::Household(const std::string &ID, int H) : pImpl(std::make_unique<Household_Impl>())
+Household::Household(const std::string &ID, size_t H) : pImpl(std::make_unique<Household_Impl>())
 {
 	pImpl->ID = ID;
 	pImpl->index = H;
@@ -221,7 +224,9 @@ Household::Household(Household &&other) noexcept = default;
 Household &Household::operator=(Household &&other) noexcept = default;
 Household::~Household() = default;
 
-void Household::assign_individual(const std::string &ID, int status, const dictargs &data)
+void Household::assign_individual(const std::string &ID,
+								  int status,
+								  const dataIDmap<double> &data)
 {
 	pImpl->assign_individual(ID, status, data);
 }
@@ -230,15 +235,17 @@ void Household::assign_individual(const std::string &ID, int status, const dicta
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
 bool Household::change_status(indiv i, int new_status) { return pImpl->change_status(i, new_status); }
 
-/* Initializes matrix of contact rates. */
-void Household::init_contact_matrix()
+/* Associate a pointer to parameter value for the contact from->to.
+Allocate memory if it  */
+void Household::assign_contact_rate(indiv from, indiv to, const double *x)
 {
-	pImpl->_which_rate_.resize(size(), std::vector<std::string>(size(), UNDEFINED));
-	pImpl->contact_rates.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
+	// initialize contact rate matrix if necessary
+	if (pImpl->contact_rates.empty())
+		pImpl->contact_rates.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
+
+	pImpl->contact_rates[from][to] = x;
 }
 
-void Household::assign_contact_rate(indiv from, indiv to, const std::string &parID) { pImpl->_which_rate_[from][to] = parID; }
-void Household::set_contact_rate(indiv from, indiv to, const double *x) { pImpl->contact_rates[from][to] = x; }
 void Household::set_loglike(double x)
 {
 	pImpl->buffer = pImpl->house_loglike;
@@ -249,12 +256,10 @@ void Household::restore_loglike() { pImpl->house_loglike = pImpl->buffer; }
 //===== GETTER =====//
 const std::string &Household::house_ID() const { return pImpl->ID; }
 const std::string &Household::ID(indiv i) const { return pImpl->indiv_vector[i].get_ID(); }
-int Household::index() const { return pImpl->index; }
+size_t Household::index() const { return pImpl->index; }
 ushort Household::size() const { return pImpl->house_size; }
 
-double Household::group_rate(indiv i, const std::string &rateID) const { return pImpl->indiv_vector[i].get_group_rate(rateID); }
-
-const std::string &Household::get_contact_rate_map(indiv from, indiv to) const { return pImpl->_which_rate_[from][to]; }
+double Household::group_rate(indiv i, const rateID &r) const { return pImpl->indiv_vector[i].get_group_rate(r); }
 double Household::contact_rate(indiv from, indiv to) const { return *pImpl->contact_rates[from][to]; }
 
 int Household::status(indiv i) const { return pImpl->indiv_vector[i].get_status(); }
@@ -286,10 +291,10 @@ void Household::disable_assert()
 		pImpl->indiv_vector[i].disable_assert();
 }
 
-void Household::assign_all_group_rates(indiv i, const dict_rates_ptr &group_rate_ptrs) { pImpl->indiv_vector[i].assign_all_group_rates(group_rate_ptrs); }
+void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x) { pImpl->indiv_vector[i].assign_all_group_rates(x); }
 
 void Household::assign_augm(indiv i, const augmID &a, double value, bool is_discr,
-							const std::string &model_name, dictargs_ptr model_args_ptr, dictargs range,
+							const std::string &model_name, dict_args_ptr model_args_ptr, dict_args range,
 							const std::string &rule_name, double rule_scale, double rule_from)
 {
 	pImpl->indiv_vector[i].assign_augm(a, value, is_discr,
@@ -297,8 +302,8 @@ void Household::assign_augm(indiv i, const augmID &a, double value, bool is_disc
 									   rule_name, rule_scale, rule_from);
 }
 void Household::set_augm_value(indiv i, const augmID &a, double x) { pImpl->indiv_vector[i].set_augm_value(a, x); }
-void Household::augm_model_rand(indiv i, const augmID &a, sys_rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(a, prng); }
-bool Household::propose_valid_augm_move(indiv i, const augmID &a, sys_rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(a, prng); }
+void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(a, prng); }
+bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(a, prng); }
 void Household::restore_augm_value(indiv i, const augmID &a) { pImpl->indiv_vector[i].restore_augm_value(a); }
 void Household::clear_augm(indiv i, const augmID &a) { pImpl->indiv_vector[i].clear_augm(a); }
 
@@ -328,71 +333,72 @@ const std::vector<double> &Household::get_dgn_loglike() const
 void Household::_buffer_all_extra() { pImpl->buffer_all_extra(); }
 void Household::_restore_all_extra() { pImpl->restore_all_extra(); }
 
-void Household::allocate_extra_int(const std::vector<std::string> names, int init_value)
+//----- Single integers -----//
+void Household::allocate_extra_integer(const std::vector<extraID> &names, int xinit)
 {
-	for (const std::string &intID : names)
-		pImpl->extra_int.emplace(intID, init_value);
+	for (const extraID &e : names)
+		pImpl->extra_integer.emplace(e, xinit);
 }
-void Household::set_extra_int(const std::string &intID, int new_value)
+void Household::set_extra_integer(const extraID &e, int xnew)
 {
-	pImpl->extra_int.at(intID) = new_value;
-}
-
-int Household::extra_int(const std::string &intID) const
-{
-	return pImpl->extra_int.at(intID);
+	pImpl->extra_integer.at(e) = xnew;
 }
 
-void Household::allocate_extra_double(const std::vector<std::string> names, double init_value)
+int Household::extra_integer(const extraID &e) const
 {
-	for (const std::string &dblID : names)
-		pImpl->extra_double.emplace(dblID, init_value);
-}
-void Household::set_extra_double(const std::string &dblID, double new_value)
-{
-	pImpl->extra_double.at(dblID) = new_value;
+	return pImpl->extra_integer.at(e);
 }
 
-double Household::extra_double(const std::string &dblID) const
+void Household::allocate_extra_double(const std::vector<extraID> &names, double xinit)
 {
-	return pImpl->extra_double.at(dblID);
+	for (const extraID &e : names)
+		pImpl->extra_double.emplace(e, xinit);
+}
+void Household::set_extra_double(const extraID &e, double xnew)
+{
+	pImpl->extra_double.at(e) = xnew;
 }
 
-void Household::allocate_extra_vector(const std::vector<std::string> names, double init_value)
+double Household::extra_double(const extraID &e) const
 {
-	for (const std::string &vecID : names)
-		pImpl->extra_vec.emplace(vecID, std::vector<double>(size(), init_value));
-}
-void Household::set_extra_vector(const std::string &vecID, size_t i, double new_value)
-{
-	pImpl->extra_vec.at(vecID)[i] = new_value;
-}
-double Household::extra_vector(const std::string &vecID, size_t i) const
-{
-	return pImpl->extra_vec.at(vecID)[i];
-}
-const std::vector<double> &Household::extra_vector(const std::string &vecID) const
-{
-	return pImpl->extra_vec.at(vecID);
+	return pImpl->extra_double.at(e);
 }
 
-void Household::allocate_extra_matrix(const std::vector<std::string> names, double init_value)
+void Household::allocate_extra_vector(const std::vector<extraID> &names, double xinit)
 {
-	for (const std::string &mtxID : names)
-		pImpl->extra_mtx.emplace(mtxID, std::vector<std::vector<double>>(size(), std::vector<double>(size(), init_value)));
+	for (const extraID &e : names)
+		pImpl->extra_vec.emplace(e, std::vector<double>(size(), xinit));
+}
+void Household::set_extra_vector(const extraID &e, size_t i, double xnew)
+{
+	pImpl->extra_vec.at(e)[i] = xnew;
+}
+double Household::extra_vector(const extraID &e, size_t i) const
+{
+	return pImpl->extra_vec.at(e)[i];
+}
+const std::vector<double> &Household::extra_vector(const extraID &e) const
+{
+	return pImpl->extra_vec.at(e);
 }
 
-void Household::set_extra_matrix(const std::string &mtxID, size_t from, size_t to, double new_value)
+void Household::allocate_extra_matrix(const std::vector<extraID> &names, double xinit)
 {
-	pImpl->extra_mtx.at(mtxID)[from][to] = new_value;
+	for (const extraID &e : names)
+		pImpl->extra_mtx.emplace(e, matrix<double>(size(), std::vector<double>(size(), xinit)));
 }
 
-double Household::extra_matrix(const std::string &mtxID, size_t from, size_t to) const
+void Household::set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew)
 {
-	return pImpl->extra_mtx.at(mtxID)[from][to];
+	pImpl->extra_mtx.at(e)[from][to] = xnew;
 }
 
-const squarematrix &Household::extra_matrix(const std::string &mtxID) const
+double Household::extra_matrix(const extraID &e, size_t from, size_t to) const
 {
-	return pImpl->extra_mtx.at(mtxID);
+	return pImpl->extra_mtx.at(e)[from][to];
+}
+
+const matrix<double> &Household::extra_matrix(const extraID &e) const
+{
+	return pImpl->extra_mtx.at(e);
 }

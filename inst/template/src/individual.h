@@ -25,6 +25,35 @@
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Group Rate : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class GroupRate
+{
+public:
+	GroupRate();
+	GroupRate(const std::vector<const double *> &pointers);
+	~GroupRate();
+
+	double get() const { (this->*_func_getter_)(); }
+
+private:
+	std::vector<const double *> pointers;
+
+	double (GroupRate::*_func_getter_)() const = &GroupRate::_getter_error_;
+	double _getter_error_() const;
+	double _getter_default_() const;
+	double _getter_multiple_() const;
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Individual : class  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -34,20 +63,22 @@ class Individual
 public:
 	//===== CONSTRUCTOR =====//
 	Individual();
-	Individual(const std::string &new_ID, int new_status, const dictargs &data);
+	Individual(const std::string &ID,
+			   int status,
+			   const dataIDmap<double> &data = {});
 	~Individual();
 
 	//===== SETTER =====//
 	void set_status(int s);
 	void disable_assert();
-	void assign_all_group_rates(const dict_rates_ptr &group_rate_ptrs);
+	void assign_all_group_rates(const rateIDmapvec<const double *> &group_rate_ptrs);
 
 	//===== GETTER =====//
 	const std::string &get_ID() const;
 	int get_status() const;
 	double get_data(const dataID &d) const;
 	const double *get_data_pointer(const dataID &d) const;
-	double get_group_rate(const std::string &rateID) const;
+	double get_group_rate(const rateID &r) const;
 
 	//===== AUGMENTED VARIABLES =====//
 
@@ -62,45 +93,45 @@ public:
 	void assign_augm(const augmID &a = UNDEFINED,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discr = false,
-					 const std::string &model_name = UNDEFINED, 
-					 dictargs_ptr model_args_ptr = {}, 
-					 dictargs range = {},
-					 const std::string &rule_name = UNDEFINED, 
-					 double rule_scale = INF_DOUBLE, 
+					 const std::string &model_name = UNDEFINED,
+					 dict_args_ptr model_args_ptr = {},
+					 dict_args range = {},
+					 const std::string &rule_name = UNDEFINED,
+					 double rule_scale = INF_DOUBLE,
 					 double rule_from = INF_DOUBLE);
 	void set_augm_value(const augmID &a, double x);
-	void augm_model_rand(const augmID &a, sys_rnd_gen &prng);
-	bool propose_valid_augm_move(const augmID &a, sys_rnd_gen &prng);
+	void augm_model_rand(const augmID &a, rnd_gen &prng);
+	bool propose_valid_augm_move(const augmID &a, rnd_gen &prng);
 	void restore_augm_value(const augmID &a);
 	void clear_augm(const augmID &a);
 
 private:
-	std::string ID = UNDEFINED; // user ID
-	int status = 0;				// status of the individual
-	dictargs data = {};			// database associated to individual
+	std::string ID = UNDEFINED;	 // user ID
+	int status = 0;				 // status of the individual
+	dataIDmap<double> data = {}; // database associated to individual
 
-	std::unordered_map<std::string, std::vector<const double *>> rate_ptr = {};
-	std::unordered_map<std::string, Base_Variable> augm_map = {};
+	rateIDmap<GroupRate> rate_ptr = {};
+	augmIDmap<Base_Variable> augm_map = {};
 
 	//===== Auxxiliary Assert =====//
 	bool assert_data(const dataID &d) const;
 	bool assert_augm(const augmID &a) const;
 
 	//===== Setter (auxiliary methods) =====//
-	void (Individual::*_func_set_augm_)(const std::string &, double) = &Individual::_set_augm_assert_;
-	void _set_augm_assert_(const augmID &a, double new_value);
-	void _set_augm_default_(const augmID &a, double new_value);
+	void (Individual::*_func_set_augm_)(const augmID &, double) = &Individual::_set_augm_assert_;
+	void _set_augm_assert_(const augmID &a, double xnew);
+	void _set_augm_default_(const augmID &a, double xnew);
 
 	//===== Getter (auxiliary methods) =====//
-	double (Individual::*_func_get_augm_)(const std::string &) const = &Individual::_get_augm_assert_;
+	double (Individual::*_func_get_augm_)(const augmID &) const = &Individual::_get_augm_assert_;
 	double _get_augm_assert_(const augmID &a) const;
 	double _get_augm_default_(const augmID &a) const;
 
-	double (Individual::*_func_get_data_)(const std::string &) const = &Individual::_get_data_assert_;
+	double (Individual::*_func_get_data_)(const dataID &) const = &Individual::_get_data_assert_;
 	double _get_data_assert_(const dataID &d) const;
 	double _get_data_default_(const dataID &d) const;
 
-	const double *(Individual::*_func_get_data_pointer_)(const std::string &) const = &Individual::_get_data_pointer_assert_;
+	const double *(Individual::*_func_get_data_pointer_)(const dataID &) const = &Individual::_get_data_pointer_assert_;
 	const double *_get_data_pointer_assert_(const dataID &d) const;
 	const double *_get_data_pointer_default_(const dataID &d) const;
 };

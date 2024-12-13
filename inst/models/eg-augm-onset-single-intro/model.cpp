@@ -33,50 +33,43 @@ double Model::transmission_rate(const Household &house) const
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign all group rates for each individual. */
-dict_rates Model::assign_group_rate_to_individual(Household &house, indiv i)
+const rateIDmapvec<parID> Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
-	dict_rates output = {};
-	std::vector<std::string> vec_parID = {};
+	rateID r;
+	rateIDmapvec<parID> output = {};
 
-	bool is_not_vacc = (house.data(i, "vacc_status") == 0);
-
-	//===== Infectivity =====//
-	vec_parID.clear();
-	if (is_not_vacc)
-		vec_parID.emplace_back(REFERENCE);
+	r = "Infectivity"; 
+	output[r] = {};
+	if (house.data(i, "vacc_status") == 0)
+		output[r].emplace_back(REFERENCE);
 	else
-		vec_parID.emplace_back("inf_vacc");
-	output.emplace("Infectivity", vec_parID);
+		output[r].emplace_back("inf_vacc");
 
-	//===== Susceptibility =====//
-	vec_parID.clear();
-	if (is_not_vacc)
-		vec_parID.emplace_back(REFERENCE);
+	r = "Susceptibility";  
+	output[r] = {};
+	if (house.data(i, "vacc_status") == 0)
+		output[r].emplace_back(REFERENCE);
 	else
-		vec_parID.emplace_back("sus_vacc");
-	output.emplace("Susceptibility", vec_parID);
+		output[r].emplace_back("sus_vacc");
 
 	return output;
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
+const parID Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
 	// child if younger than 'child_age'; adult otherwise
 	bool is_from_adult = (house.data(from, "age") < param("child_age"));
 	bool is_to_adult = (house.data(to, "age") < param("child_age"));
 
 	if (is_from_adult && is_to_adult)
-		house.assign_contact_rate(from, to, REFERENCE);
-
+		return REFERENCE;
 	else if (is_from_adult && (!is_to_adult))
-		house.assign_contact_rate(from, to, "cont_adult_child");
-
+		return "cont_adult_child";
 	else if ((!is_from_adult) && is_to_adult)
-		house.assign_contact_rate(from, to, "cont_child_adult");
-
+		return "cont_child_adult";
 	else
-		house.assign_contact_rate(from, to, "cont_child_child");
+		return "cont_child_child";
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,7 +106,7 @@ void Model::init_model_for_inference()
 /* Time when followup ended. */
 double Model::time_end_followup(const Household &house) const
 {
-	int i0 = house.extra_int("intro-case");
+	int i0 = house.extra_integer("intro-case");
 	return house.augm(i0, "onset_date") + param("study_period");
 }
 
@@ -122,7 +115,7 @@ double Model::time_end_followup(const Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Sum over all hazards of infection. */
-double Model::_houseROI_(const Household &house, indiv i, const squarematrix &profiles) const
+double Model::_houseROI_(const Household &house, indiv i, const matrix<double> &profiles) const
 {
 	double output = 0.0;
 
@@ -145,7 +138,7 @@ double Model::ROI_inst(const Household &house, indiv i) const
 /* Cumulative Risk of Infection for infectious individual i. */
 double Model::ROI_cumul_infec(const Household &house, indiv i) const
 {
-	indiv i0 = house.extra_int("intro-case");
+	indiv i0 = house.extra_integer("intro-case");
 	double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
 	double exposure = house.augm(i, "onset_date") - house.augm(i, "incub_period") - t_intro;
 
@@ -155,7 +148,7 @@ double Model::ROI_cumul_infec(const Household &house, indiv i) const
 /* Cumulative Risk of Infection for susceptible individual i. */
 double Model::ROI_cumul_suscept(const Household &house, indiv i) const
 {
-	indiv i0 = house.extra_int("intro-case");
+	indiv i0 = house.extra_integer("intro-case");
 	double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
 	double exposure = time_end_followup(house) - t_intro;
 
@@ -183,7 +176,7 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 
 	// init new first case to i
 	double new_t0 = t_infec_i;
-	house.set_extra_int("intro-case", i);
+	house.set_extra_integer("intro-case", i);
 
 	//----- Update Lookup Tables for infectious -----//
 	double onset_k, incub_k, t_infec_k;
@@ -220,7 +213,7 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 				if (t_infec_k < new_t0)
 				{
 					new_t0 = t_infec_k;
-					house.set_extra_int("intro-case", k);
+					house.set_extra_integer("intro-case", k);
 				}
 			}
 		}
@@ -267,7 +260,7 @@ double Model::compute_house_loglike(Household &house) const
 	
 	for (indiv i : house.infectious_set())
 		// Contribution of secondary cases
-		if (i != house.extra_int("intro-case"))
+		if (i != house.extra_integer("intro-case"))
 			loglike_house += log(ROI_inst(house, i)) - ROI_cumul_infec(house, i);
 
 	return loglike_house;
@@ -308,7 +301,7 @@ void Model::simulate_single_house(Household &house)
 	// pick a random introduction and change it's status
 	indiv i0 = uniform() * house.size();
 	house.change_status(i0, INFECTIOUS);
-	house.set_extra_int("intro-case", i0);
+	house.set_extra_integer("intro-case", i0);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//

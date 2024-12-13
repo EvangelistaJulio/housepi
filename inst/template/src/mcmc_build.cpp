@@ -1,10 +1,10 @@
 /*
- * build.cpp
+ * mcmc_build.cpp
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#include "build.h"
+#include "mcmc_build.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -37,7 +37,9 @@ inline const std::string _aux_percent_(int num, int den)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
-double Monte_Carlo_Build::type_to_double(const std::string value, const std::string type, const Household &house, indiv i)
+double Monte_Carlo_Build::type_to_double(const std::string &value,
+                                         const std::string &type,
+                                         const Household &house, indiv i)
 {
     double output = INF_DOUBLE;
 
@@ -85,7 +87,9 @@ double Monte_Carlo_Build::type_to_double(const std::string value, const std::str
 }
 
 /* Convert a type-std::string to a double-pointer */
-const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, const std::string type, const Household &house, indiv i)
+const double *Monte_Carlo_Build::type_to_doubleptr(const std::string &value,
+                                                   const std::string &type,
+                                                   const Household &house, indiv i)
 {
     const double *output = nullptr;
 
@@ -131,13 +135,16 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string value, cons
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
-dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i)
+dict_args Monte_Carlo_Build::typedict_to_sdargs(const std::string &tkn_key,
+                                               const std::string &tkn_val,
+                                               const std::string &tkn_typ,
+                                               const Household &house, indiv i)
 {
-    std::vector<std::string> keys = tools::parse_list_args(tkn_key);
-    std::vector<std::string> vals = tools::parse_list_args(tkn_val);
-    std::vector<std::string> typs = tools::parse_list_args(tkn_typ);
+    str_vec keys = tools::parse_list_args(tkn_key);
+    str_vec vals = tools::parse_list_args(tkn_val);
+    str_vec typs = tools::parse_list_args(tkn_typ);
 
-    dictargs output = {};
+    dict_args output = {};
 
     if ((keys.size() == vals.size()) && (typs.size() == vals.size()))
         for (size_t x = 0; x < keys.size(); ++x)
@@ -150,13 +157,15 @@ dictargs Monte_Carlo_Build::typedict_to_sdargs(const std::string tkn_key, const 
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double-pointer */
-dictargs_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i)
+dict_args_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string &tkn_key,
+                                                       const std::string &tkn_val,
+                                                       const std::string &tkn_typ, const Household &house, indiv i)
 {
-    std::vector<std::string> keys = tools::parse_list_args(tkn_key);
-    std::vector<std::string> vals = tools::parse_list_args(tkn_val);
-    std::vector<std::string> typs = tools::parse_list_args(tkn_typ);
+    str_vec keys = tools::parse_list_args(tkn_key);
+    str_vec vals = tools::parse_list_args(tkn_val);
+    str_vec typs = tools::parse_list_args(tkn_typ);
 
-    dictargs_ptr output = {};
+    dict_args_ptr output = {};
 
     if ((keys.size() == vals.size()) && (typs.size() == vals.size()))
         for (size_t x = 0; x < keys.size(); ++x)
@@ -272,7 +281,7 @@ size_t Monte_Carlo_Build::report_data(const std::string &key) const
 /* Read Model Augmented Variable file */
 void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
 {
-    const std::vector<std::string> augm_file_headers = {
+    const str_vec augm_file_headers = {
         "name", "status", "value", "valuetype", "discrete",
         "model", "args", "argsval", "argstype", "rule",
         "rule_scale", "rule_scaletype", "rule_from", "rule_fromtype",
@@ -294,7 +303,7 @@ void Monte_Carlo_Build::build_augm()
             size_t table_length = _augm_deftable_.at("name").size();
 
             // auxiliary variable to load definitions : a -> status lists
-            std::map<std::string, std::vector<std::string>> name_status_check = {};
+            dict_str_vec name_status_check = {};
 
             //===== Check Augmented Variables lists of usage =====//
             for (size_t k = 0; k < table_length; ++k)
@@ -310,12 +319,12 @@ void Monte_Carlo_Build::build_augm()
 
                 else if (name_status_check.find(a) == name_status_check.end())
                     // new augmented variable status
-                    name_status_check.emplace(a, std::vector<std::string>{status});
+                    name_status_check.emplace(a, str_vec{status});
 
                 else
                 {
                     // check no multiple augmID with same status
-                    const std::vector<std::string> &mylist = name_status_check.at(a);
+                    const str_vec &mylist = name_status_check.at(a);
                     if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
                         name_status_check.at(a).push_back(status);
 
@@ -346,7 +355,7 @@ void Monte_Carlo_Build::build_augm()
             for (const auto &pair : name_status_check)
             {
                 const augmID &a = pair.first;
-                const std::vector<std::string> &mylist = pair.second;
+                const str_vec &mylist = pair.second;
 
                 for (const std::string &status : mylist)
                 {
@@ -476,13 +485,13 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
 
                 //----- Model -----//
                 const std::string &model_name = _augm_deftable_.at("model")[k];
-                dictargs_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[k],
+                dict_args_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[k],
                                                                  _augm_deftable_.at("argsval")[k],
                                                                  _augm_deftable_.at("argstype")[k],
                                                                  house, i);
 
                 //----- Range -----//
-                dictargs range = {};
+                dict_args range = {};
                 // minimum value
                 double aux_min = type_to_double(_augm_deftable_.at("min")[k],
                                                 _augm_deftable_.at("mintype")[k],
@@ -796,7 +805,7 @@ void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) cons
 /* Import data from R DataFrame then run build. */
 void Monte_Carlo_Build::import_augm(const Rcpp::DataFrame &augm)
 {
-    tools::rdataframe_to_map(augm, _augm_deftable_);
+    rdataframe_to_map(augm, _augm_deftable_);
     build_augm();
     if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
         _report_pathtofile_.erase("augm");
@@ -853,7 +862,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
 }
 
 /* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix Monte_Carlo_Build::export_loglike_matrix() const
+Rcpp::NumericMatrix Monte_Carlo_Build::export_household_loglike_traces() const
 {
     using namespace Rcpp;
 

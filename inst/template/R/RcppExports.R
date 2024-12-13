@@ -19,7 +19,7 @@
 #' @field export_params Return a DataFrame with current parameters.
 #' @field export_data Return a DataFrame with current database.
 #' @field export_traces Return a DataFrame with MCMC traces.
-#' @field export_loglike_matrix Return matrix with loglikelihood values.
+#' @field export_household_loglike_traces Return matrix with loglikelihood values.
 #' @field show_full_build Show all build messages.
 #' @field show_summary Show a summary of the current database.
 NULL

@@ -52,8 +52,8 @@ public:
     bool valid(double x) const;
 
     //===== ARGUMENTS =====//
-    void assign_args(const dictargs &new_args_val);
-    void assign_args(const dictargs_ptr &new_args_ptr);
+    void assign_args(const dict_args &new_args_val);
+    void assign_args(const dict_args_ptr &new_args_ptr);
     void set_arg(ushort i, double new_value);
 
     //===== SHOW =====//
@@ -69,16 +69,16 @@ protected:
     // UPDATE : for the moment it is not possible to provide default pointer argumets
     // a solution could be point to internal, at that point the whole pointer thing could be collapsed
     void init(const std::string &name,
-              const dictargs &args_val,
-              const std::vector<std::string> &order,
-              const dictargs &domain = {});
+              const dict_args &args_val,
+              const str_vec &order,
+              const dict_args &domain = {});
     void init(const std::string &name,
-              const dictargs_ptr &args_ptr,
-              const std::vector<std::string> &order,
-              const dictargs &domain = {});
+              const dict_args_ptr &args_ptr,
+              const str_vec &order,
+              const dict_args &domain = {});
 
     //----- RANGE -----//
-    ushort set_range(const dictargs &new_range);
+    ushort set_range(const dict_args &new_range);
     double get_range_min() const;
     double get_range_max() const;
 

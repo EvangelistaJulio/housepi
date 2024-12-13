@@ -431,7 +431,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
     loo = function(...) {
-      return(loo::loo(private$rcppmodel$export_loglike_matrix(), ...))
+      return(loo::loo(private$rcppmodel$export_household_loglike_traces(), ...))
     },
 
     #' @description
@@ -439,7 +439,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::waic].
     #' #' For arguments and further details type ?loo::waic.
     waic = function(...) {
-      return(loo::waic(private$rcppmodel$export_loglike_matrix(), ...))
+      return(loo::waic(private$rcppmodel$export_household_loglike_traces(), ...))
     },
 
     #' @description

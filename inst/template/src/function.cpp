@@ -18,7 +18,7 @@ class Base_Function_Impl
 public:
     //===== Arguments =====//
     std::string _name_ = UNDEFINED;
-    std::vector<std::string> _args_names_ = {}; // ordered list of argument names
+    str_vec _args_names_ = {}; // ordered list of argument names
     double *_args_val_ = nullptr;               // internal arguments (fixed at initialization)
     const double **_args_ptr_ = nullptr;        // external arguments (pointer to variable)
 
@@ -43,11 +43,11 @@ public:
     const std::string show_range_max() const;
 
     //===== Initial non-default arguments =====//
-    void assign_args(const dictargs &new_args_val);
-    void assign_args(const dictargs_ptr &new_args_ptr);
+    void assign_args(const dict_args &new_args_val);
+    void assign_args(const dict_args_ptr &new_args_ptr);
 
     //===== Range =====//
-    ushort set_range(const dictargs &new_range);
+    ushort set_range(const dict_args &new_range);
     double get_range_min() const { return _range_min_; }
     double get_range_max() const { return _range_max_; }
 
@@ -104,7 +104,7 @@ void Base_Function_Impl::assign_ptr_mode()
 }
 
 /* Overload assignment of non default POINTER arguments. */
-void Base_Function_Impl::assign_args(const dictargs &args_val)
+void Base_Function_Impl::assign_args(const dict_args &args_val)
 {
     for (const auto &pair : args_val)
     {
@@ -118,7 +118,7 @@ void Base_Function_Impl::assign_args(const dictargs &args_val)
 }
 
 /* Overload assignment of non default POINTER arguments. */
-void Base_Function_Impl::assign_args(const dictargs_ptr &args_ptr)
+void Base_Function_Impl::assign_args(const dict_args_ptr &args_ptr)
 {
     for (const auto &pair : args_ptr)
     {
@@ -143,7 +143,7 @@ void Base_Function_Impl::assign_args(const dictargs_ptr &args_ptr)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set the range of validity of the value, and the corresponding validation function. */
-ushort Base_Function_Impl::set_range(const dictargs &new_range)
+ushort Base_Function_Impl::set_range(const dict_args &new_range)
 {
     double min_val = _range_min_;
     double max_val = _range_max_;
@@ -278,11 +278,7 @@ ushort Base_Function_Impl::set_range(const dictargs &new_range)
 /* Return formatted argument names of the distribution. */
 const std::string Base_Function_Impl::show_arg_names() const
 {
-    if (_args_names_.empty())
-    {
-        return UNDEFINED;
-    }
-    else
+    if (!_args_names_.empty())
     {
         std::string output = _args_names_[0];
         for (size_t i = 1; i < _args_names_.size(); ++i)
@@ -290,16 +286,14 @@ const std::string Base_Function_Impl::show_arg_names() const
 
         return output;
     }
+
+    return UNDEFINED;
 }
 
 /* Return formatted argument names of the distribution. */
 const std::string Base_Function_Impl::show_arg_values() const
 {
-    if (_args_names_.empty())
-    {
-        return UNDEFINED;
-    }
-    else
+    if (!_args_names_.empty())
     {
         std::string output = std::to_string(get_arg(0));
         for (size_t i = 1; i < _args_names_.size(); ++i)
@@ -307,6 +301,8 @@ const std::string Base_Function_Impl::show_arg_values() const
 
         return output;
     }
+
+    return UNDEFINED;
 }
 
 /* */
@@ -354,19 +350,19 @@ bool Base_Function::valid(double x) const { return pImpl->valid(x); }
 
 //----- ARGUMENTS -----//
 // note: just for initial non-default arguments
-void Base_Function::assign_args(const dictargs &new_args_val) { pImpl->assign_args(new_args_val); }
-void Base_Function::assign_args(const dictargs_ptr &new_args_ptr) { pImpl->assign_args(new_args_ptr); }
+void Base_Function::assign_args(const dict_args &new_args_val) { pImpl->assign_args(new_args_val); }
+void Base_Function::assign_args(const dict_args_ptr &new_args_ptr) { pImpl->assign_args(new_args_ptr); }
 
 //----- RANGE -----//
-ushort Base_Function::set_range(const dictargs &new_range) { return pImpl->set_range(new_range); }
+ushort Base_Function::set_range(const dict_args &new_range) { return pImpl->set_range(new_range); }
 double Base_Function::get_range_min() const { return pImpl->get_range_min(); }
 double Base_Function::get_range_max() const { return pImpl->get_range_max(); }
 
 /* Overload constructor for argument VALUES. */
 void Base_Function::init(const std::string &name,
-                           const dictargs &args_val,
-                           const std::vector<std::string> &order,
-                           const dictargs &domain)
+                           const dict_args &args_val,
+                           const str_vec &order,
+                           const dict_args &domain)
 {
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;
@@ -383,9 +379,9 @@ void Base_Function::init(const std::string &name,
 
 /* Overload constructor for argument POINTERS. */
 void Base_Function::init(const std::string &name,
-                           const dictargs_ptr &args_ptr,
-                           const std::vector<std::string> &order,
-                           const dictargs &domain)
+                           const dict_args_ptr &args_ptr,
+                           const str_vec &order,
+                           const dict_args &domain)
 {
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;

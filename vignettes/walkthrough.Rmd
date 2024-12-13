@@ -95,7 +95,6 @@ hmc$param_add(
 )
 ```
 
-
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and a `value`.
 
 Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param_template()`.

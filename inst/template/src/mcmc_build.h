@@ -1,5 +1,5 @@
 /*
- * build.h
+ * mcmc_build.h
  *
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
@@ -28,6 +28,10 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+#ifdef _HOUSEPI_RCPP
+void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output);
+#endif
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Parameter : class  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,8 +45,8 @@ public:
               double value = std::numeric_limits<double>::quiet_NaN(),
               bool is_discr = false,
               const std::string &prior_name = UNDEFINED,
-              dictargs prior_args = {},
-              dictargs range = {},
+              dict_args prior_args = {},
+              dict_args range = {},
               const std::string &rule_name = UNDEFINED,
               double rule_scale = INF_DOUBLE) : Base_Variable(name, value, is_discr)
     {
@@ -109,13 +113,13 @@ public:
     //=====================//
 
     //----- Parameter - Attributes -----//
-    std::vector<std::string> param_file_headers = {"name", "value",
-                                                   "infer", "discrete",
-                                                   "prior", "args", "argsval",
-                                                   "rule", "rule_scale",
-                                                   "min", "max"};
-    std::vector<std::string> param_to_be_inferred = {};
-    std::vector<std::string> param_to_be_static = {};
+    str_vec param_file_headers = {"name", "value",
+                                  "infer", "discrete",
+                                  "prior", "args", "argsval",
+                                  "rule", "rule_scale",
+                                  "min", "max"};
+    std::vector<parID> param_to_be_inferred = {};
+    std::vector<parID> param_to_be_static = {};
 
     //----- Parameter - Getter -----//
     bool assert_param(const parID &p) const;
@@ -141,17 +145,17 @@ public:
     std::vector<Household> house_vector = {};
 
     //----- Data Reports : Attributes -----//
-    std::vector<std::string> data_headers = {};
+    str_vec data_headers = {};
     ulong _n_contacts_ = 0;
     std::map<std::string, size_t> _report_data_;
     std::map<std::string, std::string> _report_pathtofile_;
 
     //===== AUGMENTED : Attributes =====//
-    std::unordered_set<std::string> augm_list_full = {};
-    std::unordered_set<std::string> augm_list_infer = {};
-    std::unordered_set<std::string> augm_list_model = {};
-    std::map<int, std::unordered_set<std::string>> augm_status_map_infer = {};
-    std::map<int, std::unordered_set<std::string>> augm_status_map_model = {};
+    std::unordered_set<augmID> augm_list_full = {};
+    std::unordered_set<augmID> augm_list_infer = {};
+    std::unordered_set<augmID> augm_list_model = {};
+    std::map<int, std::unordered_set<augmID>> augm_status_map_infer = {};
+    std::map<int, std::unordered_set<augmID>> augm_status_map_model = {};
     bool is_augm_infer = false;
     bool is_augm_model = false;
 
@@ -192,7 +196,7 @@ public:
     Rcpp::DataFrame export_params() const;
     Rcpp::DataFrame export_data() const;
     Rcpp::DataFrame export_traces() const;
-    Rcpp::NumericMatrix export_loglike_matrix() const;
+    Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
     //===== SETUP =====//
@@ -227,38 +231,39 @@ public:
     void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
     void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
 
-    //===== Internal Attributes =====//
-    std::unordered_map<std::string, Parameter> param_map = {};       // parameters dictionary
+    //===== PARAMETERS =====//
+    parIDmap<Parameter> param_map = {};                              // parameters dictionary
     std::unordered_map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
 
     bool _is_undef_params_ = false; // undefined parameters valid only if infer
 
-    //===== get param (functional methods) =====//
-    double (Monte_Carlo_Build::*_func_get_param_)(const std::string &) const = &Monte_Carlo_Build::_get_param_assert_;
+    //----- get param (functional methods) -----//
+    double (Monte_Carlo_Build::*_func_get_param_)(const parID &) const = &Monte_Carlo_Build::_get_param_assert_;
     double _get_param_default_(const parID &p) const;
     double _get_param_assert_(const parID &p) const;
 
-    //===== get param pointer (functional methods) =====//
-    const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const std::string &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
+    //----- get param pointer (functional methods) -----//
+    const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const parID &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
     const double *_get_param_pointer_default_(const parID &p) const;
     const double *_get_param_pointer_assert_(const parID &p) const;
 
-    //===== Pseudo Random Number Generator (auxiliary methods) =====//
-    std::uniform_real_distribution<double> _uniform_distr_; // uniform distribution
-    double uniform();
+    //===== RANDOM NUMBER GENERATOR =====//
+    rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
+    std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 
-    //===== Pseudo-Random Number Generator =====//
-    sys_rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
-    std::vector<sys_rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
-    sys_rnd_gen &get_prng();
+    rnd_gen &get_prng();
+    void set_prng_seed(int seed);
 
-    sys_rnd_gen &(Monte_Carlo_Build::*_func_prng_)();
-    sys_rnd_gen &_prng_unique_thread_() { return prng; }
+    rnd_gen &(Monte_Carlo_Build::*_func_prng_)();
+    rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
     unsigned _max_n_available_threads = 1;
-    sys_rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+    rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
-    void set_prng_seed(int seed);
+
+    //===== UNIFORM SAMPLER =====//
+    std::uniform_real_distribution<double> _uniform_distr_;
+    double uniform();
 
     //===== BUILD =====//
     void build_augm();
@@ -267,14 +272,24 @@ public:
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::string> _setup_deflist_ = {};
-    std::map<std::string, std::vector<std::string>> _param_deftable_ = {};
-    std::map<std::string, std::vector<std::string>> _augm_deftable_ = {};
+    dict_str_vec _param_deftable_ = {};
+    dict_str_vec _augm_deftable_ = {};
 
     //----- build : type-specified variables -----//
-    double type_to_double(const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
-    const double *type_to_doubleptr(const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
-    dictargs typedict_to_sdargs(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
-    dictargs_ptr typedict_to_sdargs_ptr(const std::string tkn_key, const std::string tkn_val, const std::string tkn_typ, const Household &house, indiv i);
+    double type_to_double(const std::string &tkn_val,
+                          const std::string &tkn_typ,
+                          const Household &house, indiv i);
+    const double *type_to_doubleptr(const std::string &tkn_val,
+                                    const std::string &tkn_typ,
+                                    const Household &house, indiv i);
+    dict_args typedict_to_sdargs(const std::string &tkn_key,
+                                 const std::string &tkn_val,
+                                 const std::string &tkn_typ,
+                                 const Household &house, indiv i);
+    dict_args_ptr typedict_to_sdargs_ptr(const std::string &tkn_key,
+                                         const std::string &tkn_val,
+                                         const std::string &tkn_typ,
+                                         const Household &house, indiv i);
 };
 
 #endif // HOUSEPI__MCMC__BUILD__H

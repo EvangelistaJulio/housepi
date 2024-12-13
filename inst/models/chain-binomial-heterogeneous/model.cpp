@@ -40,41 +40,38 @@ double Model::person_to_person_risk() const
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign all group rates for each individual. */
-dict_rates Model::assign_group_rate_to_individual(Household &house, indiv i)
+const rateIDmap<parID> Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
-	dict_rates output = {};
-	std::vector<std::string> vec_parID = {};
+	rateID r;
+	rateIDmap<parID> output = {};
 
 	bool is_adult = house.data(i, "age") > param("child_age");
 	bool is_male = (house.data(i, "sex") == 1);
 
-	//===== Infectivity in Community =====//
-	vec_parID.clear();
+	r = "Infectivity"; 
+	output[r] = {};
 	if (is_adult)
-		vec_parID.emplace_back(REFERENCE);
+		output[r].emplace_back(REFERENCE);
 	else
-		vec_parID.emplace_back("inf_child");
-	output.emplace("Infectivity", vec_parID);
+		output[r].emplace_back("inf_child");
 
-	//===== Susceptibility in Community =====//
-	vec_parID.clear();
+	r = "Community_Susc"; 
+	output[r] = {};
 	if ((is_adult) && (is_male))
-		vec_parID.emplace_back(REFERENCE);
+		output[r].emplace_back(REFERENCE);
 	else if ((is_adult) && (!is_male))
-		vec_parID.emplace_back("com_sus_woman");
+		output[r].emplace_back("com_sus_woman");
 	else
-		vec_parID.emplace_back("com_sus_child");
-	output.emplace("Community_Susc", vec_parID);
+		output[r].emplace_back("com_sus_child");
 
-	//===== Susceptibility in House =====//
-	vec_parID.clear();
+	r = "Susceptibility"; 
+	output[r] = {};
 	if ((is_adult) && (is_male))
-		vec_parID.emplace_back(REFERENCE);
+		output[r].emplace_back(REFERENCE);
 	else if ((is_adult) && (!is_male))
-		vec_parID.emplace_back("sus_woman");
+		output[r].emplace_back("sus_woman");
 	else
-		vec_parID.emplace_back("sus_child");
-	output.emplace("Susceptibility", vec_parID);
+		output[r].emplace_back("sus_child");
 
 	return output;
 }
@@ -126,7 +123,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 	order.insert(order.end(), house.susceptible_set().begin(), house.susceptible_set().end());
 
 	//----- Assign values to LUT matrix -----//
-	for (int c = 0; c < house.size(); ++c)
+	for (indiv c = 0; c < house.size(); ++c)
 	{
 		double susc_commu_c = house.group_rate(order[c], "Community_Susc");
 		double infect_c = house.group_rate(order[c], "Infectivity");
@@ -136,7 +133,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 		house.set_extra_vector("commu-escprob", c, exp(-susc_commu_c * commu_transm_rate));
 
 		// person-to-person : [1st] escaped from [2nd]
-		for (int r = 0; r < c; ++r)
+		for (indiv r = 0; r < c; ++r)
 		{
 			house.set_extra_matrix(
 				"p2p-escprob", r, c,
@@ -213,7 +210,7 @@ void Model::simulate_single_house(Household &house)
 		{
 			if (house.status(i) == SUSCEPTIBLE)
 			{
-				for (int k : old_gen_set)
+				for (indiv k : old_gen_set)
 				{
 					if (uniform() >= house.extra_matrix("commu-escprob", k, i))
 					{

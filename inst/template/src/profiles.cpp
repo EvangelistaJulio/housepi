@@ -61,7 +61,7 @@ class Infec_Prof_Ferretti20 : public Base_Infectivity_Profile
 {
 public:
 	// Constructor with immutable values
-	Infec_Prof_Ferretti20(const dictargs &new_args = {})
+	Infec_Prof_Ferretti20(const dict_args &new_args = {})
 	{
 		init("ferretti20", {{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}},
 			 {"alpha", "mu", "sigma", "tau"});
@@ -142,12 +142,12 @@ private:
 
 public:
 	// Constructor with immutable values
-	Infec_Prof_Ashcroft20(const dictargs &new_args = {})
+	Infec_Prof_Ashcroft20(const dict_args &new_args = {})
 	{
 		init("ashcroft20", {{"shape", 97.32}, {"scale", 0.268}, {"shift", 25.6}},
 			 {"shape", "scale", "shift"});
 		assign_args(new_args);
-		dictargs aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
+		dict_args aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
 		gamma_distr_ptr = distribution("gamma", aux_args_val, {{"min", get_arg(2)}});
 	}
 	// Deconstructor
@@ -183,21 +183,17 @@ public:
 std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_switchboard(const std::string &name)
 {
 	std::unique_ptr<Base_Infectivity_Profile> output = std::make_unique<Base_Infectivity_Profile>();
-	const std::vector<std::string> options = {"ferretti20", "ashcroft20"};
+	const str_vec options = {"ferretti20", "ashcroft20"};
 
 	if (name == "ferretti20")
-	{
 		output = std::make_unique<Infec_Prof_Ferretti20>();
-	}
+		
 	else if (name == "ashcroft20")
-	{
 		output = std::make_unique<Infec_Prof_Ashcroft20>();
-	}
+
 	else if (!tools::is_na(name))
-	{
-		std::string err_message = "Unknown infectivity profile '" + name + "'.";
-		err_message += tools::find_closest(name, options);
-		throw std::invalid_argument(err_message);
-	}
+		throw std::invalid_argument(
+			"Unknown infectivity profile '" + name + "'." + tools::find_closest(name, options));
+
 	return output;
 }

@@ -5,6 +5,53 @@
  */
 
 #include "individual.h"
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Group Rate : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+//===== CONSTRUCTOR	=====//
+
+GroupRate::GroupRate() {};
+GroupRate::GroupRate(const std::vector<const double *> &pointers)
+{
+	if (pointers.empty())
+		throw std::invalid_argument(
+			"No parameters to associate to group rate.");
+	else if (pointers.size() == 1)
+		_func_getter_ = &_getter_default_;
+	else
+		_func_getter_ = &_getter_multiple_;
+
+	this->pointers = pointers;
+}
+GroupRate::~GroupRate() = default;
+
+//===== GETTER =====//
+double GroupRate::get() const { (this->*_func_getter_)(); }
+
+double GroupRate::_getter_error_() const
+{
+	throw std::invalid_argument(
+		"Attempt to call getter of undefined group rate.");
+	return INF_DOUBLE;
+}
+
+double GroupRate::_getter_default_() const { return *this->pointers[0]; }
+
+double GroupRate::_getter_multiple_() const
+{
+	double output = 1.0;
+	for (const double *ptr : pointers)
+		output *= *ptr;
+	return output;
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -18,29 +65,31 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Individual::Individual() {}
-Individual::Individual(const std::string &ID_, int status_, const dictargs &data_)
+Individual::Individual(const std::string &ID,
+					   int status,
+					   const dataIDmap<double> &data)
 {
 	// associate the new ID
-	this->ID = ID_;
+	this->ID = ID;
 
 	// associate the new status
-	if (status_ < MISSING_STATUS)
+	if (status < MISSING_STATUS)
 	{
 		this->status = MISSING_STATUS;
 
 		std::ostringstream oss;
-		oss << "Status '" << status_ << "' of individual " << this->ID << " interpreted as missing."
+		oss << "Status '" << status << "' of individual " << ID << " interpreted as missing."
 			<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
 			<< " and (=) " << MISSING_STATUS << " for missing status.";
 		tools::warning(oss.str());
 	}
 	else
 	{
-		this->status = status_;
+		set_status(status);
 	}
 
 	// associate the new data
-	this->data = data_;
+	this->data = data;
 }
 Individual::~Individual() = default;
 
@@ -49,23 +98,20 @@ Individual::~Individual() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //===== SETTER =====//
-void Individual::set_status(int s)
-{
-	this->status = s;
-}
+void Individual::set_status(int s) { this->status = s; }
 
-void Individual::assign_all_group_rates(const dict_rates_ptr &group_rate_ptrs)
+void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &group_rate_ptrs)
 {
 	for (const auto &pair : group_rate_ptrs)
 	{
-		std::string rateID = pair.first;
+		rateID r = pair.first;
 		std::vector<const double *> vec_par_ptr = pair.second;
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
-				"Missing rate '" + rateID + "' for individual " + ID + ".");
+				"Missing rate '" + r + "' for individual " + ID + ".");
 		else
-			this->rate_ptr.emplace(rateID, vec_par_ptr);
+			this->rate_ptr[r] = GroupRate(vec_par_ptr);
 	}
 }
 
@@ -83,10 +129,7 @@ const std::string &Individual::get_ID() const { return this->ID; }
 int Individual::get_status() const { return this->status; }
 double Individual::get_data(const dataID &d) const { return (this->*_func_get_data_)(d); }
 const double *Individual::get_data_pointer(const dataID &d) const { return (this->*_func_get_data_pointer_)(d); }
-double Individual::get_group_rate(const std::string &rateID) const
-{
-	return *this->rate_ptr.at(rateID)[0]; // FIXME : <== DEBUGGING HERE
-}
+double Individual::get_group_rate(const rateID &r) const { return this->rate_ptr.at(r).get(); }
 
 //===== AUGMENTED VARIABLES =====//
 
@@ -99,7 +142,7 @@ double Individual::augm_move_logratio(const augmID &a) const { return this->augm
 
 //---- Setter -----//
 void Individual::assign_augm(const augmID &a, double value, bool is_discr,
-							 const std::string &model_name, dictargs_ptr model_args_ptr, dictargs range,
+							 const std::string &model_name, dict_args_ptr model_args_ptr, dict_args range,
 							 const std::string &rule_name, double rule_scale, double rule_from)
 {
 	this->augm_map[a] = Base_Variable(a, value, is_discr);
@@ -108,25 +151,16 @@ void Individual::assign_augm(const augmID &a, double value, bool is_discr,
 }
 
 /* Clear the augmented variable definitions. */
-void Individual::clear_augm(const augmID &a)
-{
-	this->augm_map[a] = Base_Variable(a);
-}
+void Individual::clear_augm(const augmID &a) { this->augm_map[a] = Base_Variable(a); }
 
 /* Set a value for the augmented variable. */
-void Individual::set_augm_value(const augmID &a, double x)
-{
-	this->augm_map.at(a).set_value(x);
-}
+void Individual::set_augm_value(const augmID &a, double x) { this->augm_map.at(a).set_value(x); }
 
-/* Draw a value from the augmented variable distribution. */
-void Individual::augm_model_rand(const augmID &a, sys_rnd_gen &prng)
-{
-	this->augm_map.at(a).rand(prng);
-}
+/* Restore buffer value of augmented variable. */
+void Individual::restore_augm_value(const augmID &a) { this->augm_map.at(a).restore_value(); }
 
 /* Propose augmented and return true if valid move, otherwise restore buffer. */
-bool Individual::propose_valid_augm_move(const augmID &a, sys_rnd_gen &prng)
+bool Individual::propose_valid_augm_move(const augmID &a, rnd_gen &prng)
 {
 	Base_Variable &this_augm = augm_map.at(a);
 
@@ -140,11 +174,8 @@ bool Individual::propose_valid_augm_move(const augmID &a, sys_rnd_gen &prng)
 	return false;
 }
 
-/* Restore buffer value of augmented variable. */
-void Individual::restore_augm_value(const augmID &a)
-{
-	this->augm_map.at(a).restore_value();
-}
+/* Draw a value from the augmented variable distribution. */
+void Individual::augm_model_rand(const augmID &a, rnd_gen &prng) { this->augm_map.at(a).rand(prng); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -231,14 +262,14 @@ double Individual::_get_augm_assert_(const augmID &a) const
 }
 
 /* Default method to set the value of an augmented variable. */
-void Individual::_set_augm_default_(const augmID &a, double new_value)
+void Individual::_set_augm_default_(const augmID &a, double xnew)
 {
-	this->augm_map.at(a).set_value(new_value);
+	this->augm_map.at(a).set_value(xnew);
 }
 
 /* Safe method to set the value of an augmented variable with previous assertion. */
-void Individual::_set_augm_assert_(const augmID &a, double new_value)
+void Individual::_set_augm_assert_(const augmID &a, double xnew)
 {
 	if (assert_augm(a))
-		_set_augm_default_(a, new_value);
+		_set_augm_default_(a, xnew);
 }

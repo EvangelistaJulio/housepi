@@ -33,7 +33,7 @@ class Model : public MCMC
 	void simulate_single_house(Household &house) override;
 
 	//----- Rate Choices -----//
-	dict_rates assign_group_rate_to_individual(Household &house, indiv i) override;
+	const rateIDmap<parID> assign_group_rate_to_individual(Household &house, indiv i) override;
 };
 
 #endif // HOUSEPI__MODEL__H

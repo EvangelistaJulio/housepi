@@ -13,10 +13,9 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <set>
-#include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -38,9 +37,9 @@
 
 /* Use pseudo-random number generator for 64bit architecture. */
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
-using sys_rnd_gen = std::mt19937_64;
+using rnd_gen = std::mt19937_64;
 #else
-using sys_rnd_gen = std::mt19937;
+using rnd_gen = std::mt19937;
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,19 +52,38 @@ using sys_rnd_gen = std::mt19937;
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef unsigned short int ushort;
-typedef unsigned long int ulong;
-typedef std::vector<std::vector<double>> squarematrix;
-typedef std::unordered_map<std::string, double> dictargs;
-typedef std::unordered_map<std::string, const double *> dictargs_ptr;
+using ushort = unsigned short int;
+using ulong = unsigned long int;
+template<typename T>
+using matrix = std::vector<std::vector<T>>;
 
-typedef unsigned short int indiv;
-typedef std::string parID;
-typedef std::string augmID;
-typedef std::string dataID;
+using dict_args = std::unordered_map<std::string, double>;
+using dict_args_ptr = std::unordered_map<std::string, const double *>;
 
-typedef std::unordered_map<std::string, std::vector<std::string>> dict_rates;
-typedef std::unordered_map<std::string, std::vector<const double *>> dict_rates_ptr;
+using str_vec = std::vector<std::string>;
+using dict_str_vec = std::map<std::string, str_vec>;
+
+// Aliases for improved readibility
+using indiv = unsigned short int;
+using parID = std::string;
+using augmID = std::string;
+using dataID = std::string;
+using rateID = std::string;
+using extraID = std::string;
+
+template<typename T>
+using parIDmap = std::unordered_map<parID, T>;
+template<typename T>
+using augmIDmap = std::unordered_map<augmID, T>;
+template<typename T>
+using dataIDmap = std::unordered_map<dataID, T>;
+template<typename T>
+using rateIDmap = std::unordered_map<rateID, T>;
+template<typename T>
+using extraIDmap = std::unordered_map<extraID, T>;
+
+template<typename T>
+using rateIDmapvec = rateIDmap<std::vector<T>>;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
@@ -109,11 +127,11 @@ constexpr char C_DECOR = '-';      // decorator for prints
 namespace tools
 {
     // internal undefined string values
-    bool is_na(const std::string &txt);
+    inline bool is_na(const std::string &txt);
 
     // output formatter
-    const std::string percentage(double fraction, ushort precision = 1);
-    const std::string truth(bool condition);
+    inline const std::string percentage(double fraction, ushort precision = 1);
+    inline const std::string truth(bool condition);
 
     // stodut print
     void print_stdout(const std::string &txt);
@@ -137,20 +155,17 @@ namespace tools
     bool stobool(const std::string &tkn);
     const std::string strcleaner(std::string tkn);
 
-#ifdef _HOUSEPI_RCPP
-    void rdataframe_to_map(const Rcpp::DataFrame &df, std::map<std::string, std::vector<std::string>> &output);
-#endif
-
     void read_csv_table(const std::string &pathtofile,
-                        std::map<std::string, std::vector<std::string>> &csv_parsed_table,
-                        const std::vector<std::string> &required_headers = {});
-    const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim = C_LIST_DELIM);
+                        dict_str_vec &csv_parsed_table,
+                        const str_vec &required_headers = {});
+    const str_vec parse_list_args(const std::string &tkn,
+                                  const char delim = C_LIST_DELIM);
 
     // Calculate Levenshtein distance
     ushort levenshtein(const std::string &s1, const std::string &s2);
     // Find the closest match
     const std::string find_closest(const std::string &input,
-                                   const std::vector<std::string> &options,
+                                   const str_vec &options,
                                    ushort min_dist = 2);
 
 }

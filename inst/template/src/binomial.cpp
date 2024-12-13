@@ -16,21 +16,21 @@ namespace bax
 	// numbers of generations
 	std::vector<ulong> Num_Gener_LookupTable;
 	// n. of multiplicites per generation
-	std::vector<std::vector<ulong>> Multipl_Gener_LookupTable;
+	matrix<ulong> Multipl_Gener_LookupTable;
 	// generation std::vectors
-	std::vector<std::vector<gentype>> Generations_LookupTable;
+	matrix<gentype> Generations_LookupTable;
 
 	//===== Combinations : Lookup Tables =====//
 	// lookup-table to store the number of combinations
-	std::vector<std::vector<ulong>> Num_Combin_LookupTable;
+	matrix<ulong> Num_Combin_LookupTable;
 	// lookup-table to store combinations and complements
-	std::vector<std::vector<std::vector<std::vector<ushort>>>> Combinations_LookupTable;
+	std::vector<std::vector<matrix<ushort>>> Combinations_LookupTable;
 
 	//===== EscapePatterns : Lookup Tables =====//
 	// lookup-table to store the number of combinations
 	std::vector<EscapePattern> ChainBinomial_LookupTable;
 	// lookup-table to store combinations and complements
-	std::vector<std::vector<EscapePattern>> EscapePatterns_LookupTable;
+	matrix<EscapePattern> EscapePatterns_LookupTable;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
@@ -41,29 +41,23 @@ namespace bax
 	{
 		ulong result = 1;
 		for (ulong i = 2; i <= n; ++i)
-		{
 			result *= i;
-		}
 		return result;
 	}
 
 	/* Binomial coefficient of N elements in k positions*/
 	ulong binomial_coefficient(ushort N, ushort k)
 	{
-		if ((N == 0) || (k == N))
-		{
-			return 1;
-		}
-		else
+		if ((N > 0) && (k != N))
 		{
 			ulong result = N;
 			ushort stop = (k > N - k) ? k : N - k; // use symmetry
 			for (ushort i = 1; i < stop; ++i)
-			{
 				result = (result * (N - i)) / (i + 1);
-			}
 			return result;
 		}
+
+		return 1;
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,14 +85,10 @@ namespace bax
 		double output = 1.;
 
 		for (size_t c = 0; c < n_patterns; ++c)
-		{
 			output -= EscapePatterns_LookupTable[N_star][pattern_idxs[c]].likelihood(esc_mtx);
-		}
 
 		for (size_t c = 0; c < n_entries; ++c)
-		{
 			output *= esc_mtx[entries[c]];
-		}
 
 		return output;
 	}
@@ -112,37 +102,23 @@ namespace bax
 		{
 			ushort u = entries[c];
 			if (u < N_star)
-			{
 				oss << "B" << u + 1;
-			}
 			else
-			{
 				oss << "Q" << u / N_star << "_" << u % N_star + 1;
-			}
 
 			if (c < n_entries - 1)
-			{
 				oss << "*";
-			}
 		}
 
 		if (n_patterns > 0)
 		{
 			if (n_entries > 0)
-			{
 				oss << "*(";
-			}
-
 			oss << "1";
 			for (size_t c = 0; c < n_patterns; ++c)
-			{
 				oss << " - " << EscapePatterns_LookupTable[N_star][pattern_idxs[c]].show();
-			}
-
 			if (n_entries > 0)
-			{
 				oss << ")";
-			}
 		}
 
 		return oss.str();
@@ -170,13 +146,11 @@ namespace bax
 			{
 				gentype temp(root, 0);
 				for (int i = 0; i < n - root; ++i)
-				{
 					g[i] += 1;
-				}
 				temp.insert(temp.end(), g.begin(), g.end());
 				output.push_back(temp);
 			}
-			root--;
+			--root;
 		}
 
 		return output;
@@ -221,13 +195,9 @@ namespace bax
 				for (ushort val : g)
 				{
 					if (freq_map.find(val) != freq_map.end())
-					{
-						freq_map[val]++;
-					}
+						++freq_map[val];
 					else
-					{
 						freq_map.emplace(val, 1);
-					}
 				}
 
 				// assign counts
@@ -265,7 +235,6 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 	// -----------------------------------------------------------------------------------------------------------//
 
-
 	/*
 	Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
 	The elements are indexed from 1 to N.
@@ -284,17 +253,12 @@ namespace bax
 			// Mark elements present in the list
 			std::vector<bool> missing(N, true);
 			for (ushort i = 0; i < k; ++i)
-			{
 				missing[current[i]] = false;
-			}
+
 			// store complement
 			for (ushort i = 0; i < N; ++i)
-			{
 				if (missing[i])
-				{
 					current[loop++] = i;
-				}
-			}
 
 			//----- append current combination & complement to results -----//
 			results.push_back(current);
@@ -325,9 +289,7 @@ namespace bax
 
 			// store current combination + complement
 			for (ushort i = 0; i < N; ++i)
-			{
 				Combinations_LookupTable[N][k][c][i] = current[i];
-			}
 			++c;
 		}
 	}
@@ -337,7 +299,7 @@ namespace bax
 	{
 		ulong num_combin;
 
-		// Assure that LUT are empty before initializing 
+		// Assure that LUT are empty before initializing
 		Num_Combin_LookupTable.clear();
 		Combinations_LookupTable.clear();
 
@@ -393,9 +355,7 @@ namespace bax
 
 					// person-to-person
 					for (ushort j = 0; j < k; ++j)
-					{
 						new_child.add_entry(access_matrix[indidx[i] + N * (indidx[j] + 1)]);
-					}
 				}
 
 				if (k > 0)
@@ -408,9 +368,7 @@ namespace bax
 					for (ushort row = 0; row <= k; ++row)
 					{
 						for (ushort col = 0; col < k; ++col)
-						{
 							sub_access_matrix[col + k * row] = access_matrix[indidx[col] + N * inf];
-						}
 						inf = indidx[row] + 1; // next infector
 					}
 
@@ -446,9 +404,7 @@ namespace bax
 		{
 			vec_ushort access_matrix((N_star + 1) * N_star);
 			for (ushort i = 0; i < (N_star + 1) * N_star; ++i)
-			{
 				access_matrix[i] = i;
-			}
 
 			// store to lookup table
 			ChainBinomial_LookupTable.emplace_back(N_star);
@@ -480,12 +436,12 @@ namespace bax
 	*/
 	double chain_binomial_heter_loglikelihood(ushort N_star,
 											  const std::vector<double> &commu_esc_proba,
-											  const std::vector<std::vector<double>> &p2p_esc_proba)
+											  const matrix<double> &p2p_esc_proba)
 
 	{
 		ushort hh_size = commu_esc_proba.size();
 		double loglikelihood = 0.;
-	
+
 		//----- seronegatives contribution -----//
 		for (ushort i = N_star; i < hh_size; ++i)
 		{
@@ -494,9 +450,7 @@ namespace bax
 
 			// person-to-person : i escaped from k
 			for (ushort k = 0; k < N_star; ++k)
-			{
 				loglikelihood += std::log(p2p_esc_proba[k][i]);
-			}
 		}
 
 		if (N_star == 1)
@@ -516,9 +470,7 @@ namespace bax
 
 				// person-to-person : i escaped from k
 				for (ushort k = 0; k < N_star; ++k)
-				{
 					escape_matrix[N_star * (k + 1) + i] = p2p_esc_proba[k][i];
-				}
 			}
 
 			loglikelihood += std::log(ChainBinomial_LookupTable[N_star].likelihood(escape_matrix));
@@ -528,8 +480,8 @@ namespace bax
 	}
 }
 
-/* 
-// 
+/*
+//
 // Debug mode, to check values of the likelihood and print formulation.
 //
 // g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
@@ -551,11 +503,9 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 		{
 			commu_esc_proba[i] = 0.15 + 0.025 * i;
 			if (N_star < limit)
-			{
 				std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
-			}
 		}
-		std::vector<std::vector<double>> p2p_esc_proba(N_star);
+		matrix<double> p2p_esc_proba(N_star);
 		for (ushort row = 0; row < N_star; ++row)
 		{
 			p2p_esc_proba[row].resize(N_star);
@@ -563,16 +513,13 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 			{
 				p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
 				if (N_star < limit)
-				{
 					std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
-				}
 			}
 		}
 
 		if (N_star < limit)
-		{
 			std::cerr << ChainBinomial_LookupTable[N_star].show() << std::endl;
-		}
+
 		auto start = std::chrono::high_resolution_clock::now();
 		std::cerr << "likelihood: " << std::exp(chain_binomial_heter_loglikelihood(N_star, commu_esc_proba, p2p_esc_proba));
 		auto end = std::chrono::high_resolution_clock::now();
@@ -589,9 +536,7 @@ int main(int argc, char *argv[])
 
 	int max_num = 4;
 	if (argc > 1)
-	{
 		max_num = std::stoi(argv[1]);
-	}
 
 	init_escape_patterns_lookuptable(max_num);
 	auxiliary_chain_binomial_debugger(max_num, 4);

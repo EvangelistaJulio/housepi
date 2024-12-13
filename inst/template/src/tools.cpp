@@ -24,7 +24,7 @@ namespace tools
     /* An internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
-        std::vector<std::string> forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
+        str_vec forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
 
         if (txt.size() == 0)
             return true;
@@ -114,7 +114,6 @@ namespace tools
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Raise a warning. */
-    // FIXME : Throw and check exceptions instead depending on Rcpp
     void warning(const std::string &txt)
     {
         if (_issued_warnings_.find(txt) == _issued_warnings_.end())
@@ -133,7 +132,6 @@ namespace tools
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Display an error message. */
-    // FIXME : omp critical is wrong! Throw and check exceptions instead depending on Rcpp
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
@@ -208,30 +206,6 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-#ifdef _HOUSEPI_RCPP
-    void rdataframe_to_map(const Rcpp::DataFrame &df, std::map<std::string, std::vector<std::string>> &output)
-    {
-        using namespace Rcpp;
-
-        CharacterVector keys = df.names();
-
-        output.clear();
-        for (int i = 0; i < df.size(); ++i)
-        {
-            CharacterVector col_str = as<CharacterVector>(df[i]);
-            std::vector<std::string> col_data(col_str.begin(), col_str.end());
-            output[as<std::string>(keys[i])] = std::move(col_data);
-        }
-    }
-#endif
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
     /* Clean std::string from forbidden characters and convert to UNDEFINED. */
     const std::string strcleaner(std::string tkn)
     {
@@ -247,10 +221,10 @@ namespace tools
     }
 
     /* Read column headers and compare to required headers. */
-    std::vector<std::string> read_column_headers(std::ifstream &input, const std::vector<std::string> &required_headers)
+    str_vec read_column_headers(std::ifstream &input, const str_vec &required_headers)
     {
         // clean headers
-        std::vector<std::string> headers = {};
+        str_vec headers = {};
 
         // read first line
         std::string line, tkn;
@@ -264,39 +238,23 @@ namespace tools
         // check that all required headers are present
         if (!required_headers.empty())
         {
-            bool is_missing = false;
-            std::string sms;
+            std::string sms = "";
 
             // check the validity of the headers
             for (const std::string &req : required_headers)
-            {
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                {
-                    if (!is_missing)
-                    {
-                        // point to the faulty file
-                        sms += "Missing column(s): '" + req + "'";
-                        is_missing = true;
-                    }
-                    else
-                    {
-                        sms += ", '" + req + "'";
-                    }
-                }
-            }
+                    sms += ((sms.empty()) ? "Missing column(s):" : ",") + (" '" + req + "'");
 
             // raise the error if something was missing
-            if (is_missing)
-            {
+            if (!sms.empty())
                 throw std::invalid_argument(sms);
-            }
         }
 
         return headers;
     }
 
     /* Load files from the row with headers */
-    bool read_row_by_headers(std::ifstream &input, const std::vector<std::string> &headers, std::map<std::string, std::string> &this_row)
+    bool read_row_by_headers(std::ifstream &input, const str_vec &headers, std::map<std::string, std::string> &this_row)
     {
         std::string line, tkn;
 
@@ -328,10 +286,10 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     /* Parse the list from the std::string. */
-    const std::vector<std::string> parse_list_args(const std::string &tkn, const char delim)
+    const str_vec parse_list_args(const std::string &tkn, const char delim)
     {
         std::istringstream args_ss(tkn);
-        std::vector<std::string> output = {};
+        str_vec output = {};
         std::string tmp;
 
         // rea the entries of the dictionary
@@ -343,8 +301,8 @@ namespace tools
 
     /* Read csv table store in pathtofile and store it parsed in csv_parsed_table. */
     void read_csv_table(const std::string &pathtofile,
-                        std::map<std::string, std::vector<std::string>> &csv_parsed_table,
-                        const std::vector<std::string> &required_headers)
+                        dict_str_vec &csv_parsed_table,
+                        const str_vec &required_headers)
     {
         try
         {
@@ -354,7 +312,7 @@ namespace tools
 
                 if (input.is_open())
                 {
-                    std::vector<std::string> headers = read_column_headers(input, required_headers);
+                    str_vec headers = read_column_headers(input, required_headers);
                     std::map<std::string, std::string> this_row = {};
 
                     csv_parsed_table.clear(); // FIXME: is this correct?
@@ -386,32 +344,46 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     // Function to calculate Levenshtein distance
-    // FIXME : unreferenced
-    ushort levenshtein(const std::string &s1, const std::string &s2)
+    /* Levenshtein distance calculated the dynamic programming approach.
+        Ref.
+        -----
+        https://github.com/guilhermeagostinelli/levenshtein/blob/master/levenshtein.cpp
+    */
+    ushort levenshtein(const std::string &seq_A, const std::string &seq_B)
     {
-        ushort len1 = s1.size();
-        ushort len2 = s2.size();
-        std::vector<std::vector<ushort>> dp(len1 + 1, std::vector<ushort>(len2 + 1, 0));
+        ushort len_A = seq_A.size();
+        ushort len_B = seq_B.size();
+        // Verification matrix i.e. 2D array which will store the calculated distance
+        matrix<ushort> verif(len_A + 1, std::vector<ushort>(len_B + 1, 0));
 
-        for (ushort i = 0; i <= len1; ++i)
-            dp[i][0] = i;
-        for (ushort j = 0; j <= len2; ++j)
-            dp[0][j] = j;
+        // If one of the words has zero length, the distance is equal to the size of the other word.
+        if (len_A == 0)
+            return len_B;
+        if (len_B == 0)
+            return len_A;
 
-        for (ushort i = 1; i <= len1; ++i)
-            for (ushort j = 1; j <= len2; ++j)
-                if (s1[i - 1] == s2[j - 1])
-                    dp[i][j] = dp[i - 1][j - 1];
+        // Sets the first row and the first column of the verification matrix
+        for (ushort a = 0; a <= len_A; ++a)
+            verif[a][0] = a;
+        for (ushort b = 0; b <= len_B; ++b)
+            verif[0][b] = b;
+
+        // Verification step / matrix filling.
+        for (ushort a = 1; a <= len_A; ++a)
+            for (ushort b = 1; b <= len_B; ++b)
+                if (seq_A[a - 1] == seq_B[b - 1])
+                    verif[a][b] = verif[a - 1][b - 1];
                 else
-                    dp[i][j] = std::min({dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]}) + 1;
+                    verif[a][b] = std::min({verif[a - 1][b - 1], verif[a - 1][b], verif[a][b - 1]}) + 1;
 
-        return dp[len1][len2];
+        // Last position of the matrix contains the distance
+        return verif[len_A][len_B];
     }
 
-    // Function to find the closest match
+    /* Function to find the closest match. */
     const std::string find_closest(const std::string &input,
-                             const std::vector<std::string> &options,
-                             ushort min_dist)
+                                   const str_vec &options,
+                                   ushort min_dist)
     {
         std::string closest = "";
         ushort dist_closest = min_dist;
@@ -429,19 +401,18 @@ namespace tools
         // prepare a message
         if (options.empty())
             return "";
+        else if (dist_closest == 0)
+            return "";
+        else if (closest.empty())
+        {
+            std::ostringstream oss;
+            oss << " Available option(s): '" << options[0] << "'";
+            for (size_t i = 1; i < options.size(); ++i)
+                oss << ", '" << options[i] << "'";
+            oss << ".";
+            return oss.str();
+        }
         else
-            if (dist_closest == 0) 
-                return "";
-            else if (closest.empty())
-            {
-                std::ostringstream oss;
-                oss << " Available option(s): '" << options[0] << "'"; 
-                    for (size_t i = 1; i < options.size(); ++i)
-                        oss << ", '" << options[i] << "'";
-                oss << ".";
-                return oss.str() ;
-            }
-            else 
-                return " Did you mean '" + closest + "'?";
+            return " Did you mean '" + closest + "'?";
     }
 } // TOOLS NAMESPACE

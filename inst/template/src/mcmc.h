@@ -64,7 +64,7 @@ public:
 	Rcpp::DataFrame export_params() const;
 	Rcpp::DataFrame export_data() const;
 	Rcpp::DataFrame export_traces() const;
-	Rcpp::NumericMatrix export_loglike_matrix() const;
+	Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
 	//===== SHOW =====//
@@ -81,12 +81,12 @@ public:
 	size_t report_data(const std::string &key) const;
 
 	// note : I didn't find a way to PIMPL these because of the virtual functions
-	void build_data(const std::map<std::string, std::vector<std::string>> &datatable);
+	void build_data(const dict_str_vec &datatable);
 	void set_rate_per_group(Household &house, indiv i);
 	void set_rate_per_contact(Household &house);
 
-	virtual dict_rates assign_group_rate_to_individual(Household &house, indiv i);
-	virtual void assign_contact_rate_to_household(Household &house, indiv from, indiv to);
+	virtual const rateIDmapvec<parID> assign_group_rate_to_individual(Household &house, indiv i);
+	virtual const parID assign_contact_rate_to_household(Household &house, indiv from, indiv to);
 
 	//===== RAND NUMBER GENERATOR =====//
 	double uniform();
@@ -102,10 +102,10 @@ public:
 	void clear_all_augm(Household &house, indiv i);
 
 	//===== EXTRA ATTRIBUTES =====//
-	void assign_extra_integer_to_all_houses(const std::vector<std::string> &names, int init_value = 0.0);
-	void assign_extra_double_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
-	void assign_extra_vector_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
-	void assign_extra_matrix_to_all_houses(const std::vector<std::string> &names, double init_value = 0.0);
+	void assign_extra_integer_to_all_houses(const std::vector<extraID> &names, int xinit = 0.0);
+	void assign_extra_double_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
+	void assign_extra_vector_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
+	void assign_extra_matrix_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
 
 	//===== INFECTIVITY PROFILE =====//
 	void assign_infectivity_profile(const std::string &name);
