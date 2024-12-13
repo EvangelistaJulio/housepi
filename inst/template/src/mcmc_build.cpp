@@ -308,7 +308,7 @@ void Monte_Carlo_Build::build_augm()
             //===== Check Augmented Variables lists of usage =====//
             for (size_t k = 0; k < table_length; ++k)
             {
-                augmID a = _augm_deftable_.at("name")[k];
+                std::string a = _augm_deftable_.at("name")[k];
                 std::string status = _augm_deftable_.at("status")[k];
                 bool is_init_rand = false;
 
@@ -354,7 +354,7 @@ void Monte_Carlo_Build::build_augm()
             //===== Check Univocal Definitions and Allocate New Lists =====//
             for (const auto &pair : name_status_check)
             {
-                const augmID &a = pair.first;
+                const std::string &a = pair.first;
                 const str_vec &mylist = pair.second;
 
                 for (const std::string &status : mylist)
@@ -393,7 +393,7 @@ void Monte_Carlo_Build::build_augm()
             // note : I can't I collapse this with the previous because of generic status
             for (size_t k = 0; k < table_length; ++k)
             {
-                augmID a = _augm_deftable_.at("name")[k];
+                std::string a = _augm_deftable_.at("name")[k];
                 std::string status = _augm_deftable_.at("status")[k];
 
                 //----- Augmented Variables to be Inferred -----//
@@ -473,7 +473,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
             if ((tools::is_na(augm_status)) || (house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
                 //----- Name -----//
-                const augmID &a = _augm_deftable_.at("name")[k];
+                const std::string &a = _augm_deftable_.at("name")[k];
 
                 //----- is Discrete -----//
                 bool is_discr = tools::stobool(_augm_deftable_.at("discrete")[k]);

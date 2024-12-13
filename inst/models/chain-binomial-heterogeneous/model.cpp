@@ -40,10 +40,10 @@ double Model::person_to_person_risk() const
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign all group rates for each individual. */
-const rateIDmap<parID> Model::assign_group_rate_to_individual(Household &house, indiv i)
+const rateIDmapvec<parID> Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	rateID r;
-	rateIDmap<parID> output = {};
+	rateIDmapvec<parID> output = {};
 
 	bool is_adult = house.data(i, "age") > param("child_age");
 	bool is_male = (house.data(i, "sex") == 1);

@@ -337,7 +337,7 @@ void Household::_restore_all_extra() { pImpl->restore_all_extra(); }
 void Household::allocate_extra_integer(const std::vector<extraID> &names, int xinit)
 {
 	for (const extraID &e : names)
-		pImpl->extra_integer.emplace(e, xinit);
+		pImpl->extra_integer[e] = xinit;
 }
 void Household::set_extra_integer(const extraID &e, int xnew)
 {
@@ -352,7 +352,7 @@ int Household::extra_integer(const extraID &e) const
 void Household::allocate_extra_double(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
-		pImpl->extra_double.emplace(e, xinit);
+		pImpl->extra_double[e] = xinit;
 }
 void Household::set_extra_double(const extraID &e, double xnew)
 {
@@ -367,7 +367,7 @@ double Household::extra_double(const extraID &e) const
 void Household::allocate_extra_vector(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
-		pImpl->extra_vec.emplace(e, std::vector<double>(size(), xinit));
+		pImpl->extra_vec[e] = std::vector<double>(size(), xinit);
 }
 void Household::set_extra_vector(const extraID &e, size_t i, double xnew)
 {
@@ -385,7 +385,7 @@ const std::vector<double> &Household::extra_vector(const extraID &e) const
 void Household::allocate_extra_matrix(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
-		pImpl->extra_mtx.emplace(e, matrix<double>(size(), std::vector<double>(size(), xinit)));
+		pImpl->extra_mtx[e] = matrix<double>(size(), std::vector<double>(size(), xinit));
 }
 
 void Household::set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew)

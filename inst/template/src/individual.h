@@ -31,14 +31,17 @@
 class GroupRate
 {
 public:
+	std::string name = "";
+
 	GroupRate();
-	GroupRate(const std::vector<const double *> &pointers);
+	GroupRate(const std::string &name,
+			  const std::vector<const double *> &pointers);
 	~GroupRate();
 
-	double get() const { (this->*_func_getter_)(); }
+	double get() const;
 
 private:
-	std::vector<const double *> pointers;
+	std::vector<const double *> pointers = {};
 
 	double (GroupRate::*_func_getter_)() const = &GroupRate::_getter_error_;
 	double _getter_error_() const;

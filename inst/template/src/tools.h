@@ -31,59 +31,8 @@
 #include <omp.h>
 #endif
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  32bit/64bit  ///////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Use pseudo-random number generator for 64bit architecture. */
-#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
-using rnd_gen = std::mt19937_64;
-#else
-using rnd_gen = std::mt19937;
-#endif
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////  MACROS  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define UNUSED(x) (void)(x) // MACRO to avoid unused compiler warnings
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-using ushort = unsigned short int;
-using ulong = unsigned long int;
-template<typename T>
-using matrix = std::vector<std::vector<T>>;
-
-using dict_args = std::unordered_map<std::string, double>;
-using dict_args_ptr = std::unordered_map<std::string, const double *>;
-
-using str_vec = std::vector<std::string>;
-using dict_str_vec = std::map<std::string, str_vec>;
-
-// Aliases for improved readibility
-using indiv = unsigned short int;
-using parID = std::string;
-using augmID = std::string;
-using dataID = std::string;
-using rateID = std::string;
-using extraID = std::string;
-
-template<typename T>
-using parIDmap = std::unordered_map<parID, T>;
-template<typename T>
-using augmIDmap = std::unordered_map<augmID, T>;
-template<typename T>
-using dataIDmap = std::unordered_map<dataID, T>;
-template<typename T>
-using rateIDmap = std::unordered_map<rateID, T>;
-template<typename T>
-using extraIDmap = std::unordered_map<extraID, T>;
-
-template<typename T>
-using rateIDmapvec = rateIDmap<std::vector<T>>;
+// Test for pre-compilation
+//#define DEBUG_TEMPORARY_MACRO
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
@@ -91,7 +40,7 @@ using rateIDmapvec = rateIDmap<std::vector<T>>;
 
 // FIXME :NaN and NA to be revised
 constexpr double INF_DOUBLE = 1e10;   // numerical infinity value
-const std::string UNDEFINED = "<NA>"; // name for undefined choice
+const std::string UNDEFINED = "<NA>"; // value for undefined choice
 
 // constants
 constexpr int MAX_NUMBER_ATTEMPTS = 50;      // max n. of attempts for initialization
@@ -121,17 +70,106 @@ constexpr char C_DECOR = '-';      // decorator for prints
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  32bit/64bit  ///////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Use pseudo-random number generator for 64bit architecture. */
+#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
+using rnd_gen = std::mt19937_64;
+#else
+using rnd_gen = std::mt19937;
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MACROS  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define UNUSED(x) (void)(x) // MACRO to avoid unused compiler warnings
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+using ushort = unsigned short int;
+using ulong = unsigned long int;
+template <typename T>
+using matrix = std::vector<std::vector<T>>;
+
+using dict_args = std::unordered_map<std::string, double>;
+using dict_args_ptr = std::unordered_map<std::string, const double *>;
+
+using str_vec = std::vector<std::string>;
+using dict_str_vec = std::map<std::string, str_vec>;
+
+// Aliases for improved readibility
+using indiv = unsigned short int;
+
+#ifdef DEBUG_TEMPORARY_MACRO
+using __access_ID__ = size_t;
+const __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
+#else
+using __access_ID__ = std::string;
+const __access_ID__ __undef_ID__ = UNDEFINED; // name for undefined choice
+#endif
+
+using parID = __access_ID__;
+using augmID = __access_ID__;
+using dataID = __access_ID__;
+using rateID = __access_ID__;
+using extraID = __access_ID__;
+
+const parID UNDEF_PARAMETER = __undef_ID__;
+const parID UNDEF_AUGMENTED = __undef_ID__;
+const parID UNDEF_DATACOLUMN = __undef_ID__;
+const parID UNDEF_GROUPRATE = __undef_ID__;
+const parID UNDEF_EXTRAVARIA = __undef_ID__;
+
+#ifdef DEBUG_TEMPORARY_MACRO
+template <typename T>
+using parIDmap = std::vector<T>;
+template <typename T>
+using augmIDmap = std::vector<T>;
+template <typename T>
+using dataIDmap = std::vector<T>;
+template <typename T>
+using rateIDmap = std::vector<T>;
+template <typename T>
+using extraIDmap = std::vector<T>;
+#else
+template <typename T>
+using parIDmap = std::unordered_map<parID, T>;
+template <typename T>
+using augmIDmap = std::unordered_map<augmID, T>;
+template <typename T>
+using dataIDmap = std::unordered_map<dataID, T>;
+template <typename T>
+using rateIDmap = std::unordered_map<rateID, T>;
+template <typename T>
+using extraIDmap = std::unordered_map<extraID, T>;
+#endif
+
+template <typename T>
+using rateIDmapvec = rateIDmap<std::vector<T>>;
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Basic Tools Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tools
 {
     // internal undefined string values
-    inline bool is_na(const std::string &txt);
+    bool is_na(const std::string &txt);
 
     // output formatter
-    inline const std::string percentage(double fraction, ushort precision = 1);
-    inline const std::string truth(bool condition);
+    const std::string percentage(double fraction, ushort precision = 1);
+    const std::string truth(bool condition);
 
     // stodut print
     void print_stdout(const std::string &txt);

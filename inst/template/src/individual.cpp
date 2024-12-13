@@ -19,32 +19,32 @@
 //===== CONSTRUCTOR	=====//
 
 GroupRate::GroupRate() {};
-GroupRate::GroupRate(const std::vector<const double *> &pointers)
+GroupRate::GroupRate(const std::string &name,
+					 const std::vector<const double *> &pointers)
 {
+	this->name = name;
+	
 	if (pointers.empty())
 		throw std::invalid_argument(
 			"No parameters to associate to group rate.");
 	else if (pointers.size() == 1)
-		_func_getter_ = &_getter_default_;
+		_func_getter_ = &GroupRate::_getter_default_;
 	else
-		_func_getter_ = &_getter_multiple_;
+		_func_getter_ = &GroupRate::_getter_multiple_;
 
 	this->pointers = pointers;
 }
 GroupRate::~GroupRate() = default;
 
 //===== GETTER =====//
-double GroupRate::get() const { (this->*_func_getter_)(); }
-
+double GroupRate::get() const { return (this->*_func_getter_)(); }
 double GroupRate::_getter_error_() const
 {
 	throw std::invalid_argument(
 		"Attempt to call getter of undefined group rate.");
 	return INF_DOUBLE;
 }
-
 double GroupRate::_getter_default_() const { return *this->pointers[0]; }
-
 double GroupRate::_getter_multiple_() const
 {
 	double output = 1.0;
@@ -111,7 +111,7 @@ void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &grou
 			std::invalid_argument(
 				"Missing rate '" + r + "' for individual " + ID + ".");
 		else
-			this->rate_ptr[r] = GroupRate(vec_par_ptr);
+			this->rate_ptr[r] = GroupRate(r, vec_par_ptr);
 	}
 }
 
