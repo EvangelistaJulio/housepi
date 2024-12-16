@@ -33,43 +33,39 @@ double Model::transmission_rate(const Household &house) const
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign all group rates for each individual. */
-const rateIDmapvec<parID> Model::assign_group_rate_to_individual(Household &house, indiv i)
+void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
-	rateID r;
-	rateIDmapvec<parID> output = {};
-
-	r = "Infectivity"; 
-	output[r] = {};
-	if (house.data(i, "vacc_status") == 0)
-		output[r].emplace_back(REFERENCE);
-	else
-		output[r].emplace_back("inf_vacc");
-
-	r = "Susceptibility";  
-	output[r] = {};
-	if (house.data(i, "vacc_status") == 0)
-		output[r].emplace_back(REFERENCE);
-	else
-		output[r].emplace_back("sus_vacc");
-
-	return output;
+	{
+		rateID r = "Infectivity";
+		if (house.data(i, "vacc_status") == 0)
+			emplace_group_rate(r, REFERENCE);
+		else
+			emplace_group_rate(r, "inf_vacc");
+	}
+	{
+		rateID r = "Susceptibility";
+		if (house.data(i, "vacc_status") == 0)
+			emplace_group_rate(r, REFERENCE);
+		else
+			emplace_group_rate(r, "sus_vacc");
+	}
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-const parID Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
+void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
 	// child if younger than 'child_age'; adult otherwise
 	bool is_from_adult = (house.data(from, "age") < param("child_age"));
 	bool is_to_adult = (house.data(to, "age") < param("child_age"));
 
 	if (is_from_adult && is_to_adult)
-		return REFERENCE;
+		emplace_contact_rate(REFERENCE);
 	else if (is_from_adult && (!is_to_adult))
-		return "cont_adult_child";
+		emplace_contact_rate("cont_adult_child");
 	else if ((!is_from_adult) && is_to_adult)
-		return "cont_child_adult";
+		emplace_contact_rate("cont_child_adult");
 	else
-		return "cont_child_child";
+		emplace_contact_rate("cont_child_child");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -257,7 +253,7 @@ double Model::compute_house_loglike(Household &house) const
 	//==============================//
 	//===== Infectious Members =====//
 	//==============================//
-	
+
 	for (indiv i : house.infectious_set())
 		// Contribution of secondary cases
 		if (i != house.extra_integer("intro-case"))

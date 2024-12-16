@@ -125,18 +125,18 @@ double MCMC::compute_house_loglike(Household &house) const
 };
 
 /* Assign group rate to an individual  */
-const rateIDmapvec<parID> MCMC::assign_group_rate_to_individual(Household &house, indiv i)
+void MCMC::assign_group_rate_to_individual(Household &house, indiv i)
 {
     UNUSED(house);
     UNUSED(i);
-
-    return {};
 }
 
 /* Assign the contact patterns between a couple of individuals. */
-const parID MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
+void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
-    return UNDEFINED;
+    UNUSED(house);
+    UNUSED(from);
+    UNUSED(to);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -278,11 +278,9 @@ void MCMC::build_data(const dict_str_vec &datatable)
             //===== Clean up data entries for output files =====//
             // eventually remove standard headers to reorder them at the end
             for (const std::string &col : {"house_id", "id", "status"})
-            {
                 pBuild->data_headers.erase(
                     std::remove(pBuild->data_headers.begin(), pBuild->data_headers.end(), col),
                     pBuild->data_headers.end());
-            }
         }
     }
     catch (const std::exception &e)
@@ -295,24 +293,31 @@ void MCMC::build_data(const dict_str_vec &datatable)
 //////////////////////////////////  Monte_Carlo_Build : set rate per group  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Auxiliary wrapper to emplace_back */
+void MCMC::emplace_group_rate(rateID r, parID p)
+{
+    _individual_group_rates_[r].emplace_back(p);
+}
+
 /* Update model report and set group rates associate to new individual. */
 void MCMC::set_rate_per_group(Household &house, indiv i)
 {
     try
     {
-        const rateIDmapvec<parID> group_rates_parIDs = assign_group_rate_to_individual(house, i);
         rateIDmapvec<const double *> group_rates_ptrs = {};
 
+        // call user defined group rate assignmen
+        _individual_group_rates_.clear();
+        assign_group_rate_to_individual(house, i);
+
         // convert to dict_rates_ptr and assert parameters
-        for (const auto &pair : group_rates_parIDs)
+        for (const auto &pair : _individual_group_rates_)
         {
             rateID r = pair.first;
 
             if (r == CONTACT_RATE)
-            {
                 throw std::invalid_argument(
                     "The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
-            }
             else if (!tools::is_na(r))
             {
                 // assert parameters and in the case return pointer
@@ -322,14 +327,10 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                 for (const parID &p : pair.second)
                 {
                     if ((tools::is_na(p)) || (p == MISSING_RATE))
-                    {
                         std::invalid_argument(
                             "Missing rate '" + r + "' for individual " + house.ID(i) + ".");
-                    }
                     else if (p == REFERENCE)
-                    {
                         vec_par_ptr.emplace_back(&REFERENCE_VALUE);
-                    }
                     else
                     {
                         is_all_reference = false;
@@ -363,6 +364,12 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 ///////////////////////////  Monte_Carlo_Build : set rate per contact  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Auxiliary wrapper to emplace_back */
+void MCMC::emplace_contact_rate(parID p)
+{
+    _pair_contact_rate_ = p;
+}
+
 /* Set contact rate according to user assignement. */
 void MCMC::set_rate_per_contact(Household &house)
 {
@@ -376,24 +383,23 @@ void MCMC::set_rate_per_contact(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    const parID &p = assign_contact_rate_to_household(house, k, i);
+                    _pair_contact_rate_ = UNDEFINED;
+                    assign_contact_rate_to_household(house, k, i);
 
-                    if (!tools::is_na(p))
+                    if (!tools::is_na(_pair_contact_rate_))
                     {
-                        if (p == MISSING_RATE)
-                        {
-                            std::string sms = "Missing contact rate for individuals " + house.ID(k);
-                            sms += " and " + house.ID(i) + " (household " + house.house_ID() + ").";
-                            throw std::invalid_argument(sms);
-                        }
-                        else if (p == REFERENCE)
-                        {
+                        if (_pair_contact_rate_ == MISSING_RATE)
+                            throw std::invalid_argument(
+                                "Missing contact rate for individuals " + house.ID(k) + " and " + house.ID(i) + " (household " + house.house_ID() + ").");
+                        else if (_pair_contact_rate_ == REFERENCE)
                             house.assign_contact_rate(k, i, &REFERENCE_VALUE); // reference rate
-                        }
                         else
                         {
-                            pBuild->assert_param(p);
-                            house.assign_contact_rate(k, i, pBuild->get_param_pointer(p)); // parameter rate
+                            pBuild->assert_param(_pair_contact_rate_);
+                            house.assign_contact_rate(
+                                k, i,
+                                pBuild->get_param_pointer(_pair_contact_rate_) // parameter rate
+                            );
                         }
                     }
 
@@ -473,9 +479,7 @@ void MCMC::move_single_param(const parID &p)
     if (pBuild->propose_valid_param_move(p))
     {
         if ((this->*_func_param_metropolis_)(p))
-        {
             is_accepted = true;
-        }
         else
         {
             // restore buffered value of parameter
@@ -880,10 +884,8 @@ void MCMC::infer(bool is_progbar)
 void MCMC::update_inver_temper(double inv_T)
 {
     if ((inv_T < 0.) || (inv_T > 1.))
-    {
         throw std::range_error(
             "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
-    }
     else if (inv_T == 1.0)
     {
         pBuild->setup_inv_T = 1.0;
@@ -1026,10 +1028,8 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
         }
     }
     else
-    {
         tools::error(
             "Unknown power posterior scheme '" + scheme + "'." + tools::find_closest(scheme, options, 3));
-    }
 
     //----- trapezoidal rule to compute marginal likelihood -----//
     double d_inv_t, output = 0.;

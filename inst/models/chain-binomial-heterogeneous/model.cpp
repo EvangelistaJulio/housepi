@@ -40,40 +40,36 @@ double Model::person_to_person_risk() const
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign all group rates for each individual. */
-const rateIDmapvec<parID> Model::assign_group_rate_to_individual(Household &house, indiv i)
+void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
-	rateID r;
-	rateIDmapvec<parID> output = {};
-
 	bool is_adult = house.data(i, "age") > param("child_age");
 	bool is_male = (house.data(i, "sex") == 1);
 
-	r = "Infectivity"; 
-	output[r] = {};
-	if (is_adult)
-		output[r].emplace_back(REFERENCE);
-	else
-		output[r].emplace_back("inf_child");
-
-	r = "Community_Susc"; 
-	output[r] = {};
-	if ((is_adult) && (is_male))
-		output[r].emplace_back(REFERENCE);
-	else if ((is_adult) && (!is_male))
-		output[r].emplace_back("com_sus_woman");
-	else
-		output[r].emplace_back("com_sus_child");
-
-	r = "Susceptibility"; 
-	output[r] = {};
-	if ((is_adult) && (is_male))
-		output[r].emplace_back(REFERENCE);
-	else if ((is_adult) && (!is_male))
-		output[r].emplace_back("sus_woman");
-	else
-		output[r].emplace_back("sus_child");
-
-	return output;
+	{
+		rateID r = "Infectivity";
+		if (is_adult)
+			emplace_group_rate(r, REFERENCE);
+		else
+			emplace_group_rate(r, "inf_child");
+	}
+	{
+		rateID r = "Community_Susc";
+		if ((is_adult) && (is_male))
+			emplace_group_rate(r, REFERENCE);
+		else if ((is_adult) && (!is_male))
+			emplace_group_rate(r, "com_sus_woman");
+		else
+			emplace_group_rate(r, "com_sus_child");
+	}
+	{
+		rateID r = "Susceptibility";
+		if ((is_adult) && (is_male))
+			emplace_group_rate(r, REFERENCE);
+		else if ((is_adult) && (!is_male))
+			emplace_group_rate(r, "sus_woman");
+		else
+			emplace_group_rate(r, "sus_child");
+	} 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

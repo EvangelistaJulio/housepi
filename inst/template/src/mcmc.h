@@ -85,8 +85,11 @@ public:
 	void set_rate_per_group(Household &house, indiv i);
 	void set_rate_per_contact(Household &house);
 
-	virtual const rateIDmapvec<parID> assign_group_rate_to_individual(Household &house, indiv i);
-	virtual const parID assign_contact_rate_to_household(Household &house, indiv from, indiv to);
+	//==== GROUP & CONTACT RATES =====//
+	void emplace_group_rate(rateID r, parID p);
+	void emplace_contact_rate(parID p);
+	virtual void assign_group_rate_to_individual(Household &house, indiv i);
+	virtual void assign_contact_rate_to_household(Household &house, indiv from, indiv to);
 
 	//===== RAND NUMBER GENERATOR =====//
 	double uniform();
@@ -130,25 +133,24 @@ public:
 	void simulate(bool is_progbar = true);
 
 private:
-	//===== Pointer to Implementation =====//
+	//===== POINTER TO IMPLEMENTATION =====//
 	std::unique_ptr<Monte_Carlo_Build> pBuild;
 
-	//===== Internal =====//
-	ulong _chain_ = 1;			 // current chain
-	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
-	ulong _rung_ = 0;			 // current thermodynamic rung
-	ulong _n_rungs_ = 0;		 // number of rungs
+	//===== GROUP & CONTACT RATES =====//
+	rateIDmapvec<parID> _individual_group_rates_ = {};
+	parID _pair_contact_rate_ = {};
 
-	// errors
-	std::string _error_message_ = "";
-
-	//===== Infectivity_Profile =====//
+	//===== INFECTIVITY PROFILE =====//
 	std::unique_ptr<Base_Infectivity_Profile> _infec_profile_;
 
 	//===== PRINTS =====//
 	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
 
 	//===== INFER =====//
+	ulong _chain_ = 1;			 // current chain
+	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
+	ulong _rung_ = 0;			 // current thermodynamic rung
+	ulong _n_rungs_ = 0;		 // number of rungs
 
 	//----- Monte Carlo -----//
 	void update_inver_temper(double inv_T);
@@ -180,6 +182,9 @@ private:
 	bool _augm_metropolis_1_(const Household &house, indiv i, const augmID &a, double &delta);
 	bool _augm_metropolis_0_(const Household &house, indiv i, const augmID &a, double &delta);
 	bool _augm_metropolis_T_(const Household &house, indiv i, const augmID &a, double &delta);
+
+	//===== ERROR =====//
+	std::string _error_message_ = "";
 };
 
 #endif // HOUSEPI__MCMC__H
