@@ -293,11 +293,11 @@ void Household::disable_assert()
 
 void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x) { pImpl->indiv_vector[i].assign_all_group_rates(x); }
 
-void Household::assign_augm(indiv i, const augmID &a, double value, bool is_discr,
-							const std::string &model_name, dict_args_ptr model_args_ptr, dict_args range,
+void Household::assign_augm(indiv i, const augmID &a, const std::string &name, double value, bool is_discrete,
+							const std::string &model_name, const dict_args_ptr &model_args_ptr, const dict_args &range,
 							const std::string &rule_name, double rule_scale, double rule_from)
 {
-	pImpl->indiv_vector[i].assign_augm(a, value, is_discr,
+	pImpl->indiv_vector[i].assign_augm(a, name, value, is_discrete,
 									   model_name, model_args_ptr, range,
 									   rule_name, rule_scale, rule_from);
 }
@@ -318,16 +318,10 @@ void Household::init_diagnostics(ulong sample_size)
 }
 
 /* Update the values for the Bayesian diagnostics. */
-void Household::update_diagnostics()
-{
-	pImpl->dgn_loglike[pImpl->dgn_count++] = pImpl->house_loglike;
-}
+void Household::update_diagnostics() { pImpl->dgn_loglike[pImpl->dgn_count++] = pImpl->house_loglike; }
 
 /* Return the loglikelihood sample vector. */
-const std::vector<double> &Household::get_dgn_loglike() const
-{
-	return pImpl->dgn_loglike;
-}
+const std::vector<double> &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
 
 //===== EXTRA ATTRIBUTES =====//
 void Household::_buffer_all_extra() { pImpl->buffer_all_extra(); }

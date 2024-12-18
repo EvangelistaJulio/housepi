@@ -32,7 +32,7 @@
 #endif
 
 // Test for pre-compilation
-//#define DEBUG_TEMPORARY_MACRO
+// #define DEBUG_TEMPORARY_MACRO
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
@@ -43,7 +43,7 @@ constexpr double INF_DOUBLE = 1e10;   // numerical infinity value
 const std::string UNDEFINED = "<NA>"; // value for undefined choice
 
 // constants
-constexpr int MAX_NUMBER_ATTEMPTS = 50;      // max n. of attempts for initialization
+constexpr unsigned MAX_NUMBER_ATTEMPTS = 50; // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases

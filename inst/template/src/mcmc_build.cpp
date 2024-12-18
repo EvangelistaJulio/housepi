@@ -45,38 +45,38 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
 
     try
     {
-        if (tools::is_na(value) && tools::is_na(type))
-            ;
+        if (!(tools::is_na(value) && tools::is_na(type)))
+        {
+            if (!tools::is_na(value) && tools::is_na(type))
+                output = tools::stod(value, "argument without type");
 
-        else if (!tools::is_na(value) && tools::is_na(type))
-            output = tools::stod(value, "argument without type");
+            else if (tools::is_na(value) && !tools::is_na(type))
+                tools::warning(
+                    "Ignoring value type without a paired value.");
 
-        else if (tools::is_na(value) && !tools::is_na(type))
-            tools::warning(
-                "Ignoring value type without a paired value.");
+            else if (type == TYPE_SCALAR)
+                output = tools::stod(value, "argument with scalar type");
 
-        else if (type == TYPE_SCALAR)
-            output = tools::stod(value, "argument with scalar type");
+            else if (type == TYPE_DATA)
+                output = house.data(i, value);
 
-        else if (type == TYPE_DATA)
-            output = house.data(i, value);
+            else if (type == TYPE_PARAM)
+                if (get_infer(value))
+                    tools::error(
+                        "Non constant parameter '" + value + "' assigned as immutable argument.");
+                else
+                    output = get_param(value);
 
-        else if (type == TYPE_PARAM)
-            if (get_infer(value))
-                tools::error(
-                    "Non constant parameter '" + value + "' assigned as immutable argument.");
-            else
-                output = get_param(value);
-
-        else if (type == TYPE_COMMAND)
-            if (value == "default")
-                output = INF_DOUBLE;
+            else if (type == TYPE_COMMAND)
+                if (value == "default")
+                    output = INF_DOUBLE;
+                else
+                    throw std::invalid_argument(
+                        "Unknown command type '" + value + "'.");
             else
                 throw std::invalid_argument(
-                    "Unknown command type '" + value + "'.");
-        else
-            throw std::invalid_argument(
-                "Unknown variable type specifier '" + type + "'.");
+                    "Unknown variable type specifier '" + type + "'.");
+        }
     }
     catch (const std::exception &e)
     {
@@ -91,35 +91,26 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string &value,
                                                    const std::string &type,
                                                    const Household &house, indiv i)
 {
-    const double *output = nullptr;
-
     try
     {
-        if (tools::is_na(value) && tools::is_na(type))
+        if (!(tools::is_na(value) && tools::is_na(type)))
         {
-            output = nullptr; // default value
-        }
-        else if (!tools::is_na(value) && tools::is_na(type))
-        {
-            throw std::invalid_argument(
-                "Impossible to interpret default value of  '" + value + "'. Please provide a type.");
-        }
-        else if (tools::is_na(value) && !tools::is_na(type))
-        {
-            tools::warning("Found a type without a paired value. Falling back to default.");
+            if (!tools::is_na(value) && tools::is_na(type))
+                throw std::invalid_argument(
+                    "Impossible to interpret default value of  '" + value + "'. Please provide a type.");
 
-            output = nullptr; // default value
-        }
-        else
-        {
-            if (type == TYPE_DATA)
-                output = house.data_pointer(i, value);
+            else if (tools::is_na(value) && !tools::is_na(type))
+                tools::warning(
+                    "Found a type without a paired value. Falling back to default.");
+
+            else if (type == TYPE_DATA)
+                return house.data_pointer(i, value);
 
             else if (type == TYPE_PARAM)
-                output = get_param_pointer(value);
+                return get_param_pointer(value);
 
             else if (type == TYPE_SCALAR)
-                output = assign_scalar_pointer(tools::stod(value, "argument with scalar type"));
+                return assign_scalar_pointer(tools::stod(value, "argument with scalar type"));
 
             else
                 throw std::invalid_argument(
@@ -131,14 +122,14 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string &value,
         tools::error(e.what());
     }
 
-    return output;
+    return nullptr; // default
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
 dict_args Monte_Carlo_Build::typedict_to_sdargs(const std::string &tkn_key,
-                                               const std::string &tkn_val,
-                                               const std::string &tkn_typ,
-                                               const Household &house, indiv i)
+                                                const std::string &tkn_val,
+                                                const std::string &tkn_typ,
+                                                const Household &house, indiv i)
 {
     str_vec keys = tools::parse_list_args(tkn_key);
     str_vec vals = tools::parse_list_args(tkn_val);
@@ -158,8 +149,8 @@ dict_args Monte_Carlo_Build::typedict_to_sdargs(const std::string &tkn_key,
 
 /* Convert a std::string with type-dictionary to std::string-to-double-pointer */
 dict_args_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string &tkn_key,
-                                                       const std::string &tkn_val,
-                                                       const std::string &tkn_typ, const Household &house, indiv i)
+                                                        const std::string &tkn_val,
+                                                        const std::string &tkn_typ, const Household &house, indiv i)
 {
     str_vec keys = tools::parse_list_args(tkn_key);
     str_vec vals = tools::parse_list_args(tkn_val);
@@ -431,16 +422,10 @@ void Monte_Carlo_Build::build_augm()
                 }
             }
 
-            //===== Assign augmented variables to each individual =====//
+            //===== Allocate memory for augmented variables to each individual =====//
             for (Household &house : house_vector)
-            {
                 for (indiv i = 0; i < house.size(); ++i)
-                {
-                    // allocate memory for all augmented for all individuals
                     clear_all_augm(house, i);
-                    assign_all_augm(house, i);
-                }
-            }
 
             //===== Functional method for augmented model contribution to loglikelihood ====//
             if (is_augm_model)
@@ -467,16 +452,20 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
         for (size_t k = 0; k < _augm_deftable_.at("name").size(); ++k)
         {
             // assign augmented variable of the corresponding status
-            std::string augm_status = _augm_deftable_.at("status")[k];
+            const std::string &augm_status = _augm_deftable_.at("status")[k];
 
             // assign augmented variable of the corresponding status or undefined status
             if ((tools::is_na(augm_status)) || (house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
+                //----- Index -----//
+                // |====> UPDATE: to be implemented <===|
+                augmID a = _augm_deftable_.at("name")[k];
+
                 //----- Name -----//
-                const std::string &a = _augm_deftable_.at("name")[k];
+                const std::string &name = _augm_deftable_.at("name")[k];
 
                 //----- is Discrete -----//
-                bool is_discr = tools::stobool(_augm_deftable_.at("discrete")[k]);
+                bool is_discrete = tools::stobool(_augm_deftable_.at("discrete")[k]);
 
                 //----- Value -----//
                 double value = type_to_double(_augm_deftable_.at("value")[k],
@@ -485,10 +474,10 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
 
                 //----- Model -----//
                 const std::string &model_name = _augm_deftable_.at("model")[k];
-                dict_args_ptr model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[k],
-                                                                 _augm_deftable_.at("argsval")[k],
-                                                                 _augm_deftable_.at("argstype")[k],
-                                                                 house, i);
+                const dict_args_ptr &model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[k],
+                                                                         _augm_deftable_.at("argsval")[k],
+                                                                         _augm_deftable_.at("argstype")[k],
+                                                                         house, i);
 
                 //----- Range -----//
                 dict_args range = {};
@@ -516,13 +505,13 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
                                                   house, i);
 
                 //----- Assign Augmented Variable -----//
-                house.assign_augm(i, a, value, is_discr,
+                house.assign_augm(i, a, name, value, is_discrete,
                                   model_name, model_args, range,
                                   rule_name, rule_scale, rule_from);
 
                 // random initialization at assignment
                 if (tools::stobool(_augm_deftable_.at("init_rand")[k]))
-                    house.augm_model_rand(i, a, get_prng());
+                    house.augm_model_rand(i, name, get_prng());
             }
         }
     }

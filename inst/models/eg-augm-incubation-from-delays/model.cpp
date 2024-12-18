@@ -35,7 +35,7 @@ void Model::init_model_for_inference()
 						 {"scale", param_pointer("scale")}};
 
 	// choose the incubation period distribution
-	incub_distr_ptr = distribution("gamma", args);
+	incub_distr_ptr = distribution_switchboard("gamma", args);
 }
 
 //------------------------------------------- /\ ------------------------------------------------//

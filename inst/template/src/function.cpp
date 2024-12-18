@@ -18,9 +18,9 @@ class Base_Function_Impl
 public:
     //===== Arguments =====//
     std::string _name_ = UNDEFINED;
-    str_vec _args_names_ = {}; // ordered list of argument names
-    double *_args_val_ = nullptr;               // internal arguments (fixed at initialization)
-    const double **_args_ptr_ = nullptr;        // external arguments (pointer to variable)
+    str_vec _args_names_ = {};           // ordered list of argument names
+    double *_args_val_ = nullptr;        // internal arguments (fixed at initialization)
+    const double **_args_ptr_ = nullptr; // external arguments (pointer to variable)
 
     //===== Constructors =====//
     Base_Function_Impl() {};
@@ -360,28 +360,27 @@ double Base_Function::get_range_max() const { return pImpl->get_range_max(); }
 
 /* Overload constructor for argument VALUES. */
 void Base_Function::init(const std::string &name,
-                           const dict_args &args_val,
-                           const str_vec &order,
-                           const dict_args &domain)
+                         const dict_args &args_val,
+                         const str_vec &order,
+                         const dict_args &domain)
 {
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;
     pImpl->_args_val_ = new double[args_val.size()];
+    
     size_t i = 0;
     for (const std::string &argID : order)
         pImpl->_args_val_[i++] = args_val.at(argID);
-    
-    // assign getter and setter for scalar value mode
-    pImpl->assign_val_mode();
-    // assign domain
-    pImpl->set_range(domain);
+
+    pImpl->assign_val_mode(); // assign getter and setter for scalar mode
+    pImpl->set_range(domain); // assign domain
 }
 
 /* Overload constructor for argument POINTERS. */
 void Base_Function::init(const std::string &name,
-                           const dict_args_ptr &args_ptr,
-                           const str_vec &order,
-                           const dict_args &domain)
+                         const dict_args_ptr &args_ptr,
+                         const str_vec &order,
+                         const dict_args &domain)
 {
     pImpl->_name_ = name;
     pImpl->_args_names_ = order;
@@ -393,14 +392,12 @@ void Base_Function::init(const std::string &name,
         if (args_ptr.find(argID) == args_ptr.end())
             throw std::invalid_argument(
                 "Argument '" + argID + "' not provided for '" + pImpl->_name_ + "'.");
-        else 
+        else
             pImpl->_args_ptr_[i] = args_ptr.at(argID);
 
         ++i;
     }
 
-    // assign getter and setter for pointer mode
-    pImpl->assign_ptr_mode();
-    // assign domain
-    pImpl->set_range(domain);
+    pImpl->assign_ptr_mode(); // assign getter and setter for pointer mode
+    pImpl->set_range(domain); // assign domain
 }

@@ -80,11 +80,12 @@ public:
 	//----- Augmented : Setter -----//
 	void assign_augm(indiv i,
 					 const augmID &a = UNDEFINED,
+					 const std::string &name = UNDEFINED,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
-					 bool is_discr = false,
+					 bool is_discrete = false,
 					 const std::string &model_name = UNDEFINED,
-					 dict_args_ptr model_args_ptr = {},
-					 dict_args range = {},
+					 const dict_args_ptr &model_args_ptr = {},
+					 const dict_args &range = {},
 					 const std::string &rule_name = UNDEFINED,
 					 double rule_scale = INF_DOUBLE,
 					 double rule_from = INF_DOUBLE);

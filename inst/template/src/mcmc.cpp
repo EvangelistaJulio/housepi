@@ -185,7 +185,8 @@ void MCMC::build_data(const dict_str_vec &datatable)
         {
             // If nothing was previously defined
             if (pBuild->house_vector.empty())
-                throw std::length_error("No database was found.");
+                throw std::length_error(
+                    "No database was found.");
         }
         else
         {
@@ -577,7 +578,11 @@ void MCMC::init_augmented_variables()
 
         for (size_t H = 0; H < n_houses(); ++H)
         {
+            // assign augmented to preallocated variables
             Household &house = pBuild->house_vector[H];
+            for (indiv i = 0; i < house.size(); ++i)
+                assign_all_augm(house, i);
+
             for (const indiv &i : house.infectious_set())
                 update_augm_dependecies(house, i);
         }
@@ -723,7 +728,7 @@ double MCMC::evaluate()
 {
     try
     {
-        pBuild->init_rand_params(); // check no undefined parameters
+        pBuild->init_parameters(); // check no undefined parameters
         init_model_for_inference(); // initialize model
         init_augmented_variables(); // initialize augmented dependencies
         update_global_loglike();    // initialize global loglikelihood
@@ -784,7 +789,7 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         progressbar.set_text(fmt_progtxt("infer", is_power_post));
 
         // initialize parameter inference
-        pBuild->init_rand_params();
+        pBuild->init_parameters();
 
         // initialize augmented dependencies
         init_augmented_variables();
@@ -1071,7 +1076,7 @@ void MCMC::simulate(bool is_progbar)
 {
     //----- Check no undefined parameters -----//
     pBuild->setup_rnd_init_params = false;
-    pBuild->init_rand_params();
+    pBuild->init_parameters();
 
     //----- Initialize model -----//
     init_model_for_simulation();

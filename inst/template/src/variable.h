@@ -34,8 +34,9 @@ class Base_Proposer
 public:
 	//===== CONSTRUCTOR =====//
 	Base_Proposer(std::shared_ptr<Base_Distribution>,
+				  double rule_scale = 1.0,
 				  double rule_start_value = INF_DOUBLE,
-				  std::vector<ushort> args_to_adapt = {});
+				  const std::vector<ushort> &args_to_adapt = {});
 	virtual ~Base_Proposer() {};
 
 	//===== GETTER =====//
@@ -43,12 +44,13 @@ public:
 	double get_arg(ushort argID) const;
 	double get_from_value() const;
 	bool is_rule_start_from_zero() const;
-
-	//===== SETTER =====//
-	void set_rule_start_value(double x);
-	double rand(rnd_gen &prng);
 	virtual double propose(rnd_gen &prng, double start = 0.0);
 	virtual double logratio(double xold, double xnew) const;
+
+	//===== SETTER =====//
+	virtual void user_reset();
+	void set_rule_start_value(double x);
+	double rand(rnd_gen &prng);
 
 	//===== ADAPTATION =====//
 	double get_accept_rate() const;
@@ -61,14 +63,15 @@ public:
 	const std::string show_arg_values() const;
 
 protected:
-	std::shared_ptr<Base_Distribution> distr_ptr;
-	double from_value = INF_DOUBLE;
+	std::shared_ptr<Base_Distribution> _distr_ptr_;
 
-	ulong n_proposed_moves = 0;
-	double accept_rate = 0.0;
+	double _user_rule_scale_ = 1.0;	   // scale of the Metropolis rule
+	bool _is_start_from_zero_ = false; // wheter to move from given value
+	double from_value = INF_DOUBLE;	   // given value where to start from
+	double accept_rate = 0.0;		   // acceptance rate
+	ulong n_proposed_moves = 0;		   // number of proposed moves
 
-	bool _is_start_from_zero_ = false;
-	std::vector<ushort> _args_to_adapt_ = {};
+	std::vector<ushort> _args_to_adapt_ = {}; // which arguments should be adapted
 
 	//===== propose : functional methods =====//
 	double (Base_Proposer::*_func_propose_)(rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
@@ -78,7 +81,7 @@ protected:
 	double _propose_draw_rand_(rnd_gen &prng, double start);
 
 	//===== logratio : functional methods =====//
-	double (Base_Proposer::*_logratio_method_)(double, double) const = &Base_Proposer::_logratio_undefined_;
+	double (Base_Proposer::*_func_logratio_)(double, double) const = &Base_Proposer::_logratio_undefined_;
 	double _logratio_undefined_(double xold, double xnew) const;
 	double _logratio_pdf_(double xold, double xnew) const;
 	double _logratio_sum_to_zero_(double xold, double xnew) const;
@@ -101,21 +104,13 @@ protected:
 class Base_Variable
 {
 protected:
-	std::string name = UNDEFINED; // name of the variable
-	double value = INF_DOUBLE;	  // value of the variable
-	double buffer = INF_DOUBLE;	  // buffer of the variable
-	bool is_discr = false;        // wheter the variable is discrete or not
-	bool infer = false;			  // to be inferred or immutable
-
-	std::shared_ptr<Base_Distribution> distr_ptr = nullptr; // prior/model distribution of the variable
-	std::shared_ptr<Base_Proposer> prop_ptr = nullptr;		// proposer for Monte Carlo
+	std::shared_ptr<Base_Distribution> _distr_ptr_ = nullptr; // prior/model distribution of the variable
+	std::shared_ptr<Base_Proposer> _prop_ptr_ = nullptr;	  // proposer for Monte Carlo
 
 public:
 	//===== CONSTRUCTOR =====//
-	Base_Variable(const std::string &name = UNDEFINED,
-				  double value = std::numeric_limits<double>::quiet_NaN(),
-				  bool is_discr = false);
-	virtual ~Base_Variable() {};
+	Base_Variable();
+	virtual ~Base_Variable();
 
 	//===== GETTER =====//
 	const std::string &get_name() const;
@@ -126,21 +121,24 @@ public:
 	double get_from_value() const;
 
 	//===== SETTER =====//
-	void set_name(const std::string &x);
+	void init(const std::string &name = UNDEFINED,
+			  double value = std::numeric_limits<double>::quiet_NaN(),
+			  bool is_discrete = false);
+	void user_reset();
 	void set_value(double x);
 	void restore_value();
 
 	// define a pointer to distribution
 	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 dict_args distr_args = {},
-							 dict_args range = {});
+							 const dict_args &distr_args = {},
+							 const dict_args &range = {});
 	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 dict_args_ptr distr_args = {},
-							 dict_args range = {});
+							 const dict_args_ptr &distr_args = {},
+							 const dict_args &range = {});
 
 	// Assing a proposer rule with associated state 'infer'.
 	void assign_proposer(const std::string &rule_name = UNDEFINED,
-						 double rule_args = INF_DOUBLE,
+						 double rule_scale = INF_DOUBLE,
 						 double rule_from = INF_DOUBLE);
 
 	//===== METROPOLIS-HASTINGS =====//
@@ -165,11 +163,11 @@ public:
 	void adapt_rule(double ratio);
 
 	//===== SHOW =====//
-	const std::string show_distr_name() const;
+	const std::string &get_distr_name() const;
 	const std::string show_distr_arg_names() const;
 	const std::string show_distr_arg_values() const;
 
-	const std::string show_prop_name() const;
+	const std::string &get_prop_name() const;
 	const std::string show_prop_arg_names() const;
 	const std::string show_prop_arg_values() const;
 
@@ -179,6 +177,14 @@ public:
 	const std::string show() const;
 
 private:
+	std::string name = UNDEFINED; // name of the variable
+	double value = INF_DOUBLE;	  // value of the variable
+	double buffer = INF_DOUBLE;	  // buffer of the variable
+
+	double _user_value_ = INF_DOUBLE; // initial user defined value
+	bool _is_discrete_ = false;		  // wheter the variable is discrete or not
+	bool _infer_ = false;			  // to be inferred or immutable
+
 	//===== Valid move : functional methods =====//
 	bool (Base_Variable::*_func_valid_move_)() const = &Base_Variable::_valid_move_default_;
 	bool _valid_move_default_() const;

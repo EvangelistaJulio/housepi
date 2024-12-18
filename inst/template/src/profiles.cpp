@@ -15,7 +15,9 @@ double Base_Infectivity_Profile::pdf(double serial, const std::vector<double> &x
 {
 	UNUSED(serial);
 	UNUSED(x);
-	tools::error("Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
+	throw std::invalid_argument(
+		"Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
+
 	return std::numeric_limits<double>::quiet_NaN();
 }
 
@@ -23,7 +25,9 @@ double Base_Infectivity_Profile::cdf(double serial, const std::vector<double> &x
 {
 	UNUSED(serial);
 	UNUSED(x);
-	tools::error("Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
+	throw std::invalid_argument(
+		"Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
+
 	return std::numeric_limits<double>::quiet_NaN();
 }
 
@@ -148,7 +152,7 @@ public:
 			 {"shape", "scale", "shift"});
 		assign_args(new_args);
 		dict_args aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
-		gamma_distr_ptr = distribution("gamma", aux_args_val, {{"min", get_arg(2)}});
+		gamma_distr_ptr = distribution_switchboard("gamma", aux_args_val, {{"min", get_arg(2)}});
 	}
 	// Deconstructor
 	~Infec_Prof_Ashcroft20() {};
@@ -157,8 +161,8 @@ public:
 	{
 		double incub = x[0];		   // incubation period
 		double t_OST = serial - incub; // t. from onset to transmission
-
-		double shift = get_arg(2); // shift argument
+		double shift = get_arg(2);	   // shift argument
+		
 		return gamma_distr_ptr->pdf(shift + t_OST);
 	}
 
@@ -166,8 +170,8 @@ public:
 	{
 		double incub = x[0];		   // incubation period
 		double t_OST = serial - incub; // t. from onset to transmission
+		double shift = get_arg(2);	   // shift argument
 
-		double shift = get_arg(2); // shift argument
 		return gamma_distr_ptr->cdf(shift + t_OST);
 	}
 };
@@ -182,18 +186,20 @@ public:
 //* Return a pointer to infectivity profile */
 std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_switchboard(const std::string &name)
 {
-	std::unique_ptr<Base_Infectivity_Profile> output = std::make_unique<Base_Infectivity_Profile>();
 	const str_vec options = {"ferretti20", "ashcroft20"};
 
-	if (name == "ferretti20")
-		output = std::make_unique<Infec_Prof_Ferretti20>();
-		
-	else if (name == "ashcroft20")
-		output = std::make_unique<Infec_Prof_Ashcroft20>();
+	if (!tools::is_na(name))
+	{
+		if (name == "ferretti20")
+			return std::make_unique<Infec_Prof_Ferretti20>();
 
-	else if (!tools::is_na(name))
-		throw std::invalid_argument(
-			"Unknown infectivity profile '" + name + "'." + tools::find_closest(name, options));
+		else if (name == "ashcroft20")
+			return std::make_unique<Infec_Prof_Ashcroft20>();
 
-	return output;
+		else
+			throw std::invalid_argument(
+				"Unknown infectivity profile '" + name + "'." + tools::find_closest(name, options));
+	}
+
+	return std::make_unique<Base_Infectivity_Profile>();
 }

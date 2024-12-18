@@ -47,11 +47,11 @@ protected:
 	virtual double _cdf_(double x) const;
 	virtual double _logpdf_(double x) const;
 	virtual double _logratio_(double xold, double xnew) const;
+	virtual void _update_args_();
 	virtual double _rand_(rnd_gen &prng);
 
 	//----- Adjust methods for truncation and/or discretization -----//
 	void _assign_reshaping_(const dict_args &range, const std::string &discr);
-	void _check_rand_attempts_(int &n_attempts) const;
 
 	//----- Functional methods for public methods -----//
 	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
@@ -110,16 +110,14 @@ private:
 //////////////////////////////////  distribution switchboard  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* overloaded distribution with static values. */
-std::shared_ptr<Base_Distribution> distribution(const std::string &name = UNDEFINED,
-												const dict_args &args = {},
-												const dict_args &range = {},
-												bool discr = false);
+/* Overloaded distribution with constant values. */
+std::shared_ptr<Base_Distribution> distribution_switchboard(
+	const std::string &name = UNDEFINED, const dict_args &args = {},
+	const dict_args &range = {}, bool is_discrete = false);
 
-/* overloaded distribution with pointer to values. */
-std::shared_ptr<Base_Distribution> distribution(const std::string &name,
-												const dict_args_ptr &args,
-												const dict_args &range = {},
-												bool discr = false);
+/* Overloaded distribution with pointer to values. */
+std::shared_ptr<Base_Distribution> distribution_switchboard(
+	const std::string &name, const dict_args_ptr &args,
+	const dict_args &range = {}, bool is_discrete = false);
 
 #endif // HOUSEPI__DISTRIBUTION__H

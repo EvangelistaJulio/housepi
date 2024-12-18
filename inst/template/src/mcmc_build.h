@@ -39,20 +39,22 @@ void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output);
 class Parameter : public Base_Variable
 {
 public:
-    //===== Constructor =====//
+    //===== CONSTRUCTOR =====//
     // NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
     Parameter(const std::string &name = UNDEFINED,
               double value = std::numeric_limits<double>::quiet_NaN(),
-              bool is_discr = false,
+              bool is_discrete = false,
               const std::string &prior_name = UNDEFINED,
-              dict_args prior_args = {},
-              dict_args range = {},
+              const dict_args &prior_args = {},
+              const dict_args &range = {},
               const std::string &rule_name = UNDEFINED,
-              double rule_scale = INF_DOUBLE) : Base_Variable(name, value, is_discr)
+              double rule_scale = INF_DOUBLE)
     {
+        init(name, value, is_discrete);
         assign_distribution(prior_name, prior_args, range);
         assign_proposer(rule_name, rule_scale);
     }
+    ~Parameter() = default;
 
     //----- Diagnostics -----//
     ulong dgn_count = 0;
@@ -129,7 +131,7 @@ public:
 
     //----- Parameter - Setter -----//
     void assign_param(const parID &p, const Parameter &new_param);
-    void init_rand_params();
+    void init_parameters();
     const double *assign_scalar_pointer(double val);
 
     //----- Parameter - Metropolis-Hastings -----//

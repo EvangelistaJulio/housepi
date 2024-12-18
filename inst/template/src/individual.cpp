@@ -42,6 +42,7 @@ double GroupRate::_getter_error_() const
 {
 	throw std::invalid_argument(
 		"Attempt to call getter of undefined group rate.");
+		
 	return INF_DOUBLE;
 }
 double GroupRate::_getter_default_() const { return *this->pointers[0]; }
@@ -50,6 +51,7 @@ double GroupRate::_getter_multiple_() const
 	double output = 1.0;
 	for (const double *ptr : pointers)
 		output *= *ptr;
+
 	return output;
 }
 
@@ -141,17 +143,21 @@ double Individual::augm_propose_logratio(const augmID &a) const { return this->a
 double Individual::augm_move_logratio(const augmID &a) const { return this->augm_map.at(a).get_move_logratio(); }
 
 //---- Setter -----//
-void Individual::assign_augm(const augmID &a, double value, bool is_discr,
-							 const std::string &model_name, dict_args_ptr model_args_ptr, dict_args range,
-							 const std::string &rule_name, double rule_scale, double rule_from)
-{
-	this->augm_map[a] = Base_Variable(a, value, is_discr);
-	this->augm_map[a].assign_distribution(model_name, model_args_ptr, range);
-	this->augm_map[a].assign_proposer(rule_name, rule_scale, rule_from);
+
+/* Clear the augmented variable definition. */
+void Individual::clear_augm(const augmID &a) { 
+	this->augm_map[a] = Base_Variable(); 
 }
 
-/* Clear the augmented variable definitions. */
-void Individual::clear_augm(const augmID &a) { this->augm_map[a] = Base_Variable(a); }
+/* Assign definitions for the augmented variables. */
+void Individual::assign_augm(const augmID &a, const std::string &name, double value, bool is_discrete,
+							 const std::string &model_name, const dict_args_ptr &model_args_ptr, const dict_args &range,
+							 const std::string &rule_name, double rule_scale, double rule_from)
+{
+	this->augm_map.at(a).init(name, value, is_discrete);
+	this->augm_map.at(a).assign_distribution(model_name, model_args_ptr, range);
+	this->augm_map.at(a).assign_proposer(rule_name, rule_scale, rule_from);
+}
 
 /* Set a value for the augmented variable. */
 void Individual::set_augm_value(const augmID &a, double x) { this->augm_map.at(a).set_value(x); }
@@ -185,7 +191,7 @@ void Individual::augm_model_rand(const augmID &a, rnd_gen &prng) { this->augm_ma
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Individual : data  ////////////////////////////////
+/////////////////////////////////////  Individual : data  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if the individal has the data defined */

@@ -90,7 +90,11 @@ double Base_Distribution::pdf(double x) const { return (this->*_func_pdf_)(x); }
 double Base_Distribution::cdf(double x) const { return (this->*_func_cdf_)(x); }
 double Base_Distribution::logpdf(double x) const { return (this->*_func_logpdf_)(x); }
 double Base_Distribution::logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
-double Base_Distribution::rand(rnd_gen &prng) { return (this->*_func_rand_)(prng); }
+double Base_Distribution::rand(rnd_gen &prng)
+{
+    _update_args_();
+    return (this->*_func_rand_)(prng);
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - virtual  //////////////////////////////////
@@ -105,21 +109,12 @@ double Base_Distribution::_logratio_(double xold, double xnew) const
     UNUSED(xnew);
     return 0.0;
 }
+void Base_Distribution::_update_args_() {};
 double Base_Distribution::_rand_(rnd_gen &prng)
 {
     UNUSED(prng);
     return _undefined_call_error_("rand");
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base Distribution : deaults  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Base_Distribution::_default_pdf_(double x) const { return (this->*_func_trunc_)(_pdf_(x)); }
-double Base_Distribution::_default_cdf_(double x) const { return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x))); }
-double Base_Distribution::_default_logpdf_(double x) const { return (this->*_func_logtrunc_)(_logpdf_(x)); }
-double Base_Distribution::_default_logratio_(double xold, double xnew) const { return _logratio_(xold, xnew); }
-double Base_Distribution::_default_rand_(rnd_gen &prng) { return _rand_(prng); }
 
 /* Internal error for calls to undefined distribution. */
 double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
@@ -130,18 +125,36 @@ double Base_Distribution::_undefined_call_error_(const std::string &txt, double 
     return std::numeric_limits<double>::quiet_NaN();
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Base Distribution : deaults  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+double Base_Distribution::_default_pdf_(double x) const { return (this->*_func_trunc_)(_pdf_(x)); }
+double Base_Distribution::_default_cdf_(double x) const { return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(x))); }
+double Base_Distribution::_default_logpdf_(double x) const { return (this->*_func_logtrunc_)(_logpdf_(x)); }
+double Base_Distribution::_default_logratio_(double xold, double xnew) const { return _logratio_(xold, xnew); }
+
 /* Check accept/reject within range is not exceeding maximum number of attempts. */
-void Base_Distribution::_check_rand_attempts_(int &n_attempts) const
+double Base_Distribution::_default_rand_(rnd_gen &prng)
 {
-    if (n_attempts > MAX_NUMBER_ATTEMPTS)
+    double xnew = _rand_(prng);
+
+    unsigned n_attempts = 0;
+    while (!valid(xnew))
     {
-        std::ostringstream oss;
-        oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
-            << " in random draw of " << get_name() << "(" << show_arg_values() << ")"
-            << " with truncation {" << get_range_min() << ", " << get_range_max() << "}.";
-        tools::error(oss.str());
+        if (n_attempts > MAX_NUMBER_ATTEMPTS)
+        {
+            std::ostringstream oss;
+            oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
+                << " in random draw of " << get_name() << "(" << show_arg_values() << ")"
+                << " with truncation {" << get_range_min() << ", " << get_range_max() << "}.";
+            tools::error(oss.str());
+        }
+        xnew = _rand_(prng);
+        ++n_attempts;
     }
-    ++n_attempts;
+
+    return xnew;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -173,7 +186,7 @@ double Base_Distribution::_discr_center_logratio_(double xold, double xnew) cons
 
 double Base_Distribution::_discr_center_rand_(rnd_gen &prng)
 {
-    return std::round(_rand_(prng));
+    return std::round(_default_rand_(prng));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -205,7 +218,7 @@ double Base_Distribution::_discr_left_logratio_(double xold, double xnew) const
 
 double Base_Distribution::_discr_left_rand_(rnd_gen &prng)
 {
-    return std::floor(_rand_(prng));
+    return std::floor(_default_rand_(prng));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -379,9 +392,13 @@ protected:
         return 0.0;
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    virtual void _update_args_() override
     {
         distr_gen.param(std::uniform_real_distribution<double>::param_type(get_arg(0), get_arg(1)));
+    }
+
+    virtual double _rand_(rnd_gen &prng) override
+    {
         return distr_gen(prng);
     }
 };
@@ -443,17 +460,14 @@ protected:
         return 0.5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    virtual void _update_args_() override
     {
         distr_gen.param(std::normal_distribution<double>::param_type(get_arg(0), get_arg(1)));
-        double xnew = distr_gen(prng);
-        int n_attempts = 0;
-        while (!valid(xnew))
-        {
-            _check_rand_attempts_(n_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
+    }
+
+    virtual double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
     }
 };
 
@@ -515,17 +529,14 @@ protected:
         return 0.5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    virtual void _update_args_() override
     {
         distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
-        double xnew = distr_gen(prng);
-        int n_attempts = 0;
-        while (!valid(xnew))
-        {
-            _check_rand_attempts_(n_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
+    }
+
+    virtual double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
     }
 };
 
@@ -587,17 +598,14 @@ protected:
         return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    virtual void _update_args_() override
     {
         distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
-        double xnew = distr_gen(prng);
-        int n_attempts = 0;
-        while (!valid(xnew))
-        {
-            _check_rand_attempts_(n_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
+    }
+
+    virtual double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
     }
 };
 
@@ -658,17 +666,14 @@ protected:
         return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    virtual void _update_args_() override
     {
         distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
-        double xnew = distr_gen(prng);
-        int n_attempts = 0;
-        while (!valid(xnew))
-        {
-            _check_rand_attempts_(n_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
+    }
+
+    virtual double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
     }
 };
 
@@ -726,19 +731,6 @@ protected:
 
     virtual double _rand_(rnd_gen &prng) override
     {
-        double xnew = distr_gen(prng);
-        int n_attempts = 0;
-        while (!valid(xnew))
-        {
-            _check_rand_attempts_(n_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
-    }
-
-private:
-    double distr_gen(rnd_gen &prng)
-    {
         return get_arg(0) * sqrt(-2 * unif_gen(prng));
     }
 };
@@ -795,17 +787,14 @@ protected:
         return rate * (xold - xnew);
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    virtual void _update_args_() override
     {
         distr_gen.param(std::exponential_distribution<double>::param_type(get_arg(0)));
-        double xnew = distr_gen(prng);
-        int n_attempts = 0;
-        while (!valid(xnew))
-        {
-            _check_rand_attempts_(n_attempts);
-            xnew = distr_gen(prng);
-        }
-        return xnew;
+    }
+
+    virtual double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
     }
 };
 
@@ -822,61 +811,59 @@ protected:
 
 /* Auxiliary hidden template to return the chosen distribution. */
 template <typename dict_args_val_or_ptr>
-std::shared_ptr<Base_Distribution> _distribution_(const std::string &name,
-                                                  const dict_args_val_or_ptr &args,
-                                                  const dict_args &range,
-                                                  bool discr)
+std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string &name,
+                                                              const dict_args_val_or_ptr &args,
+                                                              const dict_args &range,
+                                                              bool is_discrete)
 {
     const str_vec options = {"unif", "norm", "lnorm",
                              "gamma", "weibull", "rayleigh", "exp"};
 
-    std::shared_ptr<Base_Distribution> output;
+    if (!tools::is_na(name))
+    {
+        if (name == "unif")
+            return std::make_shared<Uniform_Distribution>(args, range, is_discrete);
 
-    if (tools::is_na(name))
-        output = std::make_shared<Base_Distribution>();
+        else if (name == "norm")
+            return std::make_shared<Normal_Distribution>(args, range, is_discrete);
 
-    else if (name == "unif")
-        output = std::make_shared<Uniform_Distribution>(args, range, discr);
+        else if (name == "lnorm")
+            return std::make_shared<Lognorm_Distribution>(args, range, is_discrete);
 
-    else if (name == "norm")
-        output = std::make_shared<Normal_Distribution>(args, range, discr);
+        else if (name == "gamma")
+            return std::make_shared<Gamma_Distribution>(args, range, is_discrete);
 
-    else if (name == "lnorm")
-        output = std::make_shared<Lognorm_Distribution>(args, range, discr);
+        else if (name == "weibull")
+            return std::make_shared<Weibull_Distribution>(args, range, is_discrete);
 
-    else if (name == "gamma")
-        output = std::make_shared<Gamma_Distribution>(args, range, discr);
+        else if (name == "rayleigh")
+            return std::make_shared<Rayleigh_Distribution>(args, range, is_discrete);
 
-    else if (name == "weibull")
-        output = std::make_shared<Weibull_Distribution>(args, range, discr);
+        else if (name == "exp")
+            return std::make_shared<Exponential_Distribution>(args, range, is_discrete);
 
-    else if (name == "rayleigh")
-        output = std::make_shared<Rayleigh_Distribution>(args, range, discr);
+        else
+            throw std::invalid_argument(
+                "Unknown distribution '" + name + "'." + tools::find_closest(name, options));
+    }
 
-    else if (name == "exp")
-        output = std::make_shared<Exponential_Distribution>(args, range, discr);
-
-    else
-        throw std::invalid_argument(
-            "Unknown distribution '" + name + "'." + tools::find_closest(name, options));
-
-    return output;
+    return std::make_shared<Base_Distribution>();
 }
 
 /* Pointer to distribution with scalar arguments. */
-std::shared_ptr<Base_Distribution> distribution(const std::string &name,
-                                                const dict_args &args,
-                                                const dict_args &range,
-                                                bool discr)
+std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name,
+                                                            const dict_args &args,
+                                                            const dict_args &range,
+                                                            bool is_discrete)
 {
-    return _distribution_(name, args, range, discr);
+    return _distribution_switchboard_(name, args, range, is_discrete);
 }
 
 /* Pointer to distribution with pointer arguments. */
-std::shared_ptr<Base_Distribution> distribution(const std::string &name,
-                                                const dict_args_ptr &args,
-                                                const dict_args &range,
-                                                bool discr)
+std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name,
+                                                            const dict_args_ptr &args,
+                                                            const dict_args &range,
+                                                            bool is_discrete)
 {
-    return _distribution_(name, args, range, discr);
+    return _distribution_switchboard_(name, args, range, is_discrete);
 }

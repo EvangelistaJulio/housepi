@@ -93,12 +93,14 @@ public:
 	double augm_move_logratio(const augmID &a) const;
 
 	//---- Setter -----//
+	void clear_augm(const augmID &a);
 	void assign_augm(const augmID &a = UNDEFINED,
+					 const std::string &name = UNDEFINED,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
-					 bool is_discr = false,
+					 bool is_discrete = false,
 					 const std::string &model_name = UNDEFINED,
-					 dict_args_ptr model_args_ptr = {},
-					 dict_args range = {},
+					 const dict_args_ptr &model_args_ptr = {},
+					 const dict_args &range = {},
 					 const std::string &rule_name = UNDEFINED,
 					 double rule_scale = INF_DOUBLE,
 					 double rule_from = INF_DOUBLE);
@@ -106,7 +108,6 @@ public:
 	void augm_model_rand(const augmID &a, rnd_gen &prng);
 	bool propose_valid_augm_move(const augmID &a, rnd_gen &prng);
 	void restore_augm_value(const augmID &a);
-	void clear_augm(const augmID &a);
 
 private:
 	std::string ID = UNDEFINED;	 // user ID

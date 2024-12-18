@@ -158,7 +158,8 @@ namespace tools
         }
         catch (const std::invalid_argument &e)
         {
-            throw std::invalid_argument("Impossible to import " + errtxt + ": invalid value '" + input + "'.");
+            throw std::invalid_argument(
+                "Impossible to import " + errtxt + ": invalid value '" + input + "'.");
         }
     }
 
@@ -196,7 +197,8 @@ namespace tools
             return false;
 
         else
-            throw std::invalid_argument("Unrecognized boolean value '" + tkn + "'.");
+            throw std::invalid_argument(
+                "Unrecognized boolean value '" + tkn + "'.");
     }
 
     //-----------------------------------------------------------------------------------------------//
