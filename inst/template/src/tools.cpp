@@ -301,6 +301,72 @@ namespace tools
         return output;
     }
 
+    /* Combine after control two lists into a dictionary */
+    const dict_args merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
+    {
+        str_vec keys = parse_list_args(tkn_keys);
+        str_vec vals = parse_list_args(tkn_vals);
+        dict_args output = {};
+
+        if (keys.size() == vals.size())
+        {
+            for (size_t i = 0; i < keys.size(); ++i)
+                if ((!is_na(keys[i])) && (!is_na(vals[i])))
+                    output.emplace(keys[i], stod(vals[i], "Value of '" + keys[i] + "'"));
+        }
+        else
+            throw std::invalid_argument(
+                "Mismatching definitions in arguments.");
+
+        return output;
+    }
+
+    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
+    void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
+    {
+        try
+        {
+            if (!is_na(pathtofile))
+            {
+                std::ifstream input(pathtofile.c_str());
+
+                if (input.is_open())
+                {
+                    csv_parsed_list.clear();
+
+                    // Create a std::stringstream of the current line
+                    for (std::string line; getline(input, line);)
+                    {
+                        std::string name, choice;
+                        std::istringstream iss(line);
+
+                        //===== NAME =====//
+                        if (!getline(iss, name, C_DELIM))
+                            throw std::runtime_error(
+                                "Unable to extract list name. Check file line: " + line);
+
+                        //===== CHOICE =====//
+                        if (!getline(iss, choice))
+                            throw std::runtime_error(
+                                "Unable to extract list value. Check file line: " + line);
+
+                        // add the new setup
+                        csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
+                    }
+                }
+                else
+                {
+                    throw std::runtime_error(
+                        "Impossible to open file '" + pathtofile + "'.");
+                }
+            }
+        }
+        catch (std::exception &e)
+        {
+            error(e.what());
+        }
+    }
+
     /* Read csv table store in pathtofile and store it parsed in csv_parsed_table. */
     void read_csv_table(const std::string &pathtofile,
                         dict_str_vec &csv_parsed_table,
@@ -336,6 +402,32 @@ namespace tools
         {
             error(e.what());
         }
+    }
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+    /* Welford online algorithm for mean and variance. */
+    void compute_stats(const std::vector<double> &data, double &avg, double &var)
+    {
+        size_t N = data.size();
+        double x, delta, delta2;
+        double sqr_diff = 0.0;
+
+        avg = 0.0;
+        for (size_t i = 0; i < N; ++i)
+        {
+            x = data[i];
+            delta = x - avg;
+            avg += delta / (i + 1);
+            delta2 = x - avg;
+            sqr_diff += delta * delta2;
+        }
+        var = sqr_diff / (N - 1);
     }
 
     //-----------------------------------------------------------------------------------------------//

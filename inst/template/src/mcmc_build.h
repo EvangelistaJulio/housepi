@@ -76,6 +76,13 @@ public:
 class Monte_Carlo_Build
 {
 public:
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+    
+    Monte_Carlo_Build();
+    ~Monte_Carlo_Build();
+
     //=========================//
     //===== LOGLIKELIHOOD =====//
     //=========================//
@@ -160,15 +167,6 @@ public:
     std::map<int, std::unordered_set<augmID>> augm_status_map_model = {};
     bool is_augm_infer = false;
     bool is_augm_model = false;
-
-    //===== CONSTRUCTOR =====//
-    Monte_Carlo_Build() : _uniform_distr_(0., 1.)
-    {
-#ifdef _OPENMP
-        _max_n_available_threads = omp_get_max_threads();
-#endif
-    }
-    ~Monte_Carlo_Build() {};
 
     //===== READ =====//
     void read_setup(const std::string &pathtofile);

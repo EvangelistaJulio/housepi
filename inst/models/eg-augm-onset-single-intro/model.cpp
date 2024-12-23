@@ -189,10 +189,10 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 			{ //----- `i` : infector, `k` : infectee -----//
 				serial = t_infec_k - t_infec_i;
 
-				house.set_extra_matrix("inst", i, k, infec_profile_inst(serial, {incub_i}));
+				house.set_extra_matrix("inst", i, k, infec_profile_inst({serial, incub_i}));
 				house.set_extra_matrix("inst", k, i, 0.0);
 
-				house.set_extra_matrix("cumul", i, k, infec_profile_cumul(serial, {incub_i}));
+				house.set_extra_matrix("cumul", i, k, infec_profile_cumul({serial, incub_i}));
 				house.set_extra_matrix("cumul", k, i, 0.0);
 			}
 			else
@@ -200,10 +200,10 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 				serial = t_infec_i - t_infec_k;
 
 				house.set_extra_matrix("inst", i, k, 0.0);
-				house.set_extra_matrix("inst", k, i, infec_profile_inst(serial, {incub_k}));
+				house.set_extra_matrix("inst", k, i, infec_profile_inst({serial, incub_k}));
 
 				house.set_extra_matrix("cumul", i, k, 0.0);
-				house.set_extra_matrix("cumul", k, i, infec_profile_cumul(serial, {incub_k}));
+				house.set_extra_matrix("cumul", k, i, infec_profile_cumul({serial, incub_k}));
 
 				//----- update first case -----//
 				if (t_infec_k < new_t0)
@@ -222,7 +222,7 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 	serial = time_end_followup(house) - t_infec_i;
 	for (indiv k : house.susceptible_set())
 	{
-		house.set_extra_matrix("cumul", i, k, infec_profile_cumul(serial, {incub_i}));
+		house.set_extra_matrix("cumul", i, k, infec_profile_cumul({serial, incub_i}));
 		house.set_extra_matrix("cumul", k, i, 0.0);
 	}
 }

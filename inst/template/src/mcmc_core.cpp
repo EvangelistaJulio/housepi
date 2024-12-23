@@ -6,103 +6,6 @@
 
 #include "mcmc_build.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Combine after control two lists into a dictionary */
-dict_args merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
-{
-    str_vec keys = tools::parse_list_args(tkn_keys);
-    str_vec vals = tools::parse_list_args(tkn_vals);
-    dict_args output = {};
-
-    if (keys.size() == vals.size())
-    {
-        for (size_t i = 0; i < keys.size(); ++i)
-        {
-            if ((!tools::is_na(keys[i])) && (!tools::is_na(vals[i])))
-            {
-                output.emplace(keys[i], tools::stod(vals[i], "Value of '" + keys[i] + "'"));
-            }
-        }
-    }
-    else
-    {
-        throw std::invalid_argument(
-            "Mismatching definitions in arguments.");
-    }
-
-    return output;
-}
-
-/* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
-void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
-{
-    if (!tools::is_na(pathtofile))
-    {
-        std::ifstream input(pathtofile.c_str());
-
-        if (input.is_open())
-        {
-            csv_parsed_list.clear();
-
-            // Create a std::stringstream of the current line
-            for (std::string line; getline(input, line);)
-            {
-                std::string name, choice;
-                std::istringstream iss(line);
-
-                //===== NAME =====//
-                if (!getline(iss, name, C_DELIM))
-                    throw std::runtime_error(
-                        "Unable to extract list name. Check file line: " + line);
-
-                //===== CHOICE =====//
-                if (!getline(iss, choice))
-                    throw std::runtime_error(
-                        "Unable to extract list value. Check file line: " + line);
-
-                // add the new setup
-                csv_parsed_list.emplace(tools::strcleaner(name), tools::strcleaner(choice));
-            }
-        }
-        else
-        {
-            throw std::runtime_error("Impossible to open file '" + pathtofile + "'.");
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Welford online algorithm for mean and variance. */
-void compute_stats(const std::vector<double> &data, double &avg, double &var)
-{
-    size_t N = data.size();
-    double x, delta, delta2;
-    double sqr_diff = 0.0;
-
-    avg = 0.0;
-    for (size_t i = 0; i < N; ++i)
-    {
-        x = data[i];
-        delta = x - avg;
-        avg += delta / (i + 1);
-        delta2 = x - avg;
-        sqr_diff += delta * delta2;
-    }
-    var = sqr_diff / (N - 1);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Parameter : methods  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +28,7 @@ std::string Parameter::show_diagnostics() const
     std::ostringstream oss;
 
     double avg = 0, var = 0;
-    compute_stats(dgn_value, avg, var);
+    tools::compute_stats(dgn_value, avg, var);
 
     oss << avg << C_DELIM << std::sqrt(var) << C_DELIM << truth(get_infer())
         << C_DELIM << get_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
@@ -183,7 +86,6 @@ void Monte_Carlo_Build::assign_param(const parID &p, const Parameter &new_param)
         // update the lists of parameters to be inferred, and these to be static
         if (new_param.get_infer())
             param_to_be_inferred.push_back(p);
-
         else
             param_to_be_static.push_back(p);
     }
@@ -250,7 +152,7 @@ void Monte_Carlo_Build::set_prng_seed(int seed)
     // seeds for the case of parallelization
     if (setup_n_threads > 1)
     {
-        std::uniform_int_distribution<unsigned long int> seed_generator(0, 0XFFFFFFFF);
+        std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
         for (unsigned n = 0; n < setup_n_threads; ++n)
             prng_parallel[n].seed(seed_generator(prng));
     }
@@ -359,7 +261,7 @@ void Monte_Carlo_Build::adapt_param_rule(const parID &p, double ratio) { param_m
 /* Read Setup file and produce a definition list. */
 void Monte_Carlo_Build::read_setup(const std::string &pathtofile)
 {
-    read_csv_list(pathtofile, _setup_deflist_);
+    tools::read_csv_list(pathtofile, _setup_deflist_);
     build_setup();
     _report_pathtofile_["setup"] = pathtofile;
 }
@@ -558,8 +460,8 @@ void Monte_Carlo_Build::build_params()
 
                     // load prior name
                     const std::string &prior_name = _param_deftable_.at("prior")[k];
-                    const dict_args &prior_args = merge_list_args(_param_deftable_.at("args")[k],
-                                                                  _param_deftable_.at("argsval")[k]);
+                    const dict_args &prior_args = tools::merge_list_args(_param_deftable_.at("args")[k],
+                                                                         _param_deftable_.at("argsval")[k]);
 
                     // load range
                     dict_args range = {};
@@ -603,7 +505,7 @@ void Monte_Carlo_Build::build_params()
 }
 
 /* Extract average and variance from vector of global loglike values. */
-void Monte_Carlo_Build::dgn_glob_ll_stats(double &avg, double &var) const { compute_stats(dgn_glob_loglike, avg, var); }
+void Monte_Carlo_Build::dgn_glob_ll_stats(double &avg, double &var) const { tools::compute_stats(dgn_glob_loglike, avg, var); }
 
 double Monte_Carlo_Build::get_global_loglike() const { return global_loglike; };
 double Monte_Carlo_Build::get_delta_global_loglike() const { return global_loglike - buffer; }
@@ -763,170 +665,8 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
         }
         else
         {
-            tools::error("Unable to open file: " + output_filename);
+            throw std::runtime_error(
+                "Unable to open file: " + output_filename);
         }
     }
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-#ifdef _HOUSEPI_RCPP
-
-/* Convert R List into map<string, string>. */
-void rlist_to_map(const Rcpp::List &list, std::map<std::string, std::string> &output)
-{
-    using namespace Rcpp;
-
-    CharacterVector keys = list.names();
-
-    output.clear();
-    for (int i = 0; i < list.size(); ++i)
-    {
-        RObject element = list[i];
-        output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
-    }
-}
-
-/* Import setup from R list and run build. */
-void Monte_Carlo_Build::import_setup(const Rcpp::List &setup)
-{
-    rlist_to_map(setup, _setup_deflist_);
-    build_setup();
-    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("setup");
-}
-
-/* Convert R dataframe into map<string, vector<string>>. */
-void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output)
-{
-    using namespace Rcpp;
-
-    CharacterVector keys = df.names();
-
-    output.clear();
-    for (size_t i = 0; i < df.size(); ++i)
-    {
-        CharacterVector col_str = as<CharacterVector>(df[i]);
-        str_vec col_data(col_str.begin(), col_str.end());
-        output[as<std::string>(keys[i])] = std::move(col_data);
-    }
-}
-
-/* Import params from R DataFrame and run build. */
-void Monte_Carlo_Build::import_params(const Rcpp::DataFrame &params)
-{
-    rdataframe_to_map(params, _param_deftable_);
-    build_params();
-    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("params");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Rcpp::String stoRString(const std::string &x)
-{
-    return (tools::is_na(x)) ? NA_STRING : Rcpp::String(x);
-}
-
-/* Export current setup configurations to R List. */
-Rcpp::List Monte_Carlo_Build::export_setup() const
-{
-    using namespace Rcpp;
-
-    return List::create(
-        _["seed"] = setup_seed,
-        _["n_threads"] = setup_n_threads,
-        _["n_chains"] = setup_n_chains,
-        _["n_adapt"] = setup_n_adapt,
-        _["n_burnin"] = setup_n_burnin,
-        _["n_steps"] = setup_n_steps,
-        _["thin"] = setup_thin,
-        _["rnd_init_params"] = setup_rnd_init_params,
-        _["inv_temper"] = setup_inv_T);
-}
-
-/* Export current parameter configurations to R DataFrame. */
-Rcpp::DataFrame Monte_Carlo_Build::export_params() const
-{
-    using namespace Rcpp;
-
-    std::vector<parID> V_names = {};
-
-    if (!param_to_be_inferred.empty())
-        V_names.insert(V_names.end(), param_to_be_inferred.begin(), param_to_be_inferred.end());
-
-    if (!param_to_be_static.empty())
-        V_names.insert(V_names.end(), param_to_be_static.begin(), param_to_be_static.end());
-
-    size_t n_rows = V_names.size();
-
-    // check if not empty
-    if (V_names.empty())
-        tools::error("No parameters to be exported.");
-
-    // pre-allocate memory
-    NumericVector V_value(n_rows), V_min(n_rows), V_max(n_rows);
-    LogicalVector V_infer(n_rows);
-    CharacterVector V_prior(n_rows), V_args(n_rows), V_argsval(n_rows);
-    CharacterVector V_rule(n_rows), V_rule_args(n_rows), V_rule_argsval(n_rows);
-
-    // fill datafrane columns
-    for (size_t c = 0; c < n_rows; ++c)
-    {
-        parID p = V_names[c];
-        V_value[c] = get_param(p);
-        V_infer[c] = get_infer(p);
-
-        V_prior[c] = stoRString(param_map.at(p).get_distr_name());
-        V_args[c] = stoRString(param_map.at(p).show_distr_arg_names());
-        V_argsval[c] = stoRString(param_map.at(p).show_distr_arg_values());
-
-        V_rule[c] = stoRString(param_map.at(p).get_prop_name());
-        V_rule_args[c] = stoRString(param_map.at(p).show_prop_arg_names());
-        V_rule_argsval[c] = stoRString(param_map.at(p).show_prop_arg_values());
-
-        const std::string min_val = param_map.at(p).show_range_min();
-        const std::string max_val = param_map.at(p).show_range_max();
-        V_min[c] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
-        V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
-    }
-
-    return DataFrame::create(_["name"] = wrap(V_names), _["value"] = V_value, _["infer"] = V_infer,
-                             _["prior"] = V_prior, _["args"] = V_args, _["argsval"] = V_argsval,
-                             _["rule"] = V_rule, _["rule_args"] = V_rule_args, _["rule_argsval"] = V_rule_argsval,
-                             _["min"] = V_min, _["max"] = V_max);
-}
-
-/* Export MCMC traces with posterior samples. */
-Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
-{
-    using namespace Rcpp;
-
-    DataFrame output = DataFrame::create(
-        _["loglikelihood"] = wrap(dgn_glob_loglike));
-
-    for (const parID &p : param_to_be_inferred)
-        output.push_back(wrap(param_map.at(p).dgn_value), p);
-
-    // retrieve chain identities
-    if (setup_n_chains > 1)
-    {
-        IntegerVector df_chain(setup_c_sample_size * setup_n_chains);
-        for (ulong c = 0; c < setup_n_chains; ++c)
-            std::fill(df_chain.begin() + c * setup_c_sample_size,
-                      df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
-
-        output.push_back(df_chain, "CHAIN__");
-    }
-
-    return output;
-}
-
-#endif

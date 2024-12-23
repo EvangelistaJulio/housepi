@@ -193,11 +193,18 @@ namespace tools
     bool stobool(const std::string &tkn);
     const std::string strcleaner(std::string tkn);
 
+    const str_vec parse_list_args(const std::string &tkn,
+                                  const char delim = C_LIST_DELIM);
+    const dict_args merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals);
+
+    void read_csv_list(const std::string &pathtofile,
+                       std::map<std::string, std::string> &csv_parsed_list);
     void read_csv_table(const std::string &pathtofile,
                         dict_str_vec &csv_parsed_table,
                         const str_vec &required_headers = {});
-    const str_vec parse_list_args(const std::string &tkn,
-                                  const char delim = C_LIST_DELIM);
+
+    // Welford online algorithm for mean and variance.
+    void compute_stats(const std::vector<double> &data, double &avg, double &var);
 
     // Calculate Levenshtein distance
     ushort levenshtein(const std::string &s1, const std::string &s2);

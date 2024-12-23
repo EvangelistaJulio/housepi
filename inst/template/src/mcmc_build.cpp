@@ -26,6 +26,22 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+//===== CONSTRUCTOR =====//
+Monte_Carlo_Build::Monte_Carlo_Build() : _uniform_distr_(0., 1.)
+{
+#ifdef _OPENMP
+    _max_n_available_threads = omp_get_max_threads();
+#endif
+}
+Monte_Carlo_Build::~Monte_Carlo_Build() = default;
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /* Auxiliary function to call percentuage. */
 inline const std::string _aux_percent_(int num, int den)
 {
@@ -62,7 +78,7 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
 
             else if (type == TYPE_PARAM)
                 if (get_infer(value))
-                    tools::error(
+                    throw std::invalid_argument(
                         "Non constant parameter '" + value + "' assigned as immutable argument.");
                 else
                     output = get_param(value);
@@ -253,7 +269,8 @@ size_t Monte_Carlo_Build::report_data(const std::string &key) const
         output = _report_data_.at(key);
 
     else
-        tools::error("Unknown summary entry '" + key + "'.");
+        throw std::invalid_argument(
+            "Unknown summary entry '" + key + "'.");
 
     return output;
 }
@@ -773,101 +790,8 @@ void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) cons
         }
         else
         {
-            tools::error("Unable to open file: " + pathtofile);
+            throw std::runtime_error(
+                "Unable to open file: " + pathtofile);
         }
     }
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-#ifdef _HOUSEPI_RCPP
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Import data from R DataFrame then run build. */
-void Monte_Carlo_Build::import_augm(const Rcpp::DataFrame &augm)
-{
-    rdataframe_to_map(augm, _augm_deftable_);
-    build_augm();
-    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("augm");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Monte_Carlo_Build : exports to Rcpp //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame Monte_Carlo_Build::export_data() const
-{
-    using namespace Rcpp;
-
-    CharacterVector df_index(n_individuals);
-    CharacterVector df_house_index(n_individuals);
-    IntegerVector df_status(n_individuals);
-    std::vector<NumericVector> df_dbl;
-    for (size_t s = 0; s < data_headers.size() + augm_list_full.size(); ++s)
-        df_dbl.emplace_back(n_individuals);
-
-    size_t r = 0, c = 0;
-    for (const Household &house : house_vector)
-    {
-        for (indiv i = 0; i < house.size(); ++i)
-        {
-            df_index[r] = house.ID(i);
-            df_house_index[r] = house.house_ID();
-            df_status[r] = house.status(i);
-
-            c = 0;
-            for (const dataID &d : data_headers)
-                df_dbl[c++][r] = house.data(i, d);
-
-            for (const augmID &a : augm_list_full)
-                df_dbl[c++][r] = house.augm(i, a);
-
-            ++r;
-        }
-    }
-
-    DataFrame output;
-    output = DataFrame::create(_["id"] = df_index,
-                               _["house_id"] = df_house_index,
-                               _["status"] = df_status);
-    c = 0;
-    for (const dataID &d : data_headers)
-        output.push_back(df_dbl[c++], d);
-
-    for (const augmID &a : augm_list_full)
-        output.push_back(df_dbl[c++], a);
-
-    return output;
-}
-
-/* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix Monte_Carlo_Build::export_household_loglike_traces() const
-{
-    using namespace Rcpp;
-
-    // FIXME : this should be prevented if is_power_post
-
-    // Create a NumericMatrix with n_house columns
-    ulong sample_size = setup_n_chains * setup_c_sample_size;
-    NumericMatrix output(sample_size, n_households);
-
-    // Assign each NumericVector to a column of the matrix
-    for (size_t H = 0; H < n_households; ++H)
-    {
-        NumericVector column = wrap(house_vector[H].get_dgn_loglike());
-        output(_, H) = column;
-    }
-
-    return output;
-}
-#endif

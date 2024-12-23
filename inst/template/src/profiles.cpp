@@ -4,31 +4,44 @@
  * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
  */
 
-#include "profiles.h"
-#include "distribution.h"
+#include "mcmc.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// Base_Infectivity_Profile : class ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+Base_InfecProfile::Base_InfecProfile() {}
+Base_InfecProfile::Base_InfecProfile(std::function<double(parID)> get) : _external_param_getter_(std::move(get)) {}
+Base_InfecProfile::~Base_InfecProfile() = default;
 
-double Base_Infectivity_Profile::pdf(double serial, const std::vector<double> &x) const
+double Base_InfecProfile::get_arg(ushort i) { return (this->*_func_get_arg_)(i); }
+
+void Base_InfecProfile::init(const std::string &name, const dict_args &defaults)
 {
-	UNUSED(serial);
-	UNUSED(x);
-	throw std::invalid_argument(
-		"Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
-
-	return std::numeric_limits<double>::quiet_NaN();
+	this->_name_ = name;
+	for (const auto &pair : defaults)
+	{
+		this->_arg_names_.emplace_back(pair.first);
+		this->_values_.emplace_back(pair.second);
+	}
 }
 
-double Base_Infectivity_Profile::cdf(double serial, const std::vector<double> &x) const
+double Base_InfecProfile::pdf(const std::vector<double> &x)
 {
-	UNUSED(serial);
 	UNUSED(x);
 	throw std::invalid_argument(
-		"Call to undefined method 'pdf' of infectivity profile '" + get_name() + "'.");
+		"Call to undefined method 'pdf' of infectivity profile '" + _name_ + "'.");
+}
+double Base_InfecProfile::cdf(const std::vector<double> &x)
+{
+	UNUSED(x);
+	throw std::invalid_argument(
+		"Call to undefined method 'cdf' of infectivity profile '" + _name_ + "'.");
+}
 
-	return std::numeric_limits<double>::quiet_NaN();
+double Base_InfecProfile::_internal_get_arg_(ushort i)
+{
+	return _values_[i];
+}
+double Base_InfecProfile::_external_get_arg_(ushort i)
+{
+	return _external_param_getter_(_indexes_[i]);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -39,7 +52,7 @@ double Base_Infectivity_Profile::cdf(double serial, const std::vector<double> &x
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////// Infec_Prof_Ferretti20 : class //////////////////////////////////
+////////////////////////////////// InfecProfile_Ferretti20 : class //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*
 The infectivity profile is considered equal to the distribution
@@ -61,24 +74,24 @@ Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
 The timing of COVID-19 transmission.
 medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
  */
-class Infec_Prof_Ferretti20 : public Base_Infectivity_Profile
+class InfecProfile_Ferretti20 : public Base_InfecProfile
 {
-public:
-	// Constructor with immutable values
-	Infec_Prof_Ferretti20(const dict_args &new_args = {})
+private:
+	void defaults()
 	{
-		init("ferretti20", {{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}},
-			 {"alpha", "mu", "sigma", "tau"});
-		assign_args(new_args);
+		init("ferretti20", {{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}});
 	}
-	// Deconstructor
-	~Infec_Prof_Ferretti20() = default;
 
-	//-----  Probability distribution function -----//
-	double pdf(double serial, const std::vector<double> &x) const override
+public:
+	//===== CONSTRUCTOR =====//
+	InfecProfile_Ferretti20() : Base_InfecProfile() { defaults(); };
+	InfecProfile_Ferretti20(std::function<double(parID)> get) : Base_InfecProfile(get) { defaults(); }
+
+	//*  Probability distribution function. *//
+	double pdf(const std::vector<double> &x) override
 	{
-		double incub = x[0];		   // incubation period
-		double t_OST = serial - incub; // t. from onset to transmission
+		double t_OST = x[0] - x[1]; // t. from onset to transmission
+		double incub = x[1];		// incubation period
 
 		double a = get_arg(0); // shape argument
 		double m = get_arg(1); // location argument
@@ -94,11 +107,11 @@ public:
 		return exp((m - t_OST) / s) * pow(1. + exp((m - t_OST) / s), -1. - a) / norm_pdf;
 	}
 
-	//-----  Cumulative distribution function -----//
-	double cdf(double serial, const std::vector<double> &x) const override
+	//*  Cumulative distribution function. *//
+	double cdf(const std::vector<double> &x) override
 	{
-		double incub = x[0];		   // incubation period
-		double t_OST = serial - incub; // t. from onset to transmission
+		double t_OST = x[0] - x[1]; // t. from onset to transmission
+		double incub = x[1];		// incubation period
 
 		double a = get_arg(0); // shape argument
 		double m = get_arg(1); // location argument
@@ -130,7 +143,7 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////// Infec_Prof_Ashcroft20 : class //////////////////////////////////
+////////////////////////////////// InfecProfile_Ashcroft20 : class //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*
  ----
@@ -139,38 +152,46 @@ public:
  Ashcroft P, Huisman JS, Lehtinen S, Bouman JA, Althaus CL, Regoes RR, et al.
  COVID-19 infectivity profile correction. Swiss medical weekly. 2020. p. w20336.
 */
-class Infec_Prof_Ashcroft20 : public Base_Infectivity_Profile
+class InfecProfile_Ashcroft20 : public Base_InfecProfile
 {
 private:
 	std::shared_ptr<Base_Distribution> gamma_distr_ptr;
 
-public:
-	// Constructor with immutable values
-	Infec_Prof_Ashcroft20(const dict_args &new_args = {})
+	void defaults()
 	{
-		init("ashcroft20", {{"shape", 97.32}, {"scale", 0.268}, {"shift", 25.6}},
-			 {"shape", "scale", "shift"});
-		assign_args(new_args);
-		dict_args aux_args_val = {{"shape", get_arg(0)}, {"scale", get_arg(1)}};
-		gamma_distr_ptr = distribution_switchboard("gamma", aux_args_val, {{"min", get_arg(2)}});
+		init("ashcroft20", {{"shape", 97.32}, {"scale", 0.268}, {"shift", 25.6}});
+		gamma_distr_ptr = distribution_switchboard("gamma");
 	}
-	// Deconstructor
-	~Infec_Prof_Ashcroft20() {};
 
-	double pdf(double serial, const std::vector<double> &x) const override
+public:
+	//===== CONSTRUCTOR =====//
+	InfecProfile_Ashcroft20() : Base_InfecProfile() { defaults(); };
+	InfecProfile_Ashcroft20(std::function<double(parID)> get) : Base_InfecProfile(get) { defaults(); }
+
+	double pdf(const std::vector<double> &x) override
 	{
-		double incub = x[0];		   // incubation period
-		double t_OST = serial - incub; // t. from onset to transmission
-		double shift = get_arg(2);	   // shift argument
-		
+		// load variables
+		double t_OST = x[0] - x[1]; // t. from onset to transmission
+
+		// update arguments
+		gamma_distr_ptr->set_arg(0, get_arg(0));		   // shape
+		gamma_distr_ptr->set_arg(1, get_arg(1));		   // scale
+		gamma_distr_ptr->set_range({{"min", get_arg(2)}}); // UPDATE <===|
+		double shift = get_arg(2);						   // shift argument
+
 		return gamma_distr_ptr->pdf(shift + t_OST);
 	}
 
-	double cdf(double serial, const std::vector<double> &x) const override
+	double cdf(const std::vector<double> &x) override
 	{
-		double incub = x[0];		   // incubation period
-		double t_OST = serial - incub; // t. from onset to transmission
-		double shift = get_arg(2);	   // shift argument
+		// load variables
+		double t_OST = x[0] - x[1]; // t. from onset to transmission
+
+		// update arguments
+		gamma_distr_ptr->set_arg(0, get_arg(0));		   // shape
+		gamma_distr_ptr->set_arg(1, get_arg(1));		   // scale
+		gamma_distr_ptr->set_range({{"min", get_arg(2)}}); // UPDATE <===|
+		double shift = get_arg(2);						   // shift argument
 
 		return gamma_distr_ptr->cdf(shift + t_OST);
 	}
@@ -183,23 +204,28 @@ public:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-//* Return a pointer to infectivity profile */
-std::unique_ptr<Base_Infectivity_Profile> infectivity_profile_switchboard(const std::string &name)
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign the infectivity profile. */
+std::unique_ptr<Base_InfecProfile> infecprofile_switchboard(const std::string &name,
+															std::function<double(parID)> get)
 {
 	const str_vec options = {"ferretti20", "ashcroft20"};
 
 	if (!tools::is_na(name))
 	{
 		if (name == "ferretti20")
-			return std::make_unique<Infec_Prof_Ferretti20>();
+			return std::make_unique<InfecProfile_Ferretti20>(std::move(get));
 
 		else if (name == "ashcroft20")
-			return std::make_unique<Infec_Prof_Ashcroft20>();
+			return std::make_unique<InfecProfile_Ashcroft20>(std::move(get));
 
 		else
 			throw std::invalid_argument(
 				"Unknown infectivity profile '" + name + "'." + tools::find_closest(name, options));
 	}
 
-	return std::make_unique<Base_Infectivity_Profile>();
+	return std::make_unique<Base_InfecProfile>();
 }

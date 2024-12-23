@@ -100,9 +100,9 @@ double Base_Distribution::rand(rnd_gen &prng)
 ////////////////////////////////  Base Distribution - virtual  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Base_Distribution::_pdf_(double x) const { return _undefined_call_error_("pdf", x); }
-double Base_Distribution::_cdf_(double x) const { return _undefined_call_error_("cdf", x); }
-double Base_Distribution::_logpdf_(double x) const { return _undefined_call_error_("logpdf", x); }
+double Base_Distribution::_pdf_(double x) const { return _undefined_call_("pdf", x); }
+double Base_Distribution::_cdf_(double x) const { return _undefined_call_("cdf", x); }
+double Base_Distribution::_logpdf_(double x) const { return _undefined_call_("logpdf", x); }
 double Base_Distribution::_logratio_(double xold, double xnew) const
 {
     UNUSED(xold);
@@ -113,15 +113,17 @@ void Base_Distribution::_update_args_() {};
 double Base_Distribution::_rand_(rnd_gen &prng)
 {
     UNUSED(prng);
-    return _undefined_call_error_("rand");
+    return _undefined_call_("rand");
 }
 
-/* Internal error for calls to undefined distribution. */
-double Base_Distribution::_undefined_call_error_(const std::string &txt, double x, double y) const
+/* Internal function for calls to undefined distribution. */
+double Base_Distribution::_undefined_call_(const std::string &txt, double x, double y) const
 {
     UNUSED(x);
     UNUSED(y);
-    tools::error("Call to undefined method '" + txt + "' of distribution '" + get_name() + "'.");
+    throw std::invalid_argument(
+        "Call to undefined method '" + txt + "' of distribution '" + get_name() + "'.");
+
     return std::numeric_limits<double>::quiet_NaN();
 }
 
@@ -148,7 +150,7 @@ double Base_Distribution::_default_rand_(rnd_gen &prng)
             oss << "Exceeded attempts (N > " << MAX_NUMBER_ATTEMPTS << ")"
                 << " in random draw of " << get_name() << "(" << show_arg_values() << ")"
                 << " with truncation {" << get_range_min() << ", " << get_range_max() << "}.";
-            tools::error(oss.str());
+            std::invalid_argument(oss.str());
         }
         xnew = _rand_(prng);
         ++n_attempts;
@@ -296,7 +298,7 @@ void Base_Distribution::_assign_reshaping_(const dict_args &range, const std::st
         }
         else
         {
-            tools::error(
+            throw std::invalid_argument(
                 "Unrecognized discretization method '" + discr + "'.");
         }
     }

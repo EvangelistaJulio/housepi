@@ -11,26 +11,13 @@
 //////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MCMC::MCMC() : pBuild(std::make_unique<Monte_Carlo_Build>()) {}
+MCMC::MCMC() : pBuild(std::make_unique<Monte_Carlo_Build>()),
+               _infec_profile_(std::make_unique<Base_InfecProfile>()) {}
 MCMC::~MCMC() = default;
 
 void MCMC::read_setup(const std::string &pathtofile) { pBuild->read_setup(pathtofile); }
 void MCMC::read_params(const std::string &pathtofile) { pBuild->read_params(pathtofile); }
 void MCMC::read_augm(const std::string &pathtofile) { pBuild->read_augm(pathtofile); }
-
-#ifdef _HOUSEPI_RCPP
-//===== Rcpp IMPORTS =====//
-void MCMC::import_setup(const Rcpp::List &x) { pBuild->import_setup(x); }
-void MCMC::import_params(const Rcpp::DataFrame &x) { pBuild->import_params(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pBuild->import_augm(x); }
-
-//===== Rcpp EXPORTS =====//
-Rcpp::List MCMC::export_setup() const { return pBuild->export_setup(); }
-Rcpp::DataFrame MCMC::export_params() const { return pBuild->export_params(); }
-Rcpp::DataFrame MCMC::export_data() const { return pBuild->export_data(); }
-Rcpp::DataFrame MCMC::export_traces() const { return pBuild->export_traces(); }
-Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pBuild->export_household_loglike_traces(); }
-#endif
 
 //===== C++ PRINT =====//
 void MCMC::print_infer_state(const std::string &pathtofile) const { pBuild->print_infer_state(pathtofile); }
@@ -79,25 +66,26 @@ void MCMC::assign_extra_matrix_to_all_houses(const std::vector<extraID> &names, 
         pBuild->house_vector[H].allocate_extra_matrix(names, xinit);
 }
 
-//===== INFECTIVITY PROFILE =====//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 /* Assign the infectivity profile. */
 void MCMC::assign_infectivity_profile(const std::string &name)
 {
-    _infec_profile_ = infectivity_profile_switchboard(name);
+    auto lambda_param_getter = [this](const parID &p)
+    { return this->param(p); };
+    _infec_profile_ = infecprofile_switchboard(name, lambda_param_getter);
 }
 
 /* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(double serial, const std::vector<double> &x)
-{
-    return _infec_profile_->pdf(serial, x);
-}
+double MCMC::infec_profile_inst(const std::vector<double> &x) { return _infec_profile_->pdf(x); }
 
 /* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(double serial, const std::vector<double> &x)
-{
-    return _infec_profile_->cdf(serial, x);
-}
+double MCMC::infec_profile_cumul(const std::vector<double> &x) { return _infec_profile_->cdf(x); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -159,22 +147,6 @@ void MCMC::read_data(const std::string &pathtofile)
 
     pBuild->_report_pathtofile_["data"] = pathtofile;
 }
-
-#ifdef _HOUSEPI_RCPP
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Import data from R DataFrame and run build. */
-void MCMC::import_data(const Rcpp::DataFrame &data)
-{
-    dict_str_vec datatable = {};
-    rdataframe_to_map(data, datatable);
-    build_data(datatable);
-    if (pBuild->_report_pathtofile_.find("data") != pBuild->_report_pathtofile_.end())
-        pBuild->_report_pathtofile_.erase("data");
-}
-#endif
 
 /* Assign data after pre-processing. */
 void MCMC::build_data(const dict_str_vec &datatable)
@@ -435,6 +407,10 @@ void MCMC::update_global_loglike()
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t H = 0; H < n_houses(); ++H)
     {
+        // FLAG
+        tools::print_stderr("LL[" + std::to_string(H) + "]=");
+        // FLAG_END
+
         if (!_error_message_.empty())
             continue;
 
@@ -453,6 +429,10 @@ void MCMC::update_global_loglike()
                     _error_message_ = e.what();
             }
         }
+
+        // FLAG
+        tools::print_stderr(std::to_string(new_ll) + "\n");
+        // FLAG_END
     }
     if (!_error_message_.empty())
         tools::error(_error_message_);
@@ -728,8 +708,8 @@ double MCMC::evaluate()
 {
     try
     {
-        pBuild->init_parameters(); // check no undefined parameters
-        init_model_for_inference(); // initialize model
+        init_model_for_inference(); // initialize model for inference
+        pBuild->init_parameters();  // check no undefined parameters
         init_augmented_variables(); // initialize augmented dependencies
         update_global_loglike();    // initialize global loglikelihood
     }
@@ -773,11 +753,8 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 
     // check if there is something to infer
     if (pBuild->param_to_be_inferred.empty())
-        tools::error(
+        throw std::length_error(
             "No parameters to be inferred were found.");
-
-    // initialize model
-    init_model_for_inference();
 
     // initialize diagnostics
     pBuild->init_diagnostics(is_power_post);
@@ -814,9 +791,8 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
                 (this->*_func_move_all_augm_)();
                 move_and_adapt_all_parameters(i + t);
             }
-            ++sweep;
 
-            progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
+            progressbar.update(static_cast<double>(++sweep) / _tot_thin_sweeps_);
         }
 
         //============================================//
@@ -830,9 +806,8 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
                 (this->*_func_move_all_augm_)();
                 move_all_parameters();
             }
-            ++sweep;
 
-            progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
+            progressbar.update(static_cast<double>(++sweep) / _tot_thin_sweeps_);
         }
 
         //============================================//
@@ -841,17 +816,15 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 
         for (ulong i = pBuild->setup_n_burnin; i < pBuild->setup_n_steps; i += pBuild->setup_thin)
         {
-            // thinning mcmc moves
             for (ulong t = 1; t <= pBuild->setup_thin; ++t)
             {
                 (this->*_func_move_all_augm_)();
                 move_all_parameters();
             }
-            ++sweep;
 
             // compute diagnostics for the previous iterations
             pBuild->update_diagnostics(pBuild->get_global_loglike(), is_power_post);
-            progressbar.update(static_cast<double>(sweep) / _tot_thin_sweeps_);
+            progressbar.update(static_cast<double>(++sweep) / _tot_thin_sweeps_);
         }
     }
 }
@@ -863,19 +836,29 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 /* Performs the inference using Metropolis-Hastings. */
 void MCMC::infer(bool is_progbar)
 {
-    // total number of mcmc sweeps
-    _chain_ = 1;
-    _tot_thin_sweeps_ = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
+    try
+    {
+        // total number of mcmc sweeps
+        _chain_ = 1;
+        _tot_thin_sweeps_ = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
 
-    // start progress bar and chrono
-    CustomProgressBar progressbar(is_progbar);
-    progressbar.initialize(fmt_progtxt("infer"));
+        //----- Initialize model for inference -----//
+        init_model_for_inference();
 
-    // run Markov Chain
-    run_monte_carlo(progressbar);
+        // start progress bar and chrono
+        CustomProgressBar progressbar(is_progbar);
+        progressbar.initialize(fmt_progtxt("infer"));
 
-    // close progress bar
-    progressbar.finalize();
+        // run Markov Chain
+        run_monte_carlo(progressbar);
+
+        // close progress bar
+        progressbar.finalize();
+    }
+    catch (std::exception &e)
+    {
+        tools::error(e.what());
+    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -947,6 +930,9 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     // internal state variables
     _tot_thin_sweeps_ = rung_sweeps * (_n_rungs_ + 1);
     _rung_ = 0;
+
+    //----- Initialize model for inference -----//
+    init_model_for_inference();
 
     //----- Start progress bar and chrono -----//
     CustomProgressBar progressbar(is_progbar);
@@ -1074,12 +1060,12 @@ void MCMC::simulate_single_house(Household &house)
 /* Perform simulation as provided by the user */
 void MCMC::simulate(bool is_progbar)
 {
+    //----- Initialize model for simulation -----//
+    init_model_for_simulation();
+
     //----- Check no undefined parameters -----//
     pBuild->setup_rnd_init_params = false;
     pBuild->init_parameters();
-
-    //----- Initialize model -----//
-    init_model_for_simulation();
 
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();

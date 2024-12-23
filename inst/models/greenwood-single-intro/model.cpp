@@ -41,23 +41,17 @@ void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
 	if (report_data("n.unk.stat") > 0)
-	{
 		tools::error("A missing status was found : incompatible with the model.");
-	}
 
 	// households without case don't have a contribution
 	if (report_data("no.HH.case") == 0)
-	{
 		tools::warning(
 			"Hoseholds without cases are not modeled and will be ignored. Discard them to improve computation time.");
-	}
 
 	// households of size 1 don't have a contribution
 	if (report_data("min.HH.size") == 1)
-	{
 		tools::warning(
 			"Hoseholds with one single member are not modeled and will be ignored. Discard them to improve computation time.");
-	}
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_generations_lookuptable(report_data("max.n.HH.cases"));

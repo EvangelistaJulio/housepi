@@ -169,10 +169,8 @@ bool Household_Impl::change_status(indiv i, int new_status)
 		}
 		else
 		{
-			std::ostringstream oss;
-			oss << "Unknown status '"
-				<< old_status << "' for individual " << this_indiv.get_ID() << ".";
-			throw std::runtime_error(oss.str());
+			throw std::runtime_error(
+				"Unknown status '" + std::to_string(old_status) + "' for individual " + this_indiv.get_ID() + ".");
 		}
 
 		if (new_status >= INFECTIOUS)
@@ -195,10 +193,8 @@ bool Household_Impl::change_status(indiv i, int new_status)
 		}
 		else
 		{
-			std::ostringstream oss;
-			oss << "While changing status: unknown new status '"
-				<< new_status << "' for individual " << this_indiv.get_ID() << ".";
-			throw std::runtime_error(oss.str());
+			throw std::runtime_error(
+				"Unknown new status '" + std::to_string(new_status) + "' for individual " + this_indiv.get_ID() + ".");
 		}
 
 		this_indiv.set_status(new_status);

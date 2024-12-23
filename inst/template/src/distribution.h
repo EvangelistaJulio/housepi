@@ -66,7 +66,7 @@ protected:
 	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
 
 private:
-	double _undefined_call_error_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
+	double _undefined_call_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
 
 	//----- Deafult functional methods -----//
 	double _default_pdf_(double x) const;

@@ -15,6 +15,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <functional>
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -37,6 +38,9 @@
 
 /* Forward declaration of build implementation. */
 class Monte_Carlo_Build;
+
+/* Forward declaration of infectivity profile. */
+class Base_InfecProfile;
 
 /* Household models base class 'Monte Carlo Markov Chain'. */
 class MCMC
@@ -112,8 +116,8 @@ public:
 
 	//===== INFECTIVITY PROFILE =====//
 	void assign_infectivity_profile(const std::string &name);
-	double infec_profile_inst(double serial, const std::vector<double> &x = {});
-	double infec_profile_cumul(double serial, const std::vector<double> &x = {});
+	double infec_profile_inst(const std::vector<double> &x);
+	double infec_profile_cumul(const std::vector<double> &x);
 
 	//===== EVALUATE (loglikelihood) =====//
 	virtual double compute_house_loglike(Household &house) const;
@@ -141,7 +145,7 @@ private:
 	parID _pair_contact_rate_ = {};
 
 	//===== INFECTIVITY PROFILE =====//
-	std::unique_ptr<Base_Infectivity_Profile> _infec_profile_;
+	std::unique_ptr<Base_InfecProfile> _infec_profile_;
 
 	//===== PRINTS =====//
 	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
