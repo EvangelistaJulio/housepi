@@ -25,10 +25,10 @@ public:
 
 protected:
 	//===== SETTER =====//
-	void init(const std::string &name, const dict_args &defaults);
+	void init(const std::string &name, const dict_args &init_defaults);
 
 private:
-	std::string _name_ = UNDEFINED;
+	std::string name = UNDEFINED;
 	str_vec _arg_names_ = {};
 	std::vector<double> _values_ = {};
 	std::vector<parID> _indexes_ = {};

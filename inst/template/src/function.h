@@ -69,19 +69,9 @@ protected:
     //===== Pointer to Implementation =====//
     std::unique_ptr<Base_Function_Impl> pImpl;
 
-    // NOTE : to provide a default order is the only way I found to enforce an order
-    // this is necessary if I want to access arguments by index and not by name (faster...?)
-    // UPDATE : collapse overloaded constructors
-    // UPDATE : for the moment it is not possible to provide default pointer argumets
-    // a solution could be point to internal, at that point the whole pointer thing could be collapsed
-    void init(const std::string &name,
-              const dict_args &args_val,
-              const str_vec &order,
-              const dict_args &domain = {});
-    void init(const std::string &name,
-              const dict_args_ptr &args_ptr,
-              const str_vec &order,
-              const dict_args &domain = {});
+    void init_defaults(const std::string &name,
+                  const dict_args &args_val,
+                  const dict_args &domain = {});
 };
 
 #endif // HOUSEPI__FUNCTION__H

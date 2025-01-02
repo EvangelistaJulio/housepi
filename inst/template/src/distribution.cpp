@@ -350,20 +350,13 @@ private:
     std::uniform_real_distribution<double> distr_gen;
 
 public:
-    Uniform_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Uniform_Distribution(const dict_args_val_or_ptr &new_args = {},
                          const dict_args &range = {},
                          bool discr = false) : distr_gen(0.0, 1.0)
     {
-        init("unif", {{"min", 0.0}, {"max", 1.0}}, {"min", "max"});
+        init_defaults("unif", {{"min", 0.0}, {"max", 1.0}});
         assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
-    }
-
-    Uniform_Distribution(const dict_args_ptr &new_args_ptr,
-                         const dict_args &range = {},
-                         bool discr = false) : distr_gen(0.0, 1.0)
-    {
-        init("unif", new_args_ptr, {"min", "max"});
         _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
 
@@ -414,20 +407,13 @@ private:
     std::normal_distribution<double> distr_gen;
 
 public:
-    Normal_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Normal_Distribution(const dict_args_val_or_ptr &new_args = {},
                         const dict_args &range = {},
                         bool discr = false) : distr_gen(0.0, 1.0)
     {
-        init("norm", {{"mean", 0.0}, {"sd", 1.0}}, {"mean", "sd"});
+        init_defaults("norm", {{"mean", 0.0}, {"sd", 1.0}});
         assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
-    }
-
-    Normal_Distribution(const dict_args_ptr &new_args_ptr,
-                        const dict_args &range = {},
-                        bool discr = false) : distr_gen(0.0, 1.0)
-    {
-        init("norm", new_args_ptr, {"mean", "sd"});
         _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
     }
 
@@ -483,21 +469,14 @@ private:
     std::lognormal_distribution<double> distr_gen;
 
 public:
-    Lognorm_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Lognorm_Distribution(const dict_args_val_or_ptr &new_args = {},
                          const dict_args &range = {},
                          bool discr = false) : distr_gen(0.0, 1.0)
     {
-        init("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {"meanlog", "sdlog"}, {{"min", 0}});
+        init_defaults("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {{"min", 0}});
         assign_args(new_args);
         _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
-    }
-
-    Lognorm_Distribution(const dict_args_ptr &new_args_ptr,
-                         const dict_args &range = {},
-                         bool discr = false) : distr_gen(0.0, 1.0)
-    {
-        init("lnorm", new_args_ptr, {"meanlog", "sdlog"}, {{"min", 0}});
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
 
     ~Lognorm_Distribution() {};
@@ -552,23 +531,15 @@ private:
     std::gamma_distribution<double> distr_gen;
 
 public:
-    Gamma_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Gamma_Distribution(const dict_args_val_or_ptr &new_args = {},
                        const dict_args &range = {},
                        bool discr = false) : distr_gen(1.0, 1.0)
     {
-        init("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
+        init_defaults("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {{"min", 0}});
         assign_args(new_args);
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
-
-    Gamma_Distribution(const dict_args_ptr &new_args_ptr,
-                       const dict_args &range = {},
-                       bool discr = false) : distr_gen(1.0, 1.0)
-    {
-        init("gamma", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
-    }
-
     ~Gamma_Distribution() {};
 
 protected:
@@ -621,20 +592,13 @@ private:
     std::weibull_distribution<double> distr_gen;
 
 public:
-    Weibull_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Weibull_Distribution(const dict_args_val_or_ptr &new_args = {},
                          const dict_args &range = {},
                          bool discr = false) : distr_gen(1.0, 1.0)
     {
-        init("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {"shape", "scale"}, {{"min", 0}});
+        init_defaults("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {{"min", 0}});
         assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
-    }
-
-    Weibull_Distribution(const dict_args_ptr new_args_ptr,
-                         const dict_args &range = {},
-                         bool discr = false) : distr_gen(1.0, 1.0)
-    {
-        init("weibull", new_args_ptr, {"shape", "scale"}, {{"min", 0}});
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
     ~Weibull_Distribution() {};
@@ -689,19 +653,13 @@ private:
     std::uniform_real_distribution<double> unif_gen;
 
 public:
-    Rayleigh_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Rayleigh_Distribution(const dict_args_val_or_ptr &new_args = {},
                           const dict_args &range = {},
                           bool discr = false) : unif_gen(0.0, 1.0)
     {
-        init("rayleigh", {{"scale", 1.0}}, {"scale"}, {{"min", 0}});
+        init_defaults("rayleigh", {{"scale", 1.0}}, {{"min", 0}});
         assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
-    }
-    Rayleigh_Distribution(const dict_args_ptr &new_args_ptr,
-                          const dict_args &range = {},
-                          bool discr = false) : unif_gen(0.0, 1.0)
-    {
-        init("rayleigh", new_args_ptr, {"scale"}, {{"min", 0}});
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
     ~Rayleigh_Distribution() {};
@@ -747,19 +705,13 @@ private:
     std::exponential_distribution<double> distr_gen;
 
 public:
-    Exponential_Distribution(const dict_args &new_args = {},
+    template <typename dict_args_val_or_ptr>
+    Exponential_Distribution(const dict_args_val_or_ptr &new_args = {},
                              const dict_args &range = {},
                              bool discr = false) : distr_gen(1.0)
     {
-        init("exp", {{"rate", 1.0}}, {"rate"}, {{"min", 0}});
+        init_defaults("exp", {{"rate", 1.0}}, {{"min", 0}});
         assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
-    }
-    Exponential_Distribution(const dict_args_ptr &new_args_ptr,
-                             const dict_args &range = {},
-                             bool discr = false) : distr_gen(1.0)
-    {
-        init("exp", new_args_ptr, {"rate"}, {{"min", 0}});
         _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
     }
     ~Exponential_Distribution() {};

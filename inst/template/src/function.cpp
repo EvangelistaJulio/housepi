@@ -13,26 +13,64 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+class Function_Argument
+{
+private:
+    double value = INF_DOUBLE;
+    const double *ptr_to_value = &value; // UPDATE: these const type is not convincing me
+
+    // note : the set_arg is only used for the adaptive
+    // for this reason a pointer argument can't be set, but just assigned
+    void (Function_Argument::*_func_set_)(double) = &Function_Argument::_set_arg_value_;
+    void _set_arg_value_(double x) { value = x; }
+    void _set_arg_pointer_(double x)
+    {
+        UNUSED(x);
+        throw std::runtime_error(
+            "Pointer argument '" + name + "' can not be changed.");
+    }
+
+public:
+    std::string name = UNDEFINED;
+
+    Function_Argument() = default;
+    ~Function_Argument() = default;
+
+    /* Assign argument getter and setter for pointer mode. */
+    void assign_ptr(const double *y)
+    {
+        _func_set_ = &Function_Argument::_set_arg_pointer_;
+        ptr_to_value = y;
+    }
+    inline double get() const { return *(ptr_to_value); }
+    inline void set(double x) { (this->*_func_set_)(x); }
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 class Base_Function_Impl
 {
 public:
     //===== Arguments =====//
-    std::string _name_ = UNDEFINED;
-    str_vec _args_names_ = {};           // ordered list of argument names
+    std::string name = UNDEFINED;
+    ushort _n_args_ = 0;
+    Function_Argument *_arguments_ = nullptr;
 
-    //===== Constructors =====//
-    Base_Function_Impl() {};
-    ~Base_Function_Impl() {};
+    //----- Domain -----//
+    double _range_min_ = -INF_DOUBLE; // init to -infty
+    double _range_max_ = INF_DOUBLE;  // init to +infty
 
-    void assign_val_mode();
-    void assign_ptr_mode();
+    //===== CONSTRUCTOR =====//
+    Base_Function_Impl() = default;
+    ~Base_Function_Impl() = default;
 
     //===== Getter =====//
     bool valid(double x) const { return (this->*_func_valid_range_)(x); }
-    double get_arg(ushort i) const { return (this->*_func_get_arg_)(i); }
-
-    //===== Setter (for internal arguments) =====//
-    void set_arg(ushort i, double new_value) { (this->*_func_set_arg_)(i, new_value); }
 
     //===== Show =====//
     const std::string show_arg_names() const;
@@ -41,54 +79,20 @@ public:
     const std::string show_range_max() const;
 
     //===== Initial default arguments =====//
-    // NOTE : to provide a default order is the only way I found to enforce an order
-    // this is necessary if I want to access arguments by index and not by name (faster...?)
-    // UPDATE : collapse overloaded constructors
-    // UPDATE : for the moment it is not possible to provide default pointer argumets
-    // a solution could be point to internal, at that point the whole pointer thing could be collapsed
-    void init(const std::string &name,
-              const dict_args &args_val,
-              const str_vec &order,
-              const dict_args &domain = {});
-    void init(const std::string &name,
-              const dict_args_ptr &args_ptr,
-              const str_vec &order,
-              const dict_args &domain = {});
+    void init_defaults(const std::string &name,
+                       const dict_args &args_val,
+                       const dict_args &domain = {});
 
     //===== Non-default arguments =====//
-    void assign_args(const dict_args &new_args_val);
-    void assign_args(const dict_args_ptr &new_args_ptr);
+    ushort find(const std::string &arg_name);
+    void assign_argument(const std::string &arg_name, double value);
+    void assign_argument(const std::string &arg_name, const double *ptr_to_value);
 
     //===== Range =====//
     ushort set_range(const dict_args &new_range);
-    double get_range_min() const { return _range_min_; }
-    double get_range_max() const { return _range_max_; }
 
 private:
-    double *_args_val_ = nullptr;        // internal arguments (fixed at initialization)
-    const double **_args_ptr_ = nullptr; // external arguments (pointer to variable)
-
-    //===== Argument getter : functional methods =====//
-    double (Base_Function_Impl::*_func_get_arg_)(ushort) const;
-    double _get_arg_value_(ushort i) const { return _args_val_[i]; }
-    double _get_arg_pointer_(ushort i) const { return *(_args_ptr_[i]); }
-
-    //===== Argument setter : functional methods =====//
-    // note : the set_arg is only used for the adaptive
-    // for this reason a pointer argument can't be set, but just assigned
-    void (Base_Function_Impl::*_func_set_arg_)(ushort, double);
-    void _set_arg_value_(ushort i, double new_value) { _args_val_[i] = new_value; }
-    void _set_arg_pointer_(ushort i, double new_value)
-    {
-        UNUSED(new_value);
-        throw std::runtime_error(
-            "Inconsistent change of pointer argument '" + _args_names_[i] + "' within '" + _name_ + "'.");
-    }
-
-    //===== Valid : functional methods =====//
-    double _range_min_ = -INF_DOUBLE; // init to -infty
-    double _range_max_ = INF_DOUBLE;  // init to +infty
-
+    //===== VALID =====//
     // alternative valid range methods
     bool (Base_Function_Impl::*_func_valid_range_)(double) const = &Base_Function_Impl::_valid_range_always_;
     bool _valid_range_always_(double x) const
@@ -105,46 +109,54 @@ private:
 ////////////////////////////////  Base Function : methods  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign argument getter and setter for scalar value mode. */
-void Base_Function_Impl::assign_val_mode()
+ushort Base_Function_Impl::find(const std::string &arg_name)
 {
-    _func_get_arg_ = &Base_Function_Impl::_get_arg_value_;
-    _func_set_arg_ = &Base_Function_Impl::_set_arg_value_;
-}
-
-/* Assign argument getter and setter for pointer mode. */
-void Base_Function_Impl::assign_ptr_mode()
-{
-    _func_get_arg_ = &Base_Function_Impl::_get_arg_pointer_;
-    _func_set_arg_ = &Base_Function_Impl::_set_arg_pointer_;
+    for (ushort c = 0; c < _n_args_; ++c)
+        if (_arguments_[c].name == arg_name)
+            return c;
+    return _n_args_;
 }
 
 /* Overload assignment of non default POINTER arguments. */
-void Base_Function_Impl::assign_args(const dict_args &args_val)
+void Base_Function_Impl::assign_argument(const std::string &arg_name, double value)
 {
+    ushort it = find(arg_name);
+    if (it == _n_args_)
+        throw std::invalid_argument(
+            "Unknown argument '" + arg_name + "' for '" + name + "'.");
+    else
+        _arguments_[it].set(value);
+}
+
+/* Overload assignment of non default POINTER arguments. */
+void Base_Function_Impl::assign_argument(const std::string &arg_name, const double *ptr_to_value)
+{
+    ushort it = find(arg_name);
+    if (it == _n_args_)
+        throw std::invalid_argument(
+            "Unknown argument '" + arg_name + "' for '" + name + "'.");
+    else
+        _arguments_[it].assign_ptr(ptr_to_value);
+}
+
+/* Overload constructor for argument. */
+void Base_Function_Impl::init_defaults(const std::string &name,
+                                       const dict_args &args_val,
+                                       const dict_args &domain)
+{
+    this->name = name;
+    this->_n_args_ = args_val.size();
+    this->_arguments_ = new Function_Argument[args_val.size()];
+
+    ushort c = 0;
     for (const auto &pair : args_val)
     {
-        auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
-        if (it == _args_names_.end())
-            throw std::invalid_argument(
-                "Unknown argument '" + pair.first + "' for '" + _name_ + "'.");
-        else
-            _args_val_[std::distance(_args_names_.begin(), it)] = pair.second;
+        _arguments_[c].name = pair.first;
+        _arguments_[c].set(pair.second);
+        ++c;
     }
-}
 
-/* Overload assignment of non default POINTER arguments. */
-void Base_Function_Impl::assign_args(const dict_args_ptr &args_ptr)
-{
-    for (const auto &pair : args_ptr)
-    {
-        auto it = std::find(_args_names_.begin(), _args_names_.end(), pair.first);
-        if (it == _args_names_.end())
-            throw std::invalid_argument(
-                "Unknown argument '" + pair.first + "' for '" + _name_ + "'.");
-        else
-            _args_ptr_[std::distance(_args_names_.begin(), it)] = pair.second;
-    }
+    set_range(domain); // assign domain
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -171,24 +183,12 @@ ushort Base_Function_Impl::set_range(const dict_args &new_range)
     for (auto const &x : new_range)
     {
         if (x.first == "min")
-        {
-            if (is_new_min)
-                throw std::invalid_argument(
-                    "Multiple definition for 'min' in '" + _name_ + "'.");
             is_new_min = true;
-        }
         else if (x.first == "max")
-        {
-            if (is_new_max)
-                throw std::invalid_argument(
-                    "Multiple definition for 'max' in '" + _name_ + "'.");
             is_new_max = true;
-        }
         else
-        {
             throw std::invalid_argument(
                 "Invalid range keyword '" + x.first + "'. Provide only 'min' and/or 'max'.");
-        }
 
         // load the new values
         if (is_new_min)
@@ -198,45 +198,45 @@ ushort Base_Function_Impl::set_range(const dict_args &new_range)
     }
 
     //===== Adjust new min value and domain =====//
-    if (std::find(_args_names_.begin(), _args_names_.end(), "min") != _args_names_.end())
+    if (find("min") < _n_args_)
     {
-        //----- Overwrite min if it exists as argument (e .g. uniform distribution) -----//
-        min_val = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "min") - _args_names_.begin());
+        // Overwrite min if it exists as argument (e .g. uniform distribution)
+        min_val = _arguments_[find("min")].get();
         if (is_new_min)
             tools::warning(
-                "Overwriting range min with argument min " + std::to_string(min_val) + " in '" + _name_ + "'.");
+                "Overwriting range min with argument min " + std::to_string(min_val) + " in '" + name + "'.");
         is_new_min = true;
     }
     else if (is_new_min)
     {
-        //----- Check compatibility with min from domain (e .g. uniform distribution) -----//
+        // Check compatibility with min from domain (e .g. uniform distribution)
         if (min_val < _range_min_)
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(min_val) + " for distribution '" + _name_ + "'.");
+                "Invalid min value " + std::to_string(min_val) + " for distribution '" + name + "'.");
     }
 
     //===== Adjust new max value and domain =====//
-    if (std::find(_args_names_.begin(), _args_names_.end(), "max") != _args_names_.end())
+    if (find("max") < _n_args_)
     {
-        //----- Overwrite max if it exists as argument -----//
-        max_val = get_arg(std::find(_args_names_.begin(), _args_names_.end(), "max") - _args_names_.begin());
+        // Overwrite max if it exists as argument
+        max_val = _arguments_[find("max")].get();
         if (is_new_max)
             tools::warning(
-                "Overwriting range max with argument max " + std::to_string(max_val) + " in '" + _name_ + "'.");
+                "Overwriting range max with argument max " + std::to_string(max_val) + " in '" + name + "'.");
         is_new_max = true;
     }
     else if (is_new_max)
     {
-        //----- Check compatibility with max from domain -----//
+        // Check compatibility with max from domain
         if (max_val > _range_max_)
             throw std::invalid_argument(
-                "Invalid max value " + std::to_string(max_val) + " for distribution '" + _name_ + "'.");
+                "Invalid max value " + std::to_string(max_val) + " for distribution '" + name + "'.");
     }
 
     //===== Assign range and respective validation method =====//
 
     // at least one from previous range (domain) should be finite
-    // FIXME : to be moved to NA...
+    // UPDATE : to be moved to NA...
     is_new_min = (is_new_min != -INF_DOUBLE) || (_range_min_ != -INF_DOUBLE);
     is_new_max = (is_new_max != INF_DOUBLE) || (_range_max_ != INF_DOUBLE);
 
@@ -276,50 +276,6 @@ ushort Base_Function_Impl::set_range(const dict_args &new_range)
     return output;
 }
 
-/* Overload constructor for argument VALUES. */
-void Base_Function_Impl::init(const std::string &name,
-                         const dict_args &args_val,
-                         const str_vec &order,
-                         const dict_args &domain)
-{
-    _name_ = name;
-    _args_names_ = order;
-    _args_val_ = new double[args_val.size()];
-
-    size_t i = 0;
-    for (const std::string &argID : order)
-        _args_val_[i++] = args_val.at(argID);
-
-    assign_val_mode(); // assign getter and setter for scalar mode
-    set_range(domain); // assign domain
-}
-
-/* Overload constructor for argument POINTERS. */
-void Base_Function_Impl::init(const std::string &name,
-                         const dict_args_ptr &args_ptr,
-                         const str_vec &order,
-                         const dict_args &domain)
-{
-    _name_ = name;
-    _args_names_ = order;
-    _args_ptr_ = new const double *[args_ptr.size()];
-
-    size_t c = 0;
-    for (const std::string &argID : order)
-    {
-        if (args_ptr.find(argID) == args_ptr.end())
-            throw std::invalid_argument(
-                "Argument '" + argID + "' not provided for '" + _name_ + "'.");
-        else
-            _args_ptr_[c] = args_ptr.at(argID);
-
-        ++c;
-    }
-
-    assign_ptr_mode(); // assign getter and setter for pointer mode
-    set_range(domain); // assign domain
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Function : show args  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,12 +283,11 @@ void Base_Function_Impl::init(const std::string &name,
 /* Return formatted argument names of the distribution. */
 const std::string Base_Function_Impl::show_arg_names() const
 {
-    if (!_args_names_.empty())
+    if (_n_args_ > 0)
     {
-        std::string output = _args_names_[0];
-        for (size_t i = 1; i < _args_names_.size(); ++i)
-            output += C_LIST_DELIM + _args_names_[i];
-
+        std::string output = _arguments_[0].name;
+        for (ushort c = 1; c < _n_args_; ++c)
+            output += C_LIST_DELIM + _arguments_[c].name;
         return output;
     }
 
@@ -342,12 +297,11 @@ const std::string Base_Function_Impl::show_arg_names() const
 /* Return formatted argument names of the distribution. */
 const std::string Base_Function_Impl::show_arg_values() const
 {
-    if (!_args_names_.empty())
+    if (_n_args_ > 0)
     {
-        std::string output = std::to_string(get_arg(0));
-        for (size_t i = 1; i < _args_names_.size(); ++i)
-            output += C_LIST_DELIM + std::to_string(get_arg(i));
-
+        std::string output = std::to_string(_arguments_[0].get());
+        for (ushort c = 1; c < _n_args_; ++c)
+            output += C_LIST_DELIM + std::to_string(_arguments_[c].get());
         return output;
     }
 
@@ -382,11 +336,11 @@ Base_Function::Base_Function() : pImpl(std::make_unique<Base_Function_Impl>()) {
 Base_Function::~Base_Function() = default;
 
 //----- FUNCTION NAME -----//
-const std::string &Base_Function::get_name() const { return pImpl->_name_; }
+const std::string &Base_Function::get_name() const { return pImpl->name; }
 
 //----- ARGUMENTS -----//
-double Base_Function::get_arg(ushort i) const { return pImpl->get_arg(i); }
-void Base_Function::set_arg(ushort i, double x) { pImpl->set_arg(i, x); }
+double Base_Function::get_arg(ushort i) const { return pImpl->_arguments_[i].get(); }
+void Base_Function::set_arg(ushort i, double x) { pImpl->_arguments_[i].set(x); }
 const std::string Base_Function::show_arg_names() const { return pImpl->show_arg_names(); }
 const std::string Base_Function::show_arg_values() const { return pImpl->show_arg_values(); }
 
@@ -399,28 +353,26 @@ bool Base_Function::valid(double x) const { return pImpl->valid(x); }
 
 //----- ARGUMENTS -----//
 // note: just for initial non-default arguments
-void Base_Function::assign_args(const dict_args &new_args_val) { pImpl->assign_args(new_args_val); }
-void Base_Function::assign_args(const dict_args_ptr &new_args_ptr) { pImpl->assign_args(new_args_ptr); }
+void Base_Function::assign_args(const dict_args &new_args_val)
+{
+    for (const auto &pair : new_args_val)
+        pImpl->assign_argument(pair.first, pair.second);
+}
+void Base_Function::assign_args(const dict_args_ptr &new_args_ptr)
+{
+    for (const auto &pair : new_args_ptr)
+        pImpl->assign_argument(pair.first, pair.second);
+}
 
 //----- RANGE -----//
 ushort Base_Function::set_range(const dict_args &new_range) { return pImpl->set_range(new_range); }
-double Base_Function::get_range_min() const { return pImpl->get_range_min(); }
-double Base_Function::get_range_max() const { return pImpl->get_range_max(); }
+double Base_Function::get_range_min() const { return pImpl->_range_min_; }
+double Base_Function::get_range_max() const { return pImpl->_range_max_; }
 
 /* Overload constructor for argument VALUES. */
-void Base_Function::init(const std::string &name,
-                         const dict_args &args_val,
-                         const str_vec &order,
-                         const dict_args &domain)
+void Base_Function::init_defaults(const std::string &name,
+                                  const dict_args &args_val,
+                                  const dict_args &domain)
 {
-    pImpl->init(name, args_val, order, domain);
-}
-
-/* Overload constructor for argument POINTERS. */
-void Base_Function::init(const std::string &name,
-                         const dict_args_ptr &args_ptr,
-                         const str_vec &order,
-                         const dict_args &domain)
-{
-    pImpl->init(name, args_ptr, order, domain);
+    pImpl->init_defaults(name, args_val, domain);
 }
