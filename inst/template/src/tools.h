@@ -1,7 +1,7 @@
 /*
  * tools.h
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #ifndef HOUSEPI__TOOLS__H
@@ -95,8 +95,10 @@ using ulong = unsigned long int;
 template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
-using dict_args = std::unordered_map<std::string, double>;
-using dict_args_ptr = std::unordered_map<std::string, const double *>;
+// Aliases for dictionaries with input arguments
+// Note: not to be used for storing values
+using dict_args = std::map<std::string, double>;
+using dict_args_ptr = std::map<std::string, const double *>;
 
 using str_vec = std::vector<std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;

@@ -1,7 +1,7 @@
 /*
  * profiles.h
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "distribution.h"
@@ -12,16 +12,19 @@
 class Base_InfecProfile
 {
 public:
+	//===== CONSTRUCTOR =====//
 	Base_InfecProfile();
 	Base_InfecProfile(std::function<double(parID)> get);
-	~Base_InfecProfile();
+	virtual ~Base_InfecProfile();
 
+	//===== GETTER =====//
 	double get_arg(ushort i);
 
 	virtual double pdf(const std::vector<double> &x);
 	virtual double cdf(const std::vector<double> &x);
 
 protected:
+	//===== SETTER =====//
 	void init(const std::string &name, const dict_args &defaults);
 
 private:
@@ -30,6 +33,7 @@ private:
 	std::vector<double> _values_ = {};
 	std::vector<parID> _indexes_ = {};
 
+	//----- Functional methods -----//
 	double (Base_InfecProfile::*_func_get_arg_)(ushort) = &Base_InfecProfile::_internal_get_arg_;
 	std::function<double(parID)> _external_param_getter_ = nullptr;
 

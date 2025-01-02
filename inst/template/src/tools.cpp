@@ -1,7 +1,7 @@
 /*
  * tools.cpp
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "tools.h"
@@ -159,7 +159,7 @@ namespace tools
         catch (const std::invalid_argument &e)
         {
             throw std::invalid_argument(
-                "Impossible to import " + errtxt + ": invalid value '" + input + "'.");
+                "Impossible to import " + errtxt + ". Value '" + input + "' is not suitabe to conversion.");
         }
     }
 
@@ -245,11 +245,11 @@ namespace tools
             // check the validity of the headers
             for (const std::string &req : required_headers)
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                    sms += ((sms.empty()) ? "Missing column(s):" : ",") + (" '" + req + "'");
+                    sms += ((sms.empty()) ? "Missing column(s) " : ",") + (" '" + req + "'");
 
             // raise the error if something was missing
             if (!sms.empty())
-                throw std::invalid_argument(sms);
+                throw std::invalid_argument(sms + ".");
         }
 
         return headers;
@@ -343,12 +343,12 @@ namespace tools
                         //===== NAME =====//
                         if (!getline(iss, name, C_DELIM))
                             throw std::runtime_error(
-                                "Unable to extract list name. Check file line: " + line);
+                                "Unable to extract list name. Check file line '" + line + "'.");
 
                         //===== CHOICE =====//
                         if (!getline(iss, choice))
                             throw std::runtime_error(
-                                "Unable to extract list value. Check file line: " + line);
+                                "Unable to extract list value. Check file line '" + line + "'.");
 
                         // add the new setup
                         csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
@@ -372,35 +372,28 @@ namespace tools
                         dict_str_vec &csv_parsed_table,
                         const str_vec &required_headers)
     {
-        try
+        if (!is_na(pathtofile))
         {
-            if (!is_na(pathtofile))
+            std::ifstream input(pathtofile.c_str());
+
+            if (input.is_open())
             {
-                std::ifstream input(pathtofile.c_str());
+                str_vec headers = read_column_headers(input, required_headers);
+                std::map<std::string, std::string> this_row = {};
 
-                if (input.is_open())
+                csv_parsed_table.clear(); // FIXME: is this correct?
+                while (read_row_by_headers(input, headers, this_row))
                 {
-                    str_vec headers = read_column_headers(input, required_headers);
-                    std::map<std::string, std::string> this_row = {};
-
-                    csv_parsed_table.clear(); // FIXME: is this correct?
-                    while (read_row_by_headers(input, headers, this_row))
-                    {
-                        for (const auto &x : this_row)
-                            csv_parsed_table[x.first].push_back(x.second);
-                        this_row.clear();
-                    }
-                }
-                else
-                {
-                    throw std::runtime_error(
-                        "Impossible to open file '" + pathtofile + "'.");
+                    for (const auto &x : this_row)
+                        csv_parsed_table[x.first].push_back(x.second);
+                    this_row.clear();
                 }
             }
-        }
-        catch (const std::exception &e)
-        {
-            error(e.what());
+            else
+            {
+                throw std::runtime_error(
+                    "Impossible to open file '" + pathtofile + "'.");
+            }
         }
     }
 

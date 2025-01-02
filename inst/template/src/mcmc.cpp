@@ -1,7 +1,7 @@
 /*
  * mcmc.cpp
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "mcmc.h"
@@ -82,10 +82,16 @@ void MCMC::assign_infectivity_profile(const std::string &name)
 }
 
 /* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(const std::vector<double> &x) { return _infec_profile_->pdf(x); }
+double MCMC::infec_profile_inst(const std::vector<double> &x)
+{
+    return _infec_profile_->pdf(x);
+}
 
 /* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(const std::vector<double> &x) { return _infec_profile_->cdf(x); }
+double MCMC::infec_profile_cumul(const std::vector<double> &x)
+{
+    return _infec_profile_->cdf(x);
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -407,16 +413,13 @@ void MCMC::update_global_loglike()
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t H = 0; H < n_houses(); ++H)
     {
-        // FLAG
-        tools::print_stderr("LL[" + std::to_string(H) + "]=");
-        // FLAG_END
-
         if (!_error_message_.empty())
             continue;
 
         try
         {
             Household &house = pBuild->house_vector[H];
+
             // update house loglikelihood
             house.set_loglike(compute_house_loglike(house));
             new_ll += house.get_loglike() + pBuild->compute_augm_model_loglike(house);
@@ -429,10 +432,6 @@ void MCMC::update_global_loglike()
                     _error_message_ = e.what();
             }
         }
-
-        // FLAG
-        tools::print_stderr(std::to_string(new_ll) + "\n");
-        // FLAG_END
     }
     if (!_error_message_.empty())
         tools::error(_error_message_);

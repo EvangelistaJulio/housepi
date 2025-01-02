@@ -1,7 +1,7 @@
 /*
  * mcmc_core.cpp
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "mcmc_build.h"
@@ -409,8 +409,19 @@ void Monte_Carlo_Build::build_setup()
 /* Read parameter definitions and run assignment. */
 void Monte_Carlo_Build::read_params(const std::string &pathtofile)
 {
-    tools::read_csv_table(pathtofile, _param_deftable_, param_file_headers);
+    try
+    {
+        tools::read_csv_table(pathtofile, _param_deftable_, param_file_headers);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While reading parameter definitions: " + std::string(e.what()));
+    }
+        
+    // use loaded definitions to build 
     build_params();
+    // store the file name in the report
     _report_pathtofile_["params"] = pathtofile;
 }
 

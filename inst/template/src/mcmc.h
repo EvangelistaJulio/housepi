@@ -1,7 +1,7 @@
 /*
  * mcmc.h
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #ifndef HOUSEPI__MCMC__H

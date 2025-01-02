@@ -1,7 +1,7 @@
 /*
  * mcmc_build.cpp
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "mcmc_build.h"
@@ -289,14 +289,19 @@ size_t Monte_Carlo_Build::report_data(const std::string &key) const
 /* Read Model Augmented Variable file */
 void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
 {
-    const str_vec augm_file_headers = {
-        "name", "status", "value", "valuetype", "discrete",
-        "model", "args", "argsval", "argstype", "rule",
-        "rule_scale", "rule_scaletype", "rule_from", "rule_fromtype",
-        "min", "mintype", "max", "maxtype", "init_rand"};
+    try
+    {
+        tools::read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While reading augmented definitions: " + std::string(e.what()));
+    }
 
-    tools::read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
+    // use loaded definitions to build 
     build_augm();
+    // store the file name in the report
     _report_pathtofile_["augm"] = pathtofile;
 }
 

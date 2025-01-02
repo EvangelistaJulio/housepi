@@ -1,7 +1,7 @@
 /*
  * profiles.cpp
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "mcmc.h"
@@ -9,8 +9,6 @@
 Base_InfecProfile::Base_InfecProfile() {}
 Base_InfecProfile::Base_InfecProfile(std::function<double(parID)> get) : _external_param_getter_(std::move(get)) {}
 Base_InfecProfile::~Base_InfecProfile() = default;
-
-double Base_InfecProfile::get_arg(ushort i) { return (this->*_func_get_arg_)(i); }
 
 void Base_InfecProfile::init(const std::string &name, const dict_args &defaults)
 {
@@ -35,10 +33,20 @@ double Base_InfecProfile::cdf(const std::vector<double> &x)
 		"Call to undefined method 'cdf' of infectivity profile '" + _name_ + "'.");
 }
 
+
+/* Return value indexed as 'i'. */
+double Base_InfecProfile::get_arg(ushort i)
+{
+	return (this->*_func_get_arg_)(i);
+}
+
+/* Return internal value indexed as 'i'. */
 double Base_InfecProfile::_internal_get_arg_(ushort i)
 {
 	return _values_[i];
 }
+
+/* Return external value indexed as 'i' with functional . */
 double Base_InfecProfile::_external_get_arg_(ushort i)
 {
 	return _external_param_getter_(_indexes_[i]);
@@ -98,13 +106,14 @@ public:
 		double s = get_arg(2); // scale argument
 		double T = get_arg(3); // mean incubation period argument
 
-		double norm_pdf = (s / a) * (1. + (incub / T - 1.) * pow(1 + exp(m / s), -a) - (incub / T) * (pow(1. + exp((m + T) / s), -a)));
+		double norm_pdf = (s / a) * (1. + (incub / T - 1.) * pow(1 + exp(m / s), -a) - (incub / T) * pow(1. + exp((m + T) / s), -a));
 
 		if (t_OST < 0)
 		{
 			t_OST *= (T / incub);
 		}
-		return exp((m - t_OST) / s) * pow(1. + exp((m - t_OST) / s), -1. - a) / norm_pdf;
+
+		return exp((m - t_OST) / s) * pow(1. + exp((m - t_OST) / s), -a - 1.) / norm_pdf;
 	}
 
 	//*  Cumulative distribution function. *//

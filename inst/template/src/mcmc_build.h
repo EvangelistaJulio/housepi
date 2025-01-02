@@ -1,7 +1,7 @@
 /*
  * mcmc_build.h
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #ifndef HOUSEPI__MCMC__BUILD__H
@@ -79,7 +79,7 @@ public:
     //=======================//
     //===== CONSTRUCTOR =====//
     //=======================//
-    
+
     Monte_Carlo_Build();
     ~Monte_Carlo_Build();
 
@@ -117,16 +117,18 @@ public:
     ulong setup_c_sample_size; // single chain sample size
     ulong setup_c_n_sweeps;    // single chain n. of sweeps
 
+    void set_n_threads(unsigned n = 1);
+
     //=====================//
     //===== PARAMETER =====//
     //=====================//
 
     //----- Parameter - Attributes -----//
-    str_vec param_file_headers = {"name", "value",
-                                  "infer", "discrete",
-                                  "prior", "args", "argsval",
-                                  "rule", "rule_scale",
-                                  "min", "max"};
+    const str_vec param_file_headers = {"name", "value",
+                                        "infer", "discrete",
+                                        "prior", "args", "argsval",
+                                        "rule", "rule_scale",
+                                        "min", "max"};
     std::vector<parID> param_to_be_inferred = {};
     std::vector<parID> param_to_be_static = {};
 
@@ -148,18 +150,33 @@ public:
     double param_move_logratio(const parID &p) const;
     void adapt_param_rule(const parID &p, double ratio);
 
-    //===== HOUSEHOLD DATA : Attributes =====//
+    //==========================//
+    //===== HOUSEHOLD DATA =====//
+    //==========================//
+
+    //----- Household Data - Attributes -----//    
     size_t n_individuals = 0;
     size_t n_households = 0;
     std::vector<Household> house_vector = {};
-
-    //----- Data Reports : Attributes -----//
     str_vec data_headers = {};
     ulong _n_contacts_ = 0;
     std::map<std::string, size_t> _report_data_;
     std::map<std::string, std::string> _report_pathtofile_;
 
-    //===== AUGMENTED : Attributes =====//
+    void assign_house(const std::string &ID);
+    void update_report_data();
+    size_t report_data(const std::string &key) const;
+
+    //=====================//
+    //===== AUGMENTED =====//
+    //=====================//
+
+    //----- Augmented - Attributes -----//
+    const str_vec augm_file_headers = {
+        "name", "status", "value", "valuetype", "discrete",
+        "model", "args", "argsval", "argstype", "rule",
+        "rule_scale", "rule_scaletype", "rule_from", "rule_fromtype",
+        "min", "mintype", "max", "maxtype", "init_rand"};
     std::unordered_set<augmID> augm_list_full = {};
     std::unordered_set<augmID> augm_list_infer = {};
     std::unordered_set<augmID> augm_list_model = {};
@@ -167,6 +184,10 @@ public:
     std::map<int, std::unordered_set<augmID>> augm_status_map_model = {};
     bool is_augm_infer = false;
     bool is_augm_model = false;
+
+    //----- Augmented - Setter -----//
+    void clear_all_augm(Household &house, indiv i);
+    void assign_all_augm(Household &house, indiv i);
 
     //===== READ =====//
     void read_setup(const std::string &pathtofile);
@@ -199,28 +220,19 @@ public:
     Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
-    //===== SETUP =====//
-    void set_n_threads(unsigned n = 1);
+    //======================//
+    //===== METROPOLIS =====//
+    //======================//
 
-    //===== DIAGNOSTICS =====//
     ulong dgn_count = 0;
     std::vector<double> dgn_glob_loglike = {};
-
-    //===== SETUP =====//
-    void assign_house(const std::string &ID);
-    void update_report_data();
-    size_t report_data(const std::string &key) const;
-
-    //===== AUGMENTED =====//
-    void clear_all_augm(Household &house, indiv i);
-    void assign_all_augm(Household &house, indiv i);
 
     void disable_assert();
     void init_move_counts();
     void init_diagnostics(bool is_power_post);
     void update_diagnostics(double glob_loglike, bool is_power_post);
 
-    //----- Metropolis : augmented moves -----//
+    //----- Metropolis - augmented moves -----//
     double compute_augm_model_loglike(const Household &house) const;
 
     double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
@@ -265,7 +277,10 @@ public:
     std::uniform_real_distribution<double> _uniform_distr_;
     double uniform();
 
+    //=================//
     //===== BUILD =====//
+    //=================//
+
     void build_augm();
     void build_setup();
     void build_params();

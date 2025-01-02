@@ -1,7 +1,7 @@
 /*
  * mcmc_R_import_export.cpp
  *
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "mcmc_build.h"
