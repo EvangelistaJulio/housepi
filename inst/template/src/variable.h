@@ -61,6 +61,7 @@ public:
 	//===== SHOW =====//
 	const std::string show_arg_names() const;
 	const std::string show_arg_values() const;
+	const std::string show_scale() const;
 
 protected:
 	std::shared_ptr<Base_Distribution> _distr_ptr_;
@@ -170,6 +171,7 @@ public:
 	const std::string &get_prop_name() const;
 	const std::string show_prop_arg_names() const;
 	const std::string show_prop_arg_values() const;
+	const std::string show_prop_scale() const;
 
 	const std::string show_range_min() const;
 	const std::string show_range_max() const;

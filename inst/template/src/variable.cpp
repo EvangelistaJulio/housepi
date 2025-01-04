@@ -84,7 +84,7 @@ void Base_Proposer::adapt(double ratio)
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
 
     for (const ushort &argID : _args_to_adapt_)
-        (_distr_ptr_->set_arg)(argID, ((_distr_ptr_->get_arg)(argID)) * factor);
+        (_distr_ptr_->set_arg)(argID, (_distr_ptr_->get_arg)(argID)*factor);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +93,13 @@ void Base_Proposer::adapt(double ratio)
 
 const std::string Base_Proposer::show_arg_names() const { return _distr_ptr_->show_arg_names(); }
 const std::string Base_Proposer::show_arg_values() const { return _distr_ptr_->show_arg_values(); }
+const std::string Base_Proposer::show_scale() const
+{
+    if (_args_to_adapt_.empty())
+        return UNDEFINED;
+    else
+        return std::to_string((_distr_ptr_->get_arg)(_args_to_adapt_[0]));
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Base Proposer - functional  ///////////////////////////////////
@@ -105,7 +112,6 @@ double Base_Proposer::_propose_undefined_(rnd_gen &prng, double start)
     UNUSED(start);
     throw std::invalid_argument(
         "Attempt to call a method of an undefined proposer.");
-
     return std::numeric_limits<double>::quiet_NaN();
 }
 double Base_Proposer::_propose_sum_to_previous_(rnd_gen &prng, double start) { return start + rand(prng); }
@@ -354,9 +360,9 @@ void Base_Variable::assign_distribution(const std::string &distr_name,
                                         const dict_args &range)
 {
     _distr_ptr_ = distribution_switchboard(distr_name,
-                               distr_args,
-                               range,
-                               _is_discrete_);
+                                           distr_args,
+                                           range,
+                                           _is_discrete_);
 }
 
 /* Assign distribution with pointer arguments. */
@@ -365,9 +371,9 @@ void Base_Variable::assign_distribution(const std::string &distr_name,
                                         const dict_args &range)
 {
     _distr_ptr_ = distribution_switchboard(distr_name,
-                               distr_args,
-                               range,
-                               _is_discrete_);
+                                           distr_args,
+                                           range,
+                                           _is_discrete_);
 }
 
 /* Assign proposer. */
@@ -458,6 +464,7 @@ const std::string Base_Variable::show_distr_arg_values() const { return _distr_p
 const std::string &Base_Variable::get_prop_name() const { return _prop_ptr_->get_name(); }
 const std::string Base_Variable::show_prop_arg_names() const { return _prop_ptr_->show_arg_names(); }
 const std::string Base_Variable::show_prop_arg_values() const { return _prop_ptr_->show_arg_values(); }
+const std::string Base_Variable::show_prop_scale() const { return _prop_ptr_->show_scale(); }
 
 const std::string Base_Variable::show_range_min() const { return _distr_ptr_->show_range_min(); }
 const std::string Base_Variable::show_range_max() const { return _distr_ptr_->show_range_max(); }
@@ -466,12 +473,17 @@ const std::string Base_Variable::show() const
 {
     using namespace tools;
     std::ostringstream oss;
-    oss << get_value() << C_DELIM << truth(_infer_);
-    if (_infer_)
-        oss << C_DELIM << get_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
-            << C_DELIM << get_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-            << C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
-            << C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
+    oss << name
+        << C_DELIM << get_value()
+        << C_DELIM << truth(_infer_)
+        << C_DELIM << truth(_is_discrete_)
+        << C_DELIM << get_distr_name()
+        << C_DELIM << show_distr_arg_names()
+        << C_DELIM << show_distr_arg_values()
+        << C_DELIM << get_prop_name()
+        << C_DELIM << tools::is_na(show_prop_scale())
+        << C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
+        << C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
 
     return oss.str();
 }
@@ -491,7 +503,6 @@ double Base_Variable::_propose_error_(rnd_gen &prng)
     UNUSED(prng);
     throw std::invalid_argument(
         "Call to proposer of constant variable '" + get_name() + "'.");
-
     return 0.;
 }
 double Base_Variable::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }

@@ -126,7 +126,7 @@ public:
     //----- Parameter - Attributes -----//
     const str_vec param_file_headers = {"name", "value",
                                         "infer", "discrete",
-                                        "prior", "args", "argsval",
+                                        "prior", "arg_name", "arg_value",
                                         "rule", "rule_scale",
                                         "min", "max"};
     std::vector<parID> param_to_be_inferred = {};
@@ -154,7 +154,7 @@ public:
     //===== HOUSEHOLD DATA =====//
     //==========================//
 
-    //----- Household Data - Attributes -----//    
+    //----- Household Data - Attributes -----//
     size_t n_individuals = 0;
     size_t n_households = 0;
     std::vector<Household> house_vector = {};
@@ -172,11 +172,14 @@ public:
     //=====================//
 
     //----- Augmented - Attributes -----//
-    const str_vec augm_file_headers = {
-        "name", "status", "value", "valuetype", "discrete",
-        "model", "args", "argsval", "argstype", "rule",
-        "rule_scale", "rule_scaletype", "rule_from", "rule_fromtype",
-        "min", "mintype", "max", "maxtype", "init_rand"};
+    const str_vec augm_file_headers = {"name", "status",
+                                       "value", "value_type", 
+                                       "discrete", "init_rand",
+                                       "model", "arg_name", "arg_value", "arg_type", 
+                                       "rule", "rule_scale", "rule_scale_type", 
+                                       "rule_from", "rule_from_type",
+                                       "min", "min_type", 
+                                       "max", "max_type"};
     std::unordered_set<augmID> augm_list_full = {};
     std::unordered_set<augmID> augm_list_infer = {};
     std::unordered_set<augmID> augm_list_model = {};

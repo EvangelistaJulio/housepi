@@ -536,7 +536,7 @@ rnd_gen &Monte_Carlo_Build::get_prng() { return (this->*_func_prng_)(); }
 double Monte_Carlo_Build::uniform() { return _uniform_distr_(get_prng()); }
 
 /* String with parameter definitions at the current state. */
-std::string Monte_Carlo_Build::show_param(const parID &p) const { return p + C_DELIM + param_map.at(p).show(); }
+std::string Monte_Carlo_Build::show_param(const parID &p) const { return param_map.at(p).show(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
