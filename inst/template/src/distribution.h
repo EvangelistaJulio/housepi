@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <unordered_map>
 #include <cmath>
 
 #include "tools.h"
@@ -41,6 +40,10 @@ public:
 	double logratio(double xold, double xnew) const;
 	double rand(rnd_gen &prng);
 
+	//----- Adjust methods for truncation and/or discretization -----//
+	virtual void assign_reshaping(const std::map<std::string, double> &range,
+								  bool discrete);
+
 protected:
 	//----- Distribution specific virtual methods -----//
 	virtual double _pdf_(double x) const;
@@ -50,8 +53,8 @@ protected:
 	virtual void _update_args_();
 	virtual double _rand_(rnd_gen &prng);
 
-	//----- Adjust methods for truncation and/or discretization -----//
-	void _assign_reshaping_(const dict_args &range, const std::string &discr);
+	void _assign_reshaping_(std::map<std::string, double> range,
+							const std::string &discrete);
 
 	//----- Functional methods for public methods -----//
 	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
@@ -110,14 +113,8 @@ private:
 //////////////////////////////////  distribution switchboard  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Overloaded distribution with constant values. */
+/* Distribution with default scalar arguments. */
 std::shared_ptr<Base_Distribution> distribution_switchboard(
-	const std::string &name = UNDEFINED, const dict_args &args = {},
-	const dict_args &range = {}, bool is_discrete = false);
-
-/* Overloaded distribution with pointer to values. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(
-	const std::string &name, const dict_args_ptr &args,
-	const dict_args &range = {}, bool is_discrete = false);
+	const std::string &name = UNDEFINED);
 
 #endif // HOUSEPI__DISTRIBUTION__H

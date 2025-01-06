@@ -175,6 +175,15 @@ namespace tools
         return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
+    /* Converter checking for NA values formatter for NA */
+    double natod(const std::string &input)
+    {
+        if (is_na(input))
+            return std::numeric_limits<double>::quiet_NaN();
+        else
+            return stod(input, "");
+    }
+
     /* Converter to unsigned long using std::stoul with function pointer casting */
     unsigned long stoul(const std::string &input, const std::string &errtxt)
     {
@@ -199,7 +208,14 @@ namespace tools
         else
             throw std::invalid_argument(
                 "Unrecognized boolean value '" + tkn + "'.");
-    }
+    }    
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
 
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
@@ -245,7 +261,7 @@ namespace tools
             // check the validity of the headers
             for (const std::string &req : required_headers)
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                    sms += ((sms.empty()) ? "Missing column(s) " : ",") + (" '" + req + "'");
+                    sms += ((sms.empty()) ? "Missing column(s)" : ",") + (" '" + req + "'");
 
             // raise the error if something was missing
             if (!sms.empty())
@@ -297,26 +313,6 @@ namespace tools
         // rea the entries of the dictionary
         while (getline(args_ss, tmp, delim))
             output.push_back(tmp);
-
-        return output;
-    }
-
-    /* Combine after control two lists into a dictionary */
-    const dict_args merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals)
-    {
-        str_vec keys = parse_list_args(tkn_keys);
-        str_vec vals = parse_list_args(tkn_vals);
-        dict_args output = {};
-
-        if (keys.size() == vals.size())
-        {
-            for (size_t i = 0; i < keys.size(); ++i)
-                if ((!is_na(keys[i])) && (!is_na(vals[i])))
-                    output.emplace(keys[i], stod(vals[i], "Value of '" + keys[i] + "'"));
-        }
-        else
-            throw std::invalid_argument(
-                "Mismatching definitions in arguments.");
 
         return output;
     }

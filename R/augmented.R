@@ -67,7 +67,7 @@ HousepiAugmentedClass <- R6::R6Class(
           stop(cli::format_error("Unknown model for random initialization."))
         } else {
           value_ <- NA
-          valuetype_ <- NA
+          value_type_ <- NA
         }
       } else {
         if (is.na(value)) {
@@ -77,14 +77,14 @@ HousepiAugmentedClass <- R6::R6Class(
           )))
         } else {
           value_ <- str_split_(value)[["values"]]
-          valuetype_ <- str_split_(value)[["types"]]
+          value_type_ <- str_split_(value)[["types"]]
         }
       }
 
       #----- method -----#
-      args_ <- NA
-      argsval_ <- NA
-      argstype_ <- NA
+      arg_name_ <- NA
+      arg_value_ <- NA
+      arg_type_ <- NA
       # assign method only if arguments are provided
       if (!is.na(model))  {
         if (length(args) == 0) {
@@ -92,51 +92,51 @@ HousepiAugmentedClass <- R6::R6Class(
             sprintf("Missing args for augmented variable '%s'.", name)
           )))
         } else {
-          args_ <- str_join_(names(args))
+          arg_name_ <- str_join_(names(args))
           tmp <- str_split_(args)
-          argsval_ <- str_join_(tmp[["values"]])
-          argstype_ <- str_join_(tmp[["types"]])
+          arg_value_ <- str_join_(tmp[["values"]])
+          arg_type_ <- str_join_(tmp[["types"]])
         }
       }
 
       #----- rule -----#
       rule_scale_ <- NA
-      rule_scaletype_ <- NA
+      rule_scale_type_ <- NA
       rule_from_ <- NA
-      rule_fromtype_ <- NA
+      rule_from_type_ <- NA
       if ((!is.na(rule)) & (rule != "gibbs")) {
         rule_scale_ <- str_split_(rule_scale)[["values"]]
-        rule_scaletype_ <- str_split_(rule_scale)[["types"]]
+        rule_scale_type_ <- str_split_(rule_scale)[["types"]]
 
         rule_from_ <- str_split_(rule_from)[["values"]]
-        rule_fromtype_ <- str_split_(rule_from)[["types"]]
+        rule_from_type_ <- str_split_(rule_from)[["types"]]
       }
 
       #----- range -----#
       if (length(range) == 0) {
         # empty range
         min_ <- NA
-        mintype_ <- NA
+        min_type_ <- NA
         max_ <- NA
-        maxtype_ <- NA
+        max_type_ <- NA
       } else {
         # minimum value
         if ("min" %in% names(range)) {
           tmp <- str_split_(range[names(range) == "min"])
           min_ <- tmp[["values"]]
-          mintype_ <- tmp[["types"]]
+          min_type_ <- tmp[["types"]]
         } else {
           min_ <- NA
-          mintype_ <- NA
+          min_type_ <- NA
         }
         # maximum value
         if ("max" %in% names(range)) {
           tmp <- str_split_(range[names(range) == "max"])
           max_ <- tmp[["values"]]
-          maxtype_ <- tmp[["types"]]
+          max_type_ <- tmp[["types"]]
         } else {
           max_ <- NA
-          maxtype_ <- NA
+          max_type_ <- NA
         }
       }
 
@@ -147,21 +147,21 @@ HousepiAugmentedClass <- R6::R6Class(
           name = name,
           status = status,
           value = value_,
-          valuetype = valuetype_,
+          value_type = value_type_,
           discrete = isTRUE(discrete),
           model = model,
-          args = args_,
-          argsval = argsval_,
-          argstype = argstype_,
+          arg_name = arg_name_,
+          arg_value = arg_value_,
+          arg_type = arg_type_,
           rule = rule,
           rule_scale = rule_scale_,
-          rule_scaletype = rule_scaletype_,
+          rule_scale_type = rule_scale_type_,
           rule_from = rule_from_,
-          rule_fromtype = rule_fromtype_,
+          rule_from_type = rule_from_type_,
           min = min_,
-          mintype = mintype_,
+          min_type = min_type_,
           max = max_,
-          maxtype = maxtype_,
+          max_type = max_type_,
           init_rand = init_rand,
           stringsAsFactors = FALSE
         )
@@ -194,21 +194,21 @@ HousepiAugmentedClass <- R6::R6Class(
         name = character(),
         status = character(),
         value = character(),
-        valuetype = character(),
+        value_type = character(),
         discrete = logical(),
         model = character(),
-        args = character(),
-        argsval = character(),
-        argstype = character(),
+        arg_name = character(),
+        arg_value = character(),
+        arg_type = character(),
         rule = character(),
         rule_scale = character(),
-        rule_scaletype = character(),
+        rule_scale_type = character(),
         rule_from = character(),
-        rule_fromtype = character(),
+        rule_from_type = character(),
         min = character(),
-        mintype = character(),
+        min_type = character(),
         max = character(),
-        maxtype = character(),
+        max_type = character(),
         init_rand = logical(),
         stringsAsFactors = FALSE
       )

@@ -20,8 +20,12 @@
 Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
                              double rule_scale,
                              double rule_start_value,
-                             const std::vector<ushort> &args_to_adapt) : _distr_ptr_(distr)
+                             const std::vector<ushort> &args_to_adapt,
+                             bool is_discrete) : _distr_ptr_(distr)
 {
+    // set to discrete
+    _distr_ptr_->assign_reshaping({}, is_discrete);
+
     // assign user rule scale
     _user_rule_scale_ = std::fabs(rule_scale);
 
@@ -177,11 +181,13 @@ public:
     Uniform_Proposer(
         double rule_scale = 0.5,
         double rule_from = INF_DOUBLE,
-        bool is_discrete = false) : Base_Proposer(distribution_switchboard("unif", dict_args(), dict_args(), is_discrete),
+        bool is_discrete = false) : Base_Proposer(distribution_switchboard("unif"),
                                                   rule_scale,
                                                   rule_from,
-                                                  {0, 1})
+                                                  {0, 1},
+                                                  is_discrete)
     {
+        // initialize 
         user_reset();
 
         // method for proposer
@@ -195,8 +201,8 @@ public:
     //===== SETTER =====//
     void user_reset() override
     {
-        _distr_ptr_->assign_args({{"min", -_user_rule_scale_},
-                                  {"max", _user_rule_scale_}});
+        _distr_ptr_->assign_scalar_arg("min", -_user_rule_scale_);
+        _distr_ptr_->assign_scalar_arg("max", _user_rule_scale_);
     }
 };
 
@@ -211,10 +217,11 @@ public:
     Normal_Proposer(
         double rule_scale = 1.0,
         double rule_from = INF_DOUBLE,
-        bool is_discrete = false) : Base_Proposer(distribution_switchboard("norm", dict_args(), dict_args(), is_discrete),
+        bool is_discrete = false) : Base_Proposer(distribution_switchboard("norm"),
                                                   rule_scale,
                                                   rule_from,
-                                                  {1})
+                                                  {1},
+                                                  is_discrete)
     {
         user_reset();
 
@@ -232,8 +239,8 @@ public:
     //===== SETTER =====//
     void user_reset() override
     {
-        _distr_ptr_->assign_args({{"mean", 0.0},
-                                  {"sd", _user_rule_scale_}});
+        _distr_ptr_->assign_scalar_arg("mean", 0.0);
+        _distr_ptr_->assign_scalar_arg("sd", _user_rule_scale_);
     }
 };
 
@@ -248,10 +255,11 @@ public:
     Lognorm_Proposer(
         double rule_scale = 1.0,
         double rule_from = INF_DOUBLE,
-        bool is_discrete = false) : Base_Proposer(distribution_switchboard("lnorm", dict_args(), dict_args(), is_discrete),
+        bool is_discrete = false) : Base_Proposer(distribution_switchboard("lnorm"),
                                                   rule_scale,
                                                   rule_from,
-                                                  {1})
+                                                  {1},
+                                                  is_discrete)
     {
         user_reset();
 
@@ -269,8 +277,8 @@ public:
     //===== SETTER =====//
     void user_reset() override
     {
-        _distr_ptr_->assign_args({{"meanlog", 0.0},
-                                  {"sdlog", _user_rule_scale_}});
+        _distr_ptr_->assign_scalar_arg("meanlog", 0.0);
+        _distr_ptr_->assign_scalar_arg("sdlog", _user_rule_scale_);
     }
 };
 
@@ -282,10 +290,10 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name,
-                                                    double rule_scale,
-                                                    double rule_from,
-                                                    bool is_discrete)
+std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name = UNDEFINED,
+                                                    double rule_scale = INF_DOUBLE,
+                                                    double rule_from = INF_DOUBLE,
+                                                    bool is_discrete = false)
 {
     const std::vector<std::string> options = {"gibbs", "unif", "norm", "lnorm"};
 
@@ -320,7 +328,13 @@ std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name
 ////////////////////////////////  Base_Variable - CONSTRUCTOR  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Base_Variable::Base_Variable() {}
+Base_Variable::Base_Variable(const std::string &name, double value, bool is_discrete)
+{
+    init(name, value, is_discrete);
+    assign_distribution();
+    assign_proposer();
+}
+
 Base_Variable::~Base_Variable() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -355,25 +369,24 @@ void Base_Variable::user_reset()
 }
 
 /* Assign distribution with constant arguments. */
-void Base_Variable::assign_distribution(const std::string &distr_name,
-                                        const dict_args &distr_args,
-                                        const dict_args &range)
+void Base_Variable::assign_distribution(const std::string &distr_name)
 {
-    _distr_ptr_ = distribution_switchboard(distr_name,
-                                           distr_args,
-                                           range,
-                                           _is_discrete_);
+    _distr_ptr_ = distribution_switchboard(distr_name);
 }
 
-/* Assign distribution with pointer arguments. */
-void Base_Variable::assign_distribution(const std::string &distr_name,
-                                        const dict_args_ptr &distr_args,
-                                        const dict_args &range)
+void Base_Variable::assign_distr_scalar_arg(const std::string &arg_name, double x)
 {
-    _distr_ptr_ = distribution_switchboard(distr_name,
-                                           distr_args,
-                                           range,
-                                           _is_discrete_);
+    _distr_ptr_->assign_scalar_arg(arg_name, x);
+}
+void Base_Variable::assign_distr_pointer_arg(const std::string &arg_name, const double *y)
+{
+    _distr_ptr_->assign_pointer_arg(arg_name, y);
+}
+
+/* Assign reshaping to distribution. */
+void Base_Variable::assign_distr_range(const std::map<std::string, double> &range)
+{
+    _distr_ptr_->assign_reshaping(range, _is_discrete_);
 }
 
 /* Assign proposer. */
@@ -386,6 +399,7 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
         // immutable variable if no rule is defined
         _infer_ = false;
         _func_propose_ = &Base_Variable::_propose_error_;
+        _prop_ptr_ = proposer_switchboard();
     }
     else
     {
@@ -406,16 +420,17 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
                 const std::string max_val = _distr_ptr_->show_range_max();
                 std::ostringstream oss;
                 oss << "Initial value " << rule_from << " outside of value range"
-                    << " {min:" << (tools::is_na(min_val) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(min_val))
-                    << ", max:" << (tools::is_na(max_val) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(max_val))
-                    << "}."
+                    << " {min:" << tools::natod(min_val) << ", max:" << tools::natod(max_val) << "}."
                     << " If intentional, ignore this message.";
                 tools::warning(oss.str());
             }
 
-            // assigne the pointer to the proposer
+            // assign the pointer to the proposer
             _prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, _is_discrete_);
-            _func_propose_ = is_from_zero() ? &Base_Variable::_propose_from_zero_ : &Base_Variable::_propose_from_previous_;
+            if (is_from_zero())
+                _func_propose_ = &Base_Variable::_propose_from_zero_;
+            else
+                _func_propose_ = &Base_Variable::_propose_from_previous_;
         }
     }
 }
@@ -471,19 +486,18 @@ const std::string Base_Variable::show_range_max() const { return _distr_ptr_->sh
 
 const std::string Base_Variable::show() const
 {
-    using namespace tools;
     std::ostringstream oss;
     oss << name
         << C_DELIM << get_value()
-        << C_DELIM << truth(_infer_)
-        << C_DELIM << truth(_is_discrete_)
+        << C_DELIM << tools::truth(_infer_)
+        << C_DELIM << tools::truth(_is_discrete_)
         << C_DELIM << get_distr_name()
         << C_DELIM << show_distr_arg_names()
         << C_DELIM << show_distr_arg_values()
         << C_DELIM << get_prop_name()
-        << C_DELIM << tools::is_na(show_prop_scale())
-        << C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
-        << C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
+        << C_DELIM << tools::natod(show_prop_scale())
+        << C_DELIM << tools::natod(show_range_min())
+        << C_DELIM << tools::natod(show_range_max());
 
     return oss.str();
 }

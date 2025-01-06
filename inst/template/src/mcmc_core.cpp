@@ -6,38 +6,6 @@
 
 #include "mcmc_build.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Parameter : methods  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Init the values for the Bayesian diagnostics. */
-void Parameter::init_diagnostics(ulong sample_size)
-{
-    dgn_count = 0;
-    dgn_value.clear();
-    dgn_value = std::vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
-}
-
-/* Update the values for the Bayesian diagnostics. */
-void Parameter::update_diagnostics() { dgn_value[dgn_count++] = get_value(); }
-
-/* Message to be used at the moment of display diagnostics. (TEMPORARY) */
-std::string Parameter::show_diagnostics() const
-{
-    using namespace tools;
-    std::ostringstream oss;
-
-    double avg = 0, var = 0;
-    tools::compute_stats(dgn_value, avg, var);
-
-    oss << avg << C_DELIM << std::sqrt(var) << C_DELIM << truth(get_infer())
-        << C_DELIM << get_distr_name() << C_DELIM << show_distr_arg_names() << C_DELIM << show_distr_arg_values()
-        << C_DELIM << get_prop_name() << C_DELIM << show_prop_arg_names() << C_DELIM << show_prop_arg_values()
-        << C_DELIM << (tools::is_na(show_range_min()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_min()))
-        << C_DELIM << (tools::is_na(show_range_max()) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(show_range_max()));
-    return oss.str();
-}
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -55,7 +23,10 @@ double Monte_Carlo_Build::_get_param_default_(const parID &p) const { return par
 /* Safe method to get a value with previous assertion. */
 double Monte_Carlo_Build::_get_param_assert_(const parID &p) const
 {
-    return (assert_param(p)) ? _get_param_default_(p) : INF_DOUBLE;
+    if (assert_param(p))
+        return _get_param_default_(p);
+    else
+        return INF_DOUBLE;
 }
 
 /* Default functional method to return pointer to parameter. */
@@ -64,7 +35,10 @@ const double *Monte_Carlo_Build::_get_param_pointer_default_(const parID &p) con
 /* Safe method to get a pointer to a parameter with previous assertion. */
 const double *Monte_Carlo_Build::_get_param_pointer_assert_(const parID &p) const
 {
-    return (assert_param(p)) ? _get_param_pointer_default_(p) : nullptr;
+    if (assert_param(p))
+        return _get_param_pointer_default_(p);
+    else
+        return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +46,7 @@ const double *Monte_Carlo_Build::_get_param_pointer_assert_(const parID &p) cons
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a new parameter to the dictionary. */
-void Monte_Carlo_Build::assign_param(const parID &p, const Parameter &new_param)
+void Monte_Carlo_Build::assign_param(const parID &p, const Base_Variable &new_param)
 {
     // create the new parameter if it's not already defined
     if (param_map.find(p) != param_map.end())
@@ -89,19 +63,6 @@ void Monte_Carlo_Build::assign_param(const parID &p, const Parameter &new_param)
         else
             param_to_be_static.push_back(p);
     }
-}
-
-/* Add a new scalar for augmented typedict. TODO : is there a more elegant option? */
-// FIXME : this might break because of dynamic allocation
-const double *Monte_Carlo_Build::assign_scalar_pointer(double val)
-{
-    if (_scalar_type_params_.find(val) == _scalar_type_params_.end())
-    {
-        Parameter new_param(UNDEFINED, val);
-        _scalar_type_params_.emplace(val, std::move(new_param));
-    }
-
-    return _scalar_type_params_.at(val).get_pointer();
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
@@ -418,8 +379,8 @@ void Monte_Carlo_Build::read_params(const std::string &pathtofile)
         tools::error(
             "While reading parameter definitions: " + std::string(e.what()));
     }
-        
-    // use loaded definitions to build 
+
+    // use loaded definitions to build
     build_params();
     // store the file name in the report
     _report_pathtofile_["params"] = pathtofile;
@@ -453,8 +414,8 @@ void Monte_Carlo_Build::build_params()
                 const std::string &name = _param_deftable_.at("name")[k]; // parameter name
                 double value = INF_DOUBLE;                                // init value
 
-                // FIXME : temporary
-                // parameter identifier
+                // UPDATE : temporary parameter identifier
+                // NOTE : id parID changes this should change too
                 parID p = name;
 
                 // add entry to shared parameter dictionary
@@ -471,11 +432,9 @@ void Monte_Carlo_Build::build_params()
 
                     // load prior name
                     const std::string &prior_name = _param_deftable_.at("prior")[k];
-                    const dict_args &prior_args = tools::merge_list_args(_param_deftable_.at("args")[k],
-                                                                         _param_deftable_.at("argsval")[k]);
 
                     // load range
-                    dict_args range = {};
+                    std::map<std::string, double> range = {};
                     if (!tools::is_na(_param_deftable_.at("min")[k]))
                         range.emplace("min", tools::stod(_param_deftable_.at("min")[k], "parameter minimum"));
 
@@ -490,9 +449,25 @@ void Monte_Carlo_Build::build_params()
                     if (!tools::is_na(_param_deftable_.at("rule_scale")[k]))
                         rule_scale = tools::stod(_param_deftable_.at("rule_scale")[k]);
 
-                    // assign parameter to the set of variables
-                    Parameter new_param(name, value, is_discrete, prior_name,
-                                        prior_args, range, rule_name, rule_scale);
+                    //----- Create a new Parameter Variable -----//
+                    Base_Variable new_param = Base_Variable(name, value, is_discrete);
+
+                    // assign a prior distribution to the parameter
+                    new_param.assign_distribution(prior_name);
+
+                    // assign scalar arguments to prior distribution
+                    str_vec arg_name = tools::parse_list_args(_param_deftable_.at("arg_name")[k]);
+                    str_vec arg_value = tools::parse_list_args(_param_deftable_.at("arg_value")[k]);
+                    for (ushort c = 0; c < arg_name.size(); ++c)
+                        new_param.assign_distr_scalar_arg(arg_name[c], tools::natod(arg_value[c]));
+
+                    // set the range of values to the parameter
+                    new_param.assign_distr_range(range);
+
+                    // assign the rule for the proposer to the parameter
+                    new_param.assign_proposer(rule_name, rule_scale);
+
+                    // store the new parameter
                     assign_param(p, std::move(new_param));
                 }
                 else
@@ -503,15 +478,17 @@ void Monte_Carlo_Build::build_params()
                             "Undefined value for constant parameter '" + name + "'.");
                     else
                         value = tools::stod(_param_deftable_.at("value")[k], "parameter");
-                    Parameter new_param(name, value);
-                    assign_param(p, std::move(new_param));
+
+                    // assign constant parameter to the set of variables
+                    assign_param(p, Base_Variable(name, value));
                 }
             }
         }
     }
     catch (const std::exception &e)
     {
-        tools::error(e.what());
+        tools::error(
+            "While building parameter definitions: " + std::string(e.what()));
     }
 }
 
@@ -608,7 +585,24 @@ void Monte_Carlo_Build::show_results() const
     oss << "\n";
 
     for (const parID &p : param_to_be_inferred)
-        oss << p << C_DELIM << param_map.at(p).show_diagnostics() << "\n";
+    {
+        const Base_Variable &this_param = param_map.at(p);
+        double avg = 0, var = 0;
+        tools::compute_stats(dgn_param_value.at(p), avg, var);
+
+        oss << p << C_DELIM
+            << avg << C_DELIM
+            << std::sqrt(var) << C_DELIM << tools::truth(this_param.get_infer())
+            << C_DELIM << this_param.get_distr_name()
+            << C_DELIM << this_param.show_distr_arg_names()
+            << C_DELIM << this_param.show_distr_arg_values()
+            << C_DELIM << this_param.get_prop_name()
+            << C_DELIM << this_param.show_prop_arg_names()
+            << C_DELIM << this_param.show_prop_arg_values()
+            << C_DELIM << tools::natod(this_param.show_range_min())
+            << C_DELIM << tools::natod(this_param.show_range_max())
+            << "\n";
+    }
 
     tools::print_stdout(oss.str());
 }
@@ -662,7 +656,7 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
                     // print parameter values
                     for (const parID &p : param_to_be_inferred)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
-                                            << std::fixed << param_map.at(p).dgn_value[i];
+                                            << std::fixed << dgn_param_value.at(p)[i];
 
                     // print which chain
                     if (setup_n_chains > 1)

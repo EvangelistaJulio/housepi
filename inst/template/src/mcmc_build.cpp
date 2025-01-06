@@ -102,13 +102,30 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
     return output;
 }
 
-/* Convert a type-std::string to a double-pointer */
-const double *Monte_Carlo_Build::type_to_doubleptr(const std::string &value,
-                                                   const std::string &type,
-                                                   const Household &house, indiv i)
+/* Convert a std::string with type-dictionary to std::string-to-double */
+void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID a,
+                                              const std::string &tkn_key,
+                                              const std::string &tkn_val,
+                                              const std::string &tkn_typ)
 {
-    try
+
+    // parse the string with arguments
+    str_vec keys = tools::parse_list_args(tkn_key);
+    str_vec vals = tools::parse_list_args(tkn_val);
+    str_vec typs = tools::parse_list_args(tkn_typ);
+
+    // check all's good
+    if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
+        throw std::invalid_argument(
+            "Mismatching definitions in arguments.");
+
+    // loop over all arguments
+    for (size_t x = 0; x < keys.size(); ++x)
     {
+        std::string key = keys[x];
+        std::string value = vals[x];
+        std::string type = typs[x];
+
         if (!(tools::is_na(value) && tools::is_na(type)))
         {
             if (!tools::is_na(value) && tools::is_na(type))
@@ -120,68 +137,19 @@ const double *Monte_Carlo_Build::type_to_doubleptr(const std::string &value,
                     "Found a type without a paired value. Falling back to default.");
 
             else if (type == TYPE_DATA)
-                return house.data_pointer(i, value);
+                house.assign_augm_model_scalar_arg(i, a, key, house.data(i, value));
 
-            else if (type == TYPE_PARAM)
-                return get_param_pointer(value);
+            else if (type == TYPE_PARAM) // UPDATE: we an improve for constant parameters
+                house.assign_augm_model_pointer_arg(i, a, key, get_param_pointer(value));
 
             else if (type == TYPE_SCALAR)
-                return assign_scalar_pointer(tools::stod(value, "argument with scalar type"));
+                house.assign_augm_model_scalar_arg(i, a, key, tools::stod(value, "argument with scalar type"));
 
             else
                 throw std::invalid_argument(
                     "Unsopported type '" + type + "' found while loading '" + value + "' for pointer value.");
         }
     }
-    catch (const std::exception &e)
-    {
-        tools::error(e.what());
-    }
-
-    return nullptr; // default
-}
-
-/* Convert a std::string with type-dictionary to std::string-to-double */
-dict_args Monte_Carlo_Build::typedict_to_sdargs(const std::string &tkn_key,
-                                                const std::string &tkn_val,
-                                                const std::string &tkn_typ,
-                                                const Household &house, indiv i)
-{
-    str_vec keys = tools::parse_list_args(tkn_key);
-    str_vec vals = tools::parse_list_args(tkn_val);
-    str_vec typs = tools::parse_list_args(tkn_typ);
-
-    dict_args output = {};
-
-    if ((keys.size() == vals.size()) && (typs.size() == vals.size()))
-        for (size_t x = 0; x < keys.size(); ++x)
-            output.emplace(keys[x], type_to_double(vals[x], typs[x], house, i));
-    else
-        throw std::invalid_argument(
-            "Mismatching definitions in arguments.");
-
-    return output;
-}
-
-/* Convert a std::string with type-dictionary to std::string-to-double-pointer */
-dict_args_ptr Monte_Carlo_Build::typedict_to_sdargs_ptr(const std::string &tkn_key,
-                                                        const std::string &tkn_val,
-                                                        const std::string &tkn_typ, const Household &house, indiv i)
-{
-    str_vec keys = tools::parse_list_args(tkn_key);
-    str_vec vals = tools::parse_list_args(tkn_val);
-    str_vec typs = tools::parse_list_args(tkn_typ);
-
-    dict_args_ptr output = {};
-
-    if ((keys.size() == vals.size()) && (typs.size() == vals.size()))
-        for (size_t x = 0; x < keys.size(); ++x)
-            output.emplace(keys[x], type_to_doubleptr(vals[x], typs[x], house, i));
-    else
-        throw std::invalid_argument(
-            "Mismatching definitions in arguments.");
-
-    return output;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -299,7 +267,7 @@ void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
             "While reading augmented definitions: " + std::string(e.what()));
     }
 
-    // use loaded definitions to build 
+    // use loaded definitions to build
     build_augm();
     // store the file name in the report
     _report_pathtofile_["augm"] = pathtofile;
@@ -458,7 +426,8 @@ void Monte_Carlo_Build::build_augm()
     }
     catch (const std::exception &e)
     {
-        tools::error(e.what());
+        tools::error(
+            "While building augmented variable definitions: " + std::string(e.what()));
     }
 }
 
@@ -491,28 +460,24 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
 
                 //----- Value -----//
                 double value = type_to_double(_augm_deftable_.at("value")[k],
-                                              _augm_deftable_.at("valuetype")[k],
+                                              _augm_deftable_.at("value_type")[k],
                                               house, i);
 
                 //----- Model -----//
                 const std::string &model_name = _augm_deftable_.at("model")[k];
-                const dict_args_ptr &model_args = typedict_to_sdargs_ptr(_augm_deftable_.at("args")[k],
-                                                                         _augm_deftable_.at("argsval")[k],
-                                                                         _augm_deftable_.at("argstype")[k],
-                                                                         house, i);
 
                 //----- Range -----//
-                dict_args range = {};
+                std::map<std::string, double> range = {};
                 // minimum value
                 double aux_min = type_to_double(_augm_deftable_.at("min")[k],
-                                                _augm_deftable_.at("mintype")[k],
+                                                _augm_deftable_.at("min_type")[k],
                                                 house, i);
                 if (aux_min != INF_DOUBLE)
                     range.emplace("min", aux_min);
 
                 // maximum value
                 double aux_max = type_to_double(_augm_deftable_.at("max")[k],
-                                                _augm_deftable_.at("maxtype")[k],
+                                                _augm_deftable_.at("max_type")[k],
                                                 house, i);
                 if (aux_max != INF_DOUBLE)
                     range.emplace("max", aux_max);
@@ -520,16 +485,23 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
                 //----- Proposer Rule -----//
                 const std::string &rule_name = _augm_deftable_.at("rule")[k];
                 double rule_scale = type_to_double(_augm_deftable_.at("rule_scale")[k],
-                                                   _augm_deftable_.at("rule_scaletype")[k],
+                                                   _augm_deftable_.at("rule_scale_type")[k],
                                                    house, i);
                 double rule_from = type_to_double(_augm_deftable_.at("rule_from")[k],
-                                                  _augm_deftable_.at("rule_fromtype")[k],
+                                                  _augm_deftable_.at("rule_from_type")[k],
                                                   house, i);
 
                 //----- Assign Augmented Variable -----//
-                house.assign_augm(i, a, name, value, is_discrete,
-                                  model_name, model_args, range,
+                house.assign_augm(i, a, name, value,
+                                  is_discrete, model_name,
                                   rule_name, rule_scale, rule_from);
+
+                assign_augm_type_args(house, i, a,
+                                      _augm_deftable_.at("arg_name")[k],
+                                      _augm_deftable_.at("arg_value")[k],
+                                      _augm_deftable_.at("arg_type")[k]);
+
+                house.assign_augm_model_range(i, a, range);
 
                 // random initialization at assignment
                 if (tools::stobool(_augm_deftable_.at("init_rand")[k]))
@@ -539,7 +511,8 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
     }
     catch (const std::exception &e)
     {
-        tools::error(e.what());
+        tools::error(
+            "While initializing augmented variables: " + std::string(e.what()));
     }
 }
 
@@ -572,8 +545,9 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
     if (!is_power_post)
     {
         //----- Initialize diagnostic vectors -----//
+        // FLAG: delicate point
         for (const parID &p : param_to_be_inferred)
-            param_map.at(p).init_diagnostics(sample_size);
+            dgn_param_value[p] = std::vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
 
         // diagnostics over households
         for (size_t H = 0; H < n_households; ++H)
@@ -585,18 +559,20 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
 void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_post)
 {
     // diagnostics for global loglike
-    dgn_glob_loglike[dgn_count++] = glob_loglike;
+    dgn_glob_loglike[dgn_count] = glob_loglike;
 
     if (!is_power_post)
     {
         // diagnostics for all parameters
         for (const parID &p : param_to_be_inferred)
-            param_map.at(p).update_diagnostics();
+            dgn_param_value.at(p)[dgn_count] = get_param(p);
 
         // diagnostics for all households
         for (size_t H = 0; H < n_households; ++H)
             house_vector[H].update_diagnostics();
     }
+
+    ++dgn_count;
 }
 
 /* Disable all assert methods for user definitions. */

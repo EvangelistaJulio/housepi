@@ -61,11 +61,11 @@ HousepiParameterClass <- R6::R6Class(
         }
 
         if (length(args) == 0) {
-          args_ <- NA
-          argsval_ <- NA
+          arg_name_ <- NA
+          arg_value_ <- NA
         } else {
-          args_ <- str_join_(names(args))
-          argsval_ <- str_join_(unname(unlist(args)))
+          arg_name_ <- str_join_(names(args))
+          arg_value_ <- str_join_(unname(unlist(args)))
         }
 
         #----- rule -----#
@@ -88,8 +88,8 @@ HousepiParameterClass <- R6::R6Class(
             infer = TRUE,
             discrete = isTRUE(discrete),
             prior = prior,
-            args = args_,
-            argsval = argsval_,
+            arg_name = arg_name_,
+            arg_value = arg_value_,
             rule = rule,
             rule_scale = rule_scale,
             min = min_,
@@ -112,8 +112,8 @@ HousepiParameterClass <- R6::R6Class(
             infer = FALSE,
             discrete = FALSE,
             prior = NA,
-            args = NA,
-            argsval = NA,
+            arg_name = NA,
+            arg_value = NA,
             rule = NA,
             rule_scale = NA,
             min = NA,
@@ -134,8 +134,8 @@ HousepiParameterClass <- R6::R6Class(
         infer = logical(),
         discrete = logical(),
         prior = character(),
-        args = character(),
-        argsval = character(),
+        arg_name = character(),
+        arg_value = character(),
         rule = character(),
         rule_scale = numeric(),
         min = numeric(),
@@ -227,7 +227,7 @@ HousepiParameterClass <- R6::R6Class(
         # param from : augmented variable model argument definitions
         # UPDATE : to be controlled
         if (length(augm_frame) > 0) {
-          x <- augm_frame[c("argsval", "argstype")]
+          x <- augm_frame[c("arg_value", "arg_type")]
           for (i in seq_along(x)) {
             aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
                               keys = strsplit(x[i, 2], "/")[[1]])

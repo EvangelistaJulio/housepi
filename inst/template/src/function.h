@@ -54,10 +54,10 @@ public:
     double get_range_max() const;
 
     //===== ARGUMENTS =====//
-    void assign_args(const dict_args &new_args_val);
-    void assign_args(const dict_args_ptr &new_args_ptr);
+    void assign_scalar_arg(const std::string &arg_name, double value);
+    void assign_pointer_arg(const std::string &arg_name, const double *ptr_to_value);
     void set_arg(ushort i, double new_value);
-    ushort set_range(const dict_args &new_range);
+    ushort set_range(const std::map<std::string, double> &new_range);
 
     //===== SHOW =====//
     const std::string show_arg_names() const;
@@ -69,9 +69,10 @@ protected:
     //===== Pointer to Implementation =====//
     std::unique_ptr<Base_Function_Impl> pImpl;
 
-    void init_defaults(const std::string &name,
-                  const dict_args &args_val,
-                  const dict_args &domain = {});
+    void _init_defaults_(const std::string &name,
+                         const std::vector<std::string> &arg_name,
+                         const std::vector<double> &arg_value,
+                         const std::map<std::string, double> &domain = {});
 };
 
 #endif // HOUSEPI__FUNCTION__H

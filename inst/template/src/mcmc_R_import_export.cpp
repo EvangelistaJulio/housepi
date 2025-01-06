@@ -222,7 +222,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
         _["loglikelihood"] = wrap(dgn_glob_loglike));
 
     for (const parID &p : param_to_be_inferred)
-        output.push_back(wrap(param_map.at(p).dgn_value), p);
+        output.push_back(wrap(dgn_param_value.at(p)), p);
 
     // retrieve chain identities
     if (setup_n_chains > 1)

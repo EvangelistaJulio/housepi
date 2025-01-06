@@ -95,12 +95,6 @@ using ulong = unsigned long int;
 template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
-// Aliases for dictionaries with input arguments
-// Note: not to be used for storing values
-using dict_args = std::map<std::string, double>;
-using dict_args_ptr = std::map<std::string, const double *>; 
-// FIXME: this const double * is just wrong
-
 using str_vec = std::vector<std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;
 
@@ -108,7 +102,7 @@ using dict_str_vec = std::map<std::string, str_vec>;
 using indiv = unsigned short int;
 
 #ifdef DEBUG_TEMPORARY_MACRO
-using __access_ID__ = size_t;
+using __access_ID__ = unsigned short int;
 const __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
 #else
 using __access_ID__ = std::string;
@@ -189,29 +183,32 @@ namespace tools
     void error(const std::string &txt);
 
     // converter functions
+    bool stobool(const std::string &tkn);
     int stoi(const std::string &input, const std::string &errtxt = "");
-    double stod(const std::string &input, const std::string &errtxt = "");
     unsigned long stoul(const std::string &input, const std::string &errtxt = "");
     unsigned long long stoull(const std::string &input, const std::string &errtxt = "");
-    bool stobool(const std::string &tkn);
-    const std::string strcleaner(std::string tkn);
+    double stod(const std::string &input, const std::string &errtxt = "");
+   
+    // formatter for the case NA
+    double natod(const std::string &input);
 
+    // argument string parser
     const str_vec parse_list_args(const std::string &tkn,
                                   const char delim = C_LIST_DELIM);
-    const dict_args merge_list_args(const std::string &tkn_keys, const std::string &tkn_vals);
 
+    // read csv files
     void read_csv_list(const std::string &pathtofile,
                        std::map<std::string, std::string> &csv_parsed_list);
     void read_csv_table(const std::string &pathtofile,
                         dict_str_vec &csv_parsed_table,
                         const str_vec &required_headers = {});
 
-    // Welford online algorithm for mean and variance.
+    // Welford online algorithm for mean and variance
     void compute_stats(const std::vector<double> &data, double &avg, double &var);
 
-    // Calculate Levenshtein distance
+    // calculate Levenshtein distance
     ushort levenshtein(const std::string &s1, const std::string &s2);
-    // Find the closest match
+    // find the closest match
     const std::string find_closest(const std::string &input,
                                    const str_vec &options,
                                    ushort min_dist = 2);

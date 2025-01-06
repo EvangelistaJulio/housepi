@@ -96,6 +96,12 @@ double Base_Distribution::rand(rnd_gen &prng)
     return (this->*_func_rand_)(prng);
 }
 
+void Base_Distribution::assign_reshaping(const std::map<std::string, double> &range,
+                                         bool discrete)
+{
+    _assign_reshaping_(range, (discrete) ? "center" : UNDEFINED);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - virtual  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -260,15 +266,14 @@ double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_ran
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Truncate and/or discretize distribution at declaration.  */
-void Base_Distribution::_assign_reshaping_(const dict_args &range, const std::string &discr)
+void Base_Distribution::_assign_reshaping_(std::map<std::string, double> range,
+                                           const std::string &discrete)
 {
-    dict_args new_range = range;
-
     //===== DISCRETIZATION =====//
     // asjust range in case of discretization
-    if (discr != UNDEFINED)
+    if (discrete != UNDEFINED)
     {
-        if (discr == "center")
+        if (discrete == "center")
         { // centered discretization
             _func_pdf_ = &Base_Distribution::_discr_center_pdf_;
             _func_cdf_ = &Base_Distribution::_discr_center_cdf_;
@@ -277,12 +282,12 @@ void Base_Distribution::_assign_reshaping_(const dict_args &range, const std::st
             _func_rand_ = &Base_Distribution::_discr_center_rand_;
 
             if (range.find("min") != range.end())
-                new_range["min"] = std::floor(range.at("min")) + 0.5;
+                range["min"] = std::floor(range.at("min")) + 0.5;
 
             if (range.find("max") != range.end())
-                new_range["max"] = std::ceil(range.at("max")) - 0.5;
+                range["max"] = std::ceil(range.at("max")) - 0.5;
         }
-        else if (discr == "left")
+        else if (discrete == "left")
         { // left adjusted discretization
             _func_pdf_ = &Base_Distribution::_discr_left_pdf_;
             _func_cdf_ = &Base_Distribution::_discr_left_cdf_;
@@ -291,20 +296,20 @@ void Base_Distribution::_assign_reshaping_(const dict_args &range, const std::st
             _func_rand_ = &Base_Distribution::_discr_left_rand_;
 
             if (range.find("min") != range.end())
-                new_range["min"] = std::floor(range.at("min"));
+                range["min"] = std::floor(range.at("min"));
 
             if (range.find("max") != range.end())
-                new_range["max"] = std::ceil(range.at("max"));
+                range["max"] = std::ceil(range.at("max"));
         }
         else
         {
             throw std::invalid_argument(
-                "Unrecognized discretization method '" + discr + "'.");
+                "Unrecognized discretization method '" + discrete + "'.");
         }
     }
 
     //===== TRUNCATION =====/
-    int trunc_cases = set_range(new_range);
+    ushort trunc_cases = set_range(range);
 
     //----- Fucntional methods -----//
     if (trunc_cases == 0) // no truncation
@@ -350,14 +355,9 @@ private:
     std::uniform_real_distribution<double> distr_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Uniform_Distribution(const dict_args_val_or_ptr &new_args = {},
-                         const dict_args &range = {},
-                         bool discr = false) : distr_gen(0.0, 1.0)
+    Uniform_Distribution() : distr_gen(0.0, 1.0)
     {
-        init_defaults("unif", {{"min", 0.0}, {"max", 1.0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
+        _init_defaults_("unif", {"min", "max"}, {0.0, 1.0});
     }
 
     ~Uniform_Distribution() {}
@@ -407,14 +407,9 @@ private:
     std::normal_distribution<double> distr_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Normal_Distribution(const dict_args_val_or_ptr &new_args = {},
-                        const dict_args &range = {},
-                        bool discr = false) : distr_gen(0.0, 1.0)
+    Normal_Distribution() : distr_gen(0.0, 1.0)
     {
-        init_defaults("norm", {{"mean", 0.0}, {"sd", 1.0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
+        _init_defaults_("norm", {"mean", "sd"}, {0.0, 1.0});
     }
 
     ~Normal_Distribution() {};
@@ -469,17 +464,16 @@ private:
     std::lognormal_distribution<double> distr_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Lognorm_Distribution(const dict_args_val_or_ptr &new_args = {},
-                         const dict_args &range = {},
-                         bool discr = false) : distr_gen(0.0, 1.0)
+    Lognorm_Distribution() : distr_gen(0.0, 1.0)
     {
-        init_defaults("lnorm", {{"meanlog", 0.0}, {"sdlog", 1.0}}, {{"min", 0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "center" : UNDEFINED));
+        _init_defaults_("lnorm", {"meanlog", "sdlog"}, {0.0, 1.0}, {{"min", 0}});
     }
-
     ~Lognorm_Distribution() {};
+
+    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    {
+        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -531,16 +525,16 @@ private:
     std::gamma_distribution<double> distr_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Gamma_Distribution(const dict_args_val_or_ptr &new_args = {},
-                       const dict_args &range = {},
-                       bool discr = false) : distr_gen(1.0, 1.0)
+    Gamma_Distribution() : distr_gen(1.0, 1.0)
     {
-        init_defaults("gamma", {{"shape", 1.0}, {"scale", 1.0}}, {{"min", 0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
+        _init_defaults_("gamma", {"shape", "scale"}, {1.0, 1.0}, {{"min", 0}});
     }
     ~Gamma_Distribution() {};
+
+    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    {
+        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -592,16 +586,16 @@ private:
     std::weibull_distribution<double> distr_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Weibull_Distribution(const dict_args_val_or_ptr &new_args = {},
-                         const dict_args &range = {},
-                         bool discr = false) : distr_gen(1.0, 1.0)
+    Weibull_Distribution() : distr_gen(1.0, 1.0)
     {
-        init_defaults("weibull", {{"shape", 1.0}, {"scale", 1.0}}, {{"min", 0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
+        _init_defaults_("weibull", {"shape", "scale"}, {1.0, 1.0}, {{"min", 0}});
     }
     ~Weibull_Distribution() {};
+
+    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    {
+        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -653,16 +647,16 @@ private:
     std::uniform_real_distribution<double> unif_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Rayleigh_Distribution(const dict_args_val_or_ptr &new_args = {},
-                          const dict_args &range = {},
-                          bool discr = false) : unif_gen(0.0, 1.0)
+    Rayleigh_Distribution() : unif_gen(0.0, 1.0)
     {
-        init_defaults("rayleigh", {{"scale", 1.0}}, {{"min", 0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
+        _init_defaults_("rayleigh", {"scale"}, {1.0}, {{"min", 0}});
     }
     ~Rayleigh_Distribution() {};
+
+    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    {
+        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -705,16 +699,16 @@ private:
     std::exponential_distribution<double> distr_gen;
 
 public:
-    template <typename dict_args_val_or_ptr>
-    Exponential_Distribution(const dict_args_val_or_ptr &new_args = {},
-                             const dict_args &range = {},
-                             bool discr = false) : distr_gen(1.0)
+    Exponential_Distribution() : distr_gen(1.0)
     {
-        init_defaults("exp", {{"rate", 1.0}}, {{"min", 0}});
-        assign_args(new_args);
-        _assign_reshaping_(range, ((discr) ? "left" : UNDEFINED));
+        _init_defaults_("exp", {"rate"}, {1.0}, {{"min", 0}});
     }
     ~Exponential_Distribution() {};
+
+    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    {
+        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+    }
 
 protected:
     virtual double _pdf_(double x) const override
@@ -764,11 +758,7 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary hidden template to return the chosen distribution. */
-template <typename dict_args_val_or_ptr>
-std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string &name,
-                                                              const dict_args_val_or_ptr &args,
-                                                              const dict_args &range,
-                                                              bool is_discrete)
+std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name)
 {
     const str_vec options = {"unif", "norm", "lnorm",
                              "gamma", "weibull", "rayleigh", "exp"};
@@ -776,25 +766,25 @@ std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string 
     if (!tools::is_na(name))
     {
         if (name == "unif")
-            return std::make_shared<Uniform_Distribution>(args, range, is_discrete);
+            return std::make_shared<Uniform_Distribution>();
 
         else if (name == "norm")
-            return std::make_shared<Normal_Distribution>(args, range, is_discrete);
+            return std::make_shared<Normal_Distribution>();
 
         else if (name == "lnorm")
-            return std::make_shared<Lognorm_Distribution>(args, range, is_discrete);
+            return std::make_shared<Lognorm_Distribution>();
 
         else if (name == "gamma")
-            return std::make_shared<Gamma_Distribution>(args, range, is_discrete);
+            return std::make_shared<Gamma_Distribution>();
 
         else if (name == "weibull")
-            return std::make_shared<Weibull_Distribution>(args, range, is_discrete);
+            return std::make_shared<Weibull_Distribution>();
 
         else if (name == "rayleigh")
-            return std::make_shared<Rayleigh_Distribution>(args, range, is_discrete);
+            return std::make_shared<Rayleigh_Distribution>();
 
         else if (name == "exp")
-            return std::make_shared<Exponential_Distribution>(args, range, is_discrete);
+            return std::make_shared<Exponential_Distribution>();
 
         else
             throw std::invalid_argument(
@@ -802,22 +792,4 @@ std::shared_ptr<Base_Distribution> _distribution_switchboard_(const std::string 
     }
 
     return std::make_shared<Base_Distribution>();
-}
-
-/* Pointer to distribution with scalar arguments. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name,
-                                                            const dict_args &args,
-                                                            const dict_args &range,
-                                                            bool is_discrete)
-{
-    return _distribution_switchboard_(name, args, range, is_discrete);
-}
-
-/* Pointer to distribution with pointer arguments. */
-std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name,
-                                                            const dict_args_ptr &args,
-                                                            const dict_args &range,
-                                                            bool is_discrete)
-{
-    return _distribution_switchboard_(name, args, range, is_discrete);
 }

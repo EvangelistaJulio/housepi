@@ -22,7 +22,11 @@ public:
 	~Household_Impl() {};
 
 	//===== ATTRIBUTES =====//
-	std::vector<Individual> indiv_vector = {};
+	std::vector<Individual> members = {};
+
+	double get_data(indiv i, const dataID &d) const;
+	double get_augm(indiv i, const augmID &a) const;
+	double get_rate(indiv i, const rateID &r) const;
 
 	std::string ID = UNDEFINED; // user ID
 	size_t index = -1;			// index of household
@@ -71,26 +75,43 @@ public:
 	extraIDmap<std::vector<double>> _buffer_extra_vec_ = {};
 	extraIDmap<matrix<double>> _buffer_extra_mtx_ = {};
 
-	// deep copies of extra attributes in the buffer
-	void buffer_all_extra()
-	{
-		_buffer_extra_integer_ = extra_integer;
-		_buffer_extra_double_ = extra_double;
-		_buffer_extra_vec_ = extra_vec;
-		_buffer_extra_mtx_ = extra_mtx;
-	}
+	void buffer_all_extra();
+	void restore_all_extra();
 
-	// swap buffer into  extra attributes
-	void restore_all_extra()
-	{
-		extra_integer.swap(_buffer_extra_integer_);
-		extra_double.swap(_buffer_extra_double_);
-		extra_vec.swap(_buffer_extra_vec_);
-		extra_mtx.swap(_buffer_extra_mtx_);
-	}
+	// UPDATE: assertion vs deafult
+	// pointer-to-method is a drawback for all getters
+	// NOTE: assertion should be done elsewhere and knocked off elsewhere
+	// NOTE : in any case temporary if dropping maps
+
+	void disable_assert();
+
+	//===== Setter (auxiliary methods) =====//
+	void (Household_Impl::*_func_set_augm_)(indiv, const augmID &, double) = &Household_Impl::_set_augm_assert_;
+	void _set_augm_assert_(indiv i, const augmID &a, double xnew);
+	void _set_augm_default_(indiv i, const augmID &a, double xnew);
+
+	//===== Getter (auxiliary methods) =====//
+	double (Household_Impl::*_func_get_augm_)(indiv, const augmID &) const = &Household_Impl::_get_augm_assert_;
+	double _get_augm_assert_(indiv i, const augmID &a) const;
+	double _get_augm_default_(indiv i, const augmID &a) const;
+
+	double (Household_Impl::*_func_get_data_)(indiv, const dataID &) const = &Household_Impl::_get_data_assert_;
+	double _get_data_assert_(indiv i, const dataID &d) const;
+	double _get_data_default_(indiv i, const dataID &d) const;
+
+	double (Household_Impl::*_func_get_rate_)(indiv, const rateID &) const = &Household_Impl::_get_rate_assert_;
+	double _get_rate_assert_(indiv i, const rateID &d) const;
+	double _get_rate_default_(indiv i, const rateID &d) const;
 };
 
-/* Link an individual to the household */
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Link an individual to the household. */
 void Household_Impl::assign_individual(const std::string &ID,
 									   int status,
 									   const dataIDmap<double> &data)
@@ -114,8 +135,18 @@ void Household_Impl::assign_individual(const std::string &ID,
 		_is_susceptible_.push_back(true);
 		_is_missing_status_.push_back(false);
 	}
-	else if (status == MISSING_STATUS)
+	else
 	{
+		if (status < MISSING_STATUS)
+		{
+			std::ostringstream oss;
+			oss << "Status '" << status << "' of individual " << ID << " interpreted as missing."
+				<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
+				<< " and (=) " << MISSING_STATUS << " for missing status.";
+			tools::warning(oss.str());
+		}
+		status = MISSING_STATUS;
+
 		++n_missing_status;
 		missing_status_set.insert(house_size);
 
@@ -123,25 +154,21 @@ void Household_Impl::assign_individual(const std::string &ID,
 		_is_susceptible_.push_back(false);
 		_is_missing_status_.push_back(true);
 	}
-	else
-	{
-		throw std::invalid_argument(
-			"Unknown status '" + std::to_string(status) + "' for individual " + ID + ".");
-	}
 
 	//----- update household size -----//
 	++house_size;
 
 	//----- emplace new individual -----//
-	indiv_vector.emplace_back(ID, status, data);
+
+	members.emplace_back(ID, status, data);
 }
 
 /* Change_status of individual i to new status (without controls).
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
 bool Household_Impl::change_status(indiv i, int new_status)
 {
-	Individual &this_indiv = indiv_vector[i];
-	int old_status = this_indiv.get_status();
+	Individual &this_indiv = members[i];
+	int old_status = this_indiv.status;
 
 	if (new_status == old_status)
 	{
@@ -170,7 +197,7 @@ bool Household_Impl::change_status(indiv i, int new_status)
 		else
 		{
 			throw std::runtime_error(
-				"Unknown status '" + std::to_string(old_status) + "' for individual " + this_indiv.get_ID() + ".");
+				"Unknown status '" + std::to_string(old_status) + "' for individual " + this_indiv.ID + ".");
 		}
 
 		if (new_status >= INFECTIOUS)
@@ -194,12 +221,118 @@ bool Household_Impl::change_status(indiv i, int new_status)
 		else
 		{
 			throw std::runtime_error(
-				"Unknown new status '" + std::to_string(new_status) + "' for individual " + this_indiv.get_ID() + ".");
+				"Unknown new status '" + std::to_string(new_status) + "' for individual " + this_indiv.ID + ".");
 		}
 
-		this_indiv.set_status(new_status);
+		this_indiv.status = new_status;
 		return true;
 	}
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+double Household_Impl::get_data(indiv i, const dataID &d) const { return (this->*_func_get_data_)(i, d); }
+double Household_Impl::get_augm(indiv i, const augmID &a) const { return (this->*_func_get_augm_)(i, a); }
+double Household_Impl::get_rate(indiv i, const augmID &r) const { return (this->*_func_get_rate_)(i, r); }
+
+/* Disable data and augmented variable assertions. */
+void Household_Impl::disable_assert()
+{
+	this->_func_set_augm_ = &Household_Impl::_set_augm_default_;
+	this->_func_get_augm_ = &Household_Impl::_get_augm_default_;
+	this->_func_get_data_ = &Household_Impl::_get_data_default_;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Household_Impl : functional methods  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Default method to get the value of data. */
+double Household_Impl::_get_data_default_(indiv i, const dataID &d) const
+{
+	return members[i].data.at(d);
+}
+
+/* Safe method to get the value of data with previous assertion. */
+double Household_Impl::_get_data_assert_(indiv i, const dataID &d) const
+{
+	if (members[i].assert_data(d))
+		return _get_data_default_(i, d);
+	else
+		return INF_DOUBLE;
+}
+
+/* Default method to get the value of an augmented variable. */
+double Household_Impl::_get_augm_default_(indiv i, const augmID &a) const
+{
+	return members[i].augm_map.at(a).get_value();
+}
+
+/* Safe method to get the value of an augmented variable with previous assertion. */
+double Household_Impl::_get_augm_assert_(indiv i, const augmID &a) const
+{
+	if (members[i].assert_augm(a))
+		return _get_augm_default_(i, a);
+	else
+		return INF_DOUBLE;
+}
+
+/* Default method to get the value of rate. */
+double Household_Impl::_get_rate_default_(indiv i, const rateID &r) const
+{
+	return members[i].rate_map.at(r).get();
+}
+
+/* Safe method to get the rate with previous assertion. */
+double Household_Impl::_get_rate_assert_(indiv i, const rateID &r) const
+{
+	if (members[i].assert_rate(r))
+		return _get_rate_default_(i, r);
+	else
+		return INF_DOUBLE;
+}
+
+/* Default method to set the value of an augmented variable. */
+void Household_Impl::_set_augm_default_(indiv i, const augmID &a, double xnew)
+{
+	members[i].augm_map.at(a).set_value(xnew);
+}
+
+/* Safe method to set the value of an augmented variable with previous assertion. */
+void Household_Impl::_set_augm_assert_(indiv i, const augmID &a, double xnew)
+{
+	if (members[i].assert_augm(a))
+		_set_augm_default_(i, a, xnew);
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Deep copies of extra attributes in the buffer */
+void Household_Impl::buffer_all_extra()
+{
+	_buffer_extra_integer_ = extra_integer;
+	_buffer_extra_double_ = extra_double;
+	_buffer_extra_vec_ = extra_vec;
+	_buffer_extra_mtx_ = extra_mtx;
+}
+
+/* Swap buffer into  extra attributes */
+void Household_Impl::restore_all_extra()
+{
+	extra_integer.swap(_buffer_extra_integer_);
+	extra_double.swap(_buffer_extra_double_);
+	extra_vec.swap(_buffer_extra_vec_);
+	extra_mtx.swap(_buffer_extra_mtx_);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -251,17 +384,23 @@ void Household::restore_loglike() { pImpl->house_loglike = pImpl->buffer; }
 
 //===== GETTER =====//
 const std::string &Household::house_ID() const { return pImpl->ID; }
-const std::string &Household::ID(indiv i) const { return pImpl->indiv_vector[i].get_ID(); }
+const std::string &Household::ID(indiv i) const { return pImpl->members[i].ID; }
 size_t Household::index() const { return pImpl->index; }
 ushort Household::size() const { return pImpl->house_size; }
 
-double Household::group_rate(indiv i, const rateID &r) const { return pImpl->indiv_vector[i].get_group_rate(r); }
+int Household::status(indiv i) const { return pImpl->members[i].status; }
 double Household::contact_rate(indiv from, indiv to) const { return *pImpl->contact_rates[from][to]; }
 
-int Household::status(indiv i) const { return pImpl->indiv_vector[i].get_status(); }
-double Household::augm(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].get_augm(a); }
-double Household::data(indiv i, const dataID &d) const { return pImpl->indiv_vector[i].get_data(d); }
-const double *Household::data_pointer(indiv i, const dataID &d) const { return pImpl->indiv_vector[i].get_data_pointer(d); }
+// UPDATE : assertion is a drawback
+// NOTE : temporary before change into vectors
+double Household::augm(indiv i, const augmID &a) const { return pImpl->get_augm(i, a); }
+double Household::data(indiv i, const dataID &d) const { return pImpl->get_data(i, d); }
+double Household::group_rate(indiv i, const rateID &r) const { return pImpl->get_rate(i, r); }
+
+double Household::augm_model_logpdf(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).distr_logpdf(); }
+double Household::augm_model_logratio(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).distr_logratio(); }
+double Household::augm_propose_logratio(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).propose_logratio(); }
+double Household::augm_move_logratio(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).get_move_logratio(); }
 
 ushort Household::n_infectious() const { return pImpl->n_infectious; }
 ushort Household::n_susceptible() const { return pImpl->n_susceptible; }
@@ -274,34 +413,86 @@ const std::set<indiv> &Household::missing_status_set() const { return pImpl->mis
 double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }
 
-double Household::augm_model_logpdf(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_model_logpdf(a); }
-double Household::augm_model_logratio(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_model_logratio(a); }
-double Household::augm_propose_logratio(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_propose_logratio(a); }
-double Household::augm_move_logratio(indiv i, const augmID &a) const { return pImpl->indiv_vector[i].augm_move_logratio(a); }
-
 //===== SETTER =====//
 
-void Household::disable_assert()
+/* Disable data and augmented variable assertions. */
+void Household::disable_assert() { pImpl->disable_assert(); }
+
+void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x)
 {
-	for (indiv i = 0; i < size(); ++i)
-		pImpl->indiv_vector[i].disable_assert();
+	pImpl->members[i].assign_all_group_rates(x);
 }
 
-void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x) { pImpl->indiv_vector[i].assign_all_group_rates(x); }
-
-void Household::assign_augm(indiv i, const augmID &a, const std::string &name, double value, bool is_discrete,
-							const std::string &model_name, const dict_args_ptr &model_args_ptr, const dict_args &range,
+/* Assign definitions for the augmented variables. */
+void Household::assign_augm(indiv i, const augmID &a, const std::string &name, double value,
+							bool is_discrete, const std::string &model_name,
 							const std::string &rule_name, double rule_scale, double rule_from)
 {
-	pImpl->indiv_vector[i].assign_augm(a, name, value, is_discrete,
-									   model_name, model_args_ptr, range,
-									   rule_name, rule_scale, rule_from);
+	Base_Variable &this_augm = pImpl->members[i].augm_map.at(a);
+	this_augm.init(name, value, is_discrete);
+	this_augm.assign_distribution(model_name);
+	this_augm.assign_proposer(rule_name, rule_scale, rule_from);
 }
-void Household::set_augm_value(indiv i, const augmID &a, double x) { pImpl->indiv_vector[i].set_augm_value(a, x); }
-void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng) { pImpl->indiv_vector[i].augm_model_rand(a, prng); }
-bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng) { return pImpl->indiv_vector[i].propose_valid_augm_move(a, prng); }
-void Household::restore_augm_value(indiv i, const augmID &a) { pImpl->indiv_vector[i].restore_augm_value(a); }
-void Household::clear_augm(indiv i, const augmID &a) { pImpl->indiv_vector[i].clear_augm(a); }
+
+/* Assign scalar argument for augmented variable model. */
+void Household::assign_augm_model_scalar_arg(indiv i, const augmID &a,
+											 const std::string &arg_name,
+											 double x)
+{
+	pImpl->members[i].augm_map.at(a).assign_distr_scalar_arg(arg_name, x);
+}
+
+/* Assign pointer to argument for augmented variable model. */
+void Household::assign_augm_model_pointer_arg(indiv i, const augmID &a,
+											  const std::string &arg_name,
+											  const double *y)
+{
+	pImpl->members[i].augm_map.at(a).assign_distr_pointer_arg(arg_name, y);
+}
+
+/* Assign range for augmented variable model. */
+void Household::assign_augm_model_range(indiv i, const augmID &a,
+										const std::map<std::string, double> &range)
+{
+	pImpl->members[i].augm_map.at(a).assign_distr_range(range);
+}
+
+/* Set a value for the augmented variable. */
+void Household::set_augm_value(indiv i, const augmID &a, double x)
+{
+	pImpl->members[i].augm_map.at(a).set_value(x);
+}
+
+/* Draw a value from the augmented variable distribution. */
+void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng)
+{
+	pImpl->members[i].augm_map.at(a).rand(prng);
+}
+
+/**/
+bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
+{
+	Base_Variable &this_augm = pImpl->members[i].augm_map.at(a);
+
+	this_augm.propose(prng); // propose new value and buffer old
+
+	if (this_augm.valid_move()) // proceed only if valid
+		return true;
+	else
+		this_augm.restore_value(); // reassign buffered value
+
+	return false;
+}
+
+void Household::restore_augm_value(indiv i, const augmID &a)
+{
+	pImpl->members[i].augm_map.at(a).restore_value();
+}
+
+void Household::clear_augm(indiv i, const augmID &a)
+{
+	pImpl->members[i].augm_map[a] = Base_Variable();
+}
 
 //===== DIAGNOSTICS =====//
 

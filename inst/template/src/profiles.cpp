@@ -6,17 +6,19 @@
 
 #include "mcmc.h"
 
-Base_InfecProfile::Base_InfecProfile() {}
 Base_InfecProfile::Base_InfecProfile(std::function<double(parID)> get) : _external_param_getter_(std::move(get)) {}
 Base_InfecProfile::~Base_InfecProfile() = default;
 
-void Base_InfecProfile::init(const std::string &name, const dict_args &init_defaults)
+void Base_InfecProfile::_init_defaults_(const std::string &name,
+										const std::vector<std::string> &arg_name,
+										const std::vector<double> &arg_value)
 {
 	this->name = name;
-	for (const auto &pair : init_defaults)
+
+	for (ushort c = 0; c < arg_name.size(); ++c)
 	{
-		this->_arg_names_.emplace_back(pair.first);
-		this->_values_.emplace_back(pair.second);
+		this->_arg_names_.emplace_back(arg_name[c]);
+		this->_values_.emplace_back(arg_value[c]);
 	}
 }
 
@@ -32,7 +34,6 @@ double Base_InfecProfile::cdf(const std::vector<double> &x)
 	throw std::invalid_argument(
 		"Call to undefined method 'cdf' of infectivity profile '" + name + "'.");
 }
-
 
 /* Return value indexed as 'i'. */
 double Base_InfecProfile::get_arg(ushort i)
@@ -84,16 +85,15 @@ medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
  */
 class InfecProfile_Ferretti20 : public Base_InfecProfile
 {
-private:
-	void init_defaults()
-	{
-		init("ferretti20", {{"alpha", 5.85}, {"mu", -4.0}, {"sigma", 1.85}, {"tau", 5.8}});
-	}
-
 public:
 	//===== CONSTRUCTOR =====//
-	InfecProfile_Ferretti20() : Base_InfecProfile() { init_defaults(); };
-	InfecProfile_Ferretti20(std::function<double(parID)> get) : Base_InfecProfile(get) { init_defaults(); }
+	InfecProfile_Ferretti20(std::function<double(parID)> get = nullptr) : Base_InfecProfile(get)
+	{
+		_init_defaults_("ferretti20",
+						{"alpha", "mu", "sigma", "tau"},
+						{5.85, -4.0, 1.85, 5.8});
+	}
+	~InfecProfile_Ferretti20() = default;
 
 	//*  Probability distribution function. *//
 	double pdf(const std::vector<double> &x) override
@@ -166,16 +166,13 @@ class InfecProfile_Ashcroft20 : public Base_InfecProfile
 private:
 	std::shared_ptr<Base_Distribution> gamma_distr_ptr;
 
-	void init_defaults()
-	{
-		init("ashcroft20", {{"shape", 97.32}, {"scale", 0.268}, {"shift", 25.6}});
-		gamma_distr_ptr = distribution_switchboard("gamma");
-	}
-
 public:
 	//===== CONSTRUCTOR =====//
-	InfecProfile_Ashcroft20() : Base_InfecProfile() { init_defaults(); };
-	InfecProfile_Ashcroft20(std::function<double(parID)> get) : Base_InfecProfile(get) { init_defaults(); }
+	InfecProfile_Ashcroft20(std::function<double(parID)> get = nullptr) : Base_InfecProfile(get)
+	{
+		_init_defaults_("ashcroft20", {"shape", "scale", "shift"}, {97.32, 0.268, 25.6});
+		gamma_distr_ptr = distribution_switchboard("gamma");
+	}
 
 	double pdf(const std::vector<double> &x) override
 	{
@@ -183,6 +180,8 @@ public:
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
 
 		// update arguments
+		// UPDATE <===| these should just be assigned as pointers
+
 		gamma_distr_ptr->set_arg(0, get_arg(0));		   // shape
 		gamma_distr_ptr->set_arg(1, get_arg(1));		   // scale
 		gamma_distr_ptr->set_range({{"min", get_arg(2)}}); // UPDATE <===|

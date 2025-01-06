@@ -70,7 +70,6 @@ public:
 	const std::string &ID(indiv i) const;
 	int status(indiv i) const;
 	double data(indiv i, const dataID &d) const;
-	const double *data_pointer(indiv i, const dataID &d) const;
 	double group_rate(indiv i, const rateID &r) const;
 
 	double contact_rate(indiv from, indiv to) const;
@@ -84,11 +83,18 @@ public:
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discrete = false,
 					 const std::string &model_name = UNDEFINED,
-					 const dict_args_ptr &model_args_ptr = {},
-					 const dict_args &range = {},
 					 const std::string &rule_name = UNDEFINED,
 					 double rule_scale = INF_DOUBLE,
 					 double rule_from = INF_DOUBLE);
+	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
+									  const std::string &arg_name,
+									  double arg_value);
+	void assign_augm_model_pointer_arg(indiv i, const augmID &a,
+									   const std::string &arg_name,
+									   const double *ptr_to_arg_value);
+	void assign_augm_model_range(indiv i, const augmID &a,
+								 const std::map<std::string, double> &range = {});
+
 	void set_augm_value(indiv i, const augmID &a, double x);
 	void augm_model_rand(indiv i, const augmID &a, rnd_gen &prng);
 	bool propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng);

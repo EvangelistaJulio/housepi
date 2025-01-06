@@ -138,7 +138,7 @@ double Infectivity_Profile_Function::cdf(double tost, double t_incub)
 /* Time of infection */
 double Model::get_infec_time(int h, int i) const
 {
-	return house_vector[h].indiv_vector[i].get_augm("onset_time") - house_vector[h].indiv_vector[i].get_augm("incub_period");
+	return house_vector[h].members[i].get_augm("onset_time") - house_vector[h].members[i].get_augm("incub_period");
 }
 
 // -----------------------------------------------------------------------------------------------------------//
@@ -170,8 +170,8 @@ double Model::get_infec_time(int h, int i) const
 double Model::compute_infec_profile_inst(int h, int i, double t_transm)
 {
 	// tost : time from onset of symptoms to transmission
-	double tost = t_transm - house_vector[h].indiv_vector[i].get_augm("onset_time");
-	double incub_period = house_vector[h].indiv_vector[i].get_augm("incub_period");
+	double tost = t_transm - house_vector[h].members[i].get_augm("onset_time");
+	double incub_period = house_vector[h].members[i].get_augm("incub_period");
 	return infec_profile_func.pdf(tost, incub_period);
 }
 
@@ -182,8 +182,8 @@ double Model::compute_infec_profile_inst(int h, int i, double t_transm)
 /* Cumulative infectivity profile. */
 double Model::compute_infec_profile_cumul(int h, int i, double t_transm)
 {
-	double tost = t_transm - house_vector[h].indiv_vector[i].get_augm("onset_time"); // time from onset of symptoms to transmission
-	double incub_period = house_vector[h].indiv_vector[i].get_augm("incub_period");
+	double tost = t_transm - house_vector[h].members[i].get_augm("onset_time"); // time from onset of symptoms to transmission
+	double incub_period = house_vector[h].members[i].get_augm("incub_period");
 	return infec_profile_func.cdf(tost, incub_period);
 }
 
@@ -262,7 +262,7 @@ void Model::initialize_model()
 		double end_followup = 0;
 		for (int i : house_vector[h].infectious_list)
 		{
-			end_followup = std::max(end_followup, house_vector[h].indiv_vector[i].data("study_period"));
+			end_followup = std::max(end_followup, house_vector[h].members[i].data("study_period"));
 		}
 		house_vector[h].assign_data("end_followup", end_followup);
 
@@ -324,10 +324,10 @@ void Model::assign_contact_rate_to_household(int h, int i, int k)
 {
 	// from `i` -> to `k`
 	// children if younger than 12 y.o., adults otherwise
-	bool i_is_child = (house_vector[h].indiv_vector[i].data("age") < param("child_age"));
+	bool i_is_child = (house_vector[h].members[i].data("age") < param("child_age"));
 	bool i_is_adult = (i_is_child == false);
 
-	bool k_is_child = (house_vector[h].indiv_vector[k].data("age") < param("child_age"));
+	bool k_is_child = (house_vector[h].members[k].data("age") < param("child_age"));
 	bool k_is_adult = (k_is_child == false);
 
 	if (i_is_child && k_is_child)
@@ -369,7 +369,7 @@ double Model::force_of_infec(int h, int i, std::vector<matrix> &profiles)
 	{
 		if (k != i)
 		{
-			output += house_vector[h].contact_rate(k, i) * house_vector[h].indiv_vector[k].get_group_rate("Infectivity") * profiles[h][k][i];
+			output += house_vector[h].contact_rate(k, i) * house_vector[h].members[k].get_group_rate("Infectivity") * profiles[h][k][i];
 		}
 	}
 
@@ -397,7 +397,7 @@ double Model::compute_single_house_loglike(int h)
 	// Contribution of healthy members
 	for (int i : house_vector[h].susceptibles_list)
 	{
-		loglike_house -= house_vector[h].indiv_vector[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
+		loglike_house -= house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
 	}
 
 	// Contribution of symptomatic members
@@ -406,7 +406,7 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model_set)
 		{
-			loglike_house += house_vector[h].indiv_vector[i].augm_model_logpdf(augmID);
+			loglike_house += house_vector[h].members[i].augm_model_logpdf(augmID);
 		}
 
 		// Contribution of secondary cases
@@ -417,8 +417,8 @@ double Model::compute_single_house_loglike(int h)
 #else
 			comm_risk_inst = param("alpha");
 #endif
-			loglike_house += log(house_vector[h].indiv_vector[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)));
-			loglike_house -= house_vector[h].indiv_vector[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
+			loglike_house += log(house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)));
+			loglike_house -= house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
 		}
 	}
 
@@ -465,9 +465,9 @@ void Model::simulate_single_house(int h)
 		{
 			// set new status for computations
 			house_vector[h].change_status(i, INFECTIOUS);
-			house_vector[h].indiv_vector[i].set_augm(
+			house_vector[h].members[i].set_augm(
 				"onset_time",
-				t + uniform() * dt + house_vector[h].indiv_vector[i].get_augm("incub_period"));
+				t + uniform() * dt + house_vector[h].members[i].get_augm("incub_period"));
 			augm_var_store_dependecies(h, i);
 
 #ifdef TEST_EPI_CURVE
@@ -476,7 +476,7 @@ void Model::simulate_single_house(int h)
 			comm_risk_inst = param("alpha");
 #endif
 			// refuse according to Bernoulli process
-			esc_proba = exp(-house_vector[h].indiv_vector[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)) * dt);
+			esc_proba = exp(-house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)) * dt);
 
 			if (uniform() < esc_proba)
 			{
@@ -498,10 +498,10 @@ void Model::format_augmented_data()
 	{
 		for (int i = 0; i < house_vector[h].house_size; i++)
 		{
-			if (house_vector[h].indiv_vector[i].get_status() == SUSCEPTIBLE)
+			if (house_vector[h].members[i].get_status() == SUSCEPTIBLE)
 			{
-				house_vector[h].indiv_vector[i].set_augm("onset_time", 1000);
-				house_vector[h].indiv_vector[i].set_augm("incub_period", 0);
+				house_vector[h].members[i].set_augm("onset_time", 1000);
+				house_vector[h].members[i].set_augm("incub_period", 0);
 			}
 		}
 	}

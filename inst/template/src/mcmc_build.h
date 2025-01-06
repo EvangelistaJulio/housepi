@@ -32,39 +32,6 @@
 void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output);
 #endif
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Parameter : class  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Parameter : public Base_Variable
-{
-public:
-    //===== CONSTRUCTOR =====//
-    // NOTE using rule_from = INF_DOUBLE, i. e. default move _propose_from_previous_
-    Parameter(const std::string &name = UNDEFINED,
-              double value = std::numeric_limits<double>::quiet_NaN(),
-              bool is_discrete = false,
-              const std::string &prior_name = UNDEFINED,
-              const dict_args &prior_args = {},
-              const dict_args &range = {},
-              const std::string &rule_name = UNDEFINED,
-              double rule_scale = INF_DOUBLE)
-    {
-        init(name, value, is_discrete);
-        assign_distribution(prior_name, prior_args, range);
-        assign_proposer(rule_name, rule_scale);
-    }
-    ~Parameter() = default;
-
-    //----- Diagnostics -----//
-    ulong dgn_count = 0;
-    std::vector<double> dgn_value = {};
-
-    void init_diagnostics(ulong sample_size);
-    void update_diagnostics();
-    std::string show_diagnostics() const;
-};
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -139,9 +106,8 @@ public:
     bool get_infer(const parID &p) const;
 
     //----- Parameter - Setter -----//
-    void assign_param(const parID &p, const Parameter &new_param);
+    void assign_param(const parID &p, const Base_Variable &new_param);
     void init_parameters();
-    const double *assign_scalar_pointer(double val);
 
     //----- Parameter - Metropolis-Hastings -----//
     bool propose_valid_param_move(const parID &p);
@@ -173,12 +139,12 @@ public:
 
     //----- Augmented - Attributes -----//
     const str_vec augm_file_headers = {"name", "status",
-                                       "value", "value_type", 
+                                       "value", "value_type",
                                        "discrete", "init_rand",
-                                       "model", "arg_name", "arg_value", "arg_type", 
-                                       "rule", "rule_scale", "rule_scale_type", 
+                                       "model", "arg_name", "arg_value", "arg_type",
+                                       "rule", "rule_scale", "rule_scale_type",
                                        "rule_from", "rule_from_type",
-                                       "min", "min_type", 
+                                       "min", "min_type",
                                        "max", "max_type"};
     std::unordered_set<augmID> augm_list_full = {};
     std::unordered_set<augmID> augm_list_infer = {};
@@ -223,45 +189,6 @@ public:
     Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
-    //======================//
-    //===== METROPOLIS =====//
-    //======================//
-
-    ulong dgn_count = 0;
-    std::vector<double> dgn_glob_loglike = {};
-
-    void disable_assert();
-    void init_move_counts();
-    void init_diagnostics(bool is_power_post);
-    void update_diagnostics(double glob_loglike, bool is_power_post);
-
-    //----- Metropolis - augmented moves -----//
-    double compute_augm_model_loglike(const Household &house) const;
-
-    double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
-    double _no_augm_model_loglike_(const Household &house) const;
-    double _augm_model_loglike_(const Household &house) const;
-
-    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
-    void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
-    void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
-
-    //===== PARAMETERS =====//
-    parIDmap<Parameter> param_map = {};                              // parameters dictionary
-    std::unordered_map<double, Parameter> _scalar_type_params_ = {}; // scalar types dictionary // FIXME : temporary
-
-    bool _is_undef_params_ = false; // undefined parameters valid only if infer
-
-    //----- get param (functional methods) -----//
-    double (Monte_Carlo_Build::*_func_get_param_)(const parID &) const = &Monte_Carlo_Build::_get_param_assert_;
-    double _get_param_default_(const parID &p) const;
-    double _get_param_assert_(const parID &p) const;
-
-    //----- get param pointer (functional methods) -----//
-    const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const parID &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
-    const double *_get_param_pointer_default_(const parID &p) const;
-    const double *_get_param_pointer_assert_(const parID &p) const;
-
     //===== RANDOM NUMBER GENERATOR =====//
     rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
     std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
@@ -276,7 +203,10 @@ public:
     rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
 
+    //===========================//
     //===== UNIFORM SAMPLER =====//
+    //===========================//
+
     std::uniform_real_distribution<double> _uniform_distr_;
     double uniform();
 
@@ -297,17 +227,51 @@ public:
     double type_to_double(const std::string &tkn_val,
                           const std::string &tkn_typ,
                           const Household &house, indiv i);
-    const double *type_to_doubleptr(const std::string &tkn_val,
-                                    const std::string &tkn_typ,
-                                    const Household &house, indiv i);
-    dict_args typedict_to_sdargs(const std::string &tkn_key,
-                                 const std::string &tkn_val,
-                                 const std::string &tkn_typ,
-                                 const Household &house, indiv i);
-    dict_args_ptr typedict_to_sdargs_ptr(const std::string &tkn_key,
-                                         const std::string &tkn_val,
-                                         const std::string &tkn_typ,
-                                         const Household &house, indiv i);
+    void assign_augm_type_args(Household &house, indiv i, augmID a,
+                               const std::string &tkn_key,
+                               const std::string &tkn_val,
+                               const std::string &tkn_typ);
+
+    //======================//
+    //===== PARAMETERS =====//
+    //======================//
+
+    parIDmap<Base_Variable> param_map = {}; // parameters dictionary
+    bool _is_undef_params_ = false;         // undefined parameters valid only if infer
+
+    //----- get param (functional methods) -----//
+    double (Monte_Carlo_Build::*_func_get_param_)(const parID &) const = &Monte_Carlo_Build::_get_param_assert_;
+    double _get_param_default_(const parID &p) const;
+    double _get_param_assert_(const parID &p) const;
+
+    //----- get param pointer (functional methods) -----//
+    const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const parID &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
+    const double *_get_param_pointer_default_(const parID &p) const;
+    const double *_get_param_pointer_assert_(const parID &p) const;
+
+    //======================//
+    //===== METROPOLIS =====//
+    //======================//
+
+    ulong dgn_count = 0;
+    std::vector<double> dgn_glob_loglike = {};
+    parIDmap<std::vector<double>> dgn_param_value = {};
+
+    void disable_assert();
+    void init_move_counts();
+    void init_diagnostics(bool is_power_post);
+    void update_diagnostics(double glob_loglike, bool is_power_post);
+
+    //----- Metropolis - augmented moves -----//
+    double compute_augm_model_loglike(const Household &house) const;
+
+    double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
+    double _no_augm_model_loglike_(const Household &house) const;
+    double _augm_model_loglike_(const Household &house) const;
+
+    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
+    void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
+    void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
 };
 
 #endif // HOUSEPI__MCMC__BUILD__H

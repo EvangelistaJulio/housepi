@@ -30,12 +30,11 @@ std::shared_ptr<Base_Distribution> incub_distr_ptr;
 /* [CHANGE-ME] Declare a common distribution. */
 void Model::init_model_for_inference()
 {
-	// external arguments: pointers to the respective parameters
-	dict_args_ptr args = {{"shape", param_pointer("shape")},
-						 {"scale", param_pointer("scale")}};
-
 	// choose the incubation period distribution
-	incub_distr_ptr = distribution_switchboard("gamma", args);
+	incub_distr_ptr = distribution_switchboard("gamma");
+	// arguments are pointers to the respective parameters
+	incub_distr_ptr->assign_pointer_arg("shape", param_pointer("shape"));
+	incub_distr_ptr->assign_pointer_arg("scale", param_pointer("scale"));
 }
 
 //------------------------------------------- /\ ------------------------------------------------//

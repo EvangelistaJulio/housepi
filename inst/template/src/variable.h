@@ -36,7 +36,8 @@ public:
 	Base_Proposer(std::shared_ptr<Base_Distribution>,
 				  double rule_scale = 1.0,
 				  double rule_start_value = INF_DOUBLE,
-				  const std::vector<ushort> &args_to_adapt = {});
+				  const std::vector<ushort> &args_to_adapt = {},
+				  bool is_discrete = false);
 	virtual ~Base_Proposer() {};
 
 	//===== GETTER =====//
@@ -105,13 +106,15 @@ protected:
 class Base_Variable
 {
 protected:
-	std::shared_ptr<Base_Distribution> _distr_ptr_ = nullptr; // prior/model distribution of the variable
-	std::shared_ptr<Base_Proposer> _prop_ptr_ = nullptr;	  // proposer for Monte Carlo
+	std::shared_ptr<Base_Distribution> _distr_ptr_; // prior/model distribution of the variable
+	std::shared_ptr<Base_Proposer> _prop_ptr_;		// proposer for Monte Carlo
 
 public:
 	//===== CONSTRUCTOR =====//
-	Base_Variable();
-	virtual ~Base_Variable();
+	Base_Variable(const std::string &name = UNDEFINED,
+				  double value = std::numeric_limits<double>::quiet_NaN(),
+				  bool is_discrete = false);
+	~Base_Variable();
 
 	//===== GETTER =====//
 	const std::string &get_name() const;
@@ -122,20 +125,16 @@ public:
 	double get_from_value() const;
 
 	//===== SETTER =====//
-	void init(const std::string &name = UNDEFINED,
-			  double value = std::numeric_limits<double>::quiet_NaN(),
-			  bool is_discrete = false);
+	void init(const std::string &name, double value, bool is_discrete);
 	void user_reset();
 	void set_value(double x);
 	void restore_value();
 
 	// define a pointer to distribution
-	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 const dict_args &distr_args = {},
-							 const dict_args &range = {});
-	void assign_distribution(const std::string &distr_name = UNDEFINED,
-							 const dict_args_ptr &distr_args = {},
-							 const dict_args &range = {});
+	void assign_distribution(const std::string &distr_name = UNDEFINED);
+	void assign_distr_scalar_arg(const std::string &arg_name, double x);
+	void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
+	void assign_distr_range(const std::map<std::string, double> &range);
 
 	// Assing a proposer rule with associated state 'infer'.
 	void assign_proposer(const std::string &rule_name = UNDEFINED,

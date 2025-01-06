@@ -6,6 +6,9 @@
 
 #include "distribution.h"
 
+// UPDATE: this should be merge into functions finally.
+// It could be done by changing Arguments.
+
 /* Base Class for Infectivity Profiles.
 	NOTE : this classes access to parameters passing through MCMC class.
 	This way I can check which parameters changes augmented dependencies. */
@@ -13,8 +16,7 @@ class Base_InfecProfile
 {
 public:
 	//===== CONSTRUCTOR =====//
-	Base_InfecProfile();
-	Base_InfecProfile(std::function<double(parID)> get);
+	Base_InfecProfile(std::function<double(parID)> get = nullptr);
 	virtual ~Base_InfecProfile();
 
 	//===== GETTER =====//
@@ -25,7 +27,9 @@ public:
 
 protected:
 	//===== SETTER =====//
-	void init(const std::string &name, const dict_args &init_defaults);
+	void _init_defaults_(const std::string &name,
+						 const std::vector<std::string> &arg_name,
+						 const std::vector<double> &arg_value);
 
 private:
 	std::string name = UNDEFINED;
