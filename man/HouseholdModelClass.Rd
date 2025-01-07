@@ -36,6 +36,8 @@ Compile household model, manage your data and parameters from a single class.
 \item \href{#method-HouseholdModelClass-augm_from_list}{\code{HouseholdModelClass$augm_from_list()}}
 \item \href{#method-HouseholdModelClass-augm_check}{\code{HouseholdModelClass$augm_check()}}
 \item \href{#method-HouseholdModelClass-augm_template}{\code{HouseholdModelClass$augm_template()}}
+\item \href{#method-HouseholdModelClass-group_rate_clear}{\code{HouseholdModelClass$group_rate_clear()}}
+\item \href{#method-HouseholdModelClass-group_rate_add}{\code{HouseholdModelClass$group_rate_add()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -536,13 +538,13 @@ If \code{FALSE} clears previous definitions (default).}
 \subsection{Method \code{param_check()}}{
 Check parameter definitions from the implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_check(fill_template = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_check(fill = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{fill_template}}{(\code{logical(1)})\cr
+\item{\code{fill}}{(\code{logical(1)})\cr
 If \code{TRUE} fills the missing parameter with template definitions.}
 }
 \if{html}{\out{</div>}}
@@ -674,13 +676,13 @@ If \code{FALSE} clears previous definitions (default).}
 \subsection{Method \code{augm_check()}}{
 Check augmented definitions from the model implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_check(fill_template = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_check(fill = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{fill_template}}{(\code{logical(1)})\cr
+\item{\code{fill}}{(\code{logical(1)})\cr
 If \code{TRUE} fills missing augmented variables with template definitions.}
 }
 \if{html}{\out{</div>}}
@@ -695,5 +697,53 @@ Overwrite augmented variable definitions with template definitions.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_template()}\if{html}{\out{</div>}}
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-group_rate_clear"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-group_rate_clear}{}}}
+\subsection{Method \code{group_rate_clear()}}{
+Remove all current augmented variable definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$group_rate_clear()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-group_rate_add"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-group_rate_add}{}}}
+\subsection{Method \code{group_rate_add()}}{
+Add a new group rate definition.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$group_rate_add(
+  name,
+  features,
+  prefix = NA,
+  reference = NULL,
+  independent = TRUE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{(\code{character(1)})\cr
+Name of the group rate.}
+
+\item{\code{features}}{(\code{list()})\cr
+Feature(s) associated to group rate as dataset headers.
+Corresponding dataset column have to be categorical.}
+
+\item{\code{prefix}}{(\code{character(1)})\cr
+Prefix to parameter names associated to the group rate.}
+
+\item{\code{reference}}{(named \code{list()})\cr
+Choose reference group providing corresponding features.
+Default is the group with the largest sample size.}
+
+\item{\code{independent}}{(\code{logical(1)})\cr
+If \code{TRUE} features are considered separately.}
+}
+\if{html}{\out{</div>}}
+}
 }
 }

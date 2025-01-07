@@ -1,7 +1,7 @@
 #
-# parameters.R
+# parameter.R
 #
-# Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
 HousepiParameterClass <- R6::R6Class(
@@ -190,11 +190,11 @@ HousepiParameterClass <- R6::R6Class(
     check = function(envir_path, augm_frame, fill_template = FALSE) {
 
       # retrieve the model source code
-      model_path <- file.path(envir_path, ".source")
+      model_path <- file.path(envir_path, ".refer")
 
-      if (!file.exists(file.path(envir_path, ".source"))) {
+      if (!file.exists(file.path(envir_path, ".refer"))) {
         cli::cli_alert_warning(cli::format_warning(c(
-          "Impossible to find '.source': file moved or deleted.",
+          "Impossible to find '.refer': file moved or deleted.",
           i = "Try to generate a new model object with {.code force = TRUE}."
         )))
 

@@ -1,4 +1,10 @@
-#' Household Survey 
+#
+# data.R
+#
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+#
+
+#' Household Survey
 #'
 #' Household data from a simulated demographic structure with a simulated outbreak.
 #' We assume an infectious and preventable disease. 

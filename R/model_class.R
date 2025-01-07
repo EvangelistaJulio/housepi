@@ -1,7 +1,7 @@
 #
 # model_class.R
 #
-# Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
 #' @title Household Model Class
@@ -18,16 +18,15 @@ HouseholdModelClass <- R6::R6Class(
   ###################
 
   private = list(
-    rcppmodel = NULL,
-    envir_path = NA,
-    is_develop_mode = FALSE,
+    model = NULL,
     setup = NULL,
     param = NULL,
     augm = NULL,
+    group_rate = NULL,
     traces_frame = NULL,
 
     # @description
-    # Associate dataset to the model and ptions for the setup.
+    # Associate dataset to the model and options for the setup.
     build = function(dataset = NULL,
                      n_steps = 1000,
                      n_burnin = 0,
@@ -39,16 +38,24 @@ HouseholdModelClass <- R6::R6Class(
                      inv_temper = 1.0,
                      seed = NA,
                      verbose = FALSE) {
+      #----- LOAD MODEL OBJECT -----#
+      # UPDATE : I should assign group_rates here
+
+      # if not developer mode, check definitions
+      if (!private$model$as_developer) {
+        self$param_assert()
+        self$augm_assert()
+      }
+
+      # compile
+      private$model$generate()
+      private$model$load()
+
+      #----- ASSOCIATE DEFINITIONS -----#
 
       # change scientific notation
       store_scipen <- options()$scipen
-      options(scipen = 500)
-
-      # if not developer mode, check definitions
-      if (!private$is_develop_mode) {
-        self$param_check(FALSE)
-        self$augm_check(FALSE)
-      }
+      options(scipen = 100)
 
       #----- 1) SETUP -----#
       private$setup[["n_steps"]] <- n_steps
@@ -62,34 +69,34 @@ HouseholdModelClass <- R6::R6Class(
       private$setup[["seed"]] <- seed
 
       setup <- lapply(private$setup[!is.na(private$setup)], as.character)
-      private$rcppmodel$import_setup(setup)
+      private$model$rcpp$import_setup(setup)
       if (isTRUE(verbose)) {
         cli::cli_alert_success("Imported setup definitions.")
       }
 
       #----- 2) PARAMETERS -----#
       params <- data.frame(lapply(private$param$defs, as.character))
-      private$rcppmodel$import_params(params)
+      private$model$rcpp$import_params(params)
       if (isTRUE(verbose)) {
         cli::cli_alert_success("Imported parameter definitions.")
       }
 
       #----- 3) DATA -----#
       if (is.null(dataset)) {
-        private$rcppmodel$read_data("<NA>")
+        private$model$rcpp$read_data("<NA>")
         if (isTRUE(verbose)) {
           cli::cli_alert_success("Using previously loaded dataset.")
         }
 
       } else if (is.character(dataset)) {
-        private$rcppmodel$read_data(dataset)
+        private$model$rcpp$read_data(dataset)
         if (isTRUE(verbose)) {
           cli::cli_alert_success("Imported dataset from file.")
         }
 
       } else if (is.data.frame(dataset)) {
         dataset <- data.frame(lapply(dataset, as.character))
-        private$rcppmodel$import_data(dataset)
+        private$model$rcpp$import_data(dataset)
         if (isTRUE(verbose)) {
           cli::cli_alert_success("Imported dataset from data.frame")
         }
@@ -103,13 +110,14 @@ HouseholdModelClass <- R6::R6Class(
 
       #----- 4) AUGMENTED -----#
       augm <- data.frame(lapply(private$augm$defs, as.character))
-      private$rcppmodel$import_augm(augm)
+      private$model$rcpp$import_augm(augm)
       if (isTRUE(verbose)) {
         cli::cli_alert_success("Imported augmented variable definitions.")
       }
 
       # restore scientific notation option
       options(scipen = store_scipen)
+      invisible(self)
     },
 
     # @description
@@ -121,6 +129,7 @@ HouseholdModelClass <- R6::R6Class(
           i = "Be sure to run your inference first."
         )))
       }
+      invisible(self)
     }
   ),
 
@@ -131,7 +140,7 @@ HouseholdModelClass <- R6::R6Class(
   ############################################################################
 
   ###################
-  ##### PUBLIC #####
+  ##### PUBLIC ######
   ###################
 
   public = list(
@@ -154,28 +163,19 @@ HouseholdModelClass <- R6::R6Class(
                           quiet = TRUE,
                           force = FALSE,
                           as_template = FALSE) {
-      #----- load dynamic library -----#
-      dll <- generate_dll_model(model, force = force, quiet = quiet,
-                                as_template = as_template)
-      dyn.load(dll)
-      private$is_develop_mode <- (model == "developer")
-
-      # expose internally the module
-      package <- tools::file_path_sans_ext(basename(dll))
-      m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = package)
-
-      #----- assign fields -----#
-      # assign the path to model environment source
-      private$envir_path <- dirname(dll)
-      # assign the model object
-      private$rcppmodel <- m$ModelHousepi$new()
-
+      # assign model definitions
+      private$model <- HousepiGeneratorClass$new(model = model,
+                                                 quiet = quiet,
+                                                 force = force,
+                                                 as_template = as_template)
       # assign the empty setup list
       private$setup <- list()
       # assign the empty parameter data.frame
       private$param <- HousepiParameterClass$new()
       # assign the empty augmented data.frame
       private$augm <- HousepiAugmentedClass$new()
+      # assign the empty group rate list
+      private$group_rate <- HousepiGroupRateClass$new()
 
       invisible(self)
     },
@@ -183,7 +183,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      templ_info_file <- file.path(private$envir_path, "template_info.Rd")
+      templ_info_file <- file.path(private$model$path, "template_info.Rd")
       if (!file.exists((templ_info_file))) {
         stop(cli::format_error(c(
           "Impossible to show model description.",
@@ -221,14 +221,12 @@ HouseholdModelClass <- R6::R6Class(
                              rnd_init_params = FALSE,
                              inv_temper = 1.0,
                              verbose = FALSE) {
-
       # internal build function
       private$build(dataset = dataset, n_threads = n_threads,
                     rnd_init_params = rnd_init_params,
                     inv_temper = inv_temper, verbose = verbose)
-
       # evaluate loglikelihood from the internal Rcpp object
-      return(private$rcppmodel$evaluate())
+      return(private$model$rcpp$evaluate())
     },
 
     #' @description
@@ -278,11 +276,11 @@ HouseholdModelClass <- R6::R6Class(
                     inv_temper = inv_temper, seed = seed, verbose = verbose)
 
       # infer method from cpp model object
-      private$rcppmodel$infer(progress)
+      private$model$rcpp$infer(progress)
       # load traces from last inference
-      df <- private$rcppmodel$export_traces()
+      df <- private$model$rcpp$export_traces()
       # extract setup information for coda
-      load_setup <- private$rcppmodel$export_setup()
+      load_setup <- private$model$rcpp$export_setup()
 
       # Check if multiple chains
       if ("CHAIN__" %in% colnames(df)) {
@@ -371,6 +369,7 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         lattice::xyplot(private$traces_frame, col = col, xlab = xlab, ...)
       }
+      invisible(self)
     },
 
     #' @description
@@ -399,9 +398,8 @@ HouseholdModelClass <- R6::R6Class(
       private$build(dataset, n_threads = n_threads,
                     rnd_init_params = rnd_init_params,
                     seed = seed, verbose = verbose)
-
-      # simulate method from internal Rcpp object
-      private$rcppmodel$simulate(progress)
+      # call simulate method from internal Rcpp object
+      private$model$rcpp$simulate(progress)
       invisible(self)
     },
 
@@ -411,13 +409,23 @@ HouseholdModelClass <- R6::R6Class(
     #' @return (`data.frame`)\cr
     #' A data.frame with individual level information.
     data_export = function() {
-      return(private$rcppmodel$export_data())
+      if (is.null(private$model$rcpp)) {
+        stop(cli::format_error(c(
+          "Impossible to export data before model build.",
+        )))
+      }
+      return(private$model$rcpp$export_data())
     },
 
     #' @description
     #' Print a summary of the current dataset.
     data_summary = function() {
-      return(private$rcppmodel$show_summary())
+      if (is.null(private$model$rcpp)) {
+        stop(cli::format_error(c(
+          "Impossible to show data summary before model build.",
+        )))
+      }
+      return(private$model$rcpp$show_summary())
     },
 
     ############################################################################
@@ -431,7 +439,12 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
     loo = function(...) {
-      return(loo::loo(private$rcppmodel$export_household_loglike_traces(), ...))
+      if (is.null(private$model$rcpp)) {
+        stop(cli::format_error(c(
+          "Impossible to run loo command before model build.",
+        )))
+      }
+      return(loo::loo(private$model$rcpp$export_household_loglike_traces(), ...))
     },
 
     #' @description
@@ -439,7 +452,12 @@ HouseholdModelClass <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::waic].
     #' #' For arguments and further details type ?loo::waic.
     waic = function(...) {
-      return(loo::waic(private$rcppmodel$export_household_loglike_traces(), ...))
+      if (is.null(private$model$rcpp)) {
+        stop(cli::format_error(c(
+          "Impossible to run waic command before model build.",
+        )))
+      }
+      return(loo::waic(private$model$rcpp$export_household_loglike_traces(), ...))
     },
 
     #' @description
@@ -490,12 +508,10 @@ HouseholdModelClass <- R6::R6Class(
                     thin = thin, n_adapt = n_adapt, n_chains = n_chains,
                     n_threads = n_threads, rnd_init_params = TRUE,
                     seed = seed, verbose = verbose)
-
       # evaluate marginal from the internal Rcpp object
-      output <- private$rcppmodel$evaluate_marginal(n_rungs, scheme, progress)
-      # drop traces
+      output <- private$model$rcpp$evaluate_marginal(n_rungs, scheme, progress)
+      # drop traces eventually
       private$traces_frame <- NULL
-
       return(output)
     },
 
@@ -553,7 +569,6 @@ HouseholdModelClass <- R6::R6Class(
       private$param$add(name = name, value = value, infer = infer,
                         discrete = discrete, prior = prior, args = args,
                         rule = rule, rule_scale = rule_scale, range = range)
-
       invisible(self)
     },
 
@@ -571,17 +586,15 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Check parameter definitions from the implementation script.
-    #' @param fill_template (`logical(1)`)\cr
+    #' @param fill (`logical(1)`)\cr
     #' If `TRUE` fills the missing parameter with template definitions.
-    param_check = function(fill_template = FALSE) {
-      if (private$is_develop_mode) {
+    param_assert = function(fill = FALSE) {
+      if (private$model$as_developer) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available in developer mode."
         ))
       } else {
-        private$param$check(private$envir_path,
-                            private$augm$defs,
-                            fill_template)
+        private$param$check(private$model$path, private$augm$defs, fill)
       }
       invisible(self)
     },
@@ -589,12 +602,12 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Overwrite current parameter definitions with template definitions.
     param_template = function() {
-      if (private$is_develop_mode) {
+      if (private$model$as_developer) {
         cli::cli_alert_warning(cli::format_warning(
           "No template available in developer mode."
         ))
       } else {
-        private$param$template(private$envir_path)
+        private$param$template(private$model$path)
       }
       invisible(self)
     },
@@ -680,15 +693,15 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Check augmented definitions from the model implementation script.
-    #' @param fill_template (`logical(1)`)\cr
+    #' @param fill (`logical(1)`)\cr
     #' If `TRUE` fills missing augmented variables with template definitions.
-    augm_check = function(fill_template = FALSE) {
-      if (private$is_develop_mode) {
+    augm_ = function(fill = FALSE) {
+      if (private$model$as_developer) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available in developer mode."
         ))
       } else {
-        private$augm$check(private$envir_path, fill_template)
+        private$augm$check(private$model$path, fill)
       }
       invisible(self)
     },
@@ -696,13 +709,50 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Overwrite augmented variable definitions with template definitions.
     augm_template = function() {
-      if (private$is_develop_mode) {
+      if (private$model$as_developer) {
         cli::cli_alert_warning(cli::format_warning(
           "No template available in developer mode."
         ))
       } else {
-        private$augm$template(private$envir_path)
+        private$augm$template(private$model$path)
       }
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    #' @description
+    #' Remove all current augmented variable definitions.
+    group_rate_clear = function() {
+      private$group_rate$clear()
+      invisible(self)
+    },
+
+    #' @description
+    #' Add a new group rate definition.
+    #' @param name (`character(1)`)\cr
+    #' Name of the group rate.
+    #' @param features (`list()`)\cr
+    #' Feature(s) associated to group rate as dataset headers.
+    #' Corresponding dataset column have to be categorical.
+    #' @param prefix (`character(1)`)\cr
+    #' Prefix to parameter names associated to the group rate.
+    #' @param reference (named `list()`)\cr
+    #' Choose reference group providing corresponding features.
+    #' Default is the group with the largest sample size.
+    #' @param independent (`logical(1)`)\cr
+    #' If `TRUE` features are considered separately.
+    group_rate_add = function(name,
+                              features,
+                              prefix = NA,
+                              reference = NULL,
+                              independent = TRUE) {
+      private$group_rate$add(name = name, features = features, prefix = prefix,
+                             reference = reference, independent = independent)
       invisible(self)
     }
   )

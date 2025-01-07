@@ -1,7 +1,7 @@
 #
 # template.R
 #
-# Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
 #' @title household model template

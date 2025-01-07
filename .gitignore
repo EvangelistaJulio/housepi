@@ -64,4 +64,5 @@ Thumbs.db
 
 # housepi files #
 #################
-*.source
+.refer
+.source

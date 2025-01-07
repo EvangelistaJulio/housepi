@@ -1,3 +1,9 @@
+#
+# zzz.R
+#
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+#
+
 #' housepi
 #'
 #' Household Epidemiological Modeling and Inference Rcpp Toolkit

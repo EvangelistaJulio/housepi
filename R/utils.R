@@ -1,16 +1,20 @@
 #
 # utils.R
 #
-# Copyright (C) 2024 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
-  success <- TRUE
   if (from != to) {
-    success <- file.copy(from, to, overwrite = TRUE, ...)
+    if (!file.copy(from, to, overwrite = TRUE, ...)) {
+      # user permission error (tipically)
+      stop(cli::format_error(c(
+        "Failed to setup internal files.",
+        i = "Check your user permissions."
+      )))
+    }
   }
-  return(success)
 }
 
 # Define a custom get function (like in Python dictionaries)
@@ -59,12 +63,59 @@ str_join_ <- function(x) {
   return(paste(x, collapse = "/"))
 }
 
+format_string <- function(name) {
+  return(gsub("[[:punct:]]", "", name))
+}
+
 # Generate a random string
-rnd_string <- function(size = 8){
+rnd_string <- function(size = 8) {
   return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE), collapse = ""))
 }
 
 # Returns the path/to/models folder
 template_models_dir <- function() {
   return(file.path(system.file(package = "housepi"), "models"))
+}
+
+# Source code files
+source_files <- function(path) {
+  return(file.path(path, paste0("model.", c("cpp", "h"))))
+}
+
+# Verify source files exist
+assert_source_files <- function(path) {
+  for (file_name in source_files(path)) {
+    if (!file.exists(file_name)) {
+      stop(cli::format_error(c(
+        sprintf("File '%s' was not found.", file_name),
+        i = "Check your model directory"
+      )))
+    }
+  }
+  invisible()
+}
+
+# Optional helper files
+helper_files <- function(path) {
+  return(file.path(path, paste0("template_", c("params.R", "info.Rd", "augm.R"))))
+}
+
+# Associate dynamic library extension to name
+dll_file_ext <- function(name = "") {
+  return(paste0(name, .Platform$dynlib.ext))
+}
+
+# Templated name convention
+template_name <- function(path) {
+  return(paste0("housepi", format_string(basename(path))))
+}
+
+# Add random string to templated name
+random_name <- function(path) {
+  return(paste0(template_name(path), rnd_string()))
+}
+
+# DLL fyle with templated name convention
+template_dll_file <- function(path) {
+  return(file.path(path, dll_file_ext(template_name(path))))
 }
