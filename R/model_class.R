@@ -26,6 +26,38 @@ HouseholdModelClass <- R6::R6Class(
     traces_frame = NULL,
 
     # @description
+    # Pre-build to deal with group rates.
+    # @param dataset
+    build_group_rate = function(dataset = NULL) {
+      if (private$group_rate$cpp_assert(dataset,
+                                        private$model$reference())) {
+        # NOTE: at the moment I just cache group rate changes
+        # search for the cache file
+        source_file <- file.path(private$model$cache_dir,
+                                 "src", "model.cpp")
+        # deal with the case cache has been deleted
+        if (!file.exists(source_file)) {
+          # check if it's a template
+          model_choice <- file.path(private$model$path(), "model.cpp")
+          if (file.exists(model_choice)) {
+            # re-assign model object forcing copy of source to cache
+            private$model <- HousepiGeneratorClass$new(model_choice,
+                                                       force = TRUE)
+            # assign new cache file
+            source_file <- file.path(private$model$cache_dir,
+                                     "src", "model.cpp")
+          } else {
+            stop(cli::format_error(
+              "Unknown error: impossible to find source file."
+            ))
+          }
+        }
+        # finally
+        private$group_rate$cpp_write(dataset, source_file)
+      }
+    },
+
+    # @description
     # Associate dataset to the model and options for the setup.
     build = function(dataset = NULL,
                      n_steps = 1000,
@@ -38,16 +70,22 @@ HouseholdModelClass <- R6::R6Class(
                      inv_temper = 1.0,
                      seed = NA,
                      verbose = FALSE) {
-      #----- LOAD MODEL OBJECT -----#
-      # UPDATE : I should assign group_rates here
-
-      # if not developer mode, check definitions
-      if (!private$model$as_developer) {
-        self$param_assert()
-        self$augm_assert()
+      #----- MODEL PRE-BUILD -----#
+      if (private$model$is_blank) {
+        # blank dataset
+        dataset <- data.frame(id = c("HH_1_1"),
+                              house_id = c("HH_1"),
+                              status = c(1))
+      } else {
+        # deal with group rates
+        private$build_group_rate(dataset)
+        # assert parameter definitions
+        self$assert_param()
+        # assert augmented variable definitions
+        self$assert_augm()
       }
 
-      # compile
+      #----- MODEL LOADING -----#
       private$model$generate()
       private$model$load()
 
@@ -122,7 +160,7 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Check that traces exists, otherwise raise error
-    traces_check = function() {
+    assert_traces = function() {
       if (is.null(private$traces_frame)) {
         stop(cli::format_error(c(
           "No MCMC traces were found.",
@@ -148,10 +186,10 @@ HouseholdModelClass <- R6::R6Class(
     #' Create a new instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
     #' @param model (`character(1)`)\cr
     #' One between:
-    #' - Template name;
-    #' - path/to/folder with implementation;
-    #' - path/to/folder with previously compiled model;
-    #' - "developer".
+    # - template name;
+    # - path/to/folder with implementation;
+    # - path/to/folder with previously compiled model;
+    # - "blank" template name.
     #' @param quiet (`logical(1)`)\cr
     #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
@@ -183,7 +221,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      templ_info_file <- file.path(private$model$path, "template_info.Rd")
+      templ_info_file <- file.path(private$model$path(), "template_info.Rd")
       if (!file.exists((templ_info_file))) {
         stop(cli::format_error(c(
           "Impossible to show model description.",
@@ -279,6 +317,11 @@ HouseholdModelClass <- R6::R6Class(
       private$model$rcpp$infer(progress)
       # load traces from last inference
       df <- private$model$rcpp$export_traces()
+      # remove loglikelihood if blank
+      if (private$model$is_blank) {
+        df <- df[, names(df) != "loglikelihood"]
+      }
+
       # extract setup information for coda
       load_setup <- private$model$rcpp$export_setup()
 
@@ -310,28 +353,19 @@ HouseholdModelClass <- R6::R6Class(
     #' Export the traces of last inference call as a coda object.
     #' @return
     #' (`coda::mcmc` | `coda::mcmc.list`)
-    traces_export = function() {
-      private$traces_check()
+    export_traces = function() {
+      private$assert_traces()
       return(private$traces_frame)
-    },
-
-    #' @description
-    #' Export the correlations between traces values of last inference call.
-    #' @return
-    #' A (`matrix` | 3d `array`)
-    traces_crosscorr = function() {
-      private$traces_check()
-      return(coda::crosscorr(private$traces_frame))
     },
 
     #' @description
     #' Export the traces of last inference call as a coda object.
     #' @return
     #' (`data.frame`)
-    traces_summary = function() {
-      private$traces_check()
+    summarise_traces = function() {
+      private$assert_traces()
       res <- summary(private$traces_frame)
-      imask <- private$param$defs["infer"] == TRUE
+      imask <- private$param$defs["constant"] == FALSE
       inames <- private$param$defs[imask, "name"]
       output <- data.frame(
         Mean = res[["statistics"]][inames, "Mean"],
@@ -343,17 +377,17 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Calls coda wrapper of lattice:xyplot for the traces traces.
+    #' Calls `coda` wrapper of `lattice:xyplot` for the traces.
     #' @param chain (`integer(1)`)
     #' Option to specifiy which chain to plot if multiple chains.
     #' @param col (`character()`)
-    #' Color names.
+    #' Color name(s).
     #' @param ...
-    #' Further arguments pass to [xyplot][lattice::xyplot].
-    traces_xyplot = function(chain = NA,
-                             col = "dodgerblue",
-                             ...) {
-      private$traces_check()
+    #' Further arguments passed to [xyplot][lattice::xyplot].
+    plot_traces = function(chain = NA,
+                           col = "dodgerblue",
+                           ...) {
+      private$assert_traces()
       xlab <- "iteration"
 
       if (coda::is.mcmc.list(private$traces_frame)) {
@@ -369,7 +403,6 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         lattice::xyplot(private$traces_frame, col = col, xlab = xlab, ...)
       }
-      invisible(self)
     },
 
     #' @description
@@ -408,7 +441,7 @@ HouseholdModelClass <- R6::R6Class(
     #' If the case, it also return the associated augmented variables.
     #' @return (`data.frame`)\cr
     #' A data.frame with individual level information.
-    data_export = function() {
+    export_data = function() {
       if (is.null(private$model$rcpp)) {
         stop(cli::format_error(c(
           "Impossible to export data before model build.",
@@ -419,7 +452,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Print a summary of the current dataset.
-    data_summary = function() {
+    summarise_data = function() {
       if (is.null(private$model$rcpp)) {
         stop(cli::format_error(c(
           "Impossible to show data summary before model build.",
@@ -525,13 +558,13 @@ HouseholdModelClass <- R6::R6Class(
     #' Export the parameter definitions at current state.
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted parameter definitions.
-    param_export = function() {
+    export_param = function() {
       return(private$param$defs)
     },
 
     #' @description
     #' Clear all current parameter definitions.
-    param_clear = function() {
+    clear_param = function() {
       private$param$clear()
       invisible(self)
     },
@@ -542,7 +575,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Name of the parameter.
     #' @param value (`double(1)`)\cr
     #' Initial value of the parameter.
-    #' @param infer (`logical(1)`)\cr
+    #' @param constant (`logical(1)`)\cr
     #' If `FALSE` the parameter is treated as a constant.
     #' @param discrete (`logical(1)`)\cr
     #' If `TRUE` the parameter is discrete.
@@ -557,16 +590,16 @@ HouseholdModelClass <- R6::R6Class(
     #' Changed automatically during inference if `n_adpat`>0.
     #' @param range (named `list()`)\cr
     #' The prior truncation 'min', 'max' or no bound.
-    param_add = function(name = NA,
+    add_param = function(name = NA,
                          value = NA,
-                         infer = NA,
+                         constant = NA,
                          discrete = FALSE,
                          prior = NA,
                          args = list(),
                          rule = NA,
                          rule_scale = NA,
                          range = list()) {
-      private$param$add(name = name, value = value, infer = infer,
+      private$param$add(name = name, value = value, constant = constant,
                         discrete = discrete, prior = prior, args = args,
                         rule = rule, rule_scale = rule_scale, range = range)
       invisible(self)
@@ -579,7 +612,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` appends the list to current definition.
     #' If `FALSE` clears previous definitions (default).
-    param_from_list = function(definitions, append = FALSE) {
+    load_param_list = function(definitions, append = FALSE) {
       private$param$from_list(definitions, append = append)
       invisible(self)
     },
@@ -588,26 +621,27 @@ HouseholdModelClass <- R6::R6Class(
     #' Check parameter definitions from the implementation script.
     #' @param fill (`logical(1)`)\cr
     #' If `TRUE` fills the missing parameter with template definitions.
-    param_assert = function(fill = FALSE) {
-      if (private$model$as_developer) {
+    assert_param = function(fill = FALSE) {
+      if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available in developer mode."
         ))
       } else {
-        private$param$check(private$model$path, private$augm$defs, fill)
+        private$param$assert(private$model$reference(),
+                             private$augm$defs, fill)
       }
       invisible(self)
     },
 
     #' @description
     #' Overwrite current parameter definitions with template definitions.
-    param_template = function() {
-      if (private$model$as_developer) {
+    template_param = function() {
+      if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No template available in developer mode."
         ))
       } else {
-        private$param$template(private$model$path)
+        private$param$template(private$model$path())
       }
       invisible(self)
     },
@@ -622,13 +656,13 @@ HouseholdModelClass <- R6::R6Class(
     #' Export the augmented variable definitions at current state.
     #' @return (`data.frame`)\cr
     #' A data.frame with formatted augmented variable definitions.
-    augm_export = function() {
+    export_augm = function() {
       return(private$augm$defs)
     },
 
     #' @description
     #' Remove all current augmented variable definitions.
-    augm_clear = function() {
+    clear_augm = function() {
       private$augm$clear()
       invisible(self)
     },
@@ -660,7 +694,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param status (`integer(1)`)\cr
     #' The associated status of the definition.
     #' Default NA is for all infectious.
-    augm_add = function(name = NA,
+    add_augm = function(name = NA,
                         value = NA,
                         discrete = FALSE,
                         model = NA,
@@ -686,35 +720,35 @@ HouseholdModelClass <- R6::R6Class(
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` appends the list to current definition.
     #' If `FALSE` clears previous definitions (default).
-    augm_from_list = function(definitions, append = FALSE) {
+    load_augm_list = function(definitions, append = FALSE) {
       private$augm$from_list(definitions, append = append)
       invisible(self)
     },
 
     #' @description
-    #' Check augmented definitions from the model implementation script.
+    #' Assert augmented definitions from the model implementation script.
     #' @param fill (`logical(1)`)\cr
     #' If `TRUE` fills missing augmented variables with template definitions.
-    augm_ = function(fill = FALSE) {
-      if (private$model$as_developer) {
+    assert_augm = function(fill = FALSE) {
+      if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available in developer mode."
         ))
       } else {
-        private$augm$check(private$model$path, fill)
+        private$augm$assert(private$model$reference(), fill)
       }
       invisible(self)
     },
 
     #' @description
     #' Overwrite augmented variable definitions with template definitions.
-    augm_template = function() {
-      if (private$model$as_developer) {
+    template_augm = function() {
+      if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No template available in developer mode."
         ))
       } else {
-        private$augm$template(private$model$path)
+        private$augm$template(private$model$path())
       }
       invisible(self)
     },
@@ -727,7 +761,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Remove all current augmented variable definitions.
-    group_rate_clear = function() {
+    clear_group_rate = function() {
       private$group_rate$clear()
       invisible(self)
     },
@@ -746,7 +780,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Default is the group with the largest sample size.
     #' @param independent (`logical(1)`)\cr
     #' If `TRUE` features are considered separately.
-    group_rate_add = function(name,
+    add_group_rate = function(name,
                               features,
                               prefix = NA,
                               reference = NULL,

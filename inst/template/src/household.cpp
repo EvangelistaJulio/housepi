@@ -28,12 +28,12 @@ public:
 	double get_augm(indiv i, const augmID &a) const;
 	double get_rate(indiv i, const rateID &r) const;
 
-	std::string ID = UNDEFINED; // user ID
+	std::string ID = UNDEFINED_STRING; // user ID
 	size_t index = -1;			// index of household
 	ushort house_size = 0;		// number of house members
 
-	double house_loglike = -INF_DOUBLE; // current loglikelihood value
-	double buffer = -INF_DOUBLE;		// buffer loglikelihood value
+	double house_loglike = -UNDEFINED_DOUBLE; // current loglikelihood value
+	double buffer = -UNDEFINED_DOUBLE;		// buffer loglikelihood value
 
 	ushort n_infectious = 0;
 	ushort n_susceptible = 0;
@@ -51,7 +51,7 @@ public:
 
 	// diagnostics
 	ulong dgn_count = 0;
-	std::vector<double> dgn_loglike = {};
+	dbl_vec dgn_loglike = {};
 
 	// contact rate pointers
 	matrix<const double *> contact_rates;
@@ -66,13 +66,13 @@ public:
 	//----- Extra Attributes -----//
 	extraIDmap<int> extra_integer = {};
 	extraIDmap<double> extra_double = {};
-	extraIDmap<std::vector<double>> extra_vec = {};
+	extraIDmap<dbl_vec> extra_vec = {};
 	extraIDmap<matrix<double>> extra_mtx = {};
 
 	//----- Buffer EXTRA Attributes -----//
 	extraIDmap<int> _buffer_extra_integer_ = {};
 	extraIDmap<double> _buffer_extra_double_ = {};
-	extraIDmap<std::vector<double>> _buffer_extra_vec_ = {};
+	extraIDmap<dbl_vec> _buffer_extra_vec_ = {};
 	extraIDmap<matrix<double>> _buffer_extra_mtx_ = {};
 
 	void buffer_all_extra();
@@ -264,7 +264,7 @@ double Household_Impl::_get_data_assert_(indiv i, const dataID &d) const
 	if (members[i].assert_data(d))
 		return _get_data_default_(i, d);
 	else
-		return INF_DOUBLE;
+		return UNDEFINED_DOUBLE;
 }
 
 /* Default method to get the value of an augmented variable. */
@@ -279,7 +279,7 @@ double Household_Impl::_get_augm_assert_(indiv i, const augmID &a) const
 	if (members[i].assert_augm(a))
 		return _get_augm_default_(i, a);
 	else
-		return INF_DOUBLE;
+		return UNDEFINED_DOUBLE;
 }
 
 /* Default method to get the value of rate. */
@@ -294,7 +294,7 @@ double Household_Impl::_get_rate_assert_(indiv i, const rateID &r) const
 	if (members[i].assert_rate(r))
 		return _get_rate_default_(i, r);
 	else
-		return INF_DOUBLE;
+		return UNDEFINED_DOUBLE;
 }
 
 /* Default method to set the value of an augmented variable. */
@@ -452,9 +452,9 @@ void Household::assign_augm_model_pointer_arg(indiv i, const augmID &a,
 
 /* Assign range for augmented variable model. */
 void Household::assign_augm_model_range(indiv i, const augmID &a,
-										const std::map<std::string, double> &range)
+										double lower, double upper)
 {
-	pImpl->members[i].augm_map.at(a).assign_distr_range(range);
+	pImpl->members[i].augm_map.at(a).assign_distr_range(lower, upper);
 }
 
 /* Set a value for the augmented variable. */
@@ -501,14 +501,14 @@ void Household::init_diagnostics(ulong sample_size)
 {
 	pImpl->dgn_count = 0;
 	pImpl->dgn_loglike.clear();
-	pImpl->dgn_loglike = std::vector<double>(sample_size);
+	pImpl->dgn_loglike = dbl_vec(sample_size);
 }
 
 /* Update the values for the Bayesian diagnostics. */
 void Household::update_diagnostics() { pImpl->dgn_loglike[pImpl->dgn_count++] = pImpl->house_loglike; }
 
 /* Return the loglikelihood sample vector. */
-const std::vector<double> &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
+const dbl_vec &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
 
 //===== EXTRA ATTRIBUTES =====//
 void Household::_buffer_all_extra() { pImpl->buffer_all_extra(); }
@@ -548,7 +548,7 @@ double Household::extra_double(const extraID &e) const
 void Household::allocate_extra_vector(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
-		pImpl->extra_vec[e] = std::vector<double>(size(), xinit);
+		pImpl->extra_vec[e] = dbl_vec(size(), xinit);
 }
 void Household::set_extra_vector(const extraID &e, size_t i, double xnew)
 {
@@ -558,7 +558,7 @@ double Household::extra_vector(const extraID &e, size_t i) const
 {
 	return pImpl->extra_vec.at(e)[i];
 }
-const std::vector<double> &Household::extra_vector(const extraID &e) const
+const dbl_vec &Household::extra_vector(const extraID &e) const
 {
 	return pImpl->extra_vec.at(e);
 }
@@ -566,7 +566,7 @@ const std::vector<double> &Household::extra_vector(const extraID &e) const
 void Household::allocate_extra_matrix(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
-		pImpl->extra_mtx[e] = matrix<double>(size(), std::vector<double>(size(), xinit));
+		pImpl->extra_mtx[e] = matrix<double>(size(), dbl_vec(size(), xinit));
 }
 
 void Household::set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew)

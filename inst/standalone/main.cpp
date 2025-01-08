@@ -46,12 +46,12 @@ int main(int argc, char *argv[])
     ulong num_rungs = 0;
 
     // paths/to/files
-    std::string params_file = UNDEFINED;
-    std::string data_file = UNDEFINED;
-    std::string augm_file = UNDEFINED;
-    std::string setup_file = UNDEFINED;
-    std::string output_file = UNDEFINED;
-    std::string save_augm_file = UNDEFINED;
+    std::string params_file = UNDEFINED_STRING;
+    std::string data_file = UNDEFINED_STRING;
+    std::string augm_file = UNDEFINED_STRING;
+    std::string setup_file = UNDEFINED_STRING;
+    std::string output_file = UNDEFINED_STRING;
+    std::string save_augm_file = UNDEFINED_STRING;
 
     //=====Test if some commands were supplied=====//
     if (argc < 2)
@@ -166,16 +166,16 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        print_decorator("Inference", UNDEFINED, C_DECOR, verbose);
+        print_decorator("Inference", UNDEFINED_STRING, C_DECOR, verbose);
         user_model->infer(progbar);
 
         if (verbose)
         {
-            print_decorator("Inference::results", UNDEFINED);
+            print_decorator("Inference::results", UNDEFINED_STRING);
             user_model->show_results();
         }
 
-        if (output_file != UNDEFINED)
+        if (output_file != UNDEFINED_STRING)
         {
             print_decorator("Inference::infer state",
                             "# save: " + output_file,
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
             user_model->print_infer_state(output_file);
         }
 
-        if (save_augm_file != UNDEFINED)
+        if (save_augm_file != UNDEFINED_STRING)
         {
             print_decorator("Inference::augmented dataframe",
                             "# save: " + save_augm_file,
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file == UNDEFINED)
+        if (output_file == UNDEFINED_STRING)
         {
             error("Missing output file for simulation.");
         }
@@ -216,10 +216,10 @@ int main(int argc, char *argv[])
 
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
-        print_decorator("Loglikelihood", UNDEFINED, C_DECOR, verbose);
+        print_decorator("Loglikelihood", UNDEFINED_STRING, C_DECOR, verbose);
         print_stdout(std::to_string(user_model->evaluate()) + "\n");
 
-        if (save_augm_file != UNDEFINED)
+        if (save_augm_file != UNDEFINED_STRING)
         {
             print_decorator("Loglikelihood::augmented dataframe",
                             "# save: " + save_augm_file,
@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
-        print_decorator("Marginal Loglikelihood", UNDEFINED, C_DECOR, verbose);
+        print_decorator("Marginal Loglikelihood", UNDEFINED_STRING, C_DECOR, verbose);
         print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
     }
 

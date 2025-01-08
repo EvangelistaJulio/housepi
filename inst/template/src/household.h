@@ -78,14 +78,14 @@ public:
 
 	//----- Augmented : Setter -----//
 	void assign_augm(indiv i,
-					 const augmID &a = UNDEFINED,
-					 const std::string &name = UNDEFINED,
+					 const augmID &a = UNDEFINED_STRING,
+					 const std::string &name = UNDEFINED_STRING,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discrete = false,
-					 const std::string &model_name = UNDEFINED,
-					 const std::string &rule_name = UNDEFINED,
-					 double rule_scale = INF_DOUBLE,
-					 double rule_from = INF_DOUBLE);
+					 const std::string &model_name = UNDEFINED_STRING,
+					 const std::string &rule_name = UNDEFINED_STRING,
+					 double rule_scale = UNDEFINED_DOUBLE,
+					 double rule_from = UNDEFINED_DOUBLE);
 	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
 									  const std::string &arg_name,
 									  double arg_value);
@@ -93,7 +93,7 @@ public:
 									   const std::string &arg_name,
 									   const double *ptr_to_arg_value);
 	void assign_augm_model_range(indiv i, const augmID &a,
-								 const std::map<std::string, double> &range = {});
+								 double lower, double upper);
 
 	void set_augm_value(indiv i, const augmID &a, double x);
 	void augm_model_rand(indiv i, const augmID &a, rnd_gen &prng);
@@ -126,7 +126,7 @@ public:
 	void allocate_extra_vector(const std::vector<extraID> &names, double xinit = 0.0);
 	void set_extra_vector(const extraID &e, size_t i, double xnew);
 	double extra_vector(const extraID &e, size_t i) const;
-	const std::vector<double> &extra_vector(const extraID &e) const;
+	const dbl_vec &extra_vector(const extraID &e) const;
 
 	//----- Matrix of doubles -----//
 	void allocate_extra_matrix(const std::vector<extraID> &names, double xinit = 0.0);
@@ -147,7 +147,7 @@ public:
 	//===== DIAGNOSTICS =====//
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics();
-	const std::vector<double> &get_dgn_loglike() const;
+	const dbl_vec &get_dgn_loglike() const;
 
 private:
 	//===== Pointer to Implementation =====//

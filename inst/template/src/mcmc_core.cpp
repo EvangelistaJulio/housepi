@@ -26,7 +26,7 @@ double Monte_Carlo_Build::_get_param_assert_(const parID &p) const
     if (assert_param(p))
         return _get_param_default_(p);
     else
-        return INF_DOUBLE;
+        return UNDEFINED_DOUBLE;
 }
 
 /* Default functional method to return pointer to parameter. */
@@ -58,10 +58,10 @@ void Monte_Carlo_Build::assign_param(const parID &p, const Base_Variable &new_pa
         param_map.emplace(p, new_param);
 
         // update the lists of parameters to be inferred, and these to be static
-        if (new_param.get_infer())
-            param_to_be_inferred.push_back(p);
+        if (new_param.is_constant())
+            param_to_be_constant.push_back(p);
         else
-            param_to_be_static.push_back(p);
+            param_to_be_inferred.push_back(p);
     }
 }
 
@@ -141,9 +141,6 @@ double Monte_Carlo_Build::get_param(const parID &p) const { return (this->*_func
 /* Wrapper of functional method to return a pointer to the parameter. */
 const double *Monte_Carlo_Build::get_param_pointer(const parID &p) const { return (this->*_func_get_param_pointer_)(p); }
 
-/* Getter for the infer attribute of parameter (mutable/constant). */
-bool Monte_Carlo_Build::get_infer(const parID &p) const { return param_map.at(p).get_infer(); }
-
 /* Randomly initialize values of the parameters to be inferred */
 void Monte_Carlo_Build::init_parameters()
 {
@@ -154,7 +151,7 @@ void Monte_Carlo_Build::init_parameters()
 
         if (setup_rnd_init_params)
         {
-            if (param_map.at(p).get_distr_name() == UNDEFINED)
+            if (param_map.at(p).get_distr_name() == UNDEFINED_STRING)
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
@@ -162,7 +159,7 @@ void Monte_Carlo_Build::init_parameters()
         }
         else
         {
-            if (param_map.at(p).get_value() == INF_DOUBLE)
+            if (param_map.at(p).get_value() == UNDEFINED_DOUBLE)
                 throw std::invalid_argument(
                     "Undefined value for parameter to infer '" + p + "' while no random initialization.");
         }
@@ -394,32 +391,44 @@ void Monte_Carlo_Build::build_params()
         if (_param_deftable_.empty())
         {
             // error if nothing was previously defined
-            if (param_to_be_static.empty() && param_to_be_inferred.empty())
+            if (param_to_be_constant.empty() && param_to_be_inferred.empty())
                 throw std::invalid_argument(
                     "Undefined parameter definitions.");
         }
         else
         {
             //===== Read Parameter Definitions =====//
-            size_t table_length = _param_deftable_.at("infer").size();
+            size_t table_length = _param_deftable_.at("name").size();
 
             //===== Empty current list of parameters =====//
             param_map.clear();
-            param_to_be_static.clear();
+            param_to_be_constant.clear();
             param_to_be_inferred.clear();
 
             //===== Load parameters from the row with options =====//
             for (size_t k = 0; k < table_length; ++k)
             {
                 const std::string &name = _param_deftable_.at("name")[k]; // parameter name
-                double value = INF_DOUBLE;                                // init value
+                double value = UNDEFINED_DOUBLE;                          // init value
 
                 // UPDATE : temporary parameter identifier
                 // NOTE : id parID changes this should change too
                 parID p = name;
 
                 // add entry to shared parameter dictionary
-                if (tools::stobool(_param_deftable_.at("infer")[k]))
+                if (tools::stobool(_param_deftable_.at("constant")[k]))
+                {
+                    // assign constant parameter to the set of variables
+                    if (tools::is_na(_param_deftable_.at("value")[k]))
+                        throw std::invalid_argument(
+                            "Undefined value for constant parameter '" + name + "'.");
+                    else
+                        value = tools::stod(_param_deftable_.at("value")[k], "parameter");
+
+                    // assign constant parameter to the set of variables
+                    assign_param(p, Base_Variable(name, value));
+                }
+                else
                 {
                     // load value
                     if (!tools::is_na(_param_deftable_.at("value")[k]))
@@ -434,18 +443,19 @@ void Monte_Carlo_Build::build_params()
                     const std::string &prior_name = _param_deftable_.at("prior")[k];
 
                     // load range
-                    std::map<std::string, double> range = {};
+                    double lower = UNDEFINED_DOUBLE;
                     if (!tools::is_na(_param_deftable_.at("min")[k]))
-                        range.emplace("min", tools::stod(_param_deftable_.at("min")[k], "parameter minimum"));
+                        lower = tools::stod(_param_deftable_.at("min")[k], "parameter minimum");
 
+                    double upper = UNDEFINED_DOUBLE;
                     if (!tools::is_na(_param_deftable_.at("max")[k]))
-                        range.emplace("max", tools::stod(_param_deftable_.at("max")[k], "parameter maximum"));
+                        upper = tools::stod(_param_deftable_.at("max")[k], "parameter maximum");
 
                     // load rule name
                     const std::string &rule_name = _param_deftable_.at("rule")[k];
 
                     // load rule scale
-                    double rule_scale = INF_DOUBLE;
+                    double rule_scale = 1.;
                     if (!tools::is_na(_param_deftable_.at("rule_scale")[k]))
                         rule_scale = tools::stod(_param_deftable_.at("rule_scale")[k]);
 
@@ -459,28 +469,18 @@ void Monte_Carlo_Build::build_params()
                     str_vec arg_name = tools::parse_list_args(_param_deftable_.at("arg_name")[k]);
                     str_vec arg_value = tools::parse_list_args(_param_deftable_.at("arg_value")[k]);
                     for (ushort c = 0; c < arg_name.size(); ++c)
-                        new_param.assign_distr_scalar_arg(arg_name[c], tools::natod(arg_value[c]));
+                        if (!tools::is_na(arg_name[c]))
+                            new_param.assign_distr_scalar_arg(arg_name[c],
+                                                              tools::natod(arg_value[c]));
 
                     // set the range of values to the parameter
-                    new_param.assign_distr_range(range);
+                    new_param.assign_distr_range(lower, upper);
 
                     // assign the rule for the proposer to the parameter
                     new_param.assign_proposer(rule_name, rule_scale);
 
                     // store the new parameter
                     assign_param(p, std::move(new_param));
-                }
-                else
-                {
-                    // assign constant parameter to the set of variables
-                    if (tools::is_na(_param_deftable_.at("value")[k]))
-                        throw std::invalid_argument(
-                            "Undefined value for constant parameter '" + name + "'.");
-                    else
-                        value = tools::stod(_param_deftable_.at("value")[k], "parameter");
-
-                    // assign constant parameter to the set of variables
-                    assign_param(p, Base_Variable(name, value));
                 }
             }
         }
@@ -563,7 +563,7 @@ void Monte_Carlo_Build::show_all_params() const
     for (const parID &p : param_to_be_inferred)
         oss << show_param(p) << "\n";
 
-    for (const parID &p : param_to_be_static)
+    for (const parID &p : param_to_be_constant)
         oss << show_param(p) << "\n";
 
     tools::print_stdout(oss.str());
@@ -590,9 +590,10 @@ void Monte_Carlo_Build::show_results() const
         double avg = 0, var = 0;
         tools::compute_stats(dgn_param_value.at(p), avg, var);
 
-        oss << p << C_DELIM
-            << avg << C_DELIM
-            << std::sqrt(var) << C_DELIM << tools::truth(this_param.get_infer())
+        oss << p 
+            << C_DELIM << avg 
+            << C_DELIM << std::sqrt(var) 
+            << C_DELIM << tools::truth(this_param.is_constant())
             << C_DELIM << this_param.get_distr_name()
             << C_DELIM << this_param.show_distr_arg_names()
             << C_DELIM << this_param.show_distr_arg_values()

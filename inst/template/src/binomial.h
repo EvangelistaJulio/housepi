@@ -21,12 +21,13 @@ namespace bax
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    using ushort = unsigned short int;      // alias for unsigned short int;
-    using ulong = unsigned long int;        // alias for unsigned long int;
-    using vec_ushort = std::vector<ushort>; // alias for a std::vector of ushort
-    using gentype = std::vector<ushort>;    // alias for a generation std::vector
+    using ushort = unsigned short int;
+    using ulong = unsigned long int;
+    using ushort_vec = std::vector<ushort>;
+    using dbl_vec = std::vector<double>;
+    using gentype = std::vector<ushort>;
 
-    template<typename T>
+    template <typename T>
     using matrix = std::vector<std::vector<T>>;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +42,7 @@ namespace bax
 
         void add_entry(ushort new_entry);
         void add_pattern(ulong new_pattern_idx);
-        double likelihood(const std::vector<double> &esc_mtx);
+        double likelihood(const dbl_vec &esc_mtx);
         const std::string show();
 
     private:
@@ -49,7 +50,7 @@ namespace bax
         size_t n_entries = 0;
         size_t n_patterns = 0;
 
-        vec_ushort entries = {};
+        ushort_vec entries = {};
         std::vector<ulong> pattern_idxs = {};
     };
 
@@ -93,20 +94,20 @@ namespace bax
     void init_combinations_lookuptable(ushort max_N);
     void store_combinations(ushort N, ushort k);
     void recursive_span_combinations(ushort N, ushort k,
-                                     vec_ushort &current,
-                                     std::vector<vec_ushort> &results,
+                                     ushort_vec &current,
+                                     std::vector<ushort_vec> &results,
                                      ushort start, ushort loop);
 
     // recursive likelihood formulation lookuptable
     void init_escape_patterns_lookuptable(ushort max_N);
     void recursive_escape_patterns_function(ushort N_star, ushort N,
-                                            vec_ushort access_matrix,
+                                            ushort_vec access_matrix,
                                             EscapePattern &father,
                                             std::vector<EscapePattern> &results);
 
     // actual chain binomial likelihood
     double chain_binomial_heter_loglikelihood(ushort N_star,
-                                              const std::vector<double> &commu_esc_proba,
+                                              const dbl_vec &commu_esc_proba,
                                               const matrix<double> &p2p_esc_proba);
 }
 

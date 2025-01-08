@@ -20,137 +20,26 @@ HousepiGeneratorClass <- R6::R6Class(
   cloneable = FALSE,
 
   ###################
-  ##### PRIVATE #####
-  ###################
-
-  private = list(
-    name = NA,
-    quiet = TRUE,
-    cache_dir = NA,
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description
-    # Create temporary folder and copy source code there.
-    copy_source_code = function(source_dir) {
-
-      # source directory must contain source files
-      assert_source_files(source_dir)
-
-      # clean all previous file in the cache
-      unlink(list.files(private$cache_dir, full.names = TRUE),
-             recursive = TRUE)
-
-      # 'housepi' template package directory
-      housepi_dir <- file.path(system.file(package = "housepi"), "template")
-
-      # copy folders from template
-      for (fldr in file.path(housepi_dir, c("src", "R"))) {
-        overwrite(fldr, private$cache_dir, recursive = TRUE)
-      }
-
-      # copy single package files
-      for (f in file.path(housepi_dir, c("NAMESPACE", "DESCRIPTION"))) {
-        overwrite(f, file.path(private$cache_dir, basename(f)))
-      }
-
-      # copy model specific source files in the new folder
-      for (f in source_files(source_dir)) {
-        overwrite(f, file.path(private$cache_dir, "src", basename(f)))
-      }
-
-      # copy helper files in the output directory
-      for (f in helper_files(source_dir)) {
-        if (file.exists(f)) {
-          overwrite(f, file.path(dirname(self$dll), basename(f)))
-        }
-      }
-
-      private$save_reference_script()
-
-      invisible(self)
-    },
-
-    # @description
-    # Copy model source code without commented lines as a reference.
-    save_reference_script = function() {
-
-      lines <- readLines(file.path(private$cache_dir, "src", "model.cpp"),
-                         warn = FALSE)
-      lines <- stringr::str_remove_all(lines, "//.*")
-      lines <- stringr::str_remove_all(lines, "/\\*.*?\\*/")
-      cleaned_lines <- lines[stringr::str_detect(lines, "\\S")]
-      writeLines(cleaned_lines, file.path(dirname(self$dll), ".refer"))
-
-      invisible(self)
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description
-    # Compile the source files inside cached directory.
-    # Tricking pkgbuild::compile_dll and R CMD INSTALL.
-    # To avoid recompiling immutable files I just touch them.
-    compile = function() {
-      # source folder within cache directory
-      cache_dir_src <- file.path(private$cache_dir, "src")
-
-      # remove object file
-      unlink(file.path(cache_dir_src, "model.o"))
-
-      # touch installation files
-      touch_time <- Sys.time()
-      for (f in list.files(file.path(cache_dir_src), full.names = TRUE)) {
-        Sys.setFileTime(f, touch_time)
-      }
-      # touch as if more recent the source model file
-      Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
-
-      # compile the dynamic library
-      pkgbuild::compile_dll(private$cache_dir,
-                            quiet = private$quiet, debug = FALSE)
-      self$need_compile <- FALSE
-
-      # copy DLL outside of the source directory
-      from_file <- file.path(cache_dir_src, dll_file_ext("housepienvironment"))
-      overwrite(from_file, self$dll)
-
-      # remove the cache files
-      cache_files <- file.path(private$cache_dir,
-                               c("src", "R", "NAMESPACE", "DESCRIPTION"))
-      unlink(cache_files, recursive = TRUE)
-
-      invisible(self)
-    }
-  ),
-
-  ###################
   ##### PUBLIC ######
   ###################
 
   public = list(
-    as_developer = FALSE,
+    name = NA,
+    quiet = TRUE,
+    cache_dir = NA,
+    is_blank = FALSE,
     need_compile = FALSE,
     rcpp = NULL,
-    path = NA,
     dll = NA,
 
     # @description
     # Initialize model generator defining name of dynamic library.
     # @param model_choice (`character(1)`)\cr
     # One between:
-    # - Template name;
+    # - template name;
     # - path/to/folder with implementation;
     # - path/to/folder with previously compiled model;
-    # - "developer".
+    # - "blank" template name.
     # @param quiet (`logical(1)`)\cr
     # If `TRUE` hide compilation commands.
     # @param force (`logical(1)`)\cr
@@ -175,31 +64,36 @@ HousepiGeneratorClass <- R6::R6Class(
         )))
       }
 
+      # assign quiet field
+      self$quiet <- isTRUE(quiet)
+
       # interpret model choice
-      if (isTRUE(model_choice == "developer")) {
+      if (isTRUE(model_choice == "blank")) {
         #===== Developer Mode =====#
-        private$name <- "developer"
-        self$as_developer <- TRUE
+        self$name <- "blank"
+        self$is_blank <- TRUE
         self$dll <- file.path(system.file(package = "housepi"),
                               "template", "src",
                               dll_file_ext("housepienvironment"))
 
       } else if (model_choice %in% list.files(template_models_dir())) {
         #===== Plain Template Model Name =====#
-        private$name <- model_choice
+        self$name <- model_choice
         model_choice <- file.path(template_models_dir(), model_choice)
         self$dll <- template_dll_file(model_choice)
 
       } else if (dir.exists(model_choice)) {
         #===== Model Path Containing Source Code =====#
-        private$name <- basename(model_choice)
+        self$name <- basename(model_choice)
         self$dll <- template_dll_file(model_choice)
 
         # asses if to be compiled
         if ((!file.exists(self$dll)) || isTRUE(force)) {
           # standard temporary directory where to store source code
-          private$cache_dir <- file.path(tempdir(), template_name(private$name))
-          if (!dir.create(private$cache_dir, recursive = TRUE)) {
+          self$cache_dir <- file.path(tempdir(), template_name(self$name))
+          if (!dir.create(self$cache_dir,
+                          recursive = TRUE,
+                          showWarnings = FALSE)) {
             stop(cli::format_error(c(
               "Impossibile to create cache directory for compilation.",
               i = "Check your user permissions."
@@ -207,7 +101,7 @@ HousepiGeneratorClass <- R6::R6Class(
           }
 
           # check for previous cached dll files
-          cache_dll_files <- list.files(private$cache_dir,
+          cache_dll_files <- list.files(self$cache_dir,
                                         pattern = dll_file_ext())
 
           # define dynamic library name
@@ -222,7 +116,7 @@ HousepiGeneratorClass <- R6::R6Class(
             }
             self$need_compile <- TRUE
             # organize cache directory to perform compilation
-            private$copy_source_code(model_choice)
+            self$copy_source_code(model_choice)
           }
         }
 
@@ -233,23 +127,155 @@ HousepiGeneratorClass <- R6::R6Class(
           i = "Run {.code household_model_template()} to see available template names."
         )))
       }
+    },
 
-      # assign the path to model environment source
-      self$path <- dirname(self$dll)
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # Create temporary folder and copy source code there.
+    copy_source_code = function(source_dir) {
+
+      # source directory must contain source files
+      assert_source_files(source_dir)
+
+      # clean all previous file in the cache
+      unlink(list.files(self$cache_dir, full.names = TRUE),
+             recursive = TRUE)
+
+      # 'housepi' template package directory
+      housepi_dir <- file.path(system.file(package = "housepi"), "template")
+
+      # copy folders from template
+      for (fldr in file.path(housepi_dir, c("src", "R"))) {
+        overwrite(fldr, self$cache_dir, recursive = TRUE)
+      }
+
+      # copy single package files
+      for (f in file.path(housepi_dir, c("NAMESPACE", "DESCRIPTION"))) {
+        overwrite(f, file.path(self$cache_dir, basename(f)))
+      }
+
+      # copy model specific source files in the new folder
+      for (f in source_files(source_dir)) {
+        overwrite(f, file.path(self$cache_dir, "src", basename(f)))
+      }
+
+      # copy helper files in the output directory
+      for (f in helper_files(source_dir)) {
+        if (file.exists(f)) {
+          overwrite(f, file.path(dirname(self$dll), basename(f)))
+        }
+      }
+
+      # Create a reference script
+      self$save_reference()
+
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # remove all cache files
+    clear_cache = function() {
+      cache_files <- file.path(self$cache_dir,
+                               c("src", "R", "NAMESPACE", "DESCRIPTION"))
+      unlink(cache_files, recursive = TRUE)
+    },
+
+    # @description
+    # Compile the source files inside cached directory.
+    # Tricking pkgbuild::compile_dll and R CMD INSTALL.
+    # To avoid recompiling immutable files I just touch them.
+    compile = function() {
+      # source folder within cache directory
+      cache_dir_src <- file.path(self$cache_dir, "src")
+
+      # remove object file
+      unlink(file.path(cache_dir_src, "model.o"))
+
+      # touch installation files
+      touch_time <- Sys.time()
+      for (f in list.files(file.path(cache_dir_src), full.names = TRUE)) {
+        Sys.setFileTime(f, touch_time)
+      }
+      # touch as if more recent the source model file
+      Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
+
+      # compile the dynamic library
+      pkgbuild::compile_dll(self$cache_dir,
+                            quiet = self$quiet, debug = FALSE)
+      self$need_compile <- FALSE
+
+      # copy DLL outside of the source directory
+      from_file <- file.path(cache_dir_src, dll_file_ext("housepienvironment"))
+      overwrite(from_file, self$dll)
+
+      invisible(self)
     },
 
     # @description
     # Name of model dynamic library. Extract name of the dynamic library.
     generate = function() {
       if (isTRUE(self$need_compile)) {
-        cli::cli_alert_info("Compiling {.pkg {private$name}}")
-        private$compile()
+        cli::cli_alert_info("Compiling {.pkg {self$name}}")
+        self$compile()
 
       } else {
-        cli::cli_alert_info("Loading {.pkg {private$name}}")
+        cli::cli_alert_info("Loading {.pkg {self$name}}")
       }
 
       invisible(self)
+    },
+
+    # @description
+    # Return envirnoment path if it exists, otherwise erro.
+    path = function() {
+      # reference script
+      envir_path <- dirname(self$dll)
+      # check if reference file exists
+      if (!dir.exists(envir_path)) {
+        stop(cli::format_error(c(
+          sprintf("Impossible to find environment path '%s'.", envir_path),
+          i = "Generate again the model object with {.code force = TRUE}."
+        )))
+      }
+
+      return(envir_path)
+    },
+
+    # @description
+    # Genera reference script.
+    save_reference = function() {
+      # reference script
+      refer_file <- file.path(dirname(self$dll), ".refer")
+      overwrite(file.path(self$cache_dir, "src", "model.cpp"),
+                refer_file)
+      return(self)
+    },
+
+    # @description
+    # Return reference script if it exists, otherwise erro.
+    reference = function() {
+      # reference script
+      refer_file <- file.path(self$path(), ".refer")
+      # check if reference file exists
+      if (!file.exists(refer_file)) {
+        stop(cli::format_error(c(
+          sprintf("Impossible to find reference file '%s'.", refer_file),
+          i = "Generate again the model object with {.code force = TRUE}."
+        )))
+      }
+
+      return(refer_file)
     },
 
     # @description
@@ -286,18 +312,17 @@ HousepiGeneratorClass <- R6::R6Class(
 re_compile_library <- function(pkgname,
                                force = FALSE) {
   # compile the core
-  template_models_dir <- file.path(system.file(package = pkgname), "template")
-  pkgbuild::compile_dll(template_models_dir, debug = FALSE)
+  housepi_models_dir <- file.path(system.file(package = pkgname), "template")
+  pkgbuild::compile_dll(housepi_models_dir, debug = FALSE)
 
   # compile each model
   models_dir <- file.path(system.file(package = pkgname), "models")
   for (m in list.files(models_dir, full.names = TRUE)) {
     if ((!file.exists(template_dll_file(m))) || isTRUE(force)) {
-      x <- HousepiGeneratorClass$new(m,
+      HousepiGeneratorClass$new(m,
                                 force = force,
                                 quiet = FALSE,
-                                as_template = TRUE)
-      x$generate()
+                                as_template = TRUE)$generate()
     }
   }
 }

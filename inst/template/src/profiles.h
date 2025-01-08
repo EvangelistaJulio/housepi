@@ -22,19 +22,19 @@ public:
 	//===== GETTER =====//
 	double get_arg(ushort i);
 
-	virtual double pdf(const std::vector<double> &x);
-	virtual double cdf(const std::vector<double> &x);
+	virtual double pdf(const dbl_vec &x);
+	virtual double cdf(const dbl_vec &x);
 
 protected:
 	//===== SETTER =====//
 	void _init_defaults_(const std::string &name,
-						 const std::vector<std::string> &arg_name,
-						 const std::vector<double> &arg_value);
+						 const str_vec &arg_name,
+						 const dbl_vec &arg_value);
 
 private:
-	std::string name = UNDEFINED;
+	std::string name = UNDEFINED_STRING;
 	str_vec _arg_names_ = {};
-	std::vector<double> _values_ = {};
+	dbl_vec _values_ = {};
 	std::vector<parID> _indexes_ = {};
 
 	//----- Functional methods -----//

@@ -21,10 +21,10 @@ namespace tools
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* An internal check for std::string representing NA. */
+    /* Internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
-        str_vec forbidden = {UNDEFINED, "NA", "nan", "NaN", "NAN"};
+        str_vec forbidden = {UNDEFINED_STRING, "NA", "nan", "NaN", "NAN"};
 
         if (txt.size() == 0)
             return true;
@@ -34,6 +34,15 @@ namespace tools
                     return true;
 
         return false;
+    }
+
+    /* Internal check for double representing NA. */
+    bool is_na(double x)
+    {
+        if (x == std::numeric_limits<double>::quiet_NaN())
+            return true;
+        else
+            return (std::fabs(x) >= UNDEFINED_DOUBLE);
     }
 
     /* A formatted std::string for percentage of num/denom */
@@ -175,13 +184,22 @@ namespace tools
         return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
-    /* Converter checking for NA values formatter for NA */
-    double natod(const std::string &input)
+    /* Converter checking for UNDEFINED_STRING values. */
+    double natod(const std::string &txt, const std::string &errtxt)
     {
-        if (is_na(input))
+        if (is_na(txt))
             return std::numeric_limits<double>::quiet_NaN();
         else
-            return stod(input, "");
+            return stod(txt, errtxt);
+    }
+
+    /* Converter checking for UNDEFINED_DOUBEL values. */
+    double natod(double x)
+    {
+        if (is_na(x))
+            return std::numeric_limits<double>::quiet_NaN();
+        else
+            return x;
     }
 
     /* Converter to unsigned long using std::stoul with function pointer casting */
@@ -208,7 +226,7 @@ namespace tools
         else
             throw std::invalid_argument(
                 "Unrecognized boolean value '" + tkn + "'.");
-    }    
+    }
 
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
@@ -233,7 +251,7 @@ namespace tools
 
         // check for undefined
         if (is_na(tkn))
-            tkn = UNDEFINED;
+            tkn = UNDEFINED_STRING;
 
         return tkn;
     }
@@ -286,7 +304,7 @@ namespace tools
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], UNDEFINED);
+                this_row.emplace(headers[i], UNDEFINED_STRING);
 
             return true;
         }
@@ -401,7 +419,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     /* Welford online algorithm for mean and variance. */
-    void compute_stats(const std::vector<double> &data, double &avg, double &var)
+    void compute_stats(const dbl_vec &data, double &avg, double &var)
     {
         size_t N = data.size();
         double x, delta, delta2;

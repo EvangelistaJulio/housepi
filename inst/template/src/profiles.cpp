@@ -10,8 +10,8 @@ Base_InfecProfile::Base_InfecProfile(std::function<double(parID)> get) : _extern
 Base_InfecProfile::~Base_InfecProfile() = default;
 
 void Base_InfecProfile::_init_defaults_(const std::string &name,
-										const std::vector<std::string> &arg_name,
-										const std::vector<double> &arg_value)
+										const str_vec &arg_name,
+										const dbl_vec &arg_value)
 {
 	this->name = name;
 
@@ -22,13 +22,13 @@ void Base_InfecProfile::_init_defaults_(const std::string &name,
 	}
 }
 
-double Base_InfecProfile::pdf(const std::vector<double> &x)
+double Base_InfecProfile::pdf(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
 		"Call to undefined method 'pdf' of infectivity profile '" + name + "'.");
 }
-double Base_InfecProfile::cdf(const std::vector<double> &x)
+double Base_InfecProfile::cdf(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
@@ -96,7 +96,7 @@ public:
 	~InfecProfile_Ferretti20() = default;
 
 	//*  Probability distribution function. *//
-	double pdf(const std::vector<double> &x) override
+	double pdf(const dbl_vec &x) override
 	{
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
 		double incub = x[1];		// incubation period
@@ -117,7 +117,7 @@ public:
 	}
 
 	//*  Cumulative distribution function. *//
-	double cdf(const std::vector<double> &x) override
+	double cdf(const dbl_vec &x) override
 	{
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
 		double incub = x[1];		// incubation period
@@ -174,7 +174,7 @@ public:
 		gamma_distr_ptr = distribution_switchboard("gamma");
 	}
 
-	double pdf(const std::vector<double> &x) override
+	double pdf(const dbl_vec &x) override
 	{
 		// load variables
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
@@ -182,24 +182,26 @@ public:
 		// update arguments
 		// UPDATE <===| these should just be assigned as pointers
 
-		gamma_distr_ptr->set_arg(0, get_arg(0));		   // shape
-		gamma_distr_ptr->set_arg(1, get_arg(1));		   // scale
-		gamma_distr_ptr->set_range({{"min", get_arg(2)}}); // UPDATE <===|
-		double shift = get_arg(2);						   // shift argument
+		gamma_distr_ptr->set_arg(0, get_arg(0));				  // shape
+		gamma_distr_ptr->set_arg(1, get_arg(1));				  // scale
+		gamma_distr_ptr->set_range(get_arg(2), UNDEFINED_DOUBLE); // shift
+		double shift = get_arg(2);								  // shift argument
 
 		return gamma_distr_ptr->pdf(shift + t_OST);
 	}
 
-	double cdf(const std::vector<double> &x) override
+	double cdf(const dbl_vec &x) override
 	{
 		// load variables
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
 
 		// update arguments
-		gamma_distr_ptr->set_arg(0, get_arg(0));		   // shape
-		gamma_distr_ptr->set_arg(1, get_arg(1));		   // scale
-		gamma_distr_ptr->set_range({{"min", get_arg(2)}}); // UPDATE <===|
-		double shift = get_arg(2);						   // shift argument
+		// UPDATE <===| these should just be assigned as pointers
+
+		gamma_distr_ptr->set_arg(0, get_arg(0));				  // shape
+		gamma_distr_ptr->set_arg(1, get_arg(1));				  // scale
+		gamma_distr_ptr->set_range(get_arg(2), UNDEFINED_DOUBLE); // shift
+		double shift = get_arg(2);								  // shift argument
 
 		return gamma_distr_ptr->cdf(shift + t_OST);
 	}

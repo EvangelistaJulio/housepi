@@ -14,30 +14,29 @@ Compile household model, manage your data and parameters from a single class.
 \item \href{#method-HouseholdModelClass-help}{\code{HouseholdModelClass$help()}}
 \item \href{#method-HouseholdModelClass-loglikelihood}{\code{HouseholdModelClass$loglikelihood()}}
 \item \href{#method-HouseholdModelClass-infer}{\code{HouseholdModelClass$infer()}}
-\item \href{#method-HouseholdModelClass-traces_export}{\code{HouseholdModelClass$traces_export()}}
-\item \href{#method-HouseholdModelClass-traces_crosscorr}{\code{HouseholdModelClass$traces_crosscorr()}}
-\item \href{#method-HouseholdModelClass-traces_summary}{\code{HouseholdModelClass$traces_summary()}}
-\item \href{#method-HouseholdModelClass-traces_xyplot}{\code{HouseholdModelClass$traces_xyplot()}}
+\item \href{#method-HouseholdModelClass-export_traces}{\code{HouseholdModelClass$export_traces()}}
+\item \href{#method-HouseholdModelClass-summarise_traces}{\code{HouseholdModelClass$summarise_traces()}}
+\item \href{#method-HouseholdModelClass-plot_traces}{\code{HouseholdModelClass$plot_traces()}}
 \item \href{#method-HouseholdModelClass-simulate}{\code{HouseholdModelClass$simulate()}}
-\item \href{#method-HouseholdModelClass-data_export}{\code{HouseholdModelClass$data_export()}}
-\item \href{#method-HouseholdModelClass-data_summary}{\code{HouseholdModelClass$data_summary()}}
+\item \href{#method-HouseholdModelClass-export_data}{\code{HouseholdModelClass$export_data()}}
+\item \href{#method-HouseholdModelClass-summarise_data}{\code{HouseholdModelClass$summarise_data()}}
 \item \href{#method-HouseholdModelClass-loo}{\code{HouseholdModelClass$loo()}}
 \item \href{#method-HouseholdModelClass-waic}{\code{HouseholdModelClass$waic()}}
 \item \href{#method-HouseholdModelClass-evidence}{\code{HouseholdModelClass$evidence()}}
-\item \href{#method-HouseholdModelClass-param_export}{\code{HouseholdModelClass$param_export()}}
-\item \href{#method-HouseholdModelClass-param_clear}{\code{HouseholdModelClass$param_clear()}}
-\item \href{#method-HouseholdModelClass-param_add}{\code{HouseholdModelClass$param_add()}}
-\item \href{#method-HouseholdModelClass-param_from_list}{\code{HouseholdModelClass$param_from_list()}}
-\item \href{#method-HouseholdModelClass-param_check}{\code{HouseholdModelClass$param_check()}}
-\item \href{#method-HouseholdModelClass-param_template}{\code{HouseholdModelClass$param_template()}}
-\item \href{#method-HouseholdModelClass-augm_export}{\code{HouseholdModelClass$augm_export()}}
-\item \href{#method-HouseholdModelClass-augm_clear}{\code{HouseholdModelClass$augm_clear()}}
-\item \href{#method-HouseholdModelClass-augm_add}{\code{HouseholdModelClass$augm_add()}}
-\item \href{#method-HouseholdModelClass-augm_from_list}{\code{HouseholdModelClass$augm_from_list()}}
-\item \href{#method-HouseholdModelClass-augm_check}{\code{HouseholdModelClass$augm_check()}}
-\item \href{#method-HouseholdModelClass-augm_template}{\code{HouseholdModelClass$augm_template()}}
-\item \href{#method-HouseholdModelClass-group_rate_clear}{\code{HouseholdModelClass$group_rate_clear()}}
-\item \href{#method-HouseholdModelClass-group_rate_add}{\code{HouseholdModelClass$group_rate_add()}}
+\item \href{#method-HouseholdModelClass-export_param}{\code{HouseholdModelClass$export_param()}}
+\item \href{#method-HouseholdModelClass-clear_param}{\code{HouseholdModelClass$clear_param()}}
+\item \href{#method-HouseholdModelClass-add_param}{\code{HouseholdModelClass$add_param()}}
+\item \href{#method-HouseholdModelClass-load_param_list}{\code{HouseholdModelClass$load_param_list()}}
+\item \href{#method-HouseholdModelClass-assert_param}{\code{HouseholdModelClass$assert_param()}}
+\item \href{#method-HouseholdModelClass-template_param}{\code{HouseholdModelClass$template_param()}}
+\item \href{#method-HouseholdModelClass-export_augm}{\code{HouseholdModelClass$export_augm()}}
+\item \href{#method-HouseholdModelClass-clear_augm}{\code{HouseholdModelClass$clear_augm()}}
+\item \href{#method-HouseholdModelClass-add_augm}{\code{HouseholdModelClass$add_augm()}}
+\item \href{#method-HouseholdModelClass-load_augm_list}{\code{HouseholdModelClass$load_augm_list()}}
+\item \href{#method-HouseholdModelClass-assert_augm}{\code{HouseholdModelClass$assert_augm()}}
+\item \href{#method-HouseholdModelClass-template_augm}{\code{HouseholdModelClass$template_augm()}}
+\item \href{#method-HouseholdModelClass-clear_group_rate}{\code{HouseholdModelClass$clear_group_rate()}}
+\item \href{#method-HouseholdModelClass-add_group_rate}{\code{HouseholdModelClass$add_group_rate()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -58,13 +57,7 @@ Create a new instance of class \link[=HouseholdModelClass]{HouseholdModelClass}.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{model}}{(\code{character(1)})\cr
-One between:
-\itemize{
-\item Template name;
-\item path/to/folder with implementation;
-\item path/to/folder with previously compiled model;
-\item "developer".
-}}
+One between:}
 
 \item{\code{quiet}}{(\code{logical(1)})\cr
 If \code{TRUE} hide compilation commands.}
@@ -198,12 +191,12 @@ If \code{TRUE} prints automatic build information.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-traces_export"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-traces_export}{}}}
-\subsection{Method \code{traces_export()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-export_traces"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_traces}{}}}
+\subsection{Method \code{export_traces()}}{
 Export the traces of last inference call as a coda object.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$traces_export()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_traces()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -211,25 +204,12 @@ Export the traces of last inference call as a coda object.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-traces_crosscorr"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-traces_crosscorr}{}}}
-\subsection{Method \code{traces_crosscorr()}}{
-Export the correlations between traces values of last inference call.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$traces_crosscorr()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-A (\code{matrix} | 3d \code{array})
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-traces_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-traces_summary}{}}}
-\subsection{Method \code{traces_summary()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-summarise_traces"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-summarise_traces}{}}}
+\subsection{Method \code{summarise_traces()}}{
 Export the traces of last inference call as a coda object.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$traces_summary()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$summarise_traces()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -237,12 +217,12 @@ Export the traces of last inference call as a coda object.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-traces_xyplot"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-traces_xyplot}{}}}
-\subsection{Method \code{traces_xyplot()}}{
-Calls coda wrapper of lattice:xyplot for the traces traces.
+\if{html}{\out{<a id="method-HouseholdModelClass-plot_traces"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-plot_traces}{}}}
+\subsection{Method \code{plot_traces()}}{
+Calls \code{coda} wrapper of \code{lattice:xyplot} for the traces.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$traces_xyplot(chain = NA, col = "dodgerblue", ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$plot_traces(chain = NA, col = "dodgerblue", ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -252,9 +232,9 @@ Calls coda wrapper of lattice:xyplot for the traces traces.
 Option to specifiy which chain to plot if multiple chains.}
 
 \item{\code{col}}{(\code{character()})
-Color names.}
+Color name(s).}
 
-\item{\code{...}}{Further arguments pass to \link[lattice:xyplot]{xyplot}.}
+\item{\code{...}}{Further arguments passed to \link[lattice:xyplot]{xyplot}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -302,13 +282,13 @@ If \code{TRUE} prints automatic build information.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-data_export"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-data_export}{}}}
-\subsection{Method \code{data_export()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-export_data"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_data}{}}}
+\subsection{Method \code{export_data()}}{
 Export the current dataset at current state.
 If the case, it also return the associated augmented variables.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$data_export()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_data()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -317,12 +297,12 @@ A data.frame with individual level information.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-data_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-data_summary}{}}}
-\subsection{Method \code{data_summary()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-summarise_data"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-summarise_data}{}}}
+\subsection{Method \code{summarise_data()}}{
 Print a summary of the current dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$data_summary()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$summarise_data()}\if{html}{\out{</div>}}
 }
 
 }
@@ -434,12 +414,12 @@ The value of the model evidence.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_export"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_export}{}}}
-\subsection{Method \code{param_export()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-export_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_param}{}}}
+\subsection{Method \code{export_param()}}{
 Export the parameter definitions at current state.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_export()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_param()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -448,25 +428,25 @@ A data.frame with formatted parameter definitions.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_clear"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_clear}{}}}
-\subsection{Method \code{param_clear()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-clear_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-clear_param}{}}}
+\subsection{Method \code{clear_param()}}{
 Clear all current parameter definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_clear()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$clear_param()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_add"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_add}{}}}
-\subsection{Method \code{param_add()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-add_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_param}{}}}
+\subsection{Method \code{add_param()}}{
 Add a new parameter definition.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_add(
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_param(
   name = NA,
   value = NA,
-  infer = NA,
+  constant = NA,
   discrete = FALSE,
   prior = NA,
   args = list(),
@@ -485,7 +465,7 @@ Name of the parameter.}
 \item{\code{value}}{(\code{double(1)})\cr
 Initial value of the parameter.}
 
-\item{\code{infer}}{(\code{logical(1)})\cr
+\item{\code{constant}}{(\code{logical(1)})\cr
 If \code{FALSE} the parameter is treated as a constant.}
 
 \item{\code{discrete}}{(\code{logical(1)})\cr
@@ -511,12 +491,12 @@ The prior truncation 'min', 'max' or no bound.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_from_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_from_list}{}}}
-\subsection{Method \code{param_from_list()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-load_param_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_param_list}{}}}
+\subsection{Method \code{load_param_list()}}{
 Associate parameters from a list. Previous definitions are dropped.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_from_list(definitions, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_param_list(definitions, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -533,12 +513,12 @@ If \code{FALSE} clears previous definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_check"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_check}{}}}
-\subsection{Method \code{param_check()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-assert_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-assert_param}{}}}
+\subsection{Method \code{assert_param()}}{
 Check parameter definitions from the implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_check(fill = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_param(fill = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -551,22 +531,22 @@ If \code{TRUE} fills the missing parameter with template definitions.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-param_template"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-param_template}{}}}
-\subsection{Method \code{param_template()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-template_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-template_param}{}}}
+\subsection{Method \code{template_param()}}{
 Overwrite current parameter definitions with template definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$param_template()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_param()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_export"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_export}{}}}
-\subsection{Method \code{augm_export()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-export_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_augm}{}}}
+\subsection{Method \code{export_augm()}}{
 Export the augmented variable definitions at current state.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_export()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_augm()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -575,22 +555,22 @@ A data.frame with formatted augmented variable definitions.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_clear"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_clear}{}}}
-\subsection{Method \code{augm_clear()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-clear_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-clear_augm}{}}}
+\subsection{Method \code{clear_augm()}}{
 Remove all current augmented variable definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_clear()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$clear_augm()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_add"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_add}{}}}
-\subsection{Method \code{augm_add()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-add_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_augm}{}}}
+\subsection{Method \code{add_augm()}}{
 Add a new augmented variable definition.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_add(
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_augm(
   name = NA,
   value = NA,
   discrete = FALSE,
@@ -648,13 +628,13 @@ Default NA is for all infectious.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_from_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_from_list}{}}}
-\subsection{Method \code{augm_from_list()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-load_augm_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_augm_list}{}}}
+\subsection{Method \code{load_augm_list()}}{
 Associate augmented variables from a list.
 Previous definitions are dropped.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_from_list(definitions, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_augm_list(definitions, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -671,12 +651,12 @@ If \code{FALSE} clears previous definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_check"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_check}{}}}
-\subsection{Method \code{augm_check()}}{
-Check augmented definitions from the model implementation script.
+\if{html}{\out{<a id="method-HouseholdModelClass-assert_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-assert_augm}{}}}
+\subsection{Method \code{assert_augm()}}{
+Assert augmented definitions from the model implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_check(fill = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_augm(fill = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -689,32 +669,32 @@ If \code{TRUE} fills missing augmented variables with template definitions.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-augm_template"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-augm_template}{}}}
-\subsection{Method \code{augm_template()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-template_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-template_augm}{}}}
+\subsection{Method \code{template_augm()}}{
 Overwrite augmented variable definitions with template definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$augm_template()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_augm()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-group_rate_clear"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-group_rate_clear}{}}}
-\subsection{Method \code{group_rate_clear()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-clear_group_rate"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-clear_group_rate}{}}}
+\subsection{Method \code{clear_group_rate()}}{
 Remove all current augmented variable definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$group_rate_clear()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$clear_group_rate()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-group_rate_add"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-group_rate_add}{}}}
-\subsection{Method \code{group_rate_add()}}{
+\if{html}{\out{<a id="method-HouseholdModelClass-add_group_rate"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_group_rate}{}}}
+\subsection{Method \code{add_group_rate()}}{
 Add a new group rate definition.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$group_rate_add(
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_group_rate(
   name,
   features,
   prefix = NA,

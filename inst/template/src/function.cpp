@@ -16,7 +16,7 @@
 class Function_Argument
 {
 public:
-    std::string name = UNDEFINED;
+    std::string name = UNDEFINED_STRING;
 
     Function_Argument() = default;
     ~Function_Argument() = default;
@@ -30,7 +30,7 @@ public:
     }
 
 private:
-    double value = INF_DOUBLE;
+    double value = UNDEFINED_DOUBLE;
     const double *ptr_to_value = &value;
 
     // note : the set_arg is only used for the adaptive
@@ -56,17 +56,28 @@ class Base_Function_Impl
 {
 public:
     //===== Arguments =====//
-    std::string name = UNDEFINED;
+    std::string name = UNDEFINED_STRING;
     ushort _n_args_ = 0;
     Function_Argument *_arguments_ = nullptr;
 
     //----- Domain -----//
-    double _range_min_ = -INF_DOUBLE; // init to -infty
-    double _range_max_ = INF_DOUBLE;  // init to +infty
+    double _range_min_ = -UNDEFINED_DOUBLE; // UPDATE: not elegant minus...
+    double _range_max_ = UNDEFINED_DOUBLE;
 
     //===== CONSTRUCTOR =====//
     Base_Function_Impl() = default;
     ~Base_Function_Impl() = default;
+
+    //===== Initial default arguments =====//
+    void init_defaults(const std::string &name,
+                       const str_vec &arg_name,
+                       const dbl_vec &arg_value,
+                       double domain_min,
+                       double domain_max);
+
+    //===== Range =====//
+    ushort set_range(double minimum = UNDEFINED_DOUBLE,
+                     double maximum = UNDEFINED_DOUBLE);
 
     //===== Getter =====//
     bool valid(double x) const { return (this->*_func_valid_range_)(x); }
@@ -77,19 +88,10 @@ public:
     const std::string show_range_min() const;
     const std::string show_range_max() const;
 
-    //===== Initial default arguments =====//
-    void init_defaults(const std::string &name,
-                       const std::vector<std::string> &arg_name,
-                       const std::vector<double> &arg_value,
-                       const std::map<std::string, double> &domain = {});
-
     //===== Non-default arguments =====//
     ushort find(const std::string &arg_name);
     void assign_scalar_arg(const std::string &arg_name, double value);
     void assign_pointer_arg(const std::string &arg_name, const double *ptr_to_value);
-
-    //===== Range =====//
-    ushort set_range(const std::map<std::string, double> &new_range);
 
 private:
     //===== VALID =====//
@@ -141,9 +143,10 @@ void Base_Function_Impl::assign_pointer_arg(const std::string &arg_name, const d
 
 /* Overload constructor for argument. */
 void Base_Function_Impl::init_defaults(const std::string &name,
-                                       const std::vector<std::string> &arg_name,
-                                       const std::vector<double> &arg_value,
-                                       const std::map<std::string, double> &domain)
+                                       const str_vec &arg_name,
+                                       const dbl_vec &arg_value,
+                                       double domain_min,
+                                       double domain_max)
 {
     this->name = name;
     this->_n_args_ = arg_name.size();
@@ -152,6 +155,7 @@ void Base_Function_Impl::init_defaults(const std::string &name,
         throw std::length_error(
             "Internal inconsistency for '" + name + "' arguments.");
 
+    // assign default arguments
     this->_arguments_ = new Function_Argument[arg_name.size()];
     for (ushort c = 0; c < this->_n_args_; ++c)
     {
@@ -159,7 +163,8 @@ void Base_Function_Impl::init_defaults(const std::string &name,
         _arguments_[c].set(arg_value[c]);
     }
 
-    set_range(domain); // assign domain
+    // assign domain
+    set_range(domain_min, domain_max);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -174,109 +179,63 @@ void Base_Function_Impl::init_defaults(const std::string &name,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set the range of validity of the value, and the corresponding validation function. */
-ushort Base_Function_Impl::set_range(const std::map<std::string, double> &new_range)
+ushort Base_Function_Impl::set_range(double lower, double upper)
 {
-    double min_val = _range_min_;
-    double max_val = _range_max_;
-    bool is_new_min = false;
-    bool is_new_max = false;
-    ushort output = 0;
-
-    //===== Read the new range =====//
-    for (auto const &x : new_range)
-    {
-        if (x.first == "min")
-            is_new_min = true;
-        else if (x.first == "max")
-            is_new_max = true;
-        else
-            throw std::invalid_argument(
-                "Invalid range keyword '" + x.first + "'. Provide only 'min' and/or 'max'.");
-
-        // load the new values
-        if (is_new_min)
-            min_val = x.second;
-        else if (is_new_max)
-            max_val = x.second;
-    }
-
-    //===== Adjust new min value and domain =====//
+    // Ignore lower if 'min' exists as argument (e .g. uniform distribution)
     if (find("min") < _n_args_)
     {
-        // Overwrite min if it exists as argument (e .g. uniform distribution)
-        min_val = _arguments_[find("min")].get();
-        if (is_new_min)
+        if (!tools::is_na(lower))
             tools::warning(
-                "Overwriting range min with argument min " + std::to_string(min_val) + " in '" + name + "'.");
-        is_new_min = true;
+                "Overwriting range min with argument min in '" + name + "'.");
+        lower = _arguments_[find("min")].get();
     }
-    else if (is_new_min)
-    {
-        // Check compatibility with min from domain (e .g. uniform distribution)
-        if (min_val < _range_min_)
-            throw std::invalid_argument(
-                "Invalid min value " + std::to_string(min_val) + " for distribution '" + name + "'.");
-    }
-
-    //===== Adjust new max value and domain =====//
+    // Ignore upper if 'max' exists as argument
     if (find("max") < _n_args_)
     {
-        // Overwrite max if it exists as argument
-        max_val = _arguments_[find("max")].get();
-        if (is_new_max)
+        if (!tools::is_na(upper))
             tools::warning(
-                "Overwriting range max with argument max " + std::to_string(max_val) + " in '" + name + "'.");
-        is_new_max = true;
-    }
-    else if (is_new_max)
-    {
-        // Check compatibility with max from domain
-        if (max_val > _range_max_)
-            throw std::invalid_argument(
-                "Invalid max value " + std::to_string(max_val) + " for distribution '" + name + "'.");
+                "Overwriting range max with argument max in '" + name + "'.");
+        upper = _arguments_[find("max")].get();
     }
 
-    //===== Assign range and respective validation method =====//
+    // assign range and respective validation method
+    // ... if at least one from previous range (domain) should be finite
+    bool is_lower_bound = !(tools::is_na(lower) && tools::is_na(_range_min_));
+    bool is_upper_bound = !(tools::is_na(upper) && tools::is_na(_range_max_));
 
-    // at least one from previous range (domain) should be finite
-    // UPDATE : to be moved to NA...
-    is_new_min = (is_new_min != -INF_DOUBLE) || (_range_min_ != -INF_DOUBLE);
-    is_new_max = (is_new_max != INF_DOUBLE) || (_range_max_ != INF_DOUBLE);
-
-    if ((!is_new_min) && (!is_new_max))
+    if ((!is_lower_bound) && (!is_upper_bound))
     {
-        output = 0;
         _func_valid_range_ = &Base_Function_Impl::_valid_range_always_;
+        return 0;
     }
-    else if ((is_new_min) && (!is_new_max))
+    else if ((is_lower_bound) && (!is_upper_bound))
     {
-        output = 1;
-        _range_min_ = min_val;
+        if (!tools::is_na(lower))
+            _range_min_ = lower;
         _func_valid_range_ = &Base_Function_Impl::_valid_range_min_;
+        return 1;
     }
-    else if ((!is_new_min) && (is_new_max))
+    else if ((!is_lower_bound) && (is_upper_bound))
     {
-        output = 2;
-        _range_max_ = max_val;
+        if (!tools::is_na(upper))
+            _range_max_ = upper;
         _func_valid_range_ = &Base_Function_Impl::_valid_range_max_;
+        return 2;
     }
-    else // ((is_new_min) && (is_new_max))
+    else // ((is_lower_bound) && (is_upper_bound))
     {
-        output = 3;
+        if (!tools::is_na(lower))
+            _range_min_ = lower;
+        if (!tools::is_na(upper))
+            _range_max_ = upper;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_both_;
+
         if (_range_min_ >= _range_max_)
-        {
             throw std::invalid_argument(
                 "Inconsistent range {min:" + std::to_string(_range_min_) + ", max:" + std::to_string(_range_max_) + "}.");
-        }
-        else
-        {
-            _range_min_ = min_val;
-            _range_max_ = max_val;
-            _func_valid_range_ = &Base_Function_Impl::_valid_range_both_;
-        }
-    }
 
-    return output;
+        return 3;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -294,7 +253,7 @@ const std::string Base_Function_Impl::show_arg_names() const
         return output;
     }
 
-    return UNDEFINED;
+    return UNDEFINED_STRING;
 }
 
 /* Return formatted argument names of the distribution. */
@@ -308,19 +267,19 @@ const std::string Base_Function_Impl::show_arg_values() const
         return output;
     }
 
-    return UNDEFINED;
+    return UNDEFINED_STRING;
 }
 
 /* */
 const std::string Base_Function_Impl::show_range_min() const
 {
-    return (_range_min_ > -INF_DOUBLE) ? std::to_string(_range_min_) : UNDEFINED;
+    return tools::is_na(_range_min_) ? UNDEFINED_STRING : std::to_string(_range_min_);
 }
 
 /* */
 const std::string Base_Function_Impl::show_range_max() const
 {
-    return (_range_max_ < INF_DOUBLE) ? std::to_string(_range_min_) : UNDEFINED;
+    return tools::is_na(_range_max_) ? UNDEFINED_STRING : std::to_string(_range_max_);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -366,18 +325,19 @@ void Base_Function::assign_pointer_arg(const std::string &arg_name, const double
 }
 
 //----- RANGE -----//
-ushort Base_Function::set_range(const std::map<std::string, double> &new_range)
+ushort Base_Function::set_range(double lower, double upper)
 {
-    return pImpl->set_range(new_range);
+    return pImpl->set_range(lower, upper);
 }
 double Base_Function::get_range_min() const { return pImpl->_range_min_; }
 double Base_Function::get_range_max() const { return pImpl->_range_max_; }
 
 /* Overload constructor for argument VALUES. */
 void Base_Function::_init_defaults_(const std::string &name,
-                                    const std::vector<std::string> &arg_name,
-                                    const std::vector<double> &arg_value,
-                                    const std::map<std::string, double> &domain)
+                                    const str_vec &arg_name,
+                                    const dbl_vec &arg_value,
+                                    double domain_min,
+                                    double domain_max)
 {
-    pImpl->init_defaults(name, arg_name, arg_value, domain);
+    pImpl->init_defaults(name, arg_name, arg_value, domain_min, domain_max);
 }

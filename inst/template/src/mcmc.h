@@ -51,10 +51,10 @@ public:
 	virtual ~MCMC();
 
 	//===== READ =====//
-	void read_setup(const std::string &pathtofile = UNDEFINED);
-	void read_params(const std::string &pathtofile = UNDEFINED);
-	void read_data(const std::string &pathtofile = UNDEFINED);
-	void read_augm(const std::string &pathtofile = UNDEFINED);
+	void read_setup(const std::string &pathtofile = UNDEFINED_STRING);
+	void read_params(const std::string &pathtofile = UNDEFINED_STRING);
+	void read_data(const std::string &pathtofile = UNDEFINED_STRING);
+	void read_augm(const std::string &pathtofile = UNDEFINED_STRING);
 
 #ifdef _HOUSEPI_RCPP
 	//===== Rcpp IMPORTS =====//
@@ -77,8 +77,8 @@ public:
 	void show_summary() const;
 
 	//===== C++ PRINT =====//
-	void print_infer_state(const std::string &output_filename = UNDEFINED) const;
-	void print_augm_variables(const std::string &output_filename = UNDEFINED) const;
+	void print_infer_state(const std::string &output_filename = UNDEFINED_STRING) const;
+	void print_augm_variables(const std::string &output_filename = UNDEFINED_STRING) const;
 
 	//===== DATA =====//
 	size_t n_houses() const;
@@ -116,8 +116,8 @@ public:
 
 	//===== INFECTIVITY PROFILE =====//
 	void assign_infectivity_profile(const std::string &name);
-	double infec_profile_inst(const std::vector<double> &x);
-	double infec_profile_cumul(const std::vector<double> &x);
+	double infec_profile_inst(const dbl_vec &x);
+	double infec_profile_cumul(const dbl_vec &x);
 
 	//===== EVALUATE (loglikelihood) =====//
 	virtual double compute_house_loglike(Household &house) const;
@@ -125,14 +125,14 @@ public:
 	double evaluate();
 
 	//===== INFER =====//
-	virtual void init_model_for_inference() {}
+	virtual void init_model_for_inference();
 	void infer(bool is_progbar = true);
 
 	//===== MARGINAL LOGLIKELIHOOD (POWER POSTERIORS) =====//
 	double evaluate_marginal(int n_rungs, std::string scheme = "adaptive", bool is_progbar = true);
 
 	//===== SIMULATE =====//
-	virtual void init_model_for_simulation() {}
+	virtual void init_model_for_simulation();
 	virtual void simulate_single_house(Household &house);
 	void simulate(bool is_progbar = true);
 

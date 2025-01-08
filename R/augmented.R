@@ -4,10 +4,19 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+# @title Housepi Augmented R6 Class
+# @description
+# Help with augmented variable definitions of model Rcpp object.
+# @export HousepiAugmentedClass
+# @docType class
 HousepiAugmentedClass <- R6::R6Class(
   classname = "HousepiAugmentedClass",
   cloneable = FALSE,
 
+  ###################
+  ##### PUBLIC ######
+  ###################
+  
   public = list(
     defs = NULL,
 
@@ -16,6 +25,13 @@ HousepiAugmentedClass <- R6::R6Class(
     initialize = function() {
       self$clear()
       invisible(self)
+    },
+
+    # UPDATE
+    # Missing a remove method
+    remove = function(name,
+                      status = NA) {
+      # do something
     },
 
     # @description
@@ -47,12 +63,15 @@ HousepiAugmentedClass <- R6::R6Class(
             self$defs <- self$defs[!mask, ]
 
           } else {
-            # check if same name and status
+            # assert if same name and status
             mask <- mask & (self$defs[["status"]] == status)
             mask[is.na(mask)] <- FALSE
             if (any(mask)) {
               cli::cli_alert_warning(cli::format_warning(c(
-                sprintf("Existing '%s' with status %d definition has been overwritten.", name, status)
+                sprintf(
+                  "Existing '%s' with status %d definition has been overwritten.", 
+                  name, status
+                )
               )))
               # drop previous definitions
               self$defs <- self$defs[!mask, ]
@@ -73,7 +92,7 @@ HousepiAugmentedClass <- R6::R6Class(
         if (is.na(value)) {
           stop(cli::format_error(c(
             "Incomplete definition: missing value.",
-            i = "Alternatively provide a model and set {.code init_rand = TRUE}."
+            i = "Alternative: provide a model and set {.code init_rand = TRUE}."
           )))
         } else {
           value_ <- str_split_(value)[["values"]]
@@ -171,7 +190,8 @@ HousepiAugmentedClass <- R6::R6Class(
 
     # @description
     # Associate augmented variables from a list.
-    from_list = function(definitions, append = FALSE) {
+    from_list = function(definitions,
+                         append = FALSE) {
       if (!is.list(definitions)) {
         stop("The argument definitions should be a list.")
       }
@@ -233,22 +253,23 @@ HousepiAugmentedClass <- R6::R6Class(
 
     # @description
     # Check augmented definitions from the model implementation script.
-    # @param fill_template (`logical(1)`)\cr
+    # @param refer_file
+    # @param fill (`logical(1)`)\cr
     # If `TRUE` fills missing augmented variables with template definitions.
-    check = function(envir_path, fill_template = FALSE) {
-      # retrieve the model source code
-      model_path <- file.path(envir_path, ".refer")
+    assert = function(refer_file,
+                      fill = FALSE) {
 
-      if (!file.exists(file.path(envir_path, ".refer"))) {
+      # check if reference file exists
+      if (!file.exists(refer_file)) {
         cli::cli_alert_warning(cli::format_warning(c(
-          "Impossible to find '.refer': file moved or deleted.",
+          sprintf("Impossible to find reference file '%s'.", refer_file),
           i = "Try to generate a new model object with {.code force = TRUE}."
         )))
 
       } else {
 
         # read the script and extract augmented variables
-        script <- readChar(model_path, file.info(model_path)$size)
+        script <- readChar(refer_file, file.info(refer_file)$size)
 
         # from : augm(, "string" or augm(, 'string'
         regular_expr <- 'augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
@@ -275,17 +296,20 @@ HousepiAugmentedClass <- R6::R6Class(
 
         # eventually fill with template definitions
         if (length(missing) > 0) {
-          if (isTRUE(fill_template)) {
+          if (isTRUE(fill)) {
             # retrieve the template augmented file
-            templ_augm_file <- file.path(envir_path, "template_augm.R")
-            if (!file.exists((templ_augm_file))) {
+            templ_augm_file <- file.path(dirname(refer_file), "template_augm.R")
+            if (!file.exists((templ_file))) {
               stop(cli::format_error(c(
-                "Impossible to fill missing augmented variables without a template.",
-                i = "If you just want to check, set {.code fill_template = FALSE}."
+                "Impossible to fill missing augmented without a template.",
+                i = "Set {.code fill = FALSE} to silence this warning."
               )))
             }
             self$from_list(dget(templ_augm_file)[missing], append = TRUE)
-            oss <- sprintf("Added missing augmented variable(s) from template: '%s'", missing[[1]])
+            oss <- sprintf(
+              "Added missing augmented variable(s) from template: '%s'",
+              missing[[1]]
+            )
 
           } else {
             oss <- sprintf("Missing augmented variable(s): '%s'", missing[[1]])

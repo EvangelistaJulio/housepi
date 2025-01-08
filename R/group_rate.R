@@ -14,7 +14,8 @@ TAB2 <- strrep(TAB, 2)
 # the dataset from which the etract group rates
 # @param features
 # features as list of dataset column names
-group_rate_logic_table <- function(dataset, features) {
+group_rate_logic_table <- function(dataset,
+                                   features) {
   # convert features
   features <- as.character(features)
 
@@ -47,9 +48,12 @@ group_rate_logic_table <- function(dataset, features) {
 
 # @ description
 # Associate parameter name to group rate logic table
-# 
-#
-associate_group_names <- function(logic_table, prefix = NA, reference = NULL) {
+# @param logic_table
+# @param prefix
+# @param reference
+associate_group_names <- function(logic_table,
+                                  prefix = NA,
+                                  reference = NULL) {
   # extract reference index
   if (is.null(reference)) {
     idx_refer <- which.max(logic_table$..counts)
@@ -93,12 +97,15 @@ associate_group_names <- function(logic_table, prefix = NA, reference = NULL) {
 # row of the group rate row
 # @param start
 # if `TRUE` the if clause is the first
-cpp_ifclause_line <- function(r, is_ref = FALSE) {
+cpp_ifclause_line <- function(r,
+                              is_ref = FALSE) {
   mask <- setdiff(names(r), "..associate")
   # if condition
-  condition <- paste(paste0(
-    sprintf('house.data(i, "%s") == ', names(r[mask])),
-    r[mask]), collapse = ") && (")
+  condition <- paste(
+    paste0(
+      sprintf('house.data(i, "%s") == ', names(r[mask])),
+      r[mask]), collapse = ") && ("
+  )
   # wrap all together
   c(sprintf("%s%sif ((%s))", TAB, ifelse(is_ref, "", "else "), condition),
     sprintf("%semplace_group_rate(r, %s);",
@@ -150,15 +157,19 @@ specify_group_rate <- function(dataset,
   return(c("{", sprintf('%srateID r = "%s";', TAB, rate_id), script, "}"))
 }
 
-# Housepi Group Rate R6 Class
+# @title Housepi Group Rate R6 Class
+# @description
+# Help with group rate definitions of model Rcpp object.
+# @export HousepiGroupRateClass
+# @docType class
 HousepiGroupRateClass <- R6::R6Class(
   classname = "HousepiGroupRateClass",
   cloneable = FALSE,
-  
+
   ###################
   ##### PUBLIC ######
   ###################
-  
+
   public = list(
     defs = NULL,
 
@@ -190,10 +201,10 @@ HousepiGroupRateClass <- R6::R6Class(
     # Default is the group with the largest sample size.
     # @param independent
     # If `TRUE` features are considered separately.
-    add = function(name, 
-                   features, 
-                   prefix = NA, 
-                   reference = NULL, 
+    add = function(name,
+                   features,
+                   prefix = NA,
+                   reference = NULL,
                    independent = TRUE) {
 
       # UPDATE: controls are missing
@@ -235,10 +246,14 @@ HousepiGroupRateClass <- R6::R6Class(
     },
 
     # @description
-    # Overwrit script to source code model.cpp
+    # Assert if script would change with the new implementation.
     # @param dataset
     # Dataset to be considered.
-    cpp_write = function(dataset, source_file) {
+    # @param source_file
+    # Path/to/model.cpp source code.
+    # @return (`logical(1)`)\cr
+    cpp_assert = function(dataset,
+                          source_file) {
       # check if there are user defined group rates
       if (length(self$defs) > 0) {
         # produce associated script
@@ -246,64 +261,77 @@ HousepiGroupRateClass <- R6::R6Class(
         # read source file
         lines <- readLines(source_file)
         # check if the definitions are already implemented
-        is_old_code <- stringr::str_detect(paste(lines, collapse = "\n"),
-                                           stringr::fixed(rate_script))
+        return(!stringr::str_detect(paste(lines, collapse = "\n"),
+                                    stringr::fixed(rate_script)))
+      }
+
+      # default is false (i.e. no definitions)
+      return(FALSE)
+    },
+
+    # @description
+    # Overwrite script to source code model.cpp
+    # @param dataset
+    # Dataset to be considered.
+    # @return logical
+    # Wheter code requires recompilation
+    cpp_write = function(dataset,
+                         source_file) {
+      # produce associated script
+      rate_script <- self$cpp_implement(dataset)
+      # read source file
+      lines <- readLines(source_file)
+
+      # find the start of the method definition
+      start_line <- grep("^void\\s+Model::assign_group_rate_to_individual\\s*\\(", lines)
+
+      if (length(start_line) == 0) {
+        cli::cli_alert_warning("Model does not accommodate for group rates.")
+
       } else {
-        is_old_code <- TRUE
-      }
-      
-      # proceed only if code is new
-      if (!is_old_code) {
 
-        # find the start of the method definition
-        start_line <- grep("^void\\s+Model::assign_group_rate_to_individual\\s*\\(", lines)
-
-        if (length(start_line) == 0) {
-          cli::cli_alert_warning("Model does not accommodate for group rates.")
-
-        } else {
-
-          # locate method definition opening brace '{'
-          opening_brace_line <- NA
-          for (i in start_line:length(lines)) {
-            if (grepl("\\{", lines[i])) {
-              opening_brace_line <- i
-              break
-            }
+        # locate method definition opening brace '{'
+        opening_brace_line <- NA
+        for (i in start_line:length(lines)) {
+          if (grepl("\\{", lines[i])) {
+            opening_brace_line <- i
+            break
           }
-          if (is.na(opening_brace_line)) {
-            stop("Unmatched curly bracket(s) found in source code.")
-          }
-
-          # find method definition closing brace '}'
-          brace_level <- 0
-          end_line <- NA
-          for (i in opening_brace_line:length(lines)) {
-            # update brace level based on opening and closing braces
-            brace_level <- brace_level +
-              stringr::str_count(lines[i], "\\{") -
-              stringr::str_count(lines[i], "\\}")
-            # closing brace corresponds to level 0
-            if (brace_level == 0) {
-              end_line <- i
-              break
-            }
-          }
-          if (is.na(end_line)) {
-            stop("Unmatched curly bracket(s) found in source code.")
-          }
-
-          # define the new implementation
-          lines <- c(
-            lines[1:(start_line - 1)],
-            rate_script,
-            lines[(end_line + 1):length(lines)]
-          )
-
-          # replace the source code
-          writeLines(lines, source_file)
         }
+        if (is.na(opening_brace_line)) {
+          stop("Unmatched curly bracket(s) found in source code.")
+        }
+
+        # find method definition closing brace '}'
+        brace_level <- 0
+        end_line <- NA
+        for (i in opening_brace_line:length(lines)) {
+          # update brace level based on opening and closing braces
+          brace_level <- brace_level +
+            stringr::str_count(lines[i], "\\{") -
+            stringr::str_count(lines[i], "\\}")
+          # closing brace corresponds to level 0
+          if (brace_level == 0) {
+            end_line <- i
+            break
+          }
+        }
+        if (is.na(end_line)) {
+          stop("Unmatched curly bracket(s) found in source code.")
+        }
+
+        # define the new implementation
+        lines <- c(
+          lines[1:(start_line - 1)],
+          rate_script,
+          lines[(end_line + 1):length(lines)]
+        )
+
+        # replace the source code
+        writeLines(lines, source_file)
       }
+
+      invisible(self)
     }
   )
 )

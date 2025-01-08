@@ -80,7 +80,7 @@ namespace bax
 
 	/* Compute the loglikelihood starting from the current escape pattern.
 		Important : it requires initialization of the lookup table. */
-	double EscapePattern::likelihood(const std::vector<double> &esc_mtx)
+	double EscapePattern::likelihood(const dbl_vec &esc_mtx)
 	{
 		double output = 1.;
 
@@ -245,7 +245,7 @@ namespace bax
 	Daniel Angel Jimenez
 	https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
 	*/
-	void recursive_span_combinations(ushort N, ushort k, vec_ushort &current, std::vector<vec_ushort> &results, ushort start, ushort loop)
+	void recursive_span_combinations(ushort N, ushort k, ushort_vec &current, std::vector<ushort_vec> &results, ushort start, ushort loop)
 	{
 		if (loop > k - 1)
 		{
@@ -277,13 +277,13 @@ namespace bax
 	void store_combinations(ushort N, ushort k)
 	{
 		// Generate combinations with the recurisve algorithm
-		std::vector<vec_ushort> results;
-		vec_ushort current(N);
+		std::vector<ushort_vec> results;
+		ushort_vec current(N);
 		recursive_span_combinations(N, k, current, results, 0, 0);
 
 		// Store all results inside the Lookup Table
 		ulong c = 0;
-		for (vec_ushort current : results)
+		for (ushort_vec current : results)
 		{
 			Combinations_LookupTable[N][k][c].resize(N);
 
@@ -338,7 +338,7 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 
 	/*  */
-	void recursive_escape_patterns_function(ushort N_star, ushort N, vec_ushort access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
+	void recursive_escape_patterns_function(ushort N_star, ushort N, ushort_vec access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
 	{
 		for (ushort k = 0; k < N; ++k)
 		{
@@ -362,7 +362,7 @@ namespace bax
 				{
 					// find the submatrix of the given infectious
 					// note: always at least 1 infector (community)
-					vec_ushort sub_access_matrix((k + 1) * k);
+					ushort_vec sub_access_matrix((k + 1) * k);
 
 					ushort inf = 0; // community (inf=0) always at row=0
 					for (ushort row = 0; row <= k; ++row)
@@ -402,7 +402,7 @@ namespace bax
 		// case N_star > 0
 		for (ushort N_star = 1; N_star <= max_N; ++N_star)
 		{
-			vec_ushort access_matrix((N_star + 1) * N_star);
+			ushort_vec access_matrix((N_star + 1) * N_star);
 			for (ushort i = 0; i < (N_star + 1) * N_star; ++i)
 				access_matrix[i] = i;
 
@@ -435,7 +435,7 @@ namespace bax
 		p2p_esc_proba : ordered person-to-person escape probabilities
 	*/
 	double chain_binomial_heter_loglikelihood(ushort N_star,
-											  const std::vector<double> &commu_esc_proba,
+											  const dbl_vec &commu_esc_proba,
 											  const matrix<double> &p2p_esc_proba)
 
 	{
@@ -461,7 +461,7 @@ namespace bax
 		{ //----- seropositives contribution -----//
 
 			// flatten sub-matrix with only seropositives
-			std::vector<double> escape_matrix((N_star + 1) * N_star, 1.);
+			dbl_vec escape_matrix((N_star + 1) * N_star, 1.);
 
 			for (ushort i = 0; i < N_star; ++i)
 			{
@@ -498,7 +498,7 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 					<< " n.terms = " << ((n_patterns == 0) ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
 
 		//----- elements for the escape matrix -----//
-		std::vector<double> commu_esc_proba(N_star);
+		dbl_vec commu_esc_proba(N_star);
 		for (ushort i = 0; i < N_star; ++i)
 		{
 			commu_esc_proba[i] = 0.15 + 0.025 * i;

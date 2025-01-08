@@ -35,7 +35,7 @@ public:
 	//===== CONSTRUCTOR =====//
 	Base_Proposer(std::shared_ptr<Base_Distribution>,
 				  double rule_scale = 1.0,
-				  double rule_start_value = INF_DOUBLE,
+				  double rule_start_value = UNDEFINED_DOUBLE,
 				  const std::vector<ushort> &args_to_adapt = {},
 				  bool is_discrete = false);
 	virtual ~Base_Proposer() {};
@@ -67,11 +67,11 @@ public:
 protected:
 	std::shared_ptr<Base_Distribution> _distr_ptr_;
 
-	double _user_rule_scale_ = 1.0;	   // scale of the Metropolis rule
-	bool _is_start_from_zero_ = false; // wheter to move from given value
-	double from_value = INF_DOUBLE;	   // given value where to start from
-	double accept_rate = 0.0;		   // acceptance rate
-	ulong n_proposed_moves = 0;		   // number of proposed moves
+	double _user_rule_scale_ = 1.0;		  // scale of the Metropolis rule
+	bool _is_start_from_zero_ = false;	  // wheter to move from given value
+	double from_value = UNDEFINED_DOUBLE; // given value where to start from
+	double accept_rate = 0.0;			  // acceptance rate
+	ulong n_proposed_moves = 0;			  // number of proposed moves
 
 	std::vector<ushort> _args_to_adapt_ = {}; // which arguments should be adapted
 
@@ -111,7 +111,7 @@ protected:
 
 public:
 	//===== CONSTRUCTOR =====//
-	Base_Variable(const std::string &name = UNDEFINED,
+	Base_Variable(const std::string &name = UNDEFINED_STRING,
 				  double value = std::numeric_limits<double>::quiet_NaN(),
 				  bool is_discrete = false);
 	~Base_Variable();
@@ -120,7 +120,8 @@ public:
 	const std::string &get_name() const;
 	double get_value() const;
 	const double *get_pointer() const;
-	bool get_infer() const;
+	bool is_constant() const;
+	bool is_discrete() const;
 	bool is_from_zero() const;
 	double get_from_value() const;
 
@@ -131,15 +132,15 @@ public:
 	void restore_value();
 
 	// define a pointer to distribution
-	void assign_distribution(const std::string &distr_name = UNDEFINED);
+	void assign_distribution(const std::string &distr_name = UNDEFINED_STRING);
 	void assign_distr_scalar_arg(const std::string &arg_name, double x);
 	void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
-	void assign_distr_range(const std::map<std::string, double> &range);
+	void assign_distr_range(double lower, double upper);
 
-	// Assing a proposer rule with associated state 'infer'.
-	void assign_proposer(const std::string &rule_name = UNDEFINED,
-						 double rule_scale = INF_DOUBLE,
-						 double rule_from = INF_DOUBLE);
+	// Assing a proposer rule
+	void assign_proposer(const std::string &rule_name = UNDEFINED_STRING,
+						 double rule_scale = UNDEFINED_DOUBLE,
+						 double rule_from = UNDEFINED_DOUBLE);
 
 	//===== METROPOLIS-HASTINGS =====//
 
@@ -178,13 +179,13 @@ public:
 	const std::string show() const;
 
 private:
-	std::string name = UNDEFINED; // name of the variable
-	double value = INF_DOUBLE;	  // value of the variable
-	double buffer = INF_DOUBLE;	  // buffer of the variable
+	std::string name = UNDEFINED_STRING; // name of the variable
+	double value = UNDEFINED_DOUBLE;	 // value of the variable
+	double buffer = UNDEFINED_DOUBLE;	 // buffer of the variable
 
-	double _user_value_ = INF_DOUBLE; // initial user defined value
-	bool _is_discrete_ = false;		  // wheter the variable is discrete or not
-	bool _infer_ = false;			  // to be inferred or immutable
+	double _user_value_ = UNDEFINED_DOUBLE; // initial user defined value
+	bool _is_discrete_ = false;				// wheter discrete or not
+	bool _is_constant_ = true;				// wheter constant or not
 
 	//===== Valid move : functional methods =====//
 	bool (Base_Variable::*_func_valid_move_)() const = &Base_Variable::_valid_move_default_;

@@ -6,6 +6,10 @@
 
 #include "variable.h"
 
+// UPDATE : export these somehow to Rcpp!
+const str_vec AVAILABLE_PROPOSER_RULE = {
+    "gibbs", "unif", "norm", "lnorm"};
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -24,7 +28,9 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
                              bool is_discrete) : _distr_ptr_(distr)
 {
     // set to discrete
-    _distr_ptr_->assign_reshaping({}, is_discrete);
+    _distr_ptr_->assign_reshaping(is_discrete,
+                                  UNDEFINED_DOUBLE, 
+                                  UNDEFINED_DOUBLE);
 
     // assign user rule scale
     _user_rule_scale_ = std::fabs(rule_scale);
@@ -33,7 +39,7 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
     _is_start_from_zero_ = false;
 
     // proposal alwats starting by given value
-    if (rule_start_value != INF_DOUBLE)
+    if (rule_start_value != UNDEFINED_DOUBLE)
     {
         _is_start_from_zero_ = true;
         set_rule_start_value(rule_start_value);
@@ -100,9 +106,9 @@ const std::string Base_Proposer::show_arg_values() const { return _distr_ptr_->s
 const std::string Base_Proposer::show_scale() const
 {
     if (_args_to_adapt_.empty())
-        return UNDEFINED;
+        return UNDEFINED_STRING;
     else
-        return std::to_string((_distr_ptr_->get_arg)(_args_to_adapt_[0]));
+        return std::to_string(std::fabs((_distr_ptr_->get_arg)(_args_to_adapt_[0])));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,14 +186,14 @@ public:
     //===== CONSTRUCTOR =====//
     Uniform_Proposer(
         double rule_scale = 0.5,
-        double rule_from = INF_DOUBLE,
+        double rule_from = UNDEFINED_DOUBLE,
         bool is_discrete = false) : Base_Proposer(distribution_switchboard("unif"),
                                                   rule_scale,
                                                   rule_from,
                                                   {0, 1},
                                                   is_discrete)
     {
-        // initialize 
+        // initialize
         user_reset();
 
         // method for proposer
@@ -216,7 +222,7 @@ public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
         double rule_scale = 1.0,
-        double rule_from = INF_DOUBLE,
+        double rule_from = UNDEFINED_DOUBLE,
         bool is_discrete = false) : Base_Proposer(distribution_switchboard("norm"),
                                                   rule_scale,
                                                   rule_from,
@@ -254,7 +260,7 @@ public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(
         double rule_scale = 1.0,
-        double rule_from = INF_DOUBLE,
+        double rule_from = UNDEFINED_DOUBLE,
         bool is_discrete = false) : Base_Proposer(distribution_switchboard("lnorm"),
                                                   rule_scale,
                                                   rule_from,
@@ -290,12 +296,12 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name = UNDEFINED,
-                                                    double rule_scale = INF_DOUBLE,
-                                                    double rule_from = INF_DOUBLE,
+std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name = UNDEFINED_STRING,
+                                                    double rule_scale = UNDEFINED_DOUBLE,
+                                                    double rule_from = UNDEFINED_DOUBLE,
                                                     bool is_discrete = false)
 {
-    const std::vector<std::string> options = {"gibbs", "unif", "norm", "lnorm"};
+    const str_vec &options = AVAILABLE_PROPOSER_RULE;
 
     if (!tools::is_na(rule_name))
     {
@@ -344,7 +350,8 @@ Base_Variable::~Base_Variable() = default;
 const std::string &Base_Variable::get_name() const { return name; }
 double Base_Variable::get_value() const { return value; }
 const double *Base_Variable::get_pointer() const { return &value; }
-bool Base_Variable::get_infer() const { return _infer_; }
+bool Base_Variable::is_constant() const { return _is_constant_; }
+bool Base_Variable::is_discrete() const { return _is_discrete_; }
 bool Base_Variable::is_from_zero() const { return (_prop_ptr_->is_rule_start_from_zero)(); }
 double Base_Variable::get_from_value() const { return (_prop_ptr_->get_from_value)(); }
 
@@ -384,9 +391,9 @@ void Base_Variable::assign_distr_pointer_arg(const std::string &arg_name, const 
 }
 
 /* Assign reshaping to distribution. */
-void Base_Variable::assign_distr_range(const std::map<std::string, double> &range)
+void Base_Variable::assign_distr_range(double lower, double upper)
 {
-    _distr_ptr_->assign_reshaping(range, _is_discrete_);
+    _distr_ptr_->assign_reshaping(_is_discrete_, lower, upper);
 }
 
 /* Assign proposer. */
@@ -397,13 +404,13 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
     if (tools::is_na(rule_name))
     {
         // immutable variable if no rule is defined
-        _infer_ = false;
+        _is_constant_ = true;
         _func_propose_ = &Base_Variable::_propose_error_;
         _prop_ptr_ = proposer_switchboard();
     }
     else
     {
-        _infer_ = true;
+        _is_constant_ = false;
 
         // define proposer rule with functional programming
         if (rule_name == "gibbs")
@@ -414,7 +421,7 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
         }
         else
         {
-            if ((rule_from != INF_DOUBLE) && (!_distr_ptr_->valid(rule_from)))
+            if ((rule_from != UNDEFINED_DOUBLE) && (!_distr_ptr_->valid(rule_from)))
             {
                 const std::string min_val = _distr_ptr_->show_range_min();
                 const std::string max_val = _distr_ptr_->show_range_max();
@@ -488,8 +495,8 @@ const std::string Base_Variable::show() const
 {
     std::ostringstream oss;
     oss << name
-        << C_DELIM << get_value()
-        << C_DELIM << tools::truth(_infer_)
+        << C_DELIM << tools::natod(get_value())
+        << C_DELIM << tools::truth(_is_constant_)
         << C_DELIM << tools::truth(_is_discrete_)
         << C_DELIM << get_distr_name()
         << C_DELIM << show_distr_arg_names()

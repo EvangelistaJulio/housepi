@@ -47,10 +47,10 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 hmc_1 <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
-hmc_1$param_add(name = "shape",
+hmc_1$add_param(name = "shape",
                 prior = "unif", args = list(min = 0, max = 5),
                 rule = "norm", rule_scale = 1)
-hmc_1$param_add(name = "scale",
+hmc_1$add_param(name = "scale",
                 prior = "unif", args = list(min = 0, max = 5),
                 rule = "norm", rule_scale = 1)
 ```
@@ -64,7 +64,7 @@ Here we associate to each individual an exposure and an onset time.
 
 ```{r}
 # add 'exposure' time definition
-hmc_1$augm_add(
+hmc_1$add_augm(
   name = "exposure",
   value = "exposure_min@D",            # start from data value 'exposure_min'
   model = "unif",                      # associate a uniform model
@@ -75,7 +75,7 @@ hmc_1$augm_add(
 )
 
 # add 'onset' time definition
-hmc_1$augm_add(
+hmc_1$add_augm(
   name = "onset",
   value = "onset_max@D",
   model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
@@ -93,7 +93,7 @@ hmc_1$infer(data = delays, n_steps = 100000,
 # it will be interpreted as single individuals living in separate households.
 
 # collect the inference results
-results_1 <- hmc_1$traces_summary()
+results_1 <- hmc_1$summarise_traces()
 ```
 
 ## Augment Onset Times
@@ -109,10 +109,10 @@ This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
-hmc_2$param_template()
+hmc_2$template_param()
 
 # export the data.frame with parameter definitions
-par_2 <- hmc_2$param_export()
+par_2 <- hmc_2$export_param()
 ```
 
 ```{r, echo=FALSE}
@@ -139,11 +139,11 @@ aug_defs <- list(
     range = list(max = 14)
   )
 )
-hmc_2$augm_from_list(aug_defs)
+hmc_2$load_augm_list(aug_defs)
 
 # use inferred values from first example as constant parameters
-hmc_2$param_add(name = "inc_shape", value = results_1["shape", "Mean"])
-hmc_2$param_add(name = "inc_scale", value = results_1["scale", "Mean"])
+hmc_2$add_param(name = "inc_shape", value = results_1["shape", "Mean"])
+hmc_2$add_param(name = "inc_scale", value = results_1["scale", "Mean"])
 ```
 
 ### Simulate an Outbreak
@@ -164,7 +164,7 @@ This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
 # remove incubation period from simulated database
-df <- subset(hmc_2$data_export(), select = -c(incub_period))
+df <- subset(hmc_2$export_data(), select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
 is_infec <- df$status == 1
@@ -201,7 +201,7 @@ new_augm_defs <- list(
 )
 
 # clear previous definitions and load new from list
-hmc_2$augm_from_list(new_augm_defs)
+hmc_2$load_augm_list(new_augm_defs)
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
@@ -211,12 +211,12 @@ hmc_2$infer(data = df, n_steps = 10000, n_burnin = 1000, thin = 10,
 
 ```{r, fig.align = 'center'}
 # plot the traces of all chains 
-hmc_2$traces_xyplot()
+hmc_2$plot_traces()
 ```
 
 ```{r}
 # collect the results
-results_2 <- hmc_2$traces_summary()
+results_2 <- hmc_2$summarise_traces()
 
 # compare results to parameter values used for inference
 imask <- par_2["infer"] == TRUE

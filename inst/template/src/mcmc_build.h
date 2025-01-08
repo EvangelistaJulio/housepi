@@ -54,7 +54,7 @@ public:
     //===== LOGLIKELIHOOD =====//
     //=========================//
 
-    double buffer = INF_DOUBLE;
+    double buffer = UNDEFINED_DOUBLE;
     double global_loglike = 0.0;
 
     double get_global_loglike() const;
@@ -92,18 +92,17 @@ public:
 
     //----- Parameter - Attributes -----//
     const str_vec param_file_headers = {"name", "value",
-                                        "infer", "discrete",
+                                        "constant", "discrete",
                                         "prior", "arg_name", "arg_value",
                                         "rule", "rule_scale",
                                         "min", "max"};
     std::vector<parID> param_to_be_inferred = {};
-    std::vector<parID> param_to_be_static = {};
+    std::vector<parID> param_to_be_constant = {};
 
     //----- Parameter - Getter -----//
     bool assert_param(const parID &p) const;
     double get_param(const parID &p) const;
     const double *get_param_pointer(const parID &p) const;
-    bool get_infer(const parID &p) const;
 
     //----- Parameter - Setter -----//
     void assign_param(const parID &p, const Base_Variable &new_param);
@@ -158,12 +157,18 @@ public:
     void clear_all_augm(Household &house, indiv i);
     void assign_all_augm(Household &house, indiv i);
 
+    //================//
     //===== READ =====//
+    //================//
+
     void read_setup(const std::string &pathtofile);
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
 
+    //================//
     //===== SHOW =====//
+    //================//
+
     void show_setup() const;
     std::string show_param(const parID &p) const;
     void show_all_params() const;
@@ -171,17 +176,24 @@ public:
     void show_summary() const;
     void show_full_build() const;
 
+    //======================//
     //===== Cpp PRINTS =====//
+    //======================//
+
     void print_infer_state(const std::string &pathtofile) const;
     void print_augm_variables(const std::string &pathtofile) const;
 
 #ifdef _HOUSEPI_RCPP
+    //========================//
     //===== Rcpp IMPORTS =====//
+    //========================//
     void import_setup(const Rcpp::List &x);
     void import_params(const Rcpp::DataFrame &x);
     void import_augm(const Rcpp::DataFrame &x);
 
+    //========================//
     //===== Rcpp EXPORTS =====//
+    //========================//
     Rcpp::List export_setup() const;
     Rcpp::DataFrame export_params() const;
     Rcpp::DataFrame export_data() const;
@@ -189,7 +201,10 @@ public:
     Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
+    //===================================//
     //===== RANDOM NUMBER GENERATOR =====//
+    //===================================//
+
     rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
     std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 
@@ -254,8 +269,8 @@ public:
     //======================//
 
     ulong dgn_count = 0;
-    std::vector<double> dgn_glob_loglike = {};
-    parIDmap<std::vector<double>> dgn_param_value = {};
+    dbl_vec dgn_glob_loglike = {};
+    parIDmap<dbl_vec> dgn_param_value = {};
 
     void disable_assert();
     void init_move_counts();

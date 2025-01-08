@@ -80,24 +80,24 @@ knitr::kable(head(aux_))
 
 ### Parameter Definitions
 
-Single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `param_add`.
+Single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `add_param`.
 
 ```{r, echo=TRUE}
-hmc$param_add(
+hmc$add_param(
   name = "alpha",
   prior = "unif", args = list(min = 0, max = 3),
   rule = "lnorm", rule_scale = 1
 )
-hmc$param_add(
+hmc$add_param(
   name = "beta",
   prior = "unif", args = list(min = 0, max = 3),
   rule = "lnorm", rule_scale = 1
 )
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `infer=TRUE` and a `value`.
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant=TRUE` and a `value`.
 
-Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `param_template()`.
+Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `template_param()`.
 To check that all parameters have been defined, you can call the method `param_check()`.
 If some parameters are missing, you can fill them from the template defaults calling the method `param_check(fill_template = TRUE)`.
 
@@ -109,27 +109,27 @@ Now we can safely perform inference with the method `infer`.
 
 ```{r}
 # run the Monte Carlo specifying setup options (steps, seed, etc.)
-hmc$infer(data = survey, n_steps = 50000, n_burnin = 5000,
-          thin = 15, n_adapt = 3000, n_chains = 4, seed = 6043)
+hmc$infer(data = survey, n_steps = 25000, n_burnin = 2500,
+          thin = 10, n_adapt = 2500, n_chains = 4, seed = 6043)
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
 ```{r, fig.align = 'center'}
 # visualize the traces of the first chain
-hmc$traces_xyplot(chain = 1)
+hmc$plot_traces(chain = 1)
 ```
 
 ```{r}
 # store summary of the posterior estimates
-results <- hmc$traces_summary()
+results <- hmc$summarise_traces()
 ```
 
-For advanced analysis on the inference results, we can extract the traces with method `traces_export`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
+For advanced analysis on the inference results, we can extract the traces with method `export_traces`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
 
 ```{r}
 # export coda object
-mctraces <- hmc$traces_export()
+mctraces <- hmc$export_traces()
 
 # e. g. Gelman-Rubin criterion for convergence
 coda::gelman.diag(mctraces)
@@ -157,8 +157,8 @@ In order to produce a simulation, our models require a pre-loaded database for t
 simu_cb <- housepi::HouseholdModelClass$new("chain-binomial")
 
 # define constant parameters from the inference results
-# here we introduce the method 'param_from_list'
-simu_cb$param_from_list(
+# here we introduce the method 'load_param_list'
+simu_cb$load_param_list(
   list(
     alpha = list(value = results["alpha", "Mean"]),
     beta = list(value = results["beta", "Mean"])
@@ -174,7 +174,7 @@ To return the simulated database, which also corresponds to the current loaded d
 
 ```{r}
 # export current database
-df <- simu_cb$data_export()
+df <- simu_cb$export_data()
 ```
 
 ### Simulation Study
@@ -183,21 +183,21 @@ We can challenge the inference process used at the beginning with the new simula
 
 ```{r}
 # run inference on new database keeping previous definitions
-hmc$infer(data = df, n_steps = 50000, n_burnin = 5000,
-          thin = 15, n_adapt = 3000, n_chains = 4, seed = 4337)
+hmc$infer(data = df, n_steps = 25000, n_burnin = 2500,
+          thin = 10, n_adapt = 2500, n_chains = 4, seed = 4337)
 ```
 
 ```{r, fig.align = 'center'}
 # visualize traces of the first chain
-hmc$traces_xyplot(chain = 1)
+hmc$plot_traces(chain = 1)
 ```
 
 ```{r}
 # collect the results
-results_2 <- hmc$traces_summary()
+results_2 <- hmc$summarise_traces()
 
 # export parameters used for the simulations
-simul_pars <- simu_cb$param_export()
+simul_pars <- simu_cb$export_param()
 
 # compare results to parameter values used for inference
 results_2[simul_pars[["name"]], "Simul"] <- simul_pars["value"]

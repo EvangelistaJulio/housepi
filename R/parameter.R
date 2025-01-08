@@ -4,9 +4,19 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+# @title Housepi Parameter R6 Class
+# @description
+# Help with parameter definitions of model Rcpp object.
+# @export HousepiParameterClass
+# @docType class
 HousepiParameterClass <- R6::R6Class(
   classname = "HousepiParameterClass",
   cloneable = FALSE,
+
+  ###################
+  ##### PUBLIC ######
+  ###################
+
   public = list(
     defs = NULL,
 
@@ -21,7 +31,7 @@ HousepiParameterClass <- R6::R6Class(
     # Add a new parameter definition.
     add = function(name = NA,
                    value = NA,
-                   infer = NA,
+                   constant = NA,
                    discrete = FALSE,
                    prior = NA,
                    args = list(),
@@ -40,19 +50,37 @@ HousepiParameterClass <- R6::R6Class(
         self$defs <- self$defs[mask, ]
       }
 
-      #----- extrapolate infer value -----#
-      if (is.na(infer)) {
-        infer <- !is.na(rule)
-        if (is.na(rule) && (!is.na(prior))) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("'%s' interpreted as if infer = FALSE.", name),
-            i = "Provide one between rule/infer to silence this warning."
-          )))
-        }
+      # assume it's a constant if a prior is not provided
+      if (is.na(constant)) {
+        constant <- is.na(prior)
       }
 
-      if (isTRUE(infer)) {
-
+      if (isTRUE(constant)) {
+        # check that value is provided
+        if (is.na(value)) {
+          stop(cli::format_error(
+            sprintf("Missing value for constant parameter '%s'.", name)
+          ))
+        }
+        # append constant parameter
+        self$defs <- rbind(
+          self$defs,
+          data.frame(
+            name = name,
+            value = value,
+            constant = TRUE,
+            discrete = is.integer(value),
+            prior = NA,
+            arg_name = NA,
+            arg_value = NA,
+            rule = NA,
+            rule_scale = NA,
+            min = NA,
+            max = NA,
+            stringsAsFactors = FALSE
+          )
+        )
+      } else {
         #----- prior -----#
         if (is.na(prior)) {
           stop(cli::format_error(
@@ -70,9 +98,9 @@ HousepiParameterClass <- R6::R6Class(
 
         #----- rule -----#
         if (is.na(rule)) {
-          stop(cli::format_error(
-            sprintf("Incomplete definition: provide rule name for '%s'.", name)
-          ))
+          # default proposer rule
+          rule <- "gibbs"
+          rule_scale <- NA
         }
 
         #----- range -----#
@@ -85,7 +113,7 @@ HousepiParameterClass <- R6::R6Class(
           data.frame(
             name = name,
             value = value,
-            infer = TRUE,
+            constant = FALSE,
             discrete = isTRUE(discrete),
             prior = prior,
             arg_name = arg_name_,
@@ -97,31 +125,8 @@ HousepiParameterClass <- R6::R6Class(
             stringsAsFactors = FALSE
           )
         )
-
-      } else {
-        if (is.na(value)) {
-          stop(cli::format_error(
-            sprintf("Incomplete definition: missing value for constant parameter '%s'.", name)
-          ))
-        }
-        self$defs <- rbind(
-          self$defs,
-          data.frame(
-            name = name,
-            value = value,
-            infer = FALSE,
-            discrete = FALSE,
-            prior = NA,
-            arg_name = NA,
-            arg_value = NA,
-            rule = NA,
-            rule_scale = NA,
-            min = NA,
-            max = NA,
-            stringsAsFactors = FALSE
-          )
-        )
       }
+
       invisible(self)
     },
 
@@ -131,7 +136,7 @@ HousepiParameterClass <- R6::R6Class(
       self$defs <- data.frame(
         name = character(),
         value = numeric(),
-        infer = logical(),
+        constant = logical(),
         discrete = logical(),
         prior = character(),
         arg_name = character(),
@@ -182,107 +187,102 @@ HousepiParameterClass <- R6::R6Class(
     },
 
     # @description
-    # Check parameter definitions from the implementation script.
-    # @param fill_template (`logical(1)`)\cr
+    # Assert parameter definitions from the implementation script.
+    # @param refer_file
+    # @param augm_frame
+    # @param fill (`logical(1)`)\cr
     # If `TRUE` fills the missing parameter with template definitions.
-    # @param fill_template (`logical(1)`)\cr
-    # If `TRUE` fills the missing parameter with template definitions.
-    check = function(envir_path, augm_frame, fill_template = FALSE) {
+    assert = function(refer_file,
+                      augm_frame,
+                      fill = FALSE) {
 
-      # retrieve the model source code
-      model_path <- file.path(envir_path, ".refer")
+      # read the script and extract parameters
+      script <- readChar(refer_file, file.info(refer_file)$size)
 
-      if (!file.exists(file.path(envir_path, ".refer"))) {
-        cli::cli_alert_warning(cli::format_warning(c(
-          "Impossible to find '.refer': file moved or deleted.",
-          i = "Try to generate a new model object with {.code force = TRUE}."
-        )))
+      # from : param("string" or get_param('string'
+      regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
+      matches <- stringr::str_match_all(script, regular_expr)
+      model_params_set <- unlist(matches[[1]][, 2])
 
-      } else {
+      # param from : param_pointer("string" or param_pointer('string'
+      regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
+      matches <- stringr::str_match_all(script, regular_expr)
+      model_params_set <- c(model_params_set, unlist(matches[[1]][, 2]))
 
-        # read the script and extract parameters
-        script <- readChar(model_path, file.info(model_path)$size)
+      # param from : assign_contact_rate("string"
+      regular_expr <- 'emplace_contact_rate\\s*\\(\\s*["\'](.*?)["\']'
+      matches <- stringr::str_match_all(script, regular_expr)
+      model_params_set <- c(model_params_set, unlist(matches[[1]][, 2]))
 
-        # from : param("string" or get_param('string'
-        regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- unique(unlist(matches[[1]][, 2]))
+      # param from : vec_parID.emplace_back(..., "string"
+      # UPDATE: need for smtg more solid here
+      regular_expr <- 'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      matches <- stringr::str_match_all(script, regular_expr)
+      model_params_set <- c(model_params_set, unlist(matches[[1]][, 2]))
 
-        # param from : param_pointer("string" or param_pointer('string'
-        regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
+      # param from : augmented variable model argument definitions
+      # UPDATE : to be controlled
+      if (length(augm_frame) > 0) {
+        x <- augm_frame[c("arg_value", "arg_type")]
+        for (i in seq_along(x)) {
+          aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
+                            keys = strsplit(x[i, 2], "/")[[1]])
+          aux <- aux[aux[["keys"]] == "P", "vals"]
+          model_params_set <- c(model_params_set, aux[!is.na(aux)])
+        }
+      }
 
-        # param from : assign_contact_rate("string"
-        regular_expr <- 'emplace_contact_rate\\s*\\(\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
+      # re-order alphabetically
+      model_params_set <- unique(model_params_set[order(model_params_set)])
 
-        # param from : vec_parID.emplace_back(..., "string"
-        # UPDATE: need for smtg more solid here
-        regular_expr <- 'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- unique(c(model_params_set, unlist(matches[[1]][, 2])))
+      # add missing parameters with standard options
+      missing <- c()
+      for (name in model_params_set) {
+        if (!(name %in% self$defs[["name"]])) {
+          missing <- c(missing, name)
+        }
+      }
 
-        # param from : augmented variable model argument definitions
-        # UPDATE : to be controlled
-        if (length(augm_frame) > 0) {
-          x <- augm_frame[c("arg_value", "arg_type")]
-          for (i in seq_along(x)) {
-            aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
-                              keys = strsplit(x[i, 2], "/")[[1]])
-            aux <- aux[aux[["keys"]] == "P", "vals"]
-            model_params_set <- unique(c(model_params_set, aux[!is.na(aux)]))
+      # eventually fill with template definitions
+      if (length(missing) > 0) {
+        if (isTRUE(fill)) {
+          # retrieve the template parameters file
+          templ_augm_file <- file.path(dirname(refer_file), "template_augm.R")
+          if (!file.exists((templ_file))) {
+            stop(cli::format_error(c(
+              "Impossible to fill missing parameters without a template.",
+              i = "Set {.code fill = FALSE} to silence this warning."
+            )))
           }
+          self$from_list(dget(templ_file)[missing], append = TRUE)
+          oss <- sprintf(
+            "Added missing parameter(s) from template: '%s'",
+            missing[[1]]
+          )
+
+        } else {
+          oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])
         }
 
-        # re-order alphabetically
-        model_params_set <- model_params_set[order(model_params_set)]
+        for (name in missing[-1]) {
+          oss <- sprintf("%s, '%s'", oss, name)
+        }
+        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+      }
 
-        # add missing parameters with standard options
-        missing <- c()
-        for (name in model_params_set) {
-          if (!(name %in% self$defs[["name"]])) {
-            missing <- c(missing, name)
-          }
+      # point out parameters that are not used
+      unused <- c()
+      for (name in self$defs[["name"]]) {
+        if (!(name %in% model_params_set)) {
+          unused <- c(unused, name)
         }
-
-        # eventually fill with template definitions
-        if (length(missing) > 0) {
-          if (fill_template) {
-            # retrieve the template parameters file
-            templ_file <- file.path(envir_path, "template_params.R")
-            if (!file.exists((templ_file))) {
-              stop(cli::format_error(c(
-                "Impossible to fill missing parameters without a template.",
-                i = "Set {.code fill_template = FALSE} to silence this warning."
-              )))
-            }
-            self$from_list(dget(templ_file)[missing], append = TRUE)
-            oss <- sprintf("Added missing parameter(s) from template: '%s'", missing[[1]])
-          } else {
-            oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])
-          }
-          for (name in missing[-1]) {
-            oss <- sprintf("%s, '%s'", oss, name)
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+      }
+      if (length(unused) > 0) {
+        oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
+        for (name in unused[-1]) {
+          oss <- paste0(oss, ", '", name, "'")
         }
-
-        # point out parameters that are not used
-        unused <- c()
-        for (name in self$defs[["name"]]) {
-          if (!(name %in% model_params_set)) {
-            unused <- c(unused, name)
-          }
-        }
-        if (length(unused) > 0) {
-          oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
-          for (name in unused[-1]) {
-            oss <- paste0(oss, ", '", name, "'")
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-        }
+        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
       }
 
       invisible(self)

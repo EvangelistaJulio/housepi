@@ -41,8 +41,9 @@ public:
 	double rand(rnd_gen &prng);
 
 	//----- Adjust methods for truncation and/or discretization -----//
-	virtual void assign_reshaping(const std::map<std::string, double> &range,
-								  bool discrete);
+	virtual void assign_reshaping(bool discrete,
+								  double lower_value,
+								  double upper_value);
 
 protected:
 	//----- Distribution specific virtual methods -----//
@@ -53,8 +54,9 @@ protected:
 	virtual void _update_args_();
 	virtual double _rand_(rnd_gen &prng);
 
-	void _assign_reshaping_(std::map<std::string, double> range,
-							const std::string &discrete);
+	void _assign_reshaping_(const std::string &discrete,
+							double lower_value,
+							double upper_value);
 
 	//----- Functional methods for public methods -----//
 	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
@@ -69,7 +71,7 @@ protected:
 	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
 
 private:
-	double _undefined_call_(const std::string &txt = UNDEFINED, double x = 0, double y = 0) const;
+	double _undefined_call_(const std::string &txt = UNDEFINED_STRING, double x = 0, double y = 0) const;
 
 	//----- Deafult functional methods -----//
 	double _default_pdf_(double x) const;
@@ -115,6 +117,6 @@ private:
 
 /* Distribution with default scalar arguments. */
 std::shared_ptr<Base_Distribution> distribution_switchboard(
-	const std::string &name = UNDEFINED);
+	const std::string &name = UNDEFINED_STRING);
 
 #endif // HOUSEPI__DISTRIBUTION__H

@@ -4,15 +4,19 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+internal_setup_error <- function() {
+  stop(cli::format_error(c(
+    "Failed to setup files necessary to model.",
+    i = "Check your user permissions."
+  )))
+}
+
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
   if (from != to) {
     if (!file.copy(from, to, overwrite = TRUE, ...)) {
       # user permission error (tipically)
-      stop(cli::format_error(c(
-        "Failed to setup internal files.",
-        i = "Check your user permissions."
-      )))
+      internal_setup_error()
     }
   }
 }
@@ -97,7 +101,9 @@ assert_source_files <- function(path) {
 
 # Optional helper files
 helper_files <- function(path) {
-  return(file.path(path, paste0("template_", c("params.R", "info.Rd", "augm.R"))))
+  helper_names <- paste0("template_",
+                         c("params.R", "info.Rd", "augm.R"))
+  return(file.path(path, helper_names))
 }
 
 # Associate dynamic library extension to name

@@ -57,7 +57,7 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
                                          const std::string &type,
                                          const Household &house, indiv i)
 {
-    double output = INF_DOUBLE;
+    double output = UNDEFINED_DOUBLE;
 
     try
     {
@@ -77,15 +77,16 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
                 output = house.data(i, value);
 
             else if (type == TYPE_PARAM)
-                if (get_infer(value))
-                    throw std::invalid_argument(
-                        "Non constant parameter '" + value + "' assigned as immutable argument.");
-                else
+                // UPDATE: here it won't be straightforward to drop maps
+                if (param_map.at(value).is_constant())
                     output = get_param(value);
+                else
+                    throw std::invalid_argument(
+                        "Parameter to be inferred '" + value + "' assigned as constant argument.");                    
 
             else if (type == TYPE_COMMAND)
                 if (value == "default")
-                    output = INF_DOUBLE;
+                    output = UNDEFINED_DOUBLE;
                 else
                     throw std::invalid_argument(
                         "Unknown command type '" + value + "'.");
@@ -467,20 +468,15 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
                 const std::string &model_name = _augm_deftable_.at("model")[k];
 
                 //----- Range -----//
-                std::map<std::string, double> range = {};
                 // minimum value
-                double aux_min = type_to_double(_augm_deftable_.at("min")[k],
-                                                _augm_deftable_.at("min_type")[k],
-                                                house, i);
-                if (aux_min != INF_DOUBLE)
-                    range.emplace("min", aux_min);
+                double lower = type_to_double(_augm_deftable_.at("min")[k],
+                                              _augm_deftable_.at("min_type")[k],
+                                              house, i);
 
                 // maximum value
-                double aux_max = type_to_double(_augm_deftable_.at("max")[k],
-                                                _augm_deftable_.at("max_type")[k],
-                                                house, i);
-                if (aux_max != INF_DOUBLE)
-                    range.emplace("max", aux_max);
+                double upper = type_to_double(_augm_deftable_.at("max")[k],
+                                              _augm_deftable_.at("max_type")[k],
+                                              house, i);
 
                 //----- Proposer Rule -----//
                 const std::string &rule_name = _augm_deftable_.at("rule")[k];
@@ -501,7 +497,7 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
                                       _augm_deftable_.at("arg_value")[k],
                                       _augm_deftable_.at("arg_type")[k]);
 
-                house.assign_augm_model_range(i, a, range);
+                house.assign_augm_model_range(i, a, lower, upper);
 
                 // random initialization at assignment
                 if (tools::stobool(_augm_deftable_.at("init_rand")[k]))
@@ -540,14 +536,14 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
     ulong sample_size = setup_c_sample_size * setup_n_chains;
 
     dgn_count = 0;
-    dgn_glob_loglike = std::vector<double>(sample_size);
+    dgn_glob_loglike = dbl_vec(sample_size);
 
     if (!is_power_post)
     {
         //----- Initialize diagnostic vectors -----//
         // FLAG: delicate point
         for (const parID &p : param_to_be_inferred)
-            dgn_param_value[p] = std::vector<double>(sample_size, std::numeric_limits<double>::quiet_NaN());
+            dgn_param_value[p] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
 
         // diagnostics over households
         for (size_t H = 0; H < n_households; ++H)
@@ -677,7 +673,7 @@ void Monte_Carlo_Build::show_summary() const
 void Monte_Carlo_Build::show_full_build() const
 {
     //----- SETUP -----//
-    std::string add_file_info = UNDEFINED;
+    std::string add_file_info = UNDEFINED_STRING;
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("setup")))
             add_file_info = "# import: " + _report_pathtofile_.at("setup");
@@ -686,7 +682,7 @@ void Monte_Carlo_Build::show_full_build() const
     show_setup();
 
     //----- PARAMETERS -----//
-    add_file_info = UNDEFINED;
+    add_file_info = UNDEFINED_STRING;
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("params")))
             add_file_info = "# import: " + _report_pathtofile_.at("params");
@@ -695,7 +691,7 @@ void Monte_Carlo_Build::show_full_build() const
     show_all_params();
 
     //----- DATABASE -----//
-    add_file_info = UNDEFINED;
+    add_file_info = UNDEFINED_STRING;
     if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("data")))
             add_file_info = "# import: " + _report_pathtofile_.at("data");

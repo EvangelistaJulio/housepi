@@ -39,8 +39,8 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME :NaN and NA to be revised
-constexpr double INF_DOUBLE = 1e10;   // numerical infinity value
-const std::string UNDEFINED = "<NA>"; // value for undefined choice
+constexpr double UNDEFINED_DOUBLE = 1e10;    // undefined double
+const std::string UNDEFINED_STRING = "<NA>"; // undefined string
 
 // constants
 constexpr unsigned MAX_NUMBER_ATTEMPTS = 50; // max n. of attempts for initialization
@@ -95,6 +95,7 @@ using ulong = unsigned long int;
 template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
+using dbl_vec = std::vector<double>;
 using str_vec = std::vector<std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;
 
@@ -106,7 +107,7 @@ using __access_ID__ = unsigned short int;
 const __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
 #else
 using __access_ID__ = std::string;
-const __access_ID__ __undef_ID__ = UNDEFINED; // name for undefined choice
+const __access_ID__ __undef_ID__ = UNDEFINED_STRING; // name for undefined choice
 #endif
 
 using parID = __access_ID__;
@@ -115,11 +116,11 @@ using dataID = __access_ID__;
 using rateID = __access_ID__;
 using extraID = __access_ID__;
 
-const parID UNDEF_PARAMETER = __undef_ID__;
-const parID UNDEF_AUGMENTED = __undef_ID__;
-const parID UNDEF_DATACOLUMN = __undef_ID__;
-const parID UNDEF_GROUPRATE = __undef_ID__;
-const parID UNDEF_EXTRAVARIA = __undef_ID__;
+const parID UNDEFINED_PARAMETER = __undef_ID__;
+const parID UNDEFINED_AUGMENTED = __undef_ID__;
+const parID UNDEFINED_DATACOLUMN = __undef_ID__;
+const parID UNDEFINED_GROUPRATE = __undef_ID__;
+const parID UNDEFINED_EXTRAVARIA = __undef_ID__;
 
 #ifdef DEBUG_TEMPORARY_MACRO
 template <typename T>
@@ -163,6 +164,8 @@ namespace tools
 {
     // internal undefined string values
     bool is_na(const std::string &txt);
+    // internal undefined double values
+    bool is_na(double x);
 
     // output formatter
     const std::string percentage(double fraction, ushort precision = 1);
@@ -172,7 +175,7 @@ namespace tools
     void print_stdout(const std::string &txt);
     void print_stderr(const std::string &txt);
     void print_decorator(const std::string &title,
-                         const std::string &txt = UNDEFINED,
+                         const std::string &txt = UNDEFINED_STRING,
                          char decor = C_DECOR,
                          bool verbose = true);
 
@@ -188,9 +191,10 @@ namespace tools
     unsigned long stoul(const std::string &input, const std::string &errtxt = "");
     unsigned long long stoull(const std::string &input, const std::string &errtxt = "");
     double stod(const std::string &input, const std::string &errtxt = "");
-   
+
     // formatter for the case NA
-    double natod(const std::string &input);
+    double natod(const std::string &input, const std::string &errtxt = "");
+    double natod(double x);
 
     // argument string parser
     const str_vec parse_list_args(const std::string &tkn,
@@ -204,7 +208,7 @@ namespace tools
                         const str_vec &required_headers = {});
 
     // Welford online algorithm for mean and variance
-    void compute_stats(const std::vector<double> &data, double &avg, double &var);
+    void compute_stats(const dbl_vec &data, double &avg, double &var);
 
     // calculate Levenshtein distance
     ushort levenshtein(const std::string &s1, const std::string &s2);

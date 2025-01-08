@@ -121,8 +121,8 @@ Rcpp::DataFrame Monte_Carlo_Build::export_params() const
     if (!param_to_be_inferred.empty())
         V_names.insert(V_names.end(), param_to_be_inferred.begin(), param_to_be_inferred.end());
 
-    if (!param_to_be_static.empty())
-        V_names.insert(V_names.end(), param_to_be_static.begin(), param_to_be_static.end());
+    if (!param_to_be_constant.empty())
+        V_names.insert(V_names.end(), param_to_be_constant.begin(), param_to_be_constant.end());
 
     size_t n_rows = V_names.size();
 
@@ -132,34 +132,39 @@ Rcpp::DataFrame Monte_Carlo_Build::export_params() const
 
     // pre-allocate memory
     NumericVector V_value(n_rows), V_min(n_rows), V_max(n_rows);
-    LogicalVector V_infer(n_rows);
-    CharacterVector V_prior(n_rows), V_args(n_rows), V_argsval(n_rows);
-    CharacterVector V_rule(n_rows), V_rule_args(n_rows), V_rule_argsval(n_rows);
+    LogicalVector V_constant(n_rows), V_discrete(n_rows);
+    CharacterVector V_prior(n_rows), V_arg_name(n_rows), V_arg_value(n_rows);
+    CharacterVector V_rule(n_rows);
+    NumericVector V_rule_scale(n_rows);
 
     // fill datafrane columns
     for (size_t c = 0; c < n_rows; ++c)
     {
         parID p = V_names[c];
         V_value[c] = get_param(p);
-        V_infer[c] = get_infer(p);
+        V_constant[c] = param_map.at(p).is_constant();
+        V_discrete[c] = param_map.at(p).is_discrete();
 
         V_prior[c] = stoRString(param_map.at(p).get_distr_name());
-        V_args[c] = stoRString(param_map.at(p).show_distr_arg_names());
-        V_argsval[c] = stoRString(param_map.at(p).show_distr_arg_values());
+        V_arg_name[c] = stoRString(param_map.at(p).show_distr_arg_names());
+        V_arg_value[c] = stoRString(param_map.at(p).show_distr_arg_values());
 
         V_rule[c] = stoRString(param_map.at(p).get_prop_name());
-        V_rule_args[c] = stoRString(param_map.at(p).show_prop_arg_names());
-        V_rule_argsval[c] = stoRString(param_map.at(p).show_prop_arg_values());
+
+        const std::string rule_scal = param_map.at(p).show_prop_scale();
+        V_rule_scale[c] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
 
         const std::string min_val = param_map.at(p).show_range_min();
-        const std::string max_val = param_map.at(p).show_range_max();
         V_min[c] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
+
+        const std::string max_val = param_map.at(p).show_range_max();
         V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
     }
 
-    return DataFrame::create(_["name"] = wrap(V_names), _["value"] = V_value, _["infer"] = V_infer,
-                             _["prior"] = V_prior, _["args"] = V_args, _["argsval"] = V_argsval,
-                             _["rule"] = V_rule, _["rule_args"] = V_rule_args, _["rule_argsval"] = V_rule_argsval,
+    return DataFrame::create(_["name"] = wrap(V_names), _["value"] = V_value,
+                             _["constant"] = V_constant, _["discrete"] = V_discrete,
+                             _["prior"] = V_prior, _["arg_name"] = V_arg_name, _["arg_value"] = V_arg_value,
+                             _["rule"] = V_rule, _["rule_scale"] = V_rule_scale,
                              _["min"] = V_min, _["max"] = V_max);
 }
 

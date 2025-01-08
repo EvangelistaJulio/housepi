@@ -6,6 +6,10 @@
 
 #include "distribution.h"
 
+// UPDATE : export these somehow to Rcpp!
+const str_vec AVAILABLE_DISTRIBUTIONS = {
+    "unif", "norm", "lnorm", "gamma", "weibull", "rayleigh", "exp"};
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Incomplete gamma Function  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,10 +100,12 @@ double Base_Distribution::rand(rnd_gen &prng)
     return (this->*_func_rand_)(prng);
 }
 
-void Base_Distribution::assign_reshaping(const std::map<std::string, double> &range,
-                                         bool discrete)
+void Base_Distribution::assign_reshaping(bool discrete,
+                                         double lower_value,
+                                         double upper_value)
 {
-    _assign_reshaping_(range, (discrete) ? "center" : UNDEFINED);
+    _assign_reshaping_((discrete) ? "center" : UNDEFINED_STRING,
+                       lower_value, upper_value);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -266,12 +272,13 @@ double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_ran
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Truncate and/or discretize distribution at declaration.  */
-void Base_Distribution::_assign_reshaping_(std::map<std::string, double> range,
-                                           const std::string &discrete)
+void Base_Distribution::_assign_reshaping_(const std::string &discrete,
+                                           double lower_value,
+                                           double upper_value)
 {
     //===== DISCRETIZATION =====//
     // asjust range in case of discretization
-    if (discrete != UNDEFINED)
+    if (discrete != UNDEFINED_STRING)
     {
         if (discrete == "center")
         { // centered discretization
@@ -281,11 +288,11 @@ void Base_Distribution::_assign_reshaping_(std::map<std::string, double> range,
             _func_logratio_ = &Base_Distribution::_discr_center_logratio_;
             _func_rand_ = &Base_Distribution::_discr_center_rand_;
 
-            if (range.find("min") != range.end())
-                range["min"] = std::floor(range.at("min")) + 0.5;
+            if (!tools::is_na(lower_value))
+                lower_value = std::floor(lower_value) + 0.5;
 
-            if (range.find("max") != range.end())
-                range["max"] = std::ceil(range.at("max")) - 0.5;
+            if (!tools::is_na(upper_value))
+                upper_value = std::ceil(upper_value) - 0.5;
         }
         else if (discrete == "left")
         { // left adjusted discretization
@@ -295,11 +302,11 @@ void Base_Distribution::_assign_reshaping_(std::map<std::string, double> range,
             _func_logratio_ = &Base_Distribution::_discr_left_logratio_;
             _func_rand_ = &Base_Distribution::_discr_left_rand_;
 
-            if (range.find("min") != range.end())
-                range["min"] = std::floor(range.at("min"));
+            if (!tools::is_na(lower_value))
+                lower_value = std::floor(lower_value);
 
-            if (range.find("max") != range.end())
-                range["max"] = std::ceil(range.at("max"));
+            if (!tools::is_na(upper_value))
+                upper_value = std::ceil(upper_value);
         }
         else
         {
@@ -309,7 +316,7 @@ void Base_Distribution::_assign_reshaping_(std::map<std::string, double> range,
     }
 
     //===== TRUNCATION =====/
-    ushort trunc_cases = set_range(range);
+    ushort trunc_cases = set_range(lower_value, upper_value);
 
     //----- Fucntional methods -----//
     if (trunc_cases == 0) // no truncation
@@ -357,42 +364,43 @@ private:
 public:
     Uniform_Distribution() : distr_gen(0.0, 1.0)
     {
-        _init_defaults_("unif", {"min", "max"}, {0.0, 1.0});
+        _init_defaults_("unif", {"min", "max"}, {0.0, 1.0},
+                        UNDEFINED_DOUBLE, UNDEFINED_DOUBLE);
     }
 
     ~Uniform_Distribution() {}
 
 protected:
-    virtual double _pdf_(double x) const override
+    double _pdf_(double x) const override
     {
         UNUSED(x);
         return 1.0;
     }
 
-    virtual double _cdf_(double x) const override
+    double _cdf_(double x) const override
     {
         return x;
     }
 
-    virtual double _logpdf_(double x) const override
+    double _logpdf_(double x) const override
     {
         UNUSED(x);
         return 0.0;
     }
 
-    virtual double _logratio_(double xold, double xnew) const override
+    double _logratio_(double xold, double xnew) const override
     {
         UNUSED(xold);
         UNUSED(xnew);
         return 0.0;
     }
 
-    virtual void _update_args_() override
+    void _update_args_() override
     {
         distr_gen.param(std::uniform_real_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
@@ -409,46 +417,47 @@ private:
 public:
     Normal_Distribution() : distr_gen(0.0, 1.0)
     {
-        _init_defaults_("norm", {"mean", "sd"}, {0.0, 1.0});
+        _init_defaults_("norm", {"mean", "sd"}, {0.0, 1.0},
+                        UNDEFINED_DOUBLE, UNDEFINED_DOUBLE);
     }
 
     ~Normal_Distribution() {};
 
 protected:
-    virtual double _pdf_(double x) const override
+    double _pdf_(double x) const override
     {
         double mean = get_arg(0);
         double sd = get_arg(1);
         return 0.39894228 * exp(-0.5 * pow((x - mean) / sd, 2)) / sd;
     }
 
-    virtual double _cdf_(double x) const override
+    double _cdf_(double x) const override
     {
         double mean = get_arg(0);
         double sd = get_arg(1);
         return 0.5 + 0.5 * erf(0.707106781 * (x - mean) / sd);
     }
 
-    virtual double _logpdf_(double x) const override
+    double _logpdf_(double x) const override
     {
         double mean = get_arg(0);
         double sd = get_arg(1);
         return -0.5 * pow((x - mean) / sd, 2) - 0.918938533 - log(sd);
     }
 
-    virtual double _logratio_(double xold, double xnew) const override
+    double _logratio_(double xold, double xnew) const override
     {
         double mean = get_arg(0);
         double sd = get_arg(1);
         return 0.5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
     }
 
-    virtual void _update_args_() override
+    void _update_args_() override
     {
         distr_gen.param(std::normal_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
@@ -466,50 +475,55 @@ private:
 public:
     Lognorm_Distribution() : distr_gen(0.0, 1.0)
     {
-        _init_defaults_("lnorm", {"meanlog", "sdlog"}, {0.0, 1.0}, {{"min", 0}});
+        _init_defaults_("lnorm",
+                        {"meanlog", "sdlog"}, {0.0, 1.0},
+                        0.0, UNDEFINED_DOUBLE);
     }
     ~Lognorm_Distribution() {};
 
-    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    void assign_reshaping(bool discrete, double lower, double upper) override
     {
-        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+        if ((!tools::is_na(lower)) && (lower <= 0))
+            throw std::invalid_argument(
+                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
     }
 
 protected:
-    virtual double _pdf_(double x) const override
+    double _pdf_(double x) const override
     {
         double meanlog = get_arg(0);
         double sdlog = get_arg(1);
         return exp(-0.5 * pow((log(x) - meanlog) / sdlog, 2)) * 0.39894228 / (x * sdlog);
     }
 
-    virtual double _cdf_(double x) const override
+    double _cdf_(double x) const override
     {
         double meanlog = get_arg(0);
         double sdlog = get_arg(1);
         return 0.5 + 0.5 * erf(0.707106781 * (log(x) - meanlog) / sdlog);
     }
 
-    virtual double _logpdf_(double x) const override
+    double _logpdf_(double x) const override
     {
         double meanlog = get_arg(0);
         double sdlog = get_arg(1);
         return -0.5 * pow((log(x) - meanlog) / sdlog, 2) - log(x * sdlog) - 0.918938533;
     }
 
-    virtual double _logratio_(double xold, double xnew) const override
+    double _logratio_(double xold, double xnew) const override
     {
         double meanlog = get_arg(0);
         double sdlog = get_arg(1);
         return 0.5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
     }
 
-    virtual void _update_args_() override
+    void _update_args_() override
     {
         distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
@@ -527,50 +541,55 @@ private:
 public:
     Gamma_Distribution() : distr_gen(1.0, 1.0)
     {
-        _init_defaults_("gamma", {"shape", "scale"}, {1.0, 1.0}, {{"min", 0}});
+        _init_defaults_("gamma",
+                        {"shape", "scale"}, {1.0, 1.0},
+                        0.0, UNDEFINED_DOUBLE);
     }
     ~Gamma_Distribution() {};
 
-    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    void assign_reshaping(bool discrete, double lower, double upper) override
     {
-        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+        if ((!tools::is_na(lower)) && (lower <= 0))
+            throw std::invalid_argument(
+                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
     }
 
 protected:
-    virtual double _pdf_(double x) const override
+    double _pdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return exp(-x / scale) * pow(x, shape - 1.) / (tgamma(shape) * pow(scale, shape));
     }
 
-    virtual double _cdf_(double x) const override
+    double _cdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return auxgammap::gamma_cdf(x, shape, scale);
     }
 
-    virtual double _logpdf_(double x) const override
+    double _logpdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return (shape - 1) * log(x) - lgamma(shape) - shape * log(scale) - x / scale;
     }
 
-    virtual double _logratio_(double xold, double xnew) const override
+    double _logratio_(double xold, double xnew) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
     }
 
-    virtual void _update_args_() override
+    void _update_args_() override
     {
         distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
@@ -588,50 +607,55 @@ private:
 public:
     Weibull_Distribution() : distr_gen(1.0, 1.0)
     {
-        _init_defaults_("weibull", {"shape", "scale"}, {1.0, 1.0}, {{"min", 0}});
+        _init_defaults_("weibull",
+                        {"shape", "scale"}, {1.0, 1.0},
+                        0.0, UNDEFINED_DOUBLE);
     }
     ~Weibull_Distribution() {};
 
-    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    void assign_reshaping(bool discrete, double lower, double upper) override
     {
-        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+        if ((!tools::is_na(lower)) && (lower <= 0))
+            throw std::invalid_argument(
+                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
     }
 
 protected:
-    virtual double _pdf_(double x) const override
+    double _pdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return (shape / scale) * pow((x / scale), shape - 1) * exp(-pow(x / scale, shape));
     }
 
-    virtual double _cdf_(double x) const override
+    double _cdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return 1. - exp(-pow(x / scale, shape));
     }
 
-    virtual double _logpdf_(double x) const override
+    double _logpdf_(double x) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return log(shape / scale) + (shape - 1) * log(x / scale) - pow(x / scale, shape);
     }
 
-    virtual double _logratio_(double xold, double xnew) const override
+    double _logratio_(double xold, double xnew) const override
     {
         double shape = get_arg(0);
         double scale = get_arg(1);
         return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
     }
 
-    virtual void _update_args_() override
+    void _update_args_() override
     {
         distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
@@ -649,43 +673,49 @@ private:
 public:
     Rayleigh_Distribution() : unif_gen(0.0, 1.0)
     {
-        _init_defaults_("rayleigh", {"scale"}, {1.0}, {{"min", 0}});
+        _init_defaults_("rayleigh",
+                        {"scale"}, {1.0},
+                        0.0, UNDEFINED_DOUBLE);
     }
     ~Rayleigh_Distribution() {};
 
-    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    void assign_reshaping(bool discrete, double lower, double upper) override
     {
-        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+        if ((!tools::is_na(lower)) && (lower <= 0))
+            throw std::invalid_argument(
+                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
     }
 
 protected:
-    virtual double _pdf_(double x) const override
+    double _pdf_(double x) const override
     {
         double scale = get_arg(0);
         return x * pow(scale, -2) * exp(-0.5 * pow(x / scale, 2));
     }
 
-    virtual double _cdf_(double x) const override
+    double _cdf_(double x) const override
     {
         double scale = get_arg(0);
-        return exp(-0.5 * pow(x / scale, 2));
+        return 1. - exp(-0.5 * pow(x / scale, 2));
     }
 
-    virtual double _logpdf_(double x) const override
+    double _logpdf_(double x) const override
     {
         double scale = get_arg(0);
         return log(x) - 2 * log(scale) - 0.5 * pow(x / scale, 2);
     }
 
-    virtual double _logratio_(double xold, double xnew) const override
+    double _logratio_(double xold, double xnew) const override
     {
         double scale = get_arg(0);
         return log(xnew / xold) + 0.5 * pow(scale, -2) * (pow(xold, 2) - pow(xnew, 2));
     }
 
-    virtual double _rand_(rnd_gen &prng) override
+    double _rand_(rnd_gen &prng) override
     {
-        return get_arg(0) * sqrt(-2 * unif_gen(prng));
+        double scale = get_arg(0);
+        return scale * sqrt(-2 * log(unif_gen(prng)));
     }
 };
 
@@ -701,13 +731,18 @@ private:
 public:
     Exponential_Distribution() : distr_gen(1.0)
     {
-        _init_defaults_("exp", {"rate"}, {1.0}, {{"min", 0}});
+        _init_defaults_("exp",
+                        {"rate"}, {1.0},
+                        0.0, UNDEFINED_DOUBLE);
     }
     ~Exponential_Distribution() {};
 
-    void assign_reshaping(const std::map<std::string, double> &range = {}, bool discrete = false) override
+    void assign_reshaping(bool discrete, double lower, double upper) override
     {
-        _assign_reshaping_(range, ((discrete) ? "left" : UNDEFINED));
+        if ((!tools::is_na(lower)) && (lower <= 0))
+            throw std::invalid_argument(
+                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
     }
 
 protected:
@@ -760,8 +795,7 @@ protected:
 /* Auxiliary hidden template to return the chosen distribution. */
 std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name)
 {
-    const str_vec options = {"unif", "norm", "lnorm",
-                             "gamma", "weibull", "rayleigh", "exp"};
+    const str_vec &options = AVAILABLE_DISTRIBUTIONS;
 
     if (!tools::is_na(name))
     {

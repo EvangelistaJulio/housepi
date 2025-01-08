@@ -82,13 +82,13 @@ void MCMC::assign_infectivity_profile(const std::string &name)
 }
 
 /* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(const std::vector<double> &x)
+double MCMC::infec_profile_inst(const dbl_vec &x)
 {
     return _infec_profile_->pdf(x);
 }
 
 /* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(const std::vector<double> &x)
+double MCMC::infec_profile_cumul(const dbl_vec &x)
 {
     return _infec_profile_->cdf(x);
 }
@@ -362,7 +362,7 @@ void MCMC::set_rate_per_contact(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    _pair_contact_rate_ = UNDEFINED;
+                    _pair_contact_rate_ = UNDEFINED_STRING;
                     assign_contact_rate_to_household(house, k, i);
 
                     if (!tools::is_na(_pair_contact_rate_))
@@ -832,6 +832,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 //////////////////////////////////////////  MCMC : infer  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Model specific initialization (e. g. extra variables, lookup tables, etc). */
+void MCMC::init_model_for_inference() {}
+
 /* Performs the inference using Metropolis-Hastings. */
 void MCMC::infer(bool is_progbar)
 {
@@ -868,6 +871,7 @@ void MCMC::infer(bool is_progbar)
 //-----------------------------------------------------------------------------------------------//
 
 /* Set inverse temperature and its relative functional methods. */
+// UPDATE : maybe this is over-engineered, check if it without is as fine.
 void MCMC::update_inver_temper(double inv_T)
 {
     if ((inv_T < 0.) || (inv_T > 1.))
@@ -920,9 +924,9 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     //----- Thermodynamic ladder estimates -----//
     bool is_right = false;
     double avg, var;
-    std::vector<double> inv_t = {};   // inverse temperature
-    std::vector<double> avg_vec = {}; // mean loglikelihood
-    std::vector<double> var_vec = {}; // variance loglikelihood
+    dbl_vec inv_t = {};   // inverse temperature
+    dbl_vec avg_vec = {}; // mean loglikelihood
+    dbl_vec var_vec = {}; // variance loglikelihood
 
     //----- Total number of mcmc sweeps -----//
     ulong rung_sweeps = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
@@ -1050,13 +1054,13 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 ////////////////////////////////  MCMC : methods (simulation)  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Return the time of infection of a patient. */
-void MCMC::simulate_single_house(Household &house)
-{
-    UNUSED(house);
-}
+/* Model specific initialization (e. g. extra variables, lookup tables, etc). */
+void MCMC::init_model_for_simulation() {}
 
-/* Perform simulation as provided by the user */
+/* Model specific simulation for a single household. */
+void MCMC::simulate_single_house(Household &house) { UNUSED(house); }
+
+/* Perform simulation. */
 void MCMC::simulate(bool is_progbar)
 {
     //----- Initialize model for simulation -----//

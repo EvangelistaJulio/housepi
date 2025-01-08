@@ -3,12 +3,12 @@
 SRC := ../template/src
 TMPL := ../models
 
-# If MODEL is not provided, set a default value
-MODEL ?= ${TMPL}/chain-binomial
+# If MODEL is not provided, set blank as default
+MODEL ?= ${SRC}
 
 # Lost of source files with exclusions
 EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/model.cpp
-SOURCES := $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp) $(MODEL)/model.cpp main.cpp)
+SOURCES := main.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp))
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -67,7 +67,7 @@ main.o: main.cpp
 # To clean objects
 .PHONY: clean
 clean:
-	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so} ${TMPL}/*/*.{o,so,exe}
+	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe}
 
 # To run make in a debug mode
 .PHONY: debug

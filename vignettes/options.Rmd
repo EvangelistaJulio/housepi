@@ -1,0 +1,60 @@
+---
+title: "Bayesian MCMC Options"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Bayesian MCMC Options}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+options(knitr.kable.NA = "")
+```
+
+In this vignette we present all available options for the choice of the prior and Monte Carlo rule in `housepi`. 
+Parameter definitions are associated as shown in the [Walkthrough](walkthrough.html).
+
+To perform the sampling we consider the "blank" model, i. e. a data independent template model, with loglikelihood always equal to zero.
+
+```{r, eval = TRUE}
+# create an instance of the blank model
+hmc <- housepi::HouseholdModelClass$new("blank")
+```
+
+# Parameter Priors 
+
+## Continuos Probability Distributions
+
+```{r, eval = TRUE}
+# UPDATE : export this from cpp ~=
+# available_distributions
+x <- c("unif", "norm", "lnorm", "gamma", "weibull", "rayleigh", "exp")
+
+# add all parameter definitions
+for (distr_name in x) {
+  hmc$add_param(name = distr_name, prior = distr_name, rule = "norm")
+}
+
+# perform the sampling with the inference command
+# note: since loglikelihood is 0, posterior and prior sampling are equal
+hmc$infer(n_steps = 10000, seed = 23, progress = FALSE)
+
+# plot the traces
+hmc$plot_traces()
+```
+
+### Discretized Case
+
+### Provide a Custom Range
+
+## Discrete Probabilities
+
+# MCMC Proposer Rules
+
