@@ -111,7 +111,7 @@ HousepiGeneratorClass <- R6::R6Class(
           } else {
             # change dll name if not as template
             if (isFALSE(as_template)) {
-              self$dll <- file.path(cache_path,
+              self$dll <- file.path(self$cache_dir,
                                     dll_file_ext(random_name(model_choice)))
             }
             self$need_compile <- TRUE

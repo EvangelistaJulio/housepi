@@ -107,7 +107,7 @@ Rcpp::List Monte_Carlo_Build::export_setup() const
         _["n_burnin"] = setup_n_burnin,
         _["n_steps"] = setup_n_steps,
         _["thin"] = setup_thin,
-        _["rnd_init_params"] = setup_rnd_init_params,
+        _["rand_init"] = setup_rand_init_params,
         _["inv_temper"] = setup_inv_T);
 }
 
@@ -218,7 +218,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
     return output;
 }
 
-/* Export MCMC traces with posterior samples. */
+/* Export MCMC traces of parameter posterior samples. */
 Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
 {
     using namespace Rcpp;
@@ -226,8 +226,14 @@ Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
     DataFrame output = DataFrame::create(
         _["loglikelihood"] = wrap(dgn_glob_loglike));
 
+    // parameters
     for (const parID &p : param_to_be_inferred)
         output.push_back(wrap(dgn_param_value.at(p)), p);
+
+    // augmented variables
+    if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+        for (const augmID &a : augm_list_to_be_inferred)
+            output.push_back(wrap(dgn_augm_value.at(a)), a);
 
     // retrieve chain identities
     if (setup_n_chains > 1)
@@ -271,12 +277,10 @@ Rcpp::NumericMatrix Monte_Carlo_Build::export_household_loglike_traces() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-//===== Rcpp IMPORTS =====//
-void MCMC::import_setup(const Rcpp::List &x) { pBuild->import_setup(x); }
-void MCMC::import_params(const Rcpp::DataFrame &x) { pBuild->import_params(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pBuild->import_augm(x); }
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//===== Rcpp EXPORTS =====//
 Rcpp::List MCMC::export_setup() const { return pBuild->export_setup(); }
 Rcpp::DataFrame MCMC::export_params() const { return pBuild->export_params(); }
 Rcpp::DataFrame MCMC::export_data() const { return pBuild->export_data(); }
@@ -284,8 +288,12 @@ Rcpp::DataFrame MCMC::export_traces() const { return pBuild->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pBuild->export_household_loglike_traces(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
+/////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::import_setup(const Rcpp::List &x) { pBuild->import_setup(x); }
+void MCMC::import_params(const Rcpp::DataFrame &x) { pBuild->import_params(x); }
+void MCMC::import_augm(const Rcpp::DataFrame &x) { pBuild->import_augm(x); }
 
 /* Import data from R DataFrame and run build. */
 void MCMC::import_data(const Rcpp::DataFrame &data)

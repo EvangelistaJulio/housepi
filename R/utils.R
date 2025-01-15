@@ -53,13 +53,13 @@ default_types_ <- function(typs, vals) {
 
 # Split a typed string or character vector
 str_split_ <- function(lst) {
-  vals <- sapply(
+  values <- sapply(
     strsplit(as.character(lst), "\\@"), function(x) x[1]
   )
   types <- sapply(
     strsplit(as.character(lst), "\\@"), function(x) x[2]
   )
-  return(list(values = vals, types = default_types_(types, vals)))
+  return(list(var = values, typ = default_types_(types, values)))
 }
 
 # Join elements of a dictionary to pass to csv

@@ -51,10 +51,10 @@ public:
 	virtual ~MCMC();
 
 	//===== READ =====//
-	void read_setup(const std::string &pathtofile = UNDEFINED_STRING);
-	void read_params(const std::string &pathtofile = UNDEFINED_STRING);
-	void read_data(const std::string &pathtofile = UNDEFINED_STRING);
-	void read_augm(const std::string &pathtofile = UNDEFINED_STRING);
+	void read_setup(const std::string &pathtofile = NULL_STRING);
+	void read_params(const std::string &pathtofile = NULL_STRING);
+	void read_data(const std::string &pathtofile = NULL_STRING);
+	void read_augm(const std::string &pathtofile = NULL_STRING);
 
 #ifdef _HOUSEPI_RCPP
 	//===== Rcpp IMPORTS =====//
@@ -77,8 +77,8 @@ public:
 	void show_summary() const;
 
 	//===== C++ PRINT =====//
-	void print_infer_state(const std::string &output_filename = UNDEFINED_STRING) const;
-	void print_augm_variables(const std::string &output_filename = UNDEFINED_STRING) const;
+	void print_infer_state(const std::string &output_filename = NULL_STRING) const;
+	void print_augm_variables(const std::string &output_filename = NULL_STRING) const;
 
 	//===== DATA =====//
 	size_t n_houses() const;
@@ -157,7 +157,6 @@ private:
 	ulong _n_rungs_ = 0;		 // number of rungs
 
 	//----- Monte Carlo -----//
-	void update_inver_temper(double inv_T);
 	void run_monte_carlo(CustomProgressBar &progbar, ulong sweep = 0, bool is_power_post = false);
 	
 	//----- Metropolis : parameter moves -----//
@@ -165,27 +164,17 @@ private:
 	void move_and_adapt_all_parameters(ulong step);
 	void move_single_param(const parID &p);
 	
-	bool (MCMC::*_func_param_metropolis_)(const parID &) = &MCMC::_param_metropolis_1_;
-	bool _param_metropolis_1_(const parID &p);
-	bool _param_metropolis_0_(const parID &p);
-	bool _param_metropolis_T_(const parID &p);
-
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);
 	void metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
 
-	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
-	void _move_no_augm_() {};
+	void (MCMC::*_func_move_all_augm_)();
+	void _move_no_augm_();
 	void _move_all_augm_();
 
-	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &) = &MCMC::_move_augm_indiv_by_status_;
+	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &);
 	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
 	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);
-
-	bool (MCMC::*_func_augm_metropolis_)(const Household &, indiv, const augmID &, double &) = &MCMC::_augm_metropolis_1_;
-	bool _augm_metropolis_1_(const Household &house, indiv i, const augmID &a, double &delta);
-	bool _augm_metropolis_0_(const Household &house, indiv i, const augmID &a, double &delta);
-	bool _augm_metropolis_T_(const Household &house, indiv i, const augmID &a, double &delta);
 
 	//===== ERROR =====//
 	std::string _error_message_ = "";

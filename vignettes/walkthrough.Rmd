@@ -86,22 +86,23 @@ Single parameter definition (prior and proposer rule needed for the Bayesian Mon
 hmc$add_param(
   name = "alpha",
   prior = "unif", args = list(min = 0, max = 3),
-  rule = "lnorm", rule_scale = 1
+  rule = "lnorm",
 )
 hmc$add_param(
   name = "beta",
   prior = "unif", args = list(min = 0, max = 3),
-  rule = "lnorm", rule_scale = 1
+  rule = "lnorm", 
 )
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant=TRUE` and a `value`.
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant=TRUE` and a `value`. 
+For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see [here](bayesian_mcmc_options.html).
 
 Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `template_param()`.
 To check that all parameters have been defined, you can call the method `param_check()`.
 If some parameters are missing, you can fill them from the template defaults calling the method `param_check(fill_template = TRUE)`.
 
-For models requiring augmented variables the procedure is analogous. See the vignette [Data Augmentation](data_augmentation.html) for an example.
+For models requiring augmented variables the procedure is analogous. We discuss an example [here](data_augmentation.html).
 
 ## Inference
 
@@ -117,7 +118,7 @@ hmc$infer(data = survey, n_steps = 25000, n_burnin = 2500,
 
 ```{r, fig.align = 'center'}
 # visualize the traces of the first chain
-hmc$plot_traces(chain = 1)
+lattice::xyplot(hmc$export_traces()[1])
 ```
 
 ```{r}
@@ -189,7 +190,7 @@ hmc$infer(data = df, n_steps = 25000, n_burnin = 2500,
 
 ```{r, fig.align = 'center'}
 # visualize traces of the first chain
-hmc$plot_traces(chain = 1)
+lattice::xyplot(hmc$export_traces()[1])
 ```
 
 ```{r}

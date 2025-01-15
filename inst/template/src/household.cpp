@@ -24,16 +24,12 @@ public:
 	//===== ATTRIBUTES =====//
 	std::vector<Individual> members = {};
 
-	double get_data(indiv i, const dataID &d) const;
-	double get_augm(indiv i, const augmID &a) const;
-	double get_rate(indiv i, const rateID &r) const;
-
-	std::string ID = UNDEFINED_STRING; // user ID
+	std::string ID = NULL_STRING; // user ID
 	size_t index = -1;			// index of household
 	ushort house_size = 0;		// number of house members
 
-	double house_loglike = -UNDEFINED_DOUBLE; // current loglikelihood value
-	double buffer = -UNDEFINED_DOUBLE;		// buffer loglikelihood value
+	double house_loglike = NULL_DOUBLE; // current loglikelihood value
+	double buffer = NULL_DOUBLE;		// buffer loglikelihood value
 
 	ushort n_infectious = 0;
 	ushort n_susceptible = 0;
@@ -50,7 +46,6 @@ public:
 	bool change_status(indiv i, int new_status);
 
 	// diagnostics
-	ulong dgn_count = 0;
 	dbl_vec dgn_loglike = {};
 
 	// contact rate pointers
@@ -90,6 +85,10 @@ public:
 	void _set_augm_assert_(indiv i, const augmID &a, double xnew);
 	void _set_augm_default_(indiv i, const augmID &a, double xnew);
 
+	double get_data(indiv i, const dataID &d) const;
+	double get_augm(indiv i, const augmID &a) const;
+	double get_rate(indiv i, const rateID &r) const;
+
 	//===== Getter (auxiliary methods) =====//
 	double (Household_Impl::*_func_get_augm_)(indiv, const augmID &) const = &Household_Impl::_get_augm_assert_;
 	double _get_augm_assert_(indiv i, const augmID &a) const;
@@ -117,7 +116,7 @@ void Household_Impl::assign_individual(const std::string &ID,
 									   const dataIDmap<double> &data)
 {
 	//----- update status lists within the household -----//
-	if (status >= INFECTIOUS)
+	if (status >= INFECTED_STATUS)
 	{
 		++n_infectious;
 		infectious_set.insert(house_size);
@@ -126,7 +125,7 @@ void Household_Impl::assign_individual(const std::string &ID,
 		_is_susceptible_.push_back(false);
 		_is_missing_status_.push_back(false);
 	}
-	else if (status == SUSCEPTIBLE)
+	else if (status == HEALTHY_STATUS)
 	{
 		++n_susceptible;
 		susceptible_set.insert(house_size);
@@ -141,7 +140,7 @@ void Household_Impl::assign_individual(const std::string &ID,
 		{
 			std::ostringstream oss;
 			oss << "Status '" << status << "' of individual " << ID << " interpreted as missing."
-				<< " Use (=)" << SUSCEPTIBLE << " for susceptible, (>=)" << INFECTIOUS << " for infectious,"
+				<< " Use (=)" << HEALTHY_STATUS << " for susceptible, (>=)" << INFECTED_STATUS << " for infectious,"
 				<< " and (=) " << MISSING_STATUS << " for missing status.";
 			tools::warning(oss.str());
 		}
@@ -176,13 +175,13 @@ bool Household_Impl::change_status(indiv i, int new_status)
 	}
 	else
 	{
-		if (old_status >= INFECTIOUS)
+		if (old_status >= INFECTED_STATUS)
 		{
 			--n_infectious;
 			infectious_set.erase(i);
 			_is_infectious_[i] = false;
 		}
-		else if (old_status == SUSCEPTIBLE)
+		else if (old_status == HEALTHY_STATUS)
 		{
 			--n_susceptible;
 			susceptible_set.erase(i);
@@ -200,13 +199,13 @@ bool Household_Impl::change_status(indiv i, int new_status)
 				"Unknown status '" + std::to_string(old_status) + "' for individual " + this_indiv.ID + ".");
 		}
 
-		if (new_status >= INFECTIOUS)
+		if (new_status >= INFECTED_STATUS)
 		{
 			++n_infectious;
 			infectious_set.insert(i);
 			_is_infectious_[i] = true;
 		}
-		else if (new_status == SUSCEPTIBLE)
+		else if (new_status == HEALTHY_STATUS)
 		{
 			++n_susceptible;
 			susceptible_set.insert(i);
@@ -238,7 +237,7 @@ bool Household_Impl::change_status(indiv i, int new_status)
 
 double Household_Impl::get_data(indiv i, const dataID &d) const { return (this->*_func_get_data_)(i, d); }
 double Household_Impl::get_augm(indiv i, const augmID &a) const { return (this->*_func_get_augm_)(i, a); }
-double Household_Impl::get_rate(indiv i, const augmID &r) const { return (this->*_func_get_rate_)(i, r); }
+double Household_Impl::get_rate(indiv i, const rateID &r) const { return (this->*_func_get_rate_)(i, r); }
 
 /* Disable data and augmented variable assertions. */
 void Household_Impl::disable_assert()
@@ -264,7 +263,7 @@ double Household_Impl::_get_data_assert_(indiv i, const dataID &d) const
 	if (members[i].assert_data(d))
 		return _get_data_default_(i, d);
 	else
-		return UNDEFINED_DOUBLE;
+		return NULL_DOUBLE;
 }
 
 /* Default method to get the value of an augmented variable. */
@@ -279,7 +278,7 @@ double Household_Impl::_get_augm_assert_(indiv i, const augmID &a) const
 	if (members[i].assert_augm(a))
 		return _get_augm_default_(i, a);
 	else
-		return UNDEFINED_DOUBLE;
+		return NULL_DOUBLE;
 }
 
 /* Default method to get the value of rate. */
@@ -294,7 +293,7 @@ double Household_Impl::_get_rate_assert_(indiv i, const rateID &r) const
 	if (members[i].assert_rate(r))
 		return _get_rate_default_(i, r);
 	else
-		return UNDEFINED_DOUBLE;
+		return NULL_DOUBLE;
 }
 
 /* Default method to set the value of an augmented variable. */
@@ -499,13 +498,12 @@ void Household::clear_augm(indiv i, const augmID &a)
 /* Update the values for the Bayesian diagnostics. */
 void Household::init_diagnostics(ulong sample_size)
 {
-	pImpl->dgn_count = 0;
 	pImpl->dgn_loglike.clear();
 	pImpl->dgn_loglike = dbl_vec(sample_size);
 }
 
 /* Update the values for the Bayesian diagnostics. */
-void Household::update_diagnostics() { pImpl->dgn_loglike[pImpl->dgn_count++] = pImpl->house_loglike; }
+void Household::update_diagnostics(ulong count) { pImpl->dgn_loglike[count] = pImpl->house_loglike; }
 
 /* Return the loglikelihood sample vector. */
 const dbl_vec &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }

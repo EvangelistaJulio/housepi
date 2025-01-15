@@ -38,18 +38,18 @@
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// FIXME :NaN and NA to be revised
-constexpr double UNDEFINED_DOUBLE = 1e10;    // undefined double
-const std::string UNDEFINED_STRING = "<NA>"; // undefined string
+// FIXME: NaN \ NA have to be revised
+constexpr double NULL_DOUBLE = 1e10;    // undefined double
+const std::string NULL_STRING = "<NA>"; // undefined string
 
 // constants
 constexpr unsigned MAX_NUMBER_ATTEMPTS = 50; // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases
-constexpr int INFECTIOUS = 1;      // status of infectious (>=)
-constexpr int SUSCEPTIBLE = 0;     // status of susceptible (==)
-constexpr int MISSING_STATUS = -1; // missing status (==)
+constexpr int INFECTED_STATUS = 1; // infected status (>=)
+constexpr int HEALTHY_STATUS = 0;  // healthy status (==)
+constexpr int MISSING_STATUS = -1; // missing status (<=)
 
 // group rates
 const std::string REFERENCE = "REFERENCE";       // name for reference choice
@@ -107,7 +107,7 @@ using __access_ID__ = unsigned short int;
 const __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
 #else
 using __access_ID__ = std::string;
-const __access_ID__ __undef_ID__ = UNDEFINED_STRING; // name for undefined choice
+const __access_ID__ __undef_ID__ = NULL_STRING; // name for undefined choice
 #endif
 
 using parID = __access_ID__;
@@ -116,11 +116,11 @@ using dataID = __access_ID__;
 using rateID = __access_ID__;
 using extraID = __access_ID__;
 
-const parID UNDEFINED_PARAMETER = __undef_ID__;
-const parID UNDEFINED_AUGMENTED = __undef_ID__;
-const parID UNDEFINED_DATACOLUMN = __undef_ID__;
-const parID UNDEFINED_GROUPRATE = __undef_ID__;
-const parID UNDEFINED_EXTRAVARIA = __undef_ID__;
+const parID NULL_PARAMETER = __undef_ID__;
+const augmID NULL_AUGMENTED = __undef_ID__;
+const dataID NULL_DATACOLUMN = __undef_ID__;
+const rateID NULL_GROUPRATE = __undef_ID__;
+const extraID NULL_EXTRAVARIA = __undef_ID__;
 
 #ifdef DEBUG_TEMPORARY_MACRO
 template <typename T>
@@ -175,7 +175,7 @@ namespace tools
     void print_stdout(const std::string &txt);
     void print_stderr(const std::string &txt);
     void print_decorator(const std::string &title,
-                         const std::string &txt = UNDEFINED_STRING,
+                         const std::string &txt = NULL_STRING,
                          char decor = C_DECOR,
                          bool verbose = true);
 
@@ -237,17 +237,16 @@ class CustomProgressBarImpl;
 class CustomProgressBar
 {
 public:
-    CustomProgressBar(bool verbose = true);
+    //===== CONSTRUCTOR =====//
+    CustomProgressBar(const std::string &text = "", bool verbose = true);
     ~CustomProgressBar();
 
     void set_text(const std::string &text);
-    void initialize(const std::string &text = "");
-
     void update(double progress);
     void finalize();
 
 private:
-    //===== Pointer to Implementation =====//
+    // Pointer to Implementation
     std::unique_ptr<CustomProgressBarImpl> pImpl;
 };
 

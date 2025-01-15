@@ -71,7 +71,7 @@ protected:
 	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
 
 private:
-	double _undefined_call_(const std::string &txt = UNDEFINED_STRING, double x = 0, double y = 0) const;
+	double _undefined_call_(const std::string &txt = NULL_STRING, double x = 0, double y = 0) const;
 
 	//----- Deafult functional methods -----//
 	double _default_pdf_(double x) const;
@@ -117,6 +117,6 @@ private:
 
 /* Distribution with default scalar arguments. */
 std::shared_ptr<Base_Distribution> distribution_switchboard(
-	const std::string &name = UNDEFINED_STRING);
+	const std::string &name = NULL_STRING);
 
 #endif // HOUSEPI__DISTRIBUTION__H

@@ -184,7 +184,7 @@ public:
 
 		gamma_distr_ptr->set_arg(0, get_arg(0));				  // shape
 		gamma_distr_ptr->set_arg(1, get_arg(1));				  // scale
-		gamma_distr_ptr->set_range(get_arg(2), UNDEFINED_DOUBLE); // shift
+		gamma_distr_ptr->set_range(get_arg(2), NULL_DOUBLE); // shift
 		double shift = get_arg(2);								  // shift argument
 
 		return gamma_distr_ptr->pdf(shift + t_OST);
@@ -200,7 +200,7 @@ public:
 
 		gamma_distr_ptr->set_arg(0, get_arg(0));				  // shape
 		gamma_distr_ptr->set_arg(1, get_arg(1));				  // scale
-		gamma_distr_ptr->set_range(get_arg(2), UNDEFINED_DOUBLE); // shift
+		gamma_distr_ptr->set_range(get_arg(2), NULL_DOUBLE); // shift
 		double shift = get_arg(2);								  // shift argument
 
 		return gamma_distr_ptr->cdf(shift + t_OST);

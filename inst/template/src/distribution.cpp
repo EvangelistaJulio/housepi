@@ -6,10 +6,6 @@
 
 #include "distribution.h"
 
-// UPDATE : export these somehow to Rcpp!
-const str_vec AVAILABLE_DISTRIBUTIONS = {
-    "unif", "norm", "lnorm", "gamma", "weibull", "rayleigh", "exp"};
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Incomplete gamma Function  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,11 +97,11 @@ double Base_Distribution::rand(rnd_gen &prng)
 }
 
 void Base_Distribution::assign_reshaping(bool discrete,
-                                         double lower_value,
-                                         double upper_value)
+                                         double lower,
+                                         double upper)
 {
-    _assign_reshaping_((discrete) ? "center" : UNDEFINED_STRING,
-                       lower_value, upper_value);
+    _assign_reshaping_((discrete) ? "center" : NULL_STRING,
+                       lower, upper);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +196,8 @@ double Base_Distribution::_discr_center_logratio_(double xold, double xnew) cons
 
 double Base_Distribution::_discr_center_rand_(rnd_gen &prng)
 {
-    return std::round(_default_rand_(prng));
+    // note : lround ro avoid casting like round(-0.1) -> -0.0
+    return static_cast<double>(std::lround(_default_rand_(prng)));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -273,12 +270,12 @@ double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_ran
 
 /* Truncate and/or discretize distribution at declaration.  */
 void Base_Distribution::_assign_reshaping_(const std::string &discrete,
-                                           double lower_value,
-                                           double upper_value)
+                                           double lower,
+                                           double upper)
 {
     //===== DISCRETIZATION =====//
     // asjust range in case of discretization
-    if (discrete != UNDEFINED_STRING)
+    if (!tools::is_na(discrete))
     {
         if (discrete == "center")
         { // centered discretization
@@ -288,11 +285,11 @@ void Base_Distribution::_assign_reshaping_(const std::string &discrete,
             _func_logratio_ = &Base_Distribution::_discr_center_logratio_;
             _func_rand_ = &Base_Distribution::_discr_center_rand_;
 
-            if (!tools::is_na(lower_value))
-                lower_value = std::floor(lower_value) + 0.5;
+            if (!tools::is_na(lower))
+                lower = std::floor(lower) - 0.5;
 
-            if (!tools::is_na(upper_value))
-                upper_value = std::ceil(upper_value) - 0.5;
+            if (!tools::is_na(upper))
+                upper = std::ceil(upper) + 0.5;
         }
         else if (discrete == "left")
         { // left adjusted discretization
@@ -302,11 +299,11 @@ void Base_Distribution::_assign_reshaping_(const std::string &discrete,
             _func_logratio_ = &Base_Distribution::_discr_left_logratio_;
             _func_rand_ = &Base_Distribution::_discr_left_rand_;
 
-            if (!tools::is_na(lower_value))
-                lower_value = std::floor(lower_value);
+            if (!tools::is_na(lower))
+                lower = std::floor(lower);
 
-            if (!tools::is_na(upper_value))
-                upper_value = std::ceil(upper_value);
+            if (!tools::is_na(upper))
+                upper = std::ceil(upper);
         }
         else
         {
@@ -316,7 +313,7 @@ void Base_Distribution::_assign_reshaping_(const std::string &discrete,
     }
 
     //===== TRUNCATION =====/
-    ushort trunc_cases = set_range(lower_value, upper_value);
+    ushort trunc_cases = set_range(lower, upper);
 
     //----- Fucntional methods -----//
     if (trunc_cases == 0) // no truncation
@@ -365,7 +362,7 @@ public:
     Uniform_Distribution() : distr_gen(0.0, 1.0)
     {
         _init_defaults_("unif", {"min", "max"}, {0.0, 1.0},
-                        UNDEFINED_DOUBLE, UNDEFINED_DOUBLE);
+                        NULL_DOUBLE, NULL_DOUBLE, false);
     }
 
     ~Uniform_Distribution() {}
@@ -418,7 +415,7 @@ public:
     Normal_Distribution() : distr_gen(0.0, 1.0)
     {
         _init_defaults_("norm", {"mean", "sd"}, {0.0, 1.0},
-                        UNDEFINED_DOUBLE, UNDEFINED_DOUBLE);
+                        NULL_DOUBLE, NULL_DOUBLE, false);
     }
 
     ~Normal_Distribution() {};
@@ -477,7 +474,7 @@ public:
     {
         _init_defaults_("lnorm",
                         {"meanlog", "sdlog"}, {0.0, 1.0},
-                        0.0, UNDEFINED_DOUBLE);
+                        0.0, NULL_DOUBLE, true);
     }
     ~Lognorm_Distribution() {};
 
@@ -486,7 +483,7 @@ public:
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
                 "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
-        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
+        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
 protected:
@@ -543,7 +540,7 @@ public:
     {
         _init_defaults_("gamma",
                         {"shape", "scale"}, {1.0, 1.0},
-                        0.0, UNDEFINED_DOUBLE);
+                        0.0, NULL_DOUBLE, true);
     }
     ~Gamma_Distribution() {};
 
@@ -552,7 +549,7 @@ public:
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
                 "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
-        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
+        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
 protected:
@@ -609,7 +606,7 @@ public:
     {
         _init_defaults_("weibull",
                         {"shape", "scale"}, {1.0, 1.0},
-                        0.0, UNDEFINED_DOUBLE);
+                        0.0, NULL_DOUBLE, true);
     }
     ~Weibull_Distribution() {};
 
@@ -618,7 +615,7 @@ public:
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
                 "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
-        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
+        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
 protected:
@@ -675,7 +672,7 @@ public:
     {
         _init_defaults_("rayleigh",
                         {"scale"}, {1.0},
-                        0.0, UNDEFINED_DOUBLE);
+                        0.0, NULL_DOUBLE, true);
     }
     ~Rayleigh_Distribution() {};
 
@@ -684,7 +681,7 @@ public:
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
                 "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
-        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
+        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
 protected:
@@ -733,7 +730,7 @@ public:
     {
         _init_defaults_("exp",
                         {"rate"}, {1.0},
-                        0.0, UNDEFINED_DOUBLE);
+                        0.0, NULL_DOUBLE, true);
     }
     ~Exponential_Distribution() {};
 
@@ -742,7 +739,7 @@ public:
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
                 "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
-        _assign_reshaping_(((discrete) ? "left" : UNDEFINED_STRING), lower, upper);
+        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
 protected:
@@ -791,6 +788,9 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  distribution switchboard  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+const str_vec AVAILABLE_DISTRIBUTIONS = {
+    "unif", "norm", "lnorm", "gamma", "weibull", "rayleigh", "exp"};
 
 /* Auxiliary hidden template to return the chosen distribution. */
 std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &name)

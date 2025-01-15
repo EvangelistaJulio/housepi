@@ -24,7 +24,7 @@ namespace tools
     /* Internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
-        str_vec forbidden = {UNDEFINED_STRING, "NA", "nan", "NaN", "NAN"};
+        str_vec forbidden = {NULL_STRING, "NA", "nan", "NaN", "NAN"};
 
         if (txt.size() == 0)
             return true;
@@ -42,7 +42,7 @@ namespace tools
         if (x == std::numeric_limits<double>::quiet_NaN())
             return true;
         else
-            return (std::fabs(x) >= UNDEFINED_DOUBLE);
+            return (std::fabs(x) >= NULL_DOUBLE);
     }
 
     /* A formatted std::string for percentage of num/denom */
@@ -167,8 +167,8 @@ namespace tools
         }
         catch (const std::invalid_argument &e)
         {
-            throw std::invalid_argument(
-                "Impossible to import " + errtxt + ". Value '" + input + "' is not suitabe to conversion.");
+            std::string sms = (errtxt.empty()) ? "" : "Impossible to import " + errtxt + ". ";
+            throw std::invalid_argument(sms + "Value '" + input + "' is not suitabe to conversion.");
         }
     }
 
@@ -251,7 +251,7 @@ namespace tools
 
         // check for undefined
         if (is_na(tkn))
-            tkn = UNDEFINED_STRING;
+            tkn = NULL_STRING;
 
         return tkn;
     }
@@ -304,7 +304,7 @@ namespace tools
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], UNDEFINED_STRING);
+                this_row.emplace(headers[i], NULL_STRING);
 
             return true;
         }

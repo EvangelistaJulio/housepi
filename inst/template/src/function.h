@@ -57,8 +57,8 @@ public:
     void assign_scalar_arg(const std::string &arg_name, double value);
     void assign_pointer_arg(const std::string &arg_name, const double *ptr_to_value);
     void set_arg(ushort i, double new_value);
-    ushort set_range(double lower_value = UNDEFINED_DOUBLE,
-                     double upper_value = UNDEFINED_DOUBLE);
+    ushort set_range(double lower = NULL_DOUBLE,
+                     double upper = NULL_DOUBLE);
 
     //===== SHOW =====//
     const std::string show_arg_names() const;
@@ -74,7 +74,8 @@ protected:
                          const str_vec &arg_name,
                          const dbl_vec &arg_value,
                          double domain_min,
-                         double domain_max);
+                         double domain_max,
+                         bool is_open);
 };
 
 #endif // HOUSEPI__FUNCTION__H

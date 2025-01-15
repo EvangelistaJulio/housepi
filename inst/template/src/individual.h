@@ -34,7 +34,7 @@ public:
 	std::string name = "";
 
 	//===== CONSTRUCTOR ====//
-	GroupRate(const std::string &name = UNDEFINED_STRING,
+	GroupRate(const std::string &name = NULL_STRING,
 			  const std::vector<const double *> &pointers = {});
 	~GroupRate();
 
@@ -61,8 +61,9 @@ private:
 struct Individual
 {
 	//===== PUBLIC ATTRIBUTES =====//
-	std::string ID = UNDEFINED_STRING;	 // user ID
+	std::string ID = NULL_STRING;	 // user ID
 	int status = 0;				 // status of the individual
+	
 	dataIDmap<double> data = {}; // database associated to individual
 
 	rateIDmap<GroupRate> rate_map = {};

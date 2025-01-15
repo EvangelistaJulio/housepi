@@ -1,0 +1,35 @@
+---
+title: "Group Rates"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Group Rates}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+options(knitr.kable.NA = "")
+```
+
+```{r}
+hmc <- housepi::HouseholdModelClass$new("chain-binomial-heterogeneous")
+hmc$template_param()
+
+data("survey", package = "housepi")
+survey$age_group <- survey$age > 15
+survey$sus_group <- survey$age_group
+survey$sus_group[(survey$age_group == 1) & (survey$sex == 1)] <- 2
+
+hmc$add_group_rate("Infectivity", features = "age_group", prefix = "inf")
+hmc$add_group_rate("Community_Susc", features = "sus_group", prefix = "com")
+hmc$add_group_rate("Susceptibility", features = "sus_group", prefix = "sus")
+
+hmc$infer(survey)
+```

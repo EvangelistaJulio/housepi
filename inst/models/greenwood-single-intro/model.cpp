@@ -141,12 +141,12 @@ void Model::simulate_single_house(Household &house)
 	// set all cases to susceptible
 	for (indiv i = 0; i < house.size(); i++)
 	{
-		house.change_status(i, SUSCEPTIBLE);
+		house.change_status(i, HEALTHY_STATUS);
 	}
 
 	// pick a random introduction
 	indiv first_case = uniform() * house.size();
-	house.change_status(first_case, INFECTIOUS);
+	house.change_status(first_case, INFECTED_STATUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
@@ -161,11 +161,11 @@ void Model::simulate_single_house(Household &house)
 		// note : here househ[h].susceptible_set is not allowed because of change_status
 		for (indiv i = 0; i < house.size(); ++i)
 		{
-			if (house.status(i) == SUSCEPTIBLE)
+			if (house.status(i) == HEALTHY_STATUS)
 			{
 				if (uniform() >= exp(log_p2p_esc_proba))
 				{
-					house.change_status(i, INFECTIOUS);
+					house.change_status(i, INFECTED_STATUS);
 					++n_new_gen;
 				}
 			}

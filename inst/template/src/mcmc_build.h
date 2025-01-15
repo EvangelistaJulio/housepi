@@ -28,17 +28,6 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-#ifdef _HOUSEPI_RCPP
-void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output);
-#endif
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /* Implementation class. */
 class Monte_Carlo_Build
 {
@@ -54,7 +43,7 @@ public:
     //===== LOGLIKELIHOOD =====//
     //=========================//
 
-    double buffer = UNDEFINED_DOUBLE;
+    double buffer = NULL_DOUBLE;
     double global_loglike = 0.0;
 
     double get_global_loglike() const;
@@ -69,8 +58,8 @@ public:
     //===== SETUP =====//
     //=================//
 
-    unsigned long long setup_seed = 1; // random generator seed
-    bool setup_rnd_init_params = true; // random initialization of parameters
+    unsigned long long setup_seed = 1;  // random generator seed
+    bool setup_rand_init_params = true; // random initialization of parameters
 
     ulong setup_n_chains = 1;    // n. chains
     ulong setup_n_steps = 10000; // n. iterations
@@ -81,10 +70,13 @@ public:
     double setup_inv_T = 1.0;     // inverse temperature
     unsigned setup_n_threads = 1; // number of OMP threads
 
+    std::string setup_id_trace = NULL_STRING; // augmented trace to save
+
     ulong setup_c_sample_size; // single chain sample size
     ulong setup_c_n_sweeps;    // single chain n. of sweeps
 
     void set_n_threads(unsigned n = 1);
+    void set_inver_temper(double inv_T);
 
     //=====================//
     //===== PARAMETER =====//
@@ -146,16 +138,18 @@ public:
                                        "min", "min_type",
                                        "max", "max_type"};
     std::unordered_set<augmID> augm_list_full = {};
-    std::unordered_set<augmID> augm_list_infer = {};
     std::unordered_set<augmID> augm_list_model = {};
-    std::map<int, std::unordered_set<augmID>> augm_status_map_infer = {};
+    std::unordered_set<augmID> augm_list_to_be_inferred = {};
     std::map<int, std::unordered_set<augmID>> augm_status_map_model = {};
-    bool is_augm_infer = false;
-    bool is_augm_model = false;
+    std::map<int, std::unordered_set<augmID>> augm_status_map_infer = {};
 
     //----- Augmented - Setter -----//
     void clear_all_augm(Household &house, indiv i);
     void assign_all_augm(Household &house, indiv i);
+
+    //----- Augmented - State-Checkers -----//
+    bool is_augm_infer() const;
+    bool is_augm_model() const;
 
     //================//
     //===== READ =====//
@@ -170,7 +164,6 @@ public:
     //================//
 
     void show_setup() const;
-    std::string show_param(const parID &p) const;
     void show_all_params() const;
     void show_results() const;
     void show_summary() const;
@@ -198,6 +191,7 @@ public:
     Rcpp::DataFrame export_params() const;
     Rcpp::DataFrame export_data() const;
     Rcpp::DataFrame export_traces() const;
+    Rcpp::DataFrame export_augm_traces() const;
     Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
@@ -268,23 +262,26 @@ public:
     //===== METROPOLIS =====//
     //======================//
 
+    //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;
     dbl_vec dgn_glob_loglike = {};
+    size_t dgn_H_star = 0; // index of house to follow up
+    indiv dgn_i_star = 0;  // index of individual to follow up
     parIDmap<dbl_vec> dgn_param_value = {};
+    augmIDmap<dbl_vec> dgn_augm_value = {};
 
     void disable_assert();
     void init_move_counts();
     void init_diagnostics(bool is_power_post);
     void update_diagnostics(double glob_loglike, bool is_power_post);
 
+    //----- Metropolis - State-Checker -----//
+    bool is_augm_generic() const;
+
     //----- Metropolis - augmented moves -----//
     double compute_augm_model_loglike(const Household &house) const;
 
-    double (Monte_Carlo_Build::*_func_augm_model_loglike_)(const Household &) const = &Monte_Carlo_Build::_no_augm_model_loglike_;
-    double _no_augm_model_loglike_(const Household &house) const;
-    double _augm_model_loglike_(const Household &house) const;
-
-    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Monte_Carlo_Build::_augm_model_by_status_;
+    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = nullptr;
     void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
     void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
 };

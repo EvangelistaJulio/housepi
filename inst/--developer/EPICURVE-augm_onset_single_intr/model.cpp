@@ -452,7 +452,7 @@ void Model::simulate_single_house(int h)
 	{
 		if (i != house_vector[h].first_case)
 		{
-			house_vector[h].change_status(i, SUSCEPTIBLE);
+			house_vector[h].change_status(i, HEALTHY_STATUS);
 		}
 	}
 
@@ -464,7 +464,7 @@ void Model::simulate_single_house(int h)
 		for (int i : store_old_list)
 		{
 			// set new status for computations
-			house_vector[h].change_status(i, INFECTIOUS);
+			house_vector[h].change_status(i, INFECTED_STATUS);
 			house_vector[h].members[i].set_augm(
 				"onset_time",
 				t + uniform() * dt + house_vector[h].members[i].get_augm("incub_period"));
@@ -480,7 +480,7 @@ void Model::simulate_single_house(int h)
 
 			if (uniform() < esc_proba)
 			{
-				house_vector[h].change_status(i, SUSCEPTIBLE);
+				house_vector[h].change_status(i, HEALTHY_STATUS);
 				augm_var_store_dependecies(h, i);
 			}
 		}
@@ -498,7 +498,7 @@ void Model::format_augmented_data()
 	{
 		for (int i = 0; i < house_vector[h].house_size; i++)
 		{
-			if (house_vector[h].members[i].get_status() == SUSCEPTIBLE)
+			if (house_vector[h].members[i].get_status() == HEALTHY_STATUS)
 			{
 				house_vector[h].members[i].set_augm("onset_time", 1000);
 				house_vector[h].members[i].set_augm("incub_period", 0);

@@ -34,14 +34,20 @@ class Household_Impl;
 class Household
 {
 public:
+	//=======================//
 	//===== CONSTRUCTOR =====//
+	//=======================//
+
 	Household();
 	Household(const std::string &ID, size_t index);
 	Household(Household &&other) noexcept;			  // Move constructor
 	Household &operator=(Household &&other) noexcept; // Move assignment
 	~Household();
 
+	//==================//
 	//===== SETTER =====//
+	//==================//
+
 	void assign_individual(const std::string &ID,
 						   int status,
 						   const dataIDmap<double> &data);
@@ -50,7 +56,10 @@ public:
 
 	void disable_assert();
 
+	//==================//
 	//===== GETTER =====//
+	//==================//
+
 	const std::string &house_ID() const;
 	size_t index() const;
 	ushort size() const;
@@ -61,7 +70,9 @@ public:
 	const std::set<indiv> &susceptible_set() const;
 	const std::set<indiv> &missing_status_set() const;
 
+	//======================//
 	//===== INDIVIDUAL =====//
+	//======================//
 
 	//----- Individual : Setter -----//
 	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
@@ -74,18 +85,20 @@ public:
 
 	double contact_rate(indiv from, indiv to) const;
 
+	//=====================//
 	//===== AUGMENTED =====//
+	//=====================//
 
 	//----- Augmented : Setter -----//
 	void assign_augm(indiv i,
-					 const augmID &a = UNDEFINED_STRING,
-					 const std::string &name = UNDEFINED_STRING,
+					 const augmID &a = NULL_STRING,
+					 const std::string &name = NULL_STRING,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discrete = false,
-					 const std::string &model_name = UNDEFINED_STRING,
-					 const std::string &rule_name = UNDEFINED_STRING,
-					 double rule_scale = UNDEFINED_DOUBLE,
-					 double rule_from = UNDEFINED_DOUBLE);
+					 const std::string &model_name = NULL_STRING,
+					 const std::string &rule_name = NULL_STRING,
+					 double rule_scale = NULL_DOUBLE,
+					 double rule_from = NULL_DOUBLE);
 	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
 									  const std::string &arg_name,
 									  double arg_value);
@@ -108,7 +121,10 @@ public:
 	double augm_propose_logratio(indiv i, const augmID &a) const;
 	double augm_move_logratio(indiv i, const augmID &a) const;
 
+	//============================//
 	//===== EXTRA ATTRIBUTES =====//
+	//============================//
+
 	void _buffer_all_extra();
 	void _restore_all_extra();
 
@@ -134,7 +150,9 @@ public:
 	double extra_matrix(const extraID &e, size_t from, size_t to) const;
 	const matrix<double> &extra_matrix(const extraID &e) const;
 
+	//=========================//
 	//===== LOGLIKELIHOOD =====//
+	//=========================//
 
 	//----- Loglikelihood : Setter -----//
 	void set_loglike(double x);
@@ -144,9 +162,12 @@ public:
 	double get_loglike() const;
 	double get_delta_loglike() const;
 
+	//=======================//
 	//===== DIAGNOSTICS =====//
+	//=======================//
+
 	void init_diagnostics(ulong sample_size);
-	void update_diagnostics();
+	void update_diagnostics(ulong count);
 	const dbl_vec &get_dgn_loglike() const;
 
 private:

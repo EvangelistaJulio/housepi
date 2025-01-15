@@ -50,9 +50,10 @@ const string fmt_time(std::chrono::seconds scs)
     return oss.str();
 }
 
+/* Implementation class for progress bar. */
 class CustomProgressBarImpl
 {
-private:
+public:
     bool verbose = true;
     string text = "";
     const string symbol = u8"\u25A0"; // decorator for progress bar
@@ -62,10 +63,8 @@ private:
     steady_clock::time_point lastprint;
     const int64_t thintime = 0;
 
-public:
-    CustomProgressBarImpl(bool verbose = true)
+    CustomProgressBarImpl()
     {
-        this->verbose = verbose;
 #ifdef _HOUSEPI_RCPP
         Rcpp::Environment cli = Rcpp::Environment::namespace_env("cli");
         Rcpp::Function console_width = cli["console_width"];
@@ -87,9 +86,11 @@ public:
 #endif
         if (verbose)
         {
-            string sms = text + " |" + string(barwidth, ' ') + "| " + percentage(0.0, 0);
-            sms += " 0s<?";
-            display(sms);
+            std::ostringstream oss;
+            oss << text << " |" << string(barwidth, ' ') << "| "
+                << percentage(0.0, 0) << " 0s<?";
+            display(oss.str());
+
             start = steady_clock::now();
             lastprint = start;
         }
@@ -107,16 +108,19 @@ public:
 
             if (duration_cast<seconds>(now - lastprint).count() > thintime)
             {
-                unsigned where = progress * barwidth;
-                string sms = text + " |";
-                for (unsigned u = 0; u < where; ++u)
-                    sms += symbol;
-                sms += string(barwidth - where, ' ') + "| " + percentage(progress, 0);
 
                 seconds elapsed = duration_cast<seconds>(now - start);
                 seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
-                sms += " " + fmt_time(elapsed) + "<" + fmt_time(missing);
-                display("\r" + sms + string(10, ' '));
+
+                std::ostringstream oss;
+                unsigned where = progress * barwidth;
+                oss << "\r" << text << " |";
+                for (unsigned u = 0; u < where; ++u)
+                    oss << symbol;
+                oss << string(barwidth - where, ' ') << "| "
+                    << percentage(progress, 0) << fmt_time(elapsed) << "<" << fmt_time(missing)
+                    << string(10, ' ');
+                display(oss.str());
 
                 lastprint = steady_clock::now();
             }
@@ -132,11 +136,14 @@ public:
         if (verbose)
         {
             seconds elapsed = duration_cast<seconds>(steady_clock::now() - start);
-            string sms = text + " |";
+
+            std::ostringstream oss;
+            oss << "\r" << text << " |";
             for (unsigned u = 0; u < barwidth; u++)
-                sms += symbol;
-            sms += "| " + fmt_time(elapsed);
-            display("\r" + sms + string(25, ' ') + "\n");
+                oss << symbol;
+            oss << "| " << fmt_time(elapsed)
+                << string(25, ' ') << "\n";
+            display(oss.str());
         }
     }
 
@@ -152,10 +159,15 @@ private:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-CustomProgressBar::CustomProgressBar(bool verbose) : pImpl(std::make_unique<CustomProgressBarImpl>(verbose)) {}
+CustomProgressBar::CustomProgressBar(const std::string &text,
+                                     bool verbose) : pImpl(std::make_unique<CustomProgressBarImpl>())
+{
+    pImpl->verbose = verbose;
+    pImpl->initialize(text);
+}
+
 CustomProgressBar::~CustomProgressBar() = default;
 
 void CustomProgressBar::set_text(const std::string &text) { pImpl->set_text(text); }
-void CustomProgressBar::initialize(const std::string &text) { pImpl->initialize(text); }
 void CustomProgressBar::update(double progress) { pImpl->update(progress); }
 void CustomProgressBar::finalize() { pImpl->finalize(); }

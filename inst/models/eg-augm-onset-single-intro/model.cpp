@@ -288,15 +288,15 @@ void Model::simulate_single_house(Household &house)
 	// - add augmented variables to all others (also missing);
 	for (indiv i = 0; i < house.size(); ++i)
 	{
-		if (house.status(i) != INFECTIOUS)
+		if (house.status(i) != INFECTED_STATUS)
 			assign_all_augm(house, i);
 
-		house.change_status(i, SUSCEPTIBLE);
+		house.change_status(i, HEALTHY_STATUS);
 	}
 
 	// pick a random introduction and change it's status
 	indiv i0 = uniform() * house.size();
-	house.change_status(i0, INFECTIOUS);
+	house.change_status(i0, INFECTED_STATUS);
 	house.set_extra_integer("intro-case", i0);
 
 	//=============================================================//
@@ -312,16 +312,16 @@ void Model::simulate_single_house(Household &house)
 		t += Dt;
 		for (indiv i = 0; i < house.size(); ++i)
 		{
-			if (house.status(i) == SUSCEPTIBLE)
+			if (house.status(i) == HEALTHY_STATUS)
 			{
 				// set new status for computations
-				house.change_status(i, INFECTIOUS);
+				house.change_status(i, INFECTED_STATUS);
 				house.set_augm_value(i, "onset_date", t);
 				update_augm_dependecies(house, i);
 
 				// restore status id escaped infection
 				if (uniform() < exp(-ROI_inst(house, i) * Dt))
-					house.change_status(i, SUSCEPTIBLE);
+					house.change_status(i, HEALTHY_STATUS);
 			}
 		}
 	}

@@ -157,6 +157,12 @@ specify_group_rate <- function(dataset,
   return(c("{", sprintf('%srateID r = "%s";', TAB, rate_id), script, "}"))
 }
 
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
 # @title Housepi Group Rate R6 Class
 # @description
 # Help with group rate definitions of model Rcpp object.
@@ -176,13 +182,13 @@ HousepiGroupRateClass <- R6::R6Class(
     # @description
     # Assign the empty parameter data.frame
     initialize = function() {
-      self$clear()
+      self$drop()
       invisible(self)
     },
 
     # @description
     # Remove all current group rate definitions.
-    clear = function() {
+    drop = function() {
       self$defs <- list()
       invisible(self)
     },
@@ -217,6 +223,66 @@ HousepiGroupRateClass <- R6::R6Class(
     },
 
     # @description
+    # Assert group rate definitions from the implementation script.
+    # @param refer_file
+    # @param fill (`logical(1)`)\cr
+    # If `TRUE` fills the missing group rate with template definitions.
+    assert = function(refer_file, fill = FALSE) {
+
+      # read the script and extract parameters
+      script <- readChar(refer_file, file.info(refer_file)$size)
+
+      # group rate from : house.group_rate(..., "string"
+      regular_expr <- 'house.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      matches <- stringr::str_match_all(script, regular_expr)
+      model_rate_set <- unlist(matches[[1]][, 2])
+
+      # re-order alphabetically
+      model_rate_set <- unique(model_rate_set[order(model_rate_set)])
+
+      # add missing parameters with standard options
+      missing <- c()
+      for (name in model_rate_set) {
+        if (!(name %in% self$defs[["name"]])) {
+          missing <- c(missing, name)
+        }
+      }
+
+      # eventually fill with template definitions
+      if (length(missing) > 0) {
+        if (isTRUE(fill)) {
+          stop(cli::format_error(c(
+              "Template group rates are not yet implemented."
+            )))
+        } else {
+          oss <- sprintf("Missing group rate(s): '%s'", missing[[1]])
+        }
+
+        for (name in missing[-1]) {
+          oss <- sprintf("%s, '%s'", oss, name)
+        }
+        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+      }
+
+      # point out group rates that are not used
+      unused <- c()
+      for (name in names(self$defs)) {
+        if (!(name %in% model_rate_set)) {
+          unused <- c(unused, name)
+        }
+      }
+      if (length(unused) > 0) {
+        oss <- paste0("Group rate(s) not used in model: '", unused[[1]], "'")
+        for (name in unused[-1]) {
+          oss <- paste0(oss, ", '", name, "'")
+        }
+        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+      }
+
+      invisible(self)
+    },
+
+    # @description
     # Generate a script to be printed within source code model.cpp
     # @param dataset
     # Dataset to be considered.
@@ -225,9 +291,9 @@ HousepiGroupRateClass <- R6::R6Class(
       # initialize lines of the script
       rate_script <- c()
 
-      for (i in seq_along(definitions)){
-        this_def <- definitions[[i]]
-        this_def[["rate_id"]] <- names(definitions[i])
+      for (i in seq_along(self$defs)){
+        this_def <- self$defs[[i]]
+        this_def[["rate_id"]] <- names(self$defs[i])
         this_def[["dataset"]] <- dataset # UPDATE : this is not great...
         rate_script <- c(rate_script,
                          do.call(specify_group_rate, this_def))

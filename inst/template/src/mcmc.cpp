@@ -141,7 +141,7 @@ void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv 
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Monte_Carlo_Build : build data  /////////////////////////////////
+///////////////////////////////////////  MCMC : build data  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read data file and then run assignment. */
@@ -269,7 +269,7 @@ void MCMC::build_data(const dict_str_vec &datatable)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Monte_Carlo_Build : set rate per group  ////////////////////////////////////
+//////////////////////////////////  MCMC : set rate per group  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary wrapper to emplace_back */
@@ -340,7 +340,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Monte_Carlo_Build : set rate per contact  ////////////////////////////
+/////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary wrapper to emplace_back */
@@ -362,7 +362,7 @@ void MCMC::set_rate_per_contact(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    _pair_contact_rate_ = UNDEFINED_STRING;
+                    _pair_contact_rate_ = NULL_STRING;
                     assign_contact_rate_to_household(house, k, i);
 
                     if (!tools::is_na(_pair_contact_rate_))
@@ -422,7 +422,9 @@ void MCMC::update_global_loglike()
 
             // update house loglikelihood
             house.set_loglike(compute_house_loglike(house));
-            new_ll += house.get_loglike() + pBuild->compute_augm_model_loglike(house);
+            new_ll += house.get_loglike();
+            if (pBuild->is_augm_model())
+                new_ll += pBuild->compute_augm_model_loglike(house);
         }
         catch (const std::exception &e)
         {
@@ -454,11 +456,12 @@ void MCMC::update_global_loglike()
 void MCMC::move_single_param(const parID &p)
 {
     bool is_accepted = false;
-
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (pBuild->propose_valid_param_move(p))
     {
-        if ((this->*_func_param_metropolis_)(p))
+        update_global_loglike();
+
+        if (uniform() < exp(pBuild->setup_inv_T * pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(p)))
             is_accepted = true;
         else
         {
@@ -476,40 +479,6 @@ void MCMC::move_single_param(const parID &p)
 
     // update counts for acceptance rate
     pBuild->update_param_accept_rate(p, is_accepted);
-}
-
-/* Metropolis at inverse temperature 1 (standard). */
-bool MCMC::_param_metropolis_1_(const parID &p)
-{
-    update_global_loglike();
-
-    if (uniform() < exp(pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(p)))
-        return true;
-
-    return false;
-}
-
-/* Metropolis at inverse temperature 0 (only prior). */
-bool MCMC::_param_metropolis_0_(const parID &p)
-{
-    if (uniform() < exp(pBuild->param_move_logratio(p)))
-    {
-        update_global_loglike();
-        return true;
-    }
-
-    return false;
-}
-
-/* Metropolis at inverse temperature inv T (only prior). */
-bool MCMC::_param_metropolis_T_(const parID &p)
-{
-    update_global_loglike();
-
-    if (uniform() < exp(pBuild->setup_inv_T * pBuild->get_delta_global_loglike() + pBuild->param_move_logratio(p)))
-        return true;
-
-    return false;
 }
 
 /* Move all model parameters. */
@@ -545,16 +514,18 @@ void MCMC::move_and_adapt_all_parameters(ulong step)
 /* Initialize augmented dependecies for all households. */
 void MCMC::init_augmented_variables()
 {
-    if (!pBuild->augm_list_full.empty())
+    // wheter to perform data augmentation or not
+    if (pBuild->is_augm_infer())
     {
-        if (pBuild->is_augm_infer)
-        {
-            _func_move_all_augm_ = &MCMC::_move_all_augm_;
+        _func_move_all_augm_ = &MCMC::_move_all_augm_;
 
-            if (!pBuild->augm_list_infer.empty())
-                _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
-        }
+        // wheter augmented variable are generic or status specific
+        if (pBuild->is_augm_generic())
+            _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
+        else
+            _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_by_status_;
 
+        // assign augmented variables
         for (size_t H = 0; H < n_houses(); ++H)
         {
             // assign augmented to preallocated variables
@@ -566,7 +537,14 @@ void MCMC::init_augmented_variables()
                 update_augm_dependecies(house, i);
         }
     }
+    else
+    {
+        _func_move_all_augm_ = &MCMC::_move_no_augm_;
+    }
 }
+
+/* Don't move anything. */
+void MCMC::_move_no_augm_() {}
 
 /* Move augmented variables from all households. */
 void MCMC::_move_all_augm_()
@@ -617,7 +595,7 @@ double MCMC::move_augm_single_house(Household &house)
 void MCMC::_move_augm_indiv_generic_(Household &house, indiv i, double &delta)
 {
     // Loop over augmented variables of infectious
-    for (const augmID &a : pBuild->augm_list_infer)
+    for (const augmID &a : pBuild->augm_list_to_be_inferred)
         metropolis_augm_single_move(house, i, a, delta);
 }
 
@@ -643,7 +621,12 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &
         house.set_loglike(compute_house_loglike(house));
 
         // Metropolis-Hasting algorithm
-        if (!(this->*_func_augm_metropolis_)(house, i, a, delta))
+        double D_ll = house.get_delta_loglike() + house.augm_model_logratio(i, a);
+        if (uniform() < exp(pBuild->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
+        {
+            delta += D_ll;
+        }
+        else
         {
             // restore value and its dependencies
             house.restore_augm_value(i, a);
@@ -651,44 +634,6 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &
             house.restore_loglike();
         }
     }
-}
-
-/* Metropolis algorithm for single augmented variable move (default, inverse temperature 1). */
-bool MCMC::_augm_metropolis_1_(const Household &house, indiv i, const augmID &a, double &delta)
-{
-    double D_hh_ll = house.get_delta_loglike();
-    if (uniform() < exp(D_hh_ll + house.augm_move_logratio(i, a)))
-    {
-        delta += D_hh_ll + house.augm_model_logratio(i, a);
-        return true;
-    }
-
-    return false;
-}
-
-/* Metropolis algorithm for single augmented variable move (inverse temperature 0). */
-bool MCMC::_augm_metropolis_0_(const Household &house, indiv i, const augmID &a, double &delta)
-{
-    if (uniform() < exp(-house.augm_propose_logratio(i, a)))
-    {
-        delta += house.get_delta_loglike() + house.augm_model_logratio(i, a);
-        return true;
-    }
-
-    return false;
-}
-
-/* Metropolis algorithm for single augmented variable move (all inverse temperatures). */
-bool MCMC::_augm_metropolis_T_(const Household &house, indiv i, const augmID &a, double &delta)
-{
-    double D_ll = house.get_delta_loglike() + house.augm_model_logratio(i, a);
-    if (uniform() < exp(pBuild->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
-    {
-        delta += D_ll;
-        return true;
-    }
-
-    return false;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -751,9 +696,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
     //==========================//
 
     // check if there is something to infer
-    if (pBuild->param_to_be_inferred.empty())
+    if ((pBuild->param_to_be_inferred.empty()) && (!pBuild->is_augm_infer()))
         throw std::length_error(
-            "No parameters to be inferred were found.");
+            "Nothing to infer. Check your parameter and augmented variable definitions.");
 
     // initialize diagnostics
     pBuild->init_diagnostics(is_power_post);
@@ -848,8 +793,7 @@ void MCMC::infer(bool is_progbar)
         init_model_for_inference();
 
         // start progress bar and chrono
-        CustomProgressBar progressbar(is_progbar);
-        progressbar.initialize(fmt_progtxt("infer"));
+        CustomProgressBar progressbar(fmt_progtxt("infer"), is_progbar);
 
         // run Markov Chain
         run_monte_carlo(progressbar);
@@ -869,33 +813,6 @@ void MCMC::infer(bool is_progbar)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
-
-/* Set inverse temperature and its relative functional methods. */
-// UPDATE : maybe this is over-engineered, check if it without is as fine.
-void MCMC::update_inver_temper(double inv_T)
-{
-    if ((inv_T < 0.) || (inv_T > 1.))
-        throw std::range_error(
-            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
-    else if (inv_T == 1.0)
-    {
-        pBuild->setup_inv_T = 1.0;
-        _func_param_metropolis_ = &MCMC::_param_metropolis_1_;
-        _func_augm_metropolis_ = &MCMC::_augm_metropolis_1_;
-    }
-    else if (inv_T == 0.0)
-    {
-        pBuild->setup_inv_T = 0.0;
-        _func_param_metropolis_ = &MCMC::_param_metropolis_0_;
-        _func_augm_metropolis_ = &MCMC::_augm_metropolis_0_;
-    }
-    else
-    {
-        pBuild->setup_inv_T = inv_T;
-        _func_param_metropolis_ = &MCMC::_param_metropolis_T_;
-        _func_augm_metropolis_ = &MCMC::_augm_metropolis_T_;
-    }
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : power posteriors  ///////////////////////////////////
@@ -918,7 +835,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
         tools::error("Number of rungs must be greater than 1.");
 
     //----- Backup user setup to restore them later -----//
-    bool bkp_rnd_init_params = pBuild->setup_rnd_init_params;
+    bool bkp_rand_init_params = pBuild->setup_rand_init_params;
     double bkp_inv_T = pBuild->setup_inv_T;
 
     //----- Thermodynamic ladder estimates -----//
@@ -938,15 +855,14 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     init_model_for_inference();
 
     //----- Start progress bar and chrono -----//
-    CustomProgressBar progressbar(is_progbar);
-    progressbar.initialize(fmt_progtxt("", true));
+    CustomProgressBar progressbar(fmt_progtxt("", true), is_progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
     //==================================//
 
-    update_inver_temper(0.0);
-    pBuild->setup_rnd_init_params = true;
+    pBuild->set_inver_temper(0.0);
+    pBuild->setup_rand_init_params = true;
     run_monte_carlo(progressbar, 0, true);
     pBuild->dgn_glob_ll_stats(avg, var);
 
@@ -962,8 +878,8 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
         //----- Inverse Temperature 1 -----//
         _rung_ = 1;
-        update_inver_temper(1.0);
-        pBuild->setup_rnd_init_params = false;
+        pBuild->set_inver_temper(1.0);
+        pBuild->setup_rand_init_params = false;
         run_monte_carlo(progressbar, rung_sweeps, true);
         pBuild->dgn_glob_ll_stats(avg, var);
 
@@ -986,7 +902,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
                 new_inv_T = inv_t[k] + var_vec[k + 1] * (inv_t[k + 1] - inv_t[k]) / (var_vec[k] + var_vec[k + 1]);
 
             //----- power posterior sampling -----//
-            update_inver_temper(new_inv_T);
+            pBuild->set_inver_temper(new_inv_T);
             run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
             pBuild->dgn_glob_ll_stats(avg, var);
 
@@ -1009,10 +925,10 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
         //==================================//
 
         //----- Inverse Temperatures (0, 1] -----//
-        pBuild->setup_rnd_init_params = false;
+        pBuild->setup_rand_init_params = false;
         for (_rung_ = 1; _rung_ < _n_rungs_; ++_rung_)
         {
-            update_inver_temper(std::pow(static_cast<double>(_rung_) / (_n_rungs_ - 1), 5));
+            pBuild->set_inver_temper(std::pow(static_cast<double>(_rung_) / (_n_rungs_ - 1), 5));
             run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
             pBuild->dgn_glob_ll_stats(avg, var);
 
@@ -1037,8 +953,8 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     progressbar.finalize();
 
     //----- Restore user setup -----//
-    update_inver_temper(bkp_inv_T);
-    pBuild->setup_rnd_init_params = bkp_rnd_init_params;
+    pBuild->set_inver_temper(bkp_inv_T);
+    pBuild->setup_rand_init_params = bkp_rand_init_params;
 
     return output;
 }
@@ -1067,13 +983,12 @@ void MCMC::simulate(bool is_progbar)
     init_model_for_simulation();
 
     //----- Check no undefined parameters -----//
-    pBuild->setup_rnd_init_params = false;
+    pBuild->setup_rand_init_params = false;
     pBuild->init_parameters();
 
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
-    CustomProgressBar progressbar(is_progbar);
-    progressbar.initialize("simulate");
+    CustomProgressBar progressbar("simulate", is_progbar);
 
 #ifdef _OPENMP
     int thin_n_house = n_houses() / pBuild->setup_n_threads;

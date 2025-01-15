@@ -16,7 +16,7 @@
 class Function_Argument
 {
 public:
-    std::string name = UNDEFINED_STRING;
+    std::string name = NULL_STRING;
 
     Function_Argument() = default;
     ~Function_Argument() = default;
@@ -28,15 +28,20 @@ public:
         _func_set_ = &Function_Argument::_set_arg_pointer_;
         ptr_to_value = y;
     }
+    void restore_internal_ptr()
+    {
+        _func_set_ = &Function_Argument::_set_arg_default_;
+        ptr_to_value = &value;
+    }
 
 private:
-    double value = UNDEFINED_DOUBLE;
+    double value = NULL_DOUBLE;
     const double *ptr_to_value = &value;
 
     // note : the set_arg is only used for the adaptive
     // for this reason a pointer argument can't be set, but just assigned
-    void (Function_Argument::*_func_set_)(double) = &Function_Argument::_set_arg_value_;
-    void _set_arg_value_(double x) { value = x; }
+    void (Function_Argument::*_func_set_)(double) = &Function_Argument::_set_arg_default_;
+    void _set_arg_default_(double x) { value = x; }
     void _set_arg_pointer_(double x)
     {
         UNUSED(x);
@@ -56,13 +61,13 @@ class Base_Function_Impl
 {
 public:
     //===== Arguments =====//
-    std::string name = UNDEFINED_STRING;
+    std::string name = NULL_STRING;
     ushort _n_args_ = 0;
     Function_Argument *_arguments_ = nullptr;
 
     //----- Domain -----//
-    double _range_min_ = -UNDEFINED_DOUBLE; // UPDATE: not elegant minus...
-    double _range_max_ = UNDEFINED_DOUBLE;
+    double _range_min_ = NULL_DOUBLE;
+    double _range_max_ = NULL_DOUBLE;
 
     //===== CONSTRUCTOR =====//
     Base_Function_Impl() = default;
@@ -73,11 +78,12 @@ public:
                        const str_vec &arg_name,
                        const dbl_vec &arg_value,
                        double domain_min,
-                       double domain_max);
+                       double domain_max,
+                       bool is_open);
 
     //===== Range =====//
-    ushort set_range(double minimum = UNDEFINED_DOUBLE,
-                     double maximum = UNDEFINED_DOUBLE);
+    ushort set_range(double lower = NULL_DOUBLE,
+                     double upper = NULL_DOUBLE);
 
     //===== Getter =====//
     bool valid(double x) const { return (this->*_func_valid_range_)(x); }
@@ -95,16 +101,25 @@ public:
 
 private:
     //===== VALID =====//
-    // alternative valid range methods
+    // note: for the moment range extremes can't be one open and other close
+
+    //---- alternative valid range methods -----//
     bool (Base_Function_Impl::*_func_valid_range_)(double) const = &Base_Function_Impl::_valid_range_always_;
     bool _valid_range_always_(double x) const
     {
         UNUSED(x);
         return true;
     }
-    bool _valid_range_min_(double x) const { return (x > _range_min_); }
-    bool _valid_range_max_(double x) const { return (x < _range_max_); }
-    bool _valid_range_both_(double x) const { return _valid_range_min_(x) && _valid_range_max_(x); }
+
+    //----- close range -----//
+    bool _valid_range_close_min_(double x) const { return (x >= _range_min_); }
+    bool _valid_range_close_max_(double x) const { return (x <= _range_max_); }
+    bool _valid_range_close_both_(double x) const { return (x >= _range_min_) && (x <= _range_max_); }
+
+    //----- open range -----//
+    bool _valid_range_open_min_(double x) const { return (x > _range_min_); }
+    bool _valid_range_open_max_(double x) const { return (x < _range_max_); }
+    bool _valid_range_open_both_(double x) const { return (x > _range_min_) && (x < _range_max_); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +142,10 @@ void Base_Function_Impl::assign_scalar_arg(const std::string &arg_name, double x
         throw std::invalid_argument(
             "Unknown argument '" + arg_name + "' for '" + name + "'.");
     else
+    {
         _arguments_[it].set(x);
+        _arguments_[it].restore_internal_ptr();
+    }
 }
 
 /* Overload assignment of non default POINTER arguments. */
@@ -146,14 +164,17 @@ void Base_Function_Impl::init_defaults(const std::string &name,
                                        const str_vec &arg_name,
                                        const dbl_vec &arg_value,
                                        double domain_min,
-                                       double domain_max)
+                                       double domain_max,
+                                       bool is_open)
 {
+    // name of the function
     this->name = name;
-    this->_n_args_ = arg_name.size();
 
-    if (this->_n_args_ != arg_value.size())
+    // number of arguments
+    if (arg_name.size() != arg_value.size())
         throw std::length_error(
             "Internal inconsistency for '" + name + "' arguments.");
+    this->_n_args_ = arg_name.size();
 
     // assign default arguments
     this->_arguments_ = new Function_Argument[arg_name.size()];
@@ -164,7 +185,17 @@ void Base_Function_Impl::init_defaults(const std::string &name,
     }
 
     // assign domain
-    set_range(domain_min, domain_max);
+    // NOTE: at the moment only place where to set open ranges
+    ushort trunc_cases = set_range(domain_min, domain_max);
+    if (is_open)
+    {
+        if (trunc_cases == 1)
+            _func_valid_range_ = &Base_Function_Impl::_valid_range_open_min_;
+        else if (trunc_cases == 2)
+            _func_valid_range_ = &Base_Function_Impl::_valid_range_open_max_;
+        else if (trunc_cases == 3)
+            _func_valid_range_ = &Base_Function_Impl::_valid_range_open_both_;
+    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -181,21 +212,34 @@ void Base_Function_Impl::init_defaults(const std::string &name,
 /* Set the range of validity of the value, and the corresponding validation function. */
 ushort Base_Function_Impl::set_range(double lower, double upper)
 {
-    // Ignore lower if 'min' exists as argument (e .g. uniform distribution)
-    if (find("min") < _n_args_)
+    //----- Uniform distribution case -----//
+    if (name == "unif")
     {
-        if (!tools::is_na(lower))
+        // FIXME : if edges change, this is wrong!
+        
+        // Ensure lower == 'min' (argument of uniform)
+        if (tools::is_na(lower))
+        {
+            lower = _arguments_[find("min")].get();
+        }
+        else
+        {
             tools::warning(
-                "Overwriting range min with argument min in '" + name + "'.");
-        lower = _arguments_[find("min")].get();
-    }
-    // Ignore upper if 'max' exists as argument
-    if (find("max") < _n_args_)
-    {
-        if (!tools::is_na(upper))
+                "Depracated: in 'unif' overwriting argument min with range min.");
+            assign_scalar_arg("min", lower);
+        }
+
+        // Ensure lower == 'min' (argument of uniform)
+        if (tools::is_na(upper))
+        {
+            upper = _arguments_[find("max")].get();
+        }
+        else
+        {
             tools::warning(
-                "Overwriting range max with argument max in '" + name + "'.");
-        upper = _arguments_[find("max")].get();
+                "Depracated: in 'unif' overwriting argument max with range max.");
+            assign_scalar_arg("max", upper);
+        }
     }
 
     // assign range and respective validation method
@@ -212,14 +256,14 @@ ushort Base_Function_Impl::set_range(double lower, double upper)
     {
         if (!tools::is_na(lower))
             _range_min_ = lower;
-        _func_valid_range_ = &Base_Function_Impl::_valid_range_min_;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_close_min_;
         return 1;
     }
     else if ((!is_lower_bound) && (is_upper_bound))
     {
         if (!tools::is_na(upper))
             _range_max_ = upper;
-        _func_valid_range_ = &Base_Function_Impl::_valid_range_max_;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_close_max_;
         return 2;
     }
     else // ((is_lower_bound) && (is_upper_bound))
@@ -228,7 +272,7 @@ ushort Base_Function_Impl::set_range(double lower, double upper)
             _range_min_ = lower;
         if (!tools::is_na(upper))
             _range_max_ = upper;
-        _func_valid_range_ = &Base_Function_Impl::_valid_range_both_;
+        _func_valid_range_ = &Base_Function_Impl::_valid_range_close_both_;
 
         if (_range_min_ >= _range_max_)
             throw std::invalid_argument(
@@ -253,7 +297,7 @@ const std::string Base_Function_Impl::show_arg_names() const
         return output;
     }
 
-    return UNDEFINED_STRING;
+    return NULL_STRING;
 }
 
 /* Return formatted argument names of the distribution. */
@@ -267,19 +311,25 @@ const std::string Base_Function_Impl::show_arg_values() const
         return output;
     }
 
-    return UNDEFINED_STRING;
+    return NULL_STRING;
 }
 
 /* */
 const std::string Base_Function_Impl::show_range_min() const
 {
-    return tools::is_na(_range_min_) ? UNDEFINED_STRING : std::to_string(_range_min_);
+    if (tools::is_na(_range_min_))
+        return NULL_STRING;
+    else
+        return std::to_string(_range_min_);
 }
 
 /* */
 const std::string Base_Function_Impl::show_range_max() const
 {
-    return tools::is_na(_range_max_) ? UNDEFINED_STRING : std::to_string(_range_max_);
+    if (tools::is_na(_range_max_))
+        return NULL_STRING;
+    else
+        return std::to_string(_range_max_);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -337,7 +387,9 @@ void Base_Function::_init_defaults_(const std::string &name,
                                     const str_vec &arg_name,
                                     const dbl_vec &arg_value,
                                     double domain_min,
-                                    double domain_max)
+                                    double domain_max,
+                                    bool is_open)
 {
-    pImpl->init_defaults(name, arg_name, arg_value, domain_min, domain_max);
+    pImpl->init_defaults(name, arg_name, arg_value,
+                         domain_min, domain_max, is_open);
 }

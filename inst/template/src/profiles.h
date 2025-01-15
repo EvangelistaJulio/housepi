@@ -32,7 +32,7 @@ protected:
 						 const dbl_vec &arg_value);
 
 private:
-	std::string name = UNDEFINED_STRING;
+	std::string name = NULL_STRING;
 	str_vec _arg_names_ = {};
 	dbl_vec _values_ = {};
 	std::vector<parID> _indexes_ = {};

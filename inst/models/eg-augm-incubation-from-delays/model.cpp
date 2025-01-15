@@ -60,7 +60,7 @@ double Model::compute_house_loglike(Household &house) const
 		if (incub_distr_ptr->valid(incub))
 			output *= incub_distr_ptr->logpdf(incub);
 		else
-			return -UNDEFINED_DOUBLE;
+			return -NULL_DOUBLE;
 	}
 
 	return output;

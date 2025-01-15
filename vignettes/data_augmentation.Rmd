@@ -128,7 +128,7 @@ aug_defs <- list(
   onset_date = list(
     init_rand = TRUE,
     model = "lnorm", args = list(meanlog = 4, sdlog = 0.5),
-    range = list(max = 365)
+    max = 365
   ),
   # add augmented variable definition 'incub_period'
   incub_period = list(
@@ -136,14 +136,17 @@ aug_defs <- list(
     # assign arguments of incubation period from parameter definitions
     model = "gamma", args = list(shape = "inc_shape@P",
                                  scale = "inc_scale@P"),
-    range = list(max = 14)
+    max = 14
   )
 )
-hmc_2$load_augm_list(aug_defs)
+hmc_2$load_augm_list(aug_defs, append = FALSE)
 
 # use inferred values from first example as constant parameters
-hmc_2$add_param(name = "inc_shape", value = results_1["shape", "Mean"])
-hmc_2$add_param(name = "inc_scale", value = results_1["scale", "Mean"])
+aug_defs <- list(
+  inc_shap = list(value = results_1["shape", "Mean"]),
+  inc_scale = list(value = results_1["scale", "Mean"])
+)
+hmc_2$load_augm_list(aug_defs, append = TRUE)
 ```
 
 ### Simulate an Outbreak
@@ -196,12 +199,12 @@ new_augm_defs <- list(
     init_rand = TRUE,
     model = "gamma", args = list(shape = "inc_shape@P",
                                  scale = "inc_scale@P"),
-    rule = "gibbs", range = list(max = 14)
+    rule = "gibbs", max = 14
   )
 )
 
-# clear previous definitions and load new from list
-hmc_2$load_augm_list(new_augm_defs)
+# drop previous definitions and load new from list
+hmc_2$load_augm_list(new_augm_defs, append = FALSE)
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
@@ -211,7 +214,7 @@ hmc_2$infer(data = df, n_steps = 10000, n_burnin = 1000, thin = 10,
 
 ```{r, fig.align = 'center'}
 # plot the traces of all chains 
-hmc_2$plot_traces()
+lattice::xyplot(hmc$export_traces())
 ```
 
 ```{r}

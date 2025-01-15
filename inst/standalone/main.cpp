@@ -37,7 +37,6 @@ int main(int argc, char *argv[])
 
     bool verbose = false; // verbose option
     bool progbar = true;  // progressbar option
-    bool is_silent = false;
 
     bool is_infer = false;    // inference option
     bool is_simulate = false; // simulation option
@@ -46,12 +45,12 @@ int main(int argc, char *argv[])
     ulong num_rungs = 0;
 
     // paths/to/files
-    std::string params_file = UNDEFINED_STRING;
-    std::string data_file = UNDEFINED_STRING;
-    std::string augm_file = UNDEFINED_STRING;
-    std::string setup_file = UNDEFINED_STRING;
-    std::string output_file = UNDEFINED_STRING;
-    std::string save_augm_file = UNDEFINED_STRING;
+    std::string params_file = NULL_STRING;
+    std::string data_file = NULL_STRING;
+    std::string augm_file = NULL_STRING;
+    std::string setup_file = NULL_STRING;
+    std::string output_file = NULL_STRING;
+    std::string save_augm_file = NULL_STRING;
 
     //=====Test if some commands were supplied=====//
     if (argc < 2)
@@ -86,9 +85,6 @@ int main(int argc, char *argv[])
         
         else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
             verbose = true;
-
-        else if (carg == std::string("--silent"))
-            is_silent = true;
 
         else if (carg == std::string("--evaluate"))
             is_evaluate = true;
@@ -127,12 +123,6 @@ int main(int argc, char *argv[])
     //===== INITIALIZATION =====//
     //==========================//
 
-    if (is_silent)
-    {
-        verbose = false;
-        progbar = false;
-    }
-
     //----- Check for command -----//
     int aux = is_evaluate + is_infer + is_simulate + is_marginal;
     if (aux > 1)
@@ -166,16 +156,16 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        print_decorator("Inference", UNDEFINED_STRING, C_DECOR, verbose);
+        print_decorator("Inference", NULL_STRING, C_DECOR, verbose);
         user_model->infer(progbar);
 
         if (verbose)
         {
-            print_decorator("Inference::results", UNDEFINED_STRING);
+            print_decorator("Inference::results", NULL_STRING);
             user_model->show_results();
         }
 
-        if (output_file != UNDEFINED_STRING)
+        if (output_file != NULL_STRING)
         {
             print_decorator("Inference::infer state",
                             "# save: " + output_file,
@@ -183,7 +173,7 @@ int main(int argc, char *argv[])
             user_model->print_infer_state(output_file);
         }
 
-        if (save_augm_file != UNDEFINED_STRING)
+        if (save_augm_file != NULL_STRING)
         {
             print_decorator("Inference::augmented dataframe",
                             "# save: " + save_augm_file,
@@ -194,7 +184,7 @@ int main(int argc, char *argv[])
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file == UNDEFINED_STRING)
+        if (output_file == NULL_STRING)
         {
             error("Missing output file for simulation.");
         }
@@ -216,10 +206,10 @@ int main(int argc, char *argv[])
 
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
-        print_decorator("Loglikelihood", UNDEFINED_STRING, C_DECOR, verbose);
+        print_decorator("Loglikelihood", NULL_STRING, C_DECOR, verbose);
         print_stdout(std::to_string(user_model->evaluate()) + "\n");
 
-        if (save_augm_file != UNDEFINED_STRING)
+        if (save_augm_file != NULL_STRING)
         {
             print_decorator("Loglikelihood::augmented dataframe",
                             "# save: " + save_augm_file,
@@ -230,7 +220,7 @@ int main(int argc, char *argv[])
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
-        print_decorator("Marginal Loglikelihood", UNDEFINED_STRING, C_DECOR, verbose);
+        print_decorator("Marginal Loglikelihood", NULL_STRING, C_DECOR, verbose);
         print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
     }
 

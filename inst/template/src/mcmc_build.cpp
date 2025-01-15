@@ -57,7 +57,7 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
                                          const std::string &type,
                                          const Household &house, indiv i)
 {
-    double output = UNDEFINED_DOUBLE;
+    double output = NULL_DOUBLE;
 
     try
     {
@@ -82,11 +82,11 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
                     output = get_param(value);
                 else
                     throw std::invalid_argument(
-                        "Parameter to be inferred '" + value + "' assigned as constant argument.");                    
+                        "Parameter to be inferred '" + value + "' assigned as constant argument.");
 
             else if (type == TYPE_COMMAND)
                 if (value == "default")
-                    output = UNDEFINED_DOUBLE;
+                    output = NULL_DOUBLE;
                 else
                     throw std::invalid_argument(
                         "Unknown command type '" + value + "'.");
@@ -255,7 +255,7 @@ size_t Monte_Carlo_Build::report_data(const std::string &key) const
 ///////////////////////////////////  Monte_Carlo_Build : build augmented  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Read Model Augmented Variable file */
+/* Read Model Augmented Variable file. */
 void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
 {
     try
@@ -274,7 +274,9 @@ void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
     _report_pathtofile_["augm"] = pathtofile;
 }
 
-/* Assign augmented variables to all individuals. */
+/* Assign augmented variables to all individuals.
+    UPDATE: this function has to be simplified.
+*/
 void Monte_Carlo_Build::build_augm()
 {
     try
@@ -284,145 +286,186 @@ void Monte_Carlo_Build::build_augm()
             // n. of definitions
             size_t table_length = _augm_deftable_.at("name").size();
 
-            // auxiliary variable to load definitions : a -> status lists
-            dict_str_vec name_status_check = {};
-
-            //===== Check Augmented Variables lists of usage =====//
-            for (size_t k = 0; k < table_length; ++k)
+            if (table_length > 0)
             {
-                std::string a = _augm_deftable_.at("name")[k];
-                std::string status = _augm_deftable_.at("status")[k];
-                bool is_init_rand = false;
 
-                // check that augmID and status are correct
-                if (tools::is_na(a))
-                    throw std::invalid_argument(
-                        "Augmented variable name can not be undefined.");
+                // auxiliary variable to load definitions : a -> status lists
+                dict_str_vec name_status_check = {};
 
-                else if (name_status_check.find(a) == name_status_check.end())
-                    // new augmented variable status
-                    name_status_check.emplace(a, str_vec{status});
-
-                else
+                //===== Check Augmented Variables lists of usage =====//
+                for (size_t k = 0; k < table_length; ++k)
                 {
-                    // check no multiple augmID with same status
-                    const str_vec &mylist = name_status_check.at(a);
-                    if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
-                        name_status_check.at(a).push_back(status);
+                    std::string a = _augm_deftable_.at("name")[k];
+                    std::string status = _augm_deftable_.at("status")[k];
+                    bool is_init_rand = false;
 
-                    else
+                    // check that augmID and status are correct
+                    if (tools::is_na(a))
                         throw std::invalid_argument(
-                            "Incompatible definitions for augmented variable '" + a + "'.");
-                }
+                            "Augmented variable name can not be undefined.");
 
-                // option for random initialization
-                if (!tools::is_na(_augm_deftable_.at("init_rand")[k]))
-                    is_init_rand = tools::stobool(_augm_deftable_.at("init_rand")[k]);
+                    else if (name_status_check.find(a) == name_status_check.end())
+                        // new augmented variable status
+                        name_status_check.emplace(a, str_vec{status});
 
-                if ((tools::is_na(_augm_deftable_.at("model")[k])) && (is_init_rand))
-                    throw std::invalid_argument(
-                        "Impossible to initialize '" + a + "' without a model.");
-            }
-
-            //===== Drop previous definitions =====//
-            augm_list_full.clear();
-            augm_list_infer.clear();
-            augm_list_model.clear();
-            augm_status_map_infer.clear();
-            augm_status_map_model.clear();
-            is_augm_infer = false;
-            is_augm_model = false;
-
-            //===== Check Univocal Definitions and Allocate New Lists =====//
-            for (const auto &pair : name_status_check)
-            {
-                const std::string &a = pair.first;
-                const str_vec &mylist = pair.second;
-
-                for (const std::string &status : mylist)
-                {
-                    if (tools::is_na(status))
-                    {
-                        if (mylist.size() > 1)
-                            throw std::invalid_argument(
-                                "Conflicting status-specific and general definitions for augmented '" + a + "'.");
-                    }
                     else
                     {
-                        int s = tools::stoi(status, "augmented status");
-                        if (s < INFECTIOUS)
-                        {
+                        // check no multiple augmID with same status
+                        const str_vec &mylist = name_status_check.at(a);
+                        if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
+                            name_status_check.at(a).push_back(status);
+
+                        else
                             throw std::invalid_argument(
-                                "Impossible to associate augmented '" + a + "' for non infectious status.");
+                                "Incompatible definitions for augmented variable '" + a + "'.");
+                    }
+
+                    // option for random initialization
+                    if (!tools::is_na(_augm_deftable_.at("init_rand")[k]))
+                        is_init_rand = tools::stobool(_augm_deftable_.at("init_rand")[k]);
+
+                    if ((tools::is_na(_augm_deftable_.at("model")[k])) && (is_init_rand))
+                        throw std::invalid_argument(
+                            "Impossible to initialize '" + a + "' without a model.");
+                }
+
+                //===== Drop previous definitions =====//
+                augm_list_full.clear();
+                augm_list_to_be_inferred.clear();
+                augm_list_model.clear();
+                augm_status_map_infer.clear();
+                augm_status_map_model.clear();
+
+                //===== Check Univocal Definitions and Allocate New Lists =====//
+                for (const auto &pair : name_status_check)
+                {
+                    const std::string &a = pair.first;
+                    const str_vec &mylist = pair.second;
+
+                    for (const std::string &status : mylist)
+                    {
+                        if (tools::is_na(status))
+                        {
+                            if (mylist.size() > 1)
+                                throw std::invalid_argument(
+                                    "Conflicting status-specific and general definitions for augmented '" + a + "'.");
                         }
                         else
                         {
-                            augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
-                            augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
+                            int s = tools::stoi(status, "augmented status");
+                            if (s < INFECTED_STATUS)
+                            {
+                                throw std::invalid_argument(
+                                    "Impossible to associate augmented '" + a + "' for non infectious status.");
+                            }
+                            else
+                            {
+                                augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
+                                augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
+                            }
+                        }
+
+                        augm_list_full.emplace(a);
+                    }
+                }
+
+                //===== Case of Only Generic Definitions =====//
+                if ((table_length > 0) && (augm_status_map_infer.empty()))
+                    _func_augm_model_by_definition_ = &Monte_Carlo_Build::_augm_model_generic_;
+                else
+                    _func_augm_model_by_definition_ = &Monte_Carlo_Build::_augm_model_by_status_;
+
+                //===========================================//
+                //===== Assign new definitions to lists =====//
+                //===========================================//
+
+                // note : I didn't manage to collapse this with the previous because of generic status
+                for (size_t k = 0; k < table_length; ++k)
+                {
+                    const std::string &a = _augm_deftable_.at("name")[k];
+                    const std::string &status = _augm_deftable_.at("status")[k];
+
+                    //----- Augmented Variables to be Inferred -----//
+                    if (!tools::is_na(_augm_deftable_.at("rule")[k]))
+                    {
+                        augm_list_to_be_inferred.emplace(a);
+
+                        if (tools::is_na(status)) // generic definition
+                        {
+                            if (!is_augm_generic())
+                                for (const auto &pair : augm_status_map_infer)
+                                    augm_status_map_infer.at(pair.first).emplace(a);
+                        }
+                        else // status-specific definition
+                        {
+                            augm_status_map_infer.at(tools::stoi(status, "augmented status")).emplace(a);
                         }
                     }
 
-                    augm_list_full.emplace(a);
+                    //----- Augmented Variables with a Model -----//
+                    if (!tools::is_na(_augm_deftable_.at("model")[k]))
+                    {
+                        augm_list_model.emplace(a);
+
+                        if (tools::is_na(status)) // generic definition
+                        {
+                            if (!is_augm_generic())
+                                for (const auto &pair : augm_status_map_model)
+                                    augm_status_map_model.at(pair.first).emplace(a);
+                        }
+                        else // status-specific definition
+                        {
+                            augm_status_map_model.at(tools::stoi(status)).emplace(a);
+                        }
+                    }
+                }
+
+                //================================================//
+                //===== Finalize assigment in the households =====//
+                //================================================//
+
+                if ((!is_augm_infer()) && (!tools::is_na(setup_id_trace)))
+                {
+                    tools::warning(
+                        "Ignoring id trace: no augmented variables to be inferred was provided.");
+                    setup_id_trace = NULL_STRING;
+                }
+
+                // Allocate memory for augmented variables to each individual
+                // Search individual ID for augmented traces follow-up
+                dgn_H_star = n_households;
+                for (size_t H = 0; H < n_households; ++H)
+                {
+                    Household &house = house_vector[H];
+                    for (indiv i = 0; i < house.size(); ++i)
+                    {
+                        clear_all_augm(house, i);
+                        if (!tools::is_na(setup_id_trace))
+                        {
+                            if (house.ID(i) == setup_id_trace)
+                            {
+                                dgn_H_star = H;
+                                dgn_i_star = i;
+                            }
+                        }
+                    }
+                }
+
+                if (!tools::is_na(setup_id_trace))
+                {
+                    if (dgn_H_star == n_households)
+                    {
+                        tools::warning(
+                            "Ignoring id trace: no individual '" + setup_id_trace + "' was found.");
+                        setup_id_trace = NULL_STRING;
+                    }
+                    else if (house_vector[dgn_H_star].status(dgn_i_star) < INFECTED_STATUS)
+                    {
+                        tools::warning(
+                            "Individual id '" + setup_id_trace + "' correspond to a healthy individual.");
+                    }
                 }
             }
-
-            //===== Case of Only Generic Definitions =====//
-            bool is_only_generic = (augm_list_full.size() > 0) && (augm_status_map_infer.empty());
-            if (is_only_generic)
-                _func_augm_model_by_definition_ = &Monte_Carlo_Build::_augm_model_generic_;
-
-            //===== Assign new definitions to lists =====//
-            // note : I can't I collapse this with the previous because of generic status
-            for (size_t k = 0; k < table_length; ++k)
-            {
-                std::string a = _augm_deftable_.at("name")[k];
-                std::string status = _augm_deftable_.at("status")[k];
-
-                //----- Augmented Variables to be Inferred -----//
-                if (!tools::is_na(_augm_deftable_.at("rule")[k]))
-                {
-                    is_augm_infer = true;
-
-                    if (tools::is_na(status)) // generic definition
-                        if (is_only_generic)
-                            augm_list_infer.emplace(a);
-
-                        else
-                            for (const auto &pair : augm_status_map_infer)
-                                augm_status_map_infer.at(pair.first).emplace(a);
-
-                    else // status-specific definition
-                        augm_status_map_infer.at(tools::stoi(status)).emplace(a);
-                }
-
-                //----- Augmented Variables with a Model -----//
-                if (!tools::is_na(_augm_deftable_.at("model")[k]))
-                {
-                    is_augm_model = true;
-
-                    if (tools::is_na(status)) // generic definition
-                        if (is_only_generic)
-                            augm_list_model.emplace(a);
-
-                        else
-                            for (const auto &pair : augm_status_map_model)
-                                augm_status_map_model.at(pair.first).emplace(a);
-
-                    else // status-specific definition
-                        augm_status_map_model.at(tools::stoi(status)).emplace(a);
-                }
-            }
-
-            //===== Allocate memory for augmented variables to each individual =====//
-            for (Household &house : house_vector)
-                for (indiv i = 0; i < house.size(); ++i)
-                    clear_all_augm(house, i);
-
-            //===== Functional method for augmented model contribution to loglikelihood ====//
-            if (is_augm_model)
-                _func_augm_model_loglike_ = &Monte_Carlo_Build::_augm_model_loglike_;
-            else
-                _func_augm_model_loglike_ = &Monte_Carlo_Build::_no_augm_model_loglike_;
         }
     }
     catch (const std::exception &e)
@@ -433,7 +476,7 @@ void Monte_Carlo_Build::build_augm()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Monte_Carlo_Build : assign augmented variables  ///////////////////////////////
+/////////////////////////  Monte_Carlo_Build : assign augmented variables  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
@@ -519,6 +562,16 @@ void Monte_Carlo_Build::clear_all_augm(Household &house, indiv i)
         house.clear_augm(i, a);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  Monte_Carlo_Build : state checkers   /////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Check if there are non-constant augmented variable definitions. */
+bool Monte_Carlo_Build::is_augm_infer() const { return !augm_list_to_be_inferred.empty(); }
+
+/* Check if there are augmented variable definitions with a model. */
+bool Monte_Carlo_Build::is_augm_model() const { return !augm_list_model.empty(); }
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -535,19 +588,25 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
 {
     ulong sample_size = setup_c_sample_size * setup_n_chains;
 
+    // diagnostics over global loglikelihood
     dgn_count = 0;
     dgn_glob_loglike = dbl_vec(sample_size);
 
+    // initialize  other diagnostic vectors
     if (!is_power_post)
     {
-        //----- Initialize diagnostic vectors -----//
-        // FLAG: delicate point
+        // diagnostics over parameters
         for (const parID &p : param_to_be_inferred)
             dgn_param_value[p] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
 
         // diagnostics over households
         for (size_t H = 0; H < n_households; ++H)
             house_vector[H].init_diagnostics(sample_size);
+
+        // diagnostics over augmented variables
+        if (!tools::is_na(setup_id_trace))
+            for (const augmID &a : augm_list_to_be_inferred)
+                dgn_augm_value[a] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
     }
 }
 
@@ -565,7 +624,12 @@ void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_po
 
         // diagnostics for all households
         for (size_t H = 0; H < n_households; ++H)
-            house_vector[H].update_diagnostics();
+            house_vector[H].update_diagnostics(dgn_count);
+
+        // diagnostics for individual followup
+        if (!tools::is_na(setup_id_trace))
+            for (const augmID &a : augm_list_to_be_inferred)
+                dgn_augm_value.at(a)[dgn_count] = house_vector[dgn_H_star].augm(dgn_i_star, a);
     }
 
     ++dgn_count;
@@ -583,21 +647,14 @@ void Monte_Carlo_Build::disable_assert()
         house.disable_assert();
 }
 
+/* Check if augmented variable definition are generic or not (i. e. individual status specific). */
+bool Monte_Carlo_Build::is_augm_generic() const
+{
+    return _func_augm_model_by_definition_ == &Monte_Carlo_Build::_augm_model_generic_;
+}
+
 /* Compute the loglikelihood term associated to augmented variables. */
 double Monte_Carlo_Build::compute_augm_model_loglike(const Household &house) const
-{
-    return (this->*_func_augm_model_loglike_)(house);
-}
-
-/* No model contributions. */
-double Monte_Carlo_Build::_no_augm_model_loglike_(const Household &house) const
-{
-    UNUSED(house);
-    return 0.0;
-}
-
-/* House loglikelihood including augmented modl contribution. */
-double Monte_Carlo_Build::_augm_model_loglike_(const Household &house) const
 {
     double hh_loglike = 0.;
     // Contribution of model associated to augmented variables
@@ -673,7 +730,7 @@ void Monte_Carlo_Build::show_summary() const
 void Monte_Carlo_Build::show_full_build() const
 {
     //----- SETUP -----//
-    std::string add_file_info = UNDEFINED_STRING;
+    std::string add_file_info = NULL_STRING;
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("setup")))
             add_file_info = "# import: " + _report_pathtofile_.at("setup");
@@ -682,7 +739,7 @@ void Monte_Carlo_Build::show_full_build() const
     show_setup();
 
     //----- PARAMETERS -----//
-    add_file_info = UNDEFINED_STRING;
+    add_file_info = NULL_STRING;
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("params")))
             add_file_info = "# import: " + _report_pathtofile_.at("params");
@@ -691,7 +748,7 @@ void Monte_Carlo_Build::show_full_build() const
     show_all_params();
 
     //----- DATABASE -----//
-    add_file_info = UNDEFINED_STRING;
+    add_file_info = NULL_STRING;
     if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("data")))
             add_file_info = "# import: " + _report_pathtofile_.at("data");
@@ -700,11 +757,13 @@ void Monte_Carlo_Build::show_full_build() const
     show_summary();
 
     //----- AUGMENTED -----//
+    add_file_info = NULL_STRING;
     if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
         if (!tools::is_na(_report_pathtofile_.at("augm")))
             add_file_info = "# import: " + _report_pathtofile_.at("augm");
 
-    tools::print_decorator("Augmented", add_file_info);
+    if (!augm_list_full.empty())
+        tools::print_decorator("Augmented", add_file_info);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -754,7 +813,7 @@ void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) cons
                         augm_ofstream << C_DELIM << house.data(i, d);
 
                     for (const augmID &a : augm_list_full)
-                        if (house.status(i) == INFECTIOUS)
+                        if (house.status(i) == INFECTED_STATUS)
                             augm_ofstream << C_DELIM << house.augm(i, a);
                         else
                             augm_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();

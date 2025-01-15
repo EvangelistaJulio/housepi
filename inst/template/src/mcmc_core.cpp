@@ -26,7 +26,7 @@ double Monte_Carlo_Build::_get_param_assert_(const parID &p) const
     if (assert_param(p))
         return _get_param_default_(p);
     else
-        return UNDEFINED_DOUBLE;
+        return NULL_DOUBLE;
 }
 
 /* Default functional method to return pointer to parameter. */
@@ -149,9 +149,9 @@ void Monte_Carlo_Build::init_parameters()
         // restore user initialization (meaningful for multiple chains)
         param_map.at(p).user_reset();
 
-        if (setup_rnd_init_params)
+        if (setup_rand_init_params)
         {
-            if (param_map.at(p).get_distr_name() == UNDEFINED_STRING)
+            if (tools::is_na(param_map.at(p).get_distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
@@ -159,7 +159,7 @@ void Monte_Carlo_Build::init_parameters()
         }
         else
         {
-            if (param_map.at(p).get_value() == UNDEFINED_DOUBLE)
+            if (tools::is_na(param_map.at(p).get_value()))
                 throw std::invalid_argument(
                     "Undefined value for parameter to infer '" + p + "' while no random initialization.");
         }
@@ -216,6 +216,16 @@ void Monte_Carlo_Build::adapt_param_rule(const parID &p, double ratio) { param_m
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Set inverse temperature and its relative functional methods. */
+void Monte_Carlo_Build::set_inver_temper(double inv_T)
+{
+    if ((inv_T < 0.) || (inv_T > 1.))
+        throw std::range_error(
+            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
+    else
+        setup_inv_T = inv_T;
+}
+
 /* Read Setup file and produce a definition list. */
 void Monte_Carlo_Build::read_setup(const std::string &pathtofile)
 {
@@ -242,8 +252,8 @@ void Monte_Carlo_Build::build_setup()
             //===== Check that all provided setups are correct =====//
             str_vec file_entries = {"n_threads", "seed", "n_chains",
                                     "n_steps", "n_adapt", "thin",
-                                    "n_burnin", "rnd_init_params",
-                                    "n_rungs", "inv_temper"};
+                                    "n_burnin", "rand_init",
+                                    "n_rungs", "inv_temper", "id_trace"};
 
             str_vec wrong_entries = {};
 
@@ -317,26 +327,28 @@ void Monte_Carlo_Build::build_setup()
             }
 
             //===== RANDOM INITIALIZATION OF PARAMETERS =====//
-            if (_setup_deflist_.find("rnd_init_params") != _setup_deflist_.end())
+            if (_setup_deflist_.find("rand_init") != _setup_deflist_.end())
             {
-                setup_rnd_init_params = tools::stobool(_setup_deflist_.at("rnd_init_params"));
-                if ((setup_n_chains > 1) && (setup_rnd_init_params == false))
+                setup_rand_init_params = tools::stobool(_setup_deflist_.at("rand_init"));
+                if ((setup_n_chains > 1) && (setup_rand_init_params == false))
                 {
                     tools::warning(
                         "Unable to fix initial parameters when running multiple chains.");
-                    setup_rnd_init_params = true;
+                    setup_rand_init_params = true;
                 }
             }
 
             //===== INVERSE TEMPERATURE =====//
             if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
             {
-                double inv_T = tools::stod(_setup_deflist_.at("inv_temper"), "inverse temperature");
-                if ((inv_T < 0.) || (inv_T > 1.))
-                    throw std::out_of_range(
-                        "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
-                else
-                    setup_inv_T = inv_T;
+                double tmp = tools::stod(_setup_deflist_.at("inv_temper"), "inverse temperature");
+                set_inver_temper(tmp);
+            }
+
+            //===== INDIVIDUAL ID AUGMENTED TRACE =====//
+            if (_setup_deflist_.find("id_trace") != _setup_deflist_.end())
+            {
+                setup_id_trace = _setup_deflist_.at("id_trace");
             }
         }
 
@@ -409,7 +421,7 @@ void Monte_Carlo_Build::build_params()
             for (size_t k = 0; k < table_length; ++k)
             {
                 const std::string &name = _param_deftable_.at("name")[k]; // parameter name
-                double value = UNDEFINED_DOUBLE;                          // init value
+                double value = NULL_DOUBLE;                          // init value
 
                 // UPDATE : temporary parameter identifier
                 // NOTE : id parID changes this should change too
@@ -443,16 +455,18 @@ void Monte_Carlo_Build::build_params()
                     const std::string &prior_name = _param_deftable_.at("prior")[k];
 
                     // load range
-                    double lower = UNDEFINED_DOUBLE;
+                    double lower = NULL_DOUBLE;
                     if (!tools::is_na(_param_deftable_.at("min")[k]))
                         lower = tools::stod(_param_deftable_.at("min")[k], "parameter minimum");
 
-                    double upper = UNDEFINED_DOUBLE;
+                    double upper = NULL_DOUBLE;
                     if (!tools::is_na(_param_deftable_.at("max")[k]))
                         upper = tools::stod(_param_deftable_.at("max")[k], "parameter maximum");
 
                     // load rule name
-                    const std::string &rule_name = _param_deftable_.at("rule")[k];
+                    std::string rule_name = "gibbs";
+                    if (!tools::is_na(_param_deftable_.at("rule")[k]))
+                        rule_name = _param_deftable_.at("rule")[k];
 
                     // load rule scale
                     double rule_scale = 1.;
@@ -512,9 +526,6 @@ rnd_gen &Monte_Carlo_Build::get_prng() { return (this->*_func_prng_)(); }
 /* Draw a random variable uniformly distributed. */
 double Monte_Carlo_Build::uniform() { return _uniform_distr_(get_prng()); }
 
-/* String with parameter definitions at the current state. */
-std::string Monte_Carlo_Build::show_param(const parID &p) const { return param_map.at(p).show(); }
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -538,7 +549,8 @@ void Monte_Carlo_Build::show_setup() const
         << "\nn_burnin" << C_DELIM << setup_n_burnin
         << "\nn_steps" << C_DELIM << setup_n_steps
         << "\nthin" << C_DELIM << setup_thin
-        << "\nrnd_init_params" << C_DELIM << tools::truth(setup_rnd_init_params)
+        << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
+        << "\nid_trace" << C_DELIM << setup_id_trace
         << "\ninv_temper" << C_DELIM << setup_inv_T
         << "\n";
 
@@ -561,10 +573,10 @@ void Monte_Carlo_Build::show_all_params() const
     oss << "\n";
 
     for (const parID &p : param_to_be_inferred)
-        oss << show_param(p) << "\n";
+        oss << param_map.at(p).show() << "\n";
 
     for (const parID &p : param_to_be_constant)
-        oss << show_param(p) << "\n";
+        oss << param_map.at(p).show() << "\n";
 
     tools::print_stdout(oss.str());
 }
@@ -590,16 +602,15 @@ void Monte_Carlo_Build::show_results() const
         double avg = 0, var = 0;
         tools::compute_stats(dgn_param_value.at(p), avg, var);
 
-        oss << p 
-            << C_DELIM << avg 
-            << C_DELIM << std::sqrt(var) 
+        oss << p
+            << C_DELIM << avg
+            << C_DELIM << std::sqrt(var)
             << C_DELIM << tools::truth(this_param.is_constant())
             << C_DELIM << this_param.get_distr_name()
             << C_DELIM << this_param.show_distr_arg_names()
             << C_DELIM << this_param.show_distr_arg_values()
             << C_DELIM << this_param.get_prop_name()
-            << C_DELIM << this_param.show_prop_arg_names()
-            << C_DELIM << this_param.show_prop_arg_values()
+            << C_DELIM << this_param.show_prop_scale()
             << C_DELIM << tools::natod(this_param.show_range_min())
             << C_DELIM << tools::natod(this_param.show_range_max())
             << "\n";
@@ -637,6 +648,11 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
             for (const parID &p : param_to_be_inferred)
                 inferstate_ofstream << C_DELIM << p;
 
+            // augmented variables
+            if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+                for (const augmID &a : augm_list_to_be_inferred)
+                    inferstate_ofstream << C_DELIM << a;
+
             // header chain
             if (setup_n_chains > 1)
                 inferstate_ofstream << C_DELIM << "CHAIN__";
@@ -651,6 +667,7 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
                 for (size_t k = 0; k < setup_c_sample_size; k++)
                 {
                     size_t i = k + c * setup_c_sample_size;
+                    
                     // print loglikelihood
                     inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
 
@@ -658,6 +675,12 @@ void Monte_Carlo_Build::print_infer_state(const std::string &output_filename) co
                     for (const parID &p : param_to_be_inferred)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
                                             << std::fixed << dgn_param_value.at(p)[i];
+
+                    // print selected augmented variables
+                    if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+                        for (const augmID &a : augm_list_to_be_inferred)
+                            inferstate_ofstream << C_DELIM << std::setprecision(5)
+                                                << std::fixed << dgn_augm_value.at(a)[i];
 
                     // print which chain
                     if (setup_n_chains > 1)

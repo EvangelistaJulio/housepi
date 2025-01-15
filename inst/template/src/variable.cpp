@@ -6,10 +6,6 @@
 
 #include "variable.h"
 
-// UPDATE : export these somehow to Rcpp!
-const str_vec AVAILABLE_PROPOSER_RULE = {
-    "gibbs", "unif", "norm", "lnorm"};
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -29,8 +25,8 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
 {
     // set to discrete
     _distr_ptr_->assign_reshaping(is_discrete,
-                                  UNDEFINED_DOUBLE, 
-                                  UNDEFINED_DOUBLE);
+                                  NULL_DOUBLE,
+                                  NULL_DOUBLE);
 
     // assign user rule scale
     _user_rule_scale_ = std::fabs(rule_scale);
@@ -39,7 +35,7 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
     _is_start_from_zero_ = false;
 
     // proposal alwats starting by given value
-    if (rule_start_value != UNDEFINED_DOUBLE)
+    if (!tools::is_na(rule_start_value))
     {
         _is_start_from_zero_ = true;
         set_rule_start_value(rule_start_value);
@@ -53,7 +49,7 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
 ///////////////////////////////////  Base Proposer - getter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string &Base_Proposer::get_name() const { return _distr_ptr_->get_name(); }
+const std::string &Base_Proposer::get_name() const { return this->name; }
 double Base_Proposer::get_arg(ushort argID) const { return (_distr_ptr_->get_arg)(argID); }
 double Base_Proposer::get_from_value() const { return from_value; }
 bool Base_Proposer::is_rule_start_from_zero() const { return _is_start_from_zero_; }
@@ -106,7 +102,7 @@ const std::string Base_Proposer::show_arg_values() const { return _distr_ptr_->s
 const std::string Base_Proposer::show_scale() const
 {
     if (_args_to_adapt_.empty())
-        return UNDEFINED_STRING;
+        return NULL_STRING;
     else
         return std::to_string(std::fabs((_distr_ptr_->get_arg)(_args_to_adapt_[0])));
 }
@@ -167,9 +163,9 @@ public:
     //===== CONSTRUCTOR =====//
     Gibbs_Proposer(std::shared_ptr<Base_Distribution> distr) : Base_Proposer(distr)
     {
+        name = "gibbs";
         // method for proposer
         _func_propose_ = &Gibbs_Proposer::_propose_draw_rand_;
-
         // method for logratio
         _func_logratio_ = &Gibbs_Proposer::_logratio_pdf_;
     }
@@ -186,19 +182,18 @@ public:
     //===== CONSTRUCTOR =====//
     Uniform_Proposer(
         double rule_scale = 0.5,
-        double rule_from = UNDEFINED_DOUBLE,
+        double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Base_Proposer(distribution_switchboard("unif"),
                                                   rule_scale,
                                                   rule_from,
                                                   {0, 1},
                                                   is_discrete)
     {
+        name = _distr_ptr_->get_name();
         // initialize
         user_reset();
-
         // method for proposer
         _func_propose_ = &Uniform_Proposer::_propose_sum_to_previous_;
-
         // method for logratio
         _func_logratio_ = &Uniform_Proposer::_logratio_symm_;
     }
@@ -209,6 +204,9 @@ public:
     {
         _distr_ptr_->assign_scalar_arg("min", -_user_rule_scale_);
         _distr_ptr_->assign_scalar_arg("max", _user_rule_scale_);
+        _distr_ptr_->set_range(); 
+        // FIXME : if user_rule_scale changes, the range doesn't!
+        // FIXME: time for range to be function arguments...
     }
 };
 
@@ -222,18 +220,18 @@ public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
         double rule_scale = 1.0,
-        double rule_from = UNDEFINED_DOUBLE,
+        double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Base_Proposer(distribution_switchboard("norm"),
                                                   rule_scale,
                                                   rule_from,
                                                   {1},
                                                   is_discrete)
     {
+        name = _distr_ptr_->get_name();
+        // initialize
         user_reset();
-
         // method for proposer
         _func_propose_ = &Normal_Proposer::_propose_sum_to_previous_;
-
         // method for logratio
         if (is_rule_start_from_zero())
             _func_logratio_ = &Normal_Proposer::_logratio_sum_to_zero_;
@@ -260,18 +258,18 @@ public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(
         double rule_scale = 1.0,
-        double rule_from = UNDEFINED_DOUBLE,
+        double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Base_Proposer(distribution_switchboard("lnorm"),
                                                   rule_scale,
                                                   rule_from,
                                                   {1},
                                                   is_discrete)
     {
+        name = _distr_ptr_->get_name();
+        // initialize
         user_reset();
-
         // method for proposer
         _func_propose_ = &Lognorm_Proposer::_propose_times_previous_;
-
         // method for logratio
         if (is_rule_start_from_zero())
             _func_logratio_ = &Lognorm_Proposer::_logratio_times_zero_;
@@ -295,10 +293,13 @@ public:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+const str_vec AVAILABLE_PROPOSER_RULE = {
+    "gibbs", "unif", "norm", "lnorm"};
+
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name = UNDEFINED_STRING,
-                                                    double rule_scale = UNDEFINED_DOUBLE,
-                                                    double rule_from = UNDEFINED_DOUBLE,
+std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name = NULL_STRING,
+                                                    double rule_scale = NULL_DOUBLE,
+                                                    double rule_from = NULL_DOUBLE,
                                                     bool is_discrete = false)
 {
     const str_vec &options = AVAILABLE_PROPOSER_RULE;
@@ -403,37 +404,46 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
 {
     if (tools::is_na(rule_name))
     {
-        // immutable variable if no rule is defined
+        // if no rule is defined constant variable
         _is_constant_ = true;
         _func_propose_ = &Base_Variable::_propose_error_;
         _prop_ptr_ = proposer_switchboard();
     }
     else
     {
+        // variable to sample
         _is_constant_ = false;
 
         // define proposer rule with functional programming
         if (rule_name == "gibbs")
         {
+            //----- Gibbs proposer rule -----//
+            // assign the pointer to the proposer
             _prop_ptr_ = std::make_shared<Gibbs_Proposer>(_distr_ptr_);
+            // sampler
             _func_propose_ = &Base_Variable::_propose_gibbs_sample_;
+            // logratio
             _func_move_logratio_ = &Base_Variable::_move_logratio_gibbs_;
+            // validation
+            _func_valid_move_ = &Base_Variable::_valid_move_gibbs_;
         }
         else
         {
-            if ((rule_from != UNDEFINED_DOUBLE) && (!_distr_ptr_->valid(rule_from)))
+            //----- Other proposer rules -----//
+            // value from which to start proposal
+            if ((!tools::is_na(rule_from)) && (!_distr_ptr_->valid(rule_from)))
             {
-                const std::string min_val = _distr_ptr_->show_range_min();
-                const std::string max_val = _distr_ptr_->show_range_max();
                 std::ostringstream oss;
-                oss << "Initial value " << rule_from << " outside of value range"
-                    << " {min:" << tools::natod(min_val) << ", max:" << tools::natod(max_val) << "}."
+                oss << "Proposer rule from value " << rule_from << " out of range"
+                    << " {min:" << tools::natod(show_range_min())
+                    << ", max:" << tools::natod(show_range_max()) << "}."
                     << " If intentional, ignore this message.";
                 tools::warning(oss.str());
             }
 
             // assign the pointer to the proposer
             _prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, _is_discrete_);
+            // sampler
             if (is_from_zero())
                 _func_propose_ = &Base_Variable::_propose_from_zero_;
             else
@@ -513,12 +523,15 @@ const std::string Base_Variable::show() const
 //////////////////////////////////  Base_Variable - functional  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+//===== Valid move : functional methods =====//
 bool Base_Variable::_valid_move_default_() const { return _distr_ptr_->valid(value); }
 bool Base_Variable::_valid_move_gibbs_() const { return true; }
 
+//===== Move logratio : functional methods =====//
 double Base_Variable::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
 double Base_Variable::_move_logratio_gibbs_() const { return 0.0; }
 
+//===== Propose : functional methods =====//
 double Base_Variable::_propose_error_(rnd_gen &prng)
 {
     UNUSED(prng);

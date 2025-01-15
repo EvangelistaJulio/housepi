@@ -35,7 +35,7 @@ public:
 	//===== CONSTRUCTOR =====//
 	Base_Proposer(std::shared_ptr<Base_Distribution>,
 				  double rule_scale = 1.0,
-				  double rule_start_value = UNDEFINED_DOUBLE,
+				  double rule_start_value = NULL_DOUBLE,
 				  const std::vector<ushort> &args_to_adapt = {},
 				  bool is_discrete = false);
 	virtual ~Base_Proposer() {};
@@ -45,8 +45,8 @@ public:
 	double get_arg(ushort argID) const;
 	double get_from_value() const;
 	bool is_rule_start_from_zero() const;
-	virtual double propose(rnd_gen &prng, double start = 0.0);
-	virtual double logratio(double xold, double xnew) const;
+	double propose(rnd_gen &prng, double start = 0.0);
+	double logratio(double xold, double xnew) const;
 
 	//===== SETTER =====//
 	virtual void user_reset();
@@ -65,11 +65,12 @@ public:
 	const std::string show_scale() const;
 
 protected:
+	std::string name = NULL_STRING;
 	std::shared_ptr<Base_Distribution> _distr_ptr_;
 
 	double _user_rule_scale_ = 1.0;		  // scale of the Metropolis rule
 	bool _is_start_from_zero_ = false;	  // wheter to move from given value
-	double from_value = UNDEFINED_DOUBLE; // given value where to start from
+	double from_value = NULL_DOUBLE; // given value where to start from
 	double accept_rate = 0.0;			  // acceptance rate
 	ulong n_proposed_moves = 0;			  // number of proposed moves
 
@@ -111,7 +112,7 @@ protected:
 
 public:
 	//===== CONSTRUCTOR =====//
-	Base_Variable(const std::string &name = UNDEFINED_STRING,
+	Base_Variable(const std::string &name = NULL_STRING,
 				  double value = std::numeric_limits<double>::quiet_NaN(),
 				  bool is_discrete = false);
 	~Base_Variable();
@@ -132,15 +133,15 @@ public:
 	void restore_value();
 
 	// define a pointer to distribution
-	void assign_distribution(const std::string &distr_name = UNDEFINED_STRING);
+	void assign_distribution(const std::string &distr_name = NULL_STRING);
 	void assign_distr_scalar_arg(const std::string &arg_name, double x);
 	void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
 	void assign_distr_range(double lower, double upper);
 
 	// Assing a proposer rule
-	void assign_proposer(const std::string &rule_name = UNDEFINED_STRING,
-						 double rule_scale = UNDEFINED_DOUBLE,
-						 double rule_from = UNDEFINED_DOUBLE);
+	void assign_proposer(const std::string &rule_name = NULL_STRING,
+						 double rule_scale = NULL_DOUBLE,
+						 double rule_from = NULL_DOUBLE);
 
 	//===== METROPOLIS-HASTINGS =====//
 
@@ -179,11 +180,11 @@ public:
 	const std::string show() const;
 
 private:
-	std::string name = UNDEFINED_STRING; // name of the variable
-	double value = UNDEFINED_DOUBLE;	 // value of the variable
-	double buffer = UNDEFINED_DOUBLE;	 // buffer of the variable
+	std::string name = NULL_STRING; // name of the variable
+	double value = NULL_DOUBLE;	 // value of the variable
+	double buffer = NULL_DOUBLE;	 // buffer of the variable
 
-	double _user_value_ = UNDEFINED_DOUBLE; // initial user defined value
+	double _user_value_ = NULL_DOUBLE; // initial user defined value
 	bool _is_discrete_ = false;				// wheter discrete or not
 	bool _is_constant_ = true;				// wheter constant or not
 
