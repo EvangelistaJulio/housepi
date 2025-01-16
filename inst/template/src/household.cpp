@@ -139,7 +139,7 @@ void Household_Impl::assign_individual(const std::string &ID,
 		if (status < MISSING_STATUS)
 		{
 			std::ostringstream oss;
-			oss << "Status '" << status << "' of individual " << ID << " interpreted as missing."
+			oss << "Status \"" << status << "\" of individual " << ID << " interpreted as missing."
 				<< " Use (=)" << HEALTHY_STATUS << " for susceptible, (>=)" << INFECTED_STATUS << " for infectious,"
 				<< " and (=) " << MISSING_STATUS << " for missing status.";
 			tools::warning(oss.str());
@@ -196,7 +196,7 @@ bool Household_Impl::change_status(indiv i, int new_status)
 		else
 		{
 			throw std::runtime_error(
-				"Unknown status '" + std::to_string(old_status) + "' for individual " + this_indiv.ID + ".");
+				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + this_indiv.ID + ".");
 		}
 
 		if (new_status >= INFECTED_STATUS)
@@ -220,7 +220,7 @@ bool Household_Impl::change_status(indiv i, int new_status)
 		else
 		{
 			throw std::runtime_error(
-				"Unknown new status '" + std::to_string(new_status) + "' for individual " + this_indiv.ID + ".");
+				"Unknown new status \"" + std::to_string(new_status) + "\" for individual " + this_indiv.ID + ".");
 		}
 
 		this_indiv.status = new_status;

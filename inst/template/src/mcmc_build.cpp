@@ -82,17 +82,17 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
                     output = get_param(value);
                 else
                     throw std::invalid_argument(
-                        "Parameter to be inferred '" + value + "' assigned as constant argument.");
+                        "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
 
             else if (type == TYPE_COMMAND)
                 if (value == "default")
                     output = NULL_DOUBLE;
                 else
                     throw std::invalid_argument(
-                        "Unknown command type '" + value + "'.");
+                        "Unknown command type \"" + value + "\".");
             else
                 throw std::invalid_argument(
-                    "Unknown variable type specifier '" + type + "'.");
+                    "Unknown variable type specifier \"" + type + "\".");
         }
     }
     catch (const std::exception &e)
@@ -115,7 +115,7 @@ void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID 
     str_vec vals = tools::parse_list_args(tkn_val);
     str_vec typs = tools::parse_list_args(tkn_typ);
 
-    // check all's good
+    // check size validity of keys, values and type
     if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
         throw std::invalid_argument(
             "Mismatching definitions in arguments.");
@@ -131,7 +131,7 @@ void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID 
         {
             if (!tools::is_na(value) && tools::is_na(type))
                 throw std::invalid_argument(
-                    "Impossible to interpret default value of  '" + value + "'. Please provide a type.");
+                    "Impossible to interpret default value of  \"" + value + "\". Please provide a type.");
 
             else if (tools::is_na(value) && !tools::is_na(type))
                 tools::warning(
@@ -148,7 +148,7 @@ void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID 
 
             else
                 throw std::invalid_argument(
-                    "Unsopported type '" + type + "' found while loading '" + value + "' for pointer value.");
+                    "Unsopported type \"" + type + "\" found while loading \"" + value + "\" for pointer value.");
         }
     }
 }
@@ -239,7 +239,7 @@ size_t Monte_Carlo_Build::report_data(const std::string &key) const
 
     else
         throw std::invalid_argument(
-            "Unknown summary entry '" + key + "'.");
+            "Unknown summary entry \"" + key + "\".");
 
     return output;
 }
@@ -317,7 +317,7 @@ void Monte_Carlo_Build::build_augm()
 
                         else
                             throw std::invalid_argument(
-                                "Incompatible definitions for augmented variable '" + a + "'.");
+                                "Incompatible definitions for augmented variable \"" + a + "\".");
                     }
 
                     // option for random initialization
@@ -326,7 +326,7 @@ void Monte_Carlo_Build::build_augm()
 
                     if ((tools::is_na(_augm_deftable_.at("model")[k])) && (is_init_rand))
                         throw std::invalid_argument(
-                            "Impossible to initialize '" + a + "' without a model.");
+                            "Impossible to initialize \"" + a + "\" without a model.");
                 }
 
                 //===== Drop previous definitions =====//
@@ -348,7 +348,7 @@ void Monte_Carlo_Build::build_augm()
                         {
                             if (mylist.size() > 1)
                                 throw std::invalid_argument(
-                                    "Conflicting status-specific and general definitions for augmented '" + a + "'.");
+                                    "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
                         }
                         else
                         {
@@ -356,7 +356,7 @@ void Monte_Carlo_Build::build_augm()
                             if (s < INFECTED_STATUS)
                             {
                                 throw std::invalid_argument(
-                                    "Impossible to associate augmented '" + a + "' for non infectious status.");
+                                    "Impossible to associate augmented \"" + a + "\" for non infectious status.");
                             }
                             else
                             {
@@ -456,13 +456,13 @@ void Monte_Carlo_Build::build_augm()
                     if (dgn_H_star == n_households)
                     {
                         tools::warning(
-                            "Ignoring id trace: no individual '" + setup_id_trace + "' was found.");
+                            "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
                         setup_id_trace = NULL_STRING;
                     }
                     else if (house_vector[dgn_H_star].status(dgn_i_star) < INFECTED_STATUS)
                     {
                         tools::warning(
-                            "Individual id '" + setup_id_trace + "' correspond to a healthy individual.");
+                            "Individual id \"" + setup_id_trace + "\" correspond to a healthy individual.");
                     }
                 }
             }

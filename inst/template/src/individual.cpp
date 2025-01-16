@@ -27,7 +27,7 @@ GroupRate::GroupRate(const std::string &name,
 
 		if (pointers.empty())
 			throw std::invalid_argument(
-				"No parameters associated to group rate '" + name + "'.");
+				"No parameters associated to group rate \"" + name + "\".");
 
 		this->n_rates = pointers.size();
 		this->pointers = new const double *[pointers.size()];
@@ -91,7 +91,7 @@ void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &grou
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
-				"Missing rate '" + r + "' for individual " + ID + ".");
+				"Missing rate \"" + r + "\" for individual " + ID + ".");
 		else
 			this->rate_map[r] = GroupRate(r, vec_par_ptr);
 	}
@@ -113,7 +113,7 @@ bool Individual::assert_data(const dataID &d) const
 {
 	if (this->data.find(d) == this->data.end())
 		throw std::invalid_argument(
-			"Unknown data '" + d + "' for individual " + ID + ".");
+			"Unknown data \"" + d + "\" for individual " + ID + ".");
 	else
 		return true;
 
@@ -125,7 +125,7 @@ bool Individual::assert_augm(const augmID &a) const
 {
 	if (this->augm_map.find(a) == this->augm_map.end())
 		throw std::invalid_argument(
-			"Unknown augmented variable '" + a + "' for individual " + ID + ".");
+			"Unknown augmented variable \"" + a + "\" for individual " + ID + ".");
 	else
 		return true;
 
@@ -137,7 +137,7 @@ bool Individual::assert_rate(const rateID &r) const
 {
 	if (this->rate_map.find(r) == this->rate_map.end())
 		throw std::invalid_argument(
-			"Unknown group rate '" + r + "' for individual " + ID + ".");
+			"Unknown group rate \"" + r + "\" for individual " + ID + ".");
 	else
 		return true;
 

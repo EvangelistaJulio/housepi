@@ -46,7 +46,7 @@ private:
     {
         UNUSED(x);
         throw std::runtime_error(
-            "Pointer argument '" + name + "' can not be changed.");
+            "Pointer argument \"" + name + "\" can not be changed.");
     }
 };
 
@@ -140,7 +140,7 @@ void Base_Function_Impl::assign_scalar_arg(const std::string &arg_name, double x
     ushort it = find(arg_name);
     if (it == _n_args_)
         throw std::invalid_argument(
-            "Unknown argument '" + arg_name + "' for '" + name + "'.");
+            "Unknown argument \"" + arg_name + "\" for \"" + name + "\".");
     else
     {
         _arguments_[it].set(x);
@@ -154,7 +154,7 @@ void Base_Function_Impl::assign_pointer_arg(const std::string &arg_name, const d
     ushort it = find(arg_name);
     if (it == _n_args_)
         throw std::invalid_argument(
-            "Unknown argument '" + arg_name + "' for '" + name + "'.");
+            "Unknown argument \"" + arg_name + "\" for \"" + name + "\".");
     else
         _arguments_[it].assign_ptr(y);
 }
@@ -173,7 +173,7 @@ void Base_Function_Impl::init_defaults(const std::string &name,
     // number of arguments
     if (arg_name.size() != arg_value.size())
         throw std::length_error(
-            "Internal inconsistency for '" + name + "' arguments.");
+            "Internal inconsistency for \"" + name + "\" arguments.");
     this->_n_args_ = arg_name.size();
 
     // assign default arguments
@@ -217,7 +217,7 @@ ushort Base_Function_Impl::set_range(double lower, double upper)
     {
         // FIXME : if edges change, this is wrong!
         
-        // Ensure lower == 'min' (argument of uniform)
+        // Ensure lower == "min" (argument of uniform)
         if (tools::is_na(lower))
         {
             lower = _arguments_[find("min")].get();
@@ -225,11 +225,11 @@ ushort Base_Function_Impl::set_range(double lower, double upper)
         else
         {
             tools::warning(
-                "Depracated: in 'unif' overwriting argument min with range min.");
+                "Depracated: in \"unif\" overwriting argument min with range min.");
             assign_scalar_arg("min", lower);
         }
 
-        // Ensure lower == 'min' (argument of uniform)
+        // Ensure upper == "max" (argument of uniform)
         if (tools::is_na(upper))
         {
             upper = _arguments_[find("max")].get();
@@ -237,7 +237,7 @@ ushort Base_Function_Impl::set_range(double lower, double upper)
         else
         {
             tools::warning(
-                "Depracated: in 'unif' overwriting argument max with range max.");
+                "Depracated: in \"unif\" overwriting argument max with range max.");
             assign_scalar_arg("max", upper);
         }
     }

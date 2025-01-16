@@ -5,19 +5,43 @@
 #
 
 # formatting options
-TAB <- "    "
+TAB <- "\t"
 TAB2 <- strrep(TAB, 2)
+REFERENCE <- "REFERENCE"
 
-# @description
-# return logic table of group rates
-# @param dataset
-# the dataset from which the etract group rates
-# @param features
-# features as list of dataset column names
+#' @title
+#' Group rate logic table
+#' @description
+#' Return logic table of group rates
+#' @param dataset
+#' the dataset from which the etract group rates
+#' @param features
+#' features as list of dataset column names
+#' @return
+#' data.frame with logic table
+#' @noRd
 group_rate_logic_table <- function(dataset,
                                    features) {
   # convert features
   features <- as.character(features)
+
+  # assert that features are present
+  missing <- c()
+  for (name in features) {
+    if (!(name %in% names(dataset))) {
+      missing <- c(missing, name)
+    }
+  }
+  if (length(missing) > 0) {
+    oss <- sprintf("Unknown features(s): \"%s\"", missing[[1]])
+    for (name in missing[-1]) {
+      oss <- sprintf("%s, \"%s\"", oss, name)
+    }
+    stop(cli::format_error(c(
+      paste0(oss, "."),
+      i = "Check your features and dataset headers."
+    )))
+  }
 
   # extract unique features and sort by list length
   uni_features <- lapply(features, function(f) sort(unique(dataset[[f]])))
@@ -46,12 +70,21 @@ group_rate_logic_table <- function(dataset,
   return(logic_table)
 }
 
-# @ description
-# Associate parameter name to group rate logic table
-# @param logic_table
-# @param prefix
-# @param reference
-associate_group_names <- function(logic_table,
+#' @title 
+#' Associate parameter names
+#' @description
+#' Associate parameter name to group rate logic table
+#' @param logic_table
+#' Data.frame containing conditions for the group rate.
+#' @param prefix
+#' Prefix to parameter names associated to the group rate.
+#' @param reference
+#' Choose reference group providing corresponding features.
+#' Default is the group with the largest sample size.
+#' @return
+#' input data.frame with logic table with parameter names.
+#' @noRd
+associate_param_names <- function(logic_table,
                                   prefix = NA,
                                   reference = NULL) {
   # extract reference index
@@ -73,7 +106,7 @@ associate_group_names <- function(logic_table,
     }
   }
 
-  # format prefix
+  # format prefix and associate paramter names
   if (is.na(prefix) || !is.character(prefix)) {
     prefix <- ""
   } else {
@@ -81,80 +114,38 @@ associate_group_names <- function(logic_table,
   }
 
   # associate parameter names
-  logic_table$..associate <- apply(
+  logic_table$.param_name <- apply(
     logic_table, 1, function(row) {
       paste0(prefix, paste(paste0(names(logic_table), row), collapse = "_"))
     }
   )
-  logic_table$..associate[idx_refer] <- "REFERENCE"
+  logic_table$.param_name[idx_refer] <- REFERENCE
 
   return(logic_table)
 }
 
-# @ description
-# construct the C++ if clauses
-# @param r
-# row of the group rate row
-# @param start
-# if `TRUE` the if clause is the first
+#' @description
+#' construct the C++ if clauses
+#' @param r
+#' row of the group rate
+#' @param is_ref
+#' if `TRUE` the if clause is "REFERENCE"
+#' @noRd
 cpp_ifclause_line <- function(r,
                               is_ref = FALSE) {
-  mask <- setdiff(names(r), "..associate")
+  mask <- setdiff(names(r), ".param_name")
   # if condition
   condition <- paste(
     paste0(
-      sprintf('house.data(i, "%s") == ', names(r[mask])),
+      sprintf("house.data(i, \"%s\") == ", names(r[mask])),
       r[mask]), collapse = ") && ("
   )
   # wrap all together
-  c(sprintf("%s%sif ((%s))", TAB, ifelse(is_ref, "", "else "), condition),
+  c(sprintf("%sif ((%s))", ifelse(is_ref, "", "else "), condition),
     sprintf("%semplace_group_rate(r, %s);",
-            TAB2,
-            ifelse(is_ref, "REFERENCE", sprintf('"%s"', r[["..associate"]])))
+            TAB,
+            ifelse(is_ref, REFERENCE, sprintf("\"%s\"", r[[".param_name"]])))
   )
-}
-
-
-# @description
-# final wrapper
-specify_group_rate <- function(dataset,
-                               features,
-                               rate_id,
-                               prefix = NA,
-                               reference = NULL,
-                               independent = TRUE) {
-  # default prefix
-  if (is.na(prefix)) {
-    prefix <- format_string(tolower(rate_id))
-    prefix <- substring(prefix, 1, 3)
-  }
-
-  features <- as.list(features)
-  if (isFALSE(independent)) {
-    features <- list(features)
-  }
-
-  # initialize script
-  script <- c()
-
-  for (this_feat in features) {
-    logic_table <- group_rate_logic_table(dataset, this_feat)
-    logic_table <- associate_group_names(logic_table, prefix, reference)
-    # mask reference case
-    mask_refer <- logic_table$..associate == "REFERENCE"
-    script <- c(
-      script,
-      # reference case
-      cpp_ifclause_line(logic_table[mask_refer, ], TRUE),
-      # other cases
-      apply(logic_table[!mask_refer, ], 1, cpp_ifclause_line),
-      # close with missing case
-      sprintf("%selse", TAB),
-      sprintf("%semplace_group_rate(r, MISSING_RATE);", TAB2)
-    )
-  }
-
-  return(c("{", sprintf('%srateID r = "%s";', TAB, rate_id), script, "}"))
 }
 
 ############################################################################
@@ -177,7 +168,9 @@ HousepiGroupRateClass <- R6::R6Class(
   ###################
 
   public = list(
-    defs = NULL,
+    defs = list(),
+    param_defs = list(),
+    logic_table = list(),
 
     # @description
     # Assign the empty parameter data.frame
@@ -190,6 +183,8 @@ HousepiGroupRateClass <- R6::R6Class(
     # Remove all current group rate definitions.
     drop = function() {
       self$defs <- list()
+      self$param_defs = list()
+      self$logic_table <- list()
       invisible(self)
     },
 
@@ -207,18 +202,46 @@ HousepiGroupRateClass <- R6::R6Class(
     # Default is the group with the largest sample size.
     # @param independent
     # If `TRUE` features are considered separately.
+    # @param prior (`character(1)`)\cr
+    # Name of the prior distribution.
+    # @param args (named `list()`)\cr
+    # Arguments for the prior distribution.
+    # @param rule (`character(1)`)\cr
+    # Name of the inference proposal rule.
+    # @param rule_scale (`double(1)`)\cr
+    # Scale parameter for the proposal rule.
+    # Changed automatically during inference if `n_adpat`>0.
+    # @param min (`double(1)`)\cr
+    # Value of the minimum.
+    # @param max (`double(1)`)\cr
+    # Value of the maximum.
     add = function(name,
                    features,
                    prefix = NA,
                    reference = NULL,
-                   independent = TRUE) {
+                   independent = TRUE,
+                   prior = "unif",
+                   args = list(min = 0, max = 10),
+                   rule = "lnorm",
+                   rule_scale = 1,
+                   min = NA,
+                   max = NA) {
 
       # UPDATE: controls are missing
       self$defs[[name]] <- list(
         features = features,
         prefix = prefix,
         reference = reference,
-        independent = independent
+        independent = isTRUE(independent))
+
+      # add parameter definitions
+      self$param_defs[[name]] <- list(
+        prior = prior,
+        args = args,
+        rule = rule,
+        rule_scale = rule_scale,
+        min = min,
+        max = max
       )
     },
 
@@ -227,59 +250,74 @@ HousepiGroupRateClass <- R6::R6Class(
     # @param refer_file
     # @param fill (`logical(1)`)\cr
     # If `TRUE` fills the missing group rate with template definitions.
-    assert = function(refer_file, fill = FALSE) {
+    # @return (`logical(1)`)\cr
+    assert = function(refer_file,
+                      fill = FALSE) {
+      # logical state for complete definitions
+      is_def_complete <- TRUE
+      # check if reference file exists
+      if (file.exists(refer_file)) {
+          
+        # read the script and extract parameters
+        script <- readChar(refer_file, file.info(refer_file)$size)
 
-      # read the script and extract parameters
-      script <- readChar(refer_file, file.info(refer_file)$size)
+        # group rate from : house.group_rate(..., "string"
+        regular_expr <- 'house.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        matches <- stringr::str_match_all(script, regular_expr)
+        model_rate_set <- unlist(matches[[1]][, 2])
 
-      # group rate from : house.group_rate(..., "string"
-      regular_expr <- 'house.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      matches <- stringr::str_match_all(script, regular_expr)
-      model_rate_set <- unlist(matches[[1]][, 2])
+        # re-order alphabetically
+        model_rate_set <- unique(model_rate_set[order(model_rate_set)])
 
-      # re-order alphabetically
-      model_rate_set <- unique(model_rate_set[order(model_rate_set)])
-
-      # add missing parameters with standard options
-      missing <- c()
-      for (name in model_rate_set) {
-        if (!(name %in% self$defs[["name"]])) {
-          missing <- c(missing, name)
-        }
-      }
-
-      # eventually fill with template definitions
-      if (length(missing) > 0) {
-        if (isTRUE(fill)) {
-          stop(cli::format_error(c(
-              "Template group rates are not yet implemented."
-            )))
-        } else {
-          oss <- sprintf("Missing group rate(s): '%s'", missing[[1]])
+        # add missing parameters with standard options
+        missing <- c()
+        for (name in model_rate_set) {
+          if (!(name %in% names(self$defs))) {
+            missing <- c(missing, name)
+          }
         }
 
-        for (name in missing[-1]) {
-          oss <- sprintf("%s, '%s'", oss, name)
+        # eventually fill with template definitions
+        if (length(missing) > 0) {
+          if (isTRUE(fill)) {
+            stop(cli::format_error(c(
+                "Template group rates are not yet implemented."
+              )))
+          } else {
+            oss <- sprintf("Missing group rate(s): \"%s\"", missing[[1]])
+            is_def_complete <- FALSE
+          }
+          
+          # complete warning messages
+          for (name in missing[-1]) {
+            oss <- sprintf("%s, \"%s\"", oss, name)
+          }
+          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
 
-      # point out group rates that are not used
-      unused <- c()
-      for (name in names(self$defs)) {
-        if (!(name %in% model_rate_set)) {
-          unused <- c(unused, name)
+        # point out group rates that are not used
+        unused <- c()
+        for (name in names(self$defs)) {
+          if (!(name %in% model_rate_set)) {
+            unused <- c(unused, name)
+          }
         }
-      }
-      if (length(unused) > 0) {
-        oss <- paste0("Group rate(s) not used in model: '", unused[[1]], "'")
-        for (name in unused[-1]) {
-          oss <- paste0(oss, ", '", name, "'")
+        if (length(unused) > 0) {
+          oss <- paste0("Group rate(s) not used in model: \"", unused[[1]], "\"")
+          for (name in unused[-1]) {
+            oss <- paste0(oss, ", \"", name, "\"")
+          }
+          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
-        cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-      }
-
-      invisible(self)
+      } else {
+        cli::cli_alert_warning(cli::format_warning(c(
+          sprintf("Impossible to find reference file \"%s\".", refer_file),
+          i = "Try to generate a new model object with {.code force = TRUE}."
+        )))
+        is_def_complete <- NA
+      } 
+      
+      return(is_def_complete)
     },
 
     # @description
@@ -289,26 +327,69 @@ HousepiGroupRateClass <- R6::R6Class(
     cpp_implement = function(dataset) {
 
       # initialize lines of the script
-      rate_script <- c()
+      rate_script <- c("rateID r;")
+      self$logic_table <- list()
 
       for (i in seq_along(self$defs)){
+        rate_id <- names(self$defs[i])
         this_def <- self$defs[[i]]
-        this_def[["rate_id"]] <- names(self$defs[i])
-        this_def[["dataset"]] <- dataset # UPDATE : this is not great...
-        rate_script <- c(rate_script,
-                         do.call(specify_group_rate, this_def))
+
+        # default prefix
+        prefix <- as.character(this_def[["prefix"]])
+        if (is.na(prefix)) {
+          prefix <- format_string(tolower(rate_id))
+          prefix <- substring(prefix, 1, 3)
+        }
+
+        # features
+        features <- as.list(this_def[["features"]])
+        if (isFALSE(this_def[["independent"]])) {
+          features <- list(features)
+        }
+
+        # initialize script
+        script <- c()
+
+        for (this_feat in features) {
+          # create logic table with group rates
+          this_table <- group_rate_logic_table(dataset, this_feat)
+          # associate names for parameters
+          this_table <- associate_param_names(this_table,
+                                              prefix,
+                                              this_def[["reference"]])
+          # mask reference case
+          mask_refer <- this_table$.param_name == REFERENCE
+          script <- c(
+            script,
+            # start with reference case
+            cpp_ifclause_line(this_table[mask_refer, ], TRUE),
+            # other non-reference cases
+            apply(this_table[!mask_refer, ], 1, cpp_ifclause_line),
+            # close with missing case
+            "else",
+            sprintf("%semplace_group_rate(r, MISSING_RATE);", TAB)
+          )
+        }
+
+        # append the new rate chunk of script
+        rate_script <- c(rate_script, 
+                         "",
+                         sprintf("//----- \"%s\" -----//", rate_id),
+                         sprintf("r = \"%s\";", rate_id),
+                         script)
+        # store the new rate logic table
+        self$logic_table[[rate_id]] <- this_table
       }
-      return(
-        paste(c(
-          "/* Assign all group rates for each individual.",
-          "   Generated automatically -> do not edit by hand */",
+
+      # return the script collapsed
+      return(paste(c(
+          "/* Generated automatically -> do not edit by hand */",
           "void Model::assign_group_rate_to_individual(Household &house, indiv i)",
           "{",
           sapply(rate_script, function(x) { paste0(TAB, x) }),
           "}"
         ),
-        collapse = "\n")
-      )
+        collapse = "\n"))
     },
 
     # @description
@@ -322,17 +403,25 @@ HousepiGroupRateClass <- R6::R6Class(
                           source_file) {
       # check if there are user defined group rates
       if (length(self$defs) > 0) {
-        # produce associated script
-        rate_script <- self$cpp_implement(dataset)
-        # read source file
-        lines <- readLines(source_file)
-        # check if the definitions are already implemented
-        return(!stringr::str_detect(paste(lines, collapse = "\n"),
-                                    stringr::fixed(rate_script)))
+        if (isFALSE(self$assert(source_file))) {
+          cli::cli_alert_warning(cli::format_warning(c(
+            "Ignoring incomplete group rate definitions.",
+            i = "To implement changes in group rates, fill missing definitions."
+          )))
+
+        } else {
+          # produce associated script
+          rate_script <- self$cpp_implement(dataset)
+          # read source file
+          lines <- readLines(source_file)
+          # check if the definitions are already implemented
+          return(stringr::str_detect(paste(lines, collapse = "\n"),
+                                      stringr::fixed(rate_script)))
+        }
       }
 
-      # default is false (i.e. no definitions)
-      return(FALSE)
+      # default is TRUE (i.e. no definitions)
+      return(TRUE)
     },
 
     # @description
@@ -343,6 +432,12 @@ HousepiGroupRateClass <- R6::R6Class(
     # Wheter code requires recompilation
     cpp_write = function(dataset,
                          source_file) {
+
+      # check that source file exists
+      if (!file.exists(source_file)) {
+        stop(cli::format_error("Impossible to find source file."))
+      }
+
       # produce associated script
       rate_script <- self$cpp_implement(dataset)
       # read source file

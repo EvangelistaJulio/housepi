@@ -14,6 +14,7 @@
 #include <cmath>
 #include <set>
 #include <unordered_map>
+#include <variant>
 
 #include "variable.h"
 
@@ -63,7 +64,17 @@ struct Individual
 	//===== PUBLIC ATTRIBUTES =====//
 	std::string ID = NULL_STRING;	 // user ID
 	int status = 0;				 // status of the individual
-	
+
+	// UPDATE: if I had the chance to use boost I would do:
+	// NOTE: BH R library doesn't contain variant
+	// > #include <boost/variant.hpp>
+	// > ...
+	// > using ValueType = boost::variant<double, std::string>;
+	// This way I could have string data (nice group_rates names)
+	// The the getter would become something like:
+	// template<typename T>
+    // T get(const dataID& d) const { return boost::get<T>(data.find(d)->second); }
+	//
 	dataIDmap<double> data = {}; // database associated to individual
 
 	rateIDmap<GroupRate> rate_map = {};

@@ -52,7 +52,7 @@ HousepiAugmentedClass <- R6::R6Class(
       } else {
         if (isTRUE(show_warnings)) {
           cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("Unknown augmented variable '%s' to remove.", name
+            sprintf("Unknown augmented variable \"%s\" to remove.", name
           ))))
         }
       }
@@ -85,13 +85,13 @@ HousepiAugmentedClass <- R6::R6Class(
         if (is.na(status)) {
           cli::cli_alert_warning(cli::format_warning(c(
             sprintf(
-              "Existing '%s' definition has been overwritten.",
+              "Existing \"%s\" definition has been overwritten.",
               name
           ))))
         } else {
           cli::cli_alert_warning(cli::format_warning(c(
             sprintf(
-              "Existing '%s' with status %d definition has been overwritten.", 
+              "Existing \"%s\" with status %d definition has been overwritten.", 
               name, status
           ))))
         }
@@ -315,7 +315,7 @@ HousepiAugmentedClass <- R6::R6Class(
               # UPDATE : I should check if the fill is complete
               self$from_list(dget(templ_augm_file)[missing], append = TRUE)
               oss <- sprintf(
-                "Added missing augmented variable(s) from template: '%s'",
+                "Added missing augmented variable(s) from template: \"%s\"",
                 missing[[1]]
               )
             } else {
@@ -326,13 +326,13 @@ HousepiAugmentedClass <- R6::R6Class(
             }
 
           } else {
-            oss <- sprintf("Missing augmented variable(s): '%s'", missing[[1]])
+            oss <- sprintf("Missing augmented variable(s): \"%s\"", missing[[1]])
             is_def_complete <- FALSE
           }
 
           # complete warning messages
           for (name in missing[-1]) {
-            oss <- sprintf("%s, '%s'", oss, name)
+            oss <- sprintf("%s, \"%s\"", oss, name)
           }
           cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
@@ -345,16 +345,16 @@ HousepiAugmentedClass <- R6::R6Class(
           }
         }
         if (length(unused) > 0) {
-          oss <- sprintf("Augmented variable(s) not used in model: '%s'", unused[[1]])
+          oss <- sprintf("Augmented variable(s) not used in model: \"%s\"", unused[[1]])
           for (name in unused[-1]) {
-            oss <- sprintf("%s, '%s'", oss, name)
+            oss <- sprintf("%s, \"%s\"", oss, name)
           }
           cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
 
       } else {
         cli::cli_alert_warning(cli::format_warning(c(
-          sprintf("Impossible to find reference file '%s'.", refer_file),
+          sprintf("Impossible to find reference file \"%s\".", refer_file),
           i = "Try to generate a new model object with {.code force = TRUE}."
         )))
         is_def_complete <- NA

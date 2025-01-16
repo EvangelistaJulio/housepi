@@ -179,7 +179,7 @@ void MCMC::build_data(const dict_str_vec &datatable)
             //===== Assess the presence of house IDs =====//
             if (std::find(pBuild->data_headers.begin(), pBuild->data_headers.end(), "house_id") == pBuild->data_headers.end())
                 tools::warning(
-                    "Unknown household structure: missing data column 'house_id'.");
+                    "Unknown household structure: missing data column \"house_id\".");
 
             //===== Safe Load of Households =====//
             std::unordered_map<std::string, size_t> hh_ID_to_index = {};
@@ -222,7 +222,7 @@ void MCMC::build_data(const dict_str_vec &datatable)
                     }
                     else
                     {
-                        data.emplace(key, tools::stod(datatable.at(key)[i], "data '" + key + "'"));
+                        data.emplace(key, tools::stod(datatable.at(key)[i], "data \"" + key + "\""));
                     }
                 }
 
@@ -296,7 +296,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 
             if (r == CONTACT_RATE)
                 throw std::invalid_argument(
-                    "The group rate name '" + CONTACT_RATE + "' is reserved. Choose a different one.");
+                    "The group rate name \"" + CONTACT_RATE + "\" is reserved. Choose a different one.");
             else if (!tools::is_na(r))
             {
                 // assert parameters and in the case return pointer
@@ -307,7 +307,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                 {
                     if ((tools::is_na(p)) || (p == MISSING_RATE))
                         std::invalid_argument(
-                            "Missing rate '" + r + "' for individual " + house.ID(i) + ".");
+                            "Missing rate \"" + r + "\" for individual " + house.ID(i) + ".");
                     else if (p == REFERENCE)
                         vec_par_ptr.emplace_back(&REFERENCE_VALUE);
                     else
@@ -939,7 +939,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     }
     else
         tools::error(
-            "Unknown power posterior scheme '" + scheme + "'." + tools::find_closest(scheme, options, 3));
+            "Unknown power posterior scheme \"" + scheme + "\"." + tools::find_closest(scheme, options, 3));
 
     //----- trapezoidal rule to compute marginal likelihood -----//
     double d_inv_t, output = 0.;

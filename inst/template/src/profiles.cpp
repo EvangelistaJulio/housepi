@@ -26,13 +26,13 @@ double Base_InfecProfile::pdf(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
-		"Call to undefined method 'pdf' of infectivity profile '" + name + "'.");
+		"Call to undefined method \"pdf\" of infectivity profile \"" + name + "\".");
 }
 double Base_InfecProfile::cdf(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
-		"Call to undefined method 'cdf' of infectivity profile '" + name + "'.");
+		"Call to undefined method \"cdf\" of infectivity profile \"" + name + "\".");
 }
 
 /* Return value indexed as 'i'. */
@@ -234,7 +234,7 @@ std::unique_ptr<Base_InfecProfile> infecprofile_switchboard(const std::string &n
 
 		else
 			throw std::invalid_argument(
-				"Unknown infectivity profile '" + name + "'." + tools::find_closest(name, options));
+				"Unknown infectivity profile \"" + name + "\"." + tools::find_closest(name, options));
 	}
 
 	return std::make_unique<Base_InfecProfile>();

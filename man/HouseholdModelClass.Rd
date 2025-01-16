@@ -534,6 +534,9 @@ If \code{TRUE} fills the missing parameter with template definitions.}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+(\code{logical(1)})
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-template_param"></a>}}
@@ -676,6 +679,9 @@ If \code{TRUE} fills missing augmented variables with template definitions.}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+(\code{logical(1)})
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-template_augm"></a>}}
@@ -708,7 +714,13 @@ Add a new group rate definition.
   features,
   prefix = NA,
   reference = NULL,
-  independent = TRUE
+  independent = TRUE,
+  prior = "unif",
+  args = list(min = 0, max = 10),
+  rule = "lnorm",
+  rule_scale = 1,
+  min = NA,
+  max = NA
 )}\if{html}{\out{</div>}}
 }
 
@@ -731,6 +743,25 @@ Default is the group with the largest sample size.}
 
 \item{\code{independent}}{(\code{logical(1)})\cr
 If \code{TRUE} features are considered separately.}
+
+\item{\code{prior}}{(\code{character(1)})\cr
+Name of the prior distribution.}
+
+\item{\code{args}}{(named \code{list()})\cr
+Arguments for the prior distribution.}
+
+\item{\code{rule}}{(\code{character(1)})\cr
+Name of the inference proposal rule.}
+
+\item{\code{rule_scale}}{(\code{double(1)})\cr
+Scale parameter for the proposal rule.
+Changed automatically during inference if \code{n_adpat}>0.}
+
+\item{\code{min}}{(\code{double(1)})\cr
+Value of the minimum.}
+
+\item{\code{max}}{(\code{double(1)})\cr
+Value of the maximum.}
 }
 \if{html}{\out{</div>}}
 }
@@ -751,6 +782,9 @@ Assert group rate definitions from the model implementation script.
 If \code{TRUE} fills missing augmented variables with template definitions.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+(\code{logical(1)})\cr
 }
 }
 }

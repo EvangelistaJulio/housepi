@@ -1,5 +1,8 @@
-// main.cpp //
-// Copyright (C) 2024 Francesco Camaglia, Institut Pasteur //
+/*
+ * main.cpp
+ *
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ */
 
 #include <string>
 #include <map>

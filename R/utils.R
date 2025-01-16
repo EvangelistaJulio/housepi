@@ -91,7 +91,7 @@ assert_source_files <- function(path) {
   for (file_name in source_files(path)) {
     if (!file.exists(file_name)) {
       stop(cli::format_error(c(
-        sprintf("File '%s' was not found.", file_name),
+        sprintf("File \"%s\" was not found.", file_name),
         i = "Check your model directory"
       )))
     }

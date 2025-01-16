@@ -51,7 +51,7 @@ void Monte_Carlo_Build::assign_param(const parID &p, const Base_Variable &new_pa
     // create the new parameter if it's not already defined
     if (param_map.find(p) != param_map.end())
         throw std::invalid_argument(
-            "Parameter '" + p + "' has multiple definitions.");
+            "Parameter \"" + p + "\" has multiple definitions.");
     else
     {
         // emplace the new parameter
@@ -128,7 +128,7 @@ bool Monte_Carlo_Build::assert_param(const parID &p) const
 {
     if (param_map.find(p) == param_map.end())
         throw std::invalid_argument(
-            "Parameter '" + p + "' not found. Check your model and parameter definitions.");
+            "Parameter \"" + p + "\" not found. Check your model and parameter definitions.");
     else
         return true;
 
@@ -161,7 +161,7 @@ void Monte_Carlo_Build::init_parameters()
         {
             if (tools::is_na(param_map.at(p).get_value()))
                 throw std::invalid_argument(
-                    "Undefined value for parameter to infer '" + p + "' while no random initialization.");
+                    "Undefined value for parameter to infer \"" + p + "\" while no random initialization.");
         }
     }
 }
@@ -264,12 +264,12 @@ void Monte_Carlo_Build::build_setup()
             if (wrong_entries.size() > 0)
             {
                 std::ostringstream oss;
-                oss << "Unknown setup option(s): '" << wrong_entries[0] << "'";
+                oss << "Unknown setup option(s): \"" << wrong_entries[0] << "\"";
                 for (size_t k = 1; k < wrong_entries.size(); ++k)
-                    oss << ", '" << wrong_entries[k] << "'";
-                oss << ". Available setup options are: '" << file_entries[0] << "'";
+                    oss << ", \"" << wrong_entries[k] << "\"";
+                oss << ". Available setup options are: \"" << file_entries[0] << "\"";
                 for (size_t k = 1; k < file_entries.size(); ++k)
-                    oss << ", '" << file_entries[k] << "'";
+                    oss << ", \"" << file_entries[k] << "\"";
                 tools::warning(oss.str() + ".");
             }
 
@@ -433,7 +433,7 @@ void Monte_Carlo_Build::build_params()
                     // assign constant parameter to the set of variables
                     if (tools::is_na(_param_deftable_.at("value")[k]))
                         throw std::invalid_argument(
-                            "Undefined value for constant parameter '" + name + "'.");
+                            "Undefined value for constant parameter \"" + name + "\".");
                     else
                         value = tools::stod(_param_deftable_.at("value")[k], "parameter");
 

@@ -168,7 +168,7 @@ namespace tools
         catch (const std::invalid_argument &e)
         {
             std::string sms = (errtxt.empty()) ? "" : "Impossible to import " + errtxt + ". ";
-            throw std::invalid_argument(sms + "Value '" + input + "' is not suitabe to conversion.");
+            throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitabe to conversion.");
         }
     }
 
@@ -225,7 +225,7 @@ namespace tools
 
         else
             throw std::invalid_argument(
-                "Unrecognized boolean value '" + tkn + "'.");
+                "Unrecognized boolean value \"" + tkn + "\".");
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -279,7 +279,7 @@ namespace tools
             // check the validity of the headers
             for (const std::string &req : required_headers)
                 if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                    sms += ((sms.empty()) ? "Missing column(s)" : ",") + (" '" + req + "'");
+                    sms += ((sms.empty()) ? "Missing column(s)" : ",") + (" \"" + req + "\"");
 
             // raise the error if something was missing
             if (!sms.empty())
@@ -357,12 +357,12 @@ namespace tools
                         //===== NAME =====//
                         if (!getline(iss, name, C_DELIM))
                             throw std::runtime_error(
-                                "Unable to extract list name. Check file line '" + line + "'.");
+                                "Unable to extract list name. Check file line \"" + line + "\".");
 
                         //===== CHOICE =====//
                         if (!getline(iss, choice))
                             throw std::runtime_error(
-                                "Unable to extract list value. Check file line '" + line + "'.");
+                                "Unable to extract list value. Check file line \"" + line + "\".");
 
                         // add the new setup
                         csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
@@ -371,7 +371,7 @@ namespace tools
                 else
                 {
                     throw std::runtime_error(
-                        "Impossible to open file '" + pathtofile + "'.");
+                        "Impossible to open file \"" + pathtofile + "\".");
                 }
             }
         }
@@ -406,7 +406,7 @@ namespace tools
             else
             {
                 throw std::runtime_error(
-                    "Impossible to open file '" + pathtofile + "'.");
+                    "Impossible to open file \"" + pathtofile + "\".");
             }
         }
     }
@@ -507,13 +507,13 @@ namespace tools
         else if (closest.empty())
         {
             std::ostringstream oss;
-            oss << " Available option(s): '" << options[0] << "'";
+            oss << " Available option(s): \"" << options[0] << "\"";
             for (size_t i = 1; i < options.size(); ++i)
-                oss << ", '" << options[i] << "'";
+                oss << ", \"" << options[i] << "\"";
             oss << ".";
             return oss.str();
         }
         else
-            return " Did you mean '" + closest + "'?";
+            return " Did you mean \"" + closest + "\"?";
     }
 } // TOOLS NAMESPACE

@@ -39,28 +39,28 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // FIXME: NaN \ NA have to be revised
-constexpr double NULL_DOUBLE = 1e10;    // undefined double
+const double NULL_DOUBLE = 1e10;    // undefined double
 const std::string NULL_STRING = "<NA>"; // undefined string
 
 // constants
-constexpr unsigned MAX_NUMBER_ATTEMPTS = 50; // max n. of attempts for initialization
-constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
+const unsigned MAX_NUMBER_ATTEMPTS = 50; // max n. of attempts for initialization
+const double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases
-constexpr int INFECTED_STATUS = 1; // infected status (>=)
-constexpr int HEALTHY_STATUS = 0;  // healthy status (==)
-constexpr int MISSING_STATUS = -1; // missing status (<=)
+const int INFECTED_STATUS = 1; // infected status (>=)
+const int HEALTHY_STATUS = 0;  // healthy status (==)
+const int MISSING_STATUS = -1; // missing status (<=)
 
 // group rates
 const std::string REFERENCE = "REFERENCE";       // name for reference choice
 const std::string CONTACT_RATE = "Contact";      // name for Contact rate
-constexpr double REFERENCE_VALUE = 1.0;          // auxiliary reference value for the parameters
+const double REFERENCE_VALUE = 1.0;          // auxiliary reference value for the parameters
 const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
 
 // file formatters
-constexpr char C_DELIM = ',';      // file delimiter
-constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
-constexpr char C_DECOR = '-';      // decorator for prints
+const char C_DELIM = ',';      // file delimiter
+const char C_LIST_DELIM = '/'; // dictionary delimiter
+const char C_DECOR = '-';      // decorator for prints
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

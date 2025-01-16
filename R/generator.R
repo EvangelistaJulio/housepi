@@ -59,7 +59,7 @@ HousepiGeneratorClass <- R6::R6Class(
       } else if (model_choice == ".") {
         # prohibit current directory
         stop(cli::format_error(c(
-          "'.' is not a valid folder name for housepi models.",
+          "\".\" is not a valid folder name for housepi models.",
           i = "Move your implementation in a folder with a literal name."
         )))
       }
@@ -91,13 +91,15 @@ HousepiGeneratorClass <- R6::R6Class(
         if ((!file.exists(self$dll)) || isTRUE(force)) {
           # standard temporary directory where to store source code
           self$cache_dir <- file.path(tempdir(), template_name(self$name))
-          if (!dir.create(self$cache_dir,
-                          recursive = TRUE,
-                          showWarnings = FALSE)) {
-            stop(cli::format_error(c(
-              "Impossibile to create cache directory for compilation.",
-              i = "Check your user permissions."
-            )))
+          if (!dir.exists(self$cache_dir)) {
+            if (!dir.create(self$cache_dir,
+                            recursive = TRUE,
+                            showWarnings = FALSE)) {
+              stop(cli::format_error(c(
+                "Impossibile to create cache directory for compilation.",
+                i = "Check your user permissions."
+              )))
+            }
           }
 
           # check for previous cached dll files
@@ -123,7 +125,7 @@ HousepiGeneratorClass <- R6::R6Class(
       } else {
         #===== ERROR =====#
         stop(cli::format_error(c(
-          sprintf("'%s' is not a folder nor a template name.", model_choice),
+          sprintf("\"%s\" is not a folder nor a template name.", model_choice),
           i = "Run {.code household_model_template()} to see available template names."
         )))
       }
@@ -244,7 +246,7 @@ HousepiGeneratorClass <- R6::R6Class(
       # check if reference file exists
       if (!dir.exists(envir_path)) {
         stop(cli::format_error(c(
-          sprintf("Impossible to find environment path '%s'.", envir_path),
+          sprintf("Impossible to find environment path \"%s\".", envir_path),
           i = "Generate again the model object with {.code force = TRUE}."
         )))
       }
@@ -270,7 +272,7 @@ HousepiGeneratorClass <- R6::R6Class(
       # check if reference file exists
       if (!file.exists(refer_file)) {
         stop(cli::format_error(c(
-          sprintf("Impossible to find reference file '%s'.", refer_file),
+          sprintf("Impossible to find reference file \"%s\".", refer_file),
           i = "Generate again the model object with {.code force = TRUE}."
         )))
       }

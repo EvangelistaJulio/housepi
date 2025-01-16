@@ -21,12 +21,12 @@
 void Model::init_model_for_inference()
 {
 	tools::warning(
-		"Computing the likelihood with 'blank' model.");
+		"Computing the likelihood with \"blank\" model.");
 }
 
 /* Raise error for undefined model usage. */
 void Model::init_model_for_simulation()
 {
 	tools::error(
-		"Impossible to perform simulation with 'blank' model.");
+		"Impossible to perform simulation with \"blank\" model.");
 }

@@ -54,7 +54,7 @@ household_model_template <- function(template_name = NULL, path = NULL) {
       } else if (any(file.exists(source_files(path)))) {
         #===== Asking for copying template to folder with model =====#
         cli::cli_alert_warning(cli::format_warning(c(
-          sprintf("A model already exists in folder '%s'.", path),
+          sprintf("A model already exists in folder \"%s\".", path),
           i = "To create a model in the same folder, delete its content first."
         )))
 
@@ -84,7 +84,7 @@ household_model_template <- function(template_name = NULL, path = NULL) {
 
     } else {
       stop(cli::format_error(c(
-        sprintf("Provided model name '%s' is unknown.", template_name),
+        sprintf("Provided model name \"%s\" is unknown.", template_name),
         i = "Run {.code household_model_template()} to see available template names."
       )))
     }

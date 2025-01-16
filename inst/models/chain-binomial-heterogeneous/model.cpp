@@ -2,7 +2,7 @@
  * model.cpp
  *
  * Model template of the 'housepi' package.
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
  */
 
@@ -42,34 +42,34 @@ double Model::person_to_person_risk() const
 /* Assign all group rates for each individual. */
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
+	rateID r;
 	bool is_adult = house.data(i, "age") > param("child_age");
 	bool is_male = (house.data(i, "sex") == 1);
 
-	{
-		rateID r = "Infectivity";
-		if (is_adult)
-			emplace_group_rate(r, REFERENCE);
-		else
-			emplace_group_rate(r, "inf_child");
-	}
-	{
-		rateID r = "Community_Susc";
-		if ((is_adult) && (is_male))
-			emplace_group_rate(r, REFERENCE);
-		else if ((is_adult) && (!is_male))
-			emplace_group_rate(r, "com_sus_woman");
-		else
-			emplace_group_rate(r, "com_sus_child");
-	}
-	{
-		rateID r = "Susceptibility";
-		if ((is_adult) && (is_male))
-			emplace_group_rate(r, REFERENCE);
-		else if ((is_adult) && (!is_male))
-			emplace_group_rate(r, "sus_woman");
-		else
-			emplace_group_rate(r, "sus_child");
-	} 
+	//----- infectivity -----//
+	r = "infectivity";
+	if (is_adult)
+		emplace_group_rate(r, REFERENCE);
+	else
+		emplace_group_rate(r, "inf_child");
+	
+	//----- community_susceptibility -----//
+	r = "community_susceptibility";
+	if ((is_adult) && (is_male))
+		emplace_group_rate(r, REFERENCE);
+	else if ((is_adult) && (!is_male))
+		emplace_group_rate(r, "com_sus_woman");
+	else
+		emplace_group_rate(r, "com_sus_child");
+
+	//----- susceptibility -----//
+	r = "susceptibility";
+	if ((is_adult) && (is_male))
+		emplace_group_rate(r, REFERENCE);
+	else if ((is_adult) && (!is_male))
+		emplace_group_rate(r, "sus_woman");
+	else
+		emplace_group_rate(r, "sus_child");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,9 +121,9 @@ void Model::fill_house_escape_matrix(Household &house) const
 	//----- Assign values to LUT matrix -----//
 	for (indiv c = 0; c < house.size(); ++c)
 	{
-		double susc_commu_c = house.group_rate(order[c], "Community_Susc");
-		double infect_c = house.group_rate(order[c], "Infectivity");
-		double susc_house_c = house.group_rate(order[c], "Susceptibility");
+		double susc_commu_c = house.group_rate(order[c], "community_susceptibility");
+		double infect_c = house.group_rate(order[c], "infectivity");
+		double susc_house_c = house.group_rate(order[c], "susceptibility");
 
 		// community : i escaped from community
 		house.set_extra_vector("commu-escprob", c, exp(-susc_commu_c * commu_transm_rate));
@@ -133,10 +133,10 @@ void Model::fill_house_escape_matrix(Household &house) const
 		{
 			house.set_extra_matrix(
 				"p2p-escprob", r, c,
-				exp(-house.group_rate(order[r], "Infectivity") * susc_house_c * p2p_transm_rate));
+				exp(-house.group_rate(order[r], "infectivity") * susc_house_c * p2p_transm_rate));
 			house.set_extra_matrix(
 				"p2p-escprob", c, r,
-				exp(-infect_c * house.group_rate(order[r], "Susceptibility") * p2p_transm_rate));
+				exp(-infect_c * house.group_rate(order[r], "susceptibility") * p2p_transm_rate));
 		}
 
 		// note : infector always escape himself (not relevant)

@@ -317,7 +317,7 @@ std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name
 
         else
             throw std::invalid_argument(
-                "Unknown proposer rule '" + rule_name + "'." + tools::find_closest(rule_name, options));
+                "Unknown proposer rule \"" + rule_name + "\"." + tools::find_closest(rule_name, options));
     }
 
     // otherwise default
@@ -536,7 +536,7 @@ double Base_Variable::_propose_error_(rnd_gen &prng)
 {
     UNUSED(prng);
     throw std::invalid_argument(
-        "Call to proposer of constant variable '" + get_name() + "'.");
+        "Call to proposer of constant variable \"" + get_name() + "\".");
     return 0.;
 }
 double Base_Variable::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }

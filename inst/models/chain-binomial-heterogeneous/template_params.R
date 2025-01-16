@@ -11,11 +11,11 @@ list(
     value = 1.25, prior = "unif", args = list(min = 0, max = 4),
     rule = "lnorm", rule_scale = 1
   ),
-  comsus_child = list(
+  com_sus_child = list(
     value = 1.3, prior = "unif", args = list(min = 0, max = 4),
     rule = "lnorm", rule_scale = 1
   ),
-  comsus_woman = list(
+  com_sus_woman = list(
     value = 1.0, prior = "unif", args = list(min = 0, max = 4),
     rule = "lnorm", rule_scale = 1
   ),

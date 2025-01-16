@@ -2,7 +2,7 @@
  * model.cpp
  *
  * Model template of the 'housepi' package.
- * Copyright (C) 2024 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
  */
 
@@ -35,20 +35,21 @@ double Model::transmission_rate(const Household &house) const
 /* Assign all group rates for each individual. */
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
-	{
-		rateID r = "Infectivity";
-		if (house.data(i, "vacc_status") == 0)
-			emplace_group_rate(r, REFERENCE);
-		else
-			emplace_group_rate(r, "inf_vacc");
-	}
-	{
-		rateID r = "Susceptibility";
-		if (house.data(i, "vacc_status") == 0)
-			emplace_group_rate(r, REFERENCE);
-		else
-			emplace_group_rate(r, "sus_vacc");
-	}
+	rateID r;
+	
+	//----- infectivity -----//
+	r = "infectivity";
+	if (house.data(i, "vacc_status") == 0)
+		emplace_group_rate(r, REFERENCE);
+	else
+		emplace_group_rate(r, "inf_vacc");
+
+	//----- susceptibility -----//
+	r = "susceptibility";
+	if (house.data(i, "vacc_status") == 0)
+		emplace_group_rate(r, REFERENCE);
+	else
+		emplace_group_rate(r, "sus_vacc");
 }
 
 /* Assign the contact patterns between a couple of individuals. */
@@ -118,9 +119,9 @@ double Model::_houseROI_(const Household &house, indiv i, const matrix<double> &
 	// Risk of infection from other household members (k)
 	for (indiv k : house.infectious_set())
 		if (k != i)
-			output += house.contact_rate(k, i) * house.group_rate(k, "Infectivity") * profiles[k][i];
+			output += house.contact_rate(k, i) * house.group_rate(k, "infectivity") * profiles[k][i];
 
-	output *= house.group_rate(i, "Susceptibility") * transmission_rate(house);
+	output *= house.group_rate(i, "susceptibility") * transmission_rate(house);
 
 	return output;
 }

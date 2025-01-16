@@ -28,8 +28,11 @@ HouseholdModelClass <- R6::R6Class(
     # Pre-build to deal with group rates.
     # @param dataset
     build_group_rate = function(dataset) {
-      if (private$group_rate$cpp_assert(dataset,
-                                        private$model$reference())) {
+      # proceed only if group rate definitions are new and complete
+      if (isFALSE(private$group_rate$cpp_assert(
+        dataset,
+        private$model$reference()))
+        ) {
         # NOTE: at the moment I just cache group rate changes
         # search for the cache file
         source_file <- file.path(private$model$cache_dir,
@@ -51,9 +54,24 @@ HouseholdModelClass <- R6::R6Class(
             ))
           }
         }
-        # finally
+
+        # write the cpp script and save new reference
         private$group_rate$cpp_write(dataset, source_file)
+        private$model$save_reference()
+
+        # add new parameter definitions
+        definitions <- list()
+        for (rate_id in names(private$group_rate$logic_table)) {
+          for (par_id in private$group_rate$logic_table[[rate_id]]$.param_name) {
+            if (par_id != "REFERENCE") {
+              definitions[[par_id]] <- private$group_rate$param_defs[[rate_id]]
+            }
+          }
+        }
+        self$load_param_list(definitions)
       }
+
+      return(self)
     },
 
     # @description
@@ -79,8 +97,9 @@ HouseholdModelClass <- R6::R6Class(
                               status = c(1))
 
       } else {
-        # deal with group rates 
+        # deal with group rates
         private$build_group_rate(dataset)
+
         # assert parameter definitions
         if (isFALSE(self$assert_param())) {
           stop("Incomplete parameter definitions.")
@@ -778,13 +797,34 @@ HouseholdModelClass <- R6::R6Class(
     #' Default is the group with the largest sample size.
     #' @param independent (`logical(1)`)\cr
     #' If `TRUE` features are considered separately.
+    #' @param prior (`character(1)`)\cr
+    #' Name of the prior distribution. 
+    #' @param args (named `list()`)\cr
+    #' Arguments for the prior distribution.
+    #' @param rule (`character(1)`)\cr
+    #' Name of the inference proposal rule.
+    #' @param rule_scale (`double(1)`)\cr
+    #' Scale parameter for the proposal rule.
+    #' Changed automatically during inference if `n_adpat`>0.
+    #' @param min (`double(1)`)\cr
+    #' Value of the minimum.
+    #' @param max (`double(1)`)\cr
+    #' Value of the maximum.
     add_group_rate = function(name,
                               features,
                               prefix = NA,
                               reference = NULL,
-                              independent = TRUE) {
+                              independent = TRUE,
+                              prior = "unif",
+                              args = list(min = 0, max = 10),
+                              rule = "lnorm",
+                              rule_scale = 1,
+                              min = NA,
+                              max = NA) {
       private$group_rate$add(name = name, features = features, prefix = prefix,
-                             reference = reference, independent = independent)
+                             reference = reference, independent = independent,
+                             prior = prior, args = args, rule = rule,
+                             rule_scale = rule_scale, min = min, max = max)
       invisible(self)
     },
 
@@ -792,15 +832,16 @@ HouseholdModelClass <- R6::R6Class(
     #' Assert group rate definitions from the model implementation script.
     #' @param fill (`logical(1)`)\cr
     #' If `TRUE` fills missing augmented variables with template definitions.
+    #' @return (`logical(1)`)\cr
     assert_group_rate = function(fill = FALSE) {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available for blank model."
         ))
+        return(NA)
       } else {
-        private$group_rate$assert(private$model$reference(), fill)
+        return(private$group_rate$assert(private$model$reference(), fill))
       }
-      invisible(self)
     }
   )
 )

@@ -118,7 +118,8 @@ public:
                 for (unsigned u = 0; u < where; ++u)
                     oss << symbol;
                 oss << string(barwidth - where, ' ') << "| "
-                    << percentage(progress, 0) << fmt_time(elapsed) << "<" << fmt_time(missing)
+                    << percentage(progress, 0) << " "
+                    << fmt_time(elapsed) << "<" << fmt_time(missing)
                     << string(10, ' ');
                 display(oss.str());
 

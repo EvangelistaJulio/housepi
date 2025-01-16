@@ -40,7 +40,7 @@ HousepiParameterClass <- R6::R6Class(
       } else {
         if (isTRUE(show_warnings)) {
           cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("Unknown parameter '%s' to remove.", name
+            sprintf("Unknown parameter \"%s\" to remove.", name
           ))))
         }
       }
@@ -68,7 +68,7 @@ HousepiParameterClass <- R6::R6Class(
       if (self$remove(name, FALSE)) {
         cli::cli_alert_warning(cli::format_warning(c(
           sprintf(
-            "Existing '%s' definition has been overwritten.",
+            "Existing \"%s\" definition has been overwritten.",
             name
         ))))
       }
@@ -82,7 +82,7 @@ HousepiParameterClass <- R6::R6Class(
         # check that value is provided
         if (is.na(value)) {
           stop(cli::format_error(
-            sprintf("Missing value for constant parameter '%s'.", name)
+            sprintf("Missing value for constant parameter \"%s\".", name)
           ))
         }
         # append constant parameter
@@ -108,7 +108,7 @@ HousepiParameterClass <- R6::R6Class(
         # assign prior
         if (is.na(prior)) {
           stop(cli::format_error(
-            sprintf("Incomplete definition: provide prior name for '%s'.", name)
+            sprintf("Incomplete definition: provide prior name for \"%s\".", name)
           ))
         }
         # prior arguments
@@ -220,7 +220,6 @@ HousepiParameterClass <- R6::R6Class(
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-
       # check if reference file exists
       if (file.exists(refer_file)) {
 
@@ -282,7 +281,7 @@ HousepiParameterClass <- R6::R6Class(
             if (file.exists((templ_file))) {
               self$from_list(dget(templ_file)[missing], append = TRUE)
               oss <- sprintf(
-                "Added missing parameter(s) from template: '%s'",
+                "Added missing parameter(s) from template: \"%s\"",
                 missing[[1]]
               )
 
@@ -294,13 +293,13 @@ HousepiParameterClass <- R6::R6Class(
             }
 
           } else {
-            oss <- sprintf("Missing parameter(s): '%s'", missing[[1]])
+            oss <- sprintf("Missing parameter(s): \"%s\"", missing[[1]])
             is_def_complete <- FALSE
           }
 
           # complete warning messages
           for (name in missing[-1]) {
-            oss <- sprintf("%s, '%s'", oss, name)
+            oss <- sprintf("%s, \"%s\"", oss, name)
           }
           cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
@@ -313,16 +312,16 @@ HousepiParameterClass <- R6::R6Class(
           }
         }
         if (length(unused) > 0) {
-          oss <- paste0("Parameter(s) not used in model: '", unused[[1]], "'")
+          oss <- paste0("Parameter(s) not used in model: \"", unused[[1]], "\"")
           for (name in unused[-1]) {
-            oss <- paste0(oss, ", '", name, "'")
+            oss <- paste0(oss, ", \"", name, "\"")
           }
           cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
 
       } else {
         cli::cli_alert_warning(cli::format_warning(c(
-          sprintf("Impossible to find reference file '%s'.", refer_file),
+          sprintf("Impossible to find reference file \"%s\".", refer_file),
           i = "Try to generate a new model object with {.code force = TRUE}."
         )))
         is_def_complete <- NA

@@ -130,7 +130,7 @@ double Base_Distribution::_undefined_call_(const std::string &txt, double x, dou
     UNUSED(x);
     UNUSED(y);
     throw std::invalid_argument(
-        "Call to undefined method '" + txt + "' of distribution '" + get_name() + "'.");
+        "Call to undefined method \"" + txt + "\" of distribution \"" + get_name() + "\".");
 
     return std::numeric_limits<double>::quiet_NaN();
 }
@@ -308,7 +308,7 @@ void Base_Distribution::_assign_reshaping_(const std::string &discrete,
         else
         {
             throw std::invalid_argument(
-                "Unrecognized discretization method '" + discrete + "'.");
+                "Unrecognized discretization method \"" + discrete + "\".");
         }
     }
 
@@ -482,7 +482,7 @@ public:
     {
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
         _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
@@ -548,7 +548,7 @@ public:
     {
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
         _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
@@ -614,7 +614,7 @@ public:
     {
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
         _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
@@ -680,7 +680,7 @@ public:
     {
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
         _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
@@ -738,7 +738,7 @@ public:
     {
         if ((!tools::is_na(lower)) && (lower <= 0))
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution '" + get_name() + "'.");
+                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
         _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
     }
 
@@ -822,7 +822,7 @@ std::shared_ptr<Base_Distribution> distribution_switchboard(const std::string &n
 
         else
             throw std::invalid_argument(
-                "Unknown distribution '" + name + "'." + tools::find_closest(name, options));
+                "Unknown distribution \"" + name + "\"." + tools::find_closest(name, options));
     }
 
     return std::make_shared<Base_Distribution>();
