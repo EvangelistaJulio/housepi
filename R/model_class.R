@@ -227,7 +227,7 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Drop all previous definitions.
+    #' Drop all current definitions.
     drop_all = function() {
       # assign the empty setup list
       private$setup <- list()
@@ -402,7 +402,6 @@ HouseholdModelClass <- R6::R6Class(
     #' @return
     #' (`data.frame`)
     summarise_traces = function() {
-      private$assert_traces()
       res <- summary(self$export_traces())
       imask <- private$param$defs["constant"] == FALSE
       inames <- private$param$defs[imask, "name"]
@@ -570,9 +569,9 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Clear all current parameter definitions.
-    drop_param = function() {
-      private$param$drop()
+    #' Drop all current parameter definitions.
+    drop_all_param = function() {
+      private$param$drop_all()
       invisible(self)
     },
 
@@ -616,12 +615,12 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Associate parameters from a list. Previous definitions are dropped.
+    #' Associate parameters from a list. 
     #' @param definitions (named `list()`)\cr
     #' A list containg parameter names with respective list of definitions.
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` appends the list to current definition.
-    #' If `FALSE` drops previous definitions (default).
+    #' If `FALSE` drop all current parameter definitions (default).
     load_param_list = function(definitions, append = TRUE) {
       private$param$from_list(definitions, append = append)
       invisible(self)
@@ -674,9 +673,9 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Remove all current augmented variable definitions.
-    drop_augm = function() {
-      private$augm$drop()
+    #' Drop all current augmented variable definitions.
+    drop_all_augm = function() {
+      private$augm$drop_all()
       invisible(self)
     },
 
@@ -730,12 +729,11 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Associate augmented variables from a list.
-    #' Previous definitions are dropped.
     #' @param definitions (named `list()`)\cr
     #' Augmented variable names with respective list of definitions.
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` appends the list to current definition.
-    #' If `FALSE` drops previous definitions (default).
+    #' If `FALSE` drop all current augmented variable definitions (default).
     load_augm_list = function(definitions, append = TRUE) {
       private$augm$from_list(definitions, append = append)
       invisible(self)
@@ -777,9 +775,9 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Remove all current augmented variable definitions.
-    drop_group_rate = function() {
-      private$group_rate$drop()
+    #' Drop all current augmented variable definitions.
+    drop_all_group_rate = function() {
+      private$group_rate$drop_all()
       invisible(self)
     },
 

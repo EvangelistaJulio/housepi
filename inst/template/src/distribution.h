@@ -41,11 +41,12 @@ public:
 	double rand(rnd_gen &prng);
 
 	//----- Adjust methods for truncation and/or discretization -----//
-	virtual void assign_reshaping(bool discrete,
-								  double lower_value,
-								  double upper_value);
+	virtual void init_reshaping(bool discrete);
 
 protected:
+	void _init_discretization_(const std::string &discrete);
+	void _init_truncation_(const std::string &discrete);
+
 	//----- Distribution specific virtual methods -----//
 	virtual double _pdf_(double x) const;
 	virtual double _cdf_(double x) const;
@@ -53,10 +54,6 @@ protected:
 	virtual double _logratio_(double xold, double xnew) const;
 	virtual void _update_args_();
 	virtual double _rand_(rnd_gen &prng);
-
-	void _assign_reshaping_(const std::string &discrete,
-							double lower_value,
-							double upper_value);
 
 	//----- Functional methods for public methods -----//
 	double (Base_Distribution::*_func_pdf_)(double) const = &Base_Distribution::_default_pdf_;
@@ -71,7 +68,8 @@ protected:
 	double (Base_Distribution::*_func_shift_)(double) const = &Base_Distribution::_shift_dummy_;
 
 private:
-	double _undefined_call_(const std::string &txt = NULL_STRING, double x = 0, double y = 0) const;
+	double _undefined_call_(const std::string &txt = NULL_STRING,
+							double x = 0, double y = 0) const;
 
 	//----- Deafult functional methods -----//
 	double _default_pdf_(double x) const;
@@ -100,15 +98,37 @@ private:
 	double _trunc_max_(double x) const;
 	double _trunc_both_sides_(double x) const;
 
+	// case of center discretization
+	double _trunc_min_discr_center_(double x) const;
+	double _trunc_max_discr_center_(double x) const;
+	double _trunc_both_sides_discr_center_(double x) const;
+
+	// case of left discretization
+	double _trunc_min_discr_left_(double x) const;
+	double _trunc_max_discr_left_(double x) const;
+	double _trunc_both_sides_discr_left_(double x) const;
+
 	//----- Functional methods for the (log) truncation -----//
 	double _logtrunc_dummy_(double x) const;
 	double _logtrunc_min_(double x) const;
 	double _logtrunc_max_(double x) const;
 	double _logtrunc_both_sides_(double x) const;
 
+	// case of center discretization
+	double _logtrunc_min_discr_center_(double x) const;
+	double _logtrunc_max_discr_center_(double x) const;
+	double _logtrunc_both_sides_discr_center_(double x) const;
+
+	// case of left discretization
+	double _logtrunc_min_discr_left_(double x) const;
+	double _logtrunc_max_discr_left_(double x) const;
+	double _logtrunc_both_sides_discr_left_(double x) const;
+
 	//----- Functional methods to shift cumulative -----//
 	double _shift_dummy_(double x) const;
 	double _shift_min_(double x) const;
+	double _shift_min_discr_center_(double x) const;
+	double _shift_min_discr_left_(double x) const;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -18,6 +18,7 @@
 #include <Rcpp.h>
 #endif
 
+#include "mcmc.h"
 #include "variable.h"
 #include "household.h"
 
@@ -29,15 +30,15 @@
 //-----------------------------------------------------------------------------------------------//
 
 /* Implementation class. */
-class Monte_Carlo_Build
+class MCMC::Impl
 {
 public:
     //=======================//
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Monte_Carlo_Build();
-    ~Monte_Carlo_Build();
+    Impl();
+    ~Impl();
 
     //=========================//
     //===== LOGLIKELIHOOD =====//
@@ -97,7 +98,6 @@ public:
     const double *get_param_pointer(const parID &p) const;
 
     //----- Parameter - Setter -----//
-    void assign_param(const parID &p, const Base_Variable &new_param);
     void init_parameters();
 
     //----- Parameter - Metropolis-Hastings -----//
@@ -120,7 +120,6 @@ public:
     std::map<std::string, size_t> _report_data_;
     std::map<std::string, std::string> _report_pathtofile_;
 
-    void assign_house(const std::string &ID);
     void update_report_data();
     size_t report_data(const std::string &key) const;
 
@@ -205,7 +204,7 @@ public:
     rnd_gen &get_prng();
     void set_prng_seed(int seed);
 
-    rnd_gen &(Monte_Carlo_Build::*_func_prng_)();
+    rnd_gen &(MCMC::Impl::*_func_prng_)();
     rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
     unsigned _max_n_available_threads = 1;
@@ -240,6 +239,11 @@ public:
                                const std::string &tkn_key,
                                const std::string &tkn_val,
                                const std::string &tkn_typ);
+    void assign_augm_type_range(Household &house, indiv i, augmID a,
+                                const std::string &tkn_min_val,
+                                const std::string &tkn_min_typ,
+                                const std::string &tkn_max_val,
+                                const std::string &tkn_max_typ);
 
     //======================//
     //===== PARAMETERS =====//
@@ -249,18 +253,35 @@ public:
     bool _is_undef_params_ = false;         // undefined parameters valid only if infer
 
     //----- get param (functional methods) -----//
-    double (Monte_Carlo_Build::*_func_get_param_)(const parID &) const = &Monte_Carlo_Build::_get_param_assert_;
+    double (Impl::*_func_get_param_)(const parID &) const = &Impl::_get_param_assert_;
     double _get_param_default_(const parID &p) const;
     double _get_param_assert_(const parID &p) const;
 
     //----- get param pointer (functional methods) -----//
-    const double *(Monte_Carlo_Build::*_func_get_param_pointer_)(const parID &) const = &Monte_Carlo_Build::_get_param_pointer_assert_;
+    const double *(Impl::*_func_get_param_pointer_)(const parID &) const = &Impl::_get_param_pointer_assert_;
     const double *_get_param_pointer_default_(const parID &p) const;
     const double *_get_param_pointer_assert_(const parID &p) const;
+
+    //===============================//
+	//===== INFECTIVITY PROFILE =====//
+    //===============================//
+
+	class InfecProfile;
+    class InfecProfile_Ferretti20;
+	std::unique_ptr<InfecProfile> _infec_profile_;
+	void assign_infectivity_profile(const std::string &name);
 
     //======================//
     //===== METROPOLIS =====//
     //======================//
+
+	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
+
+	//===== INFER =====//
+	ulong _chain_ = 1;			 // current chain
+	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
+	ulong _rung_ = 0;			 // current thermodynamic rung
+	ulong _n_rungs_ = 0;		 // number of rungs
 
     //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;
@@ -273,7 +294,7 @@ public:
     void disable_assert();
     void init_move_counts();
     void init_diagnostics(bool is_power_post);
-    void update_diagnostics(double glob_loglike, bool is_power_post);
+    void update_diagnostics(bool is_power_post);
 
     //----- Metropolis - State-Checker -----//
     bool is_augm_generic() const;
@@ -281,7 +302,7 @@ public:
     //----- Metropolis - augmented moves -----//
     double compute_augm_model_loglike(const Household &house) const;
 
-    void (Monte_Carlo_Build::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = nullptr;
+    void (Impl::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Impl::_augm_model_generic_;
     void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
     void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
 };

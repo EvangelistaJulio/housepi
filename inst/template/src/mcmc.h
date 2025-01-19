@@ -23,7 +23,6 @@
 
 #include "variable.h"
 #include "household.h"
-#include "profiles.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -35,12 +34,6 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  MCMC : class  ////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Forward declaration of build implementation. */
-class Monte_Carlo_Build;
-
-/* Forward declaration of infectivity profile. */
-class Base_InfecProfile;
 
 /* Household models base class 'Monte Carlo Markov Chain'. */
 class MCMC
@@ -138,43 +131,30 @@ public:
 
 private:
 	//===== POINTER TO IMPLEMENTATION =====//
-	std::unique_ptr<Monte_Carlo_Build> pBuild;
+	class Impl;
+	std::unique_ptr<Impl> pBuild;
 
 	//===== GROUP & CONTACT RATES =====//
 	rateIDmapvec<parID> _individual_group_rates_ = {};
 	parID _pair_contact_rate_ = {};
 
-	//===== INFECTIVITY PROFILE =====//
-	std::unique_ptr<Base_InfecProfile> _infec_profile_;
-
-	//===== PRINTS =====//
-	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
-
-	//===== INFER =====//
-	ulong _chain_ = 1;			 // current chain
-	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
-	ulong _rung_ = 0;			 // current thermodynamic rung
-	ulong _n_rungs_ = 0;		 // number of rungs
-
 	//----- Monte Carlo -----//
 	void run_monte_carlo(CustomProgressBar &progbar, ulong sweep = 0, bool is_power_post = false);
-	
-	//----- Metropolis : parameter moves -----//
-	void move_all_parameters();
-	void move_and_adapt_all_parameters(ulong step);
+	void move_all();
+	void move_all_and_adapt_parameters(ulong step);
 	void move_single_param(const parID &p);
 	
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);
 	void metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
 
-	void (MCMC::*_func_move_all_augm_)();
+	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
 	void _move_no_augm_();
 	void _move_all_augm_();
 
-	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &);
-	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
+	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &) = &MCMC::_move_augm_indiv_generic_;
 	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);
+	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
 
 	//===== ERROR =====//
 	std::string _error_message_ = "";

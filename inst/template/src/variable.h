@@ -16,82 +16,6 @@
 #include <cmath>
 
 #include "tools.h"
-#include "distribution.h"
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Proposer : class  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Base_Proposer
-{
-public:
-	//===== CONSTRUCTOR =====//
-	Base_Proposer(std::shared_ptr<Base_Distribution>,
-				  double rule_scale = 1.0,
-				  double rule_start_value = NULL_DOUBLE,
-				  const std::vector<ushort> &args_to_adapt = {},
-				  bool is_discrete = false);
-	virtual ~Base_Proposer() {};
-
-	//===== GETTER =====//
-	const std::string &get_name() const;
-	double get_arg(ushort argID) const;
-	double get_from_value() const;
-	bool is_rule_start_from_zero() const;
-	double propose(rnd_gen &prng, double start = 0.0);
-	double logratio(double xold, double xnew) const;
-
-	//===== SETTER =====//
-	virtual void user_reset();
-	void set_rule_start_value(double x);
-	double rand(rnd_gen &prng);
-
-	//===== ADAPTATION =====//
-	double get_accept_rate() const;
-	void update_accept_rate(bool is_accepted);
-	void reset_accept_rate();
-	void adapt(double ratio);
-
-	//===== SHOW =====//
-	const std::string show_arg_names() const;
-	const std::string show_arg_values() const;
-	const std::string show_scale() const;
-
-protected:
-	std::string name = NULL_STRING;
-	std::shared_ptr<Base_Distribution> _distr_ptr_;
-
-	double _user_rule_scale_ = 1.0;		  // scale of the Metropolis rule
-	bool _is_start_from_zero_ = false;	  // wheter to move from given value
-	double from_value = NULL_DOUBLE; // given value where to start from
-	double accept_rate = 0.0;			  // acceptance rate
-	ulong n_proposed_moves = 0;			  // number of proposed moves
-
-	std::vector<ushort> _args_to_adapt_ = {}; // which arguments should be adapted
-
-	//===== propose : functional methods =====//
-	double (Base_Proposer::*_func_propose_)(rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
-	double _propose_undefined_(rnd_gen &prng, double start);
-	double _propose_sum_to_previous_(rnd_gen &prng, double start);
-	double _propose_times_previous_(rnd_gen &prng, double start);
-	double _propose_draw_rand_(rnd_gen &prng, double start);
-
-	//===== logratio : functional methods =====//
-	double (Base_Proposer::*_func_logratio_)(double, double) const = &Base_Proposer::_logratio_undefined_;
-	double _logratio_undefined_(double xold, double xnew) const;
-	double _logratio_pdf_(double xold, double xnew) const;
-	double _logratio_sum_to_zero_(double xold, double xnew) const;
-	double _logratio_times_zero_(double xold, double xnew) const;
-	double _logratio_symm_(double xold, double xnew) const;
-	double _logratio_lognorm_symm_(double xold, double xnew) const;
-};
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -106,15 +30,13 @@ protected:
 
 class Base_Variable
 {
-protected:
-	std::shared_ptr<Base_Distribution> _distr_ptr_; // prior/model distribution of the variable
-	std::shared_ptr<Base_Proposer> _prop_ptr_;		// proposer for Monte Carlo
-
 public:
 	//===== CONSTRUCTOR =====//
 	Base_Variable(const std::string &name = NULL_STRING,
 				  double value = std::numeric_limits<double>::quiet_NaN(),
 				  bool is_discrete = false);
+	Base_Variable(Base_Variable &&other) noexcept;			  // Move constructor
+	Base_Variable &operator=(Base_Variable &&other) noexcept; // Move assignment
 	~Base_Variable();
 
 	//===== GETTER =====//
@@ -136,7 +58,11 @@ public:
 	void assign_distribution(const std::string &distr_name = NULL_STRING);
 	void assign_distr_scalar_arg(const std::string &arg_name, double x);
 	void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
-	void assign_distr_range(double lower, double upper);
+	void assign_distr_scalar_range_min(double x);
+	void assign_distr_pointer_range_min(const double *y);
+	void assign_distr_scalar_range_max(double x);
+	void assign_distr_pointer_range_max(const double *y);
+	void init_distr_reshaping();
 
 	// Assing a proposer rule
 	void assign_proposer(const std::string &rule_name = NULL_STRING,
@@ -180,30 +106,9 @@ public:
 	const std::string show() const;
 
 private:
-	std::string name = NULL_STRING; // name of the variable
-	double value = NULL_DOUBLE;	 // value of the variable
-	double buffer = NULL_DOUBLE;	 // buffer of the variable
-
-	double _user_value_ = NULL_DOUBLE; // initial user defined value
-	bool _is_discrete_ = false;				// wheter discrete or not
-	bool _is_constant_ = true;				// wheter constant or not
-
-	//===== Valid move : functional methods =====//
-	bool (Base_Variable::*_func_valid_move_)() const = &Base_Variable::_valid_move_default_;
-	bool _valid_move_default_() const;
-	bool _valid_move_gibbs_() const;
-
-	//===== Move logratio : functional methods =====//
-	double (Base_Variable::*_func_move_logratio_)() const = &Base_Variable::_move_logratio_default_;
-	double _move_logratio_default_() const;
-	double _move_logratio_gibbs_() const;
-
-	//===== Propose : functional methods =====//
-	double (Base_Variable::*_func_propose_)(rnd_gen &) = &Base_Variable::_propose_error_;
-	double _propose_error_(rnd_gen &prng);
-	double _propose_gibbs_sample_(rnd_gen &prng);
-	double _propose_from_previous_(rnd_gen &prng);
-	double _propose_from_zero_(rnd_gen &prng);
+	//===== Pointer to Implementation =====//
+	class Impl;
+	std::unique_ptr<Impl> pImpl;
 };
 
 #endif // HOUSEPI__VARIABLE__H

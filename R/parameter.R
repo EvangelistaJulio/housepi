@@ -23,7 +23,7 @@ HousepiParameterClass <- R6::R6Class(
     # @description
     # Assign the empty parameter data.frame
     initialize = function() {
-      self$drop()
+      self$drop_all()
       invisible(self)
     },
 
@@ -33,7 +33,7 @@ HousepiParameterClass <- R6::R6Class(
                       show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == name)
       if (any(mask)) {
-        # drop previous definitions
+        # drop previous definition
         self$defs <- self$defs[!mask, ]
         return(TRUE)
 
@@ -151,8 +151,8 @@ HousepiParameterClass <- R6::R6Class(
     },
 
     # @description
-    # Clear all current parameter definitions.
-    drop = function() {
+    # Drop all current parameter definitions.
+    drop_all = function() {
       self$defs <- data.frame(
         name = character(),
         value = numeric(),
@@ -180,7 +180,7 @@ HousepiParameterClass <- R6::R6Class(
         stop("The argument def_list should be a list.")
       }
       if (!append) {
-        self$drop()
+        self$drop_all()
       }
       for (i in seq_along(definitions)){
         this_def <- definitions[[i]]
@@ -304,7 +304,11 @@ HousepiParameterClass <- R6::R6Class(
           cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }
 
-        # point out parameters that are not used
+        #-----------------------------#
+        #----- Unused Parameters -----#
+        #-----------------------------#
+
+        # point out parameters that are not used and drop them
         unused <- c()
         for (name in self$defs[["name"]]) {
           if (!(name %in% model_params_set)) {
@@ -312,9 +316,10 @@ HousepiParameterClass <- R6::R6Class(
           }
         }
         if (length(unused) > 0) {
-          oss <- paste0("Parameter(s) not used in model: \"", unused[[1]], "\"")
+          oss <- paste0("Dropping parameter(s) not used in model: \"", unused[[1]], "\"")
           for (name in unused[-1]) {
             oss <- paste0(oss, ", \"", name, "\"")
+            self$remove(name)
           }
           cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
         }

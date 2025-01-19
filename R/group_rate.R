@@ -175,13 +175,13 @@ HousepiGroupRateClass <- R6::R6Class(
     # @description
     # Assign the empty parameter data.frame
     initialize = function() {
-      self$drop()
+      self$drop_all()
       invisible(self)
     },
 
     # @description
-    # Remove all current group rate definitions.
-    drop = function() {
+    # Drop all current group rate definitions.
+    drop_all = function() {
       self$defs <- list()
       self$param_defs = list()
       self$logic_table <- list()

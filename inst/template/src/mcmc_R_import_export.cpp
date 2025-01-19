@@ -5,7 +5,6 @@
  */
 
 #include "mcmc_build.h"
-#include "mcmc.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -60,7 +59,7 @@ Rcpp::String stoRString(const std::string &x)
 //-----------------------------------------------------------------------------------------------//
 
 /* Import setup from R list and run build. */
-void Monte_Carlo_Build::import_setup(const Rcpp::List &setup)
+void MCMC::Impl::import_setup(const Rcpp::List &setup)
 {
     rlist_to_map(setup, _setup_deflist_);
     build_setup();
@@ -69,7 +68,7 @@ void Monte_Carlo_Build::import_setup(const Rcpp::List &setup)
 }
 
 /* Import params from R DataFrame and run build. */
-void Monte_Carlo_Build::import_params(const Rcpp::DataFrame &params)
+void MCMC::Impl::import_params(const Rcpp::DataFrame &params)
 {
     rdataframe_to_map(params, _param_deftable_);
     build_params();
@@ -82,7 +81,7 @@ void Monte_Carlo_Build::import_params(const Rcpp::DataFrame &params)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Import data from R DataFrame then run build. */
-void Monte_Carlo_Build::import_augm(const Rcpp::DataFrame &augm)
+void MCMC::Impl::import_augm(const Rcpp::DataFrame &augm)
 {
     rdataframe_to_map(augm, _augm_deftable_);
     build_augm();
@@ -95,7 +94,7 @@ void Monte_Carlo_Build::import_augm(const Rcpp::DataFrame &augm)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current setup configurations to R List. */
-Rcpp::List Monte_Carlo_Build::export_setup() const
+Rcpp::List MCMC::Impl::export_setup() const
 {
     using namespace Rcpp;
 
@@ -112,7 +111,7 @@ Rcpp::List Monte_Carlo_Build::export_setup() const
 }
 
 /* Export current parameter configurations to R DataFrame. */
-Rcpp::DataFrame Monte_Carlo_Build::export_params() const
+Rcpp::DataFrame MCMC::Impl::export_params() const
 {
     using namespace Rcpp;
 
@@ -173,7 +172,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_params() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame Monte_Carlo_Build::export_data() const
+Rcpp::DataFrame MCMC::Impl::export_data() const
 {
     using namespace Rcpp;
 
@@ -219,7 +218,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_data() const
 }
 
 /* Export MCMC traces of parameter posterior samples. */
-Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
+Rcpp::DataFrame MCMC::Impl::export_traces() const
 {
     using namespace Rcpp;
 
@@ -250,7 +249,7 @@ Rcpp::DataFrame Monte_Carlo_Build::export_traces() const
 }
 
 /* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix Monte_Carlo_Build::export_household_loglike_traces() const
+Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 {
     using namespace Rcpp;
 

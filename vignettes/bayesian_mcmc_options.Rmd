@@ -59,7 +59,7 @@ lattice::densityplot(hmc$export_traces(loglikelihood = FALSE))
 Previous continuous priors can be chosen to be discretized simply by adding the flag `discrete = TRUE`.
 
 ```{r, eval = TRUE}
-# drop all previous definitions
+# drop all current definitions
 hmc$drop_all()
 
 # add a parameter definition for each available distribution
@@ -77,12 +77,17 @@ coda::densplot(hmc$export_traces(FALSE), right=FALSE)
 ### Provide a Custom Range
 
 ```{r, eval = TRUE}
-hmc$drop_all()
-hmc$add_param(name = "default", prior = "norm")
-hmc$add_param(name = "below", prior = "norm", min = -1)
-hmc$add_param(name = "above", prior = "norm", max = 1)
-hmc$add_param(name = "both", prior = "norm", min = -1, max = 1)
-hmc$infer()
+# add list of parameter definitions
+# default option 'append = FALSE' drop previous definitions
+hmc$load_param_list(
+  list(
+    default = list(prior = "norm"),
+    below = list(prior = "norm", min = -1),
+    above = list(prior = "norm", max = 1),
+    both = list(prior = "norm", min = -1, max = 1)
+  )
+)$infer()
+
 lattice::densityplot(hmc$export_traces(FALSE))
 ```
 
@@ -93,16 +98,17 @@ Not available yet.
 ## MCMC Proposer Rules
 
 ```{r, eval = TRUE}
+hmc$drop_all()
+
 # available proposer rules in housepi
 available_proposer_rules <- c("gibbs", "unif", "norm", "lnorm")
-
-hmc$drop_all()
 
 # add a parameter definition for each available proposer rule
 for (rule_name in available_proposer_rules) {
   hmc$add_param(name = paste("rule", rule_name), 
                 prior = "norm", rule = rule_name)
 }
+
 hmc$infer()
 
 lattice::xyplot(hmc$export_traces(FALSE))
@@ -116,20 +122,17 @@ Note that the proposer rule "lnorm" does not fit the case of negative values as 
 
 ```{r}
 # with model (default Gibbs rule)
-hmc$drop_all()
-hmc$add_augm(name = "move.1", model = "norm")
+hmc$load_augm_list(augm_move_1 = list(model = "norm"))
 hmc$infer()
 lattice::xyplot(hmc$export_traces())
 
 # w\o model random walk (default Gibbs rule)
-hmc$drop_all()
-hmc$add_augm(name = "move.2", value = 0, rule = "norm")
+hmc$load_augm_list(augm_move_2 = list(value = 0, rule = "norm"))
 hmc$infer()
 lattice::xyplot(hmc$export_traces())
 
 # w\o model fixed  walk (default Gibbs rule)
-hmc$drop_all()
-hmc$add_augm(name = "move.3", rule_from = 0, rule = "norm")
+hmc$load_augm_list(augm_move_3 = list(rule_from = 0, rule = "norm"))
 hmc$infer()
 lattice::xyplot(hmc$export_traces())
 

@@ -21,20 +21,19 @@ options(knitr.kable.NA = "")
 ```{r}
 hmc <- housepi::HouseholdModelClass$new("chain-binomial-heterogeneous")
 
-data("survey", package = "housepi")
-survey$agegroup <- as.integer(survey$age <= 15)
-survey$susgroup <- survey$agegroup
-survey$susgroup[(survey$agegroup == 1) & (survey$sex == 1)] <- 2
+# data("survey", package = "housepi")
+# survey$agegroup <- as.integer(survey$age <= 15)
+# survey$susgroup <- survey$agegroup
+# survey$susgroup[(survey$agegroup == 1) & (survey$sex == 1)] <- 2
+# 
+# hmc$add_group_rate("infectivity", features = "agegroup")
+# hmc$add_group_rate("community_susceptibility", features = "susgroup")
+# hmc$add_group_rate("susceptibility", features = "susgroup")
 
-hmc$add_group_rate("infectivity", features = "agegroup")
-hmc$add_group_rate("community_susceptibility", features = "susgroup")
-hmc$add_group_rate("susceptibility", features = "susgroup")
+# FIXME temporary
+hmc$template_param()
 
 hmc$infer(survey)
 ```
 
-```{r}
-# FIXME : need to develop automatic procedure for parameters
-hmc$.__enclos_env__$private$group_rate$logic_table
-```
 

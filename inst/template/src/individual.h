@@ -12,40 +12,8 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include <set>
-#include <unordered_map>
-#include <variant>
 
 #include "variable.h"
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Group Rate : class  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-class GroupRate
-{
-public:
-	std::string name = "";
-
-	//===== CONSTRUCTOR ====//
-	GroupRate(const std::string &name = NULL_STRING,
-			  const std::vector<const double *> &pointers = {});
-	~GroupRate();
-
-	//===== GETTER ====//
-	double get() const;
-
-private:
-	ushort n_rates = 0;
-	const double ** pointers = {};
-};
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -59,12 +27,21 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Struct for individual household study member. */
-struct Individual
+class Individual
 {
-	//===== PUBLIC ATTRIBUTES =====//
-	std::string ID = NULL_STRING;	 // user ID
-	int status = 0;				 // status of the individual
+public:
+	//===== CONSTRUCTOR =====//
+	Individual(const std::string &ID = NULL_STRING,
+			   int status = MISSING_STATUS,
+			   const dataIDmap<double> &data = {});
+	Individual(Individual &&other) noexcept; // Move constructor
+	~Individual();
 
+	//===== PUBLIC ATTRIBUTES =====//
+	std::string ID = NULL_STRING; // user ID
+	int status = MISSING_STATUS;  // status of the individual
+
+	//===== DATA =====//
 	// UPDATE: if I had the chance to use boost I would do:
 	// NOTE: BH R library doesn't contain variant
 	// > #include <boost/variant.hpp>
@@ -73,23 +50,32 @@ struct Individual
 	// This way I could have string data (nice group_rates names)
 	// The the getter would become something like:
 	// template<typename T>
-    // T get(const dataID& d) const { return boost::get<T>(data.find(d)->second); }
+	// T get(const dataID& d) const { return boost::get<T>(data.find(d)->second); }
 	//
-	dataIDmap<double> data = {}; // database associated to individual
+	dataIDmap<double> data = {}; // database associated
 
-	rateIDmap<GroupRate> rate_map = {};
-	augmIDmap<Base_Variable> augm_map = {};
+	//===== AUGMENTED VARIABLES =====//
+	augmIDmap<Base_Variable> augm_map = {}; // augmented variables
 
-	//===== CONSTRUCTOR =====//
-	Individual(const std::string &ID,
-			   int status,
-			   const dataIDmap<double> &data = {});
-	~Individual();
+	//===== GROUP RATES =====//
+	struct GroupRate
+	{
+		std::string name = "";
+		ushort n_rates = 0;
+		const double **pointers = {};
+		
+		GroupRate(const std::string &name = NULL_STRING,
+				  const std::vector<const double *> &pointers = {});
+		~GroupRate();
+		double get() const;
+	};
 
-	void assign_all_group_rates(const rateIDmapvec<const double *> &group_rate_ptrs);
+	rateIDmap<GroupRate> rate_map; // group rates associated
+
+	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
 
 	//===== ASSERTION =====//
-	// UPDATE : temporary since about to drop maps
+	// UPDATE : assertion is a drawback, how about dropping maps?
 	bool assert_data(const dataID &d) const;
 	bool assert_augm(const augmID &a) const;
 	bool assert_rate(const rateID &r) const;

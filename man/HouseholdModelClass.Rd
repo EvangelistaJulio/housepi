@@ -24,18 +24,18 @@ Compile household model, manage your data and parameters from a single class.
 \item \href{#method-HouseholdModelClass-waic}{\code{HouseholdModelClass$waic()}}
 \item \href{#method-HouseholdModelClass-evidence}{\code{HouseholdModelClass$evidence()}}
 \item \href{#method-HouseholdModelClass-export_param}{\code{HouseholdModelClass$export_param()}}
-\item \href{#method-HouseholdModelClass-drop_param}{\code{HouseholdModelClass$drop_param()}}
+\item \href{#method-HouseholdModelClass-drop_all_param}{\code{HouseholdModelClass$drop_all_param()}}
 \item \href{#method-HouseholdModelClass-add_param}{\code{HouseholdModelClass$add_param()}}
 \item \href{#method-HouseholdModelClass-load_param_list}{\code{HouseholdModelClass$load_param_list()}}
 \item \href{#method-HouseholdModelClass-assert_param}{\code{HouseholdModelClass$assert_param()}}
 \item \href{#method-HouseholdModelClass-template_param}{\code{HouseholdModelClass$template_param()}}
 \item \href{#method-HouseholdModelClass-export_augm}{\code{HouseholdModelClass$export_augm()}}
-\item \href{#method-HouseholdModelClass-drop_augm}{\code{HouseholdModelClass$drop_augm()}}
+\item \href{#method-HouseholdModelClass-drop_all_augm}{\code{HouseholdModelClass$drop_all_augm()}}
 \item \href{#method-HouseholdModelClass-add_augm}{\code{HouseholdModelClass$add_augm()}}
 \item \href{#method-HouseholdModelClass-load_augm_list}{\code{HouseholdModelClass$load_augm_list()}}
 \item \href{#method-HouseholdModelClass-assert_augm}{\code{HouseholdModelClass$assert_augm()}}
 \item \href{#method-HouseholdModelClass-template_augm}{\code{HouseholdModelClass$template_augm()}}
-\item \href{#method-HouseholdModelClass-drop_group_rate}{\code{HouseholdModelClass$drop_group_rate()}}
+\item \href{#method-HouseholdModelClass-drop_all_group_rate}{\code{HouseholdModelClass$drop_all_group_rate()}}
 \item \href{#method-HouseholdModelClass-add_group_rate}{\code{HouseholdModelClass$add_group_rate()}}
 \item \href{#method-HouseholdModelClass-assert_group_rate}{\code{HouseholdModelClass$assert_group_rate()}}
 }
@@ -77,7 +77,7 @@ IF \code{FALSE} recompile the model at every new session.}
 \if{html}{\out{<a id="method-HouseholdModelClass-drop_all"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all}{}}}
 \subsection{Method \code{drop_all()}}{
-Drop all previous definitions.
+Drop all current definitions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all()}\if{html}{\out{</div>}}
 }
@@ -429,12 +429,12 @@ A data.frame with formatted parameter definitions.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_param"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_param}{}}}
-\subsection{Method \code{drop_param()}}{
-Clear all current parameter definitions.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_all_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all_param}{}}}
+\subsection{Method \code{drop_all_param()}}{
+Drop all current parameter definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_param()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all_param()}\if{html}{\out{</div>}}
 }
 
 }
@@ -499,7 +499,7 @@ Value of the maximum.}
 \if{html}{\out{<a id="method-HouseholdModelClass-load_param_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_param_list}{}}}
 \subsection{Method \code{load_param_list()}}{
-Associate parameters from a list. Previous definitions are dropped.
+Associate parameters from a list.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_param_list(definitions, append = TRUE)}\if{html}{\out{</div>}}
 }
@@ -512,7 +512,7 @@ A list containg parameter names with respective list of definitions.}
 
 \item{\code{append}}{(\code{logical(1)})\cr
 If \code{TRUE} appends the list to current definition.
-If \code{FALSE} drops previous definitions (default).}
+If \code{FALSE} drop all current parameter definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -563,12 +563,12 @@ A data.frame with formatted augmented variable definitions.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_augm"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_augm}{}}}
-\subsection{Method \code{drop_augm()}}{
-Remove all current augmented variable definitions.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_all_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all_augm}{}}}
+\subsection{Method \code{drop_all_augm()}}{
+Drop all current augmented variable definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_augm()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all_augm()}\if{html}{\out{</div>}}
 }
 
 }
@@ -644,7 +644,6 @@ Default NA is for all infectious.}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_augm_list}{}}}
 \subsection{Method \code{load_augm_list()}}{
 Associate augmented variables from a list.
-Previous definitions are dropped.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_augm_list(definitions, append = TRUE)}\if{html}{\out{</div>}}
 }
@@ -657,7 +656,7 @@ Augmented variable names with respective list of definitions.}
 
 \item{\code{append}}{(\code{logical(1)})\cr
 If \code{TRUE} appends the list to current definition.
-If \code{FALSE} drops previous definitions (default).}
+If \code{FALSE} drop all current augmented variable definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -694,12 +693,12 @@ Overwrite augmented variable definitions with template definitions.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_group_rate"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_group_rate}{}}}
-\subsection{Method \code{drop_group_rate()}}{
-Remove all current augmented variable definitions.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_all_group_rate"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all_group_rate}{}}}
+\subsection{Method \code{drop_all_group_rate()}}{
+Drop all current augmented variable definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_group_rate()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all_group_rate()}\if{html}{\out{</div>}}
 }
 
 }

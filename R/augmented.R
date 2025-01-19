@@ -23,7 +23,7 @@ HousepiAugmentedClass <- R6::R6Class(
     # @description
     # Assign the empty parameter data.frame
     initialize = function() {
-      self$drop()
+      self$drop_all()
       invisible(self)
     },
 
@@ -35,7 +35,7 @@ HousepiAugmentedClass <- R6::R6Class(
       mask <- (self$defs[["name"]] == name)
       if (any(mask)) {
         if (is.na(status)) {
-          # drop previous definitions
+          # drop previous definition
           self$defs <- self$defs[!mask, ]
           return(TRUE)
         } else {
@@ -43,7 +43,7 @@ HousepiAugmentedClass <- R6::R6Class(
           mask <- mask & (self$defs[["status"]] == status)
           mask[is.na(mask)] <- FALSE
           if (any(mask)) {
-            # drop previous definitions
+            # drop previous definition
             self$defs <- self$defs[!mask, ]
             return(TRUE)
           }
@@ -211,7 +211,7 @@ HousepiAugmentedClass <- R6::R6Class(
         stop("The argument definitions should be a list.")
       }
       if (!append) {
-        self$drop()
+        self$drop_all()
       }
       for (i in seq_along(definitions)){
         this_def <- definitions[[i]]
@@ -223,8 +223,8 @@ HousepiAugmentedClass <- R6::R6Class(
     },
 
     # @description
-    # Remove all current augmented variable definitions.
-    drop = function() {
+    # Drop all current augmented variable definitions.
+    drop_all = function() {
       self$defs <- data.frame(
         name = character(),
         status = character(),

@@ -12,6 +12,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "model.h"
+#include "distribution.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Global variables  //////////////////////////////////////////
@@ -32,6 +33,7 @@ void Model::init_model_for_inference()
 {
 	// choose the incubation period distribution
 	incub_distr_ptr = distribution_switchboard("gamma");
+
 	// arguments are pointers to the respective parameters
 	incub_distr_ptr->assign_pointer_arg("shape", param_pointer("shape"));
 	incub_distr_ptr->assign_pointer_arg("scale", param_pointer("scale"));

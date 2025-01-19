@@ -96,12 +96,12 @@ double Base_Distribution::rand(rnd_gen &prng)
     return (this->*_func_rand_)(prng);
 }
 
-void Base_Distribution::assign_reshaping(bool discrete,
-                                         double lower,
-                                         double upper)
+/* Default reshaping initialization. */
+void Base_Distribution::init_reshaping(bool discrete)
 {
-    _assign_reshaping_((discrete) ? "center" : NULL_STRING,
-                       lower, upper);
+    init_close_range();
+    _init_discretization_((discrete) ? "center" : NULL_STRING);
+    _init_truncation_((discrete) ? "center" : NULL_STRING);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -243,10 +243,50 @@ double Base_Distribution::_discr_left_rand_(rnd_gen &prng)
 ////////////////////////  Base Distribution : truncation (functional)  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Base_Distribution::_trunc_dummy_(double x) const { return x; }
-double Base_Distribution::_trunc_min_(double x) const { return x / (1.0 - _cdf_(get_range_min())); }
-double Base_Distribution::_trunc_max_(double x) const { return x / (_cdf_(get_range_max())); }
-double Base_Distribution::_trunc_both_sides_(double x) const { return x / (_cdf_(get_range_max()) - _cdf_(get_range_max())); }
+double Base_Distribution::_trunc_dummy_(double x) const
+{
+    return x;
+}
+double Base_Distribution::_trunc_min_(double x) const
+{
+    return x / (1.0 - _cdf_(get_range_min()));
+}
+double Base_Distribution::_trunc_max_(double x) const
+{
+    return x / (_cdf_(get_range_max()));
+}
+double Base_Distribution::_trunc_both_sides_(double x) const
+{
+    return x / (_cdf_(get_range_max()) - _cdf_(get_range_max()));
+}
+
+// case of center discretization
+double Base_Distribution::_trunc_min_discr_center_(double x) const
+{
+    return x / (1.0 - _cdf_(std::floor(get_range_min()) - 0.5));
+}
+double Base_Distribution::_trunc_max_discr_center_(double x) const
+{
+    return x / (_cdf_(std::ceil(get_range_max()) + 0.5));
+}
+double Base_Distribution::_trunc_both_sides_discr_center_(double x) const
+{
+    return x / (_cdf_(std::ceil(get_range_max()) + 0.5) - _cdf_(std::floor(get_range_min()) - 0.5));
+}
+
+// case of left discretization
+double Base_Distribution::_trunc_min_discr_left_(double x) const
+{
+    return x / (1.0 - _cdf_(std::floor(get_range_min())));
+}
+double Base_Distribution::_trunc_max_discr_left_(double x) const
+{
+    return x / (_cdf_(std::ceil(get_range_max())));
+}
+double Base_Distribution::_trunc_both_sides_discr_left_(double x) const
+{
+    return x / (_cdf_(std::ceil(get_range_max())) - _cdf_(std::floor(get_range_min())));
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Base Distribution : logtruncation (functional)  ////////////////////////
@@ -257,88 +297,133 @@ double Base_Distribution::_logtrunc_min_(double x) const { return x - log(1.0 - 
 double Base_Distribution::_logtrunc_max_(double x) const { return x - log(_cdf_(get_range_max())); }
 double Base_Distribution::_logtrunc_both_sides_(double x) const { return x - log(_cdf_(get_range_max()) - _cdf_(get_range_min())); }
 
+// case of center discretization
+double Base_Distribution::_logtrunc_min_discr_center_(double x) const { return x - log(1.0 - _cdf_(std::floor(get_range_min()) - 0.5)); }
+double Base_Distribution::_logtrunc_max_discr_center_(double x) const { return x - log(_cdf_(std::ceil(get_range_max()) + 0.5)); }
+double Base_Distribution::_logtrunc_both_sides_discr_center_(double x) const { return x - log(_cdf_(std::ceil(get_range_max()) + 0.5) - _cdf_(std::floor(get_range_min()) - 0.5)); }
+
+// case of left discretization
+double Base_Distribution::_logtrunc_min_discr_left_(double x) const { return x - log(1.0 - _cdf_(std::floor(get_range_min()))); }
+double Base_Distribution::_logtrunc_max_discr_left_(double x) const { return x - log(_cdf_(std::ceil(get_range_max()))); }
+double Base_Distribution::_logtrunc_both_sides_discr_left_(double x) const { return x - log(_cdf_(std::ceil(get_range_max())) - _cdf_(std::floor(get_range_min()))); }
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 double Base_Distribution::_shift_dummy_(double x) const { return x; }
 double Base_Distribution::_shift_min_(double x) const { return x - _cdf_(get_range_min()); }
+double Base_Distribution::_shift_min_discr_center_(double x) const { return x - _cdf_(std::floor(get_range_min()) - 0.5); }
+double Base_Distribution::_shift_min_discr_left_(double x) const { return x - _cdf_(std::floor(get_range_min())); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Base Distribution : assign reshaping  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Truncate and/or discretize distribution at declaration.  */
-void Base_Distribution::_assign_reshaping_(const std::string &discrete,
-                                           double lower,
-                                           double upper)
+/* Select functional method in case of discretization. */
+void Base_Distribution::_init_discretization_(const std::string &discrete)
 {
     //===== DISCRETIZATION =====//
-    // asjust range in case of discretization
-    if (!tools::is_na(discrete))
+    if (tools::is_na(discrete)) // no discretization (default)
     {
-        if (discrete == "center")
-        { // centered discretization
-            _func_pdf_ = &Base_Distribution::_discr_center_pdf_;
-            _func_cdf_ = &Base_Distribution::_discr_center_cdf_;
-            _func_logpdf_ = &Base_Distribution::_discr_center_logpdf_;
-            _func_logratio_ = &Base_Distribution::_discr_center_logratio_;
-            _func_rand_ = &Base_Distribution::_discr_center_rand_;
-
-            if (!tools::is_na(lower))
-                lower = std::floor(lower) - 0.5;
-
-            if (!tools::is_na(upper))
-                upper = std::ceil(upper) + 0.5;
-        }
-        else if (discrete == "left")
-        { // left adjusted discretization
-            _func_pdf_ = &Base_Distribution::_discr_left_pdf_;
-            _func_cdf_ = &Base_Distribution::_discr_left_cdf_;
-            _func_logpdf_ = &Base_Distribution::_discr_left_logpdf_;
-            _func_logratio_ = &Base_Distribution::_discr_left_logratio_;
-            _func_rand_ = &Base_Distribution::_discr_left_rand_;
-
-            if (!tools::is_na(lower))
-                lower = std::floor(lower);
-
-            if (!tools::is_na(upper))
-                upper = std::ceil(upper);
-        }
-        else
-        {
-            throw std::invalid_argument(
-                "Unrecognized discretization method \"" + discrete + "\".");
-        }
+        _func_pdf_ = &Base_Distribution::_default_pdf_;
+        _func_cdf_ = &Base_Distribution::_default_cdf_;
+        _func_logpdf_ = &Base_Distribution::_default_logpdf_;
+        _func_logratio_ = &Base_Distribution::_default_logratio_;
+        _func_rand_ = &Base_Distribution::_default_rand_;
     }
-
-    //===== TRUNCATION =====/
-    ushort trunc_cases = set_range(lower, upper);
-
-    //----- Fucntional methods -----//
-    if (trunc_cases == 0) // no truncation
+    else if (discrete == "center") // centered discretization
     {
+        _func_pdf_ = &Base_Distribution::_discr_center_pdf_;
+        _func_cdf_ = &Base_Distribution::_discr_center_cdf_;
+        _func_logpdf_ = &Base_Distribution::_discr_center_logpdf_;
+        _func_logratio_ = &Base_Distribution::_discr_center_logratio_;
+        _func_rand_ = &Base_Distribution::_discr_center_rand_;
+    }
+    else if (discrete == "left") // left adjusted discretization
+    {
+        _func_pdf_ = &Base_Distribution::_discr_left_pdf_;
+        _func_cdf_ = &Base_Distribution::_discr_left_cdf_;
+        _func_logpdf_ = &Base_Distribution::_discr_left_logpdf_;
+        _func_logratio_ = &Base_Distribution::_discr_left_logratio_;
+        _func_rand_ = &Base_Distribution::_discr_left_rand_;
+    }
+    else
+    {
+        throw std::invalid_argument(
+            "Unrecognized discretization method \"" + discrete + "\".");
+    }
+}
+
+/* Select functional method in case of truncation. */
+void Base_Distribution::_init_truncation_(const std::string &discrete)
+{
+    //----- TRUNCATION -----//
+    switch (which_valid_case())
+    {
+    case 1:                       // lower range truncation
+        if (discrete == "center") // "center" discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_min_discr_center_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_min_discr_center_;
+            _func_shift_ = &Base_Distribution::_shift_min_discr_center_;
+        }
+        else if (discrete == "left") // "left" discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_min_discr_left_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_min_discr_left_;
+            _func_shift_ = &Base_Distribution::_shift_min_discr_left_;
+        }
+        else // no discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_min_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_min_;
+            _func_shift_ = &Base_Distribution::_shift_min_;
+        }
+        break;
+    case 2:                       // upper range truncation
+        if (discrete == "center") // "center" discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_max_discr_center_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_max_discr_center_;
+        }
+        else if (discrete == "left") // "left" discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_max_discr_left_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_max_discr_left_;
+        }
+        else // no discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_max_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_max_;
+        }
+        _func_shift_ = &Base_Distribution::_shift_dummy_;
+        break;
+    case 3:                       // both sides truncation
+        if (discrete == "center") // "center" discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_both_sides_discr_center_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_discr_center_;
+            _func_shift_ = &Base_Distribution::_shift_min_discr_center_;
+        }
+        else if (discrete == "left") // "left" discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_both_sides_discr_left_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_discr_left_;
+            _func_shift_ = &Base_Distribution::_shift_min_discr_left_;
+        }
+        else // no discretization
+        {
+            _func_trunc_ = &Base_Distribution::_trunc_both_sides_;
+            _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_;
+            _func_shift_ = &Base_Distribution::_shift_min_;
+        }
+        break;
+    default: // case 0: no truncation
         _func_trunc_ = &Base_Distribution::_trunc_dummy_;
         _func_logtrunc_ = &Base_Distribution::_logtrunc_dummy_;
         _func_shift_ = &Base_Distribution::_shift_dummy_;
-    }
-    else if (trunc_cases == 1) // lower range truncation
-    {
-        _func_trunc_ = &Base_Distribution::_trunc_min_;
-        _func_logtrunc_ = &Base_Distribution::_logtrunc_min_;
-        _func_shift_ = &Base_Distribution::_shift_min_;
-    }
-    else if (trunc_cases == 2) // upper range truncation
-    {
-        _func_trunc_ = &Base_Distribution::_trunc_max_;
-        _func_logtrunc_ = &Base_Distribution::_logtrunc_max_;
-        _func_shift_ = &Base_Distribution::_shift_dummy_;
-    }
-    else // both sides truncation
-    {
-        _func_trunc_ = &Base_Distribution::_trunc_both_sides_;
-        _func_logtrunc_ = &Base_Distribution::_logtrunc_both_sides_;
-        _func_shift_ = &Base_Distribution::_shift_dummy_;
+        break;
     }
 }
 
@@ -359,13 +444,13 @@ private:
     std::uniform_real_distribution<double> distr_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Uniform_Distribution() : distr_gen(0.0, 1.0)
     {
         _init_defaults_("unif", {"min", "max"}, {0.0, 1.0},
                         NULL_DOUBLE, NULL_DOUBLE, false);
     }
-
-    ~Uniform_Distribution() {}
+    ~Uniform_Distribution() = default;
 
 protected:
     double _pdf_(double x) const override
@@ -412,13 +497,13 @@ private:
     std::normal_distribution<double> distr_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Normal_Distribution() : distr_gen(0.0, 1.0)
     {
         _init_defaults_("norm", {"mean", "sd"}, {0.0, 1.0},
                         NULL_DOUBLE, NULL_DOUBLE, false);
     }
-
-    ~Normal_Distribution() {};
+    ~Normal_Distribution() = default;
 
 protected:
     double _pdf_(double x) const override
@@ -470,20 +555,29 @@ private:
     std::lognormal_distribution<double> distr_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Lognorm_Distribution() : distr_gen(0.0, 1.0)
     {
-        _init_defaults_("lnorm",
-                        {"meanlog", "sdlog"}, {0.0, 1.0},
+        _init_defaults_("lnorm", {"meanlog", "sdlog"}, {0.0, 1.0},
                         0.0, NULL_DOUBLE, true);
     }
-    ~Lognorm_Distribution() {};
+    ~Lognorm_Distribution() = default;
 
-    void assign_reshaping(bool discrete, double lower, double upper) override
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override
     {
-        if ((!tools::is_na(lower)) && (lower <= 0))
+        _init_discretization_(((discrete) ? "left" : NULL_STRING));
+
+        if (get_range_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
-        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
+                "Invalid min value " + show_range_min() + " for distribution \"" + get_name() + "\".");
+        else if ((get_range_min() == 0) && (tools::is_na(get_range_max())))
+            init_open_range();
+        else
+        {
+            init_close_range();
+            _init_truncation_(((discrete) ? "left" : NULL_STRING));
+        }
     }
 
 protected:
@@ -536,20 +630,29 @@ private:
     std::gamma_distribution<double> distr_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Gamma_Distribution() : distr_gen(1.0, 1.0)
     {
-        _init_defaults_("gamma",
-                        {"shape", "scale"}, {1.0, 1.0},
+        _init_defaults_("gamma", {"shape", "scale"}, {1.0, 1.0},
                         0.0, NULL_DOUBLE, true);
     }
-    ~Gamma_Distribution() {};
+    ~Gamma_Distribution() = default;
 
-    void assign_reshaping(bool discrete, double lower, double upper) override
+    //==== SETTER =====//
+    void init_reshaping(bool discrete) override
     {
-        if ((!tools::is_na(lower)) && (lower <= 0))
+        _init_discretization_(((discrete) ? "left" : NULL_STRING));
+
+        if (get_range_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
-        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
+                "Invalid min value " + show_range_min() + " for distribution \"" + get_name() + "\".");
+        else if ((get_range_min() == 0) && (tools::is_na(get_range_max())))
+            init_close_range();
+        else
+        {
+            init_close_range();
+            _init_truncation_(((discrete) ? "left" : NULL_STRING));
+        }
     }
 
 protected:
@@ -602,20 +705,28 @@ private:
     std::weibull_distribution<double> distr_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Weibull_Distribution() : distr_gen(1.0, 1.0)
     {
-        _init_defaults_("weibull",
-                        {"shape", "scale"}, {1.0, 1.0},
+        _init_defaults_("weibull", {"shape", "scale"}, {1.0, 1.0},
                         0.0, NULL_DOUBLE, true);
     }
-    ~Weibull_Distribution() {};
+    ~Weibull_Distribution() = default;
 
-    void assign_reshaping(bool discrete, double lower, double upper) override
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override
     {
-        if ((!tools::is_na(lower)) && (lower <= 0))
+        _init_discretization_(((discrete) ? "left" : NULL_STRING));
+
+        if (get_range_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
-        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
+                "Invalid min value " + show_range_min() + " for distribution \"" + get_name() + "\".");
+        else
+        {
+            init_close_range();
+            if ((get_range_min() > 0) || (!tools::is_na(get_range_max())))
+                _init_truncation_(((discrete) ? "left" : NULL_STRING));
+        }
     }
 
 protected:
@@ -668,20 +779,28 @@ private:
     std::uniform_real_distribution<double> unif_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Rayleigh_Distribution() : unif_gen(0.0, 1.0)
     {
-        _init_defaults_("rayleigh",
-                        {"scale"}, {1.0},
+        _init_defaults_("rayleigh", {"scale"}, {1.0},
                         0.0, NULL_DOUBLE, true);
     }
-    ~Rayleigh_Distribution() {};
+    ~Rayleigh_Distribution() = default;
 
-    void assign_reshaping(bool discrete, double lower, double upper) override
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override
     {
-        if ((!tools::is_na(lower)) && (lower <= 0))
+        _init_discretization_(((discrete) ? "left" : NULL_STRING));
+
+        if (get_range_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
-        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
+                "Invalid min value " + show_range_min() + " for distribution \"" + get_name() + "\".");
+        else
+        {
+            init_close_range();
+            if ((get_range_min() > 0) || (!tools::is_na(get_range_max())))
+                _init_truncation_(((discrete) ? "left" : NULL_STRING));
+        }
     }
 
 protected:
@@ -726,20 +845,28 @@ private:
     std::exponential_distribution<double> distr_gen;
 
 public:
+    //===== CONSTRUCTOR =====//
     Exponential_Distribution() : distr_gen(1.0)
     {
-        _init_defaults_("exp",
-                        {"rate"}, {1.0},
+        _init_defaults_("exp", {"rate"}, {1.0},
                         0.0, NULL_DOUBLE, true);
     }
-    ~Exponential_Distribution() {};
+    ~Exponential_Distribution() = default;
 
-    void assign_reshaping(bool discrete, double lower, double upper) override
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override
     {
-        if ((!tools::is_na(lower)) && (lower <= 0))
+        _init_discretization_(((discrete) ? "left" : NULL_STRING));
+
+        if (get_range_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + std::to_string(lower) + " for distribution \"" + get_name() + "\".");
-        _assign_reshaping_(((discrete) ? "left" : NULL_STRING), lower, upper);
+                "Invalid min value " + show_range_min() + " for distribution \"" + get_name() + "\".");
+        else
+        {
+            init_close_range();
+            if ((get_range_min() > 0) || (!tools::is_na(get_range_max())))
+                _init_truncation_(((discrete) ? "left" : NULL_STRING));
+        }
     }
 
 protected:

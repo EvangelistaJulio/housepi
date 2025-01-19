@@ -26,22 +26,6 @@ const std::string TYPE_COMMAND = "C"; // Command type declaration
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-//===== CONSTRUCTOR =====//
-Monte_Carlo_Build::Monte_Carlo_Build() : _uniform_distr_(0., 1.)
-{
-#ifdef _OPENMP
-    _max_n_available_threads = omp_get_max_threads();
-#endif
-}
-Monte_Carlo_Build::~Monte_Carlo_Build() = default;
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /* Auxiliary function to call percentuage. */
 inline const std::string _aux_percent_(int num, int den)
 {
@@ -49,13 +33,13 @@ inline const std::string _aux_percent_(int num, int den)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////  Monte_Carlo_Build : methods (type-defined variables)  ////////////////////////////
+///////////////////////  MCMC::Impl : methods (type-defined variables)  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
-double Monte_Carlo_Build::type_to_double(const std::string &value,
-                                         const std::string &type,
-                                         const Household &house, indiv i)
+double MCMC::Impl::type_to_double(const std::string &value,
+                                  const std::string &type,
+                                  const Household &house, indiv i)
 {
     double output = NULL_DOUBLE;
 
@@ -104,10 +88,10 @@ double Monte_Carlo_Build::type_to_double(const std::string &value,
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
-void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID a,
-                                              const std::string &tkn_key,
-                                              const std::string &tkn_val,
-                                              const std::string &tkn_typ)
+void MCMC::Impl::assign_augm_type_args(Household &house, indiv i, augmID a,
+                                       const std::string &tkn_key,
+                                       const std::string &tkn_val,
+                                       const std::string &tkn_typ)
 {
 
     // parse the string with arguments
@@ -140,9 +124,13 @@ void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID 
             else if (type == TYPE_DATA)
                 house.assign_augm_model_scalar_arg(i, a, key, house.data(i, value));
 
-            else if (type == TYPE_PARAM) // UPDATE: we an improve for constant parameters
-                house.assign_augm_model_pointer_arg(i, a, key, get_param_pointer(value));
-
+            else if (type == TYPE_PARAM)
+            {
+                if (param_map.at(value).is_constant())
+                    house.assign_augm_model_pointer_arg(i, a, key, get_param_pointer(value));
+                else
+                    house.assign_augm_model_scalar_arg(i, a, key, get_param(value));
+            }
             else if (type == TYPE_SCALAR)
                 house.assign_augm_model_scalar_arg(i, a, key, tools::stod(value, "argument with scalar type"));
 
@@ -153,22 +141,86 @@ void Monte_Carlo_Build::assign_augm_type_args(Household &house, indiv i, augmID 
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Emplace a new household. */
-void Monte_Carlo_Build::assign_house(const std::string &ID)
+/* Convert a std::string with type-dictionary to std::string-to-double */
+void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
+                                        const std::string &min_value,
+                                        const std::string &min_type,
+                                        const std::string &max_value,
+                                        const std::string &max_type)
 {
-    house_vector.emplace_back(ID, n_households);
-    ++n_households;
+    //----- Minimum -----//
+    if (!(tools::is_na(min_value) && tools::is_na(min_type)))
+    {
+        if (!tools::is_na(min_value) && tools::is_na(min_type))
+            throw std::invalid_argument(
+                "Impossible to interpret default value of  \"" + min_value + "\". Please provide a type.");
+
+        else if (tools::is_na(min_value) && !tools::is_na(min_type))
+            tools::warning(
+                "Found a type without a paired value. Falling back to default.");
+
+        else if (min_type == TYPE_DATA)
+            house.assign_augm_model_scalar_range_min(i, a, house.data(i, min_value));
+
+        else if (min_value == TYPE_PARAM)
+        {
+            if (param_map.at(min_value).is_constant())
+                house.assign_augm_model_pointer_range_min(i, a, get_param_pointer(min_value));
+            else
+                house.assign_augm_model_scalar_range_min(i, a, get_param(min_value));
+        }
+
+        else if (min_type == TYPE_SCALAR)
+            house.assign_augm_model_scalar_range_min(i, a, tools::stod(min_value, "argument with scalar type"));
+
+        else
+            throw std::invalid_argument(
+                "Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
+    }
+
+    //----- Maximum -----//
+    if (!(tools::is_na(max_value) && tools::is_na(max_type)))
+    {
+        if (!tools::is_na(max_value) && tools::is_na(max_type))
+            throw std::invalid_argument(
+                "Impossible to interpret default value of  \"" + max_value + "\". Please provide a type.");
+
+        else if (tools::is_na(max_value) && !tools::is_na(max_type))
+            tools::warning(
+                "Found a type without a paired value. Falling back to default.");
+
+        else if (max_type == TYPE_DATA)
+            house.assign_augm_model_scalar_range_max(i, a, house.data(i, max_value));
+
+        else if (max_type == TYPE_PARAM)
+        {
+            if (param_map.at(max_value).is_constant())
+                house.assign_augm_model_pointer_range_max(i, a, get_param_pointer(max_value));
+            else
+                house.assign_augm_model_scalar_range_max(i, a, get_param(max_value));
+        }
+
+        else if (max_type == TYPE_SCALAR)
+            house.assign_augm_model_scalar_range_max(i, a, tools::stod(max_value, "argument with scalar type"));
+
+        else
+            throw std::invalid_argument(
+                "Unsopported type \"" + max_type + "\" found while loading \"" + max_value + "\" for pointer value.");
+    }
+
+    //----- Reshaping -----//
+    house.init_augm_model_reshaping(i, a);
 }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /* Use the loaded data to fill-in the respective report. */
-void Monte_Carlo_Build::update_report_data()
+void MCMC::Impl::update_report_data()
 {
     _report_data_ = {{"n.cases", 0},
                      {"n.miss.stat", 0},
@@ -231,7 +283,7 @@ void Monte_Carlo_Build::update_report_data()
 }
 
 /* Return a value from report data. */
-size_t Monte_Carlo_Build::report_data(const std::string &key) const
+size_t MCMC::Impl::report_data(const std::string &key) const
 {
     size_t output = 0;
     if (_report_data_.find(key) != _report_data_.end())
@@ -252,11 +304,11 @@ size_t Monte_Carlo_Build::report_data(const std::string &key) const
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Monte_Carlo_Build : build augmented  //////////////////////////////////////
+///////////////////////////////////  MCMC::Impl : build augmented  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file. */
-void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
+void MCMC::Impl::read_augm(const std::string &pathtofile)
 {
     try
     {
@@ -277,7 +329,7 @@ void Monte_Carlo_Build::read_augm(const std::string &pathtofile)
 /* Assign augmented variables to all individuals.
     UPDATE: this function has to be simplified.
 */
-void Monte_Carlo_Build::build_augm()
+void MCMC::Impl::build_augm()
 {
     try
     {
@@ -371,9 +423,9 @@ void Monte_Carlo_Build::build_augm()
 
                 //===== Case of Only Generic Definitions =====//
                 if ((table_length > 0) && (augm_status_map_infer.empty()))
-                    _func_augm_model_by_definition_ = &Monte_Carlo_Build::_augm_model_generic_;
+                    _func_augm_model_by_definition_ = &MCMC::Impl::_augm_model_generic_;
                 else
-                    _func_augm_model_by_definition_ = &Monte_Carlo_Build::_augm_model_by_status_;
+                    _func_augm_model_by_definition_ = &MCMC::Impl::_augm_model_by_status_;
 
                 //===========================================//
                 //===== Assign new definitions to lists =====//
@@ -476,11 +528,11 @@ void Monte_Carlo_Build::build_augm()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  Monte_Carlo_Build : assign augmented variables  //////////////////////
+/////////////////////////  MCMC::Impl : assign augmented variables  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
-void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
+void MCMC::Impl::assign_all_augm(Household &house, indiv i)
 {
     try
     {
@@ -510,17 +562,6 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
                 //----- Model -----//
                 const std::string &model_name = _augm_deftable_.at("model")[k];
 
-                //----- Range -----//
-                // minimum value
-                double lower = type_to_double(_augm_deftable_.at("min")[k],
-                                              _augm_deftable_.at("min_type")[k],
-                                              house, i);
-
-                // maximum value
-                double upper = type_to_double(_augm_deftable_.at("max")[k],
-                                              _augm_deftable_.at("max_type")[k],
-                                              house, i);
-
                 //----- Proposer Rule -----//
                 const std::string &rule_name = _augm_deftable_.at("rule")[k];
                 double rule_scale = type_to_double(_augm_deftable_.at("rule_scale")[k],
@@ -535,12 +576,18 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
                                   is_discrete, model_name,
                                   rule_name, rule_scale, rule_from);
 
+                //----- Arguments -----//
                 assign_augm_type_args(house, i, a,
                                       _augm_deftable_.at("arg_name")[k],
                                       _augm_deftable_.at("arg_value")[k],
                                       _augm_deftable_.at("arg_type")[k]);
 
-                house.assign_augm_model_range(i, a, lower, upper);
+                //----- Range -----//
+                assign_augm_type_range(house, i, a,
+                                       _augm_deftable_.at("min")[k],
+                                       _augm_deftable_.at("min_type")[k],
+                                       _augm_deftable_.at("max")[k],
+                                       _augm_deftable_.at("max_type")[k]);
 
                 // random initialization at assignment
                 if (tools::stobool(_augm_deftable_.at("init_rand")[k]))
@@ -556,21 +603,21 @@ void Monte_Carlo_Build::assign_all_augm(Household &house, indiv i)
 }
 
 /* Clear all augmented definition of individual. */
-void Monte_Carlo_Build::clear_all_augm(Household &house, indiv i)
+void MCMC::Impl::clear_all_augm(Household &house, indiv i)
 {
     for (const augmID &a : augm_list_full)
         house.clear_augm(i, a);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Monte_Carlo_Build : state checkers   /////////////////////////////
+/////////////////////////////  MCMC::Impl : state checkers   /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Check if there are non-constant augmented variable definitions. */
-bool Monte_Carlo_Build::is_augm_infer() const { return !augm_list_to_be_inferred.empty(); }
+bool MCMC::Impl::is_augm_infer() const { return !augm_list_to_be_inferred.empty(); }
 
 /* Check if there are augmented variable definitions with a model. */
-bool Monte_Carlo_Build::is_augm_model() const { return !augm_list_model.empty(); }
+bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -584,7 +631,7 @@ bool Monte_Carlo_Build::is_augm_model() const { return !augm_list_model.empty();
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init Bayesian diagnostics. */
-void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
+void MCMC::Impl::init_diagnostics(bool is_power_post)
 {
     ulong sample_size = setup_c_sample_size * setup_n_chains;
 
@@ -611,10 +658,10 @@ void Monte_Carlo_Build::init_diagnostics(bool is_power_post)
 }
 
 /* Update Bayesian diagnostics */
-void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_post)
+void MCMC::Impl::update_diagnostics(bool is_power_post)
 {
     // diagnostics for global loglike
-    dgn_glob_loglike[dgn_count] = glob_loglike;
+    dgn_glob_loglike[dgn_count] = get_global_loglike();
 
     if (!is_power_post)
     {
@@ -636,11 +683,11 @@ void Monte_Carlo_Build::update_diagnostics(double glob_loglike, bool is_power_po
 }
 
 /* Disable all assert methods for user definitions. */
-void Monte_Carlo_Build::disable_assert()
+void MCMC::Impl::disable_assert()
 {
     // disable parameter assertion for all parameters
-    _func_get_param_ = &Monte_Carlo_Build::_get_param_default_;
-    _func_get_param_pointer_ = &Monte_Carlo_Build::_get_param_pointer_default_;
+    _func_get_param_ = &MCMC::Impl::_get_param_default_;
+    _func_get_param_pointer_ = &MCMC::Impl::_get_param_pointer_default_;
 
     // disable augmented variable assertion for all individuals
     for (Household &house : house_vector)
@@ -648,13 +695,13 @@ void Monte_Carlo_Build::disable_assert()
 }
 
 /* Check if augmented variable definition are generic or not (i. e. individual status specific). */
-bool Monte_Carlo_Build::is_augm_generic() const
+bool MCMC::Impl::is_augm_generic() const
 {
-    return _func_augm_model_by_definition_ == &Monte_Carlo_Build::_augm_model_generic_;
+    return _func_augm_model_by_definition_ == &MCMC::Impl::_augm_model_generic_;
 }
 
 /* Compute the loglikelihood term associated to augmented variables. */
-double Monte_Carlo_Build::compute_augm_model_loglike(const Household &house) const
+double MCMC::Impl::compute_augm_model_loglike(const Household &house) const
 {
     double hh_loglike = 0.;
     // Contribution of model associated to augmented variables
@@ -664,16 +711,34 @@ double Monte_Carlo_Build::compute_augm_model_loglike(const Household &house) con
     return hh_loglike;
 }
 
-void Monte_Carlo_Build::_augm_model_by_status_(const Household &house, indiv i, double &delta) const
+void MCMC::Impl::_augm_model_by_status_(const Household &house, indiv i, double &delta) const
 {
     for (const augmID &a : augm_status_map_model.at(house.status(i)))
         delta += house.augm_model_logpdf(i, a);
 }
 
-void Monte_Carlo_Build::_augm_model_generic_(const Household &house, indiv i, double &delta) const
+void MCMC::Impl::_augm_model_generic_(const Household &house, indiv i, double &delta) const
 {
     for (const augmID &a : augm_list_model)
         delta += house.augm_model_logpdf(i, a);
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* The text to print in the Markov chian progress bar. */
+const std::string MCMC::Impl::fmt_progtxt(const std::string &txt, bool is_power_post)
+{
+    if (is_power_post)
+        return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
+    else if (setup_n_chains > 1)
+        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(setup_n_chains);
+    else
+        return txt;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -688,7 +753,7 @@ void Monte_Carlo_Build::_augm_model_generic_(const Household &house, indiv i, do
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the report of the database and of the model group rates. */
-void Monte_Carlo_Build::show_summary() const
+void MCMC::Impl::show_summary() const
 {
     std::ostringstream oss;
 
@@ -727,7 +792,7 @@ void Monte_Carlo_Build::show_summary() const
 ////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Monte_Carlo_Build::show_full_build() const
+void MCMC::Impl::show_full_build() const
 {
     //----- SETUP -----//
     std::string add_file_info = NULL_STRING;
@@ -774,11 +839,11 @@ void Monte_Carlo_Build::show_full_build() const
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  Monte_Carlo_Build : print augm variables  ///////////////////////////
+////////////////////////////  MCMC::Impl : print augm variables  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void Monte_Carlo_Build::print_augm_variables(const std::string &pathtofile) const
+void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
 {
     if (!tools::is_na(pathtofile))
     {

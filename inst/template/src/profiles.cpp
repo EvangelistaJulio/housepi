@@ -4,14 +4,54 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include "mcmc.h"
+#include "distribution.h"
+#include "mcmc_build.h"
 
-Base_InfecProfile::Base_InfecProfile(std::function<double(parID)> get) : _external_param_getter_(std::move(get)) {}
-Base_InfecProfile::~Base_InfecProfile() = default;
+// UPDATE: this should be merge into functions finally.
+// It could be done by changing Arguments.
 
-void Base_InfecProfile::_init_defaults_(const std::string &name,
-										const str_vec &arg_name,
-										const dbl_vec &arg_value)
+/* Base Class for Infectivity Profiles.
+	NOTE : this classes access to parameters passing through MCMC class.
+	This way I can check which parameters changes augmented dependencies. */
+class MCMC::Impl::InfecProfile
+{
+public:
+	//===== CONSTRUCTOR =====//
+	InfecProfile(std::function<double(parID)> get = nullptr);
+	virtual ~InfecProfile();
+
+	//===== GETTER =====//
+	double get_arg(ushort i);
+
+	virtual double pdf(const dbl_vec &x);
+	virtual double cdf(const dbl_vec &x);
+
+protected:
+	//===== SETTER =====//
+	void _init_defaults_(const std::string &name,
+						 const str_vec &arg_name,
+						 const dbl_vec &arg_value);
+
+private:
+	std::string name = NULL_STRING;
+	str_vec _arg_names_ = {};
+	dbl_vec _values_ = {};
+	std::vector<parID> _indexes_ = {};
+
+	//----- Functional methods -----//
+	double (InfecProfile::*_func_get_arg_)(ushort) = &InfecProfile::_internal_get_arg_;
+	std::function<double(parID)> _external_param_getter_ = nullptr;
+
+	double _internal_get_arg_(ushort i);
+	double _external_get_arg_(ushort i);
+};
+
+MCMC::Impl::InfecProfile::InfecProfile(std::function<double(parID)> get) : _external_param_getter_(std::move(get)) {}
+MCMC::Impl::InfecProfile::~InfecProfile() = default;
+
+void MCMC::Impl::InfecProfile::_init_defaults_(const std::string &name,
+											   const str_vec &arg_name,
+											   const dbl_vec &arg_value)
 {
 	this->name = name;
 
@@ -22,13 +62,13 @@ void Base_InfecProfile::_init_defaults_(const std::string &name,
 	}
 }
 
-double Base_InfecProfile::pdf(const dbl_vec &x)
+double MCMC::Impl::InfecProfile::pdf(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
 		"Call to undefined method \"pdf\" of infectivity profile \"" + name + "\".");
 }
-double Base_InfecProfile::cdf(const dbl_vec &x)
+double MCMC::Impl::InfecProfile::cdf(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
@@ -36,19 +76,19 @@ double Base_InfecProfile::cdf(const dbl_vec &x)
 }
 
 /* Return value indexed as 'i'. */
-double Base_InfecProfile::get_arg(ushort i)
+double MCMC::Impl::InfecProfile::get_arg(ushort i)
 {
 	return (this->*_func_get_arg_)(i);
 }
 
 /* Return internal value indexed as 'i'. */
-double Base_InfecProfile::_internal_get_arg_(ushort i)
+double MCMC::Impl::InfecProfile::_internal_get_arg_(ushort i)
 {
 	return _values_[i];
 }
 
 /* Return external value indexed as 'i' with functional . */
-double Base_InfecProfile::_external_get_arg_(ushort i)
+double MCMC::Impl::InfecProfile::_external_get_arg_(ushort i)
 {
 	return _external_param_getter_(_indexes_[i]);
 }
@@ -83,11 +123,11 @@ Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
 The timing of COVID-19 transmission.
 medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
  */
-class InfecProfile_Ferretti20 : public Base_InfecProfile
+class MCMC::Impl::InfecProfile_Ferretti20 : public MCMC::Impl::InfecProfile
 {
 public:
 	//===== CONSTRUCTOR =====//
-	InfecProfile_Ferretti20(std::function<double(parID)> get = nullptr) : Base_InfecProfile(get)
+	InfecProfile_Ferretti20(std::function<double(parID)> get = nullptr) : MCMC::Impl::InfecProfile(get)
 	{
 		_init_defaults_("ferretti20",
 						{"alpha", "mu", "sigma", "tau"},
@@ -160,7 +200,7 @@ public:
  ----
  Ashcroft P, Huisman JS, Lehtinen S, Bouman JA, Althaus CL, Regoes RR, et al.
  COVID-19 infectivity profile correction. Swiss medical weekly. 2020. p. w20336.
-*/
+
 class InfecProfile_Ashcroft20 : public Base_InfecProfile
 {
 private:
@@ -185,6 +225,7 @@ public:
 		gamma_distr_ptr->set_arg(0, get_arg(0));				  // shape
 		gamma_distr_ptr->set_arg(1, get_arg(1));				  // scale
 		gamma_distr_ptr->set_range(get_arg(2), NULL_DOUBLE); // shift
+
 		double shift = get_arg(2);								  // shift argument
 
 		return gamma_distr_ptr->pdf(shift + t_OST);
@@ -206,6 +247,7 @@ public:
 		return gamma_distr_ptr->cdf(shift + t_OST);
 	}
 };
+*/
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -215,27 +257,55 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
+//////////////////////////////////////  MCMC : Impl : constructor  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+MCMC::Impl::Impl() : _uniform_distr_(0., 1.),
+					 _infec_profile_(std::make_unique<MCMC::Impl::InfecProfile>())
+{
+#ifdef _OPENMP
+	_max_n_available_threads = omp_get_max_threads();
+#endif
+}
+MCMC::Impl::~Impl() = default;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : Impl : infectivity profile  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the infectivity profile. */
-std::unique_ptr<Base_InfecProfile> infecprofile_switchboard(const std::string &name,
-															std::function<double(parID)> get)
+void MCMC::Impl::assign_infectivity_profile(const std::string &name)
 {
-	const str_vec options = {"ferretti20", "ashcroft20"};
+	auto lambda_getter = [this](const parID &p)
+	{ return get_param(p); };
+
+	// FLAG
+	//	const str_vec options = {"ferretti20", "ashcroft20"};
+	const str_vec options = {"ferretti20"};
 
 	if (!tools::is_na(name))
 	{
 		if (name == "ferretti20")
-			return std::make_unique<InfecProfile_Ferretti20>(std::move(get));
+			_infec_profile_ = std::make_unique<InfecProfile_Ferretti20>(std::move(lambda_getter));
 
-		else if (name == "ashcroft20")
-			return std::make_unique<InfecProfile_Ashcroft20>(std::move(get));
+		// else if (name == "ashcroft20") // FLAG
+		//	return std::make_unique<InfecProfile_Ashcroft20>(std::move(lambda_getter));
 
 		else
 			throw std::invalid_argument(
 				"Unknown infectivity profile \"" + name + "\"." + tools::find_closest(name, options));
 	}
 
-	return std::make_unique<Base_InfecProfile>();
+	_infec_profile_ = std::make_unique<InfecProfile>();
 }
+
+void MCMC::assign_infectivity_profile(const std::string &name)
+{
+	pBuild->assign_infectivity_profile(name);
+}
+
+/* Value of the instantaneous infectivity profile. */
+double MCMC::infec_profile_inst(const dbl_vec &x) { return pBuild->_infec_profile_->pdf(x); }
+
+/* Value of the cumulative infectivity profile. */
+double MCMC::infec_profile_cumul(const dbl_vec &x) { return pBuild->_infec_profile_->cdf(x); }

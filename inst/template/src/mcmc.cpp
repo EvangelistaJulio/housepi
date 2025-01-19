@@ -11,8 +11,7 @@
 //////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MCMC::MCMC() : pBuild(std::make_unique<Monte_Carlo_Build>()),
-               _infec_profile_(std::make_unique<Base_InfecProfile>()) {}
+MCMC::MCMC() : pBuild(std::make_unique<Impl>()) {}
 MCMC::~MCMC() = default;
 
 void MCMC::read_setup(const std::string &pathtofile) { pBuild->read_setup(pathtofile); }
@@ -64,33 +63,6 @@ void MCMC::assign_extra_matrix_to_all_houses(const std::vector<extraID> &names, 
 {
     for (size_t H = 0; H < n_houses(); ++H)
         pBuild->house_vector[H].allocate_extra_matrix(names, xinit);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Assign the infectivity profile. */
-void MCMC::assign_infectivity_profile(const std::string &name)
-{
-    auto lambda_param_getter = [this](const parID &p)
-    { return this->param(p); };
-    _infec_profile_ = infecprofile_switchboard(name, lambda_param_getter);
-}
-
-/* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(const dbl_vec &x)
-{
-    return _infec_profile_->pdf(x);
-}
-
-/* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(const dbl_vec &x)
-{
-    return _infec_profile_->cdf(x);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -233,7 +205,7 @@ void MCMC::build_data(const dict_str_vec &datatable)
                     // map data index to household number
                     hh_ID_to_index.emplace(house_ID, n_houses());
                     // create a new empty household
-                    pBuild->assign_house(house_ID);
+                    pBuild->house_vector.emplace_back(house_ID, pBuild->n_households++);
                 }
 
                 // extract the household reference
@@ -413,6 +385,7 @@ void MCMC::update_global_loglike()
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t H = 0; H < n_houses(); ++H)
     {
+
         if (!_error_message_.empty())
             continue;
 
@@ -482,15 +455,23 @@ void MCMC::move_single_param(const parID &p)
 }
 
 /* Move all model parameters. */
-void MCMC::move_all_parameters()
+void MCMC::move_all()
 {
+    // move all augmented variables
+    (this->*_func_move_all_augm_)();
+
+    // move all model parameters
     for (const parID &p : pBuild->param_to_be_inferred)
         move_single_param(p);
 }
 
-/* Move all model parameters and adapt their rule arguments. */
-void MCMC::move_and_adapt_all_parameters(ulong step)
+/* Move all augmented variables and model parameters and adapt their rule arguments. */
+void MCMC::move_all_and_adapt_parameters(ulong step)
 {
+    // move all augmented variables
+    (this->*_func_move_all_augm_)();
+
+    // move all model parameters and adapt their rule arguments
     double adapt_ratio = static_cast<double>(step) / pBuild->setup_n_adapt;
 
     for (const parID &p : pBuild->param_to_be_inferred)
@@ -614,7 +595,7 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &
     if (house.propose_valid_augm_move(i, a, pBuild->get_prng()))
     {
         // update dependencies to perform computations
-        house._buffer_all_extra();
+        house.buffer_all_extra();
         update_augm_dependecies(house, i);
 
         // update house loglikelihood and store old value in buffer
@@ -623,16 +604,10 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &
         // Metropolis-Hasting algorithm
         double D_ll = house.get_delta_loglike() + house.augm_model_logratio(i, a);
         if (uniform() < exp(pBuild->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
-        {
             delta += D_ll;
-        }
         else
-        {
-            // restore value and its dependencies
+            // restore all buffer values
             house.restore_augm_value(i, a);
-            house._restore_all_extra();
-            house.restore_loglike();
-        }
     }
 }
 
@@ -676,17 +651,6 @@ double MCMC::evaluate()
 ////////////////////////////////////  MCMC : run markov chain  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* The text to print in the Markov chian progress bar. */
-const std::string MCMC::fmt_progtxt(const std::string &txt, bool is_power_post)
-{
-    if (is_power_post)
-        return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
-    else if (pBuild->setup_n_chains > 1)
-        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(pBuild->setup_n_chains);
-    else
-        return txt;
-}
-
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
 void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_power_post)
@@ -704,10 +668,10 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
     pBuild->init_diagnostics(is_power_post);
 
     // run Multiple MCMC Chains
-    for (_chain_ = 1; _chain_ <= pBuild->setup_n_chains; ++_chain_)
+    for (pBuild->_chain_ = 1; pBuild->_chain_ <= pBuild->setup_n_chains; ++pBuild->_chain_)
     {
         // update progressbar text
-        progressbar.set_text(fmt_progtxt("infer", is_power_post));
+        progressbar.set_text(pBuild->fmt_progtxt("infer", is_power_post));
 
         // initialize parameter inference
         pBuild->init_parameters();
@@ -731,12 +695,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         for (ulong i = 0; i < pBuild->setup_n_adapt; i += pBuild->setup_thin)
         {
             for (ulong t = 1; t <= pBuild->setup_thin; ++t)
-            {
-                (this->*_func_move_all_augm_)();
-                move_and_adapt_all_parameters(i + t);
-            }
+                move_all_and_adapt_parameters(i + t);
 
-            progressbar.update(static_cast<double>(++sweep) / _tot_thin_sweeps_);
+            progressbar.update(static_cast<double>(++sweep) / pBuild->_tot_thin_sweeps_);
         }
 
         //============================================//
@@ -746,12 +707,9 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         for (ulong i = 0; i < pBuild->setup_n_burnin; i += pBuild->setup_thin)
         {
             for (ulong t = 1; t <= pBuild->setup_thin; ++t)
-            {
-                (this->*_func_move_all_augm_)();
-                move_all_parameters();
-            }
+                move_all();
 
-            progressbar.update(static_cast<double>(++sweep) / _tot_thin_sweeps_);
+            progressbar.update(static_cast<double>(++sweep) / pBuild->_tot_thin_sweeps_);
         }
 
         //============================================//
@@ -761,14 +719,12 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
         for (ulong i = pBuild->setup_n_burnin; i < pBuild->setup_n_steps; i += pBuild->setup_thin)
         {
             for (ulong t = 1; t <= pBuild->setup_thin; ++t)
-            {
-                (this->*_func_move_all_augm_)();
-                move_all_parameters();
-            }
+                move_all();
 
             // compute diagnostics for the previous iterations
-            pBuild->update_diagnostics(pBuild->get_global_loglike(), is_power_post);
-            progressbar.update(static_cast<double>(++sweep) / _tot_thin_sweeps_);
+            pBuild->update_diagnostics(is_power_post);
+
+            progressbar.update(static_cast<double>(++sweep) / pBuild->_tot_thin_sweeps_);
         }
     }
 }
@@ -786,14 +742,14 @@ void MCMC::infer(bool is_progbar)
     try
     {
         // total number of mcmc sweeps
-        _chain_ = 1;
-        _tot_thin_sweeps_ = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
+        pBuild->_chain_ = 1;
+        pBuild->_tot_thin_sweeps_ = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
 
         //----- Initialize model for inference -----//
         init_model_for_inference();
 
         // start progress bar and chrono
-        CustomProgressBar progressbar(fmt_progtxt("infer"), is_progbar);
+        CustomProgressBar progressbar(pBuild->fmt_progtxt("infer"), is_progbar);
 
         // run Markov Chain
         run_monte_carlo(progressbar);
@@ -830,7 +786,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
     //----- fix internal number of rungs (for progress bar) -----//
     if (n_rungs >= 2)
-        _n_rungs_ = n_rungs;
+        pBuild->_n_rungs_ = n_rungs;
     else
         tools::error("Number of rungs must be greater than 1.");
 
@@ -848,14 +804,14 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     //----- Total number of mcmc sweeps -----//
     ulong rung_sweeps = pBuild->setup_c_n_sweeps * pBuild->setup_n_chains;
     // internal state variables
-    _tot_thin_sweeps_ = rung_sweeps * (_n_rungs_ + 1);
-    _rung_ = 0;
+    pBuild->_tot_thin_sweeps_ = rung_sweeps * (pBuild->_n_rungs_ + 1);
+    pBuild->_rung_ = 0;
 
     //----- Initialize model for inference -----//
     init_model_for_inference();
 
     //----- Start progress bar and chrono -----//
-    CustomProgressBar progressbar(fmt_progtxt("", true), is_progbar);
+    CustomProgressBar progressbar(pBuild->fmt_progtxt("", true), is_progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
@@ -877,7 +833,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
         //===========================//
 
         //----- Inverse Temperature 1 -----//
-        _rung_ = 1;
+        pBuild->_rung_ = 1;
         pBuild->set_inver_temper(1.0);
         pBuild->setup_rand_init_params = false;
         run_monte_carlo(progressbar, rung_sweeps, true);
@@ -889,9 +845,9 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
         //----- Inverse Temperatures (0, 1) -----//
         size_t k = 0; // index to interval lower bound
-        while (_rung_ < _n_rungs_)
+        while (pBuild->_rung_ < pBuild->_n_rungs_)
         {
-            ++_rung_;
+            ++pBuild->_rung_;
 
             //----- adaptive choice of inverse temperature -----//
             // intersection between tangents
@@ -903,7 +859,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
             //----- power posterior sampling -----//
             pBuild->set_inver_temper(new_inv_T);
-            run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
+            run_monte_carlo(progressbar, pBuild->_rung_ * rung_sweeps, true);
             pBuild->dgn_glob_ll_stats(avg, var);
 
             //----- find larger rectangular discretization error -----//
@@ -926,10 +882,10 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
         //----- Inverse Temperatures (0, 1] -----//
         pBuild->setup_rand_init_params = false;
-        for (_rung_ = 1; _rung_ < _n_rungs_; ++_rung_)
+        for (pBuild->_rung_ = 1; pBuild->_rung_ < pBuild->_n_rungs_; ++pBuild->_rung_)
         {
-            pBuild->set_inver_temper(std::pow(static_cast<double>(_rung_) / (_n_rungs_ - 1), 5));
-            run_monte_carlo(progressbar, _rung_ * rung_sweeps, true);
+            pBuild->set_inver_temper(std::pow(static_cast<double>(pBuild->_rung_) / (pBuild->_n_rungs_ - 1), 5));
+            run_monte_carlo(progressbar, pBuild->_rung_ * rung_sweeps, true);
             pBuild->dgn_glob_ll_stats(avg, var);
 
             inv_t.push_back(pBuild->setup_inv_T);

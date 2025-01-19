@@ -14,12 +14,12 @@
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Group Rate : class  ////////////////////////////////////////
+////////////////////////////////  Individual::Group Rate : class  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //===== CONSTRUCTOR	=====//
-GroupRate::GroupRate(const std::string &name,
-					 const std::vector<const double *> &pointers)
+Individual::GroupRate::GroupRate(const std::string &name,
+								 const std::vector<const double *> &pointers)
 {
 	if (!tools::is_na(name))
 	{
@@ -35,10 +35,10 @@ GroupRate::GroupRate(const std::string &name,
 			this->pointers[c] = pointers.at(c);
 	}
 }
-GroupRate::~GroupRate() = default;
+Individual::GroupRate::~GroupRate() = default;
 
 //===== GETTER =====//
-double GroupRate::get() const
+double Individual::GroupRate::get() const
 {
 	double output = 1.0;
 	for (ushort r = 0; r < n_rates; ++r)
@@ -58,22 +58,28 @@ double GroupRate::get() const
 ///////////////////////////////////  Individual : constructors  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// constructor
 Individual::Individual(const std::string &ID,
 					   int status,
 					   const dataIDmap<double> &data)
 {
 	// associate the new ID
 	this->ID = ID;
-
 	// associate the new status
-	if (status < MISSING_STATUS)
-		this->status = MISSING_STATUS;
-	else
-		this->status = status;
-
+	this->status = (status < MISSING_STATUS) ? MISSING_STATUS : status;
 	// associate the new data
 	this->data = data;
 }
+
+// move constructor // UPDATE : is this really necessary?
+Individual::Individual(Individual &&other) noexcept
+	: ID(std::move(other.ID)),
+	  status(std::move(other.status)),
+	  data(std::move(other.data)),
+	  augm_map(std::move(other.augm_map)),
+	  rate_map(std::move(other.rate_map)) {}
+
+// deconstructor
 Individual::~Individual() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,9 +88,9 @@ Individual::~Individual() = default;
 
 //===== SETTER =====//
 
-void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &group_rate_ptrs)
+void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs)
 {
-	for (const auto &pair : group_rate_ptrs)
+	for (const auto &pair : ptrs)
 	{
 		rateID r = pair.first;
 		std::vector<const double *> vec_par_ptr = pair.second;

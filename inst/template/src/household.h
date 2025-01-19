@@ -28,9 +28,6 @@
 //////////////////////////////////////  Household : class  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Forward declaration of Implementation. */
-class Household_Impl;
-
 class Household
 {
 public:
@@ -38,8 +35,8 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Household();
-	Household(const std::string &ID, size_t index);
+	Household(const std::string &ID = NULL_STRING,
+			  size_t index = SIZE_MAX);
 	Household(Household &&other) noexcept;			  // Move constructor
 	Household &operator=(Household &&other) noexcept; // Move assignment
 	~Household();
@@ -99,14 +96,24 @@ public:
 					 const std::string &rule_name = NULL_STRING,
 					 double rule_scale = NULL_DOUBLE,
 					 double rule_from = NULL_DOUBLE);
+
 	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
 									  const std::string &arg_name,
 									  double arg_value);
 	void assign_augm_model_pointer_arg(indiv i, const augmID &a,
 									   const std::string &arg_name,
 									   const double *ptr_to_arg_value);
-	void assign_augm_model_range(indiv i, const augmID &a,
-								 double lower, double upper);
+
+	void assign_augm_model_scalar_range_min(indiv i, const augmID &a,
+											double arg_value);
+	void assign_augm_model_pointer_range_min(indiv i, const augmID &a,
+											 const double *ptr_to_arg_value);
+
+	void assign_augm_model_scalar_range_max(indiv i, const augmID &a,
+											double arg_value);
+	void assign_augm_model_pointer_range_max(indiv i, const augmID &a,
+											 const double *ptr_to_arg_value);
+	void init_augm_model_reshaping(indiv i, const augmID &a);
 
 	void set_augm_value(indiv i, const augmID &a, double x);
 	void augm_model_rand(indiv i, const augmID &a, rnd_gen &prng);
@@ -125,8 +132,8 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
-	void _buffer_all_extra();
-	void _restore_all_extra();
+	// FIXME: am I buffering right if infectivity profile depends on param to infer?
+	void buffer_all_extra();
 
 	//----- Single integers -----//
 	void allocate_extra_integer(const std::vector<extraID> &names, int xinit = 0.0);
@@ -172,7 +179,8 @@ public:
 
 private:
 	//===== Pointer to Implementation =====//
-	std::unique_ptr<Household_Impl> pImpl;
+	class Impl;
+	std::unique_ptr<Impl> pImpl;
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H
