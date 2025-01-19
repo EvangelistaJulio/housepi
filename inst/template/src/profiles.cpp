@@ -283,20 +283,18 @@ void MCMC::Impl::assign_infectivity_profile(const std::string &name)
 	//	const str_vec options = {"ferretti20", "ashcroft20"};
 	const str_vec options = {"ferretti20"};
 
-	if (!tools::is_na(name))
-	{
-		if (name == "ferretti20")
-			_infec_profile_ = std::make_unique<InfecProfile_Ferretti20>(std::move(lambda_getter));
+	if (tools::is_na(name))
+		_infec_profile_ = std::make_unique<InfecProfile>();
 
-		// else if (name == "ashcroft20") // FLAG
-		//	return std::make_unique<InfecProfile_Ashcroft20>(std::move(lambda_getter));
+	else if (name == "ferretti20")
+		_infec_profile_ = std::make_unique<InfecProfile_Ferretti20>(std::move(lambda_getter));
 
-		else
-			throw std::invalid_argument(
-				"Unknown infectivity profile \"" + name + "\"." + tools::find_closest(name, options));
-	}
+	// else if (name == "ashcroft20") // FLAG
+	//	return std::make_unique<InfecProfile_Ashcroft20>(std::move(lambda_getter));
 
-	_infec_profile_ = std::make_unique<InfecProfile>();
+	else
+		throw std::invalid_argument(
+			"Unknown infectivity profile \"" + name + "\"." + tools::find_closest(name, options));
 }
 
 void MCMC::assign_infectivity_profile(const std::string &name)

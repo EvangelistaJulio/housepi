@@ -177,9 +177,9 @@ HousepiParameterClass <- R6::R6Class(
     from_list = function(definitions,
                          append = TRUE) {
       if (!is.list(definitions)) {
-        stop("The argument def_list should be a list.")
+        stop(cli::format_error("Argument {.code def_list} should be a list."))
       }
-      if (!append) {
+      if (isFALSE(append)) {
         self$drop_all()
       }
       for (i in seq_along(definitions)){

@@ -385,7 +385,18 @@ public:
     bool _is_discrete_ = false;        // wheter discrete or not
     bool _is_constant_ = true;         // wheter constant or not
 
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+
+    Impl() : _distr_ptr_(std::make_shared<Base_Distribution>()),
+             _prop_ptr_(std::make_shared<Base_Proposer>()) {}
+    ~Impl() = default;
+
+    //===============================//
     //===== METROPOLIS-HASTINGS =====//
+    //===============================//
+
     void set_value(double x);
     void restore_value();
 

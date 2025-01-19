@@ -143,10 +143,10 @@ hmc_2$load_augm_list(aug_defs, append = FALSE)
 
 # use inferred values from first example as constant parameters
 aug_defs <- list(
-  inc_shap = list(value = results_1["shape", "Mean"]),
+  inc_shape = list(value = results_1["shape", "Mean"]),
   inc_scale = list(value = results_1["scale", "Mean"])
 )
-hmc_2$load_augm_list(aug_defs, append = TRUE)
+hmc_2$load_param_list(aug_defs) # append by default
 ```
 
 ### Simulate an Outbreak
@@ -159,7 +159,7 @@ data("survey", package = "housepi")
 hmc_2$simulate(data = survey, seed = 3731)
 
 # show a summary of the current database
-hmc_2$data_summary()
+hmc_2$summarise_data()
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
@@ -209,7 +209,7 @@ hmc_2$load_augm_list(new_augm_defs, append = FALSE)
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
 hmc_2$infer(data = df, n_steps = 10000, n_burnin = 1000, thin = 10,
-            n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
+            n_chains = 3, n_adapt = 2000, seed = 3413, progress = TRUE)
 ```
 
 ```{r, fig.align = 'center'}

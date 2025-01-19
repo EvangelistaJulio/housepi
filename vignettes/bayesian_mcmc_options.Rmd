@@ -51,6 +51,7 @@ Here we associated definitions of parameters to infer with default arguments and
 hmc$infer()
 
 # density plot of the traces (w\o loglikelihood)
+# option loglikelihood = FALSE avoids to export loglikelihood
 lattice::densityplot(hmc$export_traces(loglikelihood = FALSE))
 ```
 
@@ -78,15 +79,15 @@ coda::densplot(hmc$export_traces(FALSE), right=FALSE)
 
 ```{r, eval = TRUE}
 # add list of parameter definitions
-# default option 'append = FALSE' drop previous definitions
+# option 'append = FALSE' drop previous definitions
 hmc$load_param_list(
   list(
     default = list(prior = "norm"),
     below = list(prior = "norm", min = -1),
     above = list(prior = "norm", max = 1),
     both = list(prior = "norm", min = -1, max = 1)
-  )
-)$infer()
+  ), append = FALSE)
+hmc$infer()
 
 lattice::densityplot(hmc$export_traces(FALSE))
 ```
@@ -122,18 +123,18 @@ Note that the proposer rule "lnorm" does not fit the case of negative values as 
 
 ```{r}
 # with model (default Gibbs rule)
-hmc$load_augm_list(augm_move_1 = list(model = "norm"))
-hmc$infer()
+hmc$load_augm_list(augm_move_1 = list(model = "norm"),
+                   append = FALSE)$infer()
 lattice::xyplot(hmc$export_traces())
 
 # w\o model random walk (default Gibbs rule)
-hmc$load_augm_list(augm_move_2 = list(value = 0, rule = "norm"))
-hmc$infer()
+hmc$load_augm_list(augm_move_2 = list(value = 0, rule = "norm"),
+                   append = FALSE)$infer()
 lattice::xyplot(hmc$export_traces())
 
 # w\o model fixed  walk (default Gibbs rule)
-hmc$load_augm_list(augm_move_3 = list(rule_from = 0, rule = "norm"))
-hmc$infer()
+hmc$load_augm_list(augm_move_3 = list(rule_from = 0, rule = "norm"),
+                   append = FALSE)$infer()
 lattice::xyplot(hmc$export_traces())
 
 ```

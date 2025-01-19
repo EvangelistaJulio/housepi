@@ -619,8 +619,8 @@ HouseholdModelClass <- R6::R6Class(
     #' @param definitions (named `list()`)\cr
     #' A list containg parameter names with respective list of definitions.
     #' @param append (`logical(1)`)\cr
-    #' If `TRUE` appends the list to current definition.
-    #' If `FALSE` drop all current parameter definitions (default).
+    #' If `TRUE` appends the list to current definition (default).
+    #' If `FALSE` drop all other parameter definitions.
     load_param_list = function(definitions, append = TRUE) {
       private$param$from_list(definitions, append = append)
       invisible(self)
@@ -732,8 +732,8 @@ HouseholdModelClass <- R6::R6Class(
     #' @param definitions (named `list()`)\cr
     #' Augmented variable names with respective list of definitions.
     #' @param append (`logical(1)`)\cr
-    #' If `TRUE` appends the list to current definition.
-    #' If `FALSE` drop all current augmented variable definitions (default).
+    #' If `TRUE` appends the list to current definition (default).
+    #' If `FALSE` drop all other augmented variable definitions.
     load_augm_list = function(definitions, append = TRUE) {
       private$augm$from_list(definitions, append = append)
       invisible(self)

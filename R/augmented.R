@@ -210,7 +210,7 @@ HousepiAugmentedClass <- R6::R6Class(
       if (!is.list(definitions)) {
         stop("The argument definitions should be a list.")
       }
-      if (!append) {
+      if (isFALSE(append)) {
         self$drop_all()
       }
       for (i in seq_along(definitions)){

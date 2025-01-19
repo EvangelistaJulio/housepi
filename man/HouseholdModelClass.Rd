@@ -511,8 +511,8 @@ Associate parameters from a list.
 A list containg parameter names with respective list of definitions.}
 
 \item{\code{append}}{(\code{logical(1)})\cr
-If \code{TRUE} appends the list to current definition.
-If \code{FALSE} drop all current parameter definitions (default).}
+If \code{TRUE} appends the list to current definition (default).
+If \code{FALSE} drop all other parameter definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -655,8 +655,8 @@ Associate augmented variables from a list.
 Augmented variable names with respective list of definitions.}
 
 \item{\code{append}}{(\code{logical(1)})\cr
-If \code{TRUE} appends the list to current definition.
-If \code{FALSE} drop all current augmented variable definitions (default).}
+If \code{TRUE} appends the list to current definition (default).
+If \code{FALSE} drop all other augmented variable definitions.}
 }
 \if{html}{\out{</div>}}
 }
