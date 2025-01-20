@@ -4,8 +4,163 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include "individual.h"
+#include "variable.h"
 #include "household.h"
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Individual : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Struct for individual household study member. */
+class Individual
+{
+public:
+	//===== CONSTRUCTOR =====//
+	Individual(const std::string &ID = NULL_STRING,
+			   int status = MISSING_STATUS,
+			   const dataIDmap<double> &data = {});
+	Individual(Individual &&other) noexcept; // Move constructor
+	~Individual();
+
+	//===== PUBLIC ATTRIBUTES =====//
+	std::string ID = NULL_STRING; // user ID
+	int status = MISSING_STATUS;  // status of the individual
+
+	//===== DATA =====//
+	// UPDATE: if I had the chance to use boost I would do:
+	// NOTE: BH R library doesn't contain variant
+	// > #include <boost/variant.hpp>
+	// > ...
+	// > using ValueType = boost::variant<double, std::string>;
+	// This way I could have string data (nice group_rates names)
+	// The the getter would become something like:
+	// template<typename T>
+	// T get(const dataID& d) const { return boost::get<T>(data.find(d)->second); }
+	//
+	dataIDmap<double> data = {}; // database associated
+
+	//===== AUGMENTED VARIABLES =====//
+	augmIDmap<Base_Variable> augm_map = {}; // augmented variables
+
+	//===== GROUP RATES =====//
+	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
+
+	struct GroupRate
+	{
+		std::string name = "";
+		ushort n_rates = 0;
+		const double **pointers = {};
+
+		GroupRate(const std::string &name = NULL_STRING,
+				  const std::vector<const double *> &pointers = {});
+		~GroupRate();
+		double get() const;
+	};
+	rateIDmap<GroupRate> rate_map; // group rates associated
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  Individual : constructors  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Individual constructor */
+Individual::Individual(const std::string &ID,
+					   int status,
+					   const dataIDmap<double> &data)
+{
+	// associate the new ID
+	this->ID = ID;
+	// associate the new status
+	this->status = (status < MISSING_STATUS) ? MISSING_STATUS : status;
+	// associate the new data
+	this->data = data;
+}
+
+/* Individual move constructor. */
+// UPDATE : is this really necessary?
+Individual::Individual(Individual &&other) noexcept
+	: ID(std::move(other.ID)),
+	  status(std::move(other.status)),
+	  data(std::move(other.data)),
+	  augm_map(std::move(other.augm_map)),
+	  rate_map(std::move(other.rate_map)) {}
+
+/* Individual deconstructor */
+Individual::~Individual() = default;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Individual : assign all group rates  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs)
+{
+	for (const auto &pair : ptrs)
+	{
+		rateID r = pair.first;
+		std::vector<const double *> vec_par_ptr = pair.second;
+
+		if (vec_par_ptr.empty())
+			std::invalid_argument(
+				"Missing rate \"" + r + "\" for individual " + ID + ".");
+		else
+			this->rate_map[r] = GroupRate(r, vec_par_ptr);
+	}
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Individual::Group Rate : class  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+//===== CONSTRUCTOR	=====//
+Individual::GroupRate::GroupRate(const std::string &name,
+								 const std::vector<const double *> &pointers)
+{
+	if (!tools::is_na(name))
+	{
+		this->name = name;
+
+		if (pointers.empty())
+			throw std::invalid_argument(
+				"No parameters associated to group rate \"" + name + "\".");
+
+		this->n_rates = pointers.size();
+		this->pointers = new const double *[pointers.size()];
+		for (ushort c = 0; c < this->n_rates; ++c)
+			this->pointers[c] = pointers.at(c);
+	}
+}
+Individual::GroupRate::~GroupRate() = default;
+
+//===== GETTER =====//
+double Individual::GroupRate::get() const
+{
+	double output = 1.0;
+	for (ushort r = 0; r < n_rates; ++r)
+		output *= *pointers[r];
+
+	return output;
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -68,35 +223,6 @@ public:
 
 	void buffer_all_extra();
 	void restore_all_extra();
-
-	// UPDATE: assertion vs deafult
-	// pointer-to-method is a drawback for all getters
-	// NOTE: assertion should be done elsewhere and knocked off elsewhere
-	// NOTE : in any case temporary if dropping maps
-
-	void disable_assert();
-
-	//===== Setter (auxiliary methods) =====//
-	void (Impl::*_func_set_augm_)(indiv, const augmID &, double) = &Impl::_set_augm_assert_;
-	void _set_augm_assert_(indiv i, const augmID &a, double xnew);
-	void _set_augm_default_(indiv i, const augmID &a, double xnew);
-
-	double get_data(indiv i, const dataID &d) const;
-	double get_augm(indiv i, const augmID &a) const;
-	double get_rate(indiv i, const rateID &r) const;
-
-	//===== Getter (auxiliary methods) =====//
-	double (Impl::*_func_get_augm_)(indiv, const augmID &) const = &Impl::_get_augm_assert_;
-	double _get_augm_assert_(indiv i, const augmID &a) const;
-	double _get_augm_default_(indiv i, const augmID &a) const;
-
-	double (Impl::*_func_get_data_)(indiv, const dataID &) const = &Impl::_get_data_assert_;
-	double _get_data_assert_(indiv i, const dataID &d) const;
-	double _get_data_default_(indiv i, const dataID &d) const;
-
-	double (Impl::*_func_get_rate_)(indiv, const rateID &) const = &Impl::_get_rate_assert_;
-	double _get_rate_assert_(indiv i, const rateID &d) const;
-	double _get_rate_default_(indiv i, const rateID &d) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -149,7 +275,7 @@ void Household::Impl::assign_individual(const std::string &ID,
 		_is_susceptible_.push_back(false);
 		_is_missing_status_.push_back(true);
 	}
-	
+
 	//----- emplace new individual -----//
 	members.emplace_back(ID, status, data);
 	++house_size;
@@ -228,87 +354,6 @@ bool Household::Impl::change_status(indiv i, int new_status)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-inline double Household::Impl::get_data(indiv i, const dataID &d) const { return (this->*_func_get_data_)(i, d); }
-inline double Household::Impl::get_augm(indiv i, const augmID &a) const { return (this->*_func_get_augm_)(i, a); }
-inline double Household::Impl::get_rate(indiv i, const rateID &r) const { return (this->*_func_get_rate_)(i, r); }
-
-/* Disable data and augmented variable assertions. */
-void Household::Impl::disable_assert()
-{
-	this->_func_set_augm_ = &Impl::_set_augm_default_;
-	this->_func_get_augm_ = &Impl::_get_augm_default_;
-	this->_func_get_data_ = &Impl::_get_data_default_;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Household::Impl : functional methods  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Default method to get the value of data. */
-double Household::Impl::_get_data_default_(indiv i, const dataID &d) const
-{
-	return members[i].data.at(d);
-}
-
-/* Safe method to get the value of data with previous assertion. */
-double Household::Impl::_get_data_assert_(indiv i, const dataID &d) const
-{
-	if (members[i].assert_data(d))
-		return _get_data_default_(i, d);
-	else
-		return NULL_DOUBLE;
-}
-
-/* Default method to get the value of an augmented variable. */
-double Household::Impl::_get_augm_default_(indiv i, const augmID &a) const
-{
-	return members[i].augm_map.at(a).get_value();
-}
-
-/* Safe method to get the value of an augmented variable with previous assertion. */
-double Household::Impl::_get_augm_assert_(indiv i, const augmID &a) const
-{
-	if (members[i].assert_augm(a))
-		return _get_augm_default_(i, a);
-	else
-		return NULL_DOUBLE;
-}
-
-/* Default method to get the value of rate. */
-double Household::Impl::_get_rate_default_(indiv i, const rateID &r) const
-{
-	return members[i].rate_map.at(r).get();
-}
-
-/* Safe method to get the rate with previous assertion. */
-double Household::Impl::_get_rate_assert_(indiv i, const rateID &r) const
-{
-	if (members[i].assert_rate(r))
-		return _get_rate_default_(i, r);
-	else
-		return NULL_DOUBLE;
-}
-
-/* Default method to set the value of an augmented variable. */
-void Household::Impl::_set_augm_default_(indiv i, const augmID &a, double xnew)
-{
-	members[i].augm_map.at(a).set_value(xnew);
-}
-
-/* Safe method to set the value of an augmented variable with previous assertion. */
-void Household::Impl::_set_augm_assert_(indiv i, const augmID &a, double xnew)
-{
-	if (members[i].assert_augm(a))
-		_set_augm_default_(i, a, xnew);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /* Deep copies of extra attributes in the buffer */
 void Household::Impl::buffer_all_extra()
 {
@@ -344,7 +389,6 @@ Household::Household(const std::string &ID,
 Household::Household(Household &&other) noexcept = default;
 Household &Household::operator=(Household &&other) noexcept = default;
 Household::~Household() = default;
-
 
 void Household::assign_individual(const std::string &ID,
 								  int status,
@@ -384,11 +428,9 @@ ushort Household::size() const { return pImpl->house_size; }
 int Household::status(indiv i) const { return pImpl->members[i].status; }
 double Household::contact_rate(indiv from, indiv to) const { return *pImpl->contact_rates[from][to]; }
 
-// UPDATE : assertion is a drawback
-// NOTE : temporary before change into vectors
-double Household::augm(indiv i, const augmID &a) const { return pImpl->get_augm(i, a); }
-double Household::data(indiv i, const dataID &d) const { return pImpl->get_data(i, d); }
-double Household::group_rate(indiv i, const rateID &r) const { return pImpl->get_rate(i, r); }
+double Household::data(indiv i, const dataID &d) const { return pImpl->members[i].data.at(d); }
+double Household::group_rate(indiv i, const rateID &r) const { return pImpl->members[i].rate_map.at(r).get(); }
+double Household::augm(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).get_value(); }
 
 double Household::augm_model_logpdf(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).distr_logpdf(); }
 double Household::augm_model_logratio(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).distr_logratio(); }
@@ -407,9 +449,6 @@ double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }
 
 //===== SETTER =====//
-
-/* Disable data and augmented variable assertions. */
-void Household::disable_assert() { pImpl->disable_assert(); }
 
 void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x)
 {
@@ -523,72 +562,41 @@ const dbl_vec &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
 //===== EXTRA ATTRIBUTES =====//
 void Household::buffer_all_extra() { pImpl->buffer_all_extra(); }
 
-//----- Single integers -----//
+//----- Single extra integers -----//
 void Household::allocate_extra_integer(const std::vector<extraID> &names, int xinit)
 {
 	for (const extraID &e : names)
 		pImpl->extra_integer[e] = xinit;
 }
-void Household::set_extra_integer(const extraID &e, int xnew)
-{
-	pImpl->extra_integer.at(e) = xnew;
-}
+void Household::set_extra_integer(const extraID &e, int xnew){	pImpl->extra_integer.at(e) = xnew;}
+int Household::extra_integer(const extraID &e) const{	return pImpl->extra_integer.at(e);}
 
-int Household::extra_integer(const extraID &e) const
-{
-	return pImpl->extra_integer.at(e);
-}
-
+//----- Single extra doubles -----//
 void Household::allocate_extra_double(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
 		pImpl->extra_double[e] = xinit;
 }
-void Household::set_extra_double(const extraID &e, double xnew)
-{
-	pImpl->extra_double.at(e) = xnew;
-}
+void Household::set_extra_double(const extraID &e, double xnew){	pImpl->extra_double.at(e) = xnew;}
+double Household::extra_double(const extraID &e) const{	return pImpl->extra_double.at(e);}
 
-double Household::extra_double(const extraID &e) const
-{
-	return pImpl->extra_double.at(e);
-}
-
+//----- Extra double vector -----//
 void Household::allocate_extra_vector(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
 		pImpl->extra_vec[e] = dbl_vec(size(), xinit);
 }
-void Household::set_extra_vector(const extraID &e, size_t i, double xnew)
-{
-	pImpl->extra_vec.at(e)[i] = xnew;
-}
-double Household::extra_vector(const extraID &e, size_t i) const
-{
-	return pImpl->extra_vec.at(e)[i];
-}
-const dbl_vec &Household::extra_vector(const extraID &e) const
-{
-	return pImpl->extra_vec.at(e);
-}
+void Household::set_extra_vector(const extraID &e, size_t i, double xnew) { pImpl->extra_vec.at(e)[i] = xnew; }
+double Household::extra_vector(const extraID &e, size_t i) const { return pImpl->extra_vec.at(e)[i]; }
+const dbl_vec &Household::extra_vector(const extraID &e) const { return pImpl->extra_vec.at(e); }
 
+//----- Extra double matrix -----//
 void Household::allocate_extra_matrix(const std::vector<extraID> &names, double xinit)
 {
 	for (const extraID &e : names)
 		pImpl->extra_mtx[e] = matrix<double>(size(), dbl_vec(size(), xinit));
 }
 
-void Household::set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew)
-{
-	pImpl->extra_mtx.at(e)[from][to] = xnew;
-}
-
-double Household::extra_matrix(const extraID &e, size_t from, size_t to) const
-{
-	return pImpl->extra_mtx.at(e)[from][to];
-}
-
-const matrix<double> &Household::extra_matrix(const extraID &e) const
-{
-	return pImpl->extra_mtx.at(e);
-}
+void Household::set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew) { pImpl->extra_mtx.at(e)[from][to] = xnew; }
+double Household::extra_matrix(const extraID &e, size_t from, size_t to) const { return pImpl->extra_mtx.at(e)[from][to]; }
+const matrix<double> &Household::extra_matrix(const extraID &e) const { return pImpl->extra_mtx.at(e); }

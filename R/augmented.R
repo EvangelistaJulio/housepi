@@ -28,6 +28,24 @@ HousepiAugmentedClass <- R6::R6Class(
     },
 
     # @description
+    # Vector of required augmented variables.
+    # @param refer_file
+    # Path/to/.refer source file.
+    requisites = function(refer_file) {
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # from : .augm(, "string" or augm(, 'string'
+        '\\.augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']',
+        # from : .set_augm_value(, "string"
+        '\\.set_augm_value\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+      # retrieve require augmented variables from regular expressions
+      require_set <- template_requirement(refer_file, regular_expr)
+
+      return(require_set)
+    },
+
+    # @description
     # Remove a given augmented variable
     remove = function(name,
                       status = NA,
@@ -251,114 +269,91 @@ HousepiAugmentedClass <- R6::R6Class(
     },
 
     # @description
-    # Overwrite augmented variable definitions with template definitions.
-    template = function(envir_path) {
+    # Add missing augmented variables from template definitions.
+    # @param refer_file
+    # Path/to/.refer source file.
+    # @param augm_frame
+    # @param append
+    template = function(refer_file,
+                        append = TRUE) {
       # retrieve the template augmented file
-      templ_augm_file <- file.path(envir_path, "template_augm.R")
-      if (!file.exists((templ_augm_file))) {
+      templ_file <- file.path(dirname(refer_file), "template_augm.R")
+
+      # check if template file exists
+      if (file.exists((templ_file))) {
+        # template augmented variable definitions
+        templ_defs <- dget(templ_file)
+
+        if (isTRUE(append)) {
+          # set of required augmented variables
+          require_set <- self$requisites(refer_file)
+          if (is.null(require_set)) {
+            cli::cli_alert_warning(cli::format_warning(c(
+              "Appending template augmented variable definitions failed.",
+              i = "Alternatively use option {.code append = FALSE}."
+            )))
+          } else {
+            missing_set <- template_missing(require_set,
+                                            self$defs[["name"]])
+            self$from_list(templ_defs[missing_set],
+                           append = TRUE)
+          }
+        } else {
+          self$from_list(templ_defs, append = FALSE)
+        }
+
+      } else {
         stop(cli::format_error(c(
           "Impossible to automatically initialize augmented variables.",
           i = "A file with template definitionse was not found."
         )))
       }
-      # remove previous definitions
-      self$from_list(dget(templ_augm_file), append = FALSE)
+
       invisible(self)
     },
 
     # @description
     # Check augmented definitions from the model implementation script.
     # @param refer_file
-    # @param fill (`logical(1)`)\cr
-    # If `TRUE` fills missing augmented variables with template definitions.
     # @return (`logical(1)`)\cr
-    assert = function(refer_file,
-                      fill = FALSE) {
+    assert = function(refer_file) {
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-      # check if reference file exists
-      if (file.exists(refer_file)) {
+      # set of required augmented variables
+      require_set <- self$requisites(refer_file)
 
-        # read the script and extract augmented variables
-        script <- readChar(refer_file, file.info(refer_file)$size)
+      if (is.null(require_set)) {
+        # if requirement set is NULL it means nothing can be said
+        is_def_complete <- NA
 
-        # from : augm(, "string" or augm(, 'string'
-        regular_expr <- 'augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_augm_set <- unique(unlist(matches[[1]][, 2]))
+      } else {
 
-        # from : set_augm(, "string"
-        regular_expr <- 'set_augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_augm_set <- unique(c(model_augm_set, unique(unlist(matches[[1]][, 2]))))
-
-        # re-order alphabetically
-        model_augm_set <- model_augm_set[order(model_augm_set)]
-
-        ####################################
-        # find missing augmented variables #
-        ####################################
-        missing <- c()
-        for (name in model_augm_set) {
-          if (!(name %in% self$defs[["name"]])) {
-            missing <- c(missing, name)
-          }
-        }
-
-        # eventually fill with template definitions
-        if (length(missing) > 0) {
-          if (isTRUE(fill)) {
-            # retrieve the template augmented file
-            templ_augm_file <- file.path(dirname(refer_file), "template_augm.R")
-            if (file.exists((templ_file))) {
-              # UPDATE : I should check if the fill is complete
-              self$from_list(dget(templ_augm_file)[missing], append = TRUE)
-              oss <- sprintf(
-                "Added missing augmented variable(s) from template: \"%s\"",
-                missing[[1]]
-              )
-            } else {
-              stop(cli::format_error(c(
-                "Impossible to fill missing augmented without a template.",
-                i = "Set {.code fill = FALSE} to silence this warning."
-              )))              
-            }
-
-          } else {
-            oss <- sprintf("Missing augmented variable(s): \"%s\"", missing[[1]])
-            is_def_complete <- FALSE
-          }
-
-          # complete warning messages
-          for (name in missing[-1]) {
-            oss <- sprintf("%s, \"%s\"", oss, name)
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
+        # find missing augmented variables
+        missing_set <- template_missing(require_set,
+                                        self$defs[["name"]])
+        if (length(missing_set) > 0) {
+          is_def_complete <- FALSE
+          oss <- paste0("Missing parameter(s): ",
+                        character_to_string_list(missing_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
         }
 
         # point out augmented variables that are not used
-        unused <- c()
-        for (name in self$defs[["name"]]) {
-          if (!(name %in% model_augm_set)) {
-            unused <- c(unused, name)
-          }
-        }
-        if (length(unused) > 0) {
-          oss <- sprintf("Augmented variable(s) not used in model: \"%s\"", unused[[1]])
-          for (name in unused[-1]) {
-            oss <- sprintf("%s, \"%s\"", oss, name)
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-        }
+        unused_set <- template_unused(require_set, 
+                                      self$defs[["name"]])
 
-      } else {
-        cli::cli_alert_warning(cli::format_warning(c(
-          sprintf("Impossible to find reference file \"%s\".", refer_file),
-          i = "Try to generate a new model object with {.code force = TRUE}."
-        )))
-        is_def_complete <- NA
-      } 
+        # drop unused augmented variables
+        if (length(unused_set) > 0) {
+          oss <- paste0("Dropping not used augmented variable(s): ",
+                        character_to_string_list(unused_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
+
+          for (name in unused_set) {
+            self$remove(name)
+          }
+        }
+      }
 
       return(is_def_complete)
     }

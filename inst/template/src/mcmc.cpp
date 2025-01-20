@@ -261,7 +261,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
         _individual_group_rates_.clear();
         assign_group_rate_to_individual(house, i);
 
-        // convert to dict_rates_ptr and assert parameters
+        // convert to dict_rates_ptr
         for (const auto &pair : _individual_group_rates_)
         {
             rateID r = pair.first;
@@ -271,7 +271,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                     "The group rate name \"" + CONTACT_RATE + "\" is reserved. Choose a different one.");
             else if (!tools::is_na(r))
             {
-                // assert parameters and in the case return pointer
+                // return parameter pointers
                 bool is_all_reference = true; // all reference state
                 std::vector<const double *> vec_par_ptr = {};
 
@@ -285,7 +285,6 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                     else
                     {
                         is_all_reference = false;
-                        pBuild->assert_param(p);
                         vec_par_ptr.emplace_back(pBuild->get_param_pointer(p));
                     }
                 }
@@ -346,7 +345,6 @@ void MCMC::set_rate_per_contact(Household &house)
                             house.assign_contact_rate(k, i, &REFERENCE_VALUE); // reference rate
                         else
                         {
-                            pBuild->assert_param(_pair_contact_rate_);
                             house.assign_contact_rate(
                                 k, i,
                                 pBuild->get_param_pointer(_pair_contact_rate_) // parameter rate
@@ -681,9 +679,6 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
 
         // initialize global loglikelihood
         update_global_loglike();
-
-        // avoid asserting user definitions after first round
-        pBuild->disable_assert();
 
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//

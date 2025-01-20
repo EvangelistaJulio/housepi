@@ -51,8 +51,6 @@ public:
 	bool change_status(indiv i, int new_status);
 	void assign_contact_rate(indiv from, indiv to, const double *x);
 
-	void disable_assert();
-
 	//==================//
 	//===== GETTER =====//
 	//==================//

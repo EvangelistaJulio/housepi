@@ -28,6 +28,57 @@ HousepiParameterClass <- R6::R6Class(
     },
 
     # @description
+    # Vector of required parameters.
+    # @param refer_file
+    # Path/to/.refer source file.
+    # @param augm_frame
+    # Data.frane containing 
+    requisites = function(refer_file,
+                          augm_frame) {
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # from : param("string" or get_param('string'
+        'param\\s*\\(\\s*["\'](.*?)["\']',
+        # from : param_pointer("string" or param_pointer('string'
+        'param_pointer\\s*\\(\\s*["\'](.*?)["\']',
+        # from : emplace_contact_rate("string"
+        'emplace_contact_rate\\s*\\(\\s*["\'](.*?)["\']',
+        # from : emplace_group_rate(..., "string"
+        'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+      # retrieve required parameters from regular expressions
+      require_set <- template_requirement(refer_file,
+                                          regular_expr)                                  
+
+      # from : augmented variable model argument definitions
+      augm_require_set <- c()
+      if (length(augm_frame) > 0) {
+        x <- augm_frame[c("arg_value", "arg_type")]
+        for (i in seq_along(x)) {
+          aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
+                            keys = strsplit(x[i, 2], "/")[[1]])
+          aux <- aux[aux[["keys"]] == "P", "vals"]
+          augm_require_set <- c(augm_require_set, aux[!is.na(aux)])
+        }
+      }
+
+      # format output
+      if (is.null(require_set)) {
+        if (length(augm_require_set) == 0) {
+          require_set <- NULL
+        } else {
+          require_set <- augm_require_set
+          require_set <- unique(augm_require_set[order(augm_require_set)])
+        }
+      } else {
+        require_set <- c(require_set, augm_require_set)
+        require_set <- unique(require_set[order(require_set)])
+      }
+
+      return(require_set)
+    },
+
+    # @description
     # Remove a given parameter.
     remove = function(name,
                       show_warnings = TRUE) {
@@ -50,7 +101,7 @@ HousepiParameterClass <- R6::R6Class(
 
     # @description
     # Add a new parameter definition.
-    add = function(name = NA,
+    add = function(name,
                    value = NA,
                    constant = NA,
                    discrete = FALSE,
@@ -192,18 +243,47 @@ HousepiParameterClass <- R6::R6Class(
     },
 
     # @description
-    # Overwrite current parameter definitions with template definitions.
-    template = function(envir_path) {
+    # Add missing parameter from template definitions.
+    # @param refer_file
+    # Path/to/.refer source file.
+    # @param augm_frame
+    # @param append
+    template = function(refer_file,
+                        augm_frame = NULL,
+                        append = TRUE) {
       # retrieve the template parameters file
-      templ_params_file <- file.path(envir_path, "template_params.R")
-      if (!file.exists((templ_params_file))) {
+      templ_file <- file.path(dirname(refer_file), "template_params.R")
+
+      # check if template file exists
+      if (file.exists((templ_file))) {
+        # template parameter definitions
+        templ_defs <- dget(templ_file)
+
+        if (isTRUE(append)) {
+          # set of required parameters
+          require_set <- self$requisites(refer_file, augm_frame)
+          if (is.null(require_set)) {
+            cli::cli_alert_warning(cli::format_warning(c(
+              "Appending template parameter definitions failed.",
+              i = "Alternatively use option {.code append = FALSE}."
+            )))
+          } else {
+            missing_set <- template_missing(require_set,
+                                            self$defs[["name"]])
+            self$from_list(templ_defs[intersect(names(templ_defs), missing_set)],
+                           append = TRUE)
+          }
+        } else {
+          self$from_list(templ_defs, append = FALSE)
+        }
+
+      } else {
         stop(cli::format_error(c(
           "Impossible to automatically initialize parameters.",
           i = "A file with template definitionse was not found."
         )))
       }
-      # remove previous definitions
-      self$from_list(dget(templ_params_file), append = FALSE)
+
       invisible(self)
     },
 
@@ -211,126 +291,45 @@ HousepiParameterClass <- R6::R6Class(
     # Assert parameter definitions from the implementation script.
     # @param refer_file
     # @param augm_frame
-    # @param fill (`logical(1)`)\cr
-    # If `TRUE` fills the missing parameter with template definitions.
     # @return (`logical(1)`)\cr
     assert = function(refer_file,
-                      augm_frame,
-                      fill = FALSE) {
+                      augm_frame) {
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-      # check if reference file exists
-      if (file.exists(refer_file)) {
+      # set of required parameters
+      require_set <- self$requisites(refer_file, augm_frame)
 
-        # read the script and extract parameters
-        script <- readChar(refer_file, file.info(refer_file)$size)
-
-        # from : param("string" or get_param('string'
-        regular_expr <- 'param\\s*\\(\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- unlist(matches[[1]][, 2])
-
-        # param from : param_pointer("string" or param_pointer('string'
-        regular_expr <- 'param_pointer\\s*\\(\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- c(model_params_set, unlist(matches[[1]][, 2]))
-
-        # param from : assign_contact_rate("string"
-        regular_expr <- 'emplace_contact_rate\\s*\\(\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- c(model_params_set, unlist(matches[[1]][, 2]))
-
-        # param from : vec_parID.emplace_back(..., "string"
-        # UPDATE: need for smtg more solid here
-        regular_expr <- 'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_params_set <- c(model_params_set, unlist(matches[[1]][, 2]))
-
-        # param from : augmented variable model argument definitions
-        # UPDATE : to be controlled
-        if (length(augm_frame) > 0) {
-          x <- augm_frame[c("arg_value", "arg_type")]
-          for (i in seq_along(x)) {
-            aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
-                              keys = strsplit(x[i, 2], "/")[[1]])
-            aux <- aux[aux[["keys"]] == "P", "vals"]
-            model_params_set <- c(model_params_set, aux[!is.na(aux)])
-          }
-        }
-
-        # re-order alphabetically
-        model_params_set <- unique(model_params_set[order(model_params_set)])
-
-        ###########################
-        # find missing parameters #
-        ###########################
-        missing <- c()
-        for (name in model_params_set) {
-          if (!(name %in% self$defs[["name"]])) {
-            missing <- c(missing, name)
-          }
-        }
-
-        # eventually fill with template definitions
-        if (length(missing) > 0) {
-
-          if (isTRUE(fill)) {
-            # retrieve the template parameters file
-            templ_augm_file <- file.path(dirname(refer_file), "template_augm.R")
-            if (file.exists((templ_file))) {
-              self$from_list(dget(templ_file)[missing], append = TRUE)
-              oss <- sprintf(
-                "Added missing parameter(s) from template: \"%s\"",
-                missing[[1]]
-              )
-
-            } else {
-              stop(cli::format_error(c(
-                "Impossible to fill missing parameters without a template.",
-                i = "Set {.code fill = FALSE} to silence this warning."
-              )))
-            }
-
-          } else {
-            oss <- sprintf("Missing parameter(s): \"%s\"", missing[[1]])
-            is_def_complete <- FALSE
-          }
-
-          # complete warning messages
-          for (name in missing[-1]) {
-            oss <- sprintf("%s, \"%s\"", oss, name)
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-        }
-
-        #-----------------------------#
-        #----- Unused Parameters -----#
-        #-----------------------------#
-
-        # point out parameters that are not used and drop them
-        unused <- c()
-        for (name in self$defs[["name"]]) {
-          if (!(name %in% model_params_set)) {
-            unused <- c(unused, name)
-          }
-        }
-        if (length(unused) > 0) {
-          oss <- paste0("Dropping parameter(s) not used in model: \"", unused[[1]], "\"")
-          for (name in unused[-1]) {
-            oss <- paste0(oss, ", \"", name, "\"")
-            self$remove(name)
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-        }
+      if (is.null(require_set)) {
+        # if requirement set is NULL it means nothing can be said
+        is_def_complete <- NA
 
       } else {
-        cli::cli_alert_warning(cli::format_warning(c(
-          sprintf("Impossible to find reference file \"%s\".", refer_file),
-          i = "Try to generate a new model object with {.code force = TRUE}."
-        )))
-        is_def_complete <- NA
-      } 
+        
+        # find missing parameters
+        missing_set <- template_missing(require_set,
+                                        self$defs[["name"]])
+        if (length(missing_set) > 0) {
+          is_def_complete <- FALSE
+          oss <- paste0("Missing parameter(s): ",
+                        character_to_string_list(missing_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
+        }
+
+        # point out parameters that are not used
+        unused_set <- template_unused(require_set, 
+                                      self$defs[["name"]])
+        # drop unused parameters
+        if (length(unused_set) > 0) {
+          oss <- paste0("Dropping not used parameter(s): ",
+                        character_to_string_list(unused_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
+
+          for (name in unused_set) {
+            self$remove(name)
+          }
+        }
+      }
       
       return(is_def_complete)
     }

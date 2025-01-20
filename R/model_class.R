@@ -58,20 +58,60 @@ HouseholdModelClass <- R6::R6Class(
         # write the cpp script and save new reference
         private$group_rate$cpp_write(dataset, source_file)
         private$model$save_reference()
+      }
 
-        # add new parameter definitions
-        definitions <- list()
-        for (rate_id in names(private$group_rate$logic_table)) {
-          for (par_id in private$group_rate$logic_table[[rate_id]]$.param_name) {
-            if (par_id != "REFERENCE") {
-              definitions[[par_id]] <- private$group_rate$param_defs[[rate_id]]
-            }
+      # append new parameter definitions
+      new_param_defs <- list()
+      for (rate_id in names(private$group_rate$logic_table)) {
+        for (par_id in private$group_rate$logic_table[[rate_id]]$.param_name) {
+          if (par_id != "REFERENCE") {
+            new_param_defs[[par_id]] <- private$group_rate$param_defs[[rate_id]]
           }
         }
-        self$load_param_list(definitions)
+      }
+      if (length(new_param_defs) > 0) {
+        self$load_param_list(new_param_defs, append = TRUE)
       }
 
       return(self)
+    },
+
+    # @description
+    # Assert that dataset headers match implementation file.
+    # @param refer_file (`character()`)\cr
+    # Path/to/.refer source file.
+    # @param data_headers (`character()`)\cr
+    # Vector with the dataset headers.
+    # @return (`logical(1)`)\cr
+    assert_data = function(refer_file, data_headers) {
+      # logical state for complete definitions
+      is_def_complete <- TRUE
+
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # from : .data(, "string" or augm(, 'string'
+        '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+      # retrieve required data headers from regular expressions
+      require_set <- template_requirement(refer_file, regular_expr)
+
+      if (is.null(require_set)) {
+        # if requirement set is NULL it means nothing can be said
+        is_def_complete <- NA
+
+      } else {
+        # find missing data headers
+        missing_set <- template_missing(require_set,
+                                        data_headers)
+        if (length(missing_set) > 0) {
+          is_def_complete <- FALSE
+          oss <- paste0("Missing data headers(s): ",
+                        character_to_string_list(unused_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
+        }
+      }
+
+      return(is_def_complete)
     },
 
     # @description
@@ -100,6 +140,11 @@ HouseholdModelClass <- R6::R6Class(
         # deal with group rates
         private$build_group_rate(dataset)
 
+        # assert parameter definitions
+        if (isFALSE(private$assert_data(private$model$reference(),
+                                        colnames(dataset)))) {
+          stop("Incomplete dataset headers.")
+        }
         # assert parameter definitions
         if (isFALSE(self$assert_param())) {
           stop("Incomplete parameter definitions.")
@@ -627,11 +672,9 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Check parameter definitions from the implementation script.
-    #' @param fill (`logical(1)`)\cr
-    #' If `TRUE` fills the missing parameter with template definitions.
+    #' Assert if parameter definitions match the implementation script.
     #' @return (`logical(1)`)
-    assert_param = function(fill = FALSE) {
+    assert_param = function() {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No check for blank model."
@@ -640,20 +683,25 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         return(private$param$assert(
           private$model$reference(),
-          private$augm$defs, fill))
+          private$augm$defs))
                           
       }
     },
 
     #' @description
-    #' Overwrite current parameter definitions with template definitions.
-    template_param = function() {
+    #' Add missing paramters from template definitions.
+    #' @param append
+    #' If `TRUE` append only missing definitions (default). 
+    #' Else drop all previous definitions
+    template_param = function(append = TRUE) {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No template available for blank model."
         ))
       } else {
-        private$param$template(private$model$path())
+        private$param$template(private$model$reference(),
+                               private$augm$defs,
+                               append)
       }
       invisible(self)
     },
@@ -740,31 +788,34 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Assert augmented definitions from the model implementation script.
-    #' @param fill (`logical(1)`)\cr
-    #' If `TRUE` fills missing augmented variables with template definitions.
+    #' Assert if augmented definitions match the model implementation script.
     #' @return (`logical(1)`)
-    assert_augm = function(fill = FALSE) {
+    assert_augm = function() {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available for blank model."
         ))
         return(NA)
       } else {
-        return(private$augm$assert(private$model$reference(), fill))
+        return(private$augm$assert(private$model$reference()))
       }
     },
 
     #' @description
-    #' Overwrite augmented variable definitions with template definitions.
-    template_augm = function() {
+    #' Add missing augmented variables from template definitions.
+    #' @param append
+    #' If `TRUE` append only missing definitions (default). 
+    #' Else drop all previous definitions
+    template_augm = function(append = TRUE) {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No template available for blank model."
         ))
       } else {
-        private$augm$template(private$model$path())
+        private$augm$template(private$model$reference(),
+                              append)
       }
+
       invisible(self)
     },
 
@@ -828,17 +879,15 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Assert group rate definitions from the model implementation script.
-    #' @param fill (`logical(1)`)\cr
-    #' If `TRUE` fills missing augmented variables with template definitions.
     #' @return (`logical(1)`)\cr
-    assert_group_rate = function(fill = FALSE) {
+    assert_group_rate = function() {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
           "No check available for blank model."
         ))
         return(NA)
       } else {
-        return(private$group_rate$assert(private$model$reference(), fill))
+        return(private$group_rate$assert(private$model$reference()))
       }
     }
   )

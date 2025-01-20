@@ -93,7 +93,6 @@ public:
     std::vector<parID> param_to_be_constant = {};
 
     //----- Parameter - Getter -----//
-    bool assert_param(const parID &p) const;
     double get_param(const parID &p) const;
     const double *get_param_pointer(const parID &p) const;
 
@@ -252,16 +251,6 @@ public:
     parIDmap<Base_Variable> param_map = {}; // parameters dictionary
     bool _is_undef_params_ = false;         // undefined parameters valid only if infer
 
-    //----- get param (functional methods) -----//
-    double (Impl::*_func_get_param_)(const parID &) const = &Impl::_get_param_assert_;
-    double _get_param_default_(const parID &p) const;
-    double _get_param_assert_(const parID &p) const;
-
-    //----- get param pointer (functional methods) -----//
-    const double *(Impl::*_func_get_param_pointer_)(const parID &) const = &Impl::_get_param_pointer_assert_;
-    const double *_get_param_pointer_default_(const parID &p) const;
-    const double *_get_param_pointer_assert_(const parID &p) const;
-
     //===============================//
 	//===== INFECTIVITY PROFILE =====//
     //===============================//
@@ -291,7 +280,6 @@ public:
     parIDmap<dbl_vec> dgn_param_value = {};
     augmIDmap<dbl_vec> dgn_augm_value = {};
 
-    void disable_assert();
     void init_move_counts();
     void init_diagnostics(bool is_power_post);
     void update_diagnostics(bool is_power_post);

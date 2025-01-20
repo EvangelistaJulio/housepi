@@ -682,17 +682,6 @@ void MCMC::Impl::update_diagnostics(bool is_power_post)
     ++dgn_count;
 }
 
-/* Disable all assert methods for user definitions. */
-void MCMC::Impl::disable_assert()
-{
-    // disable parameter assertion for all parameters
-    _func_get_param_ = &MCMC::Impl::_get_param_default_;
-    _func_get_param_pointer_ = &MCMC::Impl::_get_param_pointer_default_;
-
-    // disable augmented variable assertion for all individuals
-    for (Household &house : house_vector)
-        house.disable_assert();
-}
 
 /* Check if augmented variable definition are generic or not (i. e. individual status specific). */
 bool MCMC::Impl::is_augm_generic() const

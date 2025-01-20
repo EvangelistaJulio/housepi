@@ -79,7 +79,7 @@ group_rate_logic_table <- function(dataset,
 #' @param prefix
 #' Prefix to parameter names associated to the group rate.
 #' @param reference
-#' Choose reference group providing corresponding features.
+#' Choose reference providing corresponding features.
 #' Default is the group with the largest sample size.
 #' @return
 #' input data.frame with logic table with parameter names.
@@ -154,11 +154,11 @@ cpp_ifclause_line <- function(r,
 ############################################################################
 ############################################################################
 
-# @title Housepi Group Rate R6 Class
-# @description
-# Help with group rate definitions of model Rcpp object.
-# @export HousepiGroupRateClass
-# @docType class
+#' @title Housepi Group Rate R6 Class
+#' @description
+#' Help with group rate definitions of model Rcpp object.
+#' @export HousepiGroupRateClass
+#' @noRd
 HousepiGroupRateClass <- R6::R6Class(
   classname = "HousepiGroupRateClass",
   cloneable = FALSE,
@@ -172,15 +172,17 @@ HousepiGroupRateClass <- R6::R6Class(
     param_defs = list(),
     logic_table = list(),
 
-    # @description
-    # Assign the empty parameter data.frame
+    #' @description
+    #' Assign the empty parameter data.frame
+    #' @noRd
     initialize = function() {
       self$drop_all()
       invisible(self)
     },
 
-    # @description
-    # Drop all current group rate definitions.
+    #' @description
+    #' Drop all current group rate definitions.
+    #' @noRd
     drop_all = function() {
       self$defs <- list()
       self$param_defs = list()
@@ -188,33 +190,75 @@ HousepiGroupRateClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Add a new group rate definition.
-    # @param name (`character(1)`)\cr
-    # Name of the group rate.
-    # @param features (`list()`)\cr
-    # Feature(s) associated to group rate as dataset headers.
-    # Corresponding dataset column have to be categorical.
-    # @param prefix (`character(1)`)\cr
-    # Prefix to parameter names associated to the group rate.
-    # @param (named `list()`)\cr
-    # Choose reference group providing corresponding features.
-    # Default is the group with the largest sample size.
-    # @param independent
-    # If `TRUE` features are considered separately.
-    # @param prior (`character(1)`)\cr
-    # Name of the prior distribution.
-    # @param args (named `list()`)\cr
-    # Arguments for the prior distribution.
-    # @param rule (`character(1)`)\cr
-    # Name of the inference proposal rule.
-    # @param rule_scale (`double(1)`)\cr
-    # Scale parameter for the proposal rule.
-    # Changed automatically during inference if `n_adpat`>0.
-    # @param min (`double(1)`)\cr
-    # Value of the minimum.
-    # @param max (`double(1)`)\cr
-    # Value of the maximum.
+    #' @description
+    #' Remove a given group_rate definition.
+    #' @noRd
+    remove = function(name,
+                      show_warnings = TRUE) {
+
+      if (any(names(self$defs) == name)) {
+        # drop previous definition
+        self$defs <- self$defs[names(self$defs) != name, ]
+
+        # store corresponding logic talbe
+        this_table <- self$logic_table[[name]]
+        # drop previous logic table
+        self$logic_table <- self$logic_table[names(self$logic_table) != name, ]
+
+        # store list of necesary parameter definitions
+        reserve_param <- c()
+        for (rate_id in names(self$logic_table)) {
+          reserve_param <- c(reserve_param,
+                             unlist(self$logic_table[[rate_id]]$.param_name))
+        }
+        # drop corresponding parameters not used for other group rates
+        for (par_id in this_table$.param_name) {
+          if (!(par_id %in% reserve_param)) {
+            definitions[[par_id]] <- self$param_defs[[rate_id]]
+          }
+        }
+
+        return(TRUE)
+
+      } else {
+        if (isTRUE(show_warnings)) {
+          cli::cli_alert_warning(cli::format_warning(c(
+            sprintf("Unknown group_rate \"%s\" to remove.", name
+          ))))
+        }
+      }
+
+      return(FALSE)
+    },
+
+    #' @description
+    #' Add a new group rate definition.
+    #' @param name (`character(1)`)\cr
+    #' Name of the group rate.
+    #' @param features (`list()`)\cr
+    #' Feature(s) associated to group rate as dataset headers.
+    #' Corresponding dataset column have to be categorical.
+    #' @param prefix (`character(1)`)\cr
+    #' Prefix to parameter names associated to the group rate.
+    #' @param reference (named `list()`)\cr
+    #' Choose reference group providing corresponding features.
+    #' Default is the group with the largest sample size.
+    #' @param independent
+    #' If `TRUE` features are considered separately.
+    #' @param prior (`character(1)`)\cr
+    #' Name of the prior distribution.
+    #' @param args (named `list()`)\cr
+    #' Arguments for the prior distribution.
+    #' @param rule (`character(1)`)\cr
+    #' Name of the inference proposal rule.
+    #' @param rule_scale (`double(1)`)\cr
+    #' Scale parameter for the proposal rule.
+    #' Changed automatically during inference if `n_adpat`>0.
+    #' @param min (`double(1)`)\cr
+    #' Value of the minimum.
+    #' @param max (`double(1)`)\cr
+    #' Value of the maximum.
+    #' @noRd
     add = function(name,
                    features,
                    prefix = NA,
@@ -228,6 +272,20 @@ HousepiGroupRateClass <- R6::R6Class(
                    max = NA) {
 
       # UPDATE: controls are missing
+      if (is.na(name)) {
+        stop(cli::format_error("Incomplete definition: missing name."))
+      }
+
+      # remove previous definition if it exists
+      if (self$remove(name, FALSE)) {
+        cli::cli_alert_warning(cli::format_warning(c(
+          sprintf(
+            "Existing \"%s\" definition has been overwritten.",
+            name
+        ))))
+      } 
+
+      # add new definition
       self$defs[[name]] <- list(
         features = features,
         prefix = prefix,
@@ -245,85 +303,63 @@ HousepiGroupRateClass <- R6::R6Class(
       )
     },
 
-    # @description
-    # Assert group rate definitions from the implementation script.
-    # @param refer_file
-    # @param fill (`logical(1)`)\cr
-    # If `TRUE` fills the missing group rate with template definitions.
-    # @return (`logical(1)`)\cr
-    assert = function(refer_file,
-                      fill = FALSE) {
+    #' @description
+    #' Assert group rate definitions from the implementation script.
+    #' @param refer_file (`character(1)`)\cr
+    #' path/to/.refer containing the model source.
+    #' @return (`logical(1)`)\cr
+    #' @noRd
+    assert = function(refer_file) {
       # logical state for complete definitions
       is_def_complete <- TRUE
-      # check if reference file exists
-      if (file.exists(refer_file)) {
-          
-        # read the script and extract parameters
-        script <- readChar(refer_file, file.info(refer_file)$size)
 
-        # group rate from : house.group_rate(..., "string"
-        regular_expr <- 'house.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-        matches <- stringr::str_match_all(script, regular_expr)
-        model_rate_set <- unlist(matches[[1]][, 2])
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # group rate from : .group_rate(..., "string"
+        '\\.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+      # retrieve required group rates from regular expressions
+      require_set <- template_requirement(refer_file, regular_expr)
 
-        # re-order alphabetically
-        model_rate_set <- unique(model_rate_set[order(model_rate_set)])
-
-        # add missing parameters with standard options
-        missing <- c()
-        for (name in model_rate_set) {
-          if (!(name %in% names(self$defs))) {
-            missing <- c(missing, name)
-          }
-        }
-
-        # eventually fill with template definitions
-        if (length(missing) > 0) {
-          if (isTRUE(fill)) {
-            stop(cli::format_error(c(
-                "Template group rates are not yet implemented."
-              )))
-          } else {
-            oss <- sprintf("Missing group rate(s): \"%s\"", missing[[1]])
-            is_def_complete <- FALSE
-          }
-          
-          # complete warning messages
-          for (name in missing[-1]) {
-            oss <- sprintf("%s, \"%s\"", oss, name)
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-        }
-
-        # point out group rates that are not used
-        unused <- c()
-        for (name in names(self$defs)) {
-          if (!(name %in% model_rate_set)) {
-            unused <- c(unused, name)
-          }
-        }
-        if (length(unused) > 0) {
-          oss <- paste0("Group rate(s) not used in model: \"", unused[[1]], "\"")
-          for (name in unused[-1]) {
-            oss <- paste0(oss, ", \"", name, "\"")
-          }
-          cli::cli_alert_warning(cli::format_warning(c(paste0(oss, "."))))
-        }
-      } else {
-        cli::cli_alert_warning(cli::format_warning(c(
-          sprintf("Impossible to find reference file \"%s\".", refer_file),
-          i = "Try to generate a new model object with {.code force = TRUE}."
-        )))
+      if (is.null(require_set)) {
+        # if requirement set is NULL it means nothing can be said
         is_def_complete <- NA
-      } 
+
+      } else {
+        # find missing parameters
+        missing_set <- template_missing(require_set,
+                                        names(self$defs))
+        if (length(missing_set) > 0) {
+          oss <- paste0("Missing group rate(s): ",
+                        character_to_string_list(missing_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
+
+          is_def_complete <- FALSE
+        }
+          
+        # point out parameters that are not used
+        unused_set <- template_unused(require_set, 
+                                      names(self$defs))
+        # drop unused parameters
+        if (length(unused_set) > 0) {
+          oss <- paste0("Dropping not used group rate(s): ",
+                        character_to_string_list(unused_set), ".")
+          cli::cli_alert_warning(cli::format_warning(oss))
+
+          for (name in unused_set) {
+            self$remove(name)
+          }
+        }
+      }
       
       return(is_def_complete)
     },
 
-    # @description
-    # Generate a script to be printed within source code model.cpp
-    # @param dataset
-    # Dataset to be considered.
+    #' @description
+    #' Generate a script to be printed within source code model.cpp
+    #' @param dataset
+    #' Dataset to be considered.
+    #' @noRd
     cpp_implement = function(dataset) {
 
       # initialize lines of the script
@@ -392,22 +428,30 @@ HousepiGroupRateClass <- R6::R6Class(
         collapse = "\n"))
     },
 
-    # @description
-    # Assert if script would change with the new implementation.
-    # @param dataset
-    # Dataset to be considered.
-    # @param source_file
-    # Path/to/model.cpp source code.
-    # @return (`logical(1)`)\cr
+    #' @description
+    #' Assert if group rates are implementated.
+    #' @param dataset
+    #' Dataset to be considered.
+    #' @param source_file
+    #' Path/to/model.cpp source code.
+    #' @return (`logical(1)`)\cr
+    #' `TRUE` if definitions exist and are up to date. 
+    #' @noRd
     cpp_assert = function(dataset,
                           source_file) {
       # check if there are user defined group rates
-      if (length(self$defs) > 0) {
+      if (length(self$defs) == 0) {
+        # default is TRUE (i.e. no definitions)
+        return(TRUE)
+
+      } else {
+        # assert if group rates are complete
         if (isFALSE(self$assert(source_file))) {
           cli::cli_alert_warning(cli::format_warning(c(
             "Ignoring incomplete group rate definitions.",
             i = "To implement changes in group rates, fill missing definitions."
           )))
+          return(TRUE)
 
         } else {
           # produce associated script
@@ -419,17 +463,15 @@ HousepiGroupRateClass <- R6::R6Class(
                                       stringr::fixed(rate_script)))
         }
       }
-
-      # default is TRUE (i.e. no definitions)
-      return(TRUE)
     },
 
-    # @description
-    # Overwrite script to source code model.cpp
-    # @param dataset
-    # Dataset to be considered.
-    # @return logical
-    # Wheter code requires recompilation
+    #' @description
+    #' Overwrite script to source code model.cpp
+    #' @param dataset
+    #' Dataset to be considered.
+    #' @return (`logical(1)`)\cr
+    #' Wheter code requires recompilation or not.
+    #' @noRd
     cpp_write = function(dataset,
                          source_file) {
 

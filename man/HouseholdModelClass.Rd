@@ -521,19 +521,11 @@ If \code{FALSE} drop all other parameter definitions.}
 \if{html}{\out{<a id="method-HouseholdModelClass-assert_param"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-assert_param}{}}}
 \subsection{Method \code{assert_param()}}{
-Check parameter definitions from the implementation script.
+Assert if parameter definitions match the implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_param(fill = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_param()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{fill}}{(\code{logical(1)})\cr
-If \code{TRUE} fills the missing parameter with template definitions.}
-}
-\if{html}{\out{</div>}}
-}
 \subsection{Returns}{
 (\code{logical(1)})
 }
@@ -542,11 +534,19 @@ If \code{TRUE} fills the missing parameter with template definitions.}
 \if{html}{\out{<a id="method-HouseholdModelClass-template_param"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-template_param}{}}}
 \subsection{Method \code{template_param()}}{
-Overwrite current parameter definitions with template definitions.
+Add missing paramters from template definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_param()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_param(append = TRUE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+Else drop all previous definitions}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-export_augm"></a>}}
@@ -665,19 +665,11 @@ If \code{FALSE} drop all other augmented variable definitions.}
 \if{html}{\out{<a id="method-HouseholdModelClass-assert_augm"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-assert_augm}{}}}
 \subsection{Method \code{assert_augm()}}{
-Assert augmented definitions from the model implementation script.
+Assert if augmented definitions match the model implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_augm(fill = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_augm()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{fill}}{(\code{logical(1)})\cr
-If \code{TRUE} fills missing augmented variables with template definitions.}
-}
-\if{html}{\out{</div>}}
-}
 \subsection{Returns}{
 (\code{logical(1)})
 }
@@ -686,11 +678,19 @@ If \code{TRUE} fills missing augmented variables with template definitions.}
 \if{html}{\out{<a id="method-HouseholdModelClass-template_augm"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-template_augm}{}}}
 \subsection{Method \code{template_augm()}}{
-Overwrite augmented variable definitions with template definitions.
+Add missing augmented variables from template definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_augm()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_augm(append = TRUE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+Else drop all previous definitions}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-drop_all_group_rate"></a>}}
@@ -771,17 +771,9 @@ Value of the maximum.}
 \subsection{Method \code{assert_group_rate()}}{
 Assert group rate definitions from the model implementation script.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_group_rate(fill = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$assert_group_rate()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{fill}}{(\code{logical(1)})\cr
-If \code{TRUE} fills missing augmented variables with template definitions.}
-}
-\if{html}{\out{</div>}}
-}
 \subsection{Returns}{
 (\code{logical(1)})\cr
 }

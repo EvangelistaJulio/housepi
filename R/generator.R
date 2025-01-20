@@ -246,7 +246,8 @@ HousepiGeneratorClass <- R6::R6Class(
       # check if reference file exists
       if (!dir.exists(envir_path)) {
         stop(cli::format_error(c(
-          sprintf("Impossible to find environment path \"%s\".", envir_path),
+          "Impossible to find environment path:",
+          sprintf("\"%s\".", envir_path),
           i = "Generate again the model object with {.code force = TRUE}."
         )))
       }
@@ -272,7 +273,8 @@ HousepiGeneratorClass <- R6::R6Class(
       # check if reference file exists
       if (!file.exists(refer_file)) {
         stop(cli::format_error(c(
-          sprintf("Impossible to find reference file \"%s\".", refer_file),
+          "Impossible to find reference file:",
+          sprintf("\"%s\".", refer_file),
           i = "Generate again the model object with {.code force = TRUE}."
         )))
       }

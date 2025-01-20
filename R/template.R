@@ -4,8 +4,9 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-# @description
-# Show list of all available template nmodel names.
+#' @description
+#' Show list of all available template nmodel names.
+#' @noRd
 show_model_names <- function() {
 
   cli::cli_alert_info("Template model names:")
@@ -92,4 +93,107 @@ household_model_template <- function(template_name = NULL, path = NULL) {
   } else {
     stop(cli::format_error("Model name is not a character."))
   }
+}
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+#' @description
+#' Assert that all required definition names are present.
+#' @param refer_file (`character(1)`)\cr
+#' path/to/.refer containing the model source.
+#' @param regular_expr (`character()`)\cr
+#' Vector containing regular expressions.
+#' @return (`character()`)\cr
+#' Vector with necessary definitions.
+#' @noRd
+template_requirement <- function(refer_file,
+                                regular_expr) {
+
+  # check if reference file exists
+  if (file.exists(refer_file)) {
+      
+    # read the script and extract parameters
+    script <- readChar(refer_file, file.info(refer_file)$size)
+
+    # extract all calls in .refer source file
+    required_set <- c()
+    for (reg in regular_expr) {
+      matches <- stringr::str_match_all(script, reg)
+      required_set <- c(required_set, unlist(matches[[1]][, 2]))
+    }
+
+    # re-order alphabetically
+    required_set <- unique(required_set[order(required_set)])
+
+  } else {
+    cli::cli_alert_warning(cli::format_warning(c(
+      sprintf("Impossible to find reference file \"%s\".", refer_file),
+      i = "Try to generate a new model object with {.code force = TRUE}."
+    )))
+
+    required_set <- NULL
+  } 
+  
+  return(required_set)
+}
+
+#' @description
+#' Check for missing definitions.
+#' @param required_set (`character()`)\cr
+#' Vector with necessary definitions.
+#' @param regular_expr (`character()`)\cr
+#' Vector with current definitions.
+#' @return (`character()`)\cr
+#' Vector with missing definitions.
+#' @noRd
+template_missing <- function(required_set,
+                            def_set) {
+  if (is.null(required_set)) {
+    missing_set <- NULL
+
+  } else {
+    missing_set <- c()
+    for (name in required_set) {
+      if (!(name %in% def_set)) {
+        missing_set <- c(missing_set, name)
+      }
+    }
+  }
+
+  return(missing_set)
+}
+
+#' @description
+#' Check for unused definitions.
+#' @param required_set (`character()`)\cr
+#' Vector with necessary definitions.
+#' @param regular_expr (`character()`)\cr
+#' Vector with current definitions.
+#' @return (`character()`)\cr
+#' Vector with unused definitions.
+#' @noRd
+template_unused <- function(required_set,
+                            def_set) {
+  if (is.null(required_set)) {
+    unused_set <- NULL
+
+  } else {
+    unused_set <- c() 
+    for (name in def_set) {
+      if (!(name %in% required_set)) {
+        unused_set <- c(unused_set, name)
+      }
+    }
+  }
+
+  return(unused_set)
+}
+
+character_to_string_list <- function(mylist) {
+  return(paste(lapply(mylist, function(x) { paste0("\"", x ,"\"") } ),
+               collapse=", "))
 }

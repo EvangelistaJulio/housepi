@@ -14,37 +14,18 @@
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC::Impl : methods (getter)  //////////////////////////////
+/////////////////////////////////  MCMC::Impl : methods (getter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Default functional method to return parameter. */
-double MCMC::Impl::_get_param_default_(const parID &p) const { return param_map.at(p).get_value(); }
+/* Get the parameter value. */
+double MCMC::Impl::get_param(const parID &p) const { return param_map.at(p).get_value(); }
 
-/* Safe method to get a value with previous assertion. */
-double MCMC::Impl::_get_param_assert_(const parID &p) const
-{
-    if (assert_param(p))
-        return _get_param_default_(p);
-    else
-        return NULL_DOUBLE;
-}
-
-/* Default functional method to return pointer to parameter. */
-const double *MCMC::Impl::_get_param_pointer_default_(const parID &p) const { return param_map.at(p).get_pointer(); }
-
-/* Safe method to get a pointer to a parameter with previous assertion. */
-const double *MCMC::Impl::_get_param_pointer_assert_(const parID &p) const
-{
-    if (assert_param(p))
-        return _get_param_pointer_default_(p);
-    else
-        return nullptr;
-}
+/* Get pointer to the parameter. */
+const double *MCMC::Impl::get_param_pointer(const parID &p) const { return param_map.at(p).get_pointer(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC::Impl : methods (setter)  //////////////////////////////
+/////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 /* Set the number of threads for parrell computations (default is 1). */
 void MCMC::Impl::set_n_threads(unsigned n)
@@ -99,28 +80,6 @@ void MCMC::Impl::set_prng_seed(int seed)
             prng_parallel[n].seed(seed_generator(prng));
     }
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC::Impl : methods (setter)  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Check if the given parameter is defined, otherwise raise error. */
-bool MCMC::Impl::assert_param(const parID &p) const
-{
-    if (param_map.find(p) == param_map.end())
-        throw std::invalid_argument(
-            "Parameter \"" + p + "\" not found. Check your model and parameter definitions.");
-    else
-        return true;
-
-    return false;
-}
-
-/* Wrapper of functional method to return the parameter value. */
-double MCMC::Impl::get_param(const parID &p) const { return (this->*_func_get_param_)(p); }
-
-/* Wrapper of functional method to return a pointer to the parameter. */
-const double *MCMC::Impl::get_param_pointer(const parID &p) const { return (this->*_func_get_param_pointer_)(p); }
 
 /* Randomly initialize values of the parameters to be inferred */
 void MCMC::Impl::init_parameters()

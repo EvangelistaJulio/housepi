@@ -66,9 +66,12 @@ public:
     {
         double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
         // loop over all arguments to adapt
-        for (const ushort &argID : _args_to_adapt_)
-            (_distr_ptr_->set_arg)(argID,
-                                   (_distr_ptr_->get_arg)(argID)*factor);
+        for (ushort c = 0; c < n_args_to_adapt; ++c)
+        {
+            ushort arg_id = _args_to_adapt_[c];
+            (_distr_ptr_->set_arg)(arg_id,
+                                   (_distr_ptr_->get_arg)(arg_id)*factor);
+        }
     }
 
     //================//
@@ -79,7 +82,7 @@ public:
     const std::string show_arg_values() const { return _distr_ptr_->show_arg_values(); }
     const std::string show_scale() const
     {
-        if (_args_to_adapt_.empty())
+        if (n_args_to_adapt == 0)
             return NULL_STRING;
         else
             return std::to_string(std::fabs((_distr_ptr_->get_arg)(_args_to_adapt_[0])));
@@ -92,10 +95,12 @@ protected:
     double _user_rule_scale_ = 1.0;    // scale of the Metropolis rule
     bool _is_start_from_zero_ = false; // wheter to move from given value
     double from_value = NULL_DOUBLE;   // given value where to start from
-    double accept_rate = 0.0;          // acceptance rate
-    ulong n_proposed_moves = 0;        // number of proposed moves
 
-    std::vector<ushort> _args_to_adapt_ = {}; // which arguments should be adapted
+    double accept_rate = 0.0;   // acceptance rate
+    ulong n_proposed_moves = 0; // number of proposed moves
+
+    ushort n_args_to_adapt = 0;        // how many arguments to adapt
+    ushort *_args_to_adapt_ = nullptr; // which arguments should be adapted
 
     //===== propose : functional methods =====//
     double (Base_Proposer::*_func_propose_)(rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
@@ -148,7 +153,11 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
     }
 
     // load which are the parameter to be adapted
-    _args_to_adapt_ = args_to_adapt;
+    n_args_to_adapt = args_to_adapt.size();
+    _args_to_adapt_ = new ushort[n_args_to_adapt];
+
+    for (ushort c = 0; c < n_args_to_adapt; ++c)
+        _args_to_adapt_[c] = args_to_adapt.at(c);
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

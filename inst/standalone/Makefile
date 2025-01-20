@@ -67,7 +67,7 @@ main.o: main.cpp
 # To clean objects
 .PHONY: clean
 clean:
-	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe}
+	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe} ${TMPL}/*/.refer 
 
 # To run make in a debug mode
 .PHONY: debug

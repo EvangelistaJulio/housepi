@@ -20,6 +20,10 @@ options(knitr.kable.NA = "")
 
 ```{r}
 hmc <- housepi::HouseholdModelClass$new("chain-binomial-heterogeneous")
+```
+
+```{r}
+hmc$drop_all()
 
 data("survey", package = "housepi")
 survey$agegroup <- as.integer(survey$age <= 15)
@@ -33,6 +37,6 @@ hmc$add_group_rate("susceptibility", features = "susgroup")
 hmc$template_param()
 
 hmc$infer(survey)
+lattice::xyplot(hmc$export_traces())
 ```
-
 
