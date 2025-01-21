@@ -1,5 +1,5 @@
 /*
- * profiles.cpp
+ * mcmc_infec_profiles.cpp
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
@@ -23,8 +23,8 @@ public:
 	//===== GETTER =====//
 	double get_arg(ushort i);
 
-	virtual double pdf(const dbl_vec &x);
-	virtual double cdf(const dbl_vec &x);
+	virtual double instantaneous(const dbl_vec &x);
+	virtual double cumulative(const dbl_vec &x);
 
 protected:
 	//===== SETTER =====//
@@ -62,17 +62,17 @@ void MCMC::Impl::InfecProfile::_init_defaults_(const std::string &name,
 	}
 }
 
-double MCMC::Impl::InfecProfile::pdf(const dbl_vec &x)
+double MCMC::Impl::InfecProfile::instantaneous(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
-		"Call to undefined method \"pdf\" of infectivity profile \"" + name + "\".");
+		"Call to undefined method \"instantaneous\" of infectivity profile \"" + name + "\".");
 }
-double MCMC::Impl::InfecProfile::cdf(const dbl_vec &x)
+double MCMC::Impl::InfecProfile::cumulative(const dbl_vec &x)
 {
 	UNUSED(x);
 	throw std::invalid_argument(
-		"Call to undefined method \"cdf\" of infectivity profile \"" + name + "\".");
+		"Call to undefined method \"cumulative\" of infectivity profile \"" + name + "\".");
 }
 
 /* Return value indexed as 'i'. */
@@ -136,7 +136,7 @@ public:
 	~InfecProfile_Ferretti20() = default;
 
 	//*  Probability distribution function. *//
-	double pdf(const dbl_vec &x) override
+	double instantaneous(const dbl_vec &x) override
 	{
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
 		double incub = x[1];		// incubation period
@@ -157,7 +157,7 @@ public:
 	}
 
 	//*  Cumulative distribution function. *//
-	double cdf(const dbl_vec &x) override
+	double cumulative(const dbl_vec &x) override
 	{
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
 		double incub = x[1];		// incubation period
@@ -214,7 +214,7 @@ public:
 		gamma_distr_ptr = distribution_switchboard("gamma");
 	}
 
-	double pdf(const dbl_vec &x) override
+	double instantaneous(const dbl_vec &x) override
 	{
 		// load variables
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
@@ -231,7 +231,7 @@ public:
 		return gamma_distr_ptr->pdf(shift + t_OST);
 	}
 
-	double cdf(const dbl_vec &x) override
+	double cumulative(const dbl_vec &x) override
 	{
 		// load variables
 		double t_OST = x[0] - x[1]; // t. from onset to transmission
@@ -297,13 +297,11 @@ void MCMC::Impl::assign_infectivity_profile(const std::string &name)
 			"Unknown infectivity profile \"" + name + "\"." + tools::find_closest(name, options));
 }
 
-void MCMC::assign_infectivity_profile(const std::string &name)
-{
-	pBuild->assign_infectivity_profile(name);
-}
+/* Assign infectivity profile */
+void MCMC::assign_infectivity_profile(const std::string &name) { pBuild->assign_infectivity_profile(name); }
 
 /* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(const dbl_vec &x) { return pBuild->_infec_profile_->pdf(x); }
+double MCMC::infec_profile_inst(const dbl_vec &x) { return pBuild->_infec_profile_->instantaneous(x); }
 
 /* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(const dbl_vec &x) { return pBuild->_infec_profile_->cdf(x); }
+double MCMC::infec_profile_cumul(const dbl_vec &x) { return pBuild->_infec_profile_->cumulative(x); }

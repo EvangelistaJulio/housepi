@@ -631,7 +631,7 @@ bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init Bayesian diagnostics. */
-void MCMC::Impl::init_diagnostics(bool is_power_post)
+void MCMC::Impl::init_diagnostics()
 {
     ulong sample_size = setup_c_sample_size * setup_n_chains;
 
@@ -640,7 +640,7 @@ void MCMC::Impl::init_diagnostics(bool is_power_post)
     dgn_glob_loglike = dbl_vec(sample_size);
 
     // initialize  other diagnostic vectors
-    if (!is_power_post)
+    if (!is_power_post())
     {
         // diagnostics over parameters
         for (const parID &p : param_to_be_inferred)
@@ -658,12 +658,12 @@ void MCMC::Impl::init_diagnostics(bool is_power_post)
 }
 
 /* Update Bayesian diagnostics */
-void MCMC::Impl::update_diagnostics(bool is_power_post)
+void MCMC::Impl::update_diagnostics()
 {
     // diagnostics for global loglike
     dgn_glob_loglike[dgn_count] = get_global_loglike();
 
-    if (!is_power_post)
+    if (!is_power_post())
     {
         // diagnostics for all parameters
         for (const parID &p : param_to_be_inferred)
@@ -681,7 +681,6 @@ void MCMC::Impl::update_diagnostics(bool is_power_post)
 
     ++dgn_count;
 }
-
 
 /* Check if augmented variable definition are generic or not (i. e. individual status specific). */
 bool MCMC::Impl::is_augm_generic() const
@@ -719,10 +718,13 @@ void MCMC::Impl::_augm_model_generic_(const Household &house, indiv i, double &d
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Tell if it's the case of power posteriors. */
+bool MCMC::Impl::is_power_post() const { return _n_rungs_ > 0; }
+
 /* The text to print in the Markov chian progress bar. */
-const std::string MCMC::Impl::fmt_progtxt(const std::string &txt, bool is_power_post)
+const std::string MCMC::Impl::fmt_progtxt(const std::string &txt)
 {
-    if (is_power_post)
+    if (is_power_post())
         return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
     else if (setup_n_chains > 1)
         return txt + " " + std::to_string(_chain_) + "/" + std::to_string(setup_n_chains);

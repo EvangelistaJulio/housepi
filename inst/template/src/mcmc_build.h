@@ -264,13 +264,13 @@ public:
     //===== METROPOLIS =====//
     //======================//
 
-	const std::string fmt_progtxt(const std::string &txt, bool is_power_post = false);
-
-	//===== INFER =====//
 	ulong _chain_ = 1;			 // current chain
 	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
 	ulong _rung_ = 0;			 // current thermodynamic rung
 	ulong _n_rungs_ = 0;		 // number of rungs
+
+    bool is_power_post() const;
+	const std::string fmt_progtxt(const std::string &txt);
 
     //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;
@@ -281,8 +281,8 @@ public:
     augmIDmap<dbl_vec> dgn_augm_value = {};
 
     void init_move_counts();
-    void init_diagnostics(bool is_power_post);
-    void update_diagnostics(bool is_power_post);
+    void init_diagnostics();
+    void update_diagnostics();
 
     //----- Metropolis - State-Checker -----//
     bool is_augm_generic() const;

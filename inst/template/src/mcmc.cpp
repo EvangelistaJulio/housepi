@@ -4,16 +4,17 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include "mcmc.h"
 #include "mcmc_build.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+//===== CONSTRUCTOR =====//
 MCMC::MCMC() : pBuild(std::make_unique<Impl>()) {}
 MCMC::~MCMC() = default;
 
+//===== READ =====//
 void MCMC::read_setup(const std::string &pathtofile) { pBuild->read_setup(pathtofile); }
 void MCMC::read_params(const std::string &pathtofile) { pBuild->read_params(pathtofile); }
 void MCMC::read_augm(const std::string &pathtofile) { pBuild->read_augm(pathtofile); }
@@ -315,10 +316,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary wrapper to emplace_back */
-void MCMC::emplace_contact_rate(parID p)
-{
-    _pair_contact_rate_ = p;
-}
+void MCMC::emplace_contact_rate(parID p) { _pair_contact_rate_ = p; }
 
 /* Set contact rate according to user assignement. */
 void MCMC::set_rate_per_contact(Household &house)
@@ -487,7 +485,7 @@ void MCMC::move_all_and_adapt_parameters(ulong step)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
+////////////////////////////////  MCMC : init augmented variables  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize augmented dependecies for all households. */
@@ -521,6 +519,10 @@ void MCMC::init_augmented_variables()
         _func_move_all_augm_ = &MCMC::_move_no_augm_;
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Don't move anything. */
 void MCMC::_move_no_augm_() {}
@@ -651,7 +653,7 @@ double MCMC::evaluate()
 
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
-void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_power_post)
+void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep)
 {
     //==========================//
     //===== Initialization =====//
@@ -663,13 +665,13 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
             "Nothing to infer. Check your parameter and augmented variable definitions.");
 
     // initialize diagnostics
-    pBuild->init_diagnostics(is_power_post);
+    pBuild->init_diagnostics();
 
     // run Multiple MCMC Chains
     for (pBuild->_chain_ = 1; pBuild->_chain_ <= pBuild->setup_n_chains; ++pBuild->_chain_)
     {
         // update progressbar text
-        progressbar.set_text(pBuild->fmt_progtxt("infer", is_power_post));
+        progressbar.set_text(pBuild->fmt_progtxt("infer"));
 
         // initialize parameter inference
         pBuild->init_parameters();
@@ -717,7 +719,7 @@ void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep, bool is_
                 move_all();
 
             // compute diagnostics for the previous iterations
-            pBuild->update_diagnostics(is_power_post);
+            pBuild->update_diagnostics();
 
             progressbar.update(static_cast<double>(++sweep) / pBuild->_tot_thin_sweeps_);
         }
@@ -806,7 +808,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     init_model_for_inference();
 
     //----- Start progress bar and chrono -----//
-    CustomProgressBar progressbar(pBuild->fmt_progtxt("", true), is_progbar);
+    CustomProgressBar progressbar(pBuild->fmt_progtxt(""), is_progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
@@ -814,7 +816,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
     pBuild->set_inver_temper(0.0);
     pBuild->setup_rand_init_params = true;
-    run_monte_carlo(progressbar, 0, true);
+    run_monte_carlo(progressbar, 0);
     pBuild->dgn_glob_ll_stats(avg, var);
 
     inv_t.push_back(0.0);
@@ -831,7 +833,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
         pBuild->_rung_ = 1;
         pBuild->set_inver_temper(1.0);
         pBuild->setup_rand_init_params = false;
-        run_monte_carlo(progressbar, rung_sweeps, true);
+        run_monte_carlo(progressbar, rung_sweeps);
         pBuild->dgn_glob_ll_stats(avg, var);
 
         inv_t.push_back(1.0);
@@ -854,7 +856,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
             //----- power posterior sampling -----//
             pBuild->set_inver_temper(new_inv_T);
-            run_monte_carlo(progressbar, pBuild->_rung_ * rung_sweeps, true);
+            run_monte_carlo(progressbar, pBuild->_rung_ * rung_sweeps);
             pBuild->dgn_glob_ll_stats(avg, var);
 
             //----- find larger rectangular discretization error -----//
@@ -880,7 +882,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
         for (pBuild->_rung_ = 1; pBuild->_rung_ < pBuild->_n_rungs_; ++pBuild->_rung_)
         {
             pBuild->set_inver_temper(std::pow(static_cast<double>(pBuild->_rung_) / (pBuild->_n_rungs_ - 1), 5));
-            run_monte_carlo(progressbar, pBuild->_rung_ * rung_sweeps, true);
+            run_monte_carlo(progressbar, pBuild->_rung_ * rung_sweeps);
             pBuild->dgn_glob_ll_stats(avg, var);
 
             inv_t.push_back(pBuild->setup_inv_T);
@@ -918,7 +920,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : methods (simulation)  ////////////////////////////////////
+/////////////////////////////////////  MCMC : simulation  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Model specific initialization (e. g. extra variables, lookup tables, etc). */

@@ -47,7 +47,7 @@ HousepiParameterClass <- R6::R6Class(
         'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required parameters from regular expressions
-      require_set <- template_requirement(refer_file,
+      require_set <- template_find_requirement(refer_file,
                                           regular_expr)                                  
 
       # from : augmented variable model argument definitions
@@ -268,7 +268,7 @@ HousepiParameterClass <- R6::R6Class(
               i = "Alternatively use option {.code append = FALSE}."
             )))
           } else {
-            missing_set <- template_missing(require_set,
+            missing_set <- template_find_missing(require_set,
                                             self$defs[["name"]])
             self$from_list(templ_defs[intersect(names(templ_defs), missing_set)],
                            append = TRUE)
@@ -307,7 +307,7 @@ HousepiParameterClass <- R6::R6Class(
       } else {
         
         # find missing parameters
-        missing_set <- template_missing(require_set,
+        missing_set <- template_find_missing(require_set,
                                         self$defs[["name"]])
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
@@ -317,7 +317,7 @@ HousepiParameterClass <- R6::R6Class(
         }
 
         # point out parameters that are not used
-        unused_set <- template_unused(require_set, 
+        unused_set <- template_find_unused(require_set, 
                                       self$defs[["name"]])
         # drop unused parameters
         if (length(unused_set) > 0) {

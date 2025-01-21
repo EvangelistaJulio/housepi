@@ -93,7 +93,7 @@ HouseholdModelClass <- R6::R6Class(
         '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required data headers from regular expressions
-      require_set <- template_requirement(refer_file, regular_expr)
+      require_set <- template_find_requirement(refer_file, regular_expr)
 
       if (is.null(require_set)) {
         # if requirement set is NULL it means nothing can be said
@@ -101,7 +101,7 @@ HouseholdModelClass <- R6::R6Class(
 
       } else {
         # find missing data headers
-        missing_set <- template_missing(require_set,
+        missing_set <- template_find_missing(require_set,
                                         data_headers)
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
@@ -282,6 +282,8 @@ HouseholdModelClass <- R6::R6Class(
       private$augm <- HousepiAugmentedClass$new()
       # assign the empty group rate list
       private$group_rate <- HousepiGroupRateClass$new()
+
+      invisible(self)
     },
 
     #' @description
@@ -683,8 +685,7 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         return(private$param$assert(
           private$model$reference(),
-          private$augm$defs))
-                          
+          private$augm$defs))              
       }
     },
 
@@ -833,10 +834,12 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Add a new group rate definition.
+    #' Add definitions of a group rate by given data feature(s). 
+    #' Reference value has unitary rate and can be specified (default is most represented group).
+    #' Associated parameter definition(s) with default prior "lnorm" (meanlog = 0, sdlog = 3).
     #' @param name (`character(1)`)\cr
     #' Name of the group rate.
-    #' @param features (`list()`)\cr
+    #' @param by (`list()`)\cr
     #' Feature(s) associated to group rate as dataset headers.
     #' Corresponding dataset column have to be categorical.
     #' @param prefix (`character(1)`)\cr
@@ -845,7 +848,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Choose reference group providing corresponding features.
     #' Default is the group with the largest sample size.
     #' @param independent (`logical(1)`)\cr
-    #' If `TRUE` features are considered separately.
+    #' If `TRUE` then features are considered independently. 
     #' @param prior (`character(1)`)\cr
     #' Name of the prior distribution. 
     #' @param args (named `list()`)\cr
@@ -859,18 +862,22 @@ HouseholdModelClass <- R6::R6Class(
     #' Value of the minimum.
     #' @param max (`double(1)`)\cr
     #' Value of the maximum.
+    #' @reference
+    #' Cauchemez, et al. (2009)
+    #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
+    #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
     add_group_rate = function(name,
-                              features,
+                              by,
                               prefix = NA,
                               reference = NULL,
                               independent = TRUE,
-                              prior = "unif",
-                              args = list(min = 0, max = 10),
+                              prior = "lnorm",
+                              args = list(meanlog = 0, sdlog = 3),
                               rule = "lnorm",
                               rule_scale = 1,
                               min = NA,
-                              max = NA) {
-      private$group_rate$add(name = name, features = features, prefix = prefix,
+                              max = 10) {
+      private$group_rate$add(name = name, by = by, prefix = prefix,
                              reference = reference, independent = independent,
                              prior = prior, args = args, rule = rule,
                              rule_scale = rule_scale, min = min, max = max)

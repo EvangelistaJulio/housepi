@@ -15,15 +15,14 @@ REFERENCE <- "REFERENCE"
 #' Return logic table of group rates
 #' @param dataset
 #' the dataset from which the etract group rates
-#' @param features
-#' features as list of dataset column names
+#' @param by
+#' Features as list of dataset column names
 #' @return
 #' data.frame with logic table
 #' @noRd
-group_rate_logic_table <- function(dataset,
-                                   features) {
+group_rate_logic_table <- function(dataset, by) {
   # convert features
-  features <- as.character(features)
+  features <- as.character(by)
 
   # assert that features are present
   missing <- c()
@@ -235,7 +234,7 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Add a new group rate definition.
     #' @param name (`character(1)`)\cr
     #' Name of the group rate.
-    #' @param features (`list()`)\cr
+    #' @param by (`list()`)\cr
     #' Feature(s) associated to group rate as dataset headers.
     #' Corresponding dataset column have to be categorical.
     #' @param prefix (`character(1)`)\cr
@@ -258,18 +257,22 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Value of the minimum.
     #' @param max (`double(1)`)\cr
     #' Value of the maximum.
+    #' @reference
+    #' Cauchemez, et al. (2009)
+    #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
+    #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
     #' @noRd
     add = function(name,
-                   features,
+                   by,
                    prefix = NA,
                    reference = NULL,
                    independent = TRUE,
-                   prior = "unif",
-                   args = list(min = 0, max = 10),
+                   prior = "lnorm",
+                   args = list(meanlog = 0, sdlog = 1),
                    rule = "lnorm",
                    rule_scale = 1,
                    min = NA,
-                   max = NA) {
+                   max = 10) {
 
       # UPDATE: controls are missing
       if (is.na(name)) {
@@ -287,7 +290,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
       # add new definition
       self$defs[[name]] <- list(
-        features = features,
+        by = by,
         prefix = prefix,
         reference = reference,
         independent = isTRUE(independent))
@@ -319,7 +322,7 @@ HousepiGroupRateClass <- R6::R6Class(
         '\\.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required group rates from regular expressions
-      require_set <- template_requirement(refer_file, regular_expr)
+      require_set <- template_find_requirement(refer_file, regular_expr)
 
       if (is.null(require_set)) {
         # if requirement set is NULL it means nothing can be said
@@ -327,7 +330,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
       } else {
         # find missing parameters
-        missing_set <- template_missing(require_set,
+        missing_set <- template_find_missing(require_set,
                                         names(self$defs))
         if (length(missing_set) > 0) {
           oss <- paste0("Missing group rate(s): ",
@@ -338,7 +341,7 @@ HousepiGroupRateClass <- R6::R6Class(
         }
           
         # point out parameters that are not used
-        unused_set <- template_unused(require_set, 
+        unused_set <- template_find_unused(require_set, 
                                       names(self$defs))
         # drop unused parameters
         if (length(unused_set) > 0) {
@@ -378,7 +381,7 @@ HousepiGroupRateClass <- R6::R6Class(
         }
 
         # features
-        features <- as.list(this_def[["features"]])
+        features <- as.list(this_def[["by"]])
         if (isFALSE(this_def[["independent"]])) {
           features <- list(features)
         }

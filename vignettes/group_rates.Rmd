@@ -23,9 +23,8 @@ hmc <- housepi::HouseholdModelClass$new("chain-binomial-heterogeneous")
 ```
 
 ```{r}
-hmc$drop_all()
-
 data("survey", package = "housepi")
+
 survey$agegroup <- as.integer(survey$age <= 15)
 survey$susgroup <- survey$agegroup
 survey$susgroup[(survey$agegroup == 1) & (survey$sex == 1)] <- 2

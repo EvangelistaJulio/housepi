@@ -21,7 +21,6 @@
 #include <Rcpp.h>
 #endif
 
-#include "variable.h"
 #include "household.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -139,7 +138,7 @@ private:
 	parID _pair_contact_rate_ = {};
 
 	//----- Monte Carlo -----//
-	void run_monte_carlo(CustomProgressBar &progbar, ulong sweep = 0, bool is_power_post = false);
+	void run_monte_carlo(CustomProgressBar &progbar, ulong sweep = 0);
 	void move_all();
 	void move_all_and_adapt_parameters(ulong step);
 	void move_single_param(const parID &p);

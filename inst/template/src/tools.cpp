@@ -395,7 +395,7 @@ namespace tools
                 str_vec headers = read_column_headers(input, required_headers);
                 std::map<std::string, std::string> this_row = {};
 
-                csv_parsed_table.clear(); // FIXME: is this correct?
+                csv_parsed_table.clear();
                 while (read_row_by_headers(input, headers, this_row))
                 {
                     for (const auto &x : this_row)

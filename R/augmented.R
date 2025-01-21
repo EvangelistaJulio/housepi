@@ -40,7 +40,7 @@ HousepiAugmentedClass <- R6::R6Class(
         '\\.set_augm_value\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve require augmented variables from regular expressions
-      require_set <- template_requirement(refer_file, regular_expr)
+      require_set <- template_find_requirement(refer_file, regular_expr)
 
       return(require_set)
     },
@@ -293,7 +293,7 @@ HousepiAugmentedClass <- R6::R6Class(
               i = "Alternatively use option {.code append = FALSE}."
             )))
           } else {
-            missing_set <- template_missing(require_set,
+            missing_set <- template_find_missing(require_set,
                                             self$defs[["name"]])
             self$from_list(templ_defs[missing_set],
                            append = TRUE)
@@ -330,7 +330,7 @@ HousepiAugmentedClass <- R6::R6Class(
       } else {
 
         # find missing augmented variables
-        missing_set <- template_missing(require_set,
+        missing_set <- template_find_missing(require_set,
                                         self$defs[["name"]])
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
@@ -340,7 +340,7 @@ HousepiAugmentedClass <- R6::R6Class(
         }
 
         # point out augmented variables that are not used
-        unused_set <- template_unused(require_set, 
+        unused_set <- template_find_unused(require_set, 
                                       self$defs[["name"]])
 
         # drop unused augmented variables

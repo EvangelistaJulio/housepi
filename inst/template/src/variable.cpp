@@ -188,9 +188,8 @@ double Base_Proposer::_logratio_undefined_(double xold, double xnew) const
     return 0.0;
 }
 double Base_Proposer::_logratio_pdf_(double xold, double xnew) const { return _distr_ptr_->logratio(xold, xnew); }
-// FIXME : double check these
-double Base_Proposer::_logratio_sum_to_zero_(double xold, double xnew) const { return _logratio_pdf_(xold - get_from_value(), xnew - get_from_value()); }
-double Base_Proposer::_logratio_times_zero_(double xold, double xnew) const { return _logratio_pdf_(xold / get_from_value(), xnew / get_from_value()); }
+double Base_Proposer::_logratio_sum_to_zero_(double xold, double xnew) const { return _logratio_pdf_(xold - from_value, xnew - from_value); }
+double Base_Proposer::_logratio_times_zero_(double xold, double xnew) const { return _logratio_pdf_(xold / from_value, xnew / from_value); }
 double Base_Proposer::_logratio_symm_(double xold, double xnew) const
 {
     UNUSED(xold);

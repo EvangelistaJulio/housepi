@@ -23,25 +23,25 @@ show_model_names <- function() {
 #' @title household model template
 #' @description
 #' Copy a default model to a given directory.
-#' @param template_name (`character(1)`)\cr
+#' @param name (`character(1)`)\cr
 #' Name of template model. If `NULL`, list of available templates.
 #' @param path (`character(1)`)\cr
 #' Where to copy the template scripts.
 #' If `NULL`, show template model description in RStudio Help window.
 #' @export
-household_model_template <- function(template_name = NULL, path = NULL) {
+household_model_template <- function(name = NULL, path = NULL) {
 
-  if (is.null(template_name)) {
+  if (is.null(name)) {
     #===== Asking for model names =====#
     show_model_names()
 
-  } else if (is.character(template_name)) {
+  } else if (is.character(name)) {
 
-    if (template_name %in% list.files(template_models_dir())) {
+    if (name %in% list.files(template_models_dir())) {
       if (is.null(path)) {
         #===== Asking for model description =====#
         info_file <- file.path(template_models_dir(),
-                               template_name,
+                               name,
                                "template_info.Rd")
         if (!file.exists((info_file))) {
           stop(cli::format_error(
@@ -63,29 +63,33 @@ household_model_template <- function(template_name = NULL, path = NULL) {
         #===== Asking for copying template to empty folder =====#
         dir.create(path, recursive = TRUE, showWarnings = FALSE)
         if (dir.exists(path)) {
-          # UPDATE : maybe don't copy the copyright section
-
-          for (f in c("model.cpp", "model.h", "template_params.R", "template_info.Rd")) {
-            from_file <- file.path(template_models_dir(),
-                                   template_name, f)
-            if (!overwrite(from_file, file.path(path, f))) {
-              internal_setup_error()
-            }
+          templ_files <- c("model.cpp", 
+                           "model.h", 
+                           "template_params.R", 
+                           "template_info.Rd")
+          for (f in templ_files) {
+            from_file <- file.path(template_models_dir(), name, f)
+            overwrite(from_file, file.path(path, f))
           }
           for (f in c("template_augm.R")) {
             from_file <- file.path(template_models_dir(),
-                                   template_name, f)
-            overwrite(from_file, file.path(path, f))
+                                   name, f)
+            if (file.exists(from_file)) {                      
+              overwrite(from_file, file.path(path, f))
+            }
           }
 
         } else {
-          internal_setup_error()
+          stop(cli::format_error(c(
+               sprintf("Failed to create directory \"%s\".", path),
+               i = "Check your user permissions."
+          )))
         }
       }
 
     } else {
       stop(cli::format_error(c(
-        sprintf("Provided model name \"%s\" is unknown.", template_name),
+        sprintf("Provided model name \"%s\" is unknown.", name),
         i = "Run {.code household_model_template()} to see available template names."
       )))
     }
@@ -110,8 +114,8 @@ household_model_template <- function(template_name = NULL, path = NULL) {
 #' @return (`character()`)\cr
 #' Vector with necessary definitions.
 #' @noRd
-template_requirement <- function(refer_file,
-                                regular_expr) {
+template_find_requirement <- function(refer_file,
+                                      regular_expr) {
 
   # check if reference file exists
   if (file.exists(refer_file)) {
@@ -150,8 +154,8 @@ template_requirement <- function(refer_file,
 #' @return (`character()`)\cr
 #' Vector with missing definitions.
 #' @noRd
-template_missing <- function(required_set,
-                            def_set) {
+template_find_missing <- function(required_set,
+                                  def_set) {
   if (is.null(required_set)) {
     missing_set <- NULL
 
@@ -176,8 +180,8 @@ template_missing <- function(required_set,
 #' @return (`character()`)\cr
 #' Vector with unused definitions.
 #' @noRd
-template_unused <- function(required_set,
-                            def_set) {
+template_find_unused <- function(required_set,
+                                 def_set) {
   if (is.null(required_set)) {
     unused_set <- NULL
 
@@ -193,6 +197,13 @@ template_unused <- function(required_set,
   return(unused_set)
 }
 
+#' @description
+#' Collapse a character vector into string of quoted words.
+#' @param (`character()`)\cr
+#' Vector of characters.
+#' @return 
+#' String formatted as a list of quoted words.
+#' @noRd
 character_to_string_list <- function(mylist) {
   return(paste(lapply(mylist, function(x) { paste0("\"", x ,"\"") } ),
                collapse=", "))

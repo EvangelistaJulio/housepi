@@ -47,7 +47,7 @@ void MCMC::Impl::set_n_threads(unsigned n)
     setup_n_threads = n;
 
     // create different generators for different parallel threads
-    // UPDATE: they are used only to parallelize data augmentantion
+    // note: they are used only to parallelize data augmentantion
     if (n > 1)
     {
         prng_parallel.reserve(n);
@@ -118,8 +118,6 @@ void MCMC::Impl::init_move_counts()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-// FIXME : Gibbs sampling is missing here!
-// 1) always valid 2) move_logratio == 0
 bool MCMC::Impl::propose_valid_param_move(const parID &p)
 {
     bool output = true;
@@ -615,7 +613,6 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
             //----- VALUES -----//
 
-            // FIXME : // HERE : to be checked
             for (size_t c = 0; c < setup_n_chains; ++c)
             {
                 for (size_t k = 0; k < setup_c_sample_size; k++)

@@ -706,20 +706,22 @@ Drop all current augmented variable definitions.
 \if{html}{\out{<a id="method-HouseholdModelClass-add_group_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
-Add a new group rate definition.
+Add definitions of a group rate by given data feature(s).
+Reference value has unitary rate and can be specified (default is most represented group).
+Associated parameter definition(s) with default prior "lnorm" (meanlog = 0, sdlog = 3).
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_group_rate(
   name,
-  features,
+  by,
   prefix = NA,
   reference = NULL,
   independent = TRUE,
-  prior = "unif",
-  args = list(min = 0, max = 10),
+  prior = "lnorm",
+  args = list(meanlog = 0, sdlog = 3),
   rule = "lnorm",
   rule_scale = 1,
   min = NA,
-  max = NA
+  max = 10
 )}\if{html}{\out{</div>}}
 }
 
@@ -729,7 +731,7 @@ Add a new group rate definition.
 \item{\code{name}}{(\code{character(1)})\cr
 Name of the group rate.}
 
-\item{\code{features}}{(\code{list()})\cr
+\item{\code{by}}{(\code{list()})\cr
 Feature(s) associated to group rate as dataset headers.
 Corresponding dataset column have to be categorical.}
 
@@ -741,7 +743,7 @@ Choose reference group providing corresponding features.
 Default is the group with the largest sample size.}
 
 \item{\code{independent}}{(\code{logical(1)})\cr
-If \code{TRUE} features are considered separately.}
+If \code{TRUE} then features are considered independently.}
 
 \item{\code{prior}}{(\code{character(1)})\cr
 Name of the prior distribution.}

@@ -123,19 +123,17 @@ Note that the proposer rule "lnorm" does not fit the case of negative values as 
 
 ```{r}
 # with model (default Gibbs rule)
-hmc$load_augm_list(augm_move_1 = list(model = "norm"),
-                   append = FALSE)$infer()
-lattice::xyplot(hmc$export_traces())
+hmc$drop_all()$add_augm(move_1 = list(model = "norm"))
+lattice::xyplot(hmc$infer()$export_traces())
 
 # w\o model random walk (default Gibbs rule)
-hmc$load_augm_list(augm_move_2 = list(value = 0, rule = "norm"),
-                   append = FALSE)$infer()
-lattice::xyplot(hmc$export_traces())
+hmc$drop_all()$add_augm(move_2 = list(value = 0, rule = "norm"))
+lattice::xyplot(hmc$infer()$export_traces())
 
 # w\o model fixed  walk (default Gibbs rule)
-hmc$load_augm_list(augm_move_3 = list(rule_from = 0, rule = "norm"),
-                   append = FALSE)$infer()
-lattice::xyplot(hmc$export_traces())
+hmc$drop_all()$add_augm(move_3 = list(rule_from = 0, rule = "norm"))
+
+lattice::xyplot(hmc$infer()$export_traces())
 
 ```
 

@@ -4,10 +4,10 @@
 \alias{household_model_template}
 \title{household model template}
 \usage{
-household_model_template(template_name = NULL, path = NULL)
+household_model_template(name = NULL, path = NULL)
 }
 \arguments{
-\item{template_name}{(\code{character(1)})\cr
+\item{name}{(\code{character(1)})\cr
 Name of template model. If \code{NULL}, list of available templates.}
 
 \item{path}{(\code{character(1)})\cr
