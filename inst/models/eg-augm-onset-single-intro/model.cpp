@@ -86,8 +86,9 @@ void Model::init_model_for_simulation()
 /* Initialize parameters and augmented variables. */
 void Model::init_model_for_inference()
 {
-	// use infectivity profile from Ferretti et al (2020)
-	assign_infectivity_profile("ferretti20");
+	// default infectivity profile: Ferretti et al (2020)
+	// otherwise user defined
+	build_infec_profile("ferretti20");
 
 	// integer for index of introduction case
 	assign_extra_integer_to_all_houses({"intro-case"}, -1);
@@ -161,7 +162,7 @@ double Model::ROI_cumul_suscept(const Household &house, indiv i) const
    WARNING: this function should not call any mutable parameter. */
 void Model::update_augm_dependecies(Household &house, indiv i)
 {
-	double serial;
+	double gentime; // generation time 
 
 	//==============================//
 	//===== Infectious Members =====//
@@ -188,23 +189,23 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 
 			if (t_infec_i < t_infec_k)
 			{ //----- `i` : infector, `k` : infectee -----//
-				serial = t_infec_k - t_infec_i;
+				gentime = t_infec_k - t_infec_i;
 
-				house.set_extra_matrix("inst", i, k, infec_profile_inst({serial, incub_i}));
+				house.set_extra_matrix("inst", i, k, infec_profile_inst(gentime, {incub_i}));
 				house.set_extra_matrix("inst", k, i, 0.0);
 
-				house.set_extra_matrix("cumul", i, k, infec_profile_cumul({serial, incub_i}));
+				house.set_extra_matrix("cumul", i, k, infec_profile_cumul(gentime, {incub_i}));
 				house.set_extra_matrix("cumul", k, i, 0.0);
 			}
 			else
 			{ //----- `k` : infector, `i` : infectee -----//
-				serial = t_infec_i - t_infec_k;
+				gentime = t_infec_i - t_infec_k;
 
 				house.set_extra_matrix("inst", i, k, 0.0);
-				house.set_extra_matrix("inst", k, i, infec_profile_inst({serial, incub_k}));
+				house.set_extra_matrix("inst", k, i, infec_profile_inst(gentime, {incub_i}));
 
 				house.set_extra_matrix("cumul", i, k, 0.0);
-				house.set_extra_matrix("cumul", k, i, infec_profile_cumul({serial, incub_k}));
+				house.set_extra_matrix("cumul", k, i, infec_profile_cumul(gentime, {incub_i}));
 
 				//----- update first case -----//
 				if (t_infec_k < new_t0)
@@ -220,10 +221,10 @@ void Model::update_augm_dependecies(Household &house, indiv i)
 	//===== Susceptible Members =====//
 	//===============================//
 
-	serial = time_end_followup(house) - t_infec_i;
+	gentime = time_end_followup(house) - t_infec_i;
 	for (indiv k : house.susceptible_set())
 	{
-		house.set_extra_matrix("cumul", i, k, infec_profile_cumul({serial, incub_i}));
+		house.set_extra_matrix("cumul", i, k, infec_profile_cumul(gentime, {incub_i}));
 		house.set_extra_matrix("cumul", k, i, 0.0);
 	}
 }

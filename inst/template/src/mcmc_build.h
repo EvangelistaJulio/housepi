@@ -7,20 +7,30 @@
 #ifndef HOUSEPI__MCMC__BUILD__H
 #define HOUSEPI__MCMC__BUILD__H
 
-#include <string>
-#include <chrono>
-#include <vector>
-#include <algorithm>
-#include <map>
 #include <memory>
+#include <string>
+#include <vector>
+#include <map>
+#include <unordered_set>
+#include <algorithm>
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
-#include "mcmc.h"
+#include "distribution.h"
 #include "variable.h"
 #include "household.h"
+#include "mcmc.h"
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// declaration for typed file inputs
+const std::string TYPE_PARAM = "P";  // Parameter type declaration
+const std::string TYPE_DATA = "D";   // Data type declaration
+const std::string TYPE_SCALAR = "S"; // Scalar type declaration
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -29,7 +39,7 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Implementation class. */
+/* Monte Carlo Markov Chain implementation class. */
 class MCMC::Impl
 {
 public:
@@ -116,8 +126,8 @@ public:
     std::vector<Household> house_vector = {};
     str_vec data_headers = {};
     ulong _n_contacts_ = 0;
-    std::map<std::string, size_t> _report_data_;
-    std::map<std::string, std::string> _report_pathtofile_;
+    std::map<std::string, size_t> _report_data_ = {};
+    std::map<std::string, std::string> _report_pathtofile_ = {};
 
     void update_report_data();
     size_t report_data(const std::string &key) const;
@@ -154,6 +164,7 @@ public:
     //================//
 
     void read_setup(const std::string &pathtofile);
+    void read_infec_profile(const std::string &pathtofile);
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
 
@@ -167,10 +178,7 @@ public:
     void show_summary() const;
     void show_full_build() const;
 
-    //======================//
-    //===== Cpp PRINTS =====//
-    //======================//
-
+    //----- Cpp Prints -----//
     void print_infer_state(const std::string &pathtofile) const;
     void print_augm_variables(const std::string &pathtofile) const;
 
@@ -178,18 +186,20 @@ public:
     //========================//
     //===== Rcpp IMPORTS =====//
     //========================//
-    void import_setup(const Rcpp::List &x);
-    void import_params(const Rcpp::DataFrame &x);
-    void import_augm(const Rcpp::DataFrame &x);
+
+    void import_setup(const Rcpp::List &input);
+    void import_infec_profile(const Rcpp::List &input);
+    void import_params(const Rcpp::DataFrame &input);
+    void import_augm(const Rcpp::DataFrame &input);
 
     //========================//
     //===== Rcpp EXPORTS =====//
     //========================//
+
     Rcpp::List export_setup() const;
     Rcpp::DataFrame export_params() const;
     Rcpp::DataFrame export_data() const;
     Rcpp::DataFrame export_traces() const;
-    Rcpp::DataFrame export_augm_traces() const;
     Rcpp::NumericMatrix export_household_loglike_traces() const;
 #endif
 
@@ -227,6 +237,7 @@ public:
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::string> _setup_deflist_ = {};
+    std::map<std::string, std::string> _infec_profile_deflist_ = {};
     dict_str_vec _param_deftable_ = {};
     dict_str_vec _augm_deftable_ = {};
 
@@ -235,9 +246,9 @@ public:
                           const std::string &tkn_typ,
                           const Household &house, indiv i);
     void assign_augm_type_args(Household &house, indiv i, augmID a,
-                               const std::string &tkn_key,
-                               const std::string &tkn_val,
-                               const std::string &tkn_typ);
+                               const str_vec &keys,
+                               const str_vec &vals,
+                               const str_vec &typs);
     void assign_augm_type_range(Household &house, indiv i, augmID a,
                                 const std::string &tkn_min_val,
                                 const std::string &tkn_min_typ,
@@ -248,29 +259,35 @@ public:
     //===== PARAMETERS =====//
     //======================//
 
-    parIDmap<Base_Variable> param_map = {}; // parameters dictionary
-    bool _is_undef_params_ = false;         // undefined parameters valid only if infer
+    parIDmap<Variable> param_map = {}; // parameters dictionary
+    bool _is_undef_params_ = false;    // undefined parameters valid only if infer
 
     //===============================//
-	//===== INFECTIVITY PROFILE =====//
+    //===== INFECTIVITY PROFILE =====//
     //===============================//
 
-	class InfecProfile;
-    class InfecProfile_Ferretti20;
-	std::unique_ptr<InfecProfile> _infec_profile_;
-	void assign_infectivity_profile(const std::string &name);
+    std::shared_ptr<Distribution> _infec_profile_;
+    void switchboard_infec_profile(const std::string &name);
+    void assign_infec_profile_args(const str_vec &keys,
+                                   const str_vec &vals,
+                                   const str_vec &typs);
+    void assign_infec_profile_range(const std::string &min_value,
+                                    const std::string &min_type,
+                                    const std::string &max_value,
+                                    const std::string &max_type);
+    void build_infec_profile();
 
     //======================//
     //===== METROPOLIS =====//
     //======================//
 
-	ulong _chain_ = 1;			 // current chain
-	ulong _tot_thin_sweeps_ = 0; // total number of sweeps
-	ulong _rung_ = 0;			 // current thermodynamic rung
-	ulong _n_rungs_ = 0;		 // number of rungs
+    ulong _chain_ = 1;           // current chain
+    ulong _tot_thin_sweeps_ = 0; // total number of sweeps
+    ulong _rung_ = 0;            // current thermodynamic rung
+    ulong _n_rungs_ = 0;         // number of rungs
 
     bool is_power_post() const;
-	const std::string fmt_progtxt(const std::string &txt);
+    const std::string fmt_progtxt(const std::string &txt);
 
     //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;

@@ -8,12 +8,8 @@
 #define HOUSEPI__VARIABLE__H
 
 #include <memory>
-#include <random>
 #include <string>
 #include <vector>
-#include <map>
-#include <unordered_map>
-#include <cmath>
 
 #include "tools.h"
 
@@ -25,28 +21,27 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Variable : class  ////////////////////////////////////
+///////////////////////////////////  Variable : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Base_Variable
+class Variable
 {
 public:
 	//===== CONSTRUCTOR =====//
-	Base_Variable(const std::string &name = NULL_STRING,
+	Variable(const std::string &name = NULL_STRING,
 				  double value = std::numeric_limits<double>::quiet_NaN(),
 				  bool is_discrete = false);
-	Base_Variable(Base_Variable &&other) noexcept;			  // Move constructor
-	Base_Variable &operator=(Base_Variable &&other) noexcept; // Move assignment
-	~Base_Variable();
+	Variable(Variable &&other) noexcept;			  // Move constructor
+	Variable &operator=(Variable &&other) noexcept; // Move assignment
+	~Variable();
 
 	//===== GETTER =====//
-	const std::string &get_name() const;
 	double get_value() const;
 	const double *get_pointer() const;
+	double get_from_value() const;
 	bool is_constant() const;
 	bool is_discrete() const;
 	bool is_from_zero() const;
-	double get_from_value() const;
 
 	//===== SETTER =====//
 	void init(const std::string &name, double value, bool is_discrete);
@@ -54,17 +49,21 @@ public:
 	void set_value(double x);
 	void restore_value();
 
-	// define a pointer to distribution
+	//----- Pointer to distribution -----//
 	void assign_distribution(const std::string &distr_name = NULL_STRING);
+
 	void assign_distr_scalar_arg(const std::string &arg_name, double x);
 	void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
+
 	void assign_distr_scalar_range_min(double x);
 	void assign_distr_pointer_range_min(const double *y);
+
 	void assign_distr_scalar_range_max(double x);
 	void assign_distr_pointer_range_max(const double *y);
+
 	void init_distr_reshaping();
 
-	// Assing a proposer rule
+	//----- Pointer to proposer -----//
 	void assign_proposer(const std::string &rule_name = NULL_STRING,
 						 double rule_scale = NULL_DOUBLE,
 						 double rule_from = NULL_DOUBLE);
@@ -91,19 +90,19 @@ public:
 	void adapt_rule(double ratio);
 
 	//===== SHOW =====//
-	const std::string &get_distr_name() const;
+	const std::string show_name() const;
+
+	const std::string show_distr_name() const;
 	const std::string show_distr_arg_names() const;
 	const std::string show_distr_arg_values() const;
 
-	const std::string &get_prop_name() const;
+	const std::string show_min() const;
+	const std::string show_max() const;
+
+	const std::string show_prop_name() const;
 	const std::string show_prop_arg_names() const;
 	const std::string show_prop_arg_values() const;
 	const std::string show_prop_scale() const;
-
-	const std::string show_range_min() const;
-	const std::string show_range_max() const;
-
-	const std::string show() const;
 
 private:
 	//===== Pointer to Implementation =====//

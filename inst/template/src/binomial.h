@@ -7,8 +7,8 @@
 #ifndef HOUSEPI__BINOMIAL__H
 #define HOUSEPI__BINOMIAL__H
 
-#include <vector>
 #include <string>
+#include <vector>
 #include <map>
 #include <cmath>
 #include <iostream>

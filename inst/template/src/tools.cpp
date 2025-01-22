@@ -4,6 +4,12 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <unordered_set>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <iostream>
+
 #include "tools.h"
 
 // auxiliary namespace for I/O custom functions
@@ -184,7 +190,7 @@ namespace tools
         return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
-    /* Converter checking for UNDEFINED_STRING values. */
+    /* Converter to double checking for NULL_STRING values. */
     double natod(const std::string &txt, const std::string &errtxt)
     {
         if (is_na(txt))
@@ -193,13 +199,22 @@ namespace tools
             return stod(txt, errtxt);
     }
 
-    /* Converter checking for UNDEFINED_DOUBEL values. */
+    /* Converter to double checking for NULL_DOUBLE values. */
     double natod(double x)
     {
         if (is_na(x))
             return std::numeric_limits<double>::quiet_NaN();
         else
             return x;
+    }
+
+    /* Converter to string checking for NULL_DOUBLE values. */
+    const std::string natostring(double x)
+    {
+        if (is_na(x))
+            return NULL_STRING;
+        else
+            return std::to_string(x);
     }
 
     /* Converter to unsigned long using std::stoul with function pointer casting */
@@ -227,13 +242,6 @@ namespace tools
             throw std::invalid_argument(
                 "Unrecognized boolean value \"" + tkn + "\".");
     }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
 
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
@@ -418,19 +426,24 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    /* Welford online algorithm for mean and variance. */
+    /* Welford online's algorithm for mean and variance.
+        Ref :
+        ----
+        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+    */
     void compute_stats(const dbl_vec &data, double &avg, double &var)
     {
+        size_t i = 0;
         size_t N = data.size();
         double x, delta, delta2;
         double sqr_diff = 0.0;
 
         avg = 0.0;
-        for (size_t i = 0; i < N; ++i)
+        while (i < N)
         {
-            x = data[i];
+            x = data[i++];
             delta = x - avg;
-            avg += delta / (i + 1);
+            avg += delta / i;
             delta2 = x - avg;
             sqr_diff += delta * delta2;
         }
@@ -516,4 +529,29 @@ namespace tools
         else
             return " Did you mean \"" + closest + "\"?";
     }
+
+    /* Check for unused entries from a vector of options and throw exception. */
+    void check_unused_entries(const str_vec &entries, const str_vec &options)
+    {
+        // check for unused entries
+        str_vec unused = {};
+        for (const auto &x : entries)
+            if (find(options.begin(), options.end(), x) == options.end())
+                unused.push_back(x);
+
+        if (unused.size() == 1)
+            throw std::invalid_argument(
+                "Unknown option: \"" + unused[0] + "\"." + find_closest(unused[0], options));
+
+        else if (unused.size() > 1)
+        {
+            std::ostringstream oss;
+            oss << "Unknown option(s): \"" << unused[0] << "\"";
+            for (size_t k = 1; k < unused.size(); ++k)
+                oss << ", \"" << unused[k] << "\"";
+            oss << find_closest(NULL_STRING, options, 0);
+            throw std::invalid_argument(oss.str());
+        }
+    }
+
 } // TOOLS NAMESPACE

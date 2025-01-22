@@ -4,6 +4,10 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <fstream>
+#include <iomanip>
+#include <chrono>
+
 #include "tools.h"
 
 using namespace tools;
@@ -50,8 +54,14 @@ const string fmt_time(std::chrono::seconds scs)
     return oss.str();
 }
 
-/* Implementation class for progress bar. */
-class CustomProgressBarImpl
+/* Implementation class for progress bar. 
+    Ref : 
+    OTHMAN EL HAMMOUCHI, April 15, 2024
+    "Fancy thread safe progress bar in R for compiled code" 
+    -----
+    https://othmanelhammouchi.com/posts/r-parallel-progress/
+*/
+class CustomProgressBar::Impl
 {
 public:
     bool verbose = true;
@@ -63,7 +73,7 @@ public:
     steady_clock::time_point lastprint;
     const int64_t thintime = 0;
 
-    CustomProgressBarImpl()
+    Impl()
     {
 #ifdef _HOUSEPI_RCPP
         Rcpp::Environment cli = Rcpp::Environment::namespace_env("cli");
@@ -71,7 +81,7 @@ public:
         barwidth = Rcpp::as<unsigned>(console_width()) / 2;
 #endif
     };
-    ~CustomProgressBarImpl() {};
+    ~Impl() {};
 
     /* Set description text of progress bar. */
     void set_text(const std::string &text) { this->text = text; }
@@ -160,15 +170,16 @@ private:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+//===== CONSTRUCTOR =====//
 CustomProgressBar::CustomProgressBar(const std::string &text,
-                                     bool verbose) : pImpl(std::make_unique<CustomProgressBarImpl>())
+                                     bool verbose) : pImpl(std::make_unique<Impl>())
 {
     pImpl->verbose = verbose;
     pImpl->initialize(text);
 }
-
 CustomProgressBar::~CustomProgressBar() = default;
 
+//===== SETTER =====//
 void CustomProgressBar::set_text(const std::string &text) { pImpl->set_text(text); }
 void CustomProgressBar::update(double progress) { pImpl->update(progress); }
 void CustomProgressBar::finalize() { pImpl->finalize(); }

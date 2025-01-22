@@ -13,26 +13,27 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-class Function_Argument
+class Argument
 {
 public:
     std::string name = NULL_STRING;
 
     //===== GETTER =====//
     inline double get() const { return *(ptr_to_value); }
-    inline const double *get_ptr() const { return &value; }
-    bool is_internal_ptr() const { return ptr_to_value == get_ptr(); }
+    bool is_internal_ptr() const { return ptr_to_value == &value; }
+    inline const double *get_ptr() const { return ptr_to_value; }
+    const std::string show() const { return (tools::natostring(get())); }
 
     //===== SETTER =====//
     inline void set(double x) { (this->*_func_set_)(x); }
     void assign_ptr(const double *y)
     {
-        _func_set_ = &Function_Argument::_set_arg_pointer_;
+        _func_set_ = &Argument::_set_arg_pointer_;
         ptr_to_value = y;
     }
     void restore_internal_ptr()
     {
-        _func_set_ = &Function_Argument::_set_arg_default_;
+        _func_set_ = &Argument::_set_arg_default_;
         ptr_to_value = &value;
     }
 
@@ -42,7 +43,7 @@ private:
 
     // note : the set_arg is only used for the adaptive
     // for this reason a pointer argument can't be set, but just assigned
-    void (Function_Argument::*_func_set_)(double) = &Function_Argument::_set_arg_default_;
+    void (Argument::*_func_set_)(double) = &Argument::_set_arg_default_;
     void _set_arg_default_(double x) { value = x; }
     void _set_arg_pointer_(double x)
     {
@@ -59,19 +60,19 @@ private:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-class Base_Function::Impl
+class Function::Impl
 {
 public:
     std::string name = NULL_STRING;
 
     //===== Arguments =====//
 
-    Function_Argument *arguments = nullptr;
+    Argument *arguments = nullptr;
     ushort n_args = 0;
 
     //----- Domain -----//
-    Function_Argument range_min = Function_Argument();
-    Function_Argument range_max = Function_Argument();
+    Argument range_min = Argument();
+    Argument range_max = Argument();
 
     //===== Non-default arguments =====//
     ushort find(const std::string &arg_name);
@@ -110,7 +111,7 @@ private:
 ////////////////////////////////  Base Function : methods  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline ushort Base_Function::Impl::find(const std::string &arg_name)
+inline ushort Function::Impl::find(const std::string &arg_name)
 {
     for (ushort c = 0; c < n_args; ++c)
         if (arguments[c].name == arg_name)
@@ -122,7 +123,7 @@ inline ushort Base_Function::Impl::find(const std::string &arg_name)
 ////////////////////////////////  Base Function : set range  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-ushort Base_Function::Impl::which_valid_case() const
+ushort Function::Impl::which_valid_case() const
 {
     // bounded if not pointing internally to NA
     bool is_lower_bound = !(range_min.is_internal_ptr() && tools::is_na(range_min.get()));
@@ -131,7 +132,7 @@ ushort Base_Function::Impl::which_valid_case() const
 }
 
 /* Set the range of validity of the value, and the corresponding (close) validation function. */
-void Base_Function::Impl::init_range(bool is_open)
+void Function::Impl::init_range(bool is_open)
 {
     switch (which_valid_case())
     {
@@ -152,12 +153,8 @@ void Base_Function::Impl::init_range(bool is_open)
         break;
     case 3:
         if (range_min.get() >= range_max.get())
-        {
-            std::ostringstream oss;
-            oss << "Inconsistent range {min:" << range_min.get()
-                << ", max:" << range_max.get() << "}.";
-            throw std::invalid_argument(oss.str());
-        }
+            throw std::invalid_argument(
+                "Inconsistent range {min:" + range_min.show() + ", max:" + range_max.show() + "}.");
         if (is_open)
             _func_valid_range_ = &Impl::_valid_range_open_both_;
         else
@@ -177,28 +174,28 @@ void Base_Function::Impl::init_range(bool is_open)
 /////////////////////////////////  Base Function : Constructors  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-Base_Function::Base_Function() : pImpl(std::make_unique<Impl>()) {};
-Base_Function::~Base_Function() = default;
+Function::Function() : pImpl(std::make_unique<Impl>()) {};
+Function::~Function() = default;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string &Base_Function::get_name() const { return pImpl->name; }
-double Base_Function::get_arg(ushort i) const { return pImpl->arguments[i].get(); }
-double Base_Function::get_range_min() const { return pImpl->range_min.get(); }
-double Base_Function::get_range_max() const { return pImpl->range_max.get(); }
-bool Base_Function::valid(double x) const { return pImpl->valid(x); }
+double Function::get_arg(ushort i) const { return pImpl->arguments[i].get(); }
+const double *Function::get_ptr_to_arg(ushort i) const { return pImpl->arguments[i].get_ptr(); }
+double Function::get_min() const { return pImpl->range_min.get(); }
+double Function::get_max() const { return pImpl->range_max.get(); }
+bool Function::valid(double x) const { return pImpl->valid(x); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Base Function : Arguments  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set argument value. */
-void Base_Function::set_arg(ushort i, double x) { pImpl->arguments[i].set(x); }
+void Function::set_arg(ushort i, double x) { pImpl->arguments[i].set(x); }
 
 /* Assignment of non default POINTER arguments. */
-void Base_Function::assign_scalar_arg(const std::string &arg_name, double x)
+void Function::assign_scalar_arg(const std::string &arg_name, double x)
 {
     ushort it = pImpl->find(arg_name);
     if (it == pImpl->n_args)
@@ -212,7 +209,7 @@ void Base_Function::assign_scalar_arg(const std::string &arg_name, double x)
 }
 
 /* Assignment of non default POINTER arguments. */
-void Base_Function::assign_pointer_arg(const std::string &arg_name, const double *y)
+void Function::assign_pointer_arg(const std::string &arg_name, const double *y)
 {
     ushort it = pImpl->find(arg_name);
     if (it == pImpl->n_args)
@@ -227,7 +224,7 @@ void Base_Function::assign_pointer_arg(const std::string &arg_name, const double
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign scalar range minimum. */
-void Base_Function::assign_scalar_range_min(double x)
+void Function::assign_scalar_range_min(double x)
 {
     if (pImpl->name == "unif")
     {
@@ -248,7 +245,7 @@ void Base_Function::assign_scalar_range_min(double x)
 }
 
 /* Assign pointer range minimum. */
-void Base_Function::assign_pointer_range_min(const double *y)
+void Function::assign_pointer_range_min(const double *y)
 {
     // Ensure uniform range min == argument "min"
     if (pImpl->name == "unif")
@@ -269,7 +266,7 @@ void Base_Function::assign_pointer_range_min(const double *y)
 }
 
 /* Assign scalar range maximum. */
-void Base_Function::assign_scalar_range_max(double x)
+void Function::assign_scalar_range_max(double x)
 {
     if (pImpl->name == "unif")
     {
@@ -290,7 +287,7 @@ void Base_Function::assign_scalar_range_max(double x)
 }
 
 /* Assign pointer range maximum. */
-void Base_Function::assign_pointer_range_max(const double *y)
+void Function::assign_pointer_range_max(const double *y)
 {
     // Ensure uniform range max == argument "max"
     if (pImpl->name == "unif")
@@ -311,13 +308,13 @@ void Base_Function::assign_pointer_range_max(const double *y)
 }
 
 /* Initialize open range functional methods. */
-void Base_Function::init_open_range() { pImpl->init_range(true); }
+void Function::init_open_range() { pImpl->init_range(true); }
 
 /* Initialize open range functional methods. */
-void Base_Function::init_close_range() { pImpl->init_range(false); }
+void Function::init_close_range() { pImpl->init_range(false); }
 
 /* Return which valid case. */
-ushort Base_Function::which_valid_case() const { return pImpl->which_valid_case(); }
+ushort Function::which_valid_case() const { return pImpl->which_valid_case(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -330,8 +327,11 @@ ushort Base_Function::which_valid_case() const { return pImpl->which_valid_case(
 ////////////////////////////////////  Base Function : Show  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Return function name. */
+const std::string Function::show_name() const { return pImpl->name; }
+
 /* Return formatted argument names of the distribution. */
-const std::string Base_Function::show_arg_names() const
+const std::string Function::show_arg_names() const
 {
     if (pImpl->n_args > 0)
     {
@@ -345,13 +345,13 @@ const std::string Base_Function::show_arg_names() const
 }
 
 /* Return formatted argument names of the distribution. */
-const std::string Base_Function::show_arg_values() const
+const std::string Function::show_arg_values() const
 {
     if (pImpl->n_args > 0)
     {
-        std::string output = std::to_string(pImpl->arguments[0].get());
+        std::string output = pImpl->arguments[0].show();
         for (ushort c = 1; c < pImpl->n_args; ++c)
-            output += C_LIST_DELIM + std::to_string(pImpl->arguments[c].get());
+            output += C_LIST_DELIM + pImpl->arguments[c].show();
         return output;
     }
 
@@ -359,22 +359,10 @@ const std::string Base_Function::show_arg_values() const
 }
 
 /* Return formatted minimum value. */
-const std::string Base_Function::show_range_min() const
-{
-    if (tools::is_na(pImpl->range_min.get()))
-        return NULL_STRING;
-    else
-        return std::to_string(pImpl->range_min.get());
-}
+const std::string Function::show_min() const { return pImpl->range_min.show(); }
 
 /* Return formatted maximum value. */
-const std::string Base_Function::show_range_max() const
-{
-    if (tools::is_na(pImpl->range_max.get()))
-        return NULL_STRING;
-    else
-        return std::to_string(pImpl->range_max.get());
-}
+const std::string Function::show_max() const { return pImpl->range_max.show(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -384,12 +372,12 @@ const std::string Base_Function::show_range_max() const
 //-----------------------------------------------------------------------------------------------//
 
 /* Initial defaults for function. */
-void Base_Function::_init_defaults_(const std::string &name,
-                                    const str_vec &arg_name,
-                                    const dbl_vec &arg_value,
-                                    double domain_min,
-                                    double domain_max,
-                                    bool is_open)
+void Function::_init_defaults_(const std::string &name,
+                               const str_vec &arg_name,
+                               const dbl_vec &arg_value,
+                               double domain_min,
+                               double domain_max,
+                               bool is_open)
 {
     // name of the function
     pImpl->name = name;
@@ -401,7 +389,7 @@ void Base_Function::_init_defaults_(const std::string &name,
     pImpl->n_args = arg_name.size();
 
     // assign default arguments
-    pImpl->arguments = new Function_Argument[arg_name.size()];
+    pImpl->arguments = new Argument[arg_name.size()];
     for (ushort c = 0; c < pImpl->n_args; ++c)
     {
         pImpl->arguments[c].name = arg_name[c];

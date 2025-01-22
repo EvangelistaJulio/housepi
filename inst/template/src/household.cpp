@@ -47,7 +47,7 @@ public:
 	dataIDmap<double> data = {}; // database associated
 
 	//===== AUGMENTED VARIABLES =====//
-	augmIDmap<Base_Variable> augm_map = {}; // augmented variables
+	augmIDmap<Variable> augm_map = {}; // augmented variables
 
 	//===== GROUP RATES =====//
 	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
@@ -242,7 +242,6 @@ void Household::Impl::assign_individual(const std::string &ID,
 	{
 		++n_infectious;
 		infectious_set.insert(house_size);
-
 		_is_infectious_.push_back(true);
 		_is_susceptible_.push_back(false);
 		_is_missing_status_.push_back(false);
@@ -251,26 +250,14 @@ void Household::Impl::assign_individual(const std::string &ID,
 	{
 		++n_susceptible;
 		susceptible_set.insert(house_size);
-
 		_is_infectious_.push_back(false);
 		_is_susceptible_.push_back(true);
 		_is_missing_status_.push_back(false);
 	}
 	else
 	{
-		if (status < MISSING_STATUS)
-		{
-			std::ostringstream oss;
-			oss << "Status \"" << status << "\" of individual " << ID << " interpreted as missing."
-				<< " Use (=)" << HEALTHY_STATUS << " for susceptible, (>=)" << INFECTED_STATUS << " for infectious,"
-				<< " and (=) " << MISSING_STATUS << " for missing status.";
-			tools::warning(oss.str());
-		}
-		status = MISSING_STATUS;
-
 		++n_missing_status;
 		missing_status_set.insert(house_size);
-
 		_is_infectious_.push_back(false);
 		_is_susceptible_.push_back(false);
 		_is_missing_status_.push_back(true);
@@ -460,7 +447,7 @@ void Household::assign_augm(indiv i, const augmID &a, const std::string &name, d
 							bool is_discrete, const std::string &model_name,
 							const std::string &rule_name, double rule_scale, double rule_from)
 {
-	Base_Variable &this_augm = pImpl->members[i].augm_map.at(a);
+	Variable &this_augm = pImpl->members[i].augm_map.at(a);
 	this_augm.init(name, value, is_discrete);
 	this_augm.assign_distribution(model_name);
 	this_augm.assign_proposer(rule_name, rule_scale, rule_from);
@@ -519,7 +506,7 @@ void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng)
 /* True if the propose augm move is valid. */
 bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 {
-	Base_Variable &this_augm = pImpl->members[i].augm_map.at(a);
+	Variable &this_augm = pImpl->members[i].augm_map.at(a);
 
 	this_augm.propose(prng); // propose new value and buffer old
 
@@ -539,10 +526,8 @@ void Household::restore_augm_value(indiv i, const augmID &a)
 	restore_loglike();
 }
 
-void Household::clear_augm(indiv i, const augmID &a)
-{
-	pImpl->members[i].augm_map[a] = Base_Variable();
-}
+/* Assign empty augmented variable. */
+void Household::clear_augm(indiv i, const augmID &a) { pImpl->members[i].augm_map[a] = Variable(); }
 
 //===== DIAGNOSTICS =====//
 
@@ -568,8 +553,8 @@ void Household::allocate_extra_integer(const std::vector<extraID> &names, int xi
 	for (const extraID &e : names)
 		pImpl->extra_integer[e] = xinit;
 }
-void Household::set_extra_integer(const extraID &e, int xnew){	pImpl->extra_integer.at(e) = xnew;}
-int Household::extra_integer(const extraID &e) const{	return pImpl->extra_integer.at(e);}
+void Household::set_extra_integer(const extraID &e, int xnew) { pImpl->extra_integer.at(e) = xnew; }
+int Household::extra_integer(const extraID &e) const { return pImpl->extra_integer.at(e); }
 
 //----- Single extra doubles -----//
 void Household::allocate_extra_double(const std::vector<extraID> &names, double xinit)
@@ -577,8 +562,8 @@ void Household::allocate_extra_double(const std::vector<extraID> &names, double 
 	for (const extraID &e : names)
 		pImpl->extra_double[e] = xinit;
 }
-void Household::set_extra_double(const extraID &e, double xnew){	pImpl->extra_double.at(e) = xnew;}
-double Household::extra_double(const extraID &e) const{	return pImpl->extra_double.at(e);}
+void Household::set_extra_double(const extraID &e, double xnew) { pImpl->extra_double.at(e) = xnew; }
+double Household::extra_double(const extraID &e) const { return pImpl->extra_double.at(e); }
 
 //----- Extra double vector -----//
 void Household::allocate_extra_vector(const std::vector<extraID> &names, double xinit)
@@ -596,7 +581,6 @@ void Household::allocate_extra_matrix(const std::vector<extraID> &names, double 
 	for (const extraID &e : names)
 		pImpl->extra_mtx[e] = matrix<double>(size(), dbl_vec(size(), xinit));
 }
-
 void Household::set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew) { pImpl->extra_mtx.at(e)[from][to] = xnew; }
 double Household::extra_matrix(const extraID &e, size_t from, size_t to) const { return pImpl->extra_mtx.at(e)[from][to]; }
 const matrix<double> &Household::extra_matrix(const extraID &e) const { return pImpl->extra_mtx.at(e); }

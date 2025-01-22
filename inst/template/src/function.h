@@ -8,14 +8,8 @@
 #define HOUSEPI__FUNCTION__H
 
 #include <memory>
-#include <cmath>
-#include <random>
-#include <algorithm>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
 
 #include "tools.h"
 
@@ -31,18 +25,18 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Parent class to all function classes where the arguements are stored in arrays. */
-class Base_Function
+class Function
 {
 public:
     //===== CONSTRUCTOR =====//
-    Base_Function();
-    virtual ~Base_Function();
+    Function();
+    virtual ~Function();
 
     //===== GETTER =====//
-    const std::string &get_name() const;
     double get_arg(ushort i) const;
-    double get_range_min() const;
-    double get_range_max() const;
+    const double *get_ptr_to_arg(ushort i) const;
+    double get_min() const;
+    double get_max() const;
     bool valid(double x) const;
     ushort which_valid_case() const;
 
@@ -60,10 +54,11 @@ public:
     void init_close_range();
 
     //===== SHOW =====//
+    const std::string show_name() const;
     const std::string show_arg_names() const;
     const std::string show_arg_values() const;
-    const std::string show_range_min() const;
-    const std::string show_range_max() const;
+    const std::string show_min() const;
+    const std::string show_max() const;
 
 protected:
     void _init_defaults_(const std::string &name,

@@ -8,30 +8,23 @@
 #define HOUSEPI__TOOLS__H
 
 #include <memory>
-#include <cmath>
 #include <random>
-#include <algorithm>
 #include <string>
 #include <vector>
 #include <map>
 #include <unordered_map>
-#include <unordered_set>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
-#include <chrono>
+#include <cmath>
+#include <algorithm>
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
-#else
-#include <iostream>
 #endif
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
-// Test for pre-compilation
+// UPDATE: Test for pre-compilation
 // #define DEBUG_TEMPORARY_MACRO
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,11 +32,11 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UPDATE: NaN \ NA have to be revised
-const double NULL_DOUBLE = 1e10;    // undefined double
+const double NULL_DOUBLE = 1e10;        // undefined double
 const std::string NULL_STRING = "<NA>"; // undefined string
 
 // constants
-const unsigned MAX_NUMBER_ATTEMPTS = 50; // max n. of attempts for initialization
+const unsigned MAX_NUM_ATTEMPTS = 50;    // max n. of attempts for initialization
 const double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases
@@ -54,7 +47,7 @@ const int MISSING_STATUS = -1; // missing status (<=)
 // group rates
 const std::string REFERENCE = "REFERENCE";       // name for reference choice
 const std::string CONTACT_RATE = "Contact";      // name for Contact rate
-const double REFERENCE_VALUE = 1.0;          // auxiliary reference value for the parameters
+const double REFERENCE_VALUE = 1.0;              // auxiliary reference value for the parameters
 const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
 
 // file formatters
@@ -195,6 +188,7 @@ namespace tools
     // formatter for the case NA
     double natod(const std::string &input, const std::string &errtxt = "");
     double natod(double x);
+    const std::string natostring(double x);
 
     // argument string parser
     const str_vec parse_list_args(const std::string &tkn,
@@ -216,7 +210,8 @@ namespace tools
     const std::string find_closest(const std::string &input,
                                    const str_vec &options,
                                    ushort min_dist = 2);
-
+    // check for unused entries from a vector of options and throw exception
+    void check_unused_entries(const str_vec &entries, const str_vec &options);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -230,9 +225,6 @@ namespace tools
 /////////////////////////////////////  Progress Bar Class  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Forward declaration of implementation. */
-class CustomProgressBarImpl;
-
 /* Class for custom progress bar. */
 class CustomProgressBar
 {
@@ -241,13 +233,15 @@ public:
     CustomProgressBar(const std::string &text = "", bool verbose = true);
     ~CustomProgressBar();
 
+    //===== SETTER =====//
     void set_text(const std::string &text);
     void update(double progress);
     void finalize();
 
 private:
     // Pointer to Implementation
-    std::unique_ptr<CustomProgressBarImpl> pImpl;
+    class Impl;
+    std::unique_ptr<Impl> pImpl;
 };
 
 #endif // HOUSEPI__TOOLS__H

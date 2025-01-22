@@ -4,20 +4,10 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <fstream>
+#include <iomanip>
+
 #include "mcmc_build.h"
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-// declaration for type in data file
-const std::string TYPE_PARAM = "P";   // Parameter type declaration
-const std::string TYPE_DATA = "D";    // Data type declaration
-const std::string TYPE_SCALAR = "S";  // Scalar type declaration
-const std::string TYPE_COMMAND = "C"; // Command type declaration
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -68,12 +58,6 @@ double MCMC::Impl::type_to_double(const std::string &value,
                     throw std::invalid_argument(
                         "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
 
-            else if (type == TYPE_COMMAND)
-                if (value == "default")
-                    output = NULL_DOUBLE;
-                else
-                    throw std::invalid_argument(
-                        "Unknown command type \"" + value + "\".");
             else
                 throw std::invalid_argument(
                     "Unknown variable type specifier \"" + type + "\".");
@@ -89,16 +73,10 @@ double MCMC::Impl::type_to_double(const std::string &value,
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
 void MCMC::Impl::assign_augm_type_args(Household &house, indiv i, augmID a,
-                                       const std::string &tkn_key,
-                                       const std::string &tkn_val,
-                                       const std::string &tkn_typ)
+                                       const str_vec &keys,
+                                       const str_vec &vals,
+                                       const str_vec &typs)
 {
-
-    // parse the string with arguments
-    str_vec keys = tools::parse_list_args(tkn_key);
-    str_vec vals = tools::parse_list_args(tkn_val);
-    str_vec typs = tools::parse_list_args(tkn_typ);
-
     // check size validity of keys, values and type
     if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
         throw std::invalid_argument(
@@ -112,32 +90,32 @@ void MCMC::Impl::assign_augm_type_args(Household &house, indiv i, augmID a,
         std::string type = typs[x];
 
         if (!(tools::is_na(value) && tools::is_na(type)))
+            ; // pass
+
+        else if (!tools::is_na(value) && tools::is_na(type))
+            throw std::invalid_argument(
+                "Impossible to interpret default value of  \"" + value + "\". Please provide a type.");
+
+        else if (tools::is_na(value) && !tools::is_na(type))
+            tools::warning(
+                "Found a type without a paired value. Falling back to default.");
+
+        else if (type == TYPE_DATA)
+            house.assign_augm_model_scalar_arg(i, a, key, house.data(i, value));
+
+        else if (type == TYPE_PARAM)
         {
-            if (!tools::is_na(value) && tools::is_na(type))
-                throw std::invalid_argument(
-                    "Impossible to interpret default value of  \"" + value + "\". Please provide a type.");
-
-            else if (tools::is_na(value) && !tools::is_na(type))
-                tools::warning(
-                    "Found a type without a paired value. Falling back to default.");
-
-            else if (type == TYPE_DATA)
-                house.assign_augm_model_scalar_arg(i, a, key, house.data(i, value));
-
-            else if (type == TYPE_PARAM)
-            {
-                if (param_map.at(value).is_constant())
-                    house.assign_augm_model_pointer_arg(i, a, key, get_param_pointer(value));
-                else
-                    house.assign_augm_model_scalar_arg(i, a, key, get_param(value));
-            }
-            else if (type == TYPE_SCALAR)
-                house.assign_augm_model_scalar_arg(i, a, key, tools::stod(value, "argument with scalar type"));
-
+            if (param_map.at(value).is_constant())
+                house.assign_augm_model_scalar_arg(i, a, key, get_param(value));
             else
-                throw std::invalid_argument(
-                    "Unsopported type \"" + type + "\" found while loading \"" + value + "\" for pointer value.");
+                house.assign_augm_model_pointer_arg(i, a, key, get_param_pointer(value));
         }
+        else if (type == TYPE_SCALAR)
+            house.assign_augm_model_scalar_arg(i, a, key, tools::stod(value, "argument with scalar type"));
+
+        else
+            throw std::invalid_argument(
+                "Unsopported type \"" + type + "\" found while loading \"" + value + "\" for pointer value.");
     }
 }
 
@@ -148,67 +126,78 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
                                         const std::string &max_value,
                                         const std::string &max_type)
 {
+    //-------------------//
     //----- Minimum -----//
+    //-------------------//
+
     if (!(tools::is_na(min_value) && tools::is_na(min_type)))
+        ; // pass
+
+    else if (!tools::is_na(min_value) && tools::is_na(min_type))
+        throw std::invalid_argument(
+            "Impossible to interpret default value of  \"" + min_value + "\". Please provide a type.");
+
+    else if (tools::is_na(min_value) && !tools::is_na(min_type))
+        tools::warning(
+            "Found a type without a paired value. Falling back to default.");
+
+    else if (min_type == TYPE_DATA)
+        house.assign_augm_model_scalar_range_min(i, a, house.data(i, min_value));
+
+    else if (min_value == TYPE_PARAM)
     {
-        if (!tools::is_na(min_value) && tools::is_na(min_type))
-            throw std::invalid_argument(
-                "Impossible to interpret default value of  \"" + min_value + "\". Please provide a type.");
-
-        else if (tools::is_na(min_value) && !tools::is_na(min_type))
-            tools::warning(
-                "Found a type without a paired value. Falling back to default.");
-
-        else if (min_type == TYPE_DATA)
-            house.assign_augm_model_scalar_range_min(i, a, house.data(i, min_value));
-
-        else if (min_value == TYPE_PARAM)
-        {
-            if (param_map.at(min_value).is_constant())
-                house.assign_augm_model_pointer_range_min(i, a, get_param_pointer(min_value));
-            else
-                house.assign_augm_model_scalar_range_min(i, a, get_param(min_value));
-        }
-
-        else if (min_type == TYPE_SCALAR)
-            house.assign_augm_model_scalar_range_min(i, a, tools::stod(min_value, "argument with scalar type"));
-
+        if (param_map.at(min_value).is_constant())
+            house.assign_augm_model_scalar_range_min(i, a, get_param(min_value));
         else
-            throw std::invalid_argument(
-                "Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
+            house.assign_augm_model_pointer_range_min(i, a, get_param_pointer(min_value));
     }
 
+    else if (min_type == TYPE_SCALAR)
+        house.assign_augm_model_scalar_range_min(i, a,
+                                                 tools::stod(min_value, "scalar type argument"));
+
+    else
+        throw std::invalid_argument(
+            "Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
+
+    //-------------------//
     //----- Maximum -----//
+    //-------------------//
+
     if (!(tools::is_na(max_value) && tools::is_na(max_type)))
+        ; // pass
+
+    else if (!tools::is_na(max_value) && tools::is_na(max_type))
+        throw std::invalid_argument(
+            "Impossible to interpret default value of  \"" + max_value + "\". Please provide a type.");
+
+    else if (tools::is_na(max_value) && !tools::is_na(max_type))
+        tools::warning(
+            "Found a type without a paired value. Falling back to default.");
+
+    else if (max_type == TYPE_DATA)
+        house.assign_augm_model_scalar_range_max(i, a, house.data(i, max_value));
+
+    else if (max_type == TYPE_PARAM)
     {
-        if (!tools::is_na(max_value) && tools::is_na(max_type))
-            throw std::invalid_argument(
-                "Impossible to interpret default value of  \"" + max_value + "\". Please provide a type.");
-
-        else if (tools::is_na(max_value) && !tools::is_na(max_type))
-            tools::warning(
-                "Found a type without a paired value. Falling back to default.");
-
-        else if (max_type == TYPE_DATA)
-            house.assign_augm_model_scalar_range_max(i, a, house.data(i, max_value));
-
-        else if (max_type == TYPE_PARAM)
-        {
-            if (param_map.at(max_value).is_constant())
-                house.assign_augm_model_pointer_range_max(i, a, get_param_pointer(max_value));
-            else
-                house.assign_augm_model_scalar_range_max(i, a, get_param(max_value));
-        }
-
-        else if (max_type == TYPE_SCALAR)
-            house.assign_augm_model_scalar_range_max(i, a, tools::stod(max_value, "argument with scalar type"));
-
+        if (param_map.at(max_value).is_constant())
+            house.assign_augm_model_scalar_range_max(i, a, get_param(max_value));
         else
-            throw std::invalid_argument(
-                "Unsopported type \"" + max_type + "\" found while loading \"" + max_value + "\" for pointer value.");
+            house.assign_augm_model_pointer_range_max(i, a, get_param_pointer(max_value));
     }
 
+    else if (max_type == TYPE_SCALAR)
+        house.assign_augm_model_scalar_range_max(i, a,
+                                                 tools::stod(max_value, "argument with scalar type"));
+
+    else
+        throw std::invalid_argument(
+            "Unsopported type \"" + max_type + "\" found while loading \"" + max_value + "\" for pointer value.");
+
+    //---------------------//
     //----- Reshaping -----//
+    //---------------------//
+
     house.init_augm_model_reshaping(i, a);
 }
 
@@ -333,22 +322,28 @@ void MCMC::Impl::build_augm()
 {
     try
     {
-        if (!_augm_deftable_.empty())
+        const dict_str_vec &deftable = _augm_deftable_;
+        if (!deftable.empty())
         {
+            // check no unused options in deftable
+            str_vec entries = {};
+            for (const auto &pair : deftable)
+                entries.push_back(pair.first);
+            tools::check_unused_entries(entries, augm_file_headers);
+
             // n. of definitions
-            size_t table_length = _augm_deftable_.at("name").size();
+            size_t table_length = deftable.at("name").size();
 
             if (table_length > 0)
             {
-
                 // auxiliary variable to load definitions : a -> status lists
                 dict_str_vec name_status_check = {};
 
                 //===== Check Augmented Variables lists of usage =====//
                 for (size_t k = 0; k < table_length; ++k)
                 {
-                    std::string a = _augm_deftable_.at("name")[k];
-                    std::string status = _augm_deftable_.at("status")[k];
+                    std::string a = deftable.at("name")[k];
+                    std::string status = deftable.at("status")[k];
                     bool is_init_rand = false;
 
                     // check that augmID and status are correct
@@ -373,10 +368,10 @@ void MCMC::Impl::build_augm()
                     }
 
                     // option for random initialization
-                    if (!tools::is_na(_augm_deftable_.at("init_rand")[k]))
-                        is_init_rand = tools::stobool(_augm_deftable_.at("init_rand")[k]);
+                    if (!tools::is_na(deftable.at("init_rand")[k]))
+                        is_init_rand = tools::stobool(deftable.at("init_rand")[k]);
 
-                    if ((tools::is_na(_augm_deftable_.at("model")[k])) && (is_init_rand))
+                    if ((tools::is_na(deftable.at("model")[k])) && (is_init_rand))
                         throw std::invalid_argument(
                             "Impossible to initialize \"" + a + "\" without a model.");
                 }
@@ -434,11 +429,11 @@ void MCMC::Impl::build_augm()
                 // note : I didn't manage to collapse this with the previous because of generic status
                 for (size_t k = 0; k < table_length; ++k)
                 {
-                    const std::string &a = _augm_deftable_.at("name")[k];
-                    const std::string &status = _augm_deftable_.at("status")[k];
+                    const std::string &a = deftable.at("name")[k];
+                    const std::string &status = deftable.at("status")[k];
 
                     //----- Augmented Variables to be Inferred -----//
-                    if (!tools::is_na(_augm_deftable_.at("rule")[k]))
+                    if (!tools::is_na(deftable.at("rule")[k]))
                     {
                         augm_list_to_be_inferred.emplace(a);
 
@@ -455,7 +450,7 @@ void MCMC::Impl::build_augm()
                     }
 
                     //----- Augmented Variables with a Model -----//
-                    if (!tools::is_na(_augm_deftable_.at("model")[k]))
+                    if (!tools::is_na(deftable.at("model")[k]))
                     {
                         augm_list_model.emplace(a);
 
@@ -536,39 +531,41 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
 {
     try
     {
-        for (size_t k = 0; k < _augm_deftable_.at("name").size(); ++k)
+        const dict_str_vec &deftable = _augm_deftable_;
+
+        for (size_t k = 0; k < deftable.at("name").size(); ++k)
         {
             // assign augmented variable of the corresponding status
-            const std::string &augm_status = _augm_deftable_.at("status")[k];
+            const std::string &augm_status = deftable.at("status")[k];
 
             // assign augmented variable of the corresponding status or undefined status
             if ((tools::is_na(augm_status)) || (house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
                 //----- Index -----//
                 // |====> UPDATE: to be implemented <===|
-                augmID a = _augm_deftable_.at("name")[k];
+                augmID a = deftable.at("name")[k];
 
                 //----- Name -----//
-                const std::string &name = _augm_deftable_.at("name")[k];
+                const std::string &name = deftable.at("name")[k];
 
                 //----- is Discrete -----//
-                bool is_discrete = tools::stobool(_augm_deftable_.at("discrete")[k]);
+                bool is_discrete = tools::stobool(deftable.at("discrete")[k]);
 
                 //----- Value -----//
-                double value = type_to_double(_augm_deftable_.at("value")[k],
-                                              _augm_deftable_.at("value_type")[k],
+                double value = type_to_double(deftable.at("value")[k],
+                                              deftable.at("value_type")[k],
                                               house, i);
 
                 //----- Model -----//
-                const std::string &model_name = _augm_deftable_.at("model")[k];
+                const std::string &model_name = deftable.at("model")[k];
 
                 //----- Proposer Rule -----//
-                const std::string &rule_name = _augm_deftable_.at("rule")[k];
-                double rule_scale = type_to_double(_augm_deftable_.at("rule_scale")[k],
-                                                   _augm_deftable_.at("rule_scale_type")[k],
+                const std::string &rule_name = deftable.at("rule")[k];
+                double rule_scale = type_to_double(deftable.at("rule_scale")[k],
+                                                   deftable.at("rule_scale_type")[k],
                                                    house, i);
-                double rule_from = type_to_double(_augm_deftable_.at("rule_from")[k],
-                                                  _augm_deftable_.at("rule_from_type")[k],
+                double rule_from = type_to_double(deftable.at("rule_from")[k],
+                                                  deftable.at("rule_from_type")[k],
                                                   house, i);
 
                 //----- Assign Augmented Variable -----//
@@ -578,19 +575,19 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
 
                 //----- Arguments -----//
                 assign_augm_type_args(house, i, a,
-                                      _augm_deftable_.at("arg_name")[k],
-                                      _augm_deftable_.at("arg_value")[k],
-                                      _augm_deftable_.at("arg_type")[k]);
+                                      tools::parse_list_args(deftable.at("arg_name")[k]),
+                                      tools::parse_list_args(deftable.at("arg_value")[k]),
+                                      tools::parse_list_args(deftable.at("arg_type")[k]));
 
                 //----- Range -----//
                 assign_augm_type_range(house, i, a,
-                                       _augm_deftable_.at("min")[k],
-                                       _augm_deftable_.at("min_type")[k],
-                                       _augm_deftable_.at("max")[k],
-                                       _augm_deftable_.at("max_type")[k]);
+                                       deftable.at("min")[k],
+                                       deftable.at("min_type")[k],
+                                       deftable.at("max")[k],
+                                       deftable.at("max_type")[k]);
 
                 // random initialization at assignment
-                if (tools::stobool(_augm_deftable_.at("init_rand")[k]))
+                if (tools::stobool(deftable.at("init_rand")[k]))
                     house.augm_model_rand(i, name, get_prng());
             }
         }

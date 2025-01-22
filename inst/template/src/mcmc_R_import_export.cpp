@@ -59,18 +59,27 @@ Rcpp::String stoRString(const std::string &x)
 //-----------------------------------------------------------------------------------------------//
 
 /* Import setup from R list and run build. */
-void MCMC::Impl::import_setup(const Rcpp::List &setup)
+void MCMC::Impl::import_setup(const Rcpp::List &input)
 {
-    rlist_to_map(setup, _setup_deflist_);
+    rlist_to_map(input, _setup_deflist_);
     build_setup();
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
         _report_pathtofile_.erase("setup");
 }
 
-/* Import params from R DataFrame and run build. */
-void MCMC::Impl::import_params(const Rcpp::DataFrame &params)
+/* Import infectivity profile from R list and run build. */
+void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
-    rdataframe_to_map(params, _param_deftable_);
+    rlist_to_map(input, _infec_profile_deflist_);
+    // note : build_infec_profile is optionally called by the user
+    if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
+        _report_pathtofile_.erase("infec_profile");
+}
+
+/* Import params from R DataFrame and run build. */
+void MCMC::Impl::import_params(const Rcpp::DataFrame &input)
+{
+    rdataframe_to_map(input, _param_deftable_);
     build_params();
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
         _report_pathtofile_.erase("params");
@@ -81,9 +90,9 @@ void MCMC::Impl::import_params(const Rcpp::DataFrame &params)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Import data from R DataFrame then run build. */
-void MCMC::Impl::import_augm(const Rcpp::DataFrame &augm)
+void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
 {
-    rdataframe_to_map(augm, _augm_deftable_);
+    rdataframe_to_map(input, _augm_deftable_);
     build_augm();
     if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
         _report_pathtofile_.erase("augm");
@@ -144,19 +153,19 @@ Rcpp::DataFrame MCMC::Impl::export_params() const
         V_constant[c] = param_map.at(p).is_constant();
         V_discrete[c] = param_map.at(p).is_discrete();
 
-        V_prior[c] = stoRString(param_map.at(p).get_distr_name());
+        V_prior[c] = stoRString(param_map.at(p).show_distr_name());
         V_arg_name[c] = stoRString(param_map.at(p).show_distr_arg_names());
         V_arg_value[c] = stoRString(param_map.at(p).show_distr_arg_values());
 
-        V_rule[c] = stoRString(param_map.at(p).get_prop_name());
+        V_rule[c] = stoRString(param_map.at(p).show_prop_name());
 
         const std::string rule_scal = param_map.at(p).show_prop_scale();
         V_rule_scale[c] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
 
-        const std::string min_val = param_map.at(p).show_range_min();
+        const std::string min_val = param_map.at(p).show_min();
         V_min[c] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
 
-        const std::string max_val = param_map.at(p).show_range_max();
+        const std::string max_val = param_map.at(p).show_max();
         V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
     }
 
@@ -284,19 +293,20 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 //////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Rcpp::List MCMC::export_setup() const { return pBuild->export_setup(); }
-Rcpp::DataFrame MCMC::export_params() const { return pBuild->export_params(); }
-Rcpp::DataFrame MCMC::export_data() const { return pBuild->export_data(); }
-Rcpp::DataFrame MCMC::export_traces() const { return pBuild->export_traces(); }
-Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pBuild->export_household_loglike_traces(); }
+Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
+Rcpp::DataFrame MCMC::export_params() const { return pImpl->export_params(); }
+Rcpp::DataFrame MCMC::export_data() const { return pImpl->export_data(); }
+Rcpp::DataFrame MCMC::export_traces() const { return pImpl->export_traces(); }
+Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::import_setup(const Rcpp::List &x) { pBuild->import_setup(x); }
-void MCMC::import_params(const Rcpp::DataFrame &x) { pBuild->import_params(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pBuild->import_augm(x); }
+void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
+void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
+void MCMC::import_params(const Rcpp::DataFrame &x) { pImpl->import_params(x); }
+void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 
 /* Import data from R DataFrame and run build. */
 void MCMC::import_data(const Rcpp::DataFrame &data)
@@ -304,8 +314,8 @@ void MCMC::import_data(const Rcpp::DataFrame &data)
     dict_str_vec datatable = {};
     rdataframe_to_map(data, datatable);
     build_data(datatable);
-    if (pBuild->_report_pathtofile_.find("data") != pBuild->_report_pathtofile_.end())
-        pBuild->_report_pathtofile_.erase("data");
+    if (pImpl->_report_pathtofile_.find("data") != pImpl->_report_pathtofile_.end())
+        pImpl->_report_pathtofile_.erase("data");
 }
 
 #endif

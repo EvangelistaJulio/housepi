@@ -4,6 +4,10 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <fstream>
+#include <iomanip>
+#include <chrono>
+
 #include "mcmc_build.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -12,6 +16,19 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : Impl : constructor  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+MCMC::Impl::Impl() : _uniform_distr_(0., 1.),
+                     _infec_profile_(std::make_unique<Distribution>())
+{
+#ifdef _OPENMP
+    _max_n_available_threads = omp_get_max_threads();
+#endif
+}
+MCMC::Impl::~Impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC::Impl : methods (getter)  /////////////////////////////////
@@ -91,7 +108,7 @@ void MCMC::Impl::init_parameters()
 
         if (setup_rand_init_params)
         {
-            if (tools::is_na(param_map.at(p).get_distr_name()))
+            if (tools::is_na(param_map.at(p).show_distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
@@ -185,68 +202,57 @@ void MCMC::Impl::build_setup()
         auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
         setup_seed = static_cast<unsigned long long>(time_now);
 
-        if (!_setup_deflist_.empty())
+        // reference to definition list
+        const std::map<std::string, std::string> &deflist = _setup_deflist_;
+
+        if (!deflist.empty())
         {
             //===== Check that all provided setups are correct =====//
-            str_vec file_entries = {"n_threads", "seed", "n_chains",
-                                    "n_steps", "n_adapt", "thin",
-                                    "n_burnin", "rand_init",
-                                    "n_rungs", "inv_temper", "id_trace"};
-
-            str_vec wrong_entries = {};
-
-            for (const auto &pair : _setup_deflist_)
-                if (find(file_entries.begin(), file_entries.end(), pair.first) == file_entries.end())
-                    wrong_entries.push_back(pair.first);
-
-            if (wrong_entries.size() > 0)
-            {
-                std::ostringstream oss;
-                oss << "Unknown setup option(s): \"" << wrong_entries[0] << "\"";
-                for (size_t k = 1; k < wrong_entries.size(); ++k)
-                    oss << ", \"" << wrong_entries[k] << "\"";
-                oss << ". Available setup options are: \"" << file_entries[0] << "\"";
-                for (size_t k = 1; k < file_entries.size(); ++k)
-                    oss << ", \"" << file_entries[k] << "\"";
-                tools::warning(oss.str() + ".");
-            }
+            const str_vec options = {"n_threads", "seed", "n_chains",
+                                     "n_steps", "n_adapt", "thin",
+                                     "n_burnin", "rand_init",
+                                     "n_rungs", "inv_temper", "id_trace"};
+            str_vec entries = {};
+            for (const auto &pair : deflist)
+                entries.push_back(pair.first);
+            tools::check_unused_entries(entries, options);
 
             //===== ASSIGN SETUP CONFIGURATIONS =====//
 
             //===== NUMBER OF THREADS =====//
-            if (_setup_deflist_.find("n_threads") != _setup_deflist_.end())
-                n_threads = tools::stoi(_setup_deflist_.at("n_threads"), "number of threads");
+            if (deflist.find("n_threads") != deflist.end())
+                n_threads = tools::stoi(deflist.at("n_threads"), "number of threads");
 
             //===== PRNG SEED =====//
-            if ((_setup_deflist_.find("seed") != _setup_deflist_.end()) && (!tools::is_na(_setup_deflist_.at("seed"))))
-                setup_seed = tools::stoull(_setup_deflist_.at("seed"), "random seed");
+            if ((deflist.find("seed") != deflist.end()) && (!tools::is_na(deflist.at("seed"))))
+                setup_seed = tools::stoull(deflist.at("seed"), "random seed");
 
             //===== NUMBER OF CHAINS =====//
-            if (_setup_deflist_.find("n_chains") != _setup_deflist_.end())
+            if (deflist.find("n_chains") != deflist.end())
             {
-                setup_n_chains = tools::stoul(_setup_deflist_.at("n_chains"), "number of chains");
+                setup_n_chains = tools::stoul(deflist.at("n_chains"), "number of chains");
                 if (setup_n_steps < 1)
                     throw std::out_of_range(
                         "Number of chains must be greater than 0.");
             }
 
             //===== NUMBER OF ITERATIONS =====//
-            if (_setup_deflist_.find("n_steps") != _setup_deflist_.end())
+            if (deflist.find("n_steps") != deflist.end())
             {
-                setup_n_steps = tools::stoul(_setup_deflist_.at("n_steps"), "number of iterations");
+                setup_n_steps = tools::stoul(deflist.at("n_steps"), "number of iterations");
                 if (setup_n_steps < 1)
                     throw std::out_of_range(
                         "Number of iterations must be greater than 0.");
             }
 
             //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-            if (_setup_deflist_.find("n_adapt") != _setup_deflist_.end())
-                setup_n_adapt = tools::stoul(_setup_deflist_.at("n_adapt"), "number of adaptive steps");
+            if (deflist.find("n_adapt") != deflist.end())
+                setup_n_adapt = tools::stoul(deflist.at("n_adapt"), "number of adaptive steps");
 
             //===== THINNING =====//
-            if (_setup_deflist_.find("thin") != _setup_deflist_.end())
+            if (deflist.find("thin") != deflist.end())
             {
-                setup_thin = tools::stoul(_setup_deflist_.at("thin"), "thin");
+                setup_thin = tools::stoul(deflist.at("thin"), "thin");
                 if (setup_thin >= setup_n_steps)
                     throw std::out_of_range(
                         "Thinning must be smaller than number of iterations. ");
@@ -256,18 +262,18 @@ void MCMC::Impl::build_setup()
             }
 
             //===== BURN-IN =====//
-            if (_setup_deflist_.find("n_burnin") != _setup_deflist_.end())
+            if (deflist.find("n_burnin") != deflist.end())
             {
-                setup_n_burnin = tools::stoul(_setup_deflist_.at("n_burnin"), "burn-in");
+                setup_n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
                 if (setup_n_burnin >= setup_n_steps)
                     throw std::out_of_range(
                         "Burn-in must be smaller than number of iterations.");
             }
 
             //===== RANDOM INITIALIZATION OF PARAMETERS =====//
-            if (_setup_deflist_.find("rand_init") != _setup_deflist_.end())
+            if (deflist.find("rand_init") != deflist.end())
             {
-                setup_rand_init_params = tools::stobool(_setup_deflist_.at("rand_init"));
+                setup_rand_init_params = tools::stobool(deflist.at("rand_init"));
                 if ((setup_n_chains > 1) && (setup_rand_init_params == false))
                 {
                     tools::warning(
@@ -277,16 +283,16 @@ void MCMC::Impl::build_setup()
             }
 
             //===== INVERSE TEMPERATURE =====//
-            if (_setup_deflist_.find("inv_temper") != _setup_deflist_.end())
+            if (deflist.find("inv_temper") != deflist.end())
             {
-                double tmp = tools::stod(_setup_deflist_.at("inv_temper"), "inverse temperature");
+                double tmp = tools::stod(deflist.at("inv_temper"), "inverse temperature");
                 set_inver_temper(tmp);
             }
 
             //===== INDIVIDUAL ID AUGMENTED TRACE =====//
-            if (_setup_deflist_.find("id_trace") != _setup_deflist_.end())
+            if (deflist.find("id_trace") != deflist.end())
             {
-                setup_id_trace = _setup_deflist_.at("id_trace");
+                setup_id_trace = deflist.at("id_trace");
             }
         }
 
@@ -303,7 +309,8 @@ void MCMC::Impl::build_setup()
     }
     catch (const std::exception &e)
     {
-        tools::error(e.what());
+        tools::error(
+            "While building setup definitions: " + std::string(e.what()));
     }
 }
 
@@ -338,7 +345,10 @@ void MCMC::Impl::build_params()
 {
     try
     {
-        if (_param_deftable_.empty())
+        // reference to parameter definition table
+        const dict_str_vec &deftable = _param_deftable_;
+
+        if (deftable.empty())
         {
             // error if nothing was previously defined
             if (param_to_be_constant.empty() && param_to_be_inferred.empty())
@@ -347,8 +357,14 @@ void MCMC::Impl::build_params()
         }
         else
         {
+            // check no unused options in deftable
+            str_vec entries = {};
+            for (const auto &pair : deftable)
+                entries.push_back(pair.first);
+            tools::check_unused_entries(entries, param_file_headers);
+
             //===== Read Parameter Definitions =====//
-            size_t table_length = _param_deftable_.at("name").size();
+            size_t table_length = deftable.at("name").size();
 
             //===== Empty current list of parameters =====//
             param_map.clear();
@@ -358,12 +374,12 @@ void MCMC::Impl::build_params()
             //===== Load parameters from the row with options =====//
             for (size_t k = 0; k < table_length; ++k)
             {
-                const std::string &name = _param_deftable_.at("name")[k]; // parameter name
-                double value = NULL_DOUBLE;                          // init value
+                const std::string &name = deftable.at("name")[k]; // parameter name
+                double value = NULL_DOUBLE;                       // init value
 
                 // UPDATE : temporary parameter identifier
                 // NOTE : id parID changes this should change too
-                parID p = name;                 
+                parID p = name;
 
                 //----- Add entry to shared parameter dictionary -----//
                 if (param_map.find(p) != param_map.end())
@@ -372,63 +388,63 @@ void MCMC::Impl::build_params()
                     throw std::invalid_argument(
                         "Parameter \"" + p + "\" has multiple definitions.");
                 }
-                else if (tools::stobool(_param_deftable_.at("constant")[k]))
+                else if (tools::stobool(deftable.at("constant")[k]))
                 {
                     // assign constant parameter to the set of variables
-                    if (tools::is_na(_param_deftable_.at("value")[k]))
+                    if (tools::is_na(deftable.at("value")[k]))
                         throw std::invalid_argument(
                             "Undefined value for constant parameter \"" + name + "\".");
                     else
-                        value = tools::stod(_param_deftable_.at("value")[k], "parameter");
+                        value = tools::stod(deftable.at("value")[k], "parameter");
 
                     // assign constant parameter to the set of variables
-                    param_map.emplace(p, Base_Variable(name, value));
+                    param_map.emplace(p, Variable(name, value));
                     // update the lists of constant parameters
                     param_to_be_constant.push_back(p);
                 }
                 else
                 {
                     // load value
-                    if (!tools::is_na(_param_deftable_.at("value")[k]))
-                        value = tools::stod(_param_deftable_.at("value")[k], "parameter");
+                    if (!tools::is_na(deftable.at("value")[k]))
+                        value = tools::stod(deftable.at("value")[k], "parameter");
 
                     // load boolean flag for discrete variables
                     bool is_discrete = false;
-                    if (!tools::is_na(_param_deftable_.at("discrete")[k]))
-                        is_discrete = tools::stobool(_param_deftable_.at("discrete")[k]);
+                    if (!tools::is_na(deftable.at("discrete")[k]))
+                        is_discrete = tools::stobool(deftable.at("discrete")[k]);
 
                     // load prior name
-                    const std::string &prior_name = _param_deftable_.at("prior")[k];
+                    const std::string &prior_name = deftable.at("prior")[k];
 
                     // load range
                     double lower = NULL_DOUBLE;
-                    if (!tools::is_na(_param_deftable_.at("min")[k]))
-                        lower = tools::stod(_param_deftable_.at("min")[k], "parameter minimum");
+                    if (!tools::is_na(deftable.at("min")[k]))
+                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
 
                     double upper = NULL_DOUBLE;
-                    if (!tools::is_na(_param_deftable_.at("max")[k]))
-                        upper = tools::stod(_param_deftable_.at("max")[k], "parameter maximum");
+                    if (!tools::is_na(deftable.at("max")[k]))
+                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
 
                     // load rule name
                     std::string rule_name = "gibbs";
-                    if (!tools::is_na(_param_deftable_.at("rule")[k]))
-                        rule_name = _param_deftable_.at("rule")[k];
+                    if (!tools::is_na(deftable.at("rule")[k]))
+                        rule_name = deftable.at("rule")[k];
 
                     // load rule scale
                     double rule_scale = 1.;
-                    if (!tools::is_na(_param_deftable_.at("rule_scale")[k]))
-                        rule_scale = tools::stod(_param_deftable_.at("rule_scale")[k]);
+                    if (!tools::is_na(deftable.at("rule_scale")[k]))
+                        rule_scale = tools::stod(deftable.at("rule_scale")[k]);
 
                     //----- Create a new Parameter Variable -----//
-                    param_map.emplace(p, Base_Variable(name, value, is_discrete));
-                    Base_Variable &new_param = param_map.at(p);
+                    param_map.emplace(p, Variable(name, value, is_discrete));
+                    Variable &new_param = param_map.at(p);
 
                     // assign a prior distribution to the parameter
                     new_param.assign_distribution(prior_name);
 
                     // assign scalar arguments to prior distribution
-                    str_vec arg_name = tools::parse_list_args(_param_deftable_.at("arg_name")[k]);
-                    str_vec arg_value = tools::parse_list_args(_param_deftable_.at("arg_value")[k]);
+                    str_vec arg_name = tools::parse_list_args(deftable.at("arg_name")[k]);
+                    str_vec arg_value = tools::parse_list_args(deftable.at("arg_value")[k]);
                     for (ushort c = 0; c < arg_name.size(); ++c)
                         if (!tools::is_na(arg_name[c]))
                             new_param.assign_distr_scalar_arg(arg_name[c],
@@ -521,13 +537,27 @@ void MCMC::Impl::show_all_params() const
     for (size_t k = 1; k < param_file_headers.size(); ++k)
         oss << C_DELIM << param_file_headers[k];
 
-    oss << "\n";
+    str_vec all_params = param_to_be_inferred;
+    all_params.insert(all_params.end(),
+                      param_to_be_constant.begin(),
+                      param_to_be_constant.end());
 
-    for (const parID &p : param_to_be_inferred)
-        oss << param_map.at(p).show() << "\n";
-
-    for (const parID &p : param_to_be_constant)
-        oss << param_map.at(p).show() << "\n";
+    for (const parID &p : all_params)
+    {
+        const Variable &aux = param_map.at(p);
+        oss << aux.show_name()
+            << C_DELIM << tools::natod(aux.get_value())
+            << C_DELIM << tools::truth(aux.is_constant())
+            << C_DELIM << tools::truth(aux.is_discrete())
+            << C_DELIM << aux.show_distr_name()
+            << C_DELIM << aux.show_distr_arg_names()
+            << C_DELIM << aux.show_distr_arg_values()
+            << C_DELIM << aux.show_prop_name()
+            << C_DELIM << tools::natod(aux.show_prop_scale())
+            << C_DELIM << tools::natod(aux.show_min())
+            << C_DELIM << tools::natod(aux.show_max())
+            << "\n";
+    }
 
     tools::print_stdout(oss.str());
 }
@@ -549,7 +579,7 @@ void MCMC::Impl::show_results() const
 
     for (const parID &p : param_to_be_inferred)
     {
-        const Base_Variable &this_param = param_map.at(p);
+        const Variable &this_param = param_map.at(p);
         double avg = 0, var = 0;
         tools::compute_stats(dgn_param_value.at(p), avg, var);
 
@@ -558,13 +588,13 @@ void MCMC::Impl::show_results() const
             << C_DELIM << std::sqrt(var)
             << C_DELIM << tools::truth(this_param.is_constant())
             << C_DELIM << tools::truth(this_param.is_discrete())
-            << C_DELIM << this_param.get_distr_name()
+            << C_DELIM << this_param.show_distr_name()
             << C_DELIM << this_param.show_distr_arg_names()
             << C_DELIM << this_param.show_distr_arg_values()
-            << C_DELIM << this_param.get_prop_name()
+            << C_DELIM << this_param.show_prop_name()
             << C_DELIM << this_param.show_prop_scale()
-            << C_DELIM << tools::natod(this_param.show_range_min())
-            << C_DELIM << tools::natod(this_param.show_range_max())
+            << C_DELIM << tools::natod(this_param.show_min())
+            << C_DELIM << tools::natod(this_param.show_max())
             << "\n";
     }
 
@@ -618,7 +648,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                 for (size_t k = 0; k < setup_c_sample_size; k++)
                 {
                     size_t i = k + c * setup_c_sample_size;
-                    
+
                     // print loglikelihood
                     inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
 

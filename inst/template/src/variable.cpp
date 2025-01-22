@@ -8,29 +8,29 @@
 #include "distribution.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Proposer : class  /////////////////////////////////////
+//////////////////////////////////////  Proposer : class  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Base class for Metropolis proposers. */
-class Base_Proposer
+class Proposer
 {
 public:
     //=======================//
     //===== CONSTRUCTOR =====//
     //=======================//
-    Base_Proposer() {};
-    Base_Proposer(std::shared_ptr<Base_Distribution>,
+    Proposer() {};
+    Proposer(std::shared_ptr<Distribution>,
                   double rule_scale = 1.0,
                   double rule_start_value = NULL_DOUBLE,
                   const std::vector<ushort> &args_to_adapt = {},
                   bool is_discrete = false);
-    virtual ~Base_Proposer() {};
+    virtual ~Proposer() {};
 
     //==================//
     //===== GETTER =====//
     //==================//
 
-    const std::string &get_name() const { return this->name; }
+    const std::string show_name() const { return this->name; }
     double get_arg(ushort argID) const { return (_distr_ptr_->get_arg)(argID); }
     double get_from_value() const { return from_value; }
     bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
@@ -90,7 +90,7 @@ public:
 
 protected:
     std::string name = NULL_STRING;
-    std::shared_ptr<Base_Distribution> _distr_ptr_;
+    std::shared_ptr<Distribution> _distr_ptr_;
 
     double _user_rule_scale_ = 1.0;    // scale of the Metropolis rule
     bool _is_start_from_zero_ = false; // wheter to move from given value
@@ -103,14 +103,14 @@ protected:
     ushort *_args_to_adapt_ = nullptr; // which arguments should be adapted
 
     //===== propose : functional methods =====//
-    double (Base_Proposer::*_func_propose_)(rnd_gen &, double) = &Base_Proposer::_propose_undefined_;
+    double (Proposer::*_func_propose_)(rnd_gen &, double) = &Proposer::_propose_undefined_;
     double _propose_undefined_(rnd_gen &prng, double start);
     double _propose_sum_to_previous_(rnd_gen &prng, double start);
     double _propose_times_previous_(rnd_gen &prng, double start);
     double _propose_draw_rand_(rnd_gen &prng, double start);
 
     //===== logratio : functional methods =====//
-    double (Base_Proposer::*_func_logratio_)(double, double) const = &Base_Proposer::_logratio_undefined_;
+    double (Proposer::*_func_logratio_)(double, double) const = &Proposer::_logratio_undefined_;
     double _logratio_undefined_(double xold, double xnew) const;
     double _logratio_pdf_(double xold, double xnew) const;
     double _logratio_sum_to_zero_(double xold, double xnew) const;
@@ -127,10 +127,10 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base_Proposer : constructor  ////////////////////////////////////
+////////////////////////////////  Proposer : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
+Proposer::Proposer(std::shared_ptr<Distribution> distr,
                              double rule_scale,
                              double rule_start_value,
                              const std::vector<ushort> &args_to_adapt,
@@ -165,7 +165,7 @@ Base_Proposer::Base_Proposer(std::shared_ptr<Base_Distribution> distr,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // alternative proposer methods
-double Base_Proposer::_propose_undefined_(rnd_gen &prng, double start)
+double Proposer::_propose_undefined_(rnd_gen &prng, double start)
 {
     UNUSED(prng);
     UNUSED(start);
@@ -173,30 +173,30 @@ double Base_Proposer::_propose_undefined_(rnd_gen &prng, double start)
         "Attempt to call a method of an undefined proposer.");
     return std::numeric_limits<double>::quiet_NaN();
 }
-double Base_Proposer::_propose_sum_to_previous_(rnd_gen &prng, double start) { return start + rand(prng); }
-double Base_Proposer::_propose_times_previous_(rnd_gen &prng, double start) { return start * rand(prng); }
-double Base_Proposer::_propose_draw_rand_(rnd_gen &prng, double start)
+double Proposer::_propose_sum_to_previous_(rnd_gen &prng, double start) { return start + rand(prng); }
+double Proposer::_propose_times_previous_(rnd_gen &prng, double start) { return start * rand(prng); }
+double Proposer::_propose_draw_rand_(rnd_gen &prng, double start)
 {
     UNUSED(start);
     return rand(prng);
 }
 // alternative logratios
-double Base_Proposer::_logratio_undefined_(double xold, double xnew) const
+double Proposer::_logratio_undefined_(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
     return 0.0;
 }
-double Base_Proposer::_logratio_pdf_(double xold, double xnew) const { return _distr_ptr_->logratio(xold, xnew); }
-double Base_Proposer::_logratio_sum_to_zero_(double xold, double xnew) const { return _logratio_pdf_(xold - from_value, xnew - from_value); }
-double Base_Proposer::_logratio_times_zero_(double xold, double xnew) const { return _logratio_pdf_(xold / from_value, xnew / from_value); }
-double Base_Proposer::_logratio_symm_(double xold, double xnew) const
+double Proposer::_logratio_pdf_(double xold, double xnew) const { return _distr_ptr_->logratio(xold, xnew); }
+double Proposer::_logratio_sum_to_zero_(double xold, double xnew) const { return _logratio_pdf_(xold - from_value, xnew - from_value); }
+double Proposer::_logratio_times_zero_(double xold, double xnew) const { return _logratio_pdf_(xold / from_value, xnew / from_value); }
+double Proposer::_logratio_symm_(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
     return 0.0;
 }
-double Base_Proposer::_logratio_lognorm_symm_(double xold, double xnew) const { return log(xold) - log(xnew); }
+double Proposer::_logratio_lognorm_symm_(double xold, double xnew) const { return log(xold) - log(xnew); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -209,11 +209,11 @@ double Base_Proposer::_logratio_lognorm_symm_(double xold, double xnew) const { 
 ///////////////////////////////////  Gibbs_Proposer : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Gibbs_Proposer : public Base_Proposer
+class Gibbs_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Gibbs_Proposer(std::shared_ptr<Base_Distribution> distr)
+    Gibbs_Proposer(std::shared_ptr<Distribution> distr)
     {
         _distr_ptr_ = distr;
 
@@ -230,20 +230,20 @@ public:
 //////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Uniform_Proposer : public Base_Proposer
+class Uniform_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
     Uniform_Proposer(
         double rule_scale = 0.5,
         double rule_from = NULL_DOUBLE,
-        bool is_discrete = false) : Base_Proposer(distribution_switchboard("unif"),
+        bool is_discrete = false) : Proposer(distribution_switchboard("unif"),
                                                   rule_scale,
                                                   rule_from,
                                                   {0, 1},
                                                   is_discrete)
     {
-        name = _distr_ptr_->get_name();
+        name = _distr_ptr_->show_name();
         // initialize
         user_reset();
         // method for proposer
@@ -265,20 +265,20 @@ public:
 //////////////////////////////////  Normal_Proposer : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Normal_Proposer : public Base_Proposer
+class Normal_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
         double rule_scale = 1.0,
         double rule_from = NULL_DOUBLE,
-        bool is_discrete = false) : Base_Proposer(distribution_switchboard("norm"),
+        bool is_discrete = false) : Proposer(distribution_switchboard("norm"),
                                                   rule_scale,
                                                   rule_from,
                                                   {1},
                                                   is_discrete)
     {
-        name = _distr_ptr_->get_name();
+        name = _distr_ptr_->show_name();
         // initialize
         user_reset();
         // method for proposer
@@ -303,20 +303,20 @@ public:
 //////////////////////////////////  Lognorm_Proposer : class  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Lognorm_Proposer : public Base_Proposer
+class Lognorm_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(
         double rule_scale = 1.0,
         double rule_from = NULL_DOUBLE,
-        bool is_discrete = false) : Base_Proposer(distribution_switchboard("lnorm"),
+        bool is_discrete = false) : Proposer(distribution_switchboard("lnorm"),
                                                   rule_scale,
                                                   rule_from,
                                                   {1},
                                                   is_discrete)
     {
-        name = _distr_ptr_->get_name();
+        name = _distr_ptr_->show_name();
         // initialize
         user_reset();
         // method for proposer
@@ -345,31 +345,28 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name = NULL_STRING,
+std::shared_ptr<Proposer> proposer_switchboard(const std::string &rule_name = NULL_STRING,
                                                     double rule_scale = NULL_DOUBLE,
                                                     double rule_from = NULL_DOUBLE,
                                                     bool is_discrete = false)
 {
     const str_vec options = {"gibbs", "unif", "norm", "lnorm"};
 
-    if (!tools::is_na(rule_name))
-    {
-        if (rule_name == "unif")
-            return std::make_shared<Uniform_Proposer>(rule_scale, rule_from, is_discrete);
+    if (tools::is_na(rule_name))
+        return std::make_shared<Proposer>(std::make_shared<Distribution>());
 
-        else if (rule_name == "norm")
-            return std::make_shared<Normal_Proposer>(rule_scale, rule_from, is_discrete);
+    else if (rule_name == "unif")
+        return std::make_shared<Uniform_Proposer>(rule_scale, rule_from, is_discrete);
 
-        else if (rule_name == "lnorm")
-            return std::make_shared<Lognorm_Proposer>(rule_scale, rule_from, is_discrete);
+    else if (rule_name == "norm")
+        return std::make_shared<Normal_Proposer>(rule_scale, rule_from, is_discrete);
 
-        else
-            throw std::invalid_argument(
-                "Unknown proposer rule \"" + rule_name + "\"." + tools::find_closest(rule_name, options));
-    }
+    else if (rule_name == "lnorm")
+        return std::make_shared<Lognorm_Proposer>(rule_scale, rule_from, is_discrete);
 
-    // otherwise default
-    return std::make_shared<Base_Proposer>(std::make_shared<Base_Distribution>());
+    else
+        throw std::invalid_argument(
+            "Unknown proposer rule \"" + rule_name + "\"." + tools::find_closest(rule_name, options));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -379,11 +376,11 @@ std::shared_ptr<Base_Proposer> proposer_switchboard(const std::string &rule_name
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-class Base_Variable::Impl
+class Variable::Impl
 {
 public:
-    std::shared_ptr<Base_Distribution> _distr_ptr_; // prior/model distribution of the variable
-    std::shared_ptr<Base_Proposer> _prop_ptr_;      // proposer for Monte Carlo
+    std::shared_ptr<Distribution> _distr_ptr_; // prior/model distribution of the variable
+    std::shared_ptr<Proposer> _prop_ptr_;      // proposer for Monte Carlo
 
     std::string name = NULL_STRING; // name of the variable
     double value = NULL_DOUBLE;     // value of the variable
@@ -397,8 +394,8 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Impl() : _distr_ptr_(std::make_shared<Base_Distribution>()),
-             _prop_ptr_(std::make_shared<Base_Proposer>()) {}
+    Impl() : _distr_ptr_(std::make_shared<Distribution>()),
+             _prop_ptr_(std::make_shared<Proposer>()) {}
     ~Impl() = default;
 
     //===============================//
@@ -446,62 +443,62 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Base_Variable::Impl - functional  ////////////////////////////////
+///////////////////////////////  Variable::Impl - functional  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //===== Valid move : functional methods =====//
-bool Base_Variable::Impl::_valid_move_default_() const { return _distr_ptr_->valid(value); }
-bool Base_Variable::Impl::_valid_move_gibbs_() const { return true; }
+bool Variable::Impl::_valid_move_default_() const { return _distr_ptr_->valid(value); }
+bool Variable::Impl::_valid_move_gibbs_() const { return true; }
 
 //===== Move logratio : functional methods =====//
-double Base_Variable::Impl::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
-double Base_Variable::Impl::_move_logratio_gibbs_() const { return 0.0; }
+double Variable::Impl::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
+double Variable::Impl::_move_logratio_gibbs_() const { return 0.0; }
 
 //===== Propose : functional methods =====//
-double Base_Variable::Impl::_propose_error_(rnd_gen &prng)
+double Variable::Impl::_propose_error_(rnd_gen &prng)
 {
     UNUSED(prng);
     throw std::invalid_argument(
         "Call to proposer of constant variable \"" + name + "\".");
     return 0.;
 }
-double Base_Variable::Impl::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }
-double Base_Variable::Impl::_propose_from_previous_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, value); }
-double Base_Variable::Impl::_propose_from_zero_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, _prop_ptr_->get_from_value()); }
+double Variable::Impl::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }
+double Variable::Impl::_propose_from_previous_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, value); }
+double Variable::Impl::_propose_from_zero_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, _prop_ptr_->get_from_value()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Base_Variable::Impl - METROPOLIS-HASTINGS  ///////////////////////////
+///////////////////////////  Variable::Impl - METROPOLIS-HASTINGS  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Store the buffer and change value. */
-inline void Base_Variable::Impl::set_value(double x)
+inline void Variable::Impl::set_value(double x)
 {
     buffer = value;
     value = x;
 }
 
 /* Restore buffered value. */
-inline void Base_Variable::Impl::restore_value() { value = buffer; }
+inline void Variable::Impl::restore_value() { value = buffer; }
 
-inline double Base_Variable::Impl::get_move_logratio() const { return (this->*_func_move_logratio_)(); }
-inline bool Base_Variable::Impl::valid_move() const { return (this->*_func_valid_move_)(); }
+inline double Variable::Impl::get_move_logratio() const { return (this->*_func_move_logratio_)(); }
+inline bool Variable::Impl::valid_move() const { return (this->*_func_valid_move_)(); }
 
 //----- distr_ptr : prior/model methods -----//
-inline void Base_Variable::Impl::rand(rnd_gen &prng) { set_value(_distr_ptr_->rand(prng)); }
+inline void Variable::Impl::rand(rnd_gen &prng) { set_value(_distr_ptr_->rand(prng)); }
 
-inline double Base_Variable::Impl::distr_logpdf() const { return _distr_ptr_->logpdf(value); }
-inline double Base_Variable::Impl::distr_logratio() const { return _distr_ptr_->logratio(buffer, value); }
+inline double Variable::Impl::distr_logpdf() const { return _distr_ptr_->logpdf(value); }
+inline double Variable::Impl::distr_logratio() const { return _distr_ptr_->logratio(buffer, value); }
 
 //----- prop_ptr : propose methods -----//
-inline void Base_Variable::Impl::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
+inline void Variable::Impl::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
 
-inline double Base_Variable::Impl::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
+inline double Variable::Impl::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
 
 //----- prop_ptr : adaptive methods -----//
-inline double Base_Variable::Impl::get_accept_rate() const { return _prop_ptr_->get_accept_rate(); }
-inline void Base_Variable::Impl::update_accept_rate(bool is_accepted) { _prop_ptr_->update_accept_rate(is_accepted); }
-inline void Base_Variable::Impl::reset_accept_rate() { _prop_ptr_->reset_accept_rate(); }
-inline void Base_Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
+inline double Variable::Impl::get_accept_rate() const { return _prop_ptr_->get_accept_rate(); }
+inline void Variable::Impl::update_accept_rate(bool is_accepted) { _prop_ptr_->update_accept_rate(is_accepted); }
+inline void Variable::Impl::reset_accept_rate() { _prop_ptr_->reset_accept_rate(); }
+inline void Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -511,37 +508,36 @@ inline void Base_Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base_Variable - CONSTRUCTOR  ////////////////////////////////////
+////////////////////////////////  Variable - CONSTRUCTOR  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Base_Variable::Base_Variable(const std::string &name,
+Variable::Variable(const std::string &name,
                              double value,
                              bool is_discrete) : pImpl(std::make_unique<Impl>())
 {
     init(name, value, is_discrete);
 }
-Base_Variable::Base_Variable(Base_Variable &&other) noexcept = default;
-Base_Variable &Base_Variable::operator=(Base_Variable &&other) noexcept = default;
-Base_Variable::~Base_Variable() = default;
+Variable::Variable(Variable &&other) noexcept = default;
+Variable &Variable::operator=(Variable &&other) noexcept = default;
+Variable::~Variable() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Variable - GETTER  //////////////////////////////////////
+///////////////////////////////////  Variable - GETTER  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string &Base_Variable::get_name() const { return pImpl->name; }
-double Base_Variable::get_value() const { return pImpl->value; }
-const double *Base_Variable::get_pointer() const { return &pImpl->value; }
-bool Base_Variable::is_constant() const { return pImpl->_is_constant_; }
-bool Base_Variable::is_discrete() const { return pImpl->_is_discrete_; }
-bool Base_Variable::is_from_zero() const { return (pImpl->_prop_ptr_->is_rule_start_from_zero)(); }
-double Base_Variable::get_from_value() const { return (pImpl->_prop_ptr_->get_from_value)(); }
+double Variable::get_value() const { return pImpl->value; }
+const double *Variable::get_pointer() const { return &pImpl->value; }
+bool Variable::is_constant() const { return pImpl->_is_constant_; }
+bool Variable::is_discrete() const { return pImpl->_is_discrete_; }
+bool Variable::is_from_zero() const { return (pImpl->_prop_ptr_->is_rule_start_from_zero)(); }
+double Variable::get_from_value() const { return (pImpl->_prop_ptr_->get_from_value)(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base_Variable - SETTER  //////////////////////////////////////
+///////////////////////////////////  Variable - SETTER  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Restore user defined variable initialization. */
-void Base_Variable::init(const std::string &name, double value, bool is_discrete)
+void Variable::init(const std::string &name, double value, bool is_discrete)
 {
     pImpl->name = name;
     pImpl->_user_value_ = value;
@@ -550,52 +546,52 @@ void Base_Variable::init(const std::string &name, double value, bool is_discrete
 }
 
 /* Restore user defined variable initialization. */
-void Base_Variable::user_reset()
+void Variable::user_reset()
 {
     pImpl->value = pImpl->_user_value_;
     pImpl->_prop_ptr_->user_reset();
 }
 
 /* Assign distribution with constant arguments. */
-void Base_Variable::assign_distribution(const std::string &distr_name)
+void Variable::assign_distribution(const std::string &distr_name)
 {
     pImpl->_distr_ptr_ = distribution_switchboard(distr_name);
 }
 
-void Base_Variable::assign_distr_scalar_arg(const std::string &arg_name, double x)
+void Variable::assign_distr_scalar_arg(const std::string &arg_name, double x)
 {
     pImpl->_distr_ptr_->assign_scalar_arg(arg_name, x);
 }
-void Base_Variable::assign_distr_pointer_arg(const std::string &arg_name, const double *y)
+void Variable::assign_distr_pointer_arg(const std::string &arg_name, const double *y)
 {
     pImpl->_distr_ptr_->assign_pointer_arg(arg_name, y);
 }
 
-void Base_Variable::assign_distr_scalar_range_min(double x)
+void Variable::assign_distr_scalar_range_min(double x)
 {
     pImpl->_distr_ptr_->assign_scalar_range_min(x);
 }
-void Base_Variable::assign_distr_pointer_range_min(const double *y)
+void Variable::assign_distr_pointer_range_min(const double *y)
 {
     pImpl->_distr_ptr_->assign_pointer_range_min(y);
 }
 
-void Base_Variable::assign_distr_scalar_range_max(double x)
+void Variable::assign_distr_scalar_range_max(double x)
 {
     pImpl->_distr_ptr_->assign_scalar_range_max(x);
 }
-void Base_Variable::assign_distr_pointer_range_max(const double *y)
+void Variable::assign_distr_pointer_range_max(const double *y)
 {
     pImpl->_distr_ptr_->assign_pointer_range_max(y);
 }
 
-void Base_Variable::init_distr_reshaping()
+void Variable::init_distr_reshaping()
 {
     pImpl->_distr_ptr_->init_reshaping(is_discrete());
 }
 
 /* Assign proposer. */
-void Base_Variable::assign_proposer(const std::string &rule_name,
+void Variable::assign_proposer(const std::string &rule_name,
                                     double rule_scale,
                                     double rule_from)
 {
@@ -630,14 +626,9 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
             //----- Other proposer rules -----//
             // value from which to start proposal
             if ((!tools::is_na(rule_from)) && (!pImpl->_distr_ptr_->valid(rule_from)))
-            {
-                std::ostringstream oss;
-                oss << "Proposer rule from value " << rule_from << " out of range"
-                    << " {min:" << tools::natod(show_range_min())
-                    << ", max:" << tools::natod(show_range_max()) << "}."
-                    << " If intentional, ignore this message.";
-                tools::warning(oss.str());
-            }
+                tools::warning(
+                    "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + show_min() + ", max:" + show_max() + "}."
+                );
 
             // assign the pointer to the proposer
             pImpl->_prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, is_discrete());
@@ -651,64 +642,47 @@ void Base_Variable::assign_proposer(const std::string &rule_name,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Base_Variable - METROPOLIS-HASTINGS  //////////////////////////////
+//////////////////////////////  Variable - METROPOLIS-HASTINGS  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Store the buffer and change value. */
-void Base_Variable::set_value(double x) { pImpl->set_value(x); }
+void Variable::set_value(double x) { pImpl->set_value(x); }
 
 /* Restore buffered value. */
-void Base_Variable::restore_value() { pImpl->restore_value(); }
+void Variable::restore_value() { pImpl->restore_value(); }
 
-double Base_Variable::get_move_logratio() const { return pImpl->get_move_logratio(); }
-bool Base_Variable::valid_move() const { return pImpl->valid_move(); }
+double Variable::get_move_logratio() const { return pImpl->get_move_logratio(); }
+bool Variable::valid_move() const { return pImpl->valid_move(); }
 
 //----- distr_ptr : prior/model methods -----//
-void Base_Variable::rand(rnd_gen &prng) { pImpl->rand(prng); }
+void Variable::rand(rnd_gen &prng) { pImpl->rand(prng); }
 
-double Base_Variable::distr_logpdf() const { return pImpl->distr_logpdf(); }
-double Base_Variable::distr_logratio() const { return pImpl->distr_logratio(); }
+double Variable::distr_logpdf() const { return pImpl->distr_logpdf(); }
+double Variable::distr_logratio() const { return pImpl->distr_logratio(); }
 
 //----- prop_ptr : propose methods -----//
-void Base_Variable::propose(rnd_gen &prng) { pImpl->propose(prng); }
-double Base_Variable::propose_logratio() const { return pImpl->propose_logratio(); }
+void Variable::propose(rnd_gen &prng) { pImpl->propose(prng); }
+double Variable::propose_logratio() const { return pImpl->propose_logratio(); }
 
 //----- prop_ptr : adaptive methods -----//
-double Base_Variable::get_accept_rate() const { return pImpl->get_accept_rate(); }
-void Base_Variable::update_accept_rate(bool is_accepted) { pImpl->update_accept_rate(is_accepted); }
-void Base_Variable::reset_accept_rate() { pImpl->reset_accept_rate(); }
-void Base_Variable::adapt_rule(double ratio) { pImpl->adapt_rule(ratio); }
+double Variable::get_accept_rate() const { return pImpl->get_accept_rate(); }
+void Variable::update_accept_rate(bool is_accepted) { pImpl->update_accept_rate(is_accepted); }
+void Variable::reset_accept_rate() { pImpl->reset_accept_rate(); }
+void Variable::adapt_rule(double ratio) { pImpl->adapt_rule(ratio); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Base_Variable - SHOW  //////////////////////////////////////
+/////////////////////////////////////  Variable - SHOW  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string &Base_Variable::get_distr_name() const { return pImpl->_distr_ptr_->get_name(); }
-const std::string Base_Variable::show_distr_arg_names() const { return pImpl->_distr_ptr_->show_arg_names(); }
-const std::string Base_Variable::show_distr_arg_values() const { return pImpl->_distr_ptr_->show_arg_values(); }
+const std::string Variable::show_name() const { return pImpl->name; }
+const std::string Variable::show_distr_name() const { return pImpl->_distr_ptr_->show_name(); }
+const std::string Variable::show_distr_arg_names() const { return pImpl->_distr_ptr_->show_arg_names(); }
+const std::string Variable::show_distr_arg_values() const { return pImpl->_distr_ptr_->show_arg_values(); }
 
-const std::string &Base_Variable::get_prop_name() const { return pImpl->_prop_ptr_->get_name(); }
-const std::string Base_Variable::show_prop_arg_names() const { return pImpl->_prop_ptr_->show_arg_names(); }
-const std::string Base_Variable::show_prop_arg_values() const { return pImpl->_prop_ptr_->show_arg_values(); }
-const std::string Base_Variable::show_prop_scale() const { return pImpl->_prop_ptr_->show_scale(); }
+const std::string Variable::show_prop_name() const { return pImpl->_prop_ptr_->show_name(); }
+const std::string Variable::show_prop_arg_names() const { return pImpl->_prop_ptr_->show_arg_names(); }
+const std::string Variable::show_prop_arg_values() const { return pImpl->_prop_ptr_->show_arg_values(); }
+const std::string Variable::show_prop_scale() const { return pImpl->_prop_ptr_->show_scale(); }
 
-const std::string Base_Variable::show_range_min() const { return pImpl->_distr_ptr_->show_range_min(); }
-const std::string Base_Variable::show_range_max() const { return pImpl->_distr_ptr_->show_range_max(); }
-
-const std::string Base_Variable::show() const
-{
-    std::ostringstream oss;
-    oss << pImpl->name
-        << C_DELIM << tools::natod(get_value())
-        << C_DELIM << tools::truth(is_constant())
-        << C_DELIM << tools::truth(is_discrete())
-        << C_DELIM << get_distr_name()
-        << C_DELIM << show_distr_arg_names()
-        << C_DELIM << show_distr_arg_values()
-        << C_DELIM << get_prop_name()
-        << C_DELIM << tools::natod(show_prop_scale())
-        << C_DELIM << tools::natod(show_range_min())
-        << C_DELIM << tools::natod(show_range_max());
-
-    return oss.str();
-}
+const std::string Variable::show_min() const { return pImpl->_distr_ptr_->show_min(); }
+const std::string Variable::show_max() const { return pImpl->_distr_ptr_->show_max(); }
