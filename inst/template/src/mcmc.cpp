@@ -653,7 +653,7 @@ double MCMC::evaluate()
 
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
-void MCMC::run_monte_carlo(CustomProgressBar &progressbar, ulong sweep)
+void MCMC::run_monte_carlo(progress::Bar &progressbar, ulong sweep)
 {
     //==========================//
     //===== Initialization =====//
@@ -746,7 +746,7 @@ void MCMC::infer(bool is_progbar)
         init_model_for_inference();
 
         // start progress bar and chrono
-        CustomProgressBar progressbar(pImpl->fmt_progtxt("infer"), is_progbar);
+        progress::Bar progressbar(pImpl->fmt_progtxt("infer"), is_progbar);
 
         // run Markov Chain
         run_monte_carlo(progressbar);
@@ -808,7 +808,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
     init_model_for_inference();
 
     //----- Start progress bar and chrono -----//
-    CustomProgressBar progressbar(pImpl->fmt_progtxt(""), is_progbar);
+    progress::Bar progressbar(pImpl->fmt_progtxt(""), is_progbar);
 
     //==================================//
     //===== INVERSE TEMPEREATURE 0 =====//
@@ -941,7 +941,7 @@ void MCMC::simulate(bool is_progbar)
 
     //----- Initialize augmented dependencies -----//
     init_augmented_variables();
-    CustomProgressBar progressbar("simulate", is_progbar);
+    progress::Bar progressbar("simulate", is_progbar);
 
 #ifdef _OPENMP
     int thin_n_house = n_houses() / pBuild->setup_n_threads;

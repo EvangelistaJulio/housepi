@@ -47,12 +47,12 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 hmc_1 <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
-hmc_1$add_param(name = "shape",
-                prior = "unif", args = list(min = 0, max = 5),
+hmc_1$load_param_list(list(
+  shape = list(prior = "unif", args = list(min = 0, max = 5),
+                rule = "norm", rule_scale = 1),
+  scale = list(prior = "unif", args = list(min = 0, max = 5),
                 rule = "norm", rule_scale = 1)
-hmc_1$add_param(name = "scale",
-                prior = "unif", args = list(min = 0, max = 5),
-                rule = "norm", rule_scale = 1)
+))
 ```
 
 ### Build Augmented Variables
@@ -186,25 +186,25 @@ knitr::kable(head(df))
 We can check that inference returns the parameters used for the simulation.
 
 ```{r}
-# add new definitions
-new_augm_defs <- list(
-  # add 'onset_date' definition
-  onset_date = list(
-    value = "onset_date@D",
-    rule = "norm", rule_scale = 0.25,
-    rule_from = "onset_date@D"
+# load definitions from list and drop previous definitions 
+hmc_2$load_augm_list(
+  list(
+    # add 'onset_date' definition
+    onset_date = list(
+      value = "onset_date@D",
+      rule = "norm", rule_scale = 0.25,
+      rule_from = "onset_date@D"
+    ),
+    # add 'incub_period' definition
+    incub_period = list(
+      init_rand = TRUE,
+      model = "gamma", args = list(shape = "inc_shape@P",
+                                   scale = "inc_scale@P"),
+      rule = "gibbs", max = 14
+    )
   ),
-  # add 'incub_period' definition
-  incub_period = list(
-    init_rand = TRUE,
-    model = "gamma", args = list(shape = "inc_shape@P",
-                                 scale = "inc_scale@P"),
-    rule = "gibbs", max = 14
-  )
+  append = FALSE
 )
-
-# drop previous definitions and load new from list
-hmc_2$load_augm_list(new_augm_defs, append = FALSE)
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning

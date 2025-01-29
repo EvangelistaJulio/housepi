@@ -29,9 +29,9 @@ survey$agegroup <- as.integer(survey$age <= 15)
 survey$susgroup <- survey$agegroup
 survey$susgroup[(survey$agegroup == 1) & (survey$sex == 1)] <- 2
 
-hmc$add_group_rate("infectivity", features = "agegroup")
-hmc$add_group_rate("community_susceptibility", features = "susgroup")
-hmc$add_group_rate("susceptibility", features = "susgroup")
+hmc$add_group_rate("infectivity", by = "agegroup")
+hmc$add_group_rate("community_susceptibility", by = "susgroup")
+hmc$add_group_rate("susceptibility", by = "susgroup")
 
 hmc$template_param()
 

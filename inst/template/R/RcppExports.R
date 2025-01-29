@@ -19,6 +19,11 @@
 #' @field export_params Return a DataFrame with current parameters.
 #' @field export_data Return a DataFrame with current database.
 #' @field export_traces Return a DataFrame with MCMC traces.
+#' @filed import_setup Import setup from R List.
+#' @filed import_infec_profile Import infectivity profile definition from R List.
+#' @filed import_params Import parameter definitions from R Data.Frame.
+#' @filed import_data Import data definitions from R Data.Frame.
+#' @filed import_augm Import augmented variable definitions from R Data.Frame.
 #' @field export_household_loglike_traces Return matrix with loglikelihood values.
 #' @field show_full_build Show all build messages.
 #' @field show_summary Show a summary of the current database.

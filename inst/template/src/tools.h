@@ -222,26 +222,29 @@ namespace tools
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Progress Bar Class  //////////////////////////////////////
+//////////////////////////////////  Progress Bar Namespace  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Class for custom progress bar. */
-class CustomProgressBar
+namespace progress
 {
-public:
-    //===== CONSTRUCTOR =====//
-    CustomProgressBar(const std::string &text = "", bool verbose = true);
-    ~CustomProgressBar();
+    /* Class for custom progress bar. */
+    class Bar
+    {
+    public:
+        //===== CONSTRUCTOR =====//
+        Bar(const std::string &text = "", bool verbose = true);
+        ~Bar();
 
-    //===== SETTER =====//
-    void set_text(const std::string &text);
-    void update(double progress);
-    void finalize();
+        //===== SETTER =====//
+        void set_text(const std::string &text);
+        void update(double progress);
+        void finalize();
 
-private:
-    // Pointer to Implementation
-    class Impl;
-    std::unique_ptr<Impl> pImpl;
-};
+    private:
+        // Pointer to Implementation
+        class Impl;
+        std::unique_ptr<Impl> pImpl;
+    };
+}
 
 #endif // HOUSEPI__TOOLS__H

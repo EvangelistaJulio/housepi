@@ -263,20 +263,18 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
     using namespace Rcpp;
 
     if (is_power_post())
-    {
         tools::error(
-            "Impossible to export traces of household loglikelihood when computing power posteriors.");
-    } else {
-        // Create a NumericMatrix with n_house columns
-        ulong sample_size = setup_n_chains * setup_c_sample_size;
-        NumericMatrix output(sample_size, n_households);
+            "Impossible to export loglikelihood traces of households when computing power posteriors.");
 
-        // Assign each NumericVector to a column of the matrix
-        for (size_t H = 0; H < n_households; ++H)
-        {
-            NumericVector column = wrap(house_vector[H].get_dgn_loglike());
-            output(_, H) = column;
-        }
+    // Create a NumericMatrix with n_house columns
+    ulong sample_size = setup_n_chains * setup_c_sample_size;
+    NumericMatrix output(sample_size, n_households);
+
+    // Assign each NumericVector to a column of the matrix
+    for (size_t H = 0; H < n_households; ++H)
+    {
+        NumericVector column = wrap(house_vector[H].get_dgn_loglike());
+        output(_, H) = column;
     }
 
     return output;

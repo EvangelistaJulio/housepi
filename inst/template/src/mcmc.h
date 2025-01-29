@@ -150,6 +150,7 @@ public:
 	//========================//
 
 	void import_setup(const Rcpp::List &setup);
+	void import_infec_profile(const Rcpp::List &setup);
 	void import_params(const Rcpp::DataFrame &params);
 	void import_data(const Rcpp::DataFrame &data);
 	void import_augm(const Rcpp::DataFrame &augm);
@@ -178,7 +179,7 @@ private:
 	parID _pair_contact_rate_ = {};
 
 	//----- Monte Carlo -----//
-	void run_monte_carlo(CustomProgressBar &progbar, ulong sweep = 0);
+	void run_monte_carlo(progress::Bar &progbar, ulong sweep = 0);
 	void move_all();
 	void move_all_and_adapt_parameters(ulong step);
 	void move_single_param(const parID &p);

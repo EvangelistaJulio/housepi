@@ -88,7 +88,7 @@ void Model::init_model_for_inference()
 {
 	// default infectivity profile: Ferretti et al (2020)
 	// otherwise user defined
-	build_infec_profile("ferretti20");
+	assign_infec_profile("ferretti20");
 
 	// integer for index of introduction case
 	assign_extra_integer_to_all_houses({"intro-case"}, -1);

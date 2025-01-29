@@ -89,7 +89,7 @@ void MCMC::Impl::assign_augm_type_args(Household &house, indiv i, augmID a,
         std::string value = vals[x];
         std::string type = typs[x];
 
-        if (!(tools::is_na(value) && tools::is_na(type)))
+        if (tools::is_na(value) && tools::is_na(type))
             ; // pass
 
         else if (!tools::is_na(value) && tools::is_na(type))
@@ -130,7 +130,7 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
     //----- Minimum -----//
     //-------------------//
 
-    if (!(tools::is_na(min_value) && tools::is_na(min_type)))
+    if (tools::is_na(min_value) && tools::is_na(min_type))
         ; // pass
 
     else if (!tools::is_na(min_value) && tools::is_na(min_type))
@@ -164,7 +164,7 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
     //----- Maximum -----//
     //-------------------//
 
-    if (!(tools::is_na(max_value) && tools::is_na(max_type)))
+    if (tools::is_na(max_value) && tools::is_na(max_type))
         ; // pass
 
     else if (!tools::is_na(max_value) && tools::is_na(max_type))
