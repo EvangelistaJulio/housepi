@@ -45,7 +45,7 @@ namespace bax
 		return result;
 	}
 
-	/* Binomial coefficient of N elements in k positions*/
+	/* Binomial coefficient of N elements in k positions */
 	ulong binomial_coefficient(ushort N, ushort k)
 	{
 		if ((N > 0) && (k != N))
@@ -58,6 +58,36 @@ namespace bax
 		}
 
 		return 1;
+	}
+
+	/* Logarithm of binomial coefficient. */
+	double log_binomial_coefficient(ushort N, ushort k)
+	{
+		if ((N > 0) && (k != N))
+		{
+			double result = log(N);
+			ushort stop = (k > N - k) ? k : N - k; // use symmetry
+			for (ushort i = 1; i < stop; ++i)
+				result += log(N - i) - log(i + 1);
+			return result;
+		}
+		return 0.;
+	}
+
+	/* Log-ratio of binomial coefficients. */
+	double logratio_binomial_coefficient(ushort N, ushort kold, ushort knew)
+	{
+		if ((N > 0) && (kold != knew))
+		{
+			double result = 0.;
+			if (kold > knew)
+				std::swap(kold, knew);
+
+			for (ushort i = kold + 1; i <= knew; ++i)
+				result += log(N - i + 1) - log(i);
+			return result;
+		}
+		return 0.;
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////

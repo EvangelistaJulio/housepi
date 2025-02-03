@@ -18,20 +18,21 @@ knitr::opts_chunk$set(echo = TRUE, comment = NA)
 options(knitr.kable.NA = "")
 ```
 
-We introduce `housepi`, a package for the study of epidemiological data from household outbreaks.
+We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
 We'll walk through the process of loading a model, associating necessary definitions to perform the inference and a simulation study.
 
 ## Getting Started with Template Models
 
-To see the complete list of available template models, from within Rstudio just run 
+To see the complete list of available template models, from within Rstudio just run
 
 ```{r, eval = FALSE}
 # present the list of template model name
 housepi::household_model_template()
 ```
 
-Each template comes with its template definitions that can be used straight away or changed. 
-To know more about each model, choose a name from the previous list and run, e. g. 
+Each template comes with its template definitions that can be used straight away or changed.
+To know more about each model, choose a name from the previous list and run, e.
+g.
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
@@ -40,12 +41,13 @@ housepi::household_model_template("chain-binomial")
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
 
-Starting from a template we may want to create a custom model adapted to our study project. 
+Starting from a template we may want to create a custom model adapted to our study project.
 We discuss how to do this in the vignette [Custom Models](custom_models.html).
 
 ## The Household Model Class
 
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model. It wraps an environment containing the Rcpp model class and allows to call its internal methods.
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
+It wraps an environment containing the Rcpp model class and allows to call its internal methods.
 We show how to generate a new instance of such a class and its methods with a template model, the chain binomial:
 
 ```{r}
@@ -55,19 +57,19 @@ hmc <- housepi::HouseholdModelClass$new("chain-binomial")
 
 At any moment you can retrieve the template description by using the class method `help()`.
 
-### Database Format
+### Format of the Dataset 
 
-Data can be provided as a numerical data.frame (or a path to a csv file) where individual information are organised by row.
+Dataset can be provided as a numerical data.frame (or a path to a csv file) where individual information are organised by row.
 Individuals with equal values in the column `house_id` are considered to belong to same household.
 Additionally, an individual identifier `id` can be provided within the respective column.
 
 To provide the `status` of each individual (required to perform inference), each value must satisfy the following convention:
 
--   infectious status: $1$ (or $>{1}$).
--   susceptible status: $0$.
+-   infected status: $1$ (or $>{1}$).
+-   healthy status: $0$.
 -   missing status: $-1$.
 
-The package comes with a few synthetic data to be used for testing, e. g.
+The package comes with a few synthetic dataset to be used for testing, e. g.
 
 ```{r}
 data("survey", package = "housepi")
@@ -80,7 +82,7 @@ knitr::kable(head(aux_))
 
 ### Parameter Definitions
 
-Single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `add_param`.
+A single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `add_param`.
 
 ```{r, echo=TRUE}
 hmc$add_param(
@@ -95,28 +97,26 @@ hmc$add_param(
 )
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant=TRUE` and a `value`. 
-For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see [here](bayesian_mcmc_options.html).
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided). To just load template definitions you can use the method `template_param`.
 
-Sometimes you might just want to skip all parameter definitions. In such cases, you can consider loading the template definitions using the method `template_param()`.
-To check that all parameters have been defined, you can call the method `param_check()`.
-If some parameters are missing, you can fill them from the template defaults calling the method `param_check(fill_template = TRUE)`.
+For models requiring augmented variables, the definition procedure is analogous.
+We discuss an example in the vignette [Data Augmentation](data_augmentation.html).
 
-For models requiring augmented variables the procedure is analogous. We discuss an example [here](data_augmentation.html).
+For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
 ## Inference
 
-Now we can safely perform inference with the method `infer`.
+Now we can safely perform inference with the method `infer`:
 
 ```{r}
 # run the Monte Carlo specifying setup options (steps, seed, etc.)
-hmc$infer(data = survey, n_steps = 25000, n_burnin = 2500,
+hmc$infer(dataset = survey, n_steps = 25000, n_burnin = 2500,
           thin = 10, n_adapt = 2500, n_chains = 4, seed = 6043)
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
-```{r, fig.align = 'center'}
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # visualize the traces of the first chain
 lattice::xyplot(hmc$export_traces()[1])
 ```
@@ -126,7 +126,9 @@ lattice::xyplot(hmc$export_traces()[1])
 results <- hmc$summarise_traces()
 ```
 
-For advanced analysis on the inference results, we can extract the traces with method `export_traces`. This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
+For advanced analysis on the inference results, we can extract the traces with method `export_traces`.
+This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package:
+a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
 
 ```{r}
 # export coda object
@@ -138,44 +140,41 @@ coda::gelman.diag(mctraces)
 
 ### Model Comparison
 
-To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/index.html) :
+To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/index.html), e. g. :
 
 ```{r}
-# WAIC (widely applicable information criterion)
-hmc$waic()
-```
-```{r}
-# approximate PSIS-LOO cross validation
+# call to loo::loo, approximate PSIS-LOO cross validation
 hmc$loo()
 ```
 
+Similarly for the WAIC (widely applicable information criterion) we can use the method `waic`.
+
 ## Simulation
 
-In order to produce a simulation, our models require a pre-loaded database for the demographic structure of the households. The rest is analogous to the inference case, except we habe to call the `simulate` method:
+In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households. 
+We call the `simulate` method after having provided parameter definitions (analogous to the inference case)
 
 ```{r}
 # generate a new model object for the simulation
 simu_cb <- housepi::HouseholdModelClass$new("chain-binomial")
 
 # define constant parameters from the inference results
-# here we introduce the method 'load_param_list'
-simu_cb$load_param_list(
-  list(
-    alpha = list(value = results["alpha", "Mean"]),
-    beta = list(value = results["beta", "Mean"])
-  )
-)
+# note: definition without a prior assumes the parameter to be constant
+simu_cb$add_param(name = "alpha", 
+                  value = results["alpha", "Mean"])
+simu_cb$add_param(name = "beta", 
+                  value = results["beta", "Mean"])
 
-# build the new model using the same household compositions
-# override status of the database according to simulation
-simu_cb$simulate(data = survey, seed = 5923)
+# build new model using the same demographic structure of dataset
+# override status of the dataset according to simulation
+simu_cb$simulate(dataset = survey, seed = 5923)
 ```
 
-To return the simulated database, which also corresponds to the current loaded database, we use the method
+To return the simulated dataset, which also corresponds to the current loaded dataset, we use the method
 
 ```{r}
-# export current database
-df <- simu_cb$export_data()
+# export current dataset
+dataset <- simu_cb$export_data()
 ```
 
 ### Simulation Study
@@ -183,12 +182,12 @@ df <- simu_cb$export_data()
 We can challenge the inference process used at the beginning with the new simulated database.
 
 ```{r}
-# run inference on new database keeping previous definitions
-hmc$infer(data = df, n_steps = 25000, n_burnin = 2500,
+# run inference on new dataset keeping previous definitions
+hmc$infer(dataset = dataset, n_steps = 25000, n_burnin = 2500,
           thin = 10, n_adapt = 2500, n_chains = 4, seed = 4337)
 ```
 
-```{r, fig.align = 'center'}
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # visualize traces of the first chain
 lattice::xyplot(hmc$export_traces()[1])
 ```

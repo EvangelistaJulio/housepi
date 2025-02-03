@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <unordered_map>
 #include <cmath>
 #include <algorithm>
 
@@ -127,6 +126,7 @@ using rateIDmap = std::vector<T>;
 template <typename T>
 using extraIDmap = std::vector<T>;
 #else
+#include <unordered_map>
 template <typename T>
 using parIDmap = std::unordered_map<parID, T>;
 template <typename T>

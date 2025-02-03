@@ -33,7 +33,7 @@ public:
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;
 	void init_model_for_simulation() override;
-	void update_augm_dependecies(Household &house, indiv i) override;
+	void update_extra_dependecies(Household &house, indiv i) override;
 	double compute_house_loglike(Household &house) const override;
 	void simulate_single_house(Household &house) override;
 

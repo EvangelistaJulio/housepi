@@ -78,7 +78,7 @@ public:
     ushort find(const std::string &arg_name);
 
     //===== Range =====//
-    void init_range(bool is_open);
+    void init_range(bool is_min_open, bool is_max_open);
 
     //===== Getter =====//
     bool valid(double x) const { return (this->*_func_valid_range_)(x); }
@@ -96,15 +96,19 @@ private:
         return true;
     }
 
-    //----- close range -----//
-    bool _valid_range_close_min_(double x) const { return (x >= range_min.get()); }
-    bool _valid_range_close_max_(double x) const { return (x <= range_max.get()); }
-    bool _valid_range_close_both_(double x) const { return (x >= range_min.get()) && (x <= range_max.get()); }
-
-    //----- open range -----//
+    //----- range : minimum -----//
     bool _valid_range_open_min_(double x) const { return (x > range_min.get()); }
+    bool _valid_range_close_min_(double x) const { return (x >= range_min.get()); }
+
+    //----- range : maximum -----//
     bool _valid_range_open_max_(double x) const { return (x < range_max.get()); }
-    bool _valid_range_open_both_(double x) const { return (x > range_min.get()) && (x < range_max.get()); }
+    bool _valid_range_close_max_(double x) const { return (x <= range_max.get()); }
+
+    //----- range : both -----//
+    bool _valid_range_both_open_(double x) const { return (x > range_min.get()) && (x < range_max.get()); }
+    bool _valid_range_open_min_close_max_(double x) const { return (x > range_min.get()) && (x <= range_max.get()); }
+    bool _valid_range_close_min_open_max_(double x) const { return (x >= range_min.get()) && (x < range_max.get()); }
+    bool _valid_range_both_close_(double x) const { return (x >= range_min.get()) && (x <= range_max.get()); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,34 +135,38 @@ ushort Function::Impl::which_valid_case() const
     return is_lower_bound + 2 * is_upper_bound;
 }
 
-/* Set the range of validity of the value, and the corresponding (close) validation function. */
-void Function::Impl::init_range(bool is_open)
+/* Set the range of validity of the value, and the corresponding validation function. */
+void Function::Impl::init_range(bool is_min_open, bool is_max_open)
 {
     switch (which_valid_case())
     {
-    case 0:
+    case 0: // unbounded
         _func_valid_range_ = &Impl::_valid_range_always_;
         break;
-    case 1:
-        if (is_open)
+    case 1: // lower bound
+        if (is_min_open)
             _func_valid_range_ = &Impl::_valid_range_open_min_;
         else
             _func_valid_range_ = &Impl::_valid_range_close_min_;
         break;
-    case 2:
-        if (is_open)
+    case 2: // upper bound
+        if (is_max_open)
             _func_valid_range_ = &Impl::_valid_range_open_max_;
         else
             _func_valid_range_ = &Impl::_valid_range_close_max_;
         break;
-    case 3:
+    case 3: // within an interval
         if (range_min.get() >= range_max.get())
             throw std::invalid_argument(
                 "Inconsistent range {min:" + range_min.show() + ", max:" + range_max.show() + "}.");
-        if (is_open)
-            _func_valid_range_ = &Impl::_valid_range_open_both_;
+        if ((is_min_open) && (is_max_open))
+            _func_valid_range_ = &Impl::_valid_range_both_open_;
+        else if ((is_min_open) && (!is_max_open))
+            _func_valid_range_ = &Impl::_valid_range_open_min_close_max_;
+        else if ((!is_min_open) && (is_max_open))
+            _func_valid_range_ = &Impl::_valid_range_open_min_close_max_;
         else
-            _func_valid_range_ = &Impl::_valid_range_close_both_;
+            _func_valid_range_ = &Impl::_valid_range_both_close_;
         break;
     }
 }
@@ -308,10 +316,7 @@ void Function::assign_pointer_range_max(const double *y)
 }
 
 /* Initialize open range functional methods. */
-void Function::init_open_range() { pImpl->init_range(true); }
-
-/* Initialize open range functional methods. */
-void Function::init_close_range() { pImpl->init_range(false); }
+void Function::init_range(bool is_min_open, bool is_max_open) { pImpl->init_range(is_min_open, is_max_open); }
 
 /* Return which valid case. */
 ushort Function::which_valid_case() const { return pImpl->which_valid_case(); }
@@ -377,7 +382,8 @@ void Function::_init_defaults_(const std::string &name,
                                const dbl_vec &arg_value,
                                double domain_min,
                                double domain_max,
-                               bool is_open)
+                               bool is_min_open,
+                               bool is_max_open)
 {
     // name of the function
     pImpl->name = name;
@@ -401,5 +407,5 @@ void Function::_init_defaults_(const std::string &name,
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
     assign_scalar_range_min(domain_min);
     assign_scalar_range_max(domain_max);
-    pImpl->init_range(is_open);
+    pImpl->init_range(is_min_open, is_max_open);
 }

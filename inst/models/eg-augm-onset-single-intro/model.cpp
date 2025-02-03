@@ -160,7 +160,7 @@ double Model::ROI_cumul_suscept(const Household &house, indiv i) const
 /* Store cumulative and instantaneous infectivity profiles according to an infector.
    WARNING: unpredictable behavior if i is not an infector.
    WARNING: this function should not call any mutable parameter. */
-void Model::update_augm_dependecies(Household &house, indiv i)
+void Model::update_extra_dependecies(Household &house, indiv i)
 {
 	double gentime; // generation time 
 
@@ -319,7 +319,7 @@ void Model::simulate_single_house(Household &house)
 				// set new status for computations
 				house.change_status(i, INFECTED_STATUS);
 				house.set_augm_value(i, "onset_date", t);
-				update_augm_dependecies(house, i);
+				update_extra_dependecies(house, i);
 
 				// restore status id escaped infection
 				if (uniform() < exp(-ROI_inst(house, i) * Dt))

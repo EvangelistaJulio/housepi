@@ -78,7 +78,7 @@ void MCMC::assign_extra_matrix_to_all_houses(const std::vector<extraID> &names, 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::update_augm_dependecies(Household &house, indiv i)
+void MCMC::update_extra_dependecies(Household &house, indiv i)
 {
     UNUSED(house);
     UNUSED(i);
@@ -374,7 +374,7 @@ void MCMC::set_rate_per_contact(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::update_global_loglike()
+void MCMC::update_simple_global_loglike()
 {
     double new_ll = 0.0;
 
@@ -410,6 +410,48 @@ void MCMC::update_global_loglike()
     pImpl->set_global_loglike(new_ll);
 }
 
+/* Store all buffers (als extra dependecies) and update values of loglikelihood. */
+void MCMC::update_extra_global_loglike()
+{
+    double new_ll = 0.0;
+
+#pragma omp parallel for reduction(+ : new_ll)
+    for (size_t H = 0; H < n_houses(); ++H)
+    {
+
+        if (!_error_message_.empty())
+            continue;
+
+        try
+        {
+            Household &house = pImpl->house_vector[H];
+
+            // buffer all extra dependencies
+            house.buffer_all_extra();
+            for (const indiv &i : house.infectious_set())
+                update_extra_dependecies(house, i);
+
+            // update house loglikelihood
+            house.set_loglike(compute_house_loglike(house));
+            new_ll += house.get_loglike();
+            if (pImpl->is_augm_model())
+                new_ll += pImpl->compute_augm_model_loglike(house);
+        }
+        catch (const std::exception &e)
+        {
+#pragma omp critical
+            {
+                if (_error_message_.empty())
+                    _error_message_ = e.what();
+            }
+        }
+    }
+    if (!_error_message_.empty())
+        tools::error(_error_message_);
+
+    pImpl->set_global_loglike(new_ll);
+}
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -422,32 +464,40 @@ void MCMC::update_global_loglike()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-void MCMC::move_single_param(const parID &p)
+bool MCMC::move_simple_param(const parID &p)
 {
     bool is_accepted = false;
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (pImpl->propose_valid_param_move(p))
     {
-        update_global_loglike();
+        update_simple_global_loglike();
 
-        if (uniform() < exp(pImpl->setup_inv_T * pImpl->get_delta_global_loglike() + pImpl->param_move_logratio(p)))
+        if (pImpl->accept_valid_param_move(p))
             is_accepted = true;
         else
-        {
-            // restore buffered value of parameter
-            pImpl->restore_param_value(p);
-
-            // restore buffered value of global loglike
-            pImpl->restore_global_loglike();
-
-            // restore buffered loglikelihood in households
-            for (size_t H = 0; H < n_houses(); ++H)
-                pImpl->house_vector[H].restore_loglike();
-        }
+            pImpl->restore_simple_param_value(p);
     }
 
-    // update counts for acceptance rate
-    pImpl->update_param_accept_rate(p, is_accepted);
+    return is_accepted;
+}
+
+/* Attempt to move parameter with extra dependencies. */
+bool MCMC::move_extra_param(const parID &p)
+{
+    bool is_accepted = false;
+
+    // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
+    if (pImpl->propose_valid_param_move(p))
+    {
+        update_extra_global_loglike();
+
+        if (pImpl->accept_valid_param_move(p))
+            is_accepted = true;
+        else
+            pImpl->restore_extra_param_value(p);
+    }
+
+    return is_accepted;
 }
 
 /* Move all model parameters. */
@@ -456,9 +506,13 @@ void MCMC::move_all()
     // move all augmented variables
     (this->*_func_move_all_augm_)();
 
-    // move all model parameters
+    // move all simple model parameters
     for (const parID &p : pImpl->param_to_be_inferred)
-        move_single_param(p);
+        move_simple_param(p);
+
+    // move parameters with extra dependecies
+    for (const parID &p : pImpl->param_extra_to_be_inferred)
+        move_extra_param(p);
 }
 
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
@@ -470,9 +524,17 @@ void MCMC::move_all_and_adapt_parameters(ulong step)
     // move all model parameters and adapt their rule arguments
     double adapt_ratio = static_cast<double>(step) / pImpl->setup_n_adapt;
 
+    // move all simple model parameters
     for (const parID &p : pImpl->param_to_be_inferred)
     {
-        move_single_param(p);
+        pImpl->update_param_accept_rate(p, move_simple_param(p));
+        pImpl->adapt_param_rule(p, adapt_ratio);
+    }
+
+    // move parameters with extra dependecies
+    for (const parID &p : pImpl->param_extra_to_be_inferred)
+    {
+        pImpl->update_param_accept_rate(p, move_extra_param(p));
         pImpl->adapt_param_rule(p, adapt_ratio);
     }
 }
@@ -511,7 +573,7 @@ void MCMC::init_augmented_variables()
                 assign_all_augm(house, i);
 
             for (const indiv &i : house.infectious_set())
-                update_augm_dependecies(house, i);
+                update_extra_dependecies(house, i);
         }
     }
     else
@@ -596,7 +658,7 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &
     {
         // update dependencies to perform computations
         house.buffer_all_extra();
-        update_augm_dependecies(house, i);
+        update_extra_dependecies(house, i);
 
         // update house loglikelihood and store old value in buffer
         house.set_loglike(compute_house_loglike(house));
@@ -606,7 +668,7 @@ void MCMC::metropolis_augm_single_move(Household &house, indiv i, const augmID &
         if (uniform() < exp(pImpl->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
             delta += D_ll;
         else
-            // restore all buffer values
+            // restore all buffered values
             house.restore_augm_value(i, a);
     }
 }
@@ -627,10 +689,10 @@ double MCMC::evaluate()
 {
     try
     {
-        init_model_for_inference(); // initialize model for inference
-        pImpl->init_parameters();  // check no undefined parameters
-        init_augmented_variables(); // initialize augmented dependencies
-        update_global_loglike();    // initialize global loglikelihood
+        init_model_for_inference();     // initialize model for inference
+        pImpl->init_parameters();       // check no undefined parameters
+        init_augmented_variables();     // initialize augmented dependencies
+        update_simple_global_loglike(); // initialize global loglikelihood
     }
     catch (const std::exception &e)
     {
@@ -678,9 +740,9 @@ void MCMC::run_monte_carlo(progress::Bar &progressbar, ulong sweep)
 
         // initialize augmented dependencies
         init_augmented_variables();
-
+        
         // initialize global loglikelihood
-        update_global_loglike();
+        update_simple_global_loglike();
 
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//

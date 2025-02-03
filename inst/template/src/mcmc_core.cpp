@@ -145,7 +145,7 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
     // restore buffer if not valid move
     if (!param_map.at(p).valid_move())
     {
-        restore_param_value(p);
+        param_map.at(p).restore_value();
         output = false;
     }
 
@@ -153,13 +153,38 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::restore_param_value(const parID &p) { param_map.at(p).restore_value(); }
+void MCMC::Impl::restore_simple_param_value(const parID &p)
+{
+    // restore buffer value of parameter
+    param_map.at(p).restore_value();
+
+    // restore buffer value of global loglike
+    global_loglike = buffer;
+
+    // restore buffered loglikelihood in households
+    for (Household &house : house_vector)
+        house.restore_loglike();
+}
+
+/* Restore buffered parameter and its extra dependecies. */
+void MCMC::Impl::restore_extra_param_value(const parID &p)
+{
+    // restore buffer value of parameter
+    param_map.at(p).restore_value();
+
+    // restore buffer value of global loglike
+    global_loglike = buffer;
+
+    // restore buffered loglikelihood in households
+    for (Household &house : house_vector)
+    {
+        house.restore_loglike();
+        house.restore_all_extra();
+    }
+}
 
 /* Update the acceptance rate of the paramter. */
 void MCMC::Impl::update_param_accept_rate(const parID &p, bool is_accepted) { param_map.at(p).update_accept_rate(is_accepted); }
-
-/* Metropolis logratio associate to the current move. */
-double MCMC::Impl::param_move_logratio(const parID &p) const { return param_map.at(p).get_move_logratio(); }
 
 /* Adapt the parameter Metropolis move. */
 void MCMC::Impl::adapt_param_rule(const parID &p, double ratio) { param_map.at(p).adapt_rule(ratio); }
@@ -477,8 +502,12 @@ void MCMC::Impl::build_params()
 void MCMC::Impl::dgn_glob_ll_stats(double &avg, double &var) const { tools::compute_stats(dgn_glob_loglike, avg, var); }
 
 double MCMC::Impl::get_global_loglike() const { return global_loglike; };
-double MCMC::Impl::get_delta_global_loglike() const { return global_loglike - buffer; }
-void MCMC::Impl::restore_global_loglike() { global_loglike = buffer; }
+
+bool MCMC::Impl::accept_valid_param_move(const parID &p)
+{
+    return uniform() < exp(setup_inv_T * (global_loglike - buffer) + param_map.at(p).get_move_logratio());
+}
+
 void MCMC::Impl::increment_global_loglike(double delta) { global_loglike += delta; };
 
 void MCMC::Impl::set_global_loglike(double new_ll)

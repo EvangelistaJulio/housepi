@@ -23,7 +23,7 @@ We explain the process of associating augmented variable to individuals to then 
 
 ## Estimate Incubation Periods Distribution
 
-For simplicity, we start testing data augmentation on a database which is not a household survey.
+For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
 Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges.
@@ -49,17 +49,17 @@ hmc_1 <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 # gamma distribution parameter definitions
 hmc_1$load_param_list(list(
   shape = list(prior = "unif", args = list(min = 0, max = 5),
-                rule = "norm", rule_scale = 1),
+               rule = "norm", rule_scale = 1),
   scale = list(prior = "unif", args = list(min = 0, max = 5),
-                rule = "norm", rule_scale = 1)
+               rule = "norm", rule_scale = 1)
 ))
 ```
 
 ### Build Augmented Variables
 
 Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo.
-However, augmented variable definitions are more delicate, since they can depend on database or parameters.
-We state which value should be imported from the database by formatting the string with the value header: "*header_name*`@D`".
+However, augmented variable definitions are more delicate, since they can depend on the dataset or on model parameters.
+We state which value should be imported from the dataset by formatting the string with the value header: "*header_name*`@D`".
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
@@ -86,10 +86,10 @@ hmc_1$add_augm(
 We run the inference and we extract the results
 
 ```{r}
-hmc_1$infer(data = delays, n_steps = 100000, 
+hmc_1$infer(dataset = delays, n_steps = 100000, 
             n_burnin = 10000, thin = 10, 
             n_adapt = 2500, seed = 4349)
-# Note: The warning tells us that our database has no demographic structure:
+# Note: The warning tells us that our dataset has no demographic structure:
 # it will be interpreted as single individuals living in separate households.
 
 # collect the inference results
@@ -142,11 +142,11 @@ aug_defs <- list(
 hmc_2$load_augm_list(aug_defs, append = FALSE)
 
 # use inferred values from first example as constant parameters
-aug_defs <- list(
-  inc_shape = list(value = results_1["shape", "Mean"]),
-  inc_scale = list(value = results_1["scale", "Mean"])
+par_defs <- list(
+  inc_shape = results_1["shape", "Mean"],
+  inc_scale = results_1["scale", "Mean"]
 )
-hmc_2$load_param_list(aug_defs) # append by default
+hmc_2$load_param_list(par_defs) # append by default
 ```
 
 ### Simulate an Outbreak
@@ -156,9 +156,9 @@ We run a simulation with the method `simulate`.
 ```{r}
 # override status of the dataset according to simulation
 data("survey", package = "housepi")
-hmc_2$simulate(data = survey, seed = 3731)
+hmc_2$simulate(dataset = survey, seed = 3731)
 
-# show a summary of the current database
+# show a summary of the current dataset
 hmc_2$summarise_data()
 ```
 
@@ -166,19 +166,19 @@ In addition to the final status, the simulation associates the values of the aug
 This simulation, as all templated models, do not simulate a sampling process.
 
 ```{r}
-# remove incubation period from simulated database
-df <- subset(hmc_2$export_data(), select = -c(incub_period))
+# remove incubation period from simulated dataset
+dataset <- subset(hmc_2$export_data(), select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
-is_infec <- df$status == 1
-df[is_infec, "onset_date"] <- sapply(
-  df[is_infec, "onset_date"],
+is_infec <- dataset$status == 1
+dataset[is_infec, "onset_date"] <- sapply(
+  dataset[is_infec, "onset_date"],
   function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
 )
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(head(df))
+knitr::kable(head(dataset))
 ```
 
 ### Validate the Simulation
@@ -208,13 +208,13 @@ hmc_2$load_augm_list(
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hmc_2$infer(data = df, n_steps = 10000, n_burnin = 1000, thin = 10,
+hmc_2$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
             n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
 ```
 
-```{r, fig.align = 'center'}
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the traces of all chains 
-lattice::xyplot(hmc$export_traces())
+lattice::xyplot(hmc_2$export_traces())
 ```
 
 ```{r}
@@ -222,7 +222,7 @@ lattice::xyplot(hmc$export_traces())
 results_2 <- hmc_2$summarise_traces()
 
 # compare results to parameter values used for inference
-imask <- par_2["infer"] == TRUE
+imask <- par_2["constant"] == FALSE
 inames <- par_2[imask, "name"]
 results_2[inames, "Simul"] <- par_2[imask, "value"]
 ```
@@ -239,3 +239,4 @@ We can estimate the model evidence (or marginal loglikelihood) with the method o
 # return the estimate of the model evidence
 hmc_2$evidence(n_rungs = 30)
 ```
+

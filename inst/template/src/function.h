@@ -50,8 +50,7 @@ public:
     void assign_pointer_range_min(const double *ptr_to_lower);
     void assign_scalar_range_max(double upper);
     void assign_pointer_range_max(const double *ptr_to_upper);
-    void init_open_range();
-    void init_close_range();
+    void init_range(bool is_min_open, bool is_max_open);
 
     //===== SHOW =====//
     const std::string show_name() const;
@@ -66,7 +65,8 @@ protected:
                          const dbl_vec &arg_value,
                          double domain_min,
                          double domain_max,
-                         bool is_open);
+                         bool is_min_open,
+                         bool is_max_open);
 private:
     //===== Pointer to Implementation =====//
     class Impl; // forward declaration

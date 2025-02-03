@@ -20,10 +20,10 @@ public:
     //=======================//
     Proposer() {};
     Proposer(std::shared_ptr<Distribution>,
-                  double rule_scale = 1.0,
-                  double rule_start_value = NULL_DOUBLE,
-                  const std::vector<ushort> &args_to_adapt = {},
-                  bool is_discrete = false);
+             double rule_scale = 1.0,
+             double rule_start_value = NULL_DOUBLE,
+             const std::vector<ushort> &args_to_adapt = {},
+             bool is_discrete = false);
     virtual ~Proposer() {};
 
     //==================//
@@ -131,10 +131,10 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Proposer::Proposer(std::shared_ptr<Distribution> distr,
-                             double rule_scale,
-                             double rule_start_value,
-                             const std::vector<ushort> &args_to_adapt,
-                             bool is_discrete) : _distr_ptr_(distr)
+                   double rule_scale,
+                   double rule_start_value,
+                   const std::vector<ushort> &args_to_adapt,
+                   bool is_discrete) : _distr_ptr_(distr)
 {
     // set to discrete
     _distr_ptr_->init_reshaping(is_discrete);
@@ -238,10 +238,10 @@ public:
         double rule_scale = 0.5,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("unif"),
-                                                  rule_scale,
-                                                  rule_from,
-                                                  {0, 1},
-                                                  is_discrete)
+                                             rule_scale,
+                                             rule_from,
+                                             {0, 1},
+                                             is_discrete)
     {
         name = _distr_ptr_->show_name();
         // initialize
@@ -273,10 +273,10 @@ public:
         double rule_scale = 1.0,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("norm"),
-                                                  rule_scale,
-                                                  rule_from,
-                                                  {1},
-                                                  is_discrete)
+                                             rule_scale,
+                                             rule_from,
+                                             {1},
+                                             is_discrete)
     {
         name = _distr_ptr_->show_name();
         // initialize
@@ -311,10 +311,10 @@ public:
         double rule_scale = 1.0,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("lnorm"),
-                                                  rule_scale,
-                                                  rule_from,
-                                                  {1},
-                                                  is_discrete)
+                                             rule_scale,
+                                             rule_from,
+                                             {1},
+                                             is_discrete)
     {
         name = _distr_ptr_->show_name();
         // initialize
@@ -346,9 +346,9 @@ public:
 
 /* Switchboard to select the custom metropolis proposer rule. */
 std::shared_ptr<Proposer> proposer_switchboard(const std::string &rule_name = NULL_STRING,
-                                                    double rule_scale = NULL_DOUBLE,
-                                                    double rule_from = NULL_DOUBLE,
-                                                    bool is_discrete = false)
+                                               double rule_scale = NULL_DOUBLE,
+                                               double rule_from = NULL_DOUBLE,
+                                               bool is_discrete = false)
 {
     const str_vec options = {"gibbs", "unif", "norm", "lnorm"};
 
@@ -491,7 +491,6 @@ inline double Variable::Impl::distr_logratio() const { return _distr_ptr_->logra
 
 //----- prop_ptr : propose methods -----//
 inline void Variable::Impl::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
-
 inline double Variable::Impl::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
 
 //----- prop_ptr : adaptive methods -----//
@@ -508,12 +507,12 @@ inline void Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Variable - CONSTRUCTOR  ////////////////////////////////////
+//////////////////////////////////  Variable - CONSTRUCTOR  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Variable::Variable(const std::string &name,
-                             double value,
-                             bool is_discrete) : pImpl(std::make_unique<Impl>())
+                   double value,
+                   bool is_discrete) : pImpl(std::make_unique<Impl>())
 {
     init(name, value, is_discrete);
 }
@@ -522,18 +521,18 @@ Variable &Variable::operator=(Variable &&other) noexcept = default;
 Variable::~Variable() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Variable - GETTER  //////////////////////////////////////
+/////////////////////////////////////  Variable - GETTER  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 double Variable::get_value() const { return pImpl->value; }
 const double *Variable::get_pointer() const { return &pImpl->value; }
 bool Variable::is_constant() const { return pImpl->_is_constant_; }
-bool Variable::is_discrete() const { return pImpl->_is_discrete_; }
+bool Variable::is_discrete() const { return pImpl->_distr_ptr_->is_discrete(); }
 bool Variable::is_from_zero() const { return (pImpl->_prop_ptr_->is_rule_start_from_zero)(); }
 double Variable::get_from_value() const { return (pImpl->_prop_ptr_->get_from_value)(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Variable - SETTER  //////////////////////////////////////
+/////////////////////////////////////  Variable - SETTER  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Restore user defined variable initialization. */
@@ -587,13 +586,13 @@ void Variable::assign_distr_pointer_range_max(const double *y)
 
 void Variable::init_distr_reshaping()
 {
-    pImpl->_distr_ptr_->init_reshaping(is_discrete());
+    pImpl->_distr_ptr_->init_reshaping(pImpl->_is_discrete_);
 }
 
 /* Assign proposer. */
 void Variable::assign_proposer(const std::string &rule_name,
-                                    double rule_scale,
-                                    double rule_from)
+                               double rule_scale,
+                               double rule_from)
 {
     if (tools::is_na(rule_name))
     {
@@ -627,8 +626,7 @@ void Variable::assign_proposer(const std::string &rule_name,
             // value from which to start proposal
             if ((!tools::is_na(rule_from)) && (!pImpl->_distr_ptr_->valid(rule_from)))
                 tools::warning(
-                    "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + show_min() + ", max:" + show_max() + "}."
-                );
+                    "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + show_min() + ", max:" + show_max() + "}.");
 
             // assign the pointer to the proposer
             pImpl->_prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, is_discrete());

@@ -58,10 +58,8 @@ public:
     double global_loglike = 0.0;
 
     double get_global_loglike() const;
-    double get_delta_global_loglike() const;
 
     void set_global_loglike(double new_ll);
-    void restore_global_loglike();
     void increment_global_loglike(double delta);
     void dgn_glob_ll_stats(double &avg, double &var) const;
 
@@ -101,6 +99,7 @@ public:
                                         "min", "max"};
     std::vector<parID> param_to_be_inferred = {};
     std::vector<parID> param_to_be_constant = {};
+    std::vector<parID> param_extra_to_be_inferred = {};
 
     //----- Parameter - Getter -----//
     double get_param(const parID &p) const;
@@ -111,10 +110,13 @@ public:
 
     //----- Parameter - Metropolis-Hastings -----//
     bool propose_valid_param_move(const parID &p);
-    void restore_param_value(const parID &p);
+    bool accept_valid_param_move(const parID &p);
+
     void update_param_accept_rate(const parID &p, bool is_accepted);
-    double param_move_logratio(const parID &p) const;
     void adapt_param_rule(const parID &p, double ratio);
+
+    void restore_simple_param_value(const parID &p);
+    void restore_extra_param_value(const parID &p);
 
     //==========================//
     //===== HOUSEHOLD DATA =====//
@@ -271,11 +273,13 @@ public:
     void assign_infec_profile_args(const str_vec &keys,
                                    const str_vec &vals,
                                    const str_vec &typs);
-    void assign_infec_profile_range(const std::string &min_value,
-                                    const std::string &min_type,
-                                    const std::string &max_value,
-                                    const std::string &max_type);
+    void assign_infec_profile_min(const std::string &min_value,
+                                  const std::string &min_type);
+    void assign_infec_profile_max(const std::string &max_value,
+                                  const std::string &max_type);
     void build_infec_profile();
+
+    void fix_param_to_be_inferred_list(const std::string &par_name);
 
     //======================//
     //===== METROPOLIS =====//

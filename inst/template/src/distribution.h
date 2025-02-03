@@ -30,20 +30,27 @@ class Distribution : public Function
 public:
 	using Function::Function;
 
+	//===== SETTER =====//
+	virtual void init_reshaping(bool discrete);
+
+	//===== GETTER =====//
+	bool is_discrete() const;
 	double pdf(double x, const dbl_vec &opts = {}) const;
 	double cdf(double x, const dbl_vec &opts = {}) const;
 	double logpdf(double x, const dbl_vec &opts = {}) const;
 	double logratio(double xold, double xnew, const dbl_vec &opts = {}) const;
 	double rand(rnd_gen &prng);
 
-	//----- Adjust methods for truncation and/or discretization -----//
-	virtual void init_reshaping(bool discrete);
+	//===== SHOW =====//
+    const std::map<double, double> showcase_function(const dbl_vec &opts = {}) const;
 
 protected:
-	void _init_discretization_(const std::string &discrete);
-	void _init_truncation_(const std::string &discrete);
+	//===== SETTER =====//
+	void _init_discretization_(ushort discr_type);
+	void _init_truncation_(ushort discr_type);
 
-	//----- Distribution specific virtual methods -----//
+	//===== GETTER =====//
+	// note: distribution specific virtual methods
 	virtual double _pdf_(double x, const dbl_vec &opts) const;
 	virtual double _cdf_(double x, const dbl_vec &opts) const;
 	virtual double _logpdf_(double x, const dbl_vec &opts) const;
@@ -70,6 +77,13 @@ private:
 	double _default_logpdf_(double x, const dbl_vec &opts) const;
 	double _default_logratio_(double xold, double xnew, const dbl_vec &opts) const;
 	double _default_rand_(rnd_gen &prng);
+
+	//----- Functional methods for the discrete defined distributions -----//
+	double _discr_defined_pdf_(double x, const dbl_vec &opts) const;
+	double _discr_defined_cdf_(double x, const dbl_vec &opts) const;
+	double _discr_defined_logpdf_(double x, const dbl_vec &opts) const;
+	double _discr_defined_logratio_(double xold, double xnew, const dbl_vec &opts) const;
+	// note : _discr_defined_rand_ == _default_rand_
 
 	//----- Functional methods for the center adjusted discretization -----//
 	double _discr_center_pdf_(double x, const dbl_vec &opts) const;

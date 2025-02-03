@@ -29,9 +29,9 @@ class Variable
 public:
 	//===== CONSTRUCTOR =====//
 	Variable(const std::string &name = NULL_STRING,
-				  double value = std::numeric_limits<double>::quiet_NaN(),
-				  bool is_discrete = false);
-	Variable(Variable &&other) noexcept;			  // Move constructor
+			 double value = std::numeric_limits<double>::quiet_NaN(),
+			 bool is_discrete = false);
+	Variable(Variable &&other) noexcept;			// Move constructor
 	Variable &operator=(Variable &&other) noexcept; // Move assignment
 	~Variable();
 

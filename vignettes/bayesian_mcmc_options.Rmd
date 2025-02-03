@@ -30,25 +30,25 @@ hmc <- housepi::HouseholdModelClass$new("blank")
 
 ## Continuos Priors
 
-In order to see the list of available distributions present in `housepi`, just use the function `available_distributions`.
+Here's the full list of available continuous distributions present in `housepi`:
 
 ```{r, eval = TRUE}
-# available distributions in housepi
-available_distributions <- c("unif", "norm", "lnorm", "gamma", 
-                             "weibull", "rayleigh", "exp")
+# continuous distributions in housepi
+available_distrs <- c("unif", "norm", "lnorm", "gamma", 
+                      "weibull", "rayleigh","beta", "exp")
 
 # add a parameter definition for each available distribution
-for (distr_name in available_distributions) {
+for (distr_name in available_distrs) {
   hmc$add_param(name = distr_name, prior = distr_name)
 }
 ```
 
 Here we associated definitions of parameters to infer with default arguments and default proposer rules (Gibbs sampling). 
  
-```{r, eval = TRUE}
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # perform the sampling with the inference command
 # note: since loglikelihood is 0, posterior and prior sampling are equal
-hmc$infer()
+hmc$infer(progress = FALSE)
 
 # density plot of the traces (w\o loglikelihood)
 # option loglikelihood = FALSE avoids to export loglikelihood
@@ -64,12 +64,12 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 hmc$drop_all()
 
 # add a parameter definition for each available distribution
-for (distr_name in available_distributions) {
+for (distr_name in available_distrs[ available_distrs != "beta"]) {
   hmc$add_param(name = distr_name, prior = distr_name, discrete = TRUE)
 }
 
 # perform the sampling 
-hmc$infer()
+hmc$infer(progress = FALSE)
 
 # plot the histograms
 coda::densplot(hmc$export_traces(FALSE), right=FALSE)
@@ -77,7 +77,7 @@ coda::densplot(hmc$export_traces(FALSE), right=FALSE)
 
 ### Provide a Custom Range
 
-```{r, eval = TRUE}
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # add list of parameter definitions
 # option 'append = FALSE' drop previous definitions
 hmc$load_param_list(
@@ -87,18 +87,33 @@ hmc$load_param_list(
     above = list(prior = "norm", max = 1),
     both = list(prior = "norm", min = -1, max = 1)
   ), append = FALSE)
-hmc$infer()
+hmc$infer(progress = FALSE)
 
 lattice::densityplot(hmc$export_traces(FALSE))
 ```
 
 ## Discrete Priors
 
-Not available yet.
+Here's the full list of available discrete distributions present in `housepi`:
+
+```{r, eval = TRUE}
+# discrete distributions in housepi
+discrete_distrs <- c("pois", "binom", "nbinom", "geom")
+hmc$drop_all()
+for (distr_name in discrete_distrs) {
+  hmc$add_param(name = distr_name, prior = distr_name)
+}
+
+# perform the sampling 
+hmc$infer(progress = FALSE)
+
+# plot the histograms
+coda::densplot(hmc$export_traces(FALSE), right=FALSE)
+```
 
 ## MCMC Proposer Rules
 
-```{r, eval = TRUE}
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 hmc$drop_all()
 
 # available proposer rules in housepi
@@ -107,10 +122,10 @@ available_proposer_rules <- c("gibbs", "unif", "norm", "lnorm")
 # add a parameter definition for each available proposer rule
 for (rule_name in available_proposer_rules) {
   hmc$add_param(name = paste("rule", rule_name), 
-                prior = "norm", rule = rule_name)
+                prior = "norm", min = 0, rule = rule_name)
 }
 
-hmc$infer()
+hmc$infer(progress = FALSE)
 
 lattice::xyplot(hmc$export_traces(FALSE))
 
@@ -124,16 +139,16 @@ Note that the proposer rule "lnorm" does not fit the case of negative values as 
 ```{r}
 # with model (default Gibbs rule)
 hmc$drop_all()$add_augm(name = "move_1", model = "norm")
-lattice::xyplot(hmc$infer()$export_traces())
+lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
 
 # w\o model random walk (default Gibbs rule)
 hmc$drop_all()$add_augm(name = "move_2", value = 0, rule = "norm")
-lattice::xyplot(hmc$infer()$export_traces())
+lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
 
 # w\o model fixed  walk (default Gibbs rule)
 hmc$drop_all()$add_augm(name = "move_3", rule_from = 0, rule = "norm")
 
-lattice::xyplot(hmc$infer()$export_traces())
+lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
 
 ```
 

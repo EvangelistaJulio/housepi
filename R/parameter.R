@@ -233,9 +233,21 @@ HousepiParameterClass <- R6::R6Class(
       if (isFALSE(append)) {
         self$drop_all()
       }
+
       for (i in seq_along(definitions)){
-        this_def <- definitions[[i]]
-        this_def[["name"]] <- names(definitions[i])
+        this_def <- as.list(definitions[[i]])
+        def_name <- names(definitions[i])
+        if (is.null(names(this_def))) {
+          if (length(this_def) == 1) {
+            names(this_def) <- "value"
+          } else {
+            stop(cli::format_error(c(
+              sprintf("Wrong definition for parameter \"%s\"", def_name),
+              i = "Provide a definition list or a scalar (if constant)."
+              )))
+          }
+        }
+        this_def[["name"]] <- def_name
         do.call(self$add, this_def)
       }
 

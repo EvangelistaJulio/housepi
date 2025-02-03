@@ -254,10 +254,10 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Scale parameter for the proposal rule.
     #' Changed automatically during inference if `n_adpat`>0.
     #' @param min (`double(1)`)\cr
-    #' Value of the minimum.
+    #' Value of the minimum.  
     #' @param max (`double(1)`)\cr
     #' Value of the maximum.
-    #' @reference
+    #' @references
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
     #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498

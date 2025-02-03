@@ -127,8 +127,8 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
-	// FIXME: am I buffering right if infectivity profile depends on param to infer?
 	void buffer_all_extra();
+	void restore_all_extra();
 
 	//----- Single integers -----//
 	void allocate_extra_integer(const std::vector<extraID> &names, int xinit = 0.0);

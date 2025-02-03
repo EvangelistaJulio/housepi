@@ -84,6 +84,8 @@ namespace bax
 
     ulong factorial(ulong n);
     ulong binomial_coefficient(ushort N, ushort k);
+    double log_binomial_coefficient(ushort N, ushort k);
+    double logratio_binomial_coefficient(ushort N, ushort kold, ushort knew);
 
     // functions for the generations lookup table
     void init_generations_lookuptable(ushort max_N);

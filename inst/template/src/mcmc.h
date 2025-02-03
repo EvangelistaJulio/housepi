@@ -76,7 +76,6 @@ public:
 	//===============================//
 
 	void init_augmented_variables();
-	virtual void update_augm_dependecies(Household &house, indiv i);
 	void assign_all_augm(Household &house, indiv i);
 	void clear_all_augm(Household &house, indiv i);
 
@@ -84,6 +83,7 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
+	virtual void update_extra_dependecies(Household &house, indiv i);
 	void assign_extra_integer_to_all_houses(const std::vector<extraID> &names, int xinit = 0.0);
 	void assign_extra_double_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
 	void assign_extra_vector_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
@@ -102,7 +102,8 @@ public:
 	//====================================//
 
 	virtual double compute_house_loglike(Household &house) const;
-	void update_global_loglike();
+	void update_simple_global_loglike();
+	void update_extra_global_loglike();
 	double evaluate();
 
 	//=================//
@@ -182,7 +183,8 @@ private:
 	void run_monte_carlo(progress::Bar &progbar, ulong sweep = 0);
 	void move_all();
 	void move_all_and_adapt_parameters(ulong step);
-	void move_single_param(const parID &p);
+	bool move_simple_param(const parID &p);
+	bool move_extra_param(const parID &p);
 
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);

@@ -46,7 +46,7 @@ public:
 		_init_defaults_("ferretti20",
 						{"shape", "loc", "scale", "incub"},
 						{5.85, -4.0, 1.85, 5.8},
-						NULL_DOUBLE, NULL_DOUBLE, false);
+						NULL_DOUBLE, NULL_DOUBLE, false, false);
 	}
 	~InfecProfile_Ferretti20() = default;
 
@@ -111,8 +111,6 @@ protected:
 */
 class InfecProfile_Ashcroft20 : public Distribution
 {
-private:
-	std::shared_ptr<Distribution> gamma_distr_ptr;
 
 public:
 	//===== CONSTRUCTOR =====//
@@ -121,7 +119,7 @@ public:
 		_init_defaults_("ashcroft20",
 						{"shape", "scale", "shift"},
 						{97.32, 0.268, 25.6},
-						NULL_DOUBLE, NULL_DOUBLE, false);
+						NULL_DOUBLE, NULL_DOUBLE, false, false);
 
 		gamma_distr_ptr = distribution_switchboard("gamma");
 		gamma_distr_ptr->assign_pointer_arg("shape", get_ptr_to_arg(0));
@@ -131,6 +129,8 @@ public:
 	~InfecProfile_Ashcroft20() = default;
 
 protected:
+	std::shared_ptr<Distribution> gamma_distr_ptr;
+
 	double _pdf_(double x, const dbl_vec &opts) const override
 	{
 		double i = opts.at(0); // incubation period
@@ -186,6 +186,18 @@ void MCMC::Impl::switchboard_infec_profile(const std::string &name)
 ///////////////////////  MCMC : Impl : assign infectivity profile arguments  ////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Adjust lists of parameters to be inferred */
+void MCMC::Impl::fix_param_to_be_inferred_list(const std::string &par_name)
+{
+	auto it = std::find(param_to_be_inferred.begin(), param_to_be_inferred.end(), par_name);
+	if (it != param_to_be_inferred.end())
+		param_to_be_inferred.erase(it);
+
+	it = std::find(param_extra_to_be_inferred.begin(), param_extra_to_be_inferred.end(), par_name);
+	if (it == param_extra_to_be_inferred.end())
+		param_extra_to_be_inferred.push_back(par_name);
+}
+
 /* Assign arguments to infectivity profile. */
 void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 										   const str_vec &vals,
@@ -217,9 +229,14 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 		else if (type == TYPE_PARAM)
 		{
 			if (param_map.at(value).is_constant())
+			{
 				_infec_profile_->assign_scalar_arg(key, get_param(value));
+			}
 			else
+			{
 				_infec_profile_->assign_pointer_arg(key, get_param_pointer(value));
+				fix_param_to_be_inferred_list(value);
+			}
 		}
 		else if (type == TYPE_SCALAR)
 			_infec_profile_->assign_scalar_arg(key, tools::stod(value, "argument with scalar type"));
@@ -234,16 +251,10 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 /////////////////////////  MCMC : Impl : assign infectivity profile range  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Convert a std::string with type-dictionary to std::string-to-double */
-void MCMC::Impl::assign_infec_profile_range(const std::string &min_value,
-											const std::string &min_type,
-											const std::string &max_value,
-											const std::string &max_type)
+/* Assign minimum of infectivity profile. */
+void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
+										  const std::string &min_type)
 {
-	//-------------------//
-	//----- Minimum -----//
-	//-------------------//
-
 	if (tools::is_na(min_value) && tools::is_na(min_type))
 		; // pass
 
@@ -258,9 +269,14 @@ void MCMC::Impl::assign_infec_profile_range(const std::string &min_value,
 	else if (min_value == TYPE_PARAM)
 	{
 		if (param_map.at(min_value).is_constant())
+		{
 			_infec_profile_->assign_scalar_range_min(get_param(min_value));
+		}
 		else
+		{
 			_infec_profile_->assign_pointer_range_min(get_param_pointer(min_value));
+			fix_param_to_be_inferred_list(min_value);
+		}
 	}
 
 	else if (min_type == TYPE_SCALAR)
@@ -269,11 +285,12 @@ void MCMC::Impl::assign_infec_profile_range(const std::string &min_value,
 	else
 		throw std::invalid_argument(
 			"Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
+}
 
-	//-------------------//
-	//----- Maximum -----//
-	//-------------------//
-
+/* Assign minimum of infectivity profile. */
+void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
+										  const std::string &max_type)
+{
 	if (tools::is_na(max_value) && tools::is_na(max_type))
 		; // pass
 
@@ -288,9 +305,14 @@ void MCMC::Impl::assign_infec_profile_range(const std::string &min_value,
 	else if (max_type == TYPE_PARAM)
 	{
 		if (param_map.at(max_value).is_constant())
+		{
 			_infec_profile_->assign_scalar_range_max(get_param(max_value));
+		}
 		else
+		{
 			_infec_profile_->assign_pointer_range_max(get_param_pointer(max_value));
+			fix_param_to_be_inferred_list(max_value);
+		}
 	}
 
 	else if (max_type == TYPE_SCALAR)
@@ -301,13 +323,12 @@ void MCMC::Impl::assign_infec_profile_range(const std::string &min_value,
 			"Unsopported type \"" + max_type + "\" found while loading \"" + max_value + "\" for pointer value.");
 }
 
-
 /* Read Setup file and produce a definition list. */
 void MCMC::Impl::read_infec_profile(const std::string &pathtofile)
 {
-    tools::read_csv_list(pathtofile, _infec_profile_deflist_);
-    // note: build_infec_profile is optionally called by the user
-    _report_pathtofile_["infec_profile"] = pathtofile;
+	tools::read_csv_list(pathtofile, _infec_profile_deflist_);
+	// note: build_infec_profile is optionally called by the user
+	_report_pathtofile_["infec_profile"] = pathtofile;
 }
 
 /* Build infectivity profile distribution . */
@@ -351,10 +372,14 @@ void MCMC::Impl::build_infec_profile()
 			//----- Range -----//
 			if ((deflist.count("min")) && (deflist.count("min_type")))
 				if ((deflist.count("max")) && (deflist.count("max_type")))
-					assign_infec_profile_range(deflist.at("min"), deflist.at("min_type"),
-											   deflist.at("max"), deflist.at("max_type"));
+				{
+					assign_infec_profile_min(deflist.at("min"), deflist.at("min_type"));
+					assign_infec_profile_max(deflist.at("max"), deflist.at("max_type"));
+				}
 				else
+				{
 					throw std::invalid_argument("Provide a valid maximum.");
+				}
 			else
 				throw std::invalid_argument("Provide a valid minimum.");
 

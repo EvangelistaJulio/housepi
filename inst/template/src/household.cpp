@@ -341,31 +341,6 @@ bool Household::Impl::change_status(indiv i, int new_status)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Deep copies of extra attributes in the buffer */
-void Household::Impl::buffer_all_extra()
-{
-	_buffer_extra_integer_ = extra_integer;
-	_buffer_extra_double_ = extra_double;
-	_buffer_extra_vec_ = extra_vec;
-	_buffer_extra_mtx_ = extra_mtx;
-}
-
-/* Swap buffer into  extra attributes */
-void Household::Impl::restore_all_extra()
-{
-	extra_integer.swap(_buffer_extra_integer_);
-	extra_double.swap(_buffer_extra_double_);
-	extra_vec.swap(_buffer_extra_vec_);
-	extra_mtx.swap(_buffer_extra_mtx_);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 //===== CONSTRUCTOR =====//
 Household::Household(const std::string &ID,
 					 size_t H) : pImpl(std::make_unique<Impl>())
@@ -503,6 +478,24 @@ void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng)
 	pImpl->members[i].augm_map.at(a).rand(prng);
 }
 
+/* Deep copies of extra attributes in the buffer */
+void Household::Impl::buffer_all_extra()
+{
+	_buffer_extra_integer_ = extra_integer;
+	_buffer_extra_double_ = extra_double;
+	_buffer_extra_vec_ = extra_vec;
+	_buffer_extra_mtx_ = extra_mtx;
+}
+
+/* Swap buffer into  extra attributes */
+void Household::Impl::restore_all_extra()
+{
+	extra_integer.swap(_buffer_extra_integer_);
+	extra_double.swap(_buffer_extra_double_);
+	extra_vec.swap(_buffer_extra_vec_);
+	extra_mtx.swap(_buffer_extra_mtx_);
+}
+
 /* True if the propose augm move is valid. */
 bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 {
@@ -522,7 +515,7 @@ bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 void Household::restore_augm_value(indiv i, const augmID &a)
 {
 	pImpl->members[i].augm_map.at(a).restore_value();
-	pImpl->restore_all_extra();
+	restore_all_extra();
 	restore_loglike();
 }
 
@@ -546,6 +539,7 @@ const dbl_vec &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
 
 //===== EXTRA ATTRIBUTES =====//
 void Household::buffer_all_extra() { pImpl->buffer_all_extra(); }
+void Household::restore_all_extra() { pImpl->restore_all_extra(); }
 
 //----- Single extra integers -----//
 void Household::allocate_extra_integer(const std::vector<extraID> &names, int xinit)

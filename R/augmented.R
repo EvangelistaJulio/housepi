@@ -231,9 +231,21 @@ HousepiAugmentedClass <- R6::R6Class(
       if (isFALSE(append)) {
         self$drop_all()
       }
+
       for (i in seq_along(definitions)){
-        this_def <- definitions[[i]]
-        this_def[["name"]] <- names(definitions[i])
+        this_def <- as.list(definitions[[i]])
+        def_name <- names(definitions[i])
+        if (is.null(names(this_def))) {
+          if (length(this_def) == 1) {
+            names(this_def) <- "value"
+          } else {
+            stop(cli::format_error(c(
+              sprintf("Wrong definition for augmented variable \"%s\"", def_name),
+              i = "Provide a definition list; if constant, a scalar or a typed value."
+              )))
+          }
+        }
+        this_def[["name"]] <- def_name
         do.call(self$add, this_def)
       }
 
