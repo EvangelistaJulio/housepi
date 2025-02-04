@@ -203,6 +203,9 @@ public:
     Rcpp::DataFrame export_data() const;
     Rcpp::DataFrame export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_traces() const;
+    Rcpp::DataFrame export_infec_profile(const Rcpp::List opts,
+                                         const Rcpp::List xlim) const;
+
 #endif
 
     //===================================//

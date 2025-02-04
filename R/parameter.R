@@ -48,7 +48,7 @@ HousepiParameterClass <- R6::R6Class(
       )
       # retrieve required parameters from regular expressions
       require_set <- template_find_requirement(refer_file,
-                                          regular_expr)                                  
+                                               regular_expr)                                  
 
       # from : augmented variable model argument definitions
       augm_require_set <- c()
@@ -90,9 +90,9 @@ HousepiParameterClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("Unknown parameter \"%s\" to remove.", name
-          ))))
+          cli::cli_alert_warning(cli::format_warning(sprintf(
+            "Unknown parameter \"%s\" to remove.", name
+          )))
         }
       }
 
@@ -114,14 +114,12 @@ HousepiParameterClass <- R6::R6Class(
       if (is.na(name)) {
         stop(cli::format_error("Incomplete definition: missing name."))
       }
-      
+
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) {
-        cli::cli_alert_warning(cli::format_warning(c(
-          sprintf(
-            "Existing \"%s\" definition has been overwritten.",
-            name
-        ))))
+        cli::cli_alert_warning(cli::format_warning(sprintf(
+          "Existing \"%s\" definition has been overwritten.", name
+        )))
       }
 
       # assume it's a constant if a prior is not provided
@@ -158,9 +156,9 @@ HousepiParameterClass <- R6::R6Class(
       } else {
         # assign prior
         if (is.na(prior)) {
-          stop(cli::format_error(
-            sprintf("Incomplete definition: provide prior name for \"%s\".", name)
-          ))
+          stop(cli::format_error(sprintf(
+            "Incomplete definition: provide prior name for \"%s\".", name
+          )))
         }
         # prior arguments
         if (length(args) == 0) {
@@ -244,7 +242,7 @@ HousepiParameterClass <- R6::R6Class(
             stop(cli::format_error(c(
               sprintf("Wrong definition for parameter \"%s\"", def_name),
               i = "Provide a definition list or a scalar (if constant)."
-              )))
+            )))
           }
         }
         this_def[["name"]] <- def_name
@@ -281,9 +279,11 @@ HousepiParameterClass <- R6::R6Class(
             )))
           } else {
             missing_set <- template_find_missing(require_set,
-                                            self$defs[["name"]])
-            self$from_list(templ_defs[intersect(names(templ_defs), missing_set)],
-                           append = TRUE)
+                                                 self$defs[["name"]])
+            self$from_list(
+              templ_defs[intersect(names(templ_defs), missing_set)],
+              append = TRUE
+            )
           }
         } else {
           self$from_list(templ_defs, append = FALSE)
@@ -317,10 +317,10 @@ HousepiParameterClass <- R6::R6Class(
         is_def_complete <- NA
 
       } else {
-        
+
         # find missing parameters
         missing_set <- template_find_missing(require_set,
-                                        self$defs[["name"]])
+                                             self$defs[["name"]])
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           oss <- paste0("Missing parameter(s): ",
@@ -329,8 +329,8 @@ HousepiParameterClass <- R6::R6Class(
         }
 
         # point out parameters that are not used
-        unused_set <- template_find_unused(require_set, 
-                                      self$defs[["name"]])
+        unused_set <- template_find_unused(require_set,
+                                           self$defs[["name"]])
         # drop unused parameters
         if (length(unused_set) > 0) {
           oss <- paste0("Dropping not used parameter(s): ",
@@ -342,7 +342,7 @@ HousepiParameterClass <- R6::R6Class(
           }
         }
       }
-      
+
       return(is_def_complete)
     }
   )

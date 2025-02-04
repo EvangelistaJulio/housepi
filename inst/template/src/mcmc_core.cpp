@@ -245,15 +245,15 @@ void MCMC::Impl::build_setup()
             //===== ASSIGN SETUP CONFIGURATIONS =====//
 
             //===== NUMBER OF THREADS =====//
-            if (deflist.find("n_threads") != deflist.end())
+            if (deflist.count("n_threads"))
                 n_threads = tools::stoi(deflist.at("n_threads"), "number of threads");
 
             //===== PRNG SEED =====//
-            if ((deflist.find("seed") != deflist.end()) && (!tools::is_na(deflist.at("seed"))))
+            if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
                 setup_seed = tools::stoull(deflist.at("seed"), "random seed");
 
             //===== NUMBER OF CHAINS =====//
-            if (deflist.find("n_chains") != deflist.end())
+            if (deflist.count("n_chains"))
             {
                 setup_n_chains = tools::stoul(deflist.at("n_chains"), "number of chains");
                 if (setup_n_steps < 1)
@@ -262,7 +262,7 @@ void MCMC::Impl::build_setup()
             }
 
             //===== NUMBER OF ITERATIONS =====//
-            if (deflist.find("n_steps") != deflist.end())
+            if (deflist.count("n_steps"))
             {
                 setup_n_steps = tools::stoul(deflist.at("n_steps"), "number of iterations");
                 if (setup_n_steps < 1)
@@ -271,11 +271,11 @@ void MCMC::Impl::build_setup()
             }
 
             //===== NUMBER OF (FINITE) ADAPTIVE ITERATIONS =====//
-            if (deflist.find("n_adapt") != deflist.end())
+            if (deflist.count("n_adapt"))
                 setup_n_adapt = tools::stoul(deflist.at("n_adapt"), "number of adaptive steps");
 
             //===== THINNING =====//
-            if (deflist.find("thin") != deflist.end())
+            if (deflist.count("thin"))
             {
                 setup_thin = tools::stoul(deflist.at("thin"), "thin");
                 if (setup_thin >= setup_n_steps)
@@ -287,7 +287,7 @@ void MCMC::Impl::build_setup()
             }
 
             //===== BURN-IN =====//
-            if (deflist.find("n_burnin") != deflist.end())
+            if (deflist.count("n_burnin"))
             {
                 setup_n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
                 if (setup_n_burnin >= setup_n_steps)
@@ -296,7 +296,7 @@ void MCMC::Impl::build_setup()
             }
 
             //===== RANDOM INITIALIZATION OF PARAMETERS =====//
-            if (deflist.find("rand_init") != deflist.end())
+            if (deflist.count("rand_init"))
             {
                 setup_rand_init_params = tools::stobool(deflist.at("rand_init"));
                 if ((setup_n_chains > 1) && (setup_rand_init_params == false))
@@ -308,14 +308,14 @@ void MCMC::Impl::build_setup()
             }
 
             //===== INVERSE TEMPERATURE =====//
-            if (deflist.find("inv_temper") != deflist.end())
+            if (deflist.count("inv_temper"))
             {
                 double tmp = tools::stod(deflist.at("inv_temper"), "inverse temperature");
                 set_inver_temper(tmp);
             }
 
             //===== INDIVIDUAL ID AUGMENTED TRACE =====//
-            if (deflist.find("id_trace") != deflist.end())
+            if (deflist.count("id_trace"))
             {
                 setup_id_trace = deflist.at("id_trace");
             }
@@ -407,7 +407,7 @@ void MCMC::Impl::build_params()
                 parID p = name;
 
                 //----- Add entry to shared parameter dictionary -----//
-                if (param_map.find(p) != param_map.end())
+                if (param_map.count(p))
                 {
                     // create the new parameter if it's not already defined
                     throw std::invalid_argument(

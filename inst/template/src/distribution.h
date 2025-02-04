@@ -42,7 +42,8 @@ public:
 	double rand(rnd_gen &prng);
 
 	//===== SHOW =====//
-    const std::map<double, double> showcase_function(const dbl_vec &opts = {}) const;
+    const std::map<double, dbl_vec> showcase(dbl_vec opts = {},
+											 dbl_vec xlim = {-20., 20.}) const;
 
 protected:
 	//===== SETTER =====//
@@ -59,19 +60,14 @@ protected:
 	virtual double _rand_(rnd_gen &prng);
 
 private:
-	//----- Functional methods for public methods -----//
+	//===== Functional methods for public getter methods =====//
 	double (Distribution::*_func_pdf_)(double, const dbl_vec &) const = &Distribution::_default_pdf_;
 	double (Distribution::*_func_cdf_)(double, const dbl_vec &) const = &Distribution::_default_cdf_;
 	double (Distribution::*_func_logpdf_)(double, const dbl_vec &) const = &Distribution::_default_logpdf_;
 	double (Distribution::*_func_logratio_)(double, double, const dbl_vec &) const = &Distribution::_default_logratio_;
 	double (Distribution::*_func_rand_)(rnd_gen &) = &Distribution::_default_rand_;
 
-	//----- Functional methods for truncation -----//
-	double (Distribution::*_func_trunc_)(double, const dbl_vec &opts) const = &Distribution::_trunc_dummy_;
-	double (Distribution::*_func_logtrunc_)(double, const dbl_vec &opts) const = &Distribution::_logtrunc_dummy_;
-	double (Distribution::*_func_shift_)(double, const dbl_vec &opts) const = &Distribution::_shift_dummy_;
-
-	//----- Deafult functional methods -----//
+	//----- Default functional methods -----//
 	double _default_pdf_(double x, const dbl_vec &opts) const;
 	double _default_cdf_(double x, const dbl_vec &opts) const;
 	double _default_logpdf_(double x, const dbl_vec &opts) const;
@@ -98,6 +94,11 @@ private:
 	double _discr_left_logpdf_(double x, const dbl_vec &opts) const;
 	double _discr_left_logratio_(double xold, double xnew, const dbl_vec &opts) const;
 	double _discr_left_rand_(rnd_gen &prng);
+
+	//===== Functional methods for truncation =====//
+	double (Distribution::*_func_trunc_)(double, const dbl_vec &opts) const = &Distribution::_trunc_dummy_;
+	double (Distribution::*_func_logtrunc_)(double, const dbl_vec &opts) const = &Distribution::_logtrunc_dummy_;
+	double (Distribution::*_func_shift_)(double, const dbl_vec &opts) const = &Distribution::_shift_dummy_;
 
 	//----- Functional methods for the truncation and/or discretization -----//
 	double _trunc_dummy_(double x, const dbl_vec &opts) const;

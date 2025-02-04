@@ -14,6 +14,185 @@
 #define D_DISCR_TYPE_CNTR 2 // center
 #define D_DISCR_TYPE_DFND 3 // defined
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+#ifndef M_1_SQRT_2PI
+#define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2pi) */
+#endif
+
+#ifndef M_SQRT1_2
+#define M_SQRT1_2 0.707106781186547524400844362105 /* 1/sqrt(2) */
+#endif
+
+#ifndef M_LN_SQRT_2PI
+#define M_LN_SQRT_2PI 0.918938533204672741780329736406 /* log(sqrt(2pi)) */
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  gamma_p : regularized incomplete gamma function  //////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*
+ * FIXME: To better reference this:
+ * Press, Teukolsky, Vetterling, and Flannery
+ * Numerical Recipes 3rd Edition: The Art of Scientific Computing
+ */
+
+/* Logarithm of the beta function. */
+inline double lbeta(double a, double b)
+{
+    return lgamma(a) + lgamma(b) - lgamma(a + b);
+}
+
+namespace _gamma_p_impl_
+{
+    constexpr int MAX_ITER = 1000;
+    constexpr double EPSILON = 1.e-12;
+    constexpr double MIN_DBL = 1.e-30;
+
+    /* Lower regulairzed incomplete gamma function using series expansion. */
+    inline double series(double shape, double z)
+    {
+        double sum = 1. / shape;
+        double term = sum;
+        for (int i = 1; (term > EPSILON * sum) && (i <= MAX_ITER); ++i)
+        {
+            term *= z / (shape + i);
+            sum += term;
+        }
+        return sum * exp(-z + shape * log(z) - lgamma(shape));
+    }
+
+    /* Upper regularized incomplete gamma function using continued fraction. */
+    inline double continued_fraction(double shape, double z)
+    {
+        double b = z + 1. - shape;
+        double c = 1. / MIN_DBL;
+        double d = 1. / b;
+        double h = d;
+        double delta = 0.;
+
+        for (int i = 1; ((fabs(delta - 1.) > EPSILON) && (i <= MAX_ITER)); ++i)
+        {
+            double an = -i * (i - shape);
+            b += 2.;
+            d = an * d + b;
+            if (fabs(d) < MIN_DBL)
+                d = MIN_DBL;
+            c = b + an / c;
+            if (fabs(c) < MIN_DBL)
+                c = MIN_DBL;
+            d = 1. / d;
+            delta = c * d;
+            h *= delta;
+        }
+
+        return 1. - exp(-z + shape * log(z) - lgamma(shape)) * h;
+    }
+}
+
+/* Regularized incomplete gamma function. */
+inline double gamma_p(double shape, double z)
+{
+    if (z < shape + 10.)
+        return _gamma_p_impl_::series(shape, z);
+    else
+        return _gamma_p_impl_::continued_fraction(shape, z);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  ibeta : regularized incomplete beta function  ///////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace _ibeta_impl_
+{
+    constexpr double EPSILON = 1e-12;
+    constexpr int MAX_ITER = 1000;
+    constexpr double MIN_DBL = 1.e-30;
+
+    double series(double a, double b, double x)
+    {
+        double sum = 1. / a;
+        double term = sum;
+        double ap = a;
+        for (int n = 1; ((fabs(term) > EPSILON * fabs(sum)) && (n <= MAX_ITER)); ++n)
+        {
+            term *= (x * (ap + n - 1)) / (n * (b + n - 1));
+            sum += term;
+        }
+        return sum * pow(x, a);
+    }
+
+    double continued_fraction(double a, double b, double x)
+    {
+        double qab = a + b;
+        double qap = a + 1.0;
+        double qam = a - 1.0;
+        double c = 1.0;
+
+        double d = 1.0 - qab * x / qap;
+        if (fabs(d) < MIN_DBL)
+            d = MIN_DBL;
+        d = 1.0 / d;
+        double h = d;
+
+        double del = 0.;
+        for (int m = 1; ((fabs(del - 1.0) > EPSILON) && (m <= MAX_ITER)); ++m)
+        {
+            int m2 = 2 * m;
+            double aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+            d = 1.0 + aa * d;
+            if (fabs(d) < MIN_DBL)
+                d = MIN_DBL;
+            c = 1.0 + aa / c;
+            if (fabs(c) < MIN_DBL)
+                c = MIN_DBL;
+            d = 1.0 / d;
+            h *= d * c;
+
+            aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+            d = 1.0 + aa * d;
+            if (fabs(d) < MIN_DBL)
+                d = MIN_DBL;
+            c = 1.0 + aa / c;
+            if (fabs(c) < MIN_DBL)
+                c = MIN_DBL;
+            d = 1.0 / d;
+            del = d * c;
+            h *= del;
+        }
+        return 1. - h * exp(-lbeta(a, b));
+    }
+}
+
+/* Regularized incomplete beta function (normalized) */
+inline double ibeta(double a, double b, double x)
+{
+    // edge cases
+    if (x == 0.)
+        return 0.;
+    if (x == 1.)
+        return 1.;
+
+    // choose computation method based on x
+    if (x < (a + 1.) / (a + b + 2.))
+        return _ibeta_impl_::series(a, b, x);
+    else
+        return _ibeta_impl_::continued_fraction(a, b, x);
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - wrapper  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,7 +309,7 @@ double Distribution::_discr_defined_pdf_(double x, const dbl_vec &opts) const
 }
 double Distribution::_discr_defined_cdf_(double x, const dbl_vec &opts) const
 {
-    return _default_pdf_(floor(x), opts);
+    return _default_cdf_(floor(x), opts);
 }
 double Distribution::_discr_defined_logpdf_(double x, const dbl_vec &opts) const
 {
@@ -228,10 +407,10 @@ double Distribution::_trunc_max_(double x, const dbl_vec &opts) const
 }
 double Distribution::_trunc_both_sides_(double x, const dbl_vec &opts) const
 {
-    return x / (_cdf_(get_max(), opts) - _cdf_(get_max(), opts));
+    return x / (_cdf_(get_max(), opts) - _cdf_(get_min(), opts));
 }
 
-// case of center discretization
+//----- Case of Center Discretization -----//
 double Distribution::_trunc_min_discr_center_(double x, const dbl_vec &opts) const
 {
     return x / (1. - _cdf_(floor(get_min()) - .5, opts));
@@ -245,7 +424,7 @@ double Distribution::_trunc_both_sides_discr_center_(double x, const dbl_vec &op
     return x / (_cdf_(ceil(get_max()) + .5, opts) - _cdf_(floor(get_min()) - .5, opts));
 }
 
-// case of left discretization
+//----- Case of Left Discretization -----//
 double Distribution::_trunc_min_discr_left_(double x, const dbl_vec &opts) const
 {
     return x / (1. - _cdf_(floor(get_min()), opts));
@@ -272,12 +451,12 @@ double Distribution::_logtrunc_min_(double x, const dbl_vec &opts) const { retur
 double Distribution::_logtrunc_max_(double x, const dbl_vec &opts) const { return x - log(_cdf_(get_max(), opts)); }
 double Distribution::_logtrunc_both_sides_(double x, const dbl_vec &opts) const { return x - log(_cdf_(get_max(), opts) - _cdf_(get_min(), opts)); }
 
-// case of center discretization
+//----- Case of Center Discretization -----//
 double Distribution::_logtrunc_min_discr_center_(double x, const dbl_vec &opts) const { return x - log(1. - _cdf_(floor(get_min()) - .5, opts)); }
 double Distribution::_logtrunc_max_discr_center_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()) + .5, opts)); }
 double Distribution::_logtrunc_both_sides_discr_center_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()) + .5, opts) - _cdf_(floor(get_min()) - .5, opts)); }
 
-// case of left discretization
+//----- Case of Left Discretization -----//
 double Distribution::_logtrunc_min_discr_left_(double x, const dbl_vec &opts) const { return x - log(1. - _cdf_(floor(get_min()), opts)); }
 double Distribution::_logtrunc_max_discr_left_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()), opts)); }
 double Distribution::_logtrunc_both_sides_discr_left_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()), opts) - _cdf_(floor(get_min()), opts)); }
@@ -298,7 +477,7 @@ double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const
 /* Tell if the distribution is discrete. */
 bool Distribution::is_discrete() const
 {
-    return _func_pdf_ == &Distribution::_default_pdf_;
+    return _func_pdf_ != &Distribution::_default_pdf_;
 }
 
 /* Select functional method in case of discretization. */
@@ -307,14 +486,6 @@ void Distribution::_init_discretization_(ushort discr_type)
     //===== DISCRETIZATION =====//
     switch (discr_type)
     {
-    case D_DISCR_TYPE_NONE: // no discretization (default)
-        _func_pdf_ = &Distribution::_default_pdf_;
-        _func_cdf_ = &Distribution::_default_cdf_;
-        _func_logpdf_ = &Distribution::_default_logpdf_;
-        _func_logratio_ = &Distribution::_default_logratio_;
-        _func_rand_ = &Distribution::_default_rand_;
-        break;
-
     case D_DISCR_TYPE_DFND: // discrete defined
         _func_pdf_ = &Distribution::_discr_defined_pdf_;
         _func_cdf_ = &Distribution::_discr_defined_cdf_;
@@ -338,6 +509,13 @@ void Distribution::_init_discretization_(ushort discr_type)
         _func_logratio_ = &Distribution::_discr_left_logratio_;
         _func_rand_ = &Distribution::_discr_left_rand_;
         break;
+
+    default: // no discretization (default)
+        _func_pdf_ = &Distribution::_default_pdf_;
+        _func_cdf_ = &Distribution::_default_cdf_;
+        _func_logpdf_ = &Distribution::_default_logpdf_;
+        _func_logratio_ = &Distribution::_default_logratio_;
+        _func_rand_ = &Distribution::_default_rand_;
     }
 }
 
@@ -366,7 +544,9 @@ void Distribution::_init_truncation_(ushort discr_type)
             _func_shift_ = &Distribution::_shift_min_;
         }
         break;
+
     case 2: //----- upper range truncation -----//
+        _func_shift_ = &Distribution::_shift_dummy_;
         switch (discr_type)
         {
         case D_DISCR_TYPE_CNTR: // centered discretization
@@ -381,8 +561,8 @@ void Distribution::_init_truncation_(ushort discr_type)
             _func_trunc_ = &Distribution::_trunc_max_;
             _func_logtrunc_ = &Distribution::_logtrunc_max_;
         }
-        _func_shift_ = &Distribution::_shift_dummy_;
         break;
+
     case 3: //----- both sides truncation -----//
         switch (discr_type)
         {
@@ -402,6 +582,7 @@ void Distribution::_init_truncation_(ushort discr_type)
             _func_shift_ = &Distribution::_shift_min_;
         }
         break;
+
     default: //----- no truncation (case 0) -----//
         _func_trunc_ = &Distribution::_trunc_dummy_;
         _func_logtrunc_ = &Distribution::_logtrunc_dummy_;
@@ -410,70 +591,41 @@ void Distribution::_init_truncation_(ushort discr_type)
     }
 }
 
-//===== SHOW =====//
-const std::map<double, double> Distribution::showcase_function(const dbl_vec &opts) const
+/* Return values to showcase the profile of the distribution. */
+const std::map<double, dbl_vec> Distribution::showcase(dbl_vec opts, dbl_vec xlim) const
 {
-    std::map<double, double> output = {};
-
     // pick extremes for the showcase
-    bool is_min_open = false;
-    bool is_max_open = false;
-    double lower = this->get_min();
-    double upper = this->get_max();
+    double lower = get_min();
+    double upper = get_max();
 
-    // adjust extremes if unbound
-    if ((tools::is_na(lower)) && (tools::is_na(upper)))
-    {
-        upper = 10.;
-        lower = -upper;
-    }
+    // adjust lower bound and limit
+    if (tools::is_na(lower))
+        lower = xlim[0];
     else
-    {
-        // check if extrems are open
-        is_min_open = !this->valid(lower);
-        is_max_open = !this->valid(upper);
-    }
+        xlim[0] = (xlim[0] < lower) ? lower : xlim[0];
 
-    double delta_x = (upper - lower) * 1.e-10;
+    // adjust upper bound and limit
+    if (tools::is_na(upper))
+        upper = xlim[1];
+    else
+        xlim[1] = (xlim[1] > upper) ? upper : xlim[1];
+
+    // adjust binning width
+    double delta_x = is_discrete() ? 1. : ((upper - lower) * 5.e-4);
 
     // adjust extremes if interval is open
-    if (is_min_open)
+    if (!valid(lower))
         lower += delta_x;
-    if (is_max_open)
+    if (!valid(upper))
         upper -= delta_x;
 
     // compute values to showcase
+    std::map<double, dbl_vec> output = {};
     for (double x = lower; x <= upper; x += delta_x)
-        output.emplace(x, this->pdf(x, opts));
+        output.emplace(x, std::vector<double>({pdf(x, opts), cdf(x, opts)}));
 
     return output;
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-#ifndef M_1_SQRT_2PI
-#define M_1_SQRT_2PI 0.3989422804014327 /* 1/sqrt(2*pi) */
-#endif
-
-#ifndef M_1_SQRT_2
-#define M_1_SQRT_2 0.7071067811865476 /* 1/sqrt(2) */
-#endif
-
-#ifndef M_LN_SQRT_2PI
-#define M_LN_SQRT_2PI 0.9189385332046727 /* log(sqrt(2*pi)) */
-#endif
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -557,7 +709,7 @@ namespace normal_impl
     }
     inline double cdf(double x, double mean, double sd)
     {
-        return .5 + .5 * erf(M_1_SQRT_2 * (x - mean) / sd);
+        return .5 + .5 * erf(M_SQRT1_2 * (x - mean) / sd);
     }
     inline double logpdf(double x, double mean, double sd)
     {
@@ -640,7 +792,7 @@ namespace lognormal_impl
     }
     inline double cdf(double x, double meanlog, double sdlog)
     {
-        return .5 + .5 * erf(M_1_SQRT_2 * (log(x) - meanlog) / sdlog);
+        return .5 + .5 * erf(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
     }
     inline double logpdf(double x, double meanlog, double sdlog)
     {
@@ -727,71 +879,6 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  pgamma : regularized incomplete gamma function  ///////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace gamma_impl_core
-{
-    /*
-     * FIXME: To better reference this:
-     * Press, Teukolsky, Vetterling, and Flannery
-     * Numerical Recipes 3rd Edition: The Art of Scientific Computing
-     */
-    constexpr int MAX_ITER = 1000;
-    constexpr double EPSILON = 1.e-12;
-    constexpr double MIN_DBL = 1.e-18;
-
-    /* Lower regulairzed incomplete gamma function using series expansion. */
-    inline double _pgamma_series_(double scaled_x, double shape)
-    {
-        double sum = 1. / shape;
-        double term = sum;
-        for (int i = 1; (term > EPSILON * sum) && (i <= MAX_ITER); ++i)
-        {
-            term *= scaled_x / (shape + i);
-            sum += term;
-        }
-        return sum * exp(-scaled_x + shape * log(scaled_x) - lgamma(shape));
-    }
-
-    /* Upper regularized incomplete gamma function using continued fraction. */
-    inline double _pgamma_continued_fraction_(double scaled_x, double shape)
-    {
-        double b = scaled_x + 1. - shape;
-        double c = 1. / MIN_DBL;
-        double d = 1. / b;
-        double h = d;
-        double delta = 0.;
-
-        for (int i = 1; ((fabs(delta - 1.) > EPSILON) && (i <= MAX_ITER)); ++i)
-        {
-            double an = -i * (i - shape);
-            b += 2.;
-            d = an * d + b;
-            if (fabs(d) < MIN_DBL)
-                d = MIN_DBL;
-            c = b + an / c;
-            if (fabs(c) < MIN_DBL)
-                c = MIN_DBL;
-            d = 1. / d;
-            delta = c * d;
-            h *= delta;
-        }
-
-        return 1. - exp(-scaled_x + shape * log(scaled_x) - lgamma(shape)) * h;
-    }
-
-    /* Regularized incomplete gamma function. */
-    inline double pgamma(double x, double shape)
-    {
-        if (x < shape + 10.)
-            return _pgamma_series_(x, shape);
-        else
-            return _pgamma_continued_fraction_(x, shape);
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Gamma Distribution : methods  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -860,7 +947,7 @@ protected:
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return gamma_impl_core::pgamma(x / get_arg(1), get_arg(0));
+        return gamma_p(get_arg(0), x / get_arg(1));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
@@ -1076,93 +1163,6 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  ibeta : regularized incomplete beta function  ////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace beta_impl_core
-{
-    inline constexpr double EPSILON = 1e-12;
-    inline constexpr int MAX_ITER = 1000;
-
-    /* logbeta function. */
-    inline double _lbeta_(double a, double b)
-    {
-        return lgamma(a) + lgamma(b) - lgamma(a + b);
-    }
-
-    /* Beta function. */
-    inline double _beta_(double a, double b)
-    {
-        return exp(_lbeta_(a, b));
-    }
-
-    /* Continued fraction evaluation for regularized incomplete beta. */
-    inline double _ibeta_continued_fraction_(double x, double a, double b)
-    {
-        double qab = a + b;
-        double qap = a + 1.;
-        double qam = a - 1.;
-        double c = 1.;
-        double d = 1. / (1. - qab * x / qap);
-        double h = d;
-
-        for (unsigned m = 1; m <= MAX_ITER; ++m)
-        {
-            double m2 = 2. * m;
-            double aa = m * (b - m) * x / ((qam + m2) * (a + m2));
-            d = 1. / (1. + aa * d);
-            c = 1. + aa / c;
-            h *= d * c;
-            if (fabs(d - 1.) < EPSILON)
-                return h;
-        }
-
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    /* Series expansion for small x. */
-    inline double _ibeta_series_(double x, double a, double b)
-    {
-        double sum = 1.;
-        double term = 1.;
-        double apb = a + b;
-        double ap = a + 1.;
-
-        for (unsigned n = 1; n <= MAX_ITER; ++n)
-        {
-            term *= (apb * x) / (ap * n);
-            sum += term;
-            if (fabs(term) < fabs(sum) * EPSILON)
-                break;
-            ++ap;
-        }
-
-        return pow(x, a) * pow(1. - x, b) / (a * _beta_(a, b)) * sum;
-    }
-
-    // Regularized incomplete beta function (normalized)
-    inline double ibeta(double x, double a, double b)
-    {
-        /* FIXME: should I implement parameter validation somewhere ?
-        if (a <= 0 || b <= 0 || x < 0 || x > 1)
-            return std::numeric_limits<double>::quiet_NaN();
-        */
-
-        // edge cases
-        if (x == 0.)
-            return 0.;
-        if (x == 1.)
-            return 1.;
-
-        // choose computation method based on x
-        if (x < (a + 1.) / (a + b + 2.))
-            return _ibeta_series_(x, a, b);
-        else
-            return _ibeta_continued_fraction_(x, a, b);
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Beta Distribution : methods  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1170,11 +1170,11 @@ namespace beta_impl
 {
     inline double pdf(double x, double shape1, double shape2)
     {
-        return exp((shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - beta_impl_core::_lbeta_(shape1, shape2));
+        return exp((shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2));
     }
     inline double logpdf(double x, double shape1, double shape2)
     {
-        return (shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - beta_impl_core::_lbeta_(shape1, shape2);
+        return (shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2);
     }
     inline double logratio(double xold, double xnew, double shape1, double shape2)
     {
@@ -1194,7 +1194,7 @@ public:
     Beta_Distribution() : gamma_1(1., 1.), gamma_2(1., 1.)
     {
         _init_defaults_("beta", {"shape1", "shape2"}, {1., 1.},
-                        0., 1., false, false);
+                        0., 1., true, true);
     }
     ~Beta_Distribution() = default;
 
@@ -1214,7 +1214,7 @@ public:
                 "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\".");
         else if ((get_min() > 0) || (get_max() < 1))
         {
-            init_range(false, false);
+            init_range((get_min() == 0), (get_max() == 1));
             _init_truncation_(D_DISCR_TYPE_NONE);
         }
     }
@@ -1239,7 +1239,7 @@ protected:
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return beta_impl_core::ibeta(x, get_arg(0), get_arg(1));
+        return ibeta(get_arg(0), get_arg(1), x);
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
@@ -1376,7 +1376,7 @@ namespace poisson_impl
     }
     inline double cdf(double x, double lambda)
     {
-        return 1. - gamma_impl_core::pgamma(x + 1., lambda);
+        return 1. - gamma_p(lambda, x + 1.);
     }
     inline double logpdf(double x, double lambda)
     {
@@ -1474,7 +1474,7 @@ namespace binomial_impl
     }
     inline double cdf(double x, double size, double prob)
     {
-        return beta_impl_core::ibeta(1. - prob, size - x, x + 1);
+        return ibeta(size - x, x + 1, 1. - prob);
     }
     inline double logpdf(double x, double size, double prob)
     {
@@ -1571,7 +1571,7 @@ namespace negativebinomial_impl
     }
     inline double cdf(double x, double size, double prob)
     {
-        return beta_impl_core::ibeta(prob, size, x + 1);
+        return ibeta(size, x + 1, prob);
     }
     inline double logpdf(double x, double size, double prob)
     {
@@ -1766,7 +1766,7 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  distribution switchboard  ///////////////////////////////////
+//////////////////////////////////  Distribution Switchboard  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary hidden template to return the chosen distribution. */

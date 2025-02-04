@@ -28,7 +28,7 @@ HousepiGeneratorClass <- R6::R6Class(
     dll = NA,
     quiet = TRUE,
     need_compile = FALSE,
-    
+
     ############################################################################
     ############################################################################
     ############################################################################
@@ -83,6 +83,8 @@ HousepiGeneratorClass <- R6::R6Class(
       cache_files <- file.path(self$cache_dir,
                                c("src", "R", "NAMESPACE", "DESCRIPTION"))
       unlink(cache_files, recursive = TRUE)
+
+      invisible(self)
     },
 
     # @description
@@ -144,6 +146,7 @@ HousepiGeneratorClass <- R6::R6Class(
     rcpp = NULL,
     cache_dir = NA,
     is_blank = FALSE,
+    infec_prof_def = NULL,
 
     # @description
     # Initialize model generator defining name of dynamic library.
@@ -186,8 +189,8 @@ HousepiGeneratorClass <- R6::R6Class(
         private$name <- "blank"
         self$is_blank <- TRUE
         private$dll <- file.path(system.file(package = "housepi"),
-                              "template", "src",
-                              dll_file_ext("housepienvironment"))
+                                 "template", "src",
+                                 dll_file_ext("housepienvironment"))
 
       } else if (model_choice %in% list.files(template_models_dir())) {
         #===== Plain Template Model Name =====#
@@ -227,7 +230,7 @@ HousepiGeneratorClass <- R6::R6Class(
             # change dll name if not as template
             if (isFALSE(as_template)) {
               private$dll <- file.path(self$cache_dir,
-                                    dll_file_ext(random_name(model_choice)))
+                                       dll_file_ext(random_name(model_choice)))
             }
             private$need_compile <- TRUE
             # organize cache directory to perform compilation
@@ -242,6 +245,8 @@ HousepiGeneratorClass <- R6::R6Class(
           i = "Run {.code household_model_template()} to see available template names."
         )))
       }
+
+      invisible(self)
     },
 
     ############################################################################
@@ -292,7 +297,8 @@ HousepiGeneratorClass <- R6::R6Class(
       refer_file <- file.path(dirname(private$dll), ".refer")
       overwrite(file.path(self$cache_dir, "src", "model.cpp"),
                 refer_file)
-      return(self)
+
+      invisible(self)
     },
 
     # @description
@@ -310,6 +316,72 @@ HousepiGeneratorClass <- R6::R6Class(
       }
 
       return(refer_file)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # Add definition of infectivity profile.
+    # @param name (`character(1)`)\cr
+    # Name of the infectivity profile.
+    # @param discrete (`logical(1)`)\cr
+    # IF `TRUE` the profile is discrete.
+    # @param args (named `list()`)\cr
+    # Arguments (eventually with types) for the profile.
+    # @param min (`double(1)`)\cr
+    # Minimunm value of the support.
+    # @param max (`double(1)`)\cr
+    # Maximum value of the support.
+    add_infectivity_profile = function(name,
+                                       discrete = FALSE,
+                                       args = list(),
+                                       min = NA,
+                                       max = NA) {
+      #----- name -----#
+      if (is.na(name)) {
+        stop(cli::format_error("Incomplete definition: missing name."))
+      }
+
+      #----- arguments -----#
+      arg_name_ <- NA
+      arg_value_ <- NA
+      arg_type_ <- NA
+      # assign method only if arguments are provided
+      if (length(args) > 0) {
+        arg_name_ <- str_join_(names(args))
+        tmp <- str_split_(args)
+        arg_value_ <- str_join_(tmp$var)
+        arg_type_ <- str_join_(tmp$typ)
+      }
+
+      #----- minimum value -----#
+      min_ <- NA
+      min_type_ <- NA
+      if (!is.na(min)) {
+        min_ <- str_split_(min)$var
+        min_type_ <- str_split_(min)$typ
+      }
+
+      #----- maximum value -----#
+      max_ <- NA
+      max_type_ <- NA
+      if (!is.na(max)) {
+        max_ <- str_split_(max)$var
+        max_type_ <- str_split_(max)$typ
+      }
+
+      # finally store definition
+      self$infec_prof_def <- list(
+        name = name, discrete = isTRUE(discrete),
+        arg_name = arg_name_, arg_value = arg_value_, arg_type = arg_type_,
+        min = min_, min_type = min_type_, max = max_, max_type = max_type_
+      )
+
+      invisible(self)
     }
   )
 )

@@ -22,6 +22,8 @@
 //' @field export_params Return a DataFrame with current parameters.
 //' @field export_data Return a DataFrame with current database.
 //' @field export_traces Return a DataFrame with MCMC traces.
+//' @field export_household_loglike_traces Return a NumericMatrix with household loglikelihood traces.
+//' @field export_infec_profile Return a DataFrame values of the infectivity profile.
 //' @filed import_setup Import setup from R List.
 //' @filed import_infec_profile Import infectivity profile definition from R List.
 //' @filed import_params Import parameter definitions from R Data.Frame.
@@ -55,6 +57,7 @@ RCPP_MODULE(model_housepi_rcpp)
       .method("export_data", &MCMC::export_data)
       .method("export_traces", &MCMC::export_traces)
       .method("export_household_loglike_traces", &MCMC::export_household_loglike_traces)
+      .method("export_infec_profile", &MCMC::export_infec_profile)
       .method("show_full_build", &MCMC::show_full_build)
       .method("show_summary", &MCMC::show_summary);
 

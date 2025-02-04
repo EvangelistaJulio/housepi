@@ -20,8 +20,8 @@ public:
 
     //===== GETTER =====//
     inline double get() const { return *(ptr_to_value); }
-    bool is_internal_ptr() const { return ptr_to_value == &value; }
     inline const double *get_ptr() const { return ptr_to_value; }
+    bool is_internal_ptr() const { return ptr_to_value == &value; }
     const std::string show() const { return (tools::natostring(get())); }
 
     //===== SETTER =====//
@@ -140,33 +140,41 @@ void Function::Impl::init_range(bool is_min_open, bool is_max_open)
 {
     switch (which_valid_case())
     {
-    case 0: // unbounded
+    case 0: //----- unbounded -----//
         _func_valid_range_ = &Impl::_valid_range_always_;
         break;
-    case 1: // lower bound
+
+    case 1: //----- lower bound -----//
         if (is_min_open)
             _func_valid_range_ = &Impl::_valid_range_open_min_;
         else
             _func_valid_range_ = &Impl::_valid_range_close_min_;
         break;
-    case 2: // upper bound
+
+    case 2: //----- upper bound -----//
         if (is_max_open)
             _func_valid_range_ = &Impl::_valid_range_open_max_;
         else
             _func_valid_range_ = &Impl::_valid_range_close_max_;
         break;
-    case 3: // within an interval
+
+    case 3: //----- within an interval -----//
         if (range_min.get() >= range_max.get())
             throw std::invalid_argument(
                 "Inconsistent range {min:" + range_min.show() + ", max:" + range_max.show() + "}.");
+
         if ((is_min_open) && (is_max_open))
             _func_valid_range_ = &Impl::_valid_range_both_open_;
+
         else if ((is_min_open) && (!is_max_open))
             _func_valid_range_ = &Impl::_valid_range_open_min_close_max_;
+
         else if ((!is_min_open) && (is_max_open))
-            _func_valid_range_ = &Impl::_valid_range_open_min_close_max_;
+            _func_valid_range_ = &Impl::_valid_range_close_min_open_max_;
+
         else
             _func_valid_range_ = &Impl::_valid_range_both_close_;
+
         break;
     }
 }

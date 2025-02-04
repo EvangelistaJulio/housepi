@@ -20,7 +20,7 @@ public:
     //=======================//
     Proposer() {};
     Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = 1.0,
+             double rule_scale = 1.,
              double rule_start_value = NULL_DOUBLE,
              const std::vector<ushort> &args_to_adapt = {},
              bool is_discrete = false);
@@ -34,7 +34,7 @@ public:
     double get_arg(ushort argID) const { return (_distr_ptr_->get_arg)(argID); }
     double get_from_value() const { return from_value; }
     bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
-    double propose(rnd_gen &prng, double start = 0.0) { return (this->*_func_propose_)(prng, start); }
+    double propose(rnd_gen &prng, double start = 0.) { return (this->*_func_propose_)(prng, start); }
     double logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
     double rand(rnd_gen &prng) { return (_distr_ptr_->rand)(prng); }
 
@@ -53,11 +53,11 @@ public:
     void update_accept_rate(bool is_accepted)
     {
         accept_rate = (double)(accept_rate * n_proposed_moves + is_accepted) / (n_proposed_moves + 1);
-        n_proposed_moves += 1;
+        ++n_proposed_moves;
     }
     void reset_accept_rate()
     {
-        accept_rate = 0.0;
+        accept_rate = 0.;
         n_proposed_moves = 0;
     };
 
@@ -92,11 +92,11 @@ protected:
     std::string name = NULL_STRING;
     std::shared_ptr<Distribution> _distr_ptr_;
 
-    double _user_rule_scale_ = 1.0;    // scale of the Metropolis rule
+    double _user_rule_scale_ = 1.;     // scale of the Metropolis rule
     bool _is_start_from_zero_ = false; // wheter to move from given value
     double from_value = NULL_DOUBLE;   // given value where to start from
 
-    double accept_rate = 0.0;   // acceptance rate
+    double accept_rate = 0.;    // acceptance rate
     ulong n_proposed_moves = 0; // number of proposed moves
 
     ushort n_args_to_adapt = 0;        // how many arguments to adapt
@@ -185,7 +185,7 @@ double Proposer::_logratio_undefined_(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
-    return 0.0;
+    return 0.;
 }
 double Proposer::_logratio_pdf_(double xold, double xnew) const { return _distr_ptr_->logratio(xold, xnew); }
 double Proposer::_logratio_sum_to_zero_(double xold, double xnew) const { return _logratio_pdf_(xold - from_value, xnew - from_value); }
@@ -194,7 +194,7 @@ double Proposer::_logratio_symm_(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
-    return 0.0;
+    return 0.;
 }
 double Proposer::_logratio_lognorm_symm_(double xold, double xnew) const { return log(xold) - log(xnew); }
 
@@ -270,7 +270,7 @@ class Normal_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
-        double rule_scale = 1.0,
+        double rule_scale = 1.,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("norm"),
                                              rule_scale,
@@ -294,7 +294,7 @@ public:
     //===== SETTER =====//
     void user_reset() override
     {
-        _distr_ptr_->assign_scalar_arg("mean", 0.0);
+        _distr_ptr_->assign_scalar_arg("mean", 0.);
         _distr_ptr_->assign_scalar_arg("sd", _user_rule_scale_);
     }
 };
@@ -308,7 +308,7 @@ class Lognorm_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(
-        double rule_scale = 1.0,
+        double rule_scale = 1.,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("lnorm"),
                                              rule_scale,
@@ -332,7 +332,7 @@ public:
     //===== SETTER =====//
     void user_reset() override
     {
-        _distr_ptr_->assign_scalar_arg("meanlog", 0.0);
+        _distr_ptr_->assign_scalar_arg("meanlog", 0.);
         _distr_ptr_->assign_scalar_arg("sdlog", _user_rule_scale_);
     }
 };
@@ -452,7 +452,7 @@ bool Variable::Impl::_valid_move_gibbs_() const { return true; }
 
 //===== Move logratio : functional methods =====//
 double Variable::Impl::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
-double Variable::Impl::_move_logratio_gibbs_() const { return 0.0; }
+double Variable::Impl::_move_logratio_gibbs_() const { return 0.; }
 
 //===== Propose : functional methods =====//
 double Variable::Impl::_propose_error_(rnd_gen &prng)

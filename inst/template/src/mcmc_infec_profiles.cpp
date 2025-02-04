@@ -260,7 +260,7 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 
 	else if (!tools::is_na(min_value) && tools::is_na(min_type))
 		throw std::invalid_argument(
-			"Impossible to interpret default value of  \"" + min_value + "\". Please provide a type.");
+			"Impossible to interpret type of value  \"" + min_value + "\". Please provide a type.");
 
 	else if (tools::is_na(min_value) && !tools::is_na(min_type))
 		tools::warning(
@@ -287,7 +287,7 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 			"Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
 }
 
-/* Assign minimum of infectivity profile. */
+/* Assign maximum of infectivity profile. */
 void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 										  const std::string &max_type)
 {
@@ -296,7 +296,7 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 
 	else if (!tools::is_na(max_value) && tools::is_na(max_type))
 		throw std::invalid_argument(
-			"Impossible to interpret default value of  \"" + max_value + "\". Please provide a type.");
+			"Impossible to interpret type of value  \"" + max_value + "\". Please provide a type.");
 
 	else if (tools::is_na(max_value) && !tools::is_na(max_type))
 		tools::warning(
@@ -327,7 +327,7 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 void MCMC::Impl::read_infec_profile(const std::string &pathtofile)
 {
 	tools::read_csv_list(pathtofile, _infec_profile_deflist_);
-	// note: build_infec_profile is optionally called by the user
+	build_infec_profile();
 	_report_pathtofile_["infec_profile"] = pathtofile;
 }
 
@@ -359,7 +359,7 @@ void MCMC::Impl::build_infec_profile()
 			if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
 				switchboard_infec_profile(deflist.at("name"));
 			else
-				throw std::invalid_argument("Provide a valid name.");
+				throw std::invalid_argument("missing name.");
 
 			//----- Arguments -----//
 			if ((deflist.count("arg_name")) && (deflist.count("arg_value")) && (deflist.count("arg_type")))
@@ -367,27 +367,25 @@ void MCMC::Impl::build_infec_profile()
 										  tools::parse_list_args(deflist.at("arg_value")),
 										  tools::parse_list_args(deflist.at("arg_type")));
 			else
-				throw std::invalid_argument("Provide a valid list of arguments.");
+				throw std::invalid_argument("not a valid list of arguments.");
 
-			//----- Range -----//
+			//----- Range minimum -----//
 			if ((deflist.count("min")) && (deflist.count("min_type")))
-				if ((deflist.count("max")) && (deflist.count("max_type")))
-				{
-					assign_infec_profile_min(deflist.at("min"), deflist.at("min_type"));
-					assign_infec_profile_max(deflist.at("max"), deflist.at("max_type"));
-				}
-				else
-				{
-					throw std::invalid_argument("Provide a valid maximum.");
-				}
+				assign_infec_profile_min(deflist.at("min"), deflist.at("min_type"));
 			else
-				throw std::invalid_argument("Provide a valid minimum.");
+				throw std::invalid_argument("not a valid minimum.");
+
+			//----- Range maximum -----//
+			if ((deflist.count("max")) && (deflist.count("max_type")))
+				assign_infec_profile_max(deflist.at("max"), deflist.at("max_type"));
+			else
+				throw std::invalid_argument("not a valid maximum.");
 
 			//----- Reshaping -----//
 			if (deflist.count("discrete"))
 				_infec_profile_->init_reshaping(tools::stobool(deflist.at("discrete")));
 			else
-				throw std::invalid_argument("Provide a valid minimum.");
+				throw std::invalid_argument("not a valid discrete.");
 		}
 	}
 	catch (const std::exception &e)
@@ -408,15 +406,11 @@ void MCMC::Impl::build_infec_profile()
 /////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Call to infectivity profile during user model initialization. */
+/* Assign default infectivity profile during user model initialization. */
 void MCMC::assign_infec_profile(const std::string &default_name)
 {
 	if (pImpl->_infec_profile_deflist_.empty())
-		// default case
 		pImpl->switchboard_infec_profile(default_name);
-	else
-		// user defined case
-		pImpl->build_infec_profile();
 }
 
 /* Value of the instantaneous infectivity profile. */

@@ -16,7 +16,7 @@ HousepiAugmentedClass <- R6::R6Class(
   ###################
   ##### PUBLIC ######
   ###################
-  
+
   public = list(
     defs = NULL,
 
@@ -69,9 +69,9 @@ HousepiAugmentedClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("Unknown augmented variable \"%s\" to remove.", name
-          ))))
+          cli::cli_alert_warning(cli::format_warning(sprintf(
+            "Unknown augmented variable \"%s\" to remove.", name
+          )))
         }
       }
 
@@ -98,20 +98,17 @@ HousepiAugmentedClass <- R6::R6Class(
       }
 
       # remove previous definition if it exists
-      if(self$remove(name, status, FALSE))
-      {
+      if (self$remove(name, status, FALSE)) {
         if (is.na(status)) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf(
-              "Existing \"%s\" definition has been overwritten.",
-              name
-          ))))
+          cli::cli_alert_warning(cli::format_warning(sprintf(
+            "Existing \"%s\" definition has been overwritten.",
+            name
+          )))
         } else {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf(
-              "Existing \"%s\" with status %d definition has been overwritten.", 
-              name, status
-          ))))
+          cli::cli_alert_warning(cli::format_warning(sprintf(
+            "Existing \"%s\" with status %d definition has been overwritten.",
+            name, status
+          )))
         }
       }
 
@@ -131,7 +128,7 @@ HousepiAugmentedClass <- R6::R6Class(
                 i = "Alternative: provide a model and set {.code init_rand = TRUE}."
               )))
             } else {
-              value_ = str_split_(rule_from)$var
+              value_ <- str_split_(rule_from)$var
               value_type_ <- str_split_(rule_from)$typ
             }
           } else {
@@ -242,7 +239,7 @@ HousepiAugmentedClass <- R6::R6Class(
             stop(cli::format_error(c(
               sprintf("Wrong definition for augmented variable \"%s\"", def_name),
               i = "Provide a definition list; if constant, a scalar or a typed value."
-              )))
+            )))
           }
         }
         this_def[["name"]] <- def_name
@@ -306,7 +303,7 @@ HousepiAugmentedClass <- R6::R6Class(
             )))
           } else {
             missing_set <- template_find_missing(require_set,
-                                            self$defs[["name"]])
+                                                 self$defs[["name"]])
             self$from_list(templ_defs[missing_set],
                            append = TRUE)
           }
@@ -343,7 +340,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
         # find missing augmented variables
         missing_set <- template_find_missing(require_set,
-                                        self$defs[["name"]])
+                                             self$defs[["name"]])
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           oss <- paste0("Missing parameter(s): ",
@@ -352,8 +349,8 @@ HousepiAugmentedClass <- R6::R6Class(
         }
 
         # point out augmented variables that are not used
-        unused_set <- template_find_unused(require_set, 
-                                      self$defs[["name"]])
+        unused_set <- template_find_unused(require_set,
+                                           self$defs[["name"]])
 
         # drop unused augmented variables
         if (length(unused_set) > 0) {

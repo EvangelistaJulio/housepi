@@ -71,7 +71,7 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
     rlist_to_map(input, _infec_profile_deflist_);
-    // note : build_infec_profile is optionally called by the user
+    build_infec_profile();
     if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
         _report_pathtofile_.erase("infec_profile");
 }
@@ -212,10 +212,9 @@ Rcpp::DataFrame MCMC::Impl::export_data() const
         }
     }
 
-    DataFrame output;
-    output = DataFrame::create(_["id"] = df_index,
-                               _["house_id"] = df_house_index,
-                               _["status"] = df_status);
+    DataFrame output = DataFrame::create(_["id"] = df_index,
+                                         _["house_id"] = df_house_index,
+                                         _["status"] = df_status);
     c = 0;
     for (const dataID &d : data_headers)
         output.push_back(df_dbl[c++], d);
@@ -280,6 +279,47 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
     return output;
 }
 
+/* Export a showcase of the selected infectivity profile. */
+Rcpp::DataFrame MCMC::Impl::export_infec_profile(const Rcpp::List opts_,
+                                                 const Rcpp::List xlim_) const
+{
+    using namespace Rcpp;
+
+    // options
+    dbl_vec opts = {};
+    if (opts_.size() > 0)
+        opts = as<dbl_vec>(opts_);
+
+    // x limits
+    dbl_vec xlim = {-20., 20.};
+    if (xlim_.size() > 0)
+    {
+        std::map<std::string, std::string> load_user_xlim = {};
+        rlist_to_map(xlim_, load_user_xlim);
+        if (load_user_xlim.count("min"))
+            xlim[0] = tools::stod(load_user_xlim.at("min"));
+        if (load_user_xlim.count("max"))
+            xlim[1] = tools::stod(load_user_xlim.at("max"));
+    }
+
+    // produce a showcase of the distribution profile
+    std::map<double, dbl_vec> values = _infec_profile_->showcase(opts, xlim);
+    size_t c = 0, n = values.size();
+    NumericVector t(n), inst(n), cumu(n);
+
+    for (const auto &pair : values)
+    {
+        t[c] = pair.first;
+        inst[c] = pair.second[0];
+        cumu[c] = pair.second[1];
+        ++c;
+    }
+
+    return DataFrame::create(_["generation_time"] = t,
+                             _["instantaneous"] = inst,
+                             _["cumulative"] = cumu);
+}
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -296,6 +336,10 @@ Rcpp::DataFrame MCMC::export_params() const { return pImpl->export_params(); }
 Rcpp::DataFrame MCMC::export_data() const { return pImpl->export_data(); }
 Rcpp::DataFrame MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
+Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List opts, const Rcpp::List xlim) const
+{
+    return pImpl->export_infec_profile(opts, xlim);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////

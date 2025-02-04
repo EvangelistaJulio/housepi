@@ -69,7 +69,7 @@ group_rate_logic_table <- function(dataset, by) {
   return(logic_table)
 }
 
-#' @title 
+#' @title
 #' Associate parameter names
 #' @description
 #' Associate parameter name to group rate logic table
@@ -137,7 +137,9 @@ cpp_ifclause_line <- function(r,
   condition <- paste(
     paste0(
       sprintf("house.data(i, \"%s\") == ", names(r[mask])),
-      r[mask]), collapse = ") && ("
+      r[mask]
+    ),
+    collapse = ") && ("
   )
   # wrap all together
   c(sprintf("%sif ((%s))", ifelse(is_ref, "", "else "), condition),
@@ -221,9 +223,9 @@ HousepiGroupRateClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          cli::cli_alert_warning(cli::format_warning(c(
-            sprintf("Unknown group_rate \"%s\" to remove.", name
-          ))))
+          cli::cli_alert_warning(cli::format_warning(sprintf(
+            "Unknown group_rate \"%s\" to remove.", name
+          )))
         }
       }
 
@@ -254,7 +256,7 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Scale parameter for the proposal rule.
     #' Changed automatically during inference if `n_adpat`>0.
     #' @param min (`double(1)`)\cr
-    #' Value of the minimum.  
+    #' Value of the minimum.
     #' @param max (`double(1)`)\cr
     #' Value of the maximum.
     #' @references
@@ -281,19 +283,18 @@ HousepiGroupRateClass <- R6::R6Class(
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) {
-        cli::cli_alert_warning(cli::format_warning(c(
-          sprintf(
-            "Existing \"%s\" definition has been overwritten.",
-            name
-        ))))
-      } 
+        cli::cli_alert_warning(cli::format_warning(sprintf(
+          "Existing \"%s\" definition has been overwritten.", name
+        )))
+      }
 
       # add new definition
       self$defs[[name]] <- list(
         by = by,
         prefix = prefix,
         reference = reference,
-        independent = isTRUE(independent))
+        independent = isTRUE(independent)
+      )
 
       # add parameter definitions
       self$param_defs[[name]] <- list(
@@ -331,7 +332,7 @@ HousepiGroupRateClass <- R6::R6Class(
       } else {
         # find missing parameters
         missing_set <- template_find_missing(require_set,
-                                        names(self$defs))
+                                             names(self$defs))
         if (length(missing_set) > 0) {
           oss <- paste0("Missing group rate(s): ",
                         character_to_string_list(missing_set), ".")
@@ -339,10 +340,10 @@ HousepiGroupRateClass <- R6::R6Class(
 
           is_def_complete <- FALSE
         }
-          
+
         # point out parameters that are not used
-        unused_set <- template_find_unused(require_set, 
-                                      names(self$defs))
+        unused_set <- template_find_unused(require_set,
+                                           names(self$defs))
         # drop unused parameters
         if (length(unused_set) > 0) {
           oss <- paste0("Dropping not used group rate(s): ",
@@ -354,7 +355,7 @@ HousepiGroupRateClass <- R6::R6Class(
           }
         }
       }
-      
+
       return(is_def_complete)
     },
 

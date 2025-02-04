@@ -63,9 +63,9 @@ household_model_template <- function(name = NULL, path = NULL) {
         #===== Asking for copying template to empty folder =====#
         dir.create(path, recursive = TRUE, showWarnings = FALSE)
         if (dir.exists(path)) {
-          templ_files <- c("model.cpp", 
-                           "model.h", 
-                           "template_params.R", 
+          templ_files <- c("model.cpp",
+                           "model.h",
+                           "template_params.R",
                            "template_info.Rd")
           for (f in templ_files) {
             from_file <- file.path(template_models_dir(), name, f)
@@ -74,15 +74,15 @@ household_model_template <- function(name = NULL, path = NULL) {
           for (f in c("template_augm.R")) {
             from_file <- file.path(template_models_dir(),
                                    name, f)
-            if (file.exists(from_file)) {                      
+            if (file.exists(from_file)) {
               overwrite(from_file, file.path(path, f))
             }
           }
 
         } else {
           stop(cli::format_error(c(
-               sprintf("Failed to create directory \"%s\".", path),
-               i = "Check your user permissions."
+            sprintf("Failed to create directory \"%s\".", path),
+            i = "Check your user permissions."
           )))
         }
       }
@@ -119,7 +119,7 @@ template_find_requirement <- function(refer_file,
 
   # check if reference file exists
   if (file.exists(refer_file)) {
-      
+
     # read the script and extract parameters
     script <- readChar(refer_file, file.info(refer_file)$size)
 
@@ -140,8 +140,8 @@ template_find_requirement <- function(refer_file,
     )))
 
     required_set <- NULL
-  } 
-  
+  }
+
   return(required_set)
 }
 
@@ -186,7 +186,7 @@ template_find_unused <- function(required_set,
     unused_set <- NULL
 
   } else {
-    unused_set <- c() 
+    unused_set <- c()
     for (name in def_set) {
       if (!(name %in% required_set)) {
         unused_set <- c(unused_set, name)
@@ -201,10 +201,10 @@ template_find_unused <- function(required_set,
 #' Collapse a character vector into string of quoted words.
 #' @param (`character()`)\cr
 #' Vector of characters.
-#' @return 
+#' @return
 #' String formatted as a list of quoted words.
 #' @noRd
 character_to_string_list <- function(mylist) {
-  return(paste(lapply(mylist, function(x) { paste0("\"", x ,"\"") } ),
-               collapse=", "))
+  return(paste(lapply(mylist, function(x) { paste0("\"", x, "\"") }),
+               collapse = ", "))
 }

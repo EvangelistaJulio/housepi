@@ -19,6 +19,8 @@
 #' @field export_params Return a DataFrame with current parameters.
 #' @field export_data Return a DataFrame with current database.
 #' @field export_traces Return a DataFrame with MCMC traces.
+#' @field export_household_loglike_traces Return a NumericMatrix with household loglikelihood traces.
+#' @field export_infec_profile Return a DataFrame values of the infectivity profile.
 #' @filed import_setup Import setup from R List.
 #' @filed import_infec_profile Import infectivity profile definition from R List.
 #' @filed import_params Import parameter definitions from R Data.Frame.

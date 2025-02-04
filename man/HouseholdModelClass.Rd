@@ -24,6 +24,7 @@ New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
 \item \href{#method-HouseholdModelClass-add_param}{\code{HouseholdModelClass$add_param()}}
 \item \href{#method-HouseholdModelClass-add_augm}{\code{HouseholdModelClass$add_augm()}}
 \item \href{#method-HouseholdModelClass-add_group_rate}{\code{HouseholdModelClass$add_group_rate()}}
+\item \href{#method-HouseholdModelClass-add_infectivity_profile}{\code{HouseholdModelClass$add_infectivity_profile()}}
 \item \href{#method-HouseholdModelClass-load_param_list}{\code{HouseholdModelClass$load_param_list()}}
 \item \href{#method-HouseholdModelClass-load_augm_list}{\code{HouseholdModelClass$load_augm_list()}}
 \item \href{#method-HouseholdModelClass-template_param}{\code{HouseholdModelClass$template_param()}}
@@ -32,6 +33,7 @@ New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
 \item \href{#method-HouseholdModelClass-export_traces}{\code{HouseholdModelClass$export_traces()}}
 \item \href{#method-HouseholdModelClass-export_param}{\code{HouseholdModelClass$export_param()}}
 \item \href{#method-HouseholdModelClass-export_augm}{\code{HouseholdModelClass$export_augm()}}
+\item \href{#method-HouseholdModelClass-export_infectivity_profile}{\code{HouseholdModelClass$export_infectivity_profile()}}
 \item \href{#method-HouseholdModelClass-summarise_data}{\code{HouseholdModelClass$summarise_data()}}
 \item \href{#method-HouseholdModelClass-summarise_traces}{\code{HouseholdModelClass$summarise_traces()}}
 \item \href{#method-HouseholdModelClass-drop_all_param}{\code{HouseholdModelClass$drop_all_param()}}
@@ -385,7 +387,7 @@ or parameter name (followed by \verb{@P})
 or data name (followed by \verb{@D}).}
 
 \item{\code{discrete}}{(\code{logical(1)})\cr
-IF \code{TRUE} the parameter is discrete.}
+IF \code{TRUE} the augmenter variable is discrete.}
 
 \item{\code{model}}{(\code{character(1)})\cr
 Name of the model distribution.}
@@ -479,6 +481,42 @@ Value of the minimum.}
 
 \item{\code{max}}{(\code{double(1)})\cr
 Value of the maximum.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-add_infectivity_profile"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_infectivity_profile}{}}}
+\subsection{Method \code{add_infectivity_profile()}}{
+Add definition of infectivity profile.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_infectivity_profile(
+  name,
+  discrete = FALSE,
+  args = list(),
+  min = NA,
+  max = NA
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{(\code{character(1)})\cr
+Name of the infectivity profile.}
+
+\item{\code{discrete}}{(\code{logical(1)})\cr
+If \code{TRUE} the profile is discrete.}
+
+\item{\code{args}}{(named \code{list()})\cr
+Arguments (eventually with types) for the profile.}
+
+\item{\code{min}}{(\code{double(1)})\cr
+Minimunm value of the support.}
+
+\item{\code{max}}{(\code{double(1)})\cr
+Maximum value of the support.}
 }
 \if{html}{\out{</div>}}
 }
@@ -626,6 +664,30 @@ Export the augmented variable definitions at current state.
 \subsection{Returns}{
 (\code{data.frame})\cr
 A data.frame with formatted augmented variable definitions.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-export_infectivity_profile"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_infectivity_profile}{}}}
+\subsection{Method \code{export_infectivity_profile()}}{
+Export instantaneoud and cumulative values of the infectivity profile.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_infectivity_profile(opts = list(), xlim = list())}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{opts}}{(\code{double()})\cr
+Additional values for the computation,}
+
+\item{\code{xlim}}{(\code{double(2)})\cr
+Adjust the x limits providing custom boundaries.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+@return (\code{data.frame})\cr
 }
 }
 \if{html}{\out{<hr>}}

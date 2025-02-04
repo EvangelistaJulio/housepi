@@ -73,7 +73,8 @@ format_string <- function(name) {
 
 # Generate a random string
 rnd_string <- function(size = 8) {
-  return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE), collapse = ""))
+  return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE),
+                collapse = ""))
 }
 
 # Returns the path/to/models folder

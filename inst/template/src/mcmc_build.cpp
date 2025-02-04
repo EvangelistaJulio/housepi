@@ -275,7 +275,7 @@ void MCMC::Impl::update_report_data()
 size_t MCMC::Impl::report_data(const std::string &key) const
 {
     size_t output = 0;
-    if (_report_data_.find(key) != _report_data_.end())
+    if (_report_data_.count(key))
         output = _report_data_.at(key);
 
     else
@@ -351,7 +351,7 @@ void MCMC::Impl::build_augm()
                         throw std::invalid_argument(
                             "Augmented variable name can not be undefined.");
 
-                    else if (name_status_check.find(a) == name_status_check.end())
+                    else if (name_status_check.count(a))
                         // new augmented variable status
                         name_status_check.emplace(a, str_vec{status});
 
@@ -784,7 +784,7 @@ void MCMC::Impl::show_full_build() const
 {
     //----- SETUP -----//
     std::string add_file_info = NULL_STRING;
-    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
+    if (_report_pathtofile_.count("setup"))
         if (!tools::is_na(_report_pathtofile_.at("setup")))
             add_file_info = "# import: " + _report_pathtofile_.at("setup");
 
@@ -793,7 +793,7 @@ void MCMC::Impl::show_full_build() const
 
     //----- PARAMETERS -----//
     add_file_info = NULL_STRING;
-    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
+    if (_report_pathtofile_.count("params"))
         if (!tools::is_na(_report_pathtofile_.at("params")))
             add_file_info = "# import: " + _report_pathtofile_.at("params");
 
@@ -802,7 +802,7 @@ void MCMC::Impl::show_full_build() const
 
     //----- DATABASE -----//
     add_file_info = NULL_STRING;
-    if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
+    if (_report_pathtofile_.count("data")) 
         if (!tools::is_na(_report_pathtofile_.at("data")))
             add_file_info = "# import: " + _report_pathtofile_.at("data");
 
@@ -811,7 +811,7 @@ void MCMC::Impl::show_full_build() const
 
     //----- AUGMENTED -----//
     add_file_info = NULL_STRING;
-    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
+    if (_report_pathtofile_.count("augm"))
         if (!tools::is_na(_report_pathtofile_.at("augm")))
             add_file_info = "# import: " + _report_pathtofile_.at("augm");
 
