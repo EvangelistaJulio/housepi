@@ -52,15 +52,18 @@ HousepiAugmentedClass <- R6::R6Class(
     param_require = function() {
       # from : augmented variable model argument definitions
       required_param_set <- c()
-      if ((!is.null(self$defs)) && (length(self$defs) > 0)) {
+      if (length(self$defs) > 0) {
         x <- self$defs[c("arg_value", "arg_type")]
         for (i in seq_along(x)) {
-          aux <- data.frame(
-            vals = strsplit(x[i, 1], "/")[[1]],
-            keys = strsplit(x[i, 2], "/")[[1]]
-          )
-          aux <- aux[aux[["keys"]] == "P", "vals"]
-          required_param_set <- c(required_param_set, aux[!is.na(aux)])
+          r <- unlist(x[i, ])
+          if (!any(is.na(r))){
+            arg2par <- data.frame(
+              vals = strsplit(r[1], "/")[[1]],
+              keys = strsplit(r[2], "/")[[1]]
+            )
+            required_param_set <- c(required_param_set,
+                                    arg2par[arg2par$keys == "P"]$vals)
+          }
         }
       }
       return(required_param_set)
@@ -371,8 +374,7 @@ HousepiAugmentedClass <- R6::R6Class(
           } else {
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
-            self$from_list(templ_defs[missing_set],
-                           append = TRUE)
+            self$from_list(templ_defs[missing_set], append = TRUE)
           }
         } else {
           self$from_list(templ_defs, append = FALSE)
@@ -405,7 +407,8 @@ HousepiAugmentedClass <- R6::R6Class(
       } else {
         # find missing augmented variables
         missing_set <- template_find_missing(requirements,
-                                             self$defs[["name"]])
+                                            self$defs[["name"]])
+
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           oss <- paste0("Missing parameter(s): ",

@@ -60,9 +60,9 @@ double Model::compute_house_loglike(Household &house) const
 		incub = house.augm(i, "onset") - house.augm(i, "exposure");
 
 		if (incub_distr_ptr->valid(incub))
-			output *= incub_distr_ptr->logpdf(incub);
+			output += incub_distr_ptr->logpdf(incub);
 		else
-			return -NULL_DOUBLE;
+			return -1.e-20;
 	}
 
 	return output;

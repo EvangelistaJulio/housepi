@@ -254,10 +254,7 @@ HousepiParameterClass <- R6::R6Class(
           } else {
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
-            self$from_list(
-              templ_defs[intersect(names(templ_defs), missing_set)],
-              append = TRUE
-            )
+            self$from_list(templ_defs[missing_set], append = TRUE)
           }
         } else {
           self$from_list(templ_defs, append = FALSE)

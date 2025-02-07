@@ -1,0 +1,171 @@
+---
+title: "Augmentat Onset Times"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Augmentat Onset Times}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+options(knitr.kable.NA = "")
+```
+
+This tutorial introduces to data augmentation with the package `housepi`.
+We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
+
+## Augment Onset Times
+
+For a more realistic example, we use the template model "ex-augm-onset-single-intro", where surveys are conditioned on single introduction and follow the times of onset.
+For simplicity the model assumes no asymptomatic cases.
+
+```{r}
+hmc <- housepi::HouseholdModelClass$new("eg-augm-onset-single-intro")
+```
+
+This time we load the parameter definitions directly from the model template.
+
+```{r}
+# use example parameters associated to the templated model
+hmc$template_param()
+
+# export the data.frame with parameter definitions
+par_2 <- hmc$export_param()
+```
+
+```{r, echo=FALSE}
+knitr::kable(par_2)
+```
+
+We propose the following definitions for the augmented variable
+
+```{r}
+# associate defininitions from a list
+aug_defs <- list(
+  # add augmented variable definition 'onset_date'
+  onset_date = list(
+    init_rand = TRUE,
+    model = "lnorm", args = list(meanlog = 4, sdlog = 0.5),
+    max = 365
+  ),
+  # add augmented variable definition 'incub_period'
+  incub_period = list(
+    init_rand = TRUE,
+    # assign arguments of incubation period from parameter definitions
+    model = "gamma", args = list(shape = "inc_shape@P",
+                                 scale = "inc_scale@P"),
+    max = 14
+  )
+)
+hmc$load_augm_list(aug_defs, append = FALSE)
+
+# append incubation period distribution parameters as constants
+hmc$load_param_list(list(inc_shape = 2, inc_scale = 1.1))
+```
+
+### Simulate an Outbreak
+
+We run a simulation with the method `simulate`.
+
+```{r}
+# override status of the dataset according to simulation
+data("survey", package = "housepi")
+hmc$simulate(dataset = survey, seed = 3731)
+
+# show a summary of the current dataset
+hmc$summarise_data()
+```
+
+In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
+This simulation, as all templated models, do not simulate a sampling process.
+
+```{r}
+# remove incubation period from simulated dataset
+dataset <- subset(hmc$export_data(), select = -c(incub_period))
+
+# change all onsets after 9 PM to next day
+is_infec <- dataset$status == 1
+dataset[is_infec, "onset_date"] <- sapply(
+  dataset[is_infec, "onset_date"],
+  function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
+)
+```
+
+```{r, echo=FALSE}
+knitr::kable(head(dataset))
+```
+
+### Validate the Simulation
+
+We can check that inference returns the parameters used for the simulation.
+
+```{r}
+# load definitions from list and drop previous definitions 
+hmc$load_augm_list(
+  list(
+    # add 'onset_date' definition
+    onset_date = list(
+      value = "onset_date@D",
+      rule = "norm", rule_scale = 0.25,
+      rule_from = "onset_date@D"
+    ),
+    # add 'incub_period' definition
+    incub_period = list(
+      init_rand = TRUE,
+      model = "gamma", args = list(shape = "inc_shape@P",
+                                   scale = "inc_scale@P"),
+      rule = "gibbs", max = 14
+    )
+  ),
+  append = FALSE
+)
+
+# perform the inference
+# note: NA onset dates of healthy individuals will raise a warning
+hmc$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
+          n_chains = 3, n_adapt = 2000, seed = 3413, progress = TRUE)
+```
+
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# plot the traces of all chains 
+lattice::xyplot(hmc$export_traces())
+```
+
+```{r}
+# collect the results
+results_2 <- hmc$summarise_traces()
+
+# compare results to parameter values used for inference
+imask <- par_2["constant"] == FALSE
+inames <- par_2[imask, "name"]
+results_2[inames, "Simul"] <- par_2[imask, "value"]
+```
+
+```{r, echo=FALSE}
+knitr::kable(results_2, digits = 3)
+
+# cross-machine checking
+# Mean	SD	Q2.5	Q97.5	Simul
+# alpha	0.000	0.000	0.000	0.000	0.00
+# beta	0.051	0.006	0.039	0.063	0.07
+# gamma	1.191	0.326	0.524	1.829	0.85
+# inf_vacc	0.861	0.310	0.364	1.577	0.50
+# sus_vacc	0.383	0.182	0.101	0.809	0.25
+```
+
+### Model Comparison
+
+We can estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
+
+```{r, eval=FALSE}
+# return the estimate of the model evidence
+hmc$evidence(n_rungs = 30)
+```
+

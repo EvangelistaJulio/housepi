@@ -342,8 +342,8 @@ void MCMC::Impl::build_augm()
                 //===== Check Augmented Variables lists of usage =====//
                 for (size_t k = 0; k < table_length; ++k)
                 {
-                    std::string a = deftable.at("name")[k];
-                    std::string status = deftable.at("status")[k];
+                    const std::string &a = deftable.at("name")[k];
+                    const std::string &status = deftable.at("status")[k];
                     bool is_init_rand = false;
 
                     // check that augmID and status are correct
@@ -352,20 +352,18 @@ void MCMC::Impl::build_augm()
                             "Augmented variable name can not be undefined.");
 
                     else if (name_status_check.count(a))
-                        // new augmented variable status
-                        name_status_check.emplace(a, str_vec{status});
-
-                    else
                     {
                         // check no multiple augmID with same status
                         const str_vec &mylist = name_status_check.at(a);
                         if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
                             name_status_check.at(a).push_back(status);
-
                         else
                             throw std::invalid_argument(
                                 "Incompatible definitions for augmented variable \"" + a + "\".");
                     }
+
+                    else // new augmented variable status
+                        name_status_check.emplace(a, str_vec{status});
 
                     // option for random initialization
                     if (!tools::is_na(deftable.at("init_rand")[k]))
@@ -391,26 +389,21 @@ void MCMC::Impl::build_augm()
 
                     for (const std::string &status : mylist)
                     {
-                        if (tools::is_na(status))
-                        {
-                            if (mylist.size() > 1)
-                                throw std::invalid_argument(
-                                    "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
-                        }
-                        else
+                        if (!tools::is_na(status))
                         {
                             int s = tools::stoi(status, "augmented status");
-                            if (s < INFECTED_STATUS)
-                            {
-                                throw std::invalid_argument(
-                                    "Impossible to associate augmented \"" + a + "\" for non infectious status.");
-                            }
-                            else
+                            if (s >= INFECTED_STATUS)
                             {
                                 augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
                                 augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
                             }
+                            else
+                                throw std::invalid_argument(
+                                    "Impossible to associate augmented \"" + a + "\" for non infectious status.");
                         }
+                        else if (mylist.size() > 1)
+                            throw std::invalid_argument(
+                                "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
 
                         augm_list_full.emplace(a);
                     }
@@ -437,16 +430,12 @@ void MCMC::Impl::build_augm()
                     {
                         augm_list_to_be_inferred.emplace(a);
 
-                        if (tools::is_na(status)) // generic definition
-                        {
-                            if (!is_augm_generic())
-                                for (const auto &pair : augm_status_map_infer)
-                                    augm_status_map_infer.at(pair.first).emplace(a);
-                        }
-                        else // status-specific definition
-                        {
+                        if (!tools::is_na(status)) // status-specific definition
                             augm_status_map_infer.at(tools::stoi(status, "augmented status")).emplace(a);
-                        }
+
+                        else if (!is_augm_generic()) // generic definition
+                            for (const auto &pair : augm_status_map_infer)
+                                augm_status_map_infer.at(pair.first).emplace(a);
                     }
 
                     //----- Augmented Variables with a Model -----//
@@ -454,16 +443,12 @@ void MCMC::Impl::build_augm()
                     {
                         augm_list_model.emplace(a);
 
-                        if (tools::is_na(status)) // generic definition
-                        {
-                            if (!is_augm_generic())
-                                for (const auto &pair : augm_status_map_model)
-                                    augm_status_map_model.at(pair.first).emplace(a);
-                        }
-                        else // status-specific definition
-                        {
+                        if (!tools::is_na(status)) // status-specific definition
                             augm_status_map_model.at(tools::stoi(status)).emplace(a);
-                        }
+
+                        else if (!is_augm_generic()) // generic definition
+                            for (const auto &pair : augm_status_map_model)
+                                augm_status_map_model.at(pair.first).emplace(a);
                     }
                 }
 
@@ -502,15 +487,13 @@ void MCMC::Impl::build_augm()
                 {
                     if (dgn_H_star == n_households)
                     {
+                        setup_id_trace = NULL_STRING;
                         tools::warning(
                             "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
-                        setup_id_trace = NULL_STRING;
                     }
                     else if (house_vector[dgn_H_star].status(dgn_i_star) < INFECTED_STATUS)
-                    {
                         tools::warning(
                             "Individual id \"" + setup_id_trace + "\" correspond to a healthy individual.");
-                    }
                 }
             }
         }
@@ -802,7 +785,7 @@ void MCMC::Impl::show_full_build() const
 
     //----- DATABASE -----//
     add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("data")) 
+    if (_report_pathtofile_.count("data"))
         if (!tools::is_na(_report_pathtofile_.at("data")))
             add_file_info = "# import: " + _report_pathtofile_.at("data");
 

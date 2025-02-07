@@ -1006,7 +1006,7 @@ void MCMC::simulate(bool is_progbar)
     progress::Bar progressbar("simulate", is_progbar);
 
 #ifdef _OPENMP
-    int thin_n_house = n_houses() / pBuild->setup_n_threads;
+    int thin_n_house = n_houses() / pImpl->setup_n_threads;
 #pragma omp parallel for default(shared)
     for (size_t H = 0; H < n_houses(); ++H)
     {
@@ -1015,7 +1015,7 @@ void MCMC::simulate(bool is_progbar)
 
         try
         {
-            simulate_single_house(pBuild->house_vector[H]);
+            simulate_single_house(pImpl->house_vector[H]);
         }
         catch (const std::exception &e)
         {

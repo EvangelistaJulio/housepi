@@ -34,7 +34,7 @@ double Distribution::logratio(double xold, double xnew, const dbl_vec &opts) con
 {
     if (xold == xnew)
         return 0.;
-    else 
+    else
         return (this->*_func_logratio_)(xold, xnew, opts);
 }
 double Distribution::rand(rnd_gen &prng)
@@ -49,16 +49,22 @@ double Distribution::rand(rnd_gen &prng)
 
 double Distribution::_pdf_(double x, const dbl_vec &opts) const
 {
+    UNUSED(x);
+    UNUSED(opts);
     throw std::invalid_argument(
         "Attempt to call undefined method \"pdf\" of distribution \"" + show_name() + "\".");
 }
 double Distribution::_cdf_(double x, const dbl_vec &opts) const
 {
+    UNUSED(x);
+    UNUSED(opts);
     throw std::invalid_argument(
         "Attempt to call undefined method \"cdf\" of distribution \"" + show_name() + "\".");
 }
 double Distribution::_logpdf_(double x, const dbl_vec &opts) const
 {
+    UNUSED(x);
+    UNUSED(opts);
     throw std::invalid_argument(
         "Attempt to call undefined method \"logpdf\" of distribution \"" + show_name() + "\".");
 }
@@ -66,6 +72,7 @@ double Distribution::_logratio_(double xold, double xnew, const dbl_vec &opts) c
 {
     UNUSED(xold);
     UNUSED(xnew);
+    UNUSED(opts);
     return 0.;
 }
 void Distribution::_update_args_() {};
@@ -281,7 +288,11 @@ double Distribution::_logtrunc_both_sides_discr_left_(double x, const dbl_vec &o
 //////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::_shift_dummy_(double x, const dbl_vec &opts) const { return x; }
+double Distribution::_shift_dummy_(double x, const dbl_vec &opts) const
+{
+    UNUSED(opts);
+    return x;
+}
 double Distribution::_shift_min_(double x, const dbl_vec &opts) const { return x - _cdf_(get_min(), opts); }
 double Distribution::_shift_min_discr_center_(double x, const dbl_vec &opts) const { return x - _cdf_(floor(get_min()) - .5, opts); }
 double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const { return x - _cdf_(floor(get_min()), opts); }
@@ -305,7 +316,7 @@ void Distribution::init_reshaping(bool discrete)
     ushort discr_case = D_DISCR_TYPE_NONE;
     if (discrete)
         discr_case = (tools::is_na(get_min())) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_LEFT;
-        
+
     init_discretization(discr_case);
     init_truncation(discr_case);
 }
@@ -614,7 +625,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-		_init_min_zero_reshaping_(discrete, false);
+        _init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -749,7 +760,7 @@ public:
     //==== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-		_init_min_zero_reshaping_(discrete, false);
+        _init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -807,7 +818,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-		_init_min_zero_reshaping_(discrete, false);
+        _init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -859,7 +870,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-		_init_min_zero_reshaping_(discrete, false);
+        _init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -917,7 +928,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-		_init_min_zero_reshaping_(discrete, false);
+        _init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -982,7 +993,8 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-		_init_min_zero_reshaping_(false, false);
+        UNUSED(discrete);
+        _init_min_zero_reshaping_(false, false);
     }
 
 protected:
@@ -1043,6 +1055,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
+        UNUSED(discrete);
         init_discretization(D_DISCR_TYPE_DFND);
 
         if (get_min() < 0.)
@@ -1113,7 +1126,8 @@ public:
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
-    {		
+    {
+        UNUSED(discrete);
         _init_min_zero_reshaping_(false, false);
     }
 
@@ -1172,6 +1186,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
+        UNUSED(discrete);
         _init_min_zero_reshaping_(false, false);
     }
 

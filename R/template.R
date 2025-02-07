@@ -156,8 +156,11 @@ template_find_requirement <- function(refer_file,
 #' @noRd
 template_find_missing <- function(required_set,
                                   def_set) {
-  if (is.null(required_set)) {
+  if (length(required_set) == 0) {
     missing_set <- NULL
+
+  } else if (length(def_set) == 0) {
+    missing_set <- unlist(required_set)
 
   } else {
     missing_set <- c()
@@ -182,7 +185,10 @@ template_find_missing <- function(required_set,
 #' @noRd
 template_find_unused <- function(required_set,
                                  def_set) {
-  if (is.null(required_set)) {
+  if (length(required_set) == 0) {
+    unused_set <- unlist(def_set)
+
+  } else if (length(def_set) == 0) {
     unused_set <- NULL
 
   } else {

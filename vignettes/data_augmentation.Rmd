@@ -31,9 +31,10 @@ We associate a positive status to all individuals and we correct for right censo
 
 ```{r}
 data("delays", package = "housepi")
-delays[["exposure_max"]] <- delays[["exposure_max"]] + 1 - 1e-4
-delays[["onset_max"]] <- delays[["onset_max"]] + 1 - 1e-4
-delays[["status"]] <- 1
+dataset <- delays
+dataset[["exposure_max"]] <- dataset[["exposure_max"]] + 0.999
+dataset[["onset_max"]] <- dataset[["onset_max"]] + 0.999
+dataset[["status"]] <- 1
 ```
 
 ```{r, echo=FALSE}
@@ -44,14 +45,20 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate an instance of the household model class
-hmc_1 <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
+hmc <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
-hmc_1$load_param_list(list(
-  shape = list(prior = "unif", args = list(min = 0, max = 5),
-               rule = "norm", rule_scale = 1),
-  scale = list(prior = "unif", args = list(min = 0, max = 5),
-               rule = "norm", rule_scale = 1)
+hmc$load_param_list(list(
+  shape = list(value = 2, constant = FALSE,
+               prior = "unif", 
+               args = list(min = 0, max = 5),
+               rule = "norm", 
+               rule_scale = 1),
+  scale = list(value = 1.1, constant = FALSE,
+               prior = "unif", 
+               args = list(min = 0, max = 5),
+               rule = "norm", 
+               rule_scale = 1)
 ))
 ```
 
@@ -64,179 +71,59 @@ Here we associate to each individual an exposure and an onset time.
 
 ```{r}
 # add 'exposure' time definition
-hmc_1$add_augm(
+hmc$add_augm(
   name = "exposure",
-  value = "exposure_min@D",            # start from data value 'exposure_min'
-  model = "unif",                      # associate a uniform model
-  args = list(min = "exposure_min@D",  # within the range 'exposure_min'
-              max = "exposure_max@D"), # and 'exposure_max'
-  rule = "norm",                       # normal rule for the Monte Carlo
-  rule_scale = 0.5                     # with std. dev. 0.5
+  value = "exposure_min@D", # start from data value 'exposure_min'
+  min = "exposure_min@D",   # move within the range 'exposure_min'
+  max = "exposure_max@D",   # and 'exposure_max'
+  rule = "norm",            # with a normal proposer rule for the Monte Carlo
+  rule_scale = 0.25          # with std. dev. 0.25
 )
 
 # add 'onset' time definition
-hmc_1$add_augm(
+hmc$add_augm(
   name = "onset",
   value = "onset_max@D",
-  model = "unif", args = list(min = "onset_min@D", max = "onset_max@D"),
-  rule = "norm", rule_scale = 0.5
+  min = "onset_min@D",
+  max = "onset_max@D",
+  rule = "norm", 
+  rule_scale = 0.25
 )
 ```
 
 We run the inference and we extract the results
 
 ```{r}
-hmc_1$infer(dataset = delays, n_steps = 100000, 
-            n_burnin = 10000, thin = 10, 
-            n_adapt = 2500, seed = 4349)
-# Note: The warning tells us that our dataset has no demographic structure:
-# it will be interpreted as single individuals living in separate households.
+hmc$infer(dataset = dataset, n_steps = 1e5, n_burnin = 1e4, 
+          thin = 10, n_adapt = 2500, seed = 4349)
+```
 
+Note: The warning tells us that our dataset has no demographic structure: 
+it will be interpreted as single individuals living in separate households.
+
+```{r}
 # collect the inference results
-results_1 <- hmc_1$summarise_traces()
-```
-
-## Augment Onset Times
-
-For a more realistic example, we use the template model "ex-augm-onset-single-intro", where surveys are conditioned on single introduction and follow the times of onset.
-For simplicity the model assumes no asymptomatic cases.
-
-```{r}
-hmc_2 <- housepi::HouseholdModelClass$new("eg-augm-onset-single-intro")
-```
-
-This time we load the parameter definitions directly from the model template.
-
-```{r}
-# use example parameters associated to the templated model
-hmc_2$template_param()
-
-# export the data.frame with parameter definitions
-par_2 <- hmc_2$export_param()
-```
-
-```{r, echo=FALSE}
-knitr::kable(par_2)
-```
-
-We propose the following definitions for the augmented variable
-
-```{r}
-# associate defininitions from a list
-aug_defs <- list(
-  # add augmented variable definition 'onset_date'
-  onset_date = list(
-    init_rand = TRUE,
-    model = "lnorm", args = list(meanlog = 4, sdlog = 0.5),
-    max = 365
-  ),
-  # add augmented variable definition 'incub_period'
-  incub_period = list(
-    init_rand = TRUE,
-    # assign arguments of incubation period from parameter definitions
-    model = "gamma", args = list(shape = "inc_shape@P",
-                                 scale = "inc_scale@P"),
-    max = 14
-  )
-)
-hmc_2$load_augm_list(aug_defs, append = FALSE)
-
-# use inferred values from first example as constant parameters
-par_defs <- list(
-  inc_shape = results_1["shape", "Mean"],
-  inc_scale = results_1["scale", "Mean"]
-)
-hmc_2$load_param_list(par_defs) # append by default
-```
-
-### Simulate an Outbreak
-
-We run a simulation with the method `simulate`.
-
-```{r}
-# override status of the dataset according to simulation
-data("survey", package = "housepi")
-hmc_2$simulate(dataset = survey, seed = 3731)
-
-# show a summary of the current dataset
-hmc_2$summarise_data()
-```
-
-In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
-This simulation, as all templated models, do not simulate a sampling process.
-
-```{r}
-# remove incubation period from simulated dataset
-dataset <- subset(hmc_2$export_data(), select = -c(incub_period))
-
-# change all onsets after 9 PM to next day
-is_infec <- dataset$status == 1
-dataset[is_infec, "onset_date"] <- sapply(
-  dataset[is_infec, "onset_date"],
-  function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
-)
-```
-
-```{r, echo=FALSE}
-knitr::kable(head(dataset))
-```
-
-### Validate the Simulation
-
-We can check that inference returns the parameters used for the simulation.
-
-```{r}
-# load definitions from list and drop previous definitions 
-hmc_2$load_augm_list(
-  list(
-    # add 'onset_date' definition
-    onset_date = list(
-      value = "onset_date@D",
-      rule = "norm", rule_scale = 0.25,
-      rule_from = "onset_date@D"
-    ),
-    # add 'incub_period' definition
-    incub_period = list(
-      init_rand = TRUE,
-      model = "gamma", args = list(shape = "inc_shape@P",
-                                   scale = "inc_scale@P"),
-      rule = "gibbs", max = 14
-    )
-  ),
-  append = FALSE
-)
-
-# perform the inference
-# note: NA onset dates of healthy individuals will raise a warning
-hmc_2$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
-            n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
-```
-
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# plot the traces of all chains 
-lattice::xyplot(hmc_2$export_traces())
+hmc$summarise_traces()
 ```
 
 ```{r}
-# collect the results
-results_2 <- hmc_2$summarise_traces()
-
-# compare results to parameter values used for inference
-imask <- par_2["constant"] == FALSE
-inames <- par_2[imask, "name"]
-results_2[inames, "Simul"] <- par_2[imask, "value"]
+lattice::xyplot(hmc$export_traces())
 ```
 
-```{r, echo=FALSE}
-knitr::kable(results_2, digits = 3)
-```
+```{r}
+hmc <- housepi::HouseholdModelClass$new()
 
-### Model Comparison
+# with model (default Gibbs rule)
+hmc$drop_all()$add_augm(name = "move_1", model = "norm")
+lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
 
-We can estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
+# w\o model random walk (default Gibbs rule)
+hmc$drop_all()$add_augm(name = "move_2", value = 0, rule = "norm")
+lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
 
-```{r, eval=FALSE}
-# return the estimate of the model evidence
-hmc_2$evidence(n_rungs = 30)
+# w\o model fixed  walk (default Gibbs rule)
+hmc$drop_all()$add_augm(name = "move_3", rule_from = 0, rule = "norm")
+
+lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
 ```
 

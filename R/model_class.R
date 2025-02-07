@@ -755,20 +755,15 @@ HouseholdModelClass <- R6::R6Class(
     template_param = function(append = TRUE) {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
-          "No template available for blank model."
+          "No template parameters available for blank model."
         ))
       } else {
-        
-        # FLAG
         # retrieve the template parameters file
-        templ_file <- file.path(dirname(refer_file), "template_params.R")
-        # retrieve the template augmented file
-        templ_file <- file.path(dirname(refer_file), "template_augm.R")
-        # FLAG-END
-
-        private$param$template(private$model$reference(),
-                               private$augm$defs,
-                               append)
+        private$param$template(
+          file.path(private$model$path(), "template_params.R"),
+          private$param$require(private$model$reference()), 
+          isTRUE(append)
+        )
       }
       invisible(self)
     },
@@ -781,11 +776,15 @@ HouseholdModelClass <- R6::R6Class(
     template_augm = function(append = TRUE) {
       if (private$model$is_blank) {
         cli::cli_alert_warning(cli::format_warning(
-          "No template available for blank model."
+          "No template augmented variables available for blank model."
         ))
       } else {
-        private$augm$template(private$model$reference(),
-                              append)
+        # retrieve the template augmented file
+        private$augm$template(
+          file.path(private$model$path(), "template_augm.R"),
+          private$augm$require(private$model$reference()), 
+          isTRUE(append)
+        )
       }
 
       invisible(self)
@@ -836,7 +835,7 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       # drop loglikelihood if flag is true
-      if (isTRUE(keep_loglike)) {
+      if (isFALSE(keep_loglike)) {
         df <- df[, names(df) != "loglikelihood"]
       }
 

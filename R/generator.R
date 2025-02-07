@@ -280,7 +280,7 @@ HousepiGeneratorClass <- R6::R6Class(
     },
 
     #' @description
-    #' Return envirnoment path if it exists, otherwise erro.
+    #' Return envirnoment path if it exists, otherwise error.
     #' @noRd
     path = function() {
       # reference script

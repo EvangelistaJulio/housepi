@@ -133,22 +133,3 @@ lattice::densityplot(hmc$export_traces(FALSE))
 ```
 
 Note that the proposer rule "lnorm" does not fit the case of negative values as it's here visible.
-
-## Augmented Variables
-
-```{r}
-# with model (default Gibbs rule)
-hmc$drop_all()$add_augm(name = "move_1", model = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
-
-# w\o model random walk (default Gibbs rule)
-hmc$drop_all()$add_augm(name = "move_2", value = 0, rule = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
-
-# w\o model fixed  walk (default Gibbs rule)
-hmc$drop_all()$add_augm(name = "move_3", rule_from = 0, rule = "norm")
-
-lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
-
-```
-

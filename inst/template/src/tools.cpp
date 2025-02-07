@@ -4,6 +4,7 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <algorithm>
 #include <unordered_set>
 #include <fstream>
 #include <iomanip>

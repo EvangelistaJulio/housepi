@@ -11,9 +11,11 @@ hmc <- housepi::HouseholdModelClass$new()
 
 size = 8
 prob = 0.25
-out <- hmc$add_infectivity_profile(
+hmc$add_infectivity_profile(
   name = "binom", args = list(size = size, prob = prob)
-)$export_infectivity_profile()
+)
+
+out <- hmc$export_infectivity_profile()
 plot(out[[1]], out[[3]], type="l")
 abline(h = 1, lty =2, col = "red")
 abline(h = 0, lty =2, col = "red")
@@ -28,16 +30,16 @@ lines(x, y, lty = 3, col = "green")
 ################################################################
 ################################################################
 
-# test ashcroft 20 #
 
-out <- hmc$add_infectivity_profile(
-  name = "lnorm", discrete = FALSE
-)$export_infectivity_profile()
+hmc$add_infectivity_profile(
+  name = "lnorm",
+  discrete = TRUE
+)
+out <- hmc$export_infectivity_profile(opts = list(2))
 
 plot(out[[1]], out[[2]], type="l")
 abline(h = 1, lty =2, col = "red")
 abline(h = 0, lty =2, col = "red")
-
 
 ################################################################
 ################################################################
