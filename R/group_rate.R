@@ -130,8 +130,7 @@ associate_param_names <- function(logic_table,
 #' @param is_ref
 #' if `TRUE` the if clause is "REFERENCE"
 #' @noRd
-cpp_ifclause_line <- function(r,
-                              is_ref = FALSE) {
+cpp_ifclause_line <- function(r, is_ref = FALSE) {
   mask <- setdiff(names(r), ".param_name")
   # if condition
   condition <- paste(
@@ -174,11 +173,26 @@ HousepiGroupRateClass <- R6::R6Class(
     logic_table = list(),
 
     #' @description
-    #' Assign the empty parameter data.frame
+    #' New instance of class [HousepiGroupRateClass][housepi::HousepiGroupRateClass].
     #' @noRd
     initialize = function() {
       self$drop_all()
       invisible(self)
+    },
+
+    #' @description
+    #' Find group rates required by the model.
+    #' @param refer_file
+    #' Path/to/.refer source file.
+    #' @noRd
+    require = function(refer_file) {
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # group rate from : .group_rate(..., "string"
+        '\\.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+      # find required group rates from regular expressions
+      return(template_find_requirement(refer_file, regular_expr))                                  
     },
 
     #' @description
@@ -308,30 +322,22 @@ HousepiGroupRateClass <- R6::R6Class(
     },
 
     #' @description
-    #' Assert group rate definitions from the implementation script.
-    #' @param refer_file (`character(1)`)\cr
-    #' path/to/.refer containing the model source.
+    #' Assert that parameter definitions match the requirement list.
+    #' @param requirements (`character()`)\cr
+    #' Vector containing required parameters.
     #' @return (`logical(1)`)\cr
     #' @noRd
-    assert = function(refer_file) {
+    assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-      # vector of regular expression to use for assertion
-      regular_expr <- c(
-        # group rate from : .group_rate(..., "string"
-        '\\.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      )
-      # retrieve required group rates from regular expressions
-      require_set <- template_find_requirement(refer_file, regular_expr)
-
-      if (is.null(require_set)) {
+      if (is.null(requirements)) {
         # if requirement set is NULL it means nothing can be said
         is_def_complete <- NA
 
       } else {
         # find missing parameters
-        missing_set <- template_find_missing(require_set,
+        missing_set <- template_find_missing(requirements,
                                              names(self$defs))
         if (length(missing_set) > 0) {
           oss <- paste0("Missing group rate(s): ",
@@ -342,7 +348,7 @@ HousepiGroupRateClass <- R6::R6Class(
         }
 
         # point out parameters that are not used
-        unused_set <- template_find_unused(require_set,
+        unused_set <- template_find_unused(requirements,
                                            names(self$defs))
         # drop unused parameters
         if (length(unused_set) > 0) {
@@ -436,21 +442,22 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Assert if group rates are implementated.
     #' @param dataset
     #' Dataset to be considered.
-    #' @param source_file
+    #' @param refer_file
     #' Path/to/model.cpp source code.
     #' @return (`logical(1)`)\cr
     #' `TRUE` if definitions exist and are up to date. 
     #' @noRd
     cpp_assert = function(dataset,
-                          source_file) {
+                          refer_file) {
       # check if there are user defined group rates
       if (length(self$defs) == 0) {
         # default is TRUE (i.e. no definitions)
         return(TRUE)
 
       } else {
-        # assert if group rates are complete
-        if (isFALSE(self$assert(source_file))) {
+        # assert that group rates are complete
+        requirements <- self$require(refer_file)
+        if (isFALSE(self$assert(requirements))) {
           cli::cli_alert_warning(cli::format_warning(c(
             "Ignoring incomplete group rate definitions.",
             i = "To implement changes in group rates, fill missing definitions."
@@ -461,7 +468,7 @@ HousepiGroupRateClass <- R6::R6Class(
           # produce associated script
           rate_script <- self$cpp_implement(dataset)
           # read source file
-          lines <- readLines(source_file)
+          lines <- readLines(refer_file)
           # check if the definitions are already implemented
           return(stringr::str_detect(paste(lines, collapse = "\n"),
                                       stringr::fixed(rate_script)))
@@ -477,17 +484,17 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Wheter code requires recompilation or not.
     #' @noRd
     cpp_write = function(dataset,
-                         source_file) {
+                         refer_file) {
 
       # check that source file exists
-      if (!file.exists(source_file)) {
+      if (!file.exists(refer_file)) {
         stop(cli::format_error("Impossible to find source file."))
       }
 
       # produce associated script
       rate_script <- self$cpp_implement(dataset)
       # read source file
-      lines <- readLines(source_file)
+      lines <- readLines(refer_file)
 
       # find the start of the method definition
       start_line <- grep("^void\\s+Model::assign_group_rate_to_individual\\s*\\(", lines)
@@ -535,7 +542,7 @@ HousepiGroupRateClass <- R6::R6Class(
         )
 
         # replace the source code
-        writeLines(lines, source_file)
+        writeLines(lines, refer_file)
       }
 
       invisible(self)

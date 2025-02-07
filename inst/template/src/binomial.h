@@ -9,18 +9,15 @@
 
 #include <string>
 #include <vector>
-#include <map>
-#include <cmath>
-#include <iostream>
-#include <sstream>
-#include <iomanip>
+
+#include "num_recipes.h"
 
 namespace bax
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-
+    
     using ushort = unsigned short int;
     using ulong = unsigned long int;
     using ushort_vec = std::vector<ushort>;
@@ -83,9 +80,9 @@ namespace bax
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     ulong factorial(ulong n);
-    ulong binomial_coefficient(ushort N, ushort k);
-    double log_binomial_coefficient(ushort N, ushort k);
-    double logratio_binomial_coefficient(ushort N, ushort kold, ushort knew);
+    ulong binom_coeff(ushort N, ushort k);
+    double log_binom_coeff(ushort N, ushort k);
+    double logratio_binom_coeff(ushort N, ushort kold, ushort knew);
 
     // functions for the generations lookup table
     void init_generations_lookuptable(ushort max_N);

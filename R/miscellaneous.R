@@ -1,0 +1,136 @@
+#
+# miscellaneous
+#
+# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+#
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+#' @title Housepi Infectivity Profile Class
+#' @description
+#' Auxiliary class to deal with infectivity profile.
+#' @export HousepiInfecProfileClass
+#' @docType class
+#' @noRd
+HousepiInfecProfileClass <- R6::R6Class(
+  classname = "HousepiInfecProfileClass",
+  cloneable = FALSE,
+
+  ###################
+  ##### PUBLIC ######
+  ###################
+
+  public = list(
+    defs = NULL,
+
+    #' @description
+    #' New instance of class [HousepiInfecProfileClass][housepi::HousepiInfecProfileClass].
+    #' @noRd
+    initialize = function() {
+      self$drop_all()
+      invisible(self)
+    },
+
+    #' @description
+    #' Find parameters required by infectivity profile variable definition.
+    #' @noRd
+    param_require = function() {
+      # from : augmented variable model argument definitions
+      required_param_set <- c()
+      if (is.list(self$defs) &&(length(self$defs) > 0)) {
+        if (!any(is.na((self$defs[c("arg_value", "arg_type")])))) {
+          aux <- data.frame(
+            vals = strsplit(self$defs[["arg_value"]], "/")[[1]],
+            keys = strsplit(self$defs[["arg_type"]], "/")[[1]]
+          )
+          aux <- aux[aux[["keys"]] == "P", "vals"]
+          required_param_set <- c(required_param_set, aux[!is.na(aux)])
+        }
+      }
+      return(required_param_set)
+    },
+
+    #' @description
+    #' Add definition of infectivity profile.
+    #' @param name (`character(1)`)\cr
+    #' Name of the infectivity profile.
+    #' @param discrete (`logical(1)`)\cr
+    #' IF `TRUE` the profile is discrete.
+    #' @param args (named `list()`)\cr
+    #' Arguments (eventually with types) for the profile.
+    #' @param min (`double(1)` | `character(1)`)\cr
+    #' One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`).
+    #' @param max (`double(1)` | `character(1)`)\cr
+    #' One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`).
+    #' @noRd
+    add = function(name,
+                   discrete = FALSE,
+                   args = list(),
+                   min = NA,
+                   max = NA) {
+      #----- name -----#
+      if (is.na(name)) {
+        stop(cli::format_error("Incomplete definition: missing name."))
+      }
+
+      #----- arguments -----#
+      arg_name_ <- NA
+      arg_value_ <- NA
+      arg_type_ <- NA
+      # assign method only if arguments are provided
+      if (length(args) > 0) {
+        arg_name_ <- str_join_(names(args))
+        tmp <- str_split_(args)
+        arg_value_ <- str_join_(tmp$var)
+        arg_type_ <- str_join_(tmp$typ)
+      }
+
+      #----- minimum value -----#
+      min_ <- NA
+      min_type_ <- NA
+      if (!is.na(min)) {
+        min_ <- str_split_(min)$var
+        min_type_ <- str_split_(min)$typ
+      }
+
+      #----- maximum value -----#
+      max_ <- NA
+      max_type_ <- NA
+      if (!is.na(max)) {
+        max_ <- str_split_(max)$var
+        max_type_ <- str_split_(max)$typ
+      }
+
+      # finally store definition
+      self$defs <- list(
+        name = name, discrete = isTRUE(discrete),
+        arg_name = arg_name_, arg_value = arg_value_, arg_type = arg_type_,
+        min = min_, min_type = min_type_, max = max_, max_type = max_type_
+      )
+
+      invisible(self)
+    },
+
+    #' @description
+    #' Drop current infectivity profile definition.
+    #' @noRd
+    drop_all = function() {
+      self$defs <- list()
+      invisible(self)
+    }
+  )
+)
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################

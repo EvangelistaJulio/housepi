@@ -84,7 +84,7 @@ double Model::compute_house_loglike(Household &house) const
 	{
 		// sum over all possible generations
 		double sero_positive_term = 0., tmp = 0.;
-		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive - 1]; c++)
+		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive - 1]; ++c)
 		{
 			// reference to the LUT
 			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive - 1][c];
@@ -95,17 +95,15 @@ double Model::compute_house_loglike(Household &house) const
 			tmp += (n_positive - 1 - gen_counts[0]) * log_p2p_esc_proba;
 
 			// GENERATION (i) : within house, i > 0
-			for (size_t i = 1; i < gen_counts.size(); i++)
+			for (size_t i = 1; i < gen_counts.size(); ++i)
 			{
 				// GENERATION (i) : infected by previous generation i - 1
 				// note : Greenwood modification
 				tmp += gen_counts[i] * log(1. - exp(log_p2p_esc_proba));
 
 				// GENERATION (i) : escaped from other generations g, i. e. 0 <= g < i - 1
-				for (size_t j = 0; j < i - 1; j++)
-				{
+				for (size_t j = 0; j < i - 1; ++j)
 					tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
-				}
 			}
 
 			// times n. of equivalent configurations returning the same kind of generation

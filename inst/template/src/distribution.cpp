@@ -4,187 +4,8 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include <cmath>
-
-#include "binomial.h"
 #include "distribution.h"
-
-#define D_DISCR_TYPE_NONE 0 // none
-#define D_DISCR_TYPE_LEFT 1 // left
-#define D_DISCR_TYPE_CNTR 2 // center
-#define D_DISCR_TYPE_DFND 3 // defined
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-#ifndef M_1_SQRT_2PI
-#define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2pi) */
-#endif
-
-#ifndef M_SQRT1_2
-#define M_SQRT1_2 0.707106781186547524400844362105 /* 1/sqrt(2) */
-#endif
-
-#ifndef M_LN_SQRT_2PI
-#define M_LN_SQRT_2PI 0.918938533204672741780329736406 /* log(sqrt(2pi)) */
-#endif
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  gamma_p : regularized incomplete gamma function  //////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
- * FIXME: To better reference this:
- * Press, Teukolsky, Vetterling, and Flannery
- * Numerical Recipes 3rd Edition: The Art of Scientific Computing
- */
-
-/* Logarithm of the beta function. */
-inline double lbeta(double a, double b)
-{
-    return lgamma(a) + lgamma(b) - lgamma(a + b);
-}
-
-namespace _gamma_p_impl_
-{
-    constexpr int MAX_ITER = 1000;
-    constexpr double EPSILON = 1.e-12;
-    constexpr double MIN_DBL = 1.e-30;
-
-    /* Lower regulairzed incomplete gamma function using series expansion. */
-    inline double series(double shape, double z)
-    {
-        double sum = 1. / shape;
-        double term = sum;
-        for (int i = 1; (term > EPSILON * sum) && (i <= MAX_ITER); ++i)
-        {
-            term *= z / (shape + i);
-            sum += term;
-        }
-        return sum * exp(-z + shape * log(z) - lgamma(shape));
-    }
-
-    /* Upper regularized incomplete gamma function using continued fraction. */
-    inline double continued_fraction(double shape, double z)
-    {
-        double b = z + 1. - shape;
-        double c = 1. / MIN_DBL;
-        double d = 1. / b;
-        double h = d;
-        double delta = 0.;
-
-        for (int i = 1; ((fabs(delta - 1.) > EPSILON) && (i <= MAX_ITER)); ++i)
-        {
-            double an = -i * (i - shape);
-            b += 2.;
-            d = an * d + b;
-            if (fabs(d) < MIN_DBL)
-                d = MIN_DBL;
-            c = b + an / c;
-            if (fabs(c) < MIN_DBL)
-                c = MIN_DBL;
-            d = 1. / d;
-            delta = c * d;
-            h *= delta;
-        }
-
-        return 1. - exp(-z + shape * log(z) - lgamma(shape)) * h;
-    }
-}
-
-/* Regularized incomplete gamma function. */
-inline double gamma_p(double shape, double z)
-{
-    if (z < shape + 10.)
-        return _gamma_p_impl_::series(shape, z);
-    else
-        return _gamma_p_impl_::continued_fraction(shape, z);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  ibeta : regularized incomplete beta function  ///////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace _ibeta_impl_
-{
-    constexpr double EPSILON = 1e-12;
-    constexpr int MAX_ITER = 1000;
-    constexpr double MIN_DBL = 1.e-30;
-
-    double series(double a, double b, double x)
-    {
-        double sum = 1. / a;
-        double term = sum;
-        double ap = a;
-        for (int n = 1; ((fabs(term) > EPSILON * fabs(sum)) && (n <= MAX_ITER)); ++n)
-        {
-            term *= (x * (ap + n - 1)) / (n * (b + n - 1));
-            sum += term;
-        }
-        return sum * pow(x, a);
-    }
-
-    double continued_fraction(double a, double b, double x)
-    {
-        double qab = a + b;
-        double qap = a + 1.0;
-        double qam = a - 1.0;
-        double c = 1.0;
-
-        double d = 1.0 - qab * x / qap;
-        if (fabs(d) < MIN_DBL)
-            d = MIN_DBL;
-        d = 1.0 / d;
-        double h = d;
-
-        double del = 0.;
-        for (int m = 1; ((fabs(del - 1.0) > EPSILON) && (m <= MAX_ITER)); ++m)
-        {
-            int m2 = 2 * m;
-            double aa = m * (b - m) * x / ((qam + m2) * (a + m2));
-            d = 1.0 + aa * d;
-            if (fabs(d) < MIN_DBL)
-                d = MIN_DBL;
-            c = 1.0 + aa / c;
-            if (fabs(c) < MIN_DBL)
-                c = MIN_DBL;
-            d = 1.0 / d;
-            h *= d * c;
-
-            aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
-            d = 1.0 + aa * d;
-            if (fabs(d) < MIN_DBL)
-                d = MIN_DBL;
-            c = 1.0 + aa / c;
-            if (fabs(c) < MIN_DBL)
-                c = MIN_DBL;
-            d = 1.0 / d;
-            del = d * c;
-            h *= del;
-        }
-        return 1. - h * exp(-lbeta(a, b));
-    }
-}
-
-/* Regularized incomplete beta function (normalized) */
-inline double ibeta(double a, double b, double x)
-{
-    // edge cases
-    if (x == 0.)
-        return 0.;
-    if (x == 1.)
-        return 1.;
-
-    // choose computation method based on x
-    if (x < (a + 1.) / (a + b + 2.))
-        return _ibeta_impl_::series(a, b, x);
-    else
-        return _ibeta_impl_::continued_fraction(a, b, x);
-}
+#include "num_recipes.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -211,20 +32,15 @@ double Distribution::logpdf(double x, const dbl_vec &opts) const
 }
 double Distribution::logratio(double xold, double xnew, const dbl_vec &opts) const
 {
-    return (this->*_func_logratio_)(xold, xnew, opts);
+    if (xold == xnew)
+        return 0.;
+    else 
+        return (this->*_func_logratio_)(xold, xnew, opts);
 }
 double Distribution::rand(rnd_gen &prng)
 {
     _update_args_();
     return (this->*_func_rand_)(prng);
-}
-
-/* Default reshaping initialization. */
-void Distribution::init_reshaping(bool discrete)
-{
-    init_range(false, false);
-    _init_discretization_((discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE);
-    _init_truncation_((discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,25 +142,25 @@ double Distribution::_discr_defined_logratio_(double xold, double xnew, const db
 
 double Distribution::_discr_center_pdf_(double x, const dbl_vec &opts) const
 {
-    double d = round(x);
+    const double d = round(x);
     return (this->*_func_trunc_)(_cdf_(d + .5, opts) - _cdf_(d - .5, opts), opts);
 }
 
 double Distribution::_discr_center_cdf_(double x, const dbl_vec &opts) const
 {
-    double d = round(x);
+    const double d = round(x);
     return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(d + .5, opts), opts), opts);
 }
 
 double Distribution::_discr_center_logpdf_(double x, const dbl_vec &opts) const
 {
-    return log(_discr_center_pdf_(x, opts));
+    return std::log(_discr_center_pdf_(x, opts));
 }
 
 double Distribution::_discr_center_logratio_(double xold, double xnew, const dbl_vec &opts) const
 {
-    double dold = round(xold), dnew = round(xnew);
-    return log((_cdf_(dnew + .5, opts) - _cdf_(dnew - .5, opts)) / (_cdf_(dold + .5, opts) - _cdf_(dold - .5, opts)));
+    const double dold = round(xold), dnew = round(xnew);
+    return std::log((_cdf_(dnew + .5, opts) - _cdf_(dnew - .5, opts)) / (_cdf_(dold + .5, opts) - _cdf_(dold - .5, opts)));
 }
 
 double Distribution::_discr_center_rand_(rnd_gen &prng)
@@ -359,7 +175,7 @@ double Distribution::_discr_center_rand_(rnd_gen &prng)
 
 double Distribution::_discr_left_pdf_(double x, const dbl_vec &opts) const
 {
-    double d = floor(x);
+    const double d = floor(x);
     return (this->*_func_trunc_)(_cdf_(d + 1., opts) - _cdf_(d, opts), opts);
 }
 
@@ -370,13 +186,13 @@ double Distribution::_discr_left_cdf_(double x, const dbl_vec &opts) const
 
 double Distribution::_discr_left_logpdf_(double x, const dbl_vec &opts) const
 {
-    return log(_discr_left_pdf_(x, opts));
+    return std::log(_discr_left_pdf_(x, opts));
 }
 
 double Distribution::_discr_left_logratio_(double xold, double xnew, const dbl_vec &opts) const
 {
-    double dold = floor(xold), dnew = floor(xnew);
-    return log((_cdf_(dnew + 1., opts) - _cdf_(dnew, opts)) / (_cdf_(dold + 1., opts) - _cdf_(dold, opts)));
+    const double dold = floor(xold), dnew = floor(xnew);
+    return std::log((_cdf_(dnew + 1., opts) - _cdf_(dnew, opts)) / (_cdf_(dold + 1., opts) - _cdf_(dold, opts)));
 }
 
 double Distribution::_discr_left_rand_(rnd_gen &prng) { return floor(_default_rand_(prng)); }
@@ -447,19 +263,19 @@ double Distribution::_logtrunc_dummy_(double x, const dbl_vec &opts) const
     UNUSED(opts);
     return x;
 }
-double Distribution::_logtrunc_min_(double x, const dbl_vec &opts) const { return x - log(1. - _cdf_(get_min(), opts)); }
-double Distribution::_logtrunc_max_(double x, const dbl_vec &opts) const { return x - log(_cdf_(get_max(), opts)); }
-double Distribution::_logtrunc_both_sides_(double x, const dbl_vec &opts) const { return x - log(_cdf_(get_max(), opts) - _cdf_(get_min(), opts)); }
+double Distribution::_logtrunc_min_(double x, const dbl_vec &opts) const { return x - std::log(1. - _cdf_(get_min(), opts)); }
+double Distribution::_logtrunc_max_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(get_max(), opts)); }
+double Distribution::_logtrunc_both_sides_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(get_max(), opts) - _cdf_(get_min(), opts)); }
 
 //----- Case of Center Discretization -----//
-double Distribution::_logtrunc_min_discr_center_(double x, const dbl_vec &opts) const { return x - log(1. - _cdf_(floor(get_min()) - .5, opts)); }
-double Distribution::_logtrunc_max_discr_center_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()) + .5, opts)); }
-double Distribution::_logtrunc_both_sides_discr_center_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()) + .5, opts) - _cdf_(floor(get_min()) - .5, opts)); }
+double Distribution::_logtrunc_min_discr_center_(double x, const dbl_vec &opts) const { return x - std::log(1. - _cdf_(floor(get_min()) - .5, opts)); }
+double Distribution::_logtrunc_max_discr_center_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()) + .5, opts)); }
+double Distribution::_logtrunc_both_sides_discr_center_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()) + .5, opts) - _cdf_(floor(get_min()) - .5, opts)); }
 
 //----- Case of Left Discretization -----//
-double Distribution::_logtrunc_min_discr_left_(double x, const dbl_vec &opts) const { return x - log(1. - _cdf_(floor(get_min()), opts)); }
-double Distribution::_logtrunc_max_discr_left_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()), opts)); }
-double Distribution::_logtrunc_both_sides_discr_left_(double x, const dbl_vec &opts) const { return x - log(_cdf_(ceil(get_max()), opts) - _cdf_(floor(get_min()), opts)); }
+double Distribution::_logtrunc_min_discr_left_(double x, const dbl_vec &opts) const { return x - std::log(1. - _cdf_(floor(get_min()), opts)); }
+double Distribution::_logtrunc_max_discr_left_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()), opts)); }
+double Distribution::_logtrunc_both_sides_discr_left_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()), opts) - _cdf_(floor(get_min()), opts)); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
@@ -470,18 +286,55 @@ double Distribution::_shift_min_(double x, const dbl_vec &opts) const { return x
 double Distribution::_shift_min_discr_center_(double x, const dbl_vec &opts) const { return x - _cdf_(floor(get_min()) - .5, opts); }
 double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const { return x - _cdf_(floor(get_min()), opts); }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  Base Distribution - reshaping  /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Default reshaping initialization. */
+void Distribution::init_reshaping(bool discrete)
+{
+    init_range(false, false);
+
+    ushort discr_case = D_DISCR_TYPE_NONE;
+    if (discrete)
+        discr_case = (tools::is_na(get_min())) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_LEFT;
+        
+    init_discretization(discr_case);
+    init_truncation(discr_case);
+}
+
+/* Frequent reshaping while domain has zero lower bound. */
+void Distribution::_init_min_zero_reshaping_(bool discrete, bool is_open_zero)
+{
+    ushort discr_case = (discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE;
+    init_discretization(discr_case);
+
+    if (get_min() < 0.)
+        throw std::invalid_argument(
+            "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
+    else if ((get_min() > 0.) || (!tools::is_na(get_max())))
+    {
+        init_range(((is_open_zero) ? (get_min() == 0.) : false), false);
+        init_truncation(discr_case);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Base Distribution : assign reshaping  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Tell if the distribution is discrete. */
-bool Distribution::is_discrete() const
-{
-    return _func_pdf_ != &Distribution::_default_pdf_;
-}
+bool Distribution::is_discrete() const { return _func_pdf_ != &Distribution::_default_pdf_; }
 
 /* Select functional method in case of discretization. */
-void Distribution::_init_discretization_(ushort discr_type)
+void Distribution::init_discretization(ushort discr_type)
 {
     //===== DISCRETIZATION =====//
     switch (discr_type)
@@ -520,7 +373,7 @@ void Distribution::_init_discretization_(ushort discr_type)
 }
 
 /* Select functional method in case of truncation. */
-void Distribution::_init_truncation_(ushort discr_type)
+void Distribution::init_truncation(ushort discr_type)
 {
     //----- TRUNCATION -----//
     switch (which_valid_case())
@@ -602,13 +455,13 @@ const std::map<double, dbl_vec> Distribution::showcase(dbl_vec opts, dbl_vec xli
     if (tools::is_na(lower))
         lower = xlim[0];
     else
-        xlim[0] = (xlim[0] < lower) ? lower : xlim[0];
+        lower = (xlim[0] < lower) ? lower : xlim[0];
 
     // adjust upper bound and limit
     if (tools::is_na(upper))
-        upper = xlim[1];
+        upper = (xlim[1] > lower) ? xlim[1] : lower + 20.;
     else
-        xlim[1] = (xlim[1] > upper) ? upper : xlim[1];
+        upper = (xlim[1] > upper) ? upper : xlim[1];
 
     // adjust binning width
     double delta_x = is_discrete() ? 1. : ((upper - lower) * 5.e-4);
@@ -645,8 +498,8 @@ public:
     //===== CONSTRUCTOR =====//
     Uniform_Distribution() : distr_gen(0., 1.)
     {
-        _init_defaults_("unif", {"min", "max"}, {0., 1.},
-                        NULL_DOUBLE, NULL_DOUBLE, false, false);
+        init_defaults("unif", {"min", "max"}, {0., 1.},
+                      NULL_DOUBLE, NULL_DOUBLE, false, false);
     }
     ~Uniform_Distribution() = default;
 
@@ -690,37 +543,6 @@ protected:
     }
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Normal Distribution : methods  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace normal_impl
-{
-    inline double pdf(double x, double mean, double sd)
-    {
-        return M_1_SQRT_2PI * exp(-.5 * pow((x - mean) / sd, 2)) / sd;
-    }
-    inline double cdf(double x, double mean, double sd)
-    {
-        return .5 + .5 * erf(M_SQRT1_2 * (x - mean) / sd);
-    }
-    inline double logpdf(double x, double mean, double sd)
-    {
-        return -.5 * pow((x - mean) / sd, 2) - M_LN_SQRT_2PI - log(sd);
-    }
-    inline double logratio(double xold, double xnew, double mean, double sd)
-    {
-        return .5 * (pow((xold - mean) / sd, 2) - pow((xnew - mean) / sd, 2));
-    }
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Normal Distribution : class  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -732,8 +554,8 @@ public:
     //===== CONSTRUCTOR =====//
     Normal_Distribution() : distr_gen(0., 1.)
     {
-        _init_defaults_("norm", {"mean", "sd"}, {0., 1.},
-                        NULL_DOUBLE, NULL_DOUBLE, false, false);
+        init_defaults("norm", {"mean", "sd"}, {0., 1.},
+                      NULL_DOUBLE, NULL_DOUBLE, false, false);
     }
     ~Normal_Distribution() = default;
 
@@ -750,59 +572,28 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return normal_impl::pdf(x, get_arg(0), get_arg(1));
+        return numr::normal::pdf(x, get_arg(0), get_arg(1));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return normal_impl::cdf(x, get_arg(0), get_arg(1));
+        return numr::normal::cdf(x, get_arg(0), get_arg(1));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return normal_impl::logpdf(x, get_arg(0), get_arg(1));
+        return numr::normal::logpdf(x, get_arg(0), get_arg(1));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return normal_impl::logratio(xold, xnew, get_arg(0), get_arg(1));
+        return numr::normal::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
 };
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Lognormal Distribution : methods  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace lognormal_impl
-{
-    inline double pdf(double x, double meanlog, double sdlog)
-    {
-        return exp(-.5 * pow((log(x) - meanlog) / sdlog, 2)) * M_1_SQRT_2PI / (x * sdlog);
-    }
-    inline double cdf(double x, double meanlog, double sdlog)
-    {
-        return .5 + .5 * erf(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
-    }
-    inline double logpdf(double x, double meanlog, double sdlog)
-    {
-        return -.5 * pow((log(x) - meanlog) / sdlog, 2) - log(x * sdlog) - M_LN_SQRT_2PI;
-    }
-    inline double logratio(double xold, double xnew, double meanlog, double sdlog)
-    {
-        return .5 * (pow((log(xold) - meanlog) / sdlog, 2) - pow((log(xnew) - meanlog) / sdlog, 2)) + log(xold / xnew);
-    }
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Lognormal Distribution : class  /////////////////////////////////
@@ -815,24 +606,15 @@ public:
     //===== CONSTRUCTOR =====//
     Lognormal_Distribution() : distr_gen(0., 1.)
     {
-        _init_defaults_("lnorm", {"meanlog", "sdlog"}, {0., 1.},
-                        0., NULL_DOUBLE, true, false);
+        init_defaults("lnorm", {"meanlog", "sdlog"}, {0., 1.},
+                      0., NULL_DOUBLE, false, false);
     }
     ~Lognormal_Distribution() = default;
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_discretization_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-
-        if (get_min() < 0)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0) || (!tools::is_na(get_max())))
-        {
-            init_range((get_min() == 0), false);
-            _init_truncation_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-        }
+		_init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -848,339 +630,28 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return lognormal_impl::pdf(x, get_arg(0), get_arg(1));
+        return numr::lognormal::pdf(x, get_arg(0), get_arg(1));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return lognormal_impl::cdf(x, get_arg(0), get_arg(1));
+        return numr::lognormal::cdf(x, get_arg(0), get_arg(1));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return lognormal_impl::logpdf(x, get_arg(0), get_arg(1));
+        return numr::lognormal::logpdf(x, get_arg(0), get_arg(1));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return lognormal_impl::logratio(xold, xnew, get_arg(0), get_arg(1));
+        return numr::lognormal::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
 };
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Gamma Distribution : methods  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace gamma_impl
-{
-    inline double pdf(double x, double shape, double scale)
-    {
-        return exp(-x / scale) * pow(x, shape - 1.) / (tgamma(shape) * pow(scale, shape));
-    }
-    inline double logpdf(double x, double shape, double scale)
-    {
-        return (shape - 1) * log(x) - lgamma(shape) - shape * log(scale) - x / scale;
-    }
-    inline double logratio(double xold, double xnew, double shape, double scale)
-    {
-        return (shape - 1) * (log(xnew / xold)) + (xold - xnew) / scale;
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Gamma Distribution : class  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Gamma Distribution derived class. */
-class Gamma_Distribution : public Distribution
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Gamma_Distribution() : distr_gen(1., 1.)
-    {
-        _init_defaults_("gamma", {"shape", "scale"}, {1., 1.},
-                        0., NULL_DOUBLE, false, false);
-    }
-    ~Gamma_Distribution() = default;
-
-    //==== SETTER =====//
-    void init_reshaping(bool discrete) override
-    {
-        _init_discretization_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-
-        if (get_min() < 0)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-        }
-    }
-
-protected:
-    std::gamma_distribution<double> distr_gen;
-
-    //==== SETTER =====//
-    void _update_args_() override
-    {
-        distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
-    }
-
-    //==== GETTER =====//
-    double _pdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return gamma_impl::pdf(x, get_arg(0), get_arg(1));
-    }
-    double _cdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return gamma_p(get_arg(0), x / get_arg(1));
-    }
-    double _logpdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return gamma_impl::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return gamma_impl::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double _rand_(rnd_gen &prng) override
-    {
-        return distr_gen(prng);
-    }
-};
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Weibull Distribution : methods  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace weibull_impl
-{
-    inline double _pdf_(double x, double shape, double scale)
-    {
-        return (shape / scale) * pow((x / scale), shape - 1.) * exp(-pow(x / scale, shape));
-    }
-    inline double _cdf_(double x, double shape, double scale)
-    {
-        return 1. - exp(-pow(x / scale, shape));
-    }
-    inline double _logpdf_(double x, double shape, double scale)
-    {
-        return log(shape / scale) + (shape - 1.) * log(x / scale) - pow(x / scale, shape);
-    }
-    inline double _logratio_(double xold, double xnew, double shape, double scale)
-    {
-        return (shape - 1.) * (log(xnew / xold)) + pow(xold / scale, shape) - pow(xnew / scale, shape);
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Weibull Distribution : class  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Weibull Distribution derived class. */
-class Weibull_Distribution : public Distribution
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Weibull_Distribution() : distr_gen(1., 1.)
-    {
-        _init_defaults_("weibull", {"shape", "scale"}, {1., 1.},
-                        0., NULL_DOUBLE, false, false);
-    }
-    ~Weibull_Distribution() = default;
-
-    //===== SETTER =====//
-    void init_reshaping(bool discrete) override
-    {
-        _init_discretization_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-
-        if (get_min() < 0)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-        }
-    }
-
-protected:
-    std::weibull_distribution<double> distr_gen;
-
-    //===== SETTER =====//
-    void _update_args_() override
-    {
-        distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
-    }
-
-    //===== GETTER =====//
-    double _pdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return weibull_impl::_pdf_(x, get_arg(0), get_arg(1));
-    }
-    double _cdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return weibull_impl::_cdf_(x, get_arg(0), get_arg(1));
-    }
-    double _logpdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return weibull_impl::_logpdf_(x, get_arg(0), get_arg(1));
-    }
-    double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return weibull_impl::_logratio_(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double _rand_(rnd_gen &prng) override
-    {
-        return distr_gen(prng);
-    }
-};
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Rayleigh Distribution : methods  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace rayleigh_impl
-{
-    inline double pdf(double x, double scale)
-    {
-        return x * pow(scale, -2) * exp(-.5 * pow(x / scale, 2));
-    }
-    inline double cdf(double x, double scale)
-    {
-        return 1. - exp(-.5 * pow(x / scale, 2));
-    }
-    inline double logpdf(double x, double scale)
-    {
-        return log(x) - 2 * log(scale) - .5 * pow(x / scale, 2);
-    }
-    inline double logratio(double xold, double xnew, double scale)
-    {
-        return log(xnew / xold) + .5 * pow(scale, -2) * (pow(xold, 2) - pow(xnew, 2));
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Rayleigh Distribution : class  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Rayleigh Distribution derived class. */
-class Rayleigh_Distribution : public Distribution
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Rayleigh_Distribution() : unif_gen(0., 1.)
-    {
-        _init_defaults_("rayleigh", {"scale"}, {1.},
-                        0., NULL_DOUBLE, false, false);
-    }
-    ~Rayleigh_Distribution() = default;
-
-    //===== SETTER =====//
-    void init_reshaping(bool discrete) override
-    {
-        _init_discretization_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-
-        if (get_min() < 0)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-        }
-    }
-
-protected:
-    std::uniform_real_distribution<double> unif_gen;
-
-    //===== GETTER =====//
-    double _pdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return rayleigh_impl::pdf(x, get_arg(0));
-    }
-    double _cdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return rayleigh_impl::cdf(x, get_arg(0));
-    }
-    double _logpdf_(double x, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return rayleigh_impl::logpdf(x, get_arg(0));
-    }
-    double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
-    {
-        UNUSED(opts);
-        return rayleigh_impl::logratio(xold, xnew, get_arg(0));
-    }
-    double _rand_(rnd_gen &prng) override
-    {
-        return get_arg(0) * sqrt(-2 * log(unif_gen(prng)));
-    }
-};
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Beta Distribution : methods  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace beta_impl
-{
-    inline double pdf(double x, double shape1, double shape2)
-    {
-        return exp((shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2));
-    }
-    inline double logpdf(double x, double shape1, double shape2)
-    {
-        return (shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2);
-    }
-    inline double logratio(double xold, double xnew, double shape1, double shape2)
-    {
-        return (shape1 - 1.) * log(xnew / xold) + (shape2 - 1.) * log((1. - xnew) / (1. - xold));
-    }
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Beta Distribution : class  /////////////////////////////////
@@ -1193,8 +664,8 @@ public:
     //===== CONSTRUCTOR =====//
     Beta_Distribution() : gamma_1(1., 1.), gamma_2(1., 1.)
     {
-        _init_defaults_("beta", {"shape1", "shape2"}, {1., 1.},
-                        0., 1., true, true);
+        init_defaults("beta", {"shape1", "shape2"}, {1., 1.},
+                      0., 1., true, true);
     }
     ~Beta_Distribution() = default;
 
@@ -1204,7 +675,7 @@ public:
         if (discrete)
             throw std::invalid_argument(
                 "Invalid option discrete for distribution \"" + show_name() + "\".");
-        _init_discretization_(D_DISCR_TYPE_NONE);
+        init_discretization(D_DISCR_TYPE_NONE);
 
         if (get_min() < 0)
             throw std::invalid_argument(
@@ -1215,7 +686,7 @@ public:
         else if ((get_min() > 0) || (get_max() < 1))
         {
             init_range((get_min() == 0), (get_max() == 1));
-            _init_truncation_(D_DISCR_TYPE_NONE);
+            init_truncation(D_DISCR_TYPE_NONE);
         }
     }
 
@@ -1234,22 +705,22 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return beta_impl::pdf(x, get_arg(0), get_arg(1));
+        return numr::beta::pdf(x, get_arg(0), get_arg(1));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return ibeta(get_arg(0), get_arg(1), x);
+        return numr::beta::cdf(x, get_arg(0), get_arg(1));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return beta_impl::logpdf(x, get_arg(0), get_arg(1));
+        return numr::beta::logpdf(x, get_arg(0), get_arg(1));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return beta_impl::logratio(xold, xnew, get_arg(0), get_arg(1));
+        return numr::beta::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double _rand_(rnd_gen &prng) override
     {
@@ -1259,36 +730,173 @@ protected:
     }
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Exponential  Distribution : methods  /////////////////////////////
+//////////////////////////////////  Gamma Distribution : class  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace exponential_impl
+/* Gamma Distribution derived class. */
+class Gamma_Distribution : public Distribution
 {
-    inline double pdf(double x, double rate)
+public:
+    //===== CONSTRUCTOR =====//
+    Gamma_Distribution() : distr_gen(1., 1.)
     {
-        return rate * exp(-rate * x);
+        init_defaults("gamma", {"shape", "scale"}, {1., 1.},
+                      0., NULL_DOUBLE, false, false);
     }
-    inline double cdf(double x, double rate)
+    ~Gamma_Distribution() = default;
+
+    //==== SETTER =====//
+    void init_reshaping(bool discrete) override
     {
-        return 1. - exp(-rate * x);
+		_init_min_zero_reshaping_(discrete, false);
     }
-    inline double logpdf(double x, double rate)
+
+protected:
+    std::gamma_distribution<double> distr_gen;
+
+    //==== SETTER =====//
+    void _update_args_() override
     {
-        return log(rate) - rate * x;
+        distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
-    inline double logratio(double xold, double xnew, double rate)
+
+    //==== GETTER =====//
+    double _pdf_(double x, const dbl_vec &opts) const override
     {
-        return rate * (xold - xnew);
+        UNUSED(opts);
+        return numr::gamma::pdf(x, get_arg(0), get_arg(1));
     }
-}
+    double _cdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::gamma::cdf(x, get_arg(0), get_arg(1));
+    }
+    double _logpdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::gamma::logpdf(x, get_arg(0), get_arg(1));
+    }
+    double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::gamma::logratio(xold, xnew, get_arg(0), get_arg(1));
+    }
+    double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
+    }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Rayleigh Distribution : class  ////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Rayleigh Distribution derived class. */
+class Rayleigh_Distribution : public Distribution
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Rayleigh_Distribution() : unif_gen(0., 1.)
+    {
+        init_defaults("rayleigh", {"scale"}, {1.},
+                      0., NULL_DOUBLE, false, false);
+    }
+    ~Rayleigh_Distribution() = default;
+
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override
+    {
+		_init_min_zero_reshaping_(discrete, false);
+    }
+
+protected:
+    std::uniform_real_distribution<double> unif_gen;
+
+    //===== GETTER =====//
+    double _pdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::rayleigh::pdf(x, get_arg(0));
+    }
+    double _cdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::rayleigh::cdf(x, get_arg(0));
+    }
+    double _logpdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::rayleigh::logpdf(x, get_arg(0));
+    }
+    double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::rayleigh::logratio(xold, xnew, get_arg(0));
+    }
+    double _rand_(rnd_gen &prng) override
+    {
+        return get_arg(0) * sqrt(-2 * std::log(unif_gen(prng)));
+    }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Weibull Distribution : class  /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Weibull Distribution derived class. */
+class Weibull_Distribution : public Distribution
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Weibull_Distribution() : distr_gen(1., 1.)
+    {
+        init_defaults("weibull", {"shape", "scale"}, {1., 1.},
+                      0., NULL_DOUBLE, false, false);
+    }
+    ~Weibull_Distribution() = default;
+
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override
+    {
+		_init_min_zero_reshaping_(discrete, false);
+    }
+
+protected:
+    std::weibull_distribution<double> distr_gen;
+
+    //===== SETTER =====//
+    void _update_args_() override
+    {
+        distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
+    }
+
+    //===== GETTER =====//
+    double _pdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::weibull::_pdf_(x, get_arg(0), get_arg(1));
+    }
+    double _cdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::weibull::_cdf_(x, get_arg(0), get_arg(1));
+    }
+    double _logpdf_(double x, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::weibull::_logpdf_(x, get_arg(0), get_arg(1));
+    }
+    double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
+    {
+        UNUSED(opts);
+        return numr::weibull::_logratio_(xold, xnew, get_arg(0), get_arg(1));
+    }
+    double _rand_(rnd_gen &prng) override
+    {
+        return distr_gen(prng);
+    }
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Exponential  Distribution : class  //////////////////////////////
@@ -1301,24 +909,15 @@ public:
     //===== CONSTRUCTOR =====//
     Exponential_Distribution() : distr_gen(1.)
     {
-        _init_defaults_("exp", {"rate"}, {1.},
-                        0., NULL_DOUBLE, false, false);
+        init_defaults("exp", {"rate"}, {1.},
+                      0., NULL_DOUBLE, false, false);
     }
     ~Exponential_Distribution() = default;
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_discretization_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-
-        if (get_min() < 0.)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0.) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(((discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE));
-        }
+		_init_min_zero_reshaping_(discrete, false);
     }
 
 protected:
@@ -1334,22 +933,22 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return exponential_impl::pdf(x, get_arg(0));
+        return numr::exponential::pdf(x, get_arg(0));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return exponential_impl::cdf(x, get_arg(0));
+        return numr::exponential::cdf(x, get_arg(0));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return exponential_impl::logpdf(x, get_arg(0));
+        return numr::exponential::logpdf(x, get_arg(0));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return exponential_impl::logratio(xold, xnew, get_arg(0));
+        return numr::exponential::logratio(xold, xnew, get_arg(0));
     }
     double _rand_(rnd_gen &prng) override
     {
@@ -1365,30 +964,6 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Poisson Distribution : methods  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace poisson_impl
-{
-    inline double pdf(double x, double lambda)
-    {
-        return exp(x * log(lambda) - lambda - lgamma(x + 1.));
-    }
-    inline double cdf(double x, double lambda)
-    {
-        return 1. - gamma_p(lambda, x + 1.);
-    }
-    inline double logpdf(double x, double lambda)
-    {
-        return x * log(lambda) - lambda - lgamma(x + 1.);
-    }
-    inline double logratio(double xold, double xnew, double lambda)
-    {
-        return (xnew - xold) * log(lambda) + lgamma(xold + 1.) - lgamma(xnew + 1.);
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Poisson Distribution : class  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1399,24 +974,15 @@ public:
     //===== CONSTRUCTOR =====//
     Poisson_Distribution() : distr_gen(1.)
     {
-        _init_defaults_("pois", {"lambda"}, {1.},
-                        0., NULL_DOUBLE, false, false);
+        init_defaults("pois", {"lambda"}, {1.},
+                      0., NULL_DOUBLE, false, false);
     }
     ~Poisson_Distribution() = default;
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_discretization_(D_DISCR_TYPE_DFND);
-
-        if (get_min() < 0.)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0.) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(D_DISCR_TYPE_DFND);
-        }
+		_init_min_zero_reshaping_(false, false);
     }
 
 protected:
@@ -1432,22 +998,22 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return poisson_impl::pdf(x, get_arg(0));
+        return numr::poisson::pdf(x, get_arg(0));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return poisson_impl::cdf(x, get_arg(0));
+        return numr::poisson::cdf(x, get_arg(0));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return poisson_impl::logpdf(x, get_arg(0));
+        return numr::poisson::logpdf(x, get_arg(0));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return poisson_impl::logratio(xold, xnew, get_arg(0));
+        return numr::poisson::logratio(xold, xnew, get_arg(0));
     }
     double _rand_(rnd_gen &prng) override
     {
@@ -1455,36 +1021,6 @@ protected:
     }
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Binomial Distribution : methods  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace binomial_impl
-{
-    inline double pdf(double x, double size, double prob)
-    {
-        return exp(bax::log_binomial_coefficient(size, x) + x * log(prob) + (size - x) * log(1. - prob));
-    }
-    inline double cdf(double x, double size, double prob)
-    {
-        return ibeta(size - x, x + 1, 1. - prob);
-    }
-    inline double logpdf(double x, double size, double prob)
-    {
-        return bax::log_binomial_coefficient(size, x) + x * log(prob) + (size - x) * log(1. - prob);
-    }
-    inline double logratio(double xold, double xnew, double size, double prob)
-    {
-        return bax::logratio_binomial_coefficient(size, xold, xnew) + (xnew - xold) * log(prob) + (xold - xnew) * log(1. - prob);
-    }
-}
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Binomial Distribution : class  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1496,23 +1032,30 @@ public:
     //===== CONSTRUCTOR =====//
     Binomial_Distribution() : distr_gen(4, .5)
     {
-        _init_defaults_("binom", {"size", "prob"}, {4, .5},
-                        0., NULL_DOUBLE, false, false);
+        // FIXME : setting size as domain just for testing
+        init_defaults("binom", {"size", "prob"}, {4, .5},
+                      0., 4, false, false);
+        assign_pointer_range_max(get_ptr_to_arg(0));
+        init_range(false, false);
     }
     ~Binomial_Distribution() = default;
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_discretization_(D_DISCR_TYPE_DFND);
+        init_discretization(D_DISCR_TYPE_DFND);
 
         if (get_min() < 0.)
             throw std::invalid_argument(
                 "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0.) || (!tools::is_na(get_max())))
+        else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
         {
+            if (get_max() > get_arg(0))
+                throw std::invalid_argument(
+                    "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size .");
+
             init_range(false, false);
-            _init_truncation_(D_DISCR_TYPE_DFND);
+            init_truncation(D_DISCR_TYPE_DFND);
         }
     }
 
@@ -1529,22 +1072,22 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return binomial_impl::pdf(x, get_arg(0), get_arg(1));
+        return numr::binomial::pdf(x, get_arg(0), get_arg(1));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return binomial_impl::cdf(x, get_arg(0), get_arg(1));
+        return numr::binomial::cdf(x, get_arg(0), get_arg(1));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return binomial_impl::logpdf(x, get_arg(0), get_arg(1));
+        return numr::binomial::logpdf(x, get_arg(0), get_arg(1));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return binomial_impl::logratio(xold, xnew, get_arg(0), get_arg(1));
+        return numr::binomial::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double _rand_(rnd_gen &prng) override
     {
@@ -1552,40 +1095,6 @@ protected:
     }
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  NegativeBinomial Distribution : methods  //////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace negativebinomial_impl
-{
-    inline double pdf(double x, double size, double prob)
-    {
-        return exp(bax::log_binomial_coefficient(x + size - 1, x) + x * log(1. - prob) + size * log(prob));
-    }
-    inline double cdf(double x, double size, double prob)
-    {
-        return ibeta(size, x + 1, prob);
-    }
-    inline double logpdf(double x, double size, double prob)
-    {
-        return bax::log_binomial_coefficient(x + size - 1, x) + x * log(1. - prob) + size * log(prob);
-    }
-    inline double logratio(double xold, double xnew, double size, double prob)
-    {
-        double output = 0.;
-        // ratio of the binomial coefficients
-        for (double i = 1.; i < size; ++i)
-            output += log((i + xnew) / (i + xold));
-        return output + (xnew - xold) * log(1. - prob);
-    }
-}
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  NegativeBinomial Distribution : class  ///////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1597,24 +1106,15 @@ public:
     //===== CONSTRUCTOR =====//
     NegativeBinomial_Distribution() : distr_gen(4, .5)
     {
-        _init_defaults_("nbinom", {"size", "prob"}, {4, .5},
-                        0., NULL_DOUBLE, false, false);
+        init_defaults("nbinom", {"size", "prob"}, {4, .5},
+                      0., NULL_DOUBLE, false, false);
     }
     ~NegativeBinomial_Distribution() = default;
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
-    {
-        _init_discretization_(D_DISCR_TYPE_DFND);
-
-        if (get_min() < 0.)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0.) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(D_DISCR_TYPE_DFND);
-        }
+    {		
+        _init_min_zero_reshaping_(false, false);
     }
 
 protected:
@@ -1630,22 +1130,22 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return binomial_impl::pdf(x, get_arg(0), get_arg(1));
+        return numr::negbinomial::pdf(x, get_arg(0), get_arg(1));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return negativebinomial_impl::cdf(x, get_arg(0), get_arg(1));
+        return numr::negbinomial::cdf(x, get_arg(0), get_arg(1));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return negativebinomial_impl::logpdf(x, get_arg(0), get_arg(1));
+        return numr::negbinomial::logpdf(x, get_arg(0), get_arg(1));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return negativebinomial_impl::logratio(xold, xnew, get_arg(0), get_arg(1));
+        return numr::negbinomial::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double _rand_(rnd_gen &prng) override
     {
@@ -1653,39 +1153,8 @@ protected:
     }
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Geometric Distribution : methods  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace geometric_impl
-{
-    inline double pdf(double x, double proba)
-    {
-        return proba * pow(1. - proba, x - 1.);
-    }
-    inline double cdf(double x, double proba)
-    {
-        return 1. - x * pow(1. - proba, x);
-    }
-    inline double logpdf(double x, double proba)
-    {
-        return log(proba) + (x - 1.) * log(1. - proba);
-    }
-    inline double logratio(double xold, double xnew, double proba)
-    {
-        return (xnew - xold) * log(1. - proba);
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Geometric  Distribution : class  //////////////////////////////
+////////////////////////////////  Geometric Distribution : class  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Geometric Distribution derived class. */
@@ -1695,24 +1164,15 @@ public:
     //===== CONSTRUCTOR =====//
     Geometric_Distribution() : distr_gen(1.)
     {
-        _init_defaults_("geom", {"proba"}, {0.5},
-                        0., NULL_DOUBLE, false, false);
+        init_defaults("geom", {"proba"}, {0.5},
+                      0., NULL_DOUBLE, false, false);
     }
     ~Geometric_Distribution() = default;
 
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_discretization_(D_DISCR_TYPE_DFND);
-
-        if (get_min() < 0.)
-            throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-        else if ((get_min() > 0.) || (!tools::is_na(get_max())))
-        {
-            init_range(false, false);
-            _init_truncation_(D_DISCR_TYPE_DFND);
-        }
+        _init_min_zero_reshaping_(false, false);
     }
 
 protected:
@@ -1728,35 +1188,28 @@ protected:
     double _pdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return geometric_impl::pdf(x, get_arg(0));
+        return numr::geometric::pdf(x, get_arg(0));
     }
     double _cdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return geometric_impl::cdf(x, get_arg(0));
+        return numr::geometric::cdf(x, get_arg(0));
     }
     double _logpdf_(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return geometric_impl::logpdf(x, get_arg(0));
+        return numr::geometric::logpdf(x, get_arg(0));
     }
     double _logratio_(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return geometric_impl::logratio(xold, xnew, get_arg(0));
+        return numr::geometric::logratio(xold, xnew, get_arg(0));
     }
     double _rand_(rnd_gen &prng) override
     {
         return distr_gen(prng);
     }
 };
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -1773,7 +1226,7 @@ protected:
 std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
 {
     const str_vec &options = {
-        "unif", "norm", "lnorm", "gamma", "weibull", "rayleigh", "beta", "exp",
+        "unif", "norm", "lnorm", "beta", "gamma", "rayleigh", "weibull", "exp",
         "pois", "binom", "nbinom", "geom"};
 
     if (tools::is_na(name))
@@ -1788,17 +1241,17 @@ std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
     else if (name == "lnorm")
         return std::make_shared<Lognormal_Distribution>();
 
+    else if (name == "beta")
+        return std::make_shared<Beta_Distribution>();
+
     else if (name == "gamma")
         return std::make_shared<Gamma_Distribution>();
-
-    else if (name == "weibull")
-        return std::make_shared<Weibull_Distribution>();
 
     else if (name == "rayleigh")
         return std::make_shared<Rayleigh_Distribution>();
 
-    else if (name == "beta")
-        return std::make_shared<Beta_Distribution>();
+    else if (name == "weibull")
+        return std::make_shared<Weibull_Distribution>();
 
     else if (name == "exp")
         return std::make_shared<Exponential_Distribution>();

@@ -43,12 +43,18 @@ public:
 	//===== CONSTRUCTOR =====//
 	InfecProfile_Ferretti20()
 	{
-		_init_defaults_("ferretti20",
-						{"shape", "loc", "scale", "incub"},
-						{5.85, -4.0, 1.85, 5.8},
-						NULL_DOUBLE, NULL_DOUBLE, false, false);
+		init_defaults("ferretti20",
+					  {"shape", "loc", "scale", "incub"},
+					  {5.85, -4.0, 1.85, 5.8},
+					  0., NULL_DOUBLE, false, false);
 	}
 	~InfecProfile_Ferretti20() = default;
+
+	//===== SETTER =====//
+	void init_reshaping(bool discrete) override
+	{
+		_init_min_zero_reshaping_(discrete, false);
+	}
 
 protected:
 	double _pdf_(double x, const dbl_vec &opts) const override
@@ -99,60 +105,6 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////// InfecProfile_Ashcroft20 : class //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/*
- ----
- Ref:
- ----
- Ashcroft P, Huisman JS, Lehtinen S, Bouman JA, Althaus CL, Regoes RR, et al.
- COVID-19 infectivity profile correction. Swiss medical weekly. 2020. p. w20336.
-*/
-class InfecProfile_Ashcroft20 : public Distribution
-{
-
-public:
-	//===== CONSTRUCTOR =====//
-	InfecProfile_Ashcroft20()
-	{
-		_init_defaults_("ashcroft20",
-						{"shape", "scale", "shift"},
-						{97.32, 0.268, 25.6},
-						NULL_DOUBLE, NULL_DOUBLE, false, false);
-
-		gamma_distr_ptr = distribution_switchboard("gamma");
-		gamma_distr_ptr->assign_pointer_arg("shape", get_ptr_to_arg(0));
-		gamma_distr_ptr->assign_pointer_arg("scale", get_ptr_to_arg(1));
-		gamma_distr_ptr->assign_pointer_range_min(get_ptr_to_arg(2));
-	}
-	~InfecProfile_Ashcroft20() = default;
-
-protected:
-	std::shared_ptr<Distribution> gamma_distr_ptr;
-
-	double _pdf_(double x, const dbl_vec &opts) const override
-	{
-		double i = opts.at(0); // incubation period
-		double tOST = x - i;   // t. from onset to transmission
-		return gamma_distr_ptr->pdf(tOST);
-	}
-
-	double _cdf_(double x, const dbl_vec &opts) const override
-	{
-		double i = opts.at(0); // incubation period
-		double tOST = x - i;   // t. from onset to transmission
-		return gamma_distr_ptr->cdf(tOST);
-	}
-};
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : Impl : infectivity profile  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,13 +112,10 @@ protected:
 /* Assign the infectivity profile. */
 void MCMC::Impl::switchboard_infec_profile(const std::string &name)
 {
-	const str_vec options = {"ferretti20", "ashcroft20"};
+	const str_vec options = {"ferretti20"};
 
 	if (name == "ferretti20")
 		_infec_profile_ = std::make_shared<InfecProfile_Ferretti20>();
-
-	else if (name == "ashcroft20")
-		_infec_profile_ = std::make_shared<InfecProfile_Ashcroft20>();
 
 	else
 	{
@@ -176,11 +125,29 @@ void MCMC::Impl::switchboard_infec_profile(const std::string &name)
 		}
 		catch (std::exception &e)
 		{
-			throw std::invalid_argument(
-				e.what() + tools::find_closest(name, options));
+			std::string prev = e.what();
+			if (prev.back() == '?') // found closest amongst distributions
+				throw std::invalid_argument(prev);
+			else // search between infectivity profiles
+			{
+				std::string curr = tools::find_closest(name, options, 3);
+				if (curr.back() == '?') // found closest amongst infec profiles
+					throw std::invalid_argument(
+						"Unknown infectivity profile \"" + name + "\"." + curr);
+				else // combined error messages
+					throw std::invalid_argument(
+						prev + " Implemented infectivity profile(s): " + tools::show_list(options) + ".");
+			}
 		}
 	}
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  MCMC : Impl : assign infectivity profile arguments  ////////////////////
@@ -256,7 +223,8 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 										  const std::string &min_type)
 {
 	if (tools::is_na(min_value) && tools::is_na(min_type))
-		; // pass
+		// impose minimum equal to 0.
+		_infec_profile_->assign_scalar_range_min(0.);
 
 	else if (!tools::is_na(min_value) && tools::is_na(min_type))
 		throw std::invalid_argument(
@@ -269,9 +237,7 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 	else if (min_value == TYPE_PARAM)
 	{
 		if (param_map.at(min_value).is_constant())
-		{
 			_infec_profile_->assign_scalar_range_min(get_param(min_value));
-		}
 		else
 		{
 			_infec_profile_->assign_pointer_range_min(get_param_pointer(min_value));
@@ -285,6 +251,11 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 	else
 		throw std::invalid_argument(
 			"Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
+
+	// check minimum is correct
+	if (_infec_profile_->get_min() < 0.)
+		throw std::invalid_argument(
+			"Minimum of infectivity profile must be greater than 0");
 }
 
 /* Assign maximum of infectivity profile. */
@@ -305,9 +276,7 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 	else if (max_type == TYPE_PARAM)
 	{
 		if (param_map.at(max_value).is_constant())
-		{
 			_infec_profile_->assign_scalar_range_max(get_param(max_value));
-		}
 		else
 		{
 			_infec_profile_->assign_pointer_range_max(get_param_pointer(max_value));

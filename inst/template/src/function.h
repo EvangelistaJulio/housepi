@@ -34,9 +34,11 @@ public:
 
     //===== GETTER =====//
     double get_arg(ushort i) const;
-    const double *get_ptr_to_arg(ushort i) const;
     double get_min() const;
     double get_max() const;
+    const double *get_ptr_to_arg(ushort i) const;
+    const double *get_ptr_to_min() const;
+    const double *get_ptr_to_max() const;
     bool valid(double x) const;
     ushort which_valid_case() const;
 
@@ -60,7 +62,7 @@ public:
     const std::string show_max() const;
 
 protected:
-    void _init_defaults_(const std::string &name,
+    void init_defaults(const std::string &name,
                          const str_vec &arg_name,
                          const dbl_vec &arg_value,
                          double domain_min,

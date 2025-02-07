@@ -198,9 +198,11 @@ Function::~Function() = default;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 double Function::get_arg(ushort i) const { return pImpl->arguments[i].get(); }
-const double *Function::get_ptr_to_arg(ushort i) const { return pImpl->arguments[i].get_ptr(); }
 double Function::get_min() const { return pImpl->range_min.get(); }
 double Function::get_max() const { return pImpl->range_max.get(); }
+const double *Function::get_ptr_to_arg(ushort i) const { return pImpl->arguments[i].get_ptr(); }
+const double *Function::get_ptr_to_min() const { return pImpl->range_min.get_ptr(); }
+const double *Function::get_ptr_to_max() const { return pImpl->range_max.get_ptr(); }
 bool Function::valid(double x) const { return pImpl->valid(x); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -385,7 +387,7 @@ const std::string Function::show_max() const { return pImpl->range_max.show(); }
 //-----------------------------------------------------------------------------------------------//
 
 /* Initial defaults for function. */
-void Function::_init_defaults_(const std::string &name,
+void Function::init_defaults(const std::string &name,
                                const str_vec &arg_name,
                                const dbl_vec &arg_value,
                                double domain_min,

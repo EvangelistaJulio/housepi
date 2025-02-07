@@ -12,14 +12,12 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <cmath>
-#include <algorithm>
 
 // note : flag used to predispose to different wrappers
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-// 
+//
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -82,7 +80,7 @@ using rnd_gen = std::mt19937;
 //////////////////////////////////////////  MACROS  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define UNUSED(x) (void)(x) // MACRO to avoid unused compiler warnings
+#define UNUSED(x) (void)(x) // MACRO to avoid 'unused' warnings from compiler
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
@@ -192,9 +190,19 @@ namespace tools
     double stod(const std::string &input, const std::string &errtxt = "");
 
     // formatter for the case NA
-    double natod(const std::string &input, const std::string &errtxt = "");
+    double natod(const std::string &input,
+                 const std::string &errtxt = "");
     double natod(double x);
     const std::string natostring(double x);
+
+    // format a list of string options
+    const std::string show_list(const str_vec &options);
+    // calculate Levenshtein distance
+    ushort levenshtein(const std::string &s1, const std::string &s2);
+    // find the closest match
+    const std::string find_closest(const std::string &input,
+                                   const str_vec &options,
+                                   ushort min_dist = 2);
 
     // argument string parser
     const str_vec parse_list_args(const std::string &tkn,
@@ -210,12 +218,6 @@ namespace tools
     // Welford online algorithm for mean and variance
     void compute_stats(const dbl_vec &data, double &avg, double &var);
 
-    // calculate Levenshtein distance
-    ushort levenshtein(const std::string &s1, const std::string &s2);
-    // find the closest match
-    const std::string find_closest(const std::string &input,
-                                   const str_vec &options,
-                                   ushort min_dist = 2);
     // check for unused entries from a vector of options and throw exception
     void check_unused_entries(const str_vec &entries, const str_vec &options);
 }
@@ -231,9 +233,9 @@ namespace tools
 //////////////////////////////////  Progress Bar Namespace  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Class for custom progress bar. */
 namespace progress
 {
-    /* Class for custom progress bar. */
     class Bar
     {
     public:
@@ -247,8 +249,7 @@ namespace progress
         void finalize();
 
     private:
-        // Pointer to Implementation
-        class Impl;
+        class Impl; // Pointer to Implementation
         std::unique_ptr<Impl> pImpl;
     };
 }

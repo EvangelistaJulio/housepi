@@ -203,8 +203,8 @@ public:
     Rcpp::DataFrame export_data() const;
     Rcpp::DataFrame export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_traces() const;
-    Rcpp::DataFrame export_infec_profile(const Rcpp::List opts,
-                                         const Rcpp::List xlim) const;
+    Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
+                                         const Rcpp::List &xlim) const;
 
 #endif
 
@@ -271,7 +271,7 @@ public:
     //===== INFECTIVITY PROFILE =====//
     //===============================//
 
-    std::shared_ptr<Distribution> _infec_profile_;
+    std::shared_ptr<Distribution> _infec_profile_ = nullptr;
     void switchboard_infec_profile(const std::string &name);
     void assign_infec_profile_args(const str_vec &keys,
                                    const str_vec &vals,

@@ -23,6 +23,7 @@ HouseholdModelClass <- R6::R6Class(
     param = NULL,
     augm = NULL,
     group_rate = NULL,
+    infec_profile = NULL,
 
     ############################################################################
     ############################################################################
@@ -30,60 +31,61 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Assert if parameter definitions match the implementation script.
-    # @return (`logical(1)`)
+    #' @description
+    #' Assert if parameter definitions match the implementation script.
+    #' @return (`logical(1)`)
+    #' @noRd
     assert_param = function() {
+      # extract requirements from reference file
+      # note is.null(c()) -> TRUE
       if (private$model$is_blank) {
-        cli::cli_alert_warning(cli::format_warning(
-          "No check for blank model."
-        ))
-        return(NA)
-
+        requirements <- c()
       } else {
-        # FIXME : infectivity profile can depend on parameters!
-        # reorganize param$assert to be a function of mandatory params
-        return(private$param$assert(
-          private$model$reference(), private$augm$defs
-        ))
+        refer_file <- private$model$reference()
+        requirements <- private$param$require(refer_file)
       }
+      requirements <- c(requirements,
+                        private$augm$param_require(),
+                        private$infec_profile$param_require())
+      return(private$param$assert(requirements))
     },
 
-    # @description
-    # Assert if augmented definitions match the model implementation script.
-    # @return (`logical(1)`)
+    #' @description
+    #' Assert if augmented definitions match the model implementation script.
+    #' @return (`logical(1)`)
+    #' @noRd
     assert_augm = function() {
       if (private$model$is_blank) {
-        cli::cli_alert_warning(cli::format_warning(
-          "No check available for blank model."
-        ))
-        return(NA)
+        return(TRUE)
       } else {
-        return(private$augm$assert(private$model$reference()))
+        refer_file <- private$model$reference()
+        requirements <- private$augm$require(refer_file)
+        return(private$augm$assert(requirements))
       }
     },
 
-    # @description
-    # Assert group rate definitions from the model implementation script.
-    # @return (`logical(1)`)\cr
+    #' @description
+    #' Assert group rate definitions from the model implementation script.
+    #' @return (`logical(1)`)\cr
+    #' @noRd
     assert_group_rate = function() {
       if (private$model$is_blank) {
-        cli::cli_alert_warning(cli::format_warning(
-          "No check available for blank model."
-        ))
-        return(NA)
+        return(TRUE)
       } else {
-        return(private$group_rate$assert(private$model$reference()))
+        refer_file <- private$model$reference()
+        requirements <- private$group_rate$require(refer_file)
+        return(private$group_rate$assert(requirements))
       }
     },
 
-    # @description
-    # Assert that dataset headers match implementation file.
-    # @param refer_file (`character()`)\cr
-    # Path/to/.refer source file.
-    # @param data_headers (`character()`)\cr
-    # Vector with the dataset headers.
-    # @return (`logical(1)`)\cr
+    #' @description
+    #' Assert that dataset headers match implementation file.
+    #' @param refer_file (`character()`)\cr
+    #' Path/to/.refer source file.
+    #' @param data_headers (`character()`)\cr
+    #' Vector with the dataset headers.
+    #' @return (`logical(1)`)\cr
+    #' @noRd
     assert_data = function(refer_file, data_headers) {
       # logical state for complete definitions
       is_def_complete <- TRUE
@@ -121,9 +123,11 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Pre-build to deal with group rates.
-    # @param dataset
+    #' @description
+    #' Pre-build to deal with group rates.
+    #' @param dataset (`data.frame`)\cr
+    #' The dataset from which to extract group rates.
+    #' @noRd
     build_group_rate = function(dataset) {
       # proceed only if group rate definitions are new and complete
       if (isFALSE(
@@ -172,8 +176,33 @@ HouseholdModelClass <- R6::R6Class(
       return(self)
     },
 
-    # @description
-    # Associate dataset to the model and options for the setup.
+    #' @description
+    #' Associate dataset to the model and options for the setup.
+    #' @param dataset (`character(1)` | `data.frame`)\cr
+    #' Path to a csv file or a data.frame containing the dataset.
+    #' @param n_steps (`integer(1)`)\cr
+    #' Number of MCMC steps.
+    #' @param n_burnin (`integer(1)`)\cr
+    #' Number of steps to discard at the beginning of the sample.
+    #' @param thin (`integer(1)`)\cr
+    #' Number of steps to discard between each sample.
+    #' @param n_adapt (`integer(1)`)\cr
+    #' Number of steps with finite adptation before sampling.
+    #' @param n_chains (`integer(1)`)\cr
+    #' Number of independent MCMC chains.
+    #' @param n_threads (`integer(1)`)\cr
+    #' Number of threads for the parallelization of the loglikelihood.
+    #' @param rand_init (`logical(1)`)\cr
+    #' If `TRUE` the initial value of the parameters is drawn from prior.
+    #' @param id_trace (`character(1)`)\cr
+    #' Individual identifier to show augmented traces. Default is NA.
+    #' @param inv_temper (`double(1)`)\cr
+    #' Value of the inverse temperature.
+    #' For standard usage this is 1.
+    #' @param seed (`integer(1)`)\cr
+    #' Seed of the random number generator.
+    #' If `NA` uses the internal clock (default).
+    #' @noRd
     build = function(dataset = NULL,
                      n_steps = 1000,
                      n_burnin = 0,
@@ -216,15 +245,15 @@ HouseholdModelClass <- R6::R6Class(
             stop("Incomplete dataset headers.")
           }
         }
+      }
 
-        # assert parameter definitions
-        if (isFALSE(private$assert_param())) {
-          stop("Incomplete parameter definitions.")
-        }
-        # assert augmented variable definitions
-        if (isFALSE(private$assert_augm())) {
-          stop("Incomplete augmented variable definitions.")
-        }
+      # assert parameter definitions
+      if (isFALSE(private$assert_param())) {
+        stop("Incomplete parameter definitions.")
+      }
+      # assert augmented variable definitions
+      if (isFALSE(private$assert_augm())) {
+        stop("Incomplete augmented variable definitions.")
       }
 
       #----- MODEL GENERATION -----#
@@ -273,9 +302,9 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       #----- 5) INFECTIVITY PROFILE -----#
-      if (!is.null(private$model$infec_prof_def)) {
+      if (!is.null(private$infec_profile$defs)) {
         private$model$rcpp$import_infec_profile(
-          lapply(private$model$infec_prof_def, as.character)
+          lapply(private$infec_profile$defs, as.character)
         )
       }
 
@@ -297,13 +326,13 @@ HouseholdModelClass <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Create a new instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
+    #' New instance of class [HouseholdModelClass][housepi::HouseholdModelClass].
     #' @param model (`character(1)`)\cr
     #' One between:
     # - template name;
     # - path/to/folder with implementation;
     # - path/to/folder with previously compiled model;
-    # - "blank" template name.
+    # - "blank": template name for blank model (default).
     #' @param quiet (`logical(1)`)\cr
     #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
@@ -311,10 +340,17 @@ HouseholdModelClass <- R6::R6Class(
     #' @param as_template (`logical(1)`)\cr
     #' If `TRUE` store the dynamic library as a local template.
     #' IF `FALSE` recompile the model at every new session.
-    initialize = function(model,
+    initialize = function(model = NA,
                           quiet = TRUE,
                           force = FALSE,
                           as_template = FALSE) {
+      if (is.na(model)) {
+        model <- "blank"
+        cli::cli_alert_warning(cli::format_warning(
+          "No model specified. Falling back to default \"blank\" model."
+        ))
+      }
+
       # assign model definitions
       private$model <- HousepiGeneratorClass$new(model = model,
                                                  quiet = quiet,
@@ -353,9 +389,9 @@ HouseholdModelClass <- R6::R6Class(
     #' @param n_steps (`integer(1)`)\cr
     #' Number of MCMC steps.
     #' @param n_burnin (`integer(1)`)\cr
-    #' Number of steps to discard from the sample.
+    #' Number of steps to discard at the beginning of the sample.
     #' @param thin (`integer(1)`)\cr
-    #' Steps discarded between each sample.
+    #' Number of steps to discard between each sample.
     #' @param n_adapt (`integer(1)`)\cr
     #' Number of steps with finite adptation before sampling.
     #' @param n_chains (`integer(1)`)\cr
@@ -464,9 +500,9 @@ HouseholdModelClass <- R6::R6Class(
     #' @param n_steps (`integer(1)`)\cr
     #' Number of MCMC steps.
     #' @param n_burnin (`integer(1)`)\cr
-    #' Number of steps to discard from the sample.
+    #' Number of steps to discard at the beginning of the sample.
     #' @param thin (`integer(1)`)\cr
-    #' Steps discarded between each sample.
+    #' Number of steps to discard between each sample.
     #' @param n_adapt (`integer(1)`)\cr
     #' Number of steps with finite adptation before sampling.
     #' @param n_chains (`integer(1)`)\cr
@@ -550,10 +586,14 @@ HouseholdModelClass <- R6::R6Class(
     #' Add a new augmented variable definition.
     #' @param name (`character(1)`)\cr
     #' Name of the augmented variable.
+    #' @param status (`integer(1)`)\cr
+    #' The associated status of the definition.
+    #' Default NA is for all infectious.
     #' @param value (`double(1)` | `character(1)`)\cr
-    #' Scalar value
-    #' or parameter name (followed by `@P`)
-    #' or data name (followed by `@D`).
+    #' One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`);
+    #' - Data name (followed by `@D`).
     #' @param discrete (`logical(1)`)\cr
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param model (`character(1)`)\cr
@@ -566,16 +606,21 @@ HouseholdModelClass <- R6::R6Class(
     #' Scale parameter for the proposal rule.
     #' @param rule_from (`double(1)` | `character(1)`)\cr
     #' Advanced options for non random walk moves.
-    #' @param min (`double(1)`)\cr
-    #' Value of the minimum.
-    #' @param max (`double(1)`)\cr
-    #' Value of the maximum.
+    #' `FIXME: missing`
+    #' @param min (`double(1)` | `character(1)`)\cr
+    #' Minimum value. One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`);
+    #' - Data name (followed by `@D`).
+    #' @param max (`double(1)` | `character(1)`)\cr
+    #' Maxmimum tvalue. One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`);
+    #' - Data name (followed by `@D`).
     #' @param init_rand (`character(1)`)\cr
     #' If `TRUE` draw initial vale from model distribution.
-    #' @param status (`integer(1)`)\cr
-    #' The associated status of the definition.
-    #' Default NA is for all infectious.
     add_augm = function(name = NA,
+                        status = NA,
                         value = NA,
                         discrete = FALSE,
                         model = NA,
@@ -585,8 +630,7 @@ HouseholdModelClass <- R6::R6Class(
                         rule_from = NA,
                         min = NA,
                         max = NA,
-                        init_rand = FALSE,
-                        status = NA) {
+                        init_rand = FALSE) {
       private$augm$add(name = name, status = status,
                        value = value, discrete = discrete,
                        model = model, args = args, rule = rule,
@@ -651,22 +695,26 @@ HouseholdModelClass <- R6::R6Class(
     #' @param name (`character(1)`)\cr
     #' Name of the infectivity profile.
     #' @param discrete (`logical(1)`)\cr
-    #' If `TRUE` the profile is discrete.
+    #' IF `TRUE` the profile is discrete.
     #' @param args (named `list()`)\cr
     #' Arguments (eventually with types) for the profile.
-    #' @param min (`double(1)`)\cr
-    #' Minimunm value of the support.
-    #' @param max (`double(1)`)\cr
-    #' Maximum value of the support.
+    #' @param min (`double(1)` | `character(1)`)\cr
+    #' One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`).
+    #' @param max (`double(1)` | `character(1)`)\cr
+    #' One between:
+    #' - Scalar value;
+    #' - Parameter name (followed by `@P`).
     add_infectivity_profile = function(name,
                                        discrete = FALSE,
                                        args = list(),
                                        min = NA,
                                        max = NA) {
-      private$model$add_infectivity_profile(
+      private$infec_profile$add(
         name = name, discrete = discrete,
-        args = args, min = min, max = max
-      )
+        args = args, min = min, max = max)
+      invisible(self)
     },
 
     ############################################################################
@@ -710,6 +758,14 @@ HouseholdModelClass <- R6::R6Class(
           "No template available for blank model."
         ))
       } else {
+        
+        # FLAG
+        # retrieve the template parameters file
+        templ_file <- file.path(dirname(refer_file), "template_params.R")
+        # retrieve the template augmented file
+        templ_file <- file.path(dirname(refer_file), "template_augm.R")
+        # FLAG-END
+
         private$param$template(private$model$reference(),
                                private$augm$defs,
                                append)
@@ -757,12 +813,12 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Export the traces of last inference call as a coda object.
-    #' @param loglikelihood (`logical(1)`)\cr
+    #' @param keep_loglike (`logical(1)`)\cr
     #' If `FALSE` don't export the trace of the loglikelihood.
     #' Default is `TRUE`.
     #' @return
     #' (`coda::mcmc` | `coda::mcmc.list`)
-    export_traces = function(loglikelihood = TRUE) {
+    export_traces = function(keep_loglike = TRUE) {
 
       # load traces from last inference
       df <- NULL
@@ -779,8 +835,8 @@ HouseholdModelClass <- R6::R6Class(
         )))
       }
 
-      # remove loglikelihood if
-      if (isFALSE(loglikelihood)) {
+      # drop loglikelihood if flag is true
+      if (isTRUE(keep_loglike)) {
         df <- df[, names(df) != "loglikelihood"]
       }
 
@@ -828,23 +884,46 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Export instantaneoud and cumulative values of the infectivity profile.
     #' @param opts (`double()`)\cr
-    #' Additional values for the computation,
+    #' Additional values for the computation.
     #' @param xlim (`double(2)`)\cr
-    #' Adjust the x limits providing custom boundaries.
+    #' Customize the left and/or right limits for the x axis.
+    #' To keep the default value of one limit, set it to `NA`.
     #' @return @return (`data.frame`)\cr
     export_infectivity_profile = function(opts = list(),
-                                          xlim = list()) {
-      if (is.null(private$model$rcpp)) {
-        private$build()
-      }
+                                          xlim = double()) {
+      # internal build function
+      private$build()
+      
+      # load options
+      opts_ <- as.list(as.numeric(opts))
 
-      if (length(xlim) > 0) {
-        if (length(xlim) == 2) {
-          xlim <- lapply(xlim, as.character)
+      # load x-limits
+      xlim_ <- list()
+      xlim <- unlist(xlim)
+      if (length(xlim) == 2) {
+        if (!all(is.na(xlim))) {
+          # check 
+          if (!any(is.na(xlim))) {
+            if (xlim[[1]] == xlim[[2]]) {
+              stop(cli::format_error(
+                "Left x limit larger than right limit."
+              ))
+            } else if (xlim[[1]] > xlim[[2]]) {
+              stop(cli::format_error(
+                "Left x limit equal to right limit."
+              ))
+            }
+          }
+          xlim_ <- lapply(xlim, as.character)
+          names(xlim_) <- c("min", "max")
         }
+      } else if (length(xlim) > 0) {
+        stop(cli::format_error(
+          "Provide exactly 2 limits for the x axis."
+        ))
       }
 
-      return(private$model$rcpp$export_infec_profile(opts, xlim))
+      return(private$model$rcpp$export_infec_profile(opts_, xlim_))
     },
 
     #' @description
@@ -905,13 +984,14 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Drop all current definitions.
     drop_all = function() {
-      # assign the empty parameter data.frame
+      # initialize parameter helper
       private$param <- HousepiParameterClass$new()
-      # assign the empty augmented data.frame
+      # initialize augmented helper
       private$augm <- HousepiAugmentedClass$new()
-      # assign the empty group rate list
+      # initialize group rate helper
       private$group_rate <- HousepiGroupRateClass$new()
-
+      # initialize infectivity profile helper
+      private$infec_profile <- HousepiInfecProfileClass$new()
       invisible(self)
     },
 

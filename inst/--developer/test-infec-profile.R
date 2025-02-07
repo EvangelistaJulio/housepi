@@ -1,23 +1,79 @@
 
-hmc <- housepi::HouseholdModelClass$new("blank")
+hmc <- housepi::HouseholdModelClass$new()
 
-hmc$add_infectivity_profile(
-  name = "lnorm", 
-)
+################################################################
+################################################################
+################################################################
+################################################################
+################################################################
 
-# FIXME: the string-ization of the values is still to be fixed...
-out <- hmc$export_infectivity_profile(
-  xlim = list(max = "5")
-)
+# test binomial cdf #
+
+size = 8
+prob = 0.25
+out <- hmc$add_infectivity_profile(
+  name = "binom", args = list(size = size, prob = prob)
+)$export_infectivity_profile()
+plot(out[[1]], out[[3]], type="l")
+abline(h = 1, lty =2, col = "red")
+abline(h = 0, lty =2, col = "red")
+
+x <- seq(min(out[[1]]), max(out[[1]]), out[[1]][2] - out[[1]][1])
+y <- pbinom(x, size = size, prob = prob)
+lines(x, y, lty = 3, col = "green")
+
+################################################################
+################################################################
+################################################################
+################################################################
+################################################################
+
+# test ashcroft 20 #
+
+out <- hmc$add_infectivity_profile(
+  name = "lnorm", discrete = FALSE
+)$export_infectivity_profile()
 
 plot(out[[1]], out[[2]], type="l")
+abline(h = 1, lty =2, col = "red")
+abline(h = 0, lty =2, col = "red")
 
-x <- seq(0, 5, 0.01)
-y <- dlnorm(x)
-lines(x, y, type="l", lty=2, col = "red")
 
-# FIXME: changing profile requires to generate a new one...
+################################################################
+################################################################
+################################################################
+################################################################
+################################################################
 
-#lines(out[[1]], out[[3]], type="l", col = "red")
-# FIXME: beta cdf is still very wrong
+# test regularised incomplete beta function #
+
+shape1 = 0.02
+shape2 = 105.6
+out <- hmc$add_infectivity_profile(
+  name = "beta", args = list(shape1 = shape1, shape2 = shape2)
+  )$export_infectivity_profile()
+plot(out[[1]], out[[3]], type="l")
+abline(h = 1, lty =2, col = "red")
+abline(h = 0, lty =2, col = "red")
+
+x <- seq(min(out[[1]]), max(out[[1]]), 0.001)
+y <- pbeta(x, shape1 = shape1, shape2 = shape2)
+lines(x, y, lty =3, col = "green")
+
+
+
+# test regularised incomplete gamma function #
+
+shape = 0.5
+scale = 10.3
+out <- hmc$add_infectivity_profile(
+  name = "gamma", args = list(shape = shape, scale = scale)
+)$export_infectivity_profile(xlim = c(NA, 50))
+plot(out[[1]], out[[3]], type="l")
+abline(h = 1, lty =2, col = "red")
+abline(h = 0, lty =2, col = "red")
+
+x <- seq(min(out[[1]]), max(out[[1]]), 0.001)
+y <- pgamma(x, shape = shape, scale = scale)
+lines(x, y, lty =3, col = "green")
 

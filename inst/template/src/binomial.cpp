@@ -4,6 +4,12 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <cmath>
+#include <map>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+
 #include "binomial.h"
 
 namespace bax
@@ -31,64 +37,6 @@ namespace bax
 	std::vector<EscapePattern> ChainBinomial_LookupTable;
 	// lookup-table to store combinations and complements
 	matrix<EscapePattern> EscapePatterns_LookupTable;
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////////
-
-	/* Standard definition for the factorial. */
-	ulong factorial(ulong n)
-	{
-		ulong result = 1;
-		for (ulong i = 2; i <= n; ++i)
-			result *= i;
-		return result;
-	}
-
-	/* Binomial coefficient of N elements in k positions */
-	ulong binomial_coefficient(ushort N, ushort k)
-	{
-		if ((N > 0) && (k != N))
-		{
-			ulong result = N;
-			ushort stop = (k > N - k) ? k : N - k; // use symmetry
-			for (ushort i = 1; i < stop; ++i)
-				result = (result * (N - i)) / (i + 1);
-			return result;
-		}
-
-		return 1;
-	}
-
-	/* Logarithm of binomial coefficient. */
-	double log_binomial_coefficient(ushort N, ushort k)
-	{
-		if ((N > 0) && (k != N))
-		{
-			double result = log(N);
-			ushort stop = (k > N - k) ? k : N - k; // use symmetry
-			for (ushort i = 1; i < stop; ++i)
-				result += log(N - i) - log(i + 1);
-			return result;
-		}
-		return 0.;
-	}
-
-	/* Log-ratio of binomial coefficients. */
-	double logratio_binomial_coefficient(ushort N, ushort kold, ushort knew)
-	{
-		if ((N > 0) && (kold != knew))
-		{
-			double result = 0.;
-			if (kold > knew)
-				std::swap(kold, knew);
-
-			for (ushort i = kold + 1; i <= knew; ++i)
-				result += log(N - i + 1) - log(i);
-			return result;
-		}
-		return 0.;
-	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  Escape Pattern : Class   ///////////////////////////////////
@@ -219,7 +167,7 @@ namespace bax
 			{
 				std::map<ushort, ushort> freq_map = {};
 				gentype counts = {};
-				ulong multiplicities = factorial(n);
+				ulong multiplicities = numr::factorial(n);
 
 				// I take advantage of the order granted by the map
 				for (ushort val : g)
@@ -234,7 +182,7 @@ namespace bax
 				for (const auto &x : freq_map)
 				{
 					counts.push_back(x.second);
-					multiplicities /= factorial(x.second);
+					multiplicities /= numr::factorial(x.second);
 				}
 
 				// add to the list
@@ -343,7 +291,7 @@ namespace bax
 
 			for (ushort k = 0; k < N; ++k)
 			{
-				num_combin = binomial_coefficient(N, k);
+				num_combin = numr::binom_coeff(N, k);
 				Num_Combin_LookupTable[N][k] = num_combin;
 				Combinations_LookupTable[N][k].resize(num_combin);
 				store_combinations(N, k);

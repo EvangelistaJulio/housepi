@@ -10,11 +10,12 @@
 ############################################################################
 ############################################################################
 
-# @title Housepi Generator Class
-# @description
-# Help with generating model Rcpp object.
-# @export HousepiGeneratorClass
-# @docType class
+#' @title Housepi Generator Class
+#' @description
+#' Help with generating model Rcpp object.
+#' @export HousepiGeneratorClass
+#' @docType class
+#' @noRd
 HousepiGeneratorClass <- R6::R6Class(
   classname = "HousepiGeneratorClass",
   cloneable = FALSE,
@@ -35,8 +36,9 @@ HousepiGeneratorClass <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Create temporary folder and copy source code there.
+    #' @description
+    #' Create temporary folder and copy source code there.
+    #' @noRd
     copy_source_code = function(source_dir) {
 
       # source directory must contain source files
@@ -77,8 +79,9 @@ HousepiGeneratorClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # remove all cache files
+    #' @description
+    #' remove all cache files
+    #' @noRd
     clear_cache = function() {
       cache_files <- file.path(self$cache_dir,
                                c("src", "R", "NAMESPACE", "DESCRIPTION"))
@@ -87,8 +90,9 @@ HousepiGeneratorClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Load model dynamic library.
+    #' @description
+    #' Load model dynamic library.
+    #' @noRd
     load = function() {
       # load dynamic library
       dyn.load(private$dll)
@@ -103,10 +107,11 @@ HousepiGeneratorClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Compile and load the source files inside cached directory.
-    # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
-    # To avoid recompiling immutable files I just touch them.
+    #' @description
+    #' Compile and load the source files inside cached directory.
+    #' Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
+    #' To avoid recompiling immutable files I just touch them.
+    #' @noRd
     compile = function() {
       # source folder within cache directory
       cache_dir_src <- file.path(self$cache_dir, "src")
@@ -146,23 +151,23 @@ HousepiGeneratorClass <- R6::R6Class(
     rcpp = NULL,
     cache_dir = NA,
     is_blank = FALSE,
-    infec_prof_def = NULL,
 
-    # @description
-    # Initialize model generator defining name of dynamic library.
-    # @param model_choice (`character(1)`)\cr
-    # One between:
-    # - template name;
-    # - path/to/folder with implementation;
-    # - path/to/folder with previously compiled model;
-    # - "blank" template name.
-    # @param quiet (`logical(1)`)\cr
-    # If `TRUE` hide compilation commands.
-    # @param force (`logical(1)`)\cr
-    # If `TRUE` compile even if a cached model already exists.
-    # @param as_template (`logical(1)`)\cr
-    # If `TRUE` store the dynamic library as a local template.
-    # IF `FALSE` recompile the model at every new session.
+    #' @description
+    #' Initialize model generator defining name of dynamic library.
+    #' @param model_choice (`character(1)`)\cr
+    #' One between:
+    #' - template name;
+    #' - path/to/folder with implementation;
+    #' - path/to/folder with previously compiled model;
+    #' - "blank" template name.
+    #' @param quiet (`logical(1)`)\cr
+    #' If `TRUE` hide compilation commands.
+    #' @param force (`logical(1)`)\cr
+    #' If `TRUE` compile even if a cached model already exists.
+    #' @param as_template (`logical(1)`)\cr
+    #' If `TRUE` store the dynamic library as a local template.
+    #' If `FALSE` recompile the model at every new session.
+    #' @noRd
     initialize = function(model_choice,
                           quiet = TRUE,
                           force = FALSE,
@@ -255,8 +260,9 @@ HousepiGeneratorClass <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Name of model dynamic library. Extract name of the dynamic library.
+    #' @description
+    #' Name of model dynamic library. Extract name of the dynamic library.
+    #' @noRd
     generate = function() {
       if (isTRUE(private$need_compile)) {
         cli::cli_alert_info("Compiling {.pkg {private$name}}")
@@ -273,8 +279,9 @@ HousepiGeneratorClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Return envirnoment path if it exists, otherwise erro.
+    #' @description
+    #' Return envirnoment path if it exists, otherwise erro.
+    #' @noRd
     path = function() {
       # reference script
       envir_path <- dirname(private$dll)
@@ -290,8 +297,9 @@ HousepiGeneratorClass <- R6::R6Class(
       return(envir_path)
     },
 
-    # @description
-    # Genera reference script.
+    #' @description
+    #' Genera reference script.
+    #' @noRd
     save_reference = function() {
       # reference script
       refer_file <- file.path(dirname(private$dll), ".refer")
@@ -301,8 +309,9 @@ HousepiGeneratorClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Return reference script if it exists, otherwise erro.
+    #' @description
+    #' Return reference script if it exists, otherwise erro.
+    #' @noRd
     reference = function() {
       # reference script
       refer_file <- file.path(self$path(), ".refer")
@@ -316,72 +325,6 @@ HousepiGeneratorClass <- R6::R6Class(
       }
 
       return(refer_file)
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description
-    # Add definition of infectivity profile.
-    # @param name (`character(1)`)\cr
-    # Name of the infectivity profile.
-    # @param discrete (`logical(1)`)\cr
-    # IF `TRUE` the profile is discrete.
-    # @param args (named `list()`)\cr
-    # Arguments (eventually with types) for the profile.
-    # @param min (`double(1)`)\cr
-    # Minimunm value of the support.
-    # @param max (`double(1)`)\cr
-    # Maximum value of the support.
-    add_infectivity_profile = function(name,
-                                       discrete = FALSE,
-                                       args = list(),
-                                       min = NA,
-                                       max = NA) {
-      #----- name -----#
-      if (is.na(name)) {
-        stop(cli::format_error("Incomplete definition: missing name."))
-      }
-
-      #----- arguments -----#
-      arg_name_ <- NA
-      arg_value_ <- NA
-      arg_type_ <- NA
-      # assign method only if arguments are provided
-      if (length(args) > 0) {
-        arg_name_ <- str_join_(names(args))
-        tmp <- str_split_(args)
-        arg_value_ <- str_join_(tmp$var)
-        arg_type_ <- str_join_(tmp$typ)
-      }
-
-      #----- minimum value -----#
-      min_ <- NA
-      min_type_ <- NA
-      if (!is.na(min)) {
-        min_ <- str_split_(min)$var
-        min_type_ <- str_split_(min)$typ
-      }
-
-      #----- maximum value -----#
-      max_ <- NA
-      max_type_ <- NA
-      if (!is.na(max)) {
-        max_ <- str_split_(max)$var
-        max_type_ <- str_split_(max)$typ
-      }
-
-      # finally store definition
-      self$infec_prof_def <- list(
-        name = name, discrete = isTRUE(discrete),
-        arg_name = arg_name_, arg_value = arg_value_, arg_type = arg_type_,
-        min = min_, min_type = min_type_, max = max_, max_type = max_type_
-      )
-
-      invisible(self)
     }
   )
 )
@@ -392,13 +335,14 @@ HousepiGeneratorClass <- R6::R6Class(
 ############################################################################
 ############################################################################
 
-# @description
-# Re-compiles all required objects of the housepi library.
-# Passed to .onLoad in file zzz.R
-# @param pkgname
-# Name of the package.
-# @param force
-# Force compilation even if it already exists.
+#' @description
+#' Re-compiles all required objects of the housepi library.
+#' Passed to .onLoad in file zzz.R
+#' @param pkgname
+#' Name of the package.
+#' @param force
+#' Force compilation even if it already exists.
+#' @noRd
 re_compile_library <- function(pkgname,
                                force = FALSE) {
   # compile the core

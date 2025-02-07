@@ -57,7 +57,7 @@ namespace tools
     {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(precision)
-            << (100.0 * fraction) << "%";
+            << (100. * fraction) << "%";
         return oss.str();
     }
 
@@ -378,10 +378,8 @@ namespace tools
                     }
                 }
                 else
-                {
                     throw std::runtime_error(
                         "Impossible to open file \"" + pathtofile + "\".");
-                }
             }
         }
         catch (std::exception &e)
@@ -413,10 +411,8 @@ namespace tools
                 }
             }
             else
-            {
                 throw std::runtime_error(
                     "Impossible to open file \"" + pathtofile + "\".");
-            }
         }
     }
 
@@ -437,9 +433,9 @@ namespace tools
         size_t i = 0;
         size_t N = data.size();
         double x, delta, delta2;
-        double sqr_diff = 0.0;
+        double sqr_diff = 0.;
 
-        avg = 0.0;
+        avg = 0.;
         while (i < N)
         {
             x = data[i++];
@@ -448,7 +444,7 @@ namespace tools
             delta2 = x - avg;
             sqr_diff += delta * delta2;
         }
-        var = sqr_diff / (N - 1);
+        var = sqr_diff / (N - 1.);
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -495,6 +491,21 @@ namespace tools
         return verif[len_A][len_B];
     }
 
+    /* Format a list of string options. */
+    const std::string show_list(const str_vec &options)
+    {
+        if (options.empty())
+            return "";
+        else
+        {
+            std::ostringstream oss;
+            oss << "\"" << options[0] << "\"";
+            for (size_t i = 1; i < options.size(); ++i)
+                oss << ", \"" << options[i] << "\"";
+            return oss.str();
+        }
+    }
+
     /* Function to find the closest match. */
     const std::string find_closest(const std::string &input,
                                    const str_vec &options,
@@ -519,14 +530,7 @@ namespace tools
         else if (dist_closest == 0)
             return "";
         else if (closest.empty())
-        {
-            std::ostringstream oss;
-            oss << " Available option(s): \"" << options[0] << "\"";
-            for (size_t i = 1; i < options.size(); ++i)
-                oss << ", \"" << options[i] << "\"";
-            oss << ".";
-            return oss.str();
-        }
+            return " Available option(s): " + show_list(options) + ".";
         else
             return " Did you mean \"" + closest + "\"?";
     }
@@ -545,14 +549,8 @@ namespace tools
                 "Unknown option: \"" + unused[0] + "\"." + find_closest(unused[0], options));
 
         else if (unused.size() > 1)
-        {
-            std::ostringstream oss;
-            oss << "Unknown option(s): \"" << unused[0] << "\"";
-            for (size_t k = 1; k < unused.size(); ++k)
-                oss << ", \"" << unused[k] << "\"";
-            oss << find_closest(NULL_STRING, options, 0);
-            throw std::invalid_argument(oss.str());
-        }
+            throw std::invalid_argument(
+                "Unknown option(s): " + show_list(unused) + find_closest(NULL_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE
@@ -653,7 +651,7 @@ namespace progress
             {
                 std::ostringstream oss;
                 oss << text << " |" << string(barwidth, ' ') << "| "
-                    << tools::percentage(0.0, 0) << " 0s<?";
+                    << tools::percentage(0., 0) << " 0s<?";
                 display(oss.str());
 
                 start = steady_clock::now();

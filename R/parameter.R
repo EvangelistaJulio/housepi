@@ -4,11 +4,12 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-# @title Housepi Parameter R6 Class
-# @description
-# Help with parameter definitions of model Rcpp object.
-# @export HousepiParameterClass
-# @docType class
+#' @title Housepi Parameter R6 Class
+#' @description
+#' Help with parameter definitions of model Rcpp object.
+#' @export HousepiParameterClass
+#' @docType class
+#' @noRd
 HousepiParameterClass <- R6::R6Class(
   classname = "HousepiParameterClass",
   cloneable = FALSE,
@@ -20,21 +21,20 @@ HousepiParameterClass <- R6::R6Class(
   public = list(
     defs = NULL,
 
-    # @description
-    # Assign the empty parameter data.frame
+    #' @description
+    #' New instance of class [HousepiParameterClass][housepi::HousepiParameterClass].
+    #' @noRd
     initialize = function() {
       self$drop_all()
       invisible(self)
     },
 
-    # @description
-    # Vector of required parameters.
-    # @param refer_file
-    # Path/to/.refer source file.
-    # @param augm_frame
-    # Data.frane containing 
-    requisites = function(refer_file,
-                          augm_frame) {
+    #' @description
+    #' Find parameters required by the model.
+    #' @param refer_file
+    #' Path/to/.refer source file.
+    #' @noRd
+    require = function(refer_file) {
       # vector of regular expression to use for assertion
       regular_expr <- c(
         # from : param("string" or get_param('string'
@@ -47,35 +47,7 @@ HousepiParameterClass <- R6::R6Class(
         'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required parameters from regular expressions
-      require_set <- template_find_requirement(refer_file,
-                                               regular_expr)                                  
-
-      # from : augmented variable model argument definitions
-      augm_require_set <- c()
-      if (length(augm_frame) > 0) {
-        x <- augm_frame[c("arg_value", "arg_type")]
-        for (i in seq_along(x)) {
-          aux <- data.frame(vals = strsplit(x[i, 1], "/")[[1]],
-                            keys = strsplit(x[i, 2], "/")[[1]])
-          aux <- aux[aux[["keys"]] == "P", "vals"]
-          augm_require_set <- c(augm_require_set, aux[!is.na(aux)])
-        }
-      }
-
-      # format output
-      if (is.null(require_set)) {
-        if (length(augm_require_set) == 0) {
-          require_set <- NULL
-        } else {
-          require_set <- augm_require_set
-          require_set <- unique(augm_require_set[order(augm_require_set)])
-        }
-      } else {
-        require_set <- c(require_set, augm_require_set)
-        require_set <- unique(require_set[order(require_set)])
-      }
-
-      return(require_set)
+      return(template_find_requirement(refer_file, regular_expr))                                  
     },
 
     # @description
@@ -99,8 +71,9 @@ HousepiParameterClass <- R6::R6Class(
       return(FALSE)
     },
 
-    # @description
-    # Add a new parameter definition.
+    #' @description
+    #' Add a new parameter definition.
+    #' @noRd
     add = function(name,
                    value = NA,
                    constant = NA,
@@ -161,10 +134,9 @@ HousepiParameterClass <- R6::R6Class(
           )))
         }
         # prior arguments
-        if (length(args) == 0) {
-          arg_name_ <- NA
-          arg_value_ <- NA
-        } else {
+        arg_name_ <- NA
+        arg_value_ <- NA
+        if (length(args) > 0) {
           arg_name_ <- str_join_(names(args))
           arg_value_ <- str_join_(unname(unlist(args)))
         }
@@ -199,8 +171,9 @@ HousepiParameterClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Drop all current parameter definitions.
+    #' @description
+    #' Drop all current parameter definitions.
+    #' @noRd
     drop_all = function() {
       self$defs <- data.frame(
         name = character(),
@@ -219,10 +192,11 @@ HousepiParameterClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Associate parameters from a list. Previous definitions are dropped.
-    # @param def_list (named `list()`)\cr
-    # A list containg parameter names with respective list of definitions.
+    #' @description
+    #' Associate parameters from a list. Previous definitions are dropped.
+    #' @param def_list (named `list()`)\cr
+    #' A list containg parameter names with respective list of definitions.
+    #' @noRd
     from_list = function(definitions,
                          append = TRUE) {
       if (!is.list(definitions)) {
@@ -252,33 +226,33 @@ HousepiParameterClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Add missing parameter from template definitions.
-    # @param refer_file
-    # Path/to/.refer source file.
-    # @param augm_frame
-    # @param append
-    template = function(refer_file,
-                        augm_frame = NULL,
+    #' @description
+    #' Add missing parameter from template definitions.
+    #' @param templ_file
+    #' Path/to/.refer template file.
+    #' @param requirements (`character()`)\cr
+    #' Vector containing required parameters.
+    #' @param append (`logical(1)`)\cr
+    #' If `TRUE` append to previous definitions (default).
+    #' If `FALSE` drop previous definitions.
+    #' @noRd
+    template = function(templ_file,
+                        requirements = NULL,
                         append = TRUE) {
-      # retrieve the template parameters file
-      templ_file <- file.path(dirname(refer_file), "template_params.R")
-
       # check if template file exists
       if (file.exists((templ_file))) {
         # template parameter definitions
         templ_defs <- dget(templ_file)
 
         if (isTRUE(append)) {
-          # set of required parameters
-          require_set <- self$requisites(refer_file, augm_frame)
-          if (is.null(require_set)) {
+          # check the set of required parameters
+          if (is.null(requirements)) {
             cli::cli_alert_warning(cli::format_warning(c(
               "Appending template parameter definitions failed.",
               i = "Alternatively use option {.code append = FALSE}."
             )))
           } else {
-            missing_set <- template_find_missing(require_set,
+            missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
             self$from_list(
               templ_defs[intersect(names(templ_defs), missing_set)],
@@ -299,27 +273,26 @@ HousepiParameterClass <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Assert parameter definitions from the implementation script.
-    # @param refer_file
-    # @param augm_frame
-    # @return (`logical(1)`)\cr
-    assert = function(refer_file,
-                      augm_frame) {
+    #' @description
+    #' Assert parameter definitions match the requirement list.
+    #' @param requirements (`character()`)\cr
+    #' Vector containing required parameters.
+    #' @return (`logical(1)`)\cr
+    #' @noRd
+    assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-      # set of required parameters
-      require_set <- self$requisites(refer_file, augm_frame)
-
-      if (is.null(require_set)) {
+      if (is.null(requirements)) {
         # if requirement set is NULL it means nothing can be said
         is_def_complete <- NA
 
       } else {
+        # unique and ordered set of parameters
+        requirements <- unique(requirements[order(requirements)])
 
         # find missing parameters
-        missing_set <- template_find_missing(require_set,
+        missing_set <- template_find_missing(requirements,
                                              self$defs[["name"]])
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
@@ -329,7 +302,7 @@ HousepiParameterClass <- R6::R6Class(
         }
 
         # point out parameters that are not used
-        unused_set <- template_find_unused(require_set,
+        unused_set <- template_find_unused(requirements,
                                            self$defs[["name"]])
         # drop unused parameters
         if (length(unused_set) > 0) {
