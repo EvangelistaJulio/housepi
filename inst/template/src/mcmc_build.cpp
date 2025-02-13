@@ -1,11 +1,12 @@
 /*
- * mcmc_build.cpp
+ * mcmc_core.cpp
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include <fstream>
 #include <iomanip>
+#include <chrono>
 
 #include "mcmc_build.h"
 
@@ -16,14 +17,391 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Auxiliary function to call percentuage. */
-inline const std::string _aux_percent_(int num, int den)
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : Impl : constructor  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+MCMC::Impl::Impl() : _uniform_distr_(0., 1.),
+                     _infec_profile_(std::make_unique<Distribution>()) {}
+MCMC::Impl::~Impl() = default;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC::Impl : methods (getter)  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Get the parameter value. */
+double MCMC::Impl::get_param(const parID &p) const { return param_map.at(p).get_value(); }
+
+/* Get pointer to the parameter. */
+const double *MCMC::Impl::get_param_pointer(const parID &p) const { return param_map.at(p).get_pointer(); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign seed for random generators. */
+void MCMC::Impl::set_prng_seed(int seed)
 {
-    return "(" + tools::percentage(static_cast<double>(num) / den, 1) + ")";
+    // seed for the unique thread rand num generator
+    prng.seed(seed);
+
+    // seeds for the case of parallelization
+    if (setup_n_threads > 1)
+    {
+        std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
+        for (unsigned n = 0; n < setup_n_threads; ++n)
+            prng_parallel[n].seed(seed_generator(prng));
+    }
 }
 
+/* Return the pseudo random number generator. */
+rnd_gen &MCMC::Impl::get_prng() { return (this->*_func_prng_)(); }
+
+/* Draw a random variable uniformly distributed. */
+double MCMC::Impl::uniform() { return _uniform_distr_(get_prng()); }
+
+/* Set the number of threads for parrell computations (default is 1). */
+void MCMC::Impl::set_n_threads()
+{
+    if (setup_n_threads == 0)
+        throw std::invalid_argument("N. of threads must be greater than 0.");
+
+#ifdef _OPENMP
+    auto max_threads = omp_get_max_threads();
+    if (setup_n_threads > max_threads)
+    {
+        tools::warning(
+            "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
+        setup_n_threads = max_threads;
+    }
+
+    // declare the global number of omp threads
+    omp_set_num_threads(setup_n_threads);
+
+    // create different generators for different parallel threads
+    // note: they are used only to parallelize data augmentantion
+    if (setup_n_threads > 1)
+    {
+        prng_parallel.reserve(setup_n_threads);
+        _func_prng_ = &Impl::_prng_parallel_threads_;
+    }
+    else
+        _func_prng_ = &Impl::_prng_unique_thread_;
+
+#else
+    if (setup_n_threads != 1)
+        tools::warning("Parallelization with OpenMP not supported.");
+
+    setup_n_threads = 1;
+    _func_prng_ = &Impl::_prng_unique_thread_;
+#endif
+}
+
+/* Set inverse temperature and its relative functional methods. */
+void MCMC::Impl::set_inver_temper(double inv_T)
+{
+    if ((inv_T < 0.) || (inv_T > 1.))
+        throw std::range_error(
+            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
+    else
+        setup_inv_T = inv_T;
+}
+
+/* Read Setup file and produce a definition list. */
+void MCMC::Impl::read_setup(const std::string &pathtofile)
+{
+    tools::read_csv_list(pathtofile, _setup_deflist_);
+    build_setup();
+    _report_pathtofile_["setup"] = pathtofile;
+}
+
+/* Assign setup. */
+void MCMC::Impl::build_setup()
+{
+    try
+    {
+        //===== DEFAULT SETUP VALUES =====//
+        auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
+
+        setup_seed = static_cast<unsigned long long>(time_now); // random generator seed
+        setup_rand_init_params = true;                          // random initialization of parameters
+
+        setup_n_chains = 1;    // n. chains
+        setup_n_steps = 10000; // n. iterations
+        setup_n_adapt = 0;     // n. (finite) adaptive steps
+        setup_thin = 1;        // n. thinning iterations
+        setup_n_burnin = 0;    // n. burnin iterations
+
+        setup_c_sample_size = 0; // single chain sample size
+        setup_c_n_sweeps = 0;    // single chain n. of sweeps
+
+        setup_inv_T = 1.0;   // inverse temperature
+        setup_n_threads = 1; // number of OMP threads
+
+        setup_id_trace = NULL_STRING; // augmented trace to save
+
+        // reference to definition list
+        const std::map<std::string, std::string> &deflist = _setup_deflist_;
+
+        if (!deflist.empty())
+        {
+            //===== Dispatch options from the setup definition list =====//
+            const str_vec options = {"n_threads", "seed", "n_chains",
+                                     "n_steps", "n_adapt", "thin",
+                                     "n_burnin", "rand_init", "size",
+                                     "n_rungs", "inv_temper", "id_trace"};
+            str_vec entries = {};
+            for (const auto &pair : deflist)
+                entries.push_back(pair.first);
+            tools::check_unused_entries(entries, options);
+
+            // N. of Threads
+            if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
+                setup_n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
+
+            // PRNG Seed
+            if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
+                setup_seed = tools::stoull(deflist.at("seed"), "random seed");
+
+            // N. of Chains
+            if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
+                setup_n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
+
+            // Single Chain Sample Size
+            if (deflist.count("size") && (!tools::is_na(deflist.at("size"))))
+                setup_c_sample_size = tools::stoul(deflist.at("size"), "sample size");
+
+            // N. of Steps
+            if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
+                setup_n_steps = tools::stoul(deflist.at("n_steps"), "n. of steps");
+
+            // N. of Adaptive Steps
+            if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
+                setup_n_adapt = tools::stoul(deflist.at("n_adapt"), "n. of adaptive steps");
+
+            // N. of Thinning Steps
+            if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
+                setup_thin = tools::stoul(deflist.at("thin"), "thin");
+
+            // N. of Steps to "Burn-In"
+            if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
+                setup_n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
+
+            // Random Initialization of Parameters
+            if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
+                setup_rand_init_params = tools::stobool(deflist.at("rand_init"));
+
+            // Inverse Temperature
+            if (deflist.count("inv_temper") && (!tools::is_na(deflist.at("inv_temper"))))
+                set_inver_temper(tools::stod(deflist.at("inv_temper"), "inverse temperature"));
+
+            // Individual ID for Augmented Trace
+            if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
+                setup_id_trace = deflist.at("id_trace");
+        }
+
+        //===== Define Number of Threads =====//
+        set_n_threads();
+
+        //===== Pseudo-Random Number Generator Seeding =====//
+        set_prng_seed(setup_seed);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While building setup definitions: " + std::string(e.what()));
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Read parameter definitions and run assignment. */
+void MCMC::Impl::read_params(const std::string &pathtofile)
+{
+    try
+    {
+        tools::read_csv_table(pathtofile, _param_deftable_, param_file_headers);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading parameter definitions: " + std::string(e.what()));
+    }
+
+    // use loaded definitions to build
+    build_params();
+    // store the file name in the report
+    _report_pathtofile_["params"] = pathtofile;
+}
+
+/* Assign parameter definitions to dictionary. */
+void MCMC::Impl::build_params()
+{
+    try
+    {
+        // reference to parameter definition table
+        const dict_str_vec &deftable = _param_deftable_;
+
+        if (deftable.empty())
+        {
+            // error if nothing was previously defined
+            if (param_to_be_constant.empty() && param_to_be_inferred.empty())
+                throw std::invalid_argument(
+                    "Undefined parameter definitions.");
+        }
+        else
+        {
+            // check no unused options in deftable
+            str_vec entries = {};
+            for (const auto &pair : deftable)
+                entries.push_back(pair.first);
+            tools::check_unused_entries(entries, param_file_headers);
+
+            //===== Read Parameter Definitions =====//
+            size_t table_length = deftable.at("name").size();
+
+            //===== Empty current list of parameters =====//
+            param_map.clear();
+            param_to_be_constant.clear();
+            param_to_be_inferred.clear();
+
+            //===== Load parameters from the row with options =====//
+            for (size_t k = 0; k < table_length; ++k)
+            {
+                const std::string &name = deftable.at("name")[k]; // parameter name
+                double value = NULL_DOUBLE;                       // init value
+
+                // UPDATE : temporary parameter identifier
+                // NOTE : id parID changes this should change too
+                parID p = name;
+
+                //----- Add entry to shared parameter dictionary -----//
+                if (param_map.count(p))
+                {
+                    // parameter is already defined
+                    throw std::invalid_argument(
+                        "Parameter \"" + p + "\" has multiple definitions.");
+                }
+                else if (tools::stobool(deftable.at("constant")[k]))
+                {
+                    // assign constant parameter to the set of variables
+                    if (tools::is_na(deftable.at("value")[k]))
+                        throw std::invalid_argument(
+                            "Undefined value for constant parameter \"" + name + "\".");
+                    else
+                        value = tools::stod(deftable.at("value")[k], "parameter");
+
+                    // assign constant parameter to the set of variables
+                    param_map.emplace(p, Variable(name, value));
+                    // update the lists of constant parameters
+                    param_to_be_constant.push_back(p);
+                }
+                else
+                {
+                    // load value
+                    if (!tools::is_na(deftable.at("value")[k]))
+                        value = tools::stod(deftable.at("value")[k], "parameter");
+
+                    // load boolean flag for discrete variables
+                    bool is_discrete = false;
+                    if (!tools::is_na(deftable.at("discrete")[k]))
+                        is_discrete = tools::stobool(deftable.at("discrete")[k]);
+
+                    // load prior name
+                    const std::string &prior_name = deftable.at("prior")[k];
+
+                    // load range
+                    double lower = NULL_DOUBLE;
+                    if (!tools::is_na(deftable.at("min")[k]))
+                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
+
+                    double upper = NULL_DOUBLE;
+                    if (!tools::is_na(deftable.at("max")[k]))
+                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
+
+                    // load rule name
+                    std::string rule_name = "gibbs";
+                    if (!tools::is_na(deftable.at("rule")[k]))
+                        rule_name = deftable.at("rule")[k];
+
+                    // load rule scale
+                    double rule_scale = 1.;
+                    if (!tools::is_na(deftable.at("rule_scale")[k]))
+                        rule_scale = tools::stod(deftable.at("rule_scale")[k]);
+
+                    //----- Create a new Parameter Variable -----//
+                    param_map.emplace(p, Variable(name, value, is_discrete));
+                    Variable &new_param = param_map.at(p);
+
+                    // assign a prior distribution to the parameter
+                    new_param.assign_distribution(prior_name);
+
+                    // assign scalar arguments to prior distribution
+                    str_vec arg_name = tools::parse_list_args(deftable.at("arg_name")[k]);
+                    str_vec arg_value = tools::parse_list_args(deftable.at("arg_value")[k]);
+                    for (ushort c = 0; c < arg_name.size(); ++c)
+                        if (!tools::is_na(arg_name[c]))
+                            new_param.assign_distr_scalar_arg(arg_name[c],
+                                                              tools::natod(arg_value[c]));
+
+                    // set the range of values to the parameter
+                    if (!tools::is_na(lower))
+                        new_param.assign_distr_scalar_range_min(lower);
+                    if (!tools::is_na(upper))
+                        new_param.assign_distr_scalar_range_max(upper);
+                    new_param.init_distr_reshaping();
+
+                    // assign the rule for the proposer to the parameter
+                    new_param.assign_proposer(rule_name, rule_scale);
+
+                    // update the lists of parameters to be inferred
+                    param_to_be_inferred.push_back(p);
+                }
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While building parameter definitions: " + std::string(e.what()));
+    }
+}
+
+/* Randomly initialize values of the parameters to be inferred */
+void MCMC::Impl::init_parameters()
+{
+    for (const parID &p : param_to_be_inferred)
+    {
+        // restore user initialization (meaningful for multiple chains)
+        param_map.at(p).user_reset();
+
+        if (setup_rand_init_params)
+        {
+            if (tools::is_na(param_map.at(p).show_distr_name()))
+                throw std::invalid_argument(
+                    "Parameters with undefined values are not allowed.");
+            else
+                param_map.at(p).rand(prng);
+        }
+        else if (tools::is_na(param_map.at(p).get_value()))
+            throw std::invalid_argument(
+                "Value of parameter \"" + p + "\" is undefined with no random initialization.");
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////  MCMC::Impl : methods (type-defined variables)  ////////////////////////////
+///////////////////////  MCMC::Impl : methods (type-defined variables)  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
@@ -208,92 +586,8 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::update_report_data()
-{
-    _report_data_ = {{"n.cases", 0},
-                     {"n.miss.stat", 0},
-                     {"no.HH.case", 0},
-                     {"lst.1.case", 0},
-                     {"lst.2.case", 0},
-                     {"max.n.HH.cases", 0},
-                     {"n.HH.with.max.cases", 0},
-                     {"min.HH.size", 1000},
-                     {"n.HH.with.min.size", 0},
-                     {"max.HH.size", 0},
-                     {"n.HH.with.max.size", 0}};
-
-    //===== Set Contact Rates and Perform Database Analysis =====//
-    for (const Household &house : house_vector)
-    {
-        ushort house_size = house.size();
-        ushort n_infec = house.n_infectious();
-
-        _report_data_["n.cases"] += n_infec;
-        _report_data_["n.miss.stat"] += house.n_missing_status();
-
-        _report_data_["no.HH.case"] += (n_infec == 0);
-        _report_data_["lst.1.case"] += (n_infec > 0);
-        _report_data_["lst.2.case"] += (n_infec > 1);
-
-        // max number of house cases
-        if (_report_data_["max.n.HH.cases"] < n_infec)
-        {
-            _report_data_["n.HH.with.max.cases"] = 1;
-            _report_data_["max.n.HH.cases"] = n_infec;
-        }
-        else if (_report_data_["max.n.HH.cases"] == n_infec)
-        {
-            _report_data_["n.HH.with.max.cases"] += 1;
-        }
-
-        // minimum house number of members
-        if (_report_data_["min.HH.size"] > house_size)
-        {
-            _report_data_["n.HH.with.min.size"] = 1;
-            _report_data_["min.HH.size"] = house_size;
-        }
-        else if (_report_data_["min.HH.size"] == house_size)
-        {
-            _report_data_["n.HH.with.min.size"] += 1;
-        }
-
-        // maximum house number of members
-        if (_report_data_["max.HH.size"] < house_size)
-        {
-            _report_data_["n.HH.with.max.size"] = 1;
-            _report_data_["max.HH.size"] = house_size;
-        }
-        else if (_report_data_["max.HH.size"] == house_size)
-        {
-            _report_data_["n.HH.with.max.size"] += 1;
-        }
-    }
-}
-
-/* Return a value from report data. */
-size_t MCMC::Impl::report_data(const std::string &key) const
-{
-    size_t output = 0;
-    if (_report_data_.count(key))
-        output = _report_data_.at(key);
-
-    else
-        throw std::invalid_argument(
-            "Unknown summary entry \"" + key + "\".");
-
-    return output;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC::Impl : build augmented  //////////////////////////////////////
+///////////////////////////////////  MCMC::Impl : build augmented  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Read Model Augmented Variable file. */
@@ -464,7 +758,7 @@ void MCMC::Impl::build_augm()
                 }
 
                 // Allocate memory for augmented variables to each individual
-                // Search individual ID for augmented traces follow-up
+                // Search individual id for augmented traces follow-up
                 dgn_H_star = n_households;
                 for (size_t H = 0; H < n_households; ++H)
                 {
@@ -474,7 +768,7 @@ void MCMC::Impl::build_augm()
                         clear_all_augm(house, i);
                         if (!tools::is_na(setup_id_trace))
                         {
-                            if (house.ID(i) == setup_id_trace)
+                            if (house.id(i) == setup_id_trace)
                             {
                                 dgn_H_star = H;
                                 dgn_i_star = i;
@@ -506,7 +800,23 @@ void MCMC::Impl::build_augm()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////  MCMC::Impl : assign augmented variables  //////////////////////
+////////////////////////////////  MCMC::Impl : state checkers   /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Check if there are non-constant augmented variable definitions. */
+bool MCMC::Impl::is_augm_infer() const { return !augm_list_to_be_inferred.empty(); }
+
+/* Check if there are augmented variable definitions with a model. */
+bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
+
+/* Check if augmented variable definition are generic or not (i. e. individual status specific). */
+bool MCMC::Impl::is_augm_generic() const
+{
+    return _func_augm_model_by_definition_ == &MCMC::Impl::_augm_model_generic_;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  MCMC::Impl : assign augmented variables  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
@@ -589,22 +899,97 @@ void MCMC::Impl::clear_all_augm(Household &house, indiv i)
         house.clear_augm(i, a);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC::Impl : state checkers   /////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
-/* Check if there are non-constant augmented variable definitions. */
-bool MCMC::Impl::is_augm_infer() const { return !augm_list_to_be_inferred.empty(); }
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////  MCMC::Impl : methods (parameter moves)  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Check if there are augmented variable definitions with a model. */
-bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
+/* Set accept rates to zero. */
+void MCMC::Impl::init_move_counts()
+{
+    for (const parID &p : param_to_be_inferred)
+        param_map.at(p).reset_accept_rate();
+}
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/* propose a valid move (retrun true), otherwise update refusal (retrun false) */
+bool MCMC::Impl::propose_valid_param_move(const parID &p)
+{
+    bool output = true;
+
+    // set new value of the parameter and store the old to buffer
+    param_map.at(p).propose(prng);
+
+    // restore buffer if not valid move
+    if (!param_map.at(p).valid_move())
+    {
+        param_map.at(p).restore_value();
+        output = false;
+    }
+
+    return output;
+}
+
+/* Restore the parameter value in the buffer. */
+void MCMC::Impl::restore_simple_param_value(const parID &p)
+{
+    // restore buffer value of parameter
+    param_map.at(p).restore_value();
+
+    // restore buffer value of global loglike
+    global_loglike = buffer;
+
+    // restore buffered loglikelihood in households
+    for (Household &house : house_vector)
+        house.restore_loglike();
+}
+
+/* Restore buffered parameter and its extra dependecies. */
+void MCMC::Impl::restore_extra_param_value(const parID &p)
+{
+    // restore buffer value of parameter
+    param_map.at(p).restore_value();
+
+    // restore buffer value of global loglike
+    global_loglike = buffer;
+
+    // restore buffered loglikelihood in households
+    for (Household &house : house_vector)
+    {
+        house.restore_loglike();
+        house.restore_all_extra();
+    }
+}
+
+/* Update the acceptance rate of the paramter. */
+void MCMC::Impl::update_param_accept_rate(const parID &p, bool is_accepted) { param_map.at(p).update_accept_rate(is_accepted); }
+
+/* Adapt the parameter Metropolis move. */
+void MCMC::Impl::adapt_param_rule(const parID &p, double ratio) { param_map.at(p).adapt_rule(ratio); }
+
+/* Metropolis-Hastings to accept or not current parameter move. */
+bool MCMC::Impl::accept_valid_param_move(const parID &p)
+{
+    return uniform() < exp(setup_inv_T * (global_loglike - buffer) + param_map.at(p).get_move_logratio());
+}
+
+/* Extract average and variance from vector of global loglike values. */
+void MCMC::Impl::dgn_glob_ll_stats(double &avg, double &var) const { tools::compute_stats(dgn_glob_loglike, avg, var); }
+
+double MCMC::Impl::get_global_loglike() const { return global_loglike; };
+
+void MCMC::Impl::increment_global_loglike(double delta) { global_loglike += delta; };
+
+void MCMC::Impl::set_global_loglike(double new_ll)
+{
+    buffer = global_loglike;
+    global_loglike = new_ll;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : methods (diagnostics) ///////////////////////////////////
@@ -662,12 +1047,6 @@ void MCMC::Impl::update_diagnostics()
     ++dgn_count;
 }
 
-/* Check if augmented variable definition are generic or not (i. e. individual status specific). */
-bool MCMC::Impl::is_augm_generic() const
-{
-    return _func_augm_model_by_definition_ == &MCMC::Impl::_augm_model_generic_;
-}
-
 /* Compute the loglikelihood term associated to augmented variables. */
 double MCMC::Impl::compute_augm_model_loglike(const Household &house) const
 {
@@ -698,18 +1077,70 @@ void MCMC::Impl::_augm_model_generic_(const Household &house, indiv i, double &d
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Check that setup definitions are ok to proceed with mcmc sampling. */
+void MCMC::Impl::check_definitions_before_mcmc()
+{
+    if ((setup_n_chains > 1) && (setup_rand_init_params == false))
+    {
+        tools::warning(
+            "Unable to fix initial parameters when running multiple chains.");
+        setup_rand_init_params = true;
+    }
+    else if (setup_n_chains < 1)
+        throw std::out_of_range("N. of chains must be greater than 0.");
+
+    if (setup_thin == 0)
+    {
+        tools::warning("Thinning equal to 0 interpreted as 1.");
+        setup_thin = 1;
+    }
+
+    if (setup_c_sample_size == 0)
+    {
+        if (setup_n_steps < 1)
+            throw std::out_of_range("N. of steps must be greater than 0.");
+
+        if (setup_n_burnin >= setup_n_steps)
+            throw std::out_of_range("Burn-in must be smaller than n. of steps.");
+
+        if (setup_thin >= setup_n_steps)
+            throw std::out_of_range("Thinning must be smaller than n. of steps. ");
+
+        setup_c_sample_size = (setup_n_steps - setup_n_burnin) / setup_thin;
+
+        if (setup_c_sample_size == 0)
+            throw std::out_of_range("Choice of steps, burn-in and thin return a 0 sample size.");
+    }
+    else
+        setup_n_steps = setup_n_burnin + setup_c_sample_size * setup_thin;
+
+    // assign number of sweeps
+    setup_c_n_sweeps = setup_n_adapt / setup_thin;
+    setup_c_n_sweeps += setup_n_burnin / setup_thin;
+    setup_c_n_sweeps += setup_c_sample_size;
+
+    // check if there is a dataset
+    if (n_individuals == 0)
+        throw std::length_error("Dataset is empty or was not provided.");
+
+    // check if there is actually something to sample
+    if ((param_to_be_inferred.empty()) && (!is_augm_infer()))
+        throw std::length_error(
+            "Nothing to sample. Check your parameter and augmented variable definitions.");
+}
+
 /* Tell if it's the case of power posteriors. */
 bool MCMC::Impl::is_power_post() const { return _n_rungs_ > 0; }
 
 /* The text to print in the Markov chian progress bar. */
-const std::string MCMC::Impl::fmt_progtxt(const std::string &txt)
+const std::string MCMC::Impl::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
     else if (setup_n_chains > 1)
-        return txt + " " + std::to_string(_chain_) + "/" + std::to_string(setup_n_chains);
+        return "sample " + std::to_string(_chain_) + "/" + std::to_string(setup_n_chains);
     else
-        return txt;
+        return "sample";
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -719,151 +1150,73 @@ const std::string MCMC::Impl::fmt_progtxt(const std::string &txt)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print the report of the database and of the model group rates. */
-void MCMC::Impl::show_summary() const
+/* Use the loaded data to fill-in the respective report. */
+void MCMC::Impl::update_report_data()
 {
-    std::ostringstream oss;
+    _report_data_ = {{"n.cases", 0},
+                     {"n.miss.stat", 0},
+                     {"no.HH.case", 0},
+                     {"lst.1.case", 0},
+                     {"lst.2.case", 0},
+                     {"max.n.HH.cases", 0},
+                     {"n.HH.with.max.cases", 0},
+                     {"min.HH.size", 1000},
+                     {"n.HH.with.min.size", 0},
+                     {"max.HH.size", 0},
+                     {"n.HH.with.max.size", 0}};
 
-    oss << "n. of individuals: " << n_individuals
-        << "\n    * n. of cases: " << _report_data_.at("n.cases")
-        << " " << _aux_percent_(_report_data_.at("n.cases"), n_individuals);
-
-    if (_report_data_.at("n.miss.stat") > 0)
-        oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
-            << " " << _aux_percent_(_report_data_.at("n.miss.stat"), n_individuals);
-
-    oss << "\nn. of households: " << n_households;
-
-    if (_report_data_.at("no.HH.case") > 0)
-        oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
-            << " " << _aux_percent_(_report_data_.at("no.HH.case"), n_households);
-
-    oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
-        << " " << _aux_percent_(_report_data_.at("lst.1.case"), n_households);
-
-    if (_report_data_.at("lst.1.case") > 0)
-        oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
-            << " " << _aux_percent_(_report_data_.at("lst.2.case"), n_households);
-
-    oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.cases"), n_households)
-        << "\nmin n. house members: " << _report_data_.at("min.HH.size")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.min.size"), n_households)
-        << "\nmax n. house members: " << _report_data_.at("max.HH.size")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.size"), n_households);
-
-    tools::print_stdout(oss.str() + "\n");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::Impl::show_full_build() const
-{
-    //----- SETUP -----//
-    std::string add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("setup"))
-        if (!tools::is_na(_report_pathtofile_.at("setup")))
-            add_file_info = "# import: " + _report_pathtofile_.at("setup");
-
-    tools::print_decorator("Setup", add_file_info);
-    show_setup();
-
-    //----- PARAMETERS -----//
-    add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("params"))
-        if (!tools::is_na(_report_pathtofile_.at("params")))
-            add_file_info = "# import: " + _report_pathtofile_.at("params");
-
-    tools::print_decorator("Parameters", add_file_info);
-    show_all_params();
-
-    //----- DATABASE -----//
-    add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("data"))
-        if (!tools::is_na(_report_pathtofile_.at("data")))
-            add_file_info = "# import: " + _report_pathtofile_.at("data");
-
-    tools::print_decorator("Database", add_file_info);
-    show_summary();
-
-    //----- AUGMENTED -----//
-    add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("augm"))
-        if (!tools::is_na(_report_pathtofile_.at("augm")))
-            add_file_info = "# import: " + _report_pathtofile_.at("augm");
-
-    if (!augm_list_full.empty())
-        tools::print_decorator("Augmented", add_file_info);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  MCMC::Impl : print augm variables  ///////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Print all augmented variables of each individual */
-void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
-{
-    if (!tools::is_na(pathtofile))
+    //===== Set Contact Rates and Perform Database Analysis =====//
+    for (const Household &house : house_vector)
     {
-        std::ofstream augm_ofstream;
-        augm_ofstream.open(pathtofile.c_str());
+        const ushort house_size = house.size();
+        const ushort n_infec = house.n_infectious();
 
-        if (augm_ofstream.is_open())
+        _report_data_["n.cases"] += n_infec;
+        _report_data_["n.miss.stat"] += house.n_missing_status();
+
+        _report_data_["no.HH.case"] += (n_infec == 0);
+        _report_data_["lst.1.case"] += (n_infec > 0);
+        _report_data_["lst.2.case"] += (n_infec > 1);
+
+        // max number of house cases
+        if (_report_data_["max.n.HH.cases"] < n_infec)
         {
-            //===== Print column headers =====//
-            // default headers
-            augm_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
-
-            // data headers
-            for (const dataID &d : data_headers)
-                augm_ofstream << C_DELIM << d;
-
-            // augmented variables headers
-            for (const augmID &a : augm_list_full)
-                augm_ofstream << C_DELIM << a;
-
-            augm_ofstream << std::endl;
-
-            //===== Print data and augmented variables =====//
-            for (const Household &house : house_vector)
-            {
-                for (indiv i = 0; i < house.size(); ++i)
-                {
-                    augm_ofstream << house.ID(i)
-                                  << C_DELIM << house.house_ID()
-                                  << C_DELIM << house.status(i);
-                    for (const dataID &d : data_headers)
-                        augm_ofstream << C_DELIM << house.data(i, d);
-
-                    for (const augmID &a : augm_list_full)
-                        if (house.status(i) == INFECTED_STATUS)
-                            augm_ofstream << C_DELIM << house.augm(i, a);
-                        else
-                            augm_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
-
-                    augm_ofstream << std::endl;
-                }
-            }
-
-            augm_ofstream.close();
+            _report_data_["n.HH.with.max.cases"] = 1;
+            _report_data_["max.n.HH.cases"] = n_infec;
         }
-        else
+        else if (_report_data_["max.n.HH.cases"] == n_infec)
+            ++_report_data_["n.HH.with.max.cases"];
+
+        // minimum house number of members
+        if (_report_data_["min.HH.size"] > house_size)
         {
-            throw std::runtime_error(
-                "Unable to open file: " + pathtofile);
+            _report_data_["n.HH.with.min.size"] = 1;
+            _report_data_["min.HH.size"] = house_size;
         }
+        else if (_report_data_["min.HH.size"] == house_size)
+            ++_report_data_["n.HH.with.min.size"];
+
+        // maximum house number of members
+        if (_report_data_["max.HH.size"] < house_size)
+        {
+            _report_data_["n.HH.with.max.size"] = 1;
+            _report_data_["max.HH.size"] = house_size;
+        }
+        else if (_report_data_["max.HH.size"] == house_size)
+            ++_report_data_["n.HH.with.max.size"];
     }
+}
+
+/* Return a value from report data. */
+size_t MCMC::Impl::report_data(const std::string &key) const
+{
+    size_t output = 0;
+    if (_report_data_.count(key))
+        output = _report_data_.at(key);
+
+    else
+        throw std::invalid_argument(
+            "Unknown summary entry \"" + key + "\".");
+
+    return output;
 }

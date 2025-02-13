@@ -41,7 +41,7 @@ RCPP_MODULE(model_housepi_rcpp)
 {
   using namespace Rcpp;
 
-  class_<MCMC>("McmcHousepi")
+  class_<MCMC>("McmcHousepiRcpp")
       .constructor()
       .method("infer", &MCMC::infer)
       .method("simulate", &MCMC::simulate)
@@ -57,11 +57,9 @@ RCPP_MODULE(model_housepi_rcpp)
       .method("export_data", &MCMC::export_data)
       .method("export_traces", &MCMC::export_traces)
       .method("export_household_loglike_traces", &MCMC::export_household_loglike_traces)
-      .method("export_infec_profile", &MCMC::export_infec_profile)
-      .method("show_full_build", &MCMC::show_full_build)
-      .method("show_summary", &MCMC::show_summary);
+      .method("export_infec_profile", &MCMC::export_infec_profile);
 
-  class_<Model>("ModelHousepi")
+  class_<Model>("ModelHousepiRcpp")
       .constructor()
-      .derives<MCMC>("McmcHousepi");
+      .derives<MCMC>("McmcHousepiRcpp");
 }

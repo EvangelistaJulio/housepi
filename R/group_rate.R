@@ -13,12 +13,15 @@ REFERENCE <- "REFERENCE"
 #' Group rate logic table
 #' @description
 #' Return logic table of group rates
+#' 
 #' @param dataset
 #' the dataset from which the etract group rates
 #' @param by
 #' Features as list of dataset column names
+#' 
 #' @return
 #' data.frame with logic table
+#' 
 #' @noRd
 group_rate_logic_table <- function(dataset, by) {
   # convert features
@@ -36,10 +39,10 @@ group_rate_logic_table <- function(dataset, by) {
     for (name in missing[-1]) {
       oss <- sprintf("%s, \"%s\"", oss, name)
     }
-    stop(cli::format_error(c(
+    hstop(paste(
       paste0(oss, "."),
       i = "Check your features and dataset headers."
-    )))
+    ))
   }
 
   # extract unique features and sort by list length
@@ -72,7 +75,8 @@ group_rate_logic_table <- function(dataset, by) {
 #' @title
 #' Associate parameter names
 #' @description
-#' Associate parameter name to group rate logic table
+#' Associate parameter name to group rate logic table.
+#' 
 #' @param logic_table
 #' Data.frame containing conditions for the group rate.
 #' @param prefix
@@ -80,14 +84,16 @@ group_rate_logic_table <- function(dataset, by) {
 #' @param reference
 #' Choose reference providing corresponding features.
 #' Default is the group with the largest sample size.
+#' 
 #' @return
 #' input data.frame with logic table with parameter names.
+#' 
 #' @noRd
 associate_param_names <- function(logic_table,
                                   prefix = NA,
                                   reference = NULL) {
   # extract reference index
-  if (is.null(reference)) {
+  if (length(reference) == 0) {
     idx_refer <- which.max(logic_table$..counts)
     # drop counts
     logic_table$..counts <- NULL
@@ -101,7 +107,7 @@ associate_param_names <- function(logic_table,
       apply(logic_table, 1, function(row) all(row == unlist(reference)))
     ))
     if (length(idx_refer) != 1) {
-      stop("Provided reference group is not valid.")
+      hstop("Provided reference group is not valid.")
     }
   }
 
@@ -124,11 +130,13 @@ associate_param_names <- function(logic_table,
 }
 
 #' @description
-#' construct the C++ if clauses
+#' construct the C++ if clauses.
+#' 
 #' @param r
 #' row of the group rate
 #' @param is_ref
 #' if `TRUE` the if clause is "REFERENCE"
+#' 
 #' @noRd
 cpp_ifclause_line <- function(r, is_ref = FALSE) {
   mask <- setdiff(names(r), ".param_name")
@@ -154,10 +162,11 @@ cpp_ifclause_line <- function(r, is_ref = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Housepi Group Rate R6 Class
+#' @title 
+#' Housepi Group Rate R6 Class
 #' @description
 #' Help with group rate definitions of model Rcpp object.
-#' @export HousepiGroupRateClass
+#' 
 #' @noRd
 HousepiGroupRateClass <- R6::R6Class(
   classname = "HousepiGroupRateClass",
@@ -174,6 +183,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' New instance of class [HousepiGroupRateClass][housepi::HousepiGroupRateClass].
+    #' 
     #' @noRd
     initialize = function() {
       self$drop_all()
@@ -182,8 +192,10 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Find group rates required by the model.
+    #' 
     #' @param refer_file
     #' Path/to/.refer source file.
+    #' 
     #' @noRd
     require = function(refer_file) {
       # vector of regular expression to use for assertion
@@ -197,6 +209,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Drop all current group rate definitions.
+    #' 
     #' @noRd
     drop_all = function() {
       self$defs <- list()
@@ -207,6 +220,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Remove a given group_rate definition.
+    #' 
     #' @noRd
     remove = function(name,
                       show_warnings = TRUE) {
@@ -237,9 +251,9 @@ HousepiGroupRateClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          cli::cli_alert_warning(cli::format_warning(sprintf(
+          warning(sprintf(
             "Unknown group_rate \"%s\" to remove.", name
-          )))
+          ))
         }
       }
 
@@ -248,6 +262,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Add a new group rate definition.
+    #' 
     #' @param name (`character(1)`)\cr
     #' Name of the group rate.
     #' @param by (`list()`)\cr
@@ -273,10 +288,12 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Value of the minimum.
     #' @param max (`double(1)`)\cr
     #' Value of the maximum.
+    #' 
     #' @references
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
     #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
+    #' 
     #' @noRd
     add = function(name,
                    by,
@@ -292,14 +309,14 @@ HousepiGroupRateClass <- R6::R6Class(
 
       # UPDATE: controls are missing
       if (is.na(name)) {
-        stop(cli::format_error("Incomplete definition: missing name."))
+        hstop("Incomplete definition: missing name.")
       }
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) {
-        cli::cli_alert_warning(cli::format_warning(sprintf(
+        warning(sprintf(
           "Existing \"%s\" definition has been overwritten.", name
-        )))
+        ))
       }
 
       # add new definition
@@ -323,15 +340,18 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Assert that parameter definitions match the requirement list.
+    #' 
     #' @param requirements (`character()`)\cr
     #' Vector containing required parameters.
+    #' 
     #' @return (`logical(1)`)\cr
+    #' 
     #' @noRd
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-      if (is.null(requirements)) {
+      if (length(requirements) == 0) {
         # if requirement set is NULL it means nothing can be said
         is_def_complete <- NA
 
@@ -340,11 +360,11 @@ HousepiGroupRateClass <- R6::R6Class(
         missing_set <- template_find_missing(requirements,
                                              names(self$defs))
         if (length(missing_set) > 0) {
-          oss <- paste0("Missing group rate(s): ",
-                        character_to_string_list(missing_set), ".")
-          cli::cli_alert_warning(cli::format_warning(oss))
-
           is_def_complete <- FALSE
+          warning(paste0(
+            "Missing group rate(s): ",
+            character_to_string_list(missing_set), "."
+          ))
         }
 
         # point out parameters that are not used
@@ -352,9 +372,10 @@ HousepiGroupRateClass <- R6::R6Class(
                                            names(self$defs))
         # drop unused parameters
         if (length(unused_set) > 0) {
-          oss <- paste0("Dropping not used group rate(s): ",
-                        character_to_string_list(unused_set), ".")
-          cli::cli_alert_warning(cli::format_warning(oss))
+          warning(paste0(
+            "Dropping not used group rate(s): ",
+            character_to_string_list(unused_set), "."
+          ))
 
           for (name in unused_set) {
             self$remove(name)
@@ -367,8 +388,10 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Generate a script to be printed within source code model.cpp
+    #' 
     #' @param dataset
     #' Dataset to be considered.
+    #' 
     #' @noRd
     cpp_implement = function(dataset) {
 
@@ -440,12 +463,15 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' Assert if group rates are implementated.
+    #' 
     #' @param dataset
     #' Dataset to be considered.
     #' @param refer_file
     #' Path/to/model.cpp source code.
+    #' 
     #' @return (`logical(1)`)\cr
     #' `TRUE` if definitions exist and are up to date. 
+    #' 
     #' @noRd
     cpp_assert = function(dataset,
                           refer_file) {
@@ -458,10 +484,10 @@ HousepiGroupRateClass <- R6::R6Class(
         # assert that group rates are complete
         requirements <- self$require(refer_file)
         if (isFALSE(self$assert(requirements))) {
-          cli::cli_alert_warning(cli::format_warning(c(
+          warning(paste(
             "Ignoring incomplete group rate definitions.",
-            i = "To implement changes in group rates, fill missing definitions."
-          )))
+            "To implement changes in group rates, fill missing definitions."
+          ))
           return(TRUE)
 
         } else {
@@ -477,18 +503,21 @@ HousepiGroupRateClass <- R6::R6Class(
     },
 
     #' @description
-    #' Overwrite script to source code model.cpp
+    #' Overwrite script to source code 'model.cpp'.
+    #' 
     #' @param dataset
     #' Dataset to be considered.
+    #' 
     #' @return (`logical(1)`)\cr
-    #' Wheter code requires recompilation or not.
+    #' Whether code requires recompilation or not.
+    #' 
     #' @noRd
     cpp_write = function(dataset,
                          refer_file) {
 
       # check that source file exists
       if (!file.exists(refer_file)) {
-        stop(cli::format_error("Impossible to find source file."))
+        hstop("Impossible to find source file.")
       }
 
       # produce associated script
@@ -500,7 +529,7 @@ HousepiGroupRateClass <- R6::R6Class(
       start_line <- grep("^void\\s+Model::assign_group_rate_to_individual\\s*\\(", lines)
 
       if (length(start_line) == 0) {
-        cli::cli_alert_warning("Model does not accommodate for group rates.")
+        warning("Model does not accommodate for group rates.")
 
       } else {
 
@@ -513,7 +542,7 @@ HousepiGroupRateClass <- R6::R6Class(
           }
         }
         if (is.na(opening_brace_line)) {
-          stop("Unmatched curly bracket(s) found in source code.")
+          hstop("Unmatched curly bracket(s) found in source code.")
         }
 
         # find method definition closing brace '}'
@@ -531,7 +560,7 @@ HousepiGroupRateClass <- R6::R6Class(
           }
         }
         if (is.na(end_line)) {
-          stop("Unmatched curly bracket(s) found in source code.")
+          hstop("Unmatched curly bracket(s) found in source code.")
         }
 
         # define the new implementation

@@ -4,6 +4,9 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <fstream>
+#include <iomanip>
+
 #include "mcmc_build.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -108,14 +111,15 @@ Rcpp::List MCMC::Impl::export_setup() const
     using namespace Rcpp;
 
     return List::create(
-        _["seed"] = setup_seed,
-        _["n_threads"] = setup_n_threads,
         _["n_chains"] = setup_n_chains,
+        _["size"] = setup_c_sample_size,
+        _["n_steps"] = setup_n_steps,
         _["n_adapt"] = setup_n_adapt,
         _["n_burnin"] = setup_n_burnin,
-        _["n_steps"] = setup_n_steps,
         _["thin"] = setup_thin,
         _["rand_init"] = setup_rand_init_params,
+        _["seed"] = setup_seed,
+        _["n_threads"] = setup_n_threads,
         _["inv_temper"] = setup_inv_T);
 }
 
@@ -197,8 +201,8 @@ Rcpp::DataFrame MCMC::Impl::export_data() const
     {
         for (indiv i = 0; i < house.size(); ++i)
         {
-            df_index[r] = house.ID(i);
-            df_house_index[r] = house.house_ID();
+            df_index[r] = house.id(i);
+            df_house_index[r] = house.house_id();
             df_status[r] = house.status(i);
 
             c = 0;
@@ -365,5 +369,372 @@ void MCMC::import_data(const Rcpp::DataFrame &data)
     if (pImpl->_report_pathtofile_.find("data") != pImpl->_report_pathtofile_.end())
         pImpl->_report_pathtofile_.erase("data");
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+#else
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Auxiliary function to call percentuage. */
+inline const std::string _aux_percent_(int num, int den)
+{
+    return "(" + tools::percentage(static_cast<double>(num) / den, 1) + ")";
+}
+
+/* Print the report of the database and of the model group rates. */
+void MCMC::Impl::show_summary() const
+{
+    std::ostringstream oss;
+
+    oss << "n. of individuals: " << n_individuals
+        << "\n    * n. of cases: " << _report_data_.at("n.cases")
+        << " " << _aux_percent_(_report_data_.at("n.cases"), n_individuals);
+
+    if (_report_data_.at("n.miss.stat") > 0)
+        oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
+            << " " << _aux_percent_(_report_data_.at("n.miss.stat"), n_individuals);
+
+    oss << "\nn. of households: " << n_households;
+
+    if (_report_data_.at("no.HH.case") > 0)
+        oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
+            << " " << _aux_percent_(_report_data_.at("no.HH.case"), n_households);
+
+    oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
+        << " " << _aux_percent_(_report_data_.at("lst.1.case"), n_households);
+
+    if (_report_data_.at("lst.1.case") > 0)
+        oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
+            << " " << _aux_percent_(_report_data_.at("lst.2.case"), n_households);
+
+    oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.cases"), n_households)
+        << "\nmin n. house members: " << _report_data_.at("min.HH.size")
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.min.size"), n_households)
+        << "\nmax n. house members: " << _report_data_.at("max.HH.size")
+        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.size"), n_households);
+
+    tools::print_stdout(oss.str() + "\n");
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show the complete choices for the setup. */
+void MCMC::Impl::show_setup() const
+{
+    // common setup variables
+    std::ostringstream oss;
+    oss << "seed" << C_DELIM << setup_seed
+        << "\nn_threads" << C_DELIM << setup_n_threads
+        << "\nn_chains" << C_DELIM << setup_n_chains
+        << "\nsize" << C_DELIM << setup_c_sample_size
+        << "\nn_steps" << C_DELIM << setup_n_steps
+        << "\nn_adapt" << C_DELIM << setup_n_adapt
+        << "\nn_burnin" << C_DELIM << setup_n_burnin
+        << "\nthin" << C_DELIM << setup_thin
+        << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
+        << "\nid_trace" << C_DELIM << setup_id_trace
+        << "\ninv_temper" << C_DELIM << setup_inv_T
+        << "\n";
+
+    tools::print_stdout(oss.str());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show the user model parameters */
+void MCMC::Impl::show_all_params() const
+{
+    std::ostringstream oss;
+    oss << param_file_headers[0];
+
+    for (size_t k = 1; k < param_file_headers.size(); ++k)
+        oss << C_DELIM << param_file_headers[k];
+
+    str_vec all_params = param_to_be_inferred;
+    all_params.insert(all_params.end(),
+                      param_to_be_constant.begin(),
+                      param_to_be_constant.end());
+
+    for (const parID &p : all_params)
+    {
+        const Variable &aux = param_map.at(p);
+        oss << aux.show_name()
+            << C_DELIM << tools::natod(aux.get_value())
+            << C_DELIM << tools::truth(aux.is_constant())
+            << C_DELIM << tools::truth(aux.is_discrete())
+            << C_DELIM << aux.show_distr_name()
+            << C_DELIM << aux.show_distr_arg_names()
+            << C_DELIM << aux.show_distr_arg_values()
+            << C_DELIM << aux.show_prop_name()
+            << C_DELIM << tools::natod(aux.show_prop_scale())
+            << C_DELIM << tools::natod(aux.show_min())
+            << C_DELIM << tools::natod(aux.show_max())
+            << "\n";
+    }
+
+    tools::print_stdout(oss.str());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::Impl::show_full_build() const
+{
+    //----- SETUP -----//
+    std::string add_file_info = NULL_STRING;
+    if (_report_pathtofile_.count("setup"))
+        if (!tools::is_na(_report_pathtofile_.at("setup")))
+            add_file_info = "# import: " + _report_pathtofile_.at("setup");
+
+    tools::print_decorator("Setup", add_file_info);
+    show_setup();
+
+    //----- PARAMETERS -----//
+    add_file_info = NULL_STRING;
+    if (_report_pathtofile_.count("params"))
+        if (!tools::is_na(_report_pathtofile_.at("params")))
+            add_file_info = "# import: " + _report_pathtofile_.at("params");
+
+    tools::print_decorator("Parameters", add_file_info);
+    show_all_params();
+
+    //----- DATABASE -----//
+    add_file_info = NULL_STRING;
+    if (_report_pathtofile_.count("data"))
+        if (!tools::is_na(_report_pathtofile_.at("data")))
+            add_file_info = "# import: " + _report_pathtofile_.at("data");
+
+    tools::print_decorator("Database", add_file_info);
+    show_summary();
+
+    //----- AUGMENTED -----//
+    add_file_info = NULL_STRING;
+    if (_report_pathtofile_.count("augm"))
+        if (!tools::is_na(_report_pathtofile_.at("augm")))
+            add_file_info = "# import: " + _report_pathtofile_.at("augm");
+
+    if (!augm_list_full.empty())
+        tools::print_decorator("Augmented", add_file_info);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Show the results of the paramters. */
+void MCMC::Impl::show_results() const
+{
+    std::ostringstream oss;
+    oss << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
+
+    for (size_t k = 2; k < param_file_headers.size(); ++k)
+        oss << C_DELIM << param_file_headers[k];
+
+    oss << "\n";
+
+    for (const parID &p : param_to_be_inferred)
+    {
+        const Variable &this_param = param_map.at(p);
+        double avg = 0, var = 0;
+        tools::compute_stats(dgn_param_value.at(p), avg, var);
+
+        oss << p
+            << C_DELIM << avg
+            << C_DELIM << std::sqrt(var)
+            << C_DELIM << tools::truth(this_param.is_constant())
+            << C_DELIM << tools::truth(this_param.is_discrete())
+            << C_DELIM << this_param.show_distr_name()
+            << C_DELIM << this_param.show_distr_arg_names()
+            << C_DELIM << this_param.show_distr_arg_values()
+            << C_DELIM << this_param.show_prop_name()
+            << C_DELIM << this_param.show_prop_scale()
+            << C_DELIM << tools::natod(this_param.show_min())
+            << C_DELIM << tools::natod(this_param.show_max())
+            << "\n";
+    }
+
+    tools::print_stdout(oss.str());
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize the output file with inferred parameters with column names and initial values */
+void MCMC::Impl::print_infer_state(const std::string &output_filename) const
+{
+    if (!tools::is_na(output_filename))
+    {
+        std::ofstream inferstate_ofstream;
+        inferstate_ofstream.open(output_filename.c_str());
+
+        if (inferstate_ofstream.is_open())
+        {
+            //----- HEADERS -----//
+            // header loglikelihood
+            inferstate_ofstream << "loglikelihood";
+
+            // header parameters
+            for (const parID &p : param_to_be_inferred)
+                inferstate_ofstream << C_DELIM << p;
+
+            // augmented variables
+            if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+                for (const augmID &a : augm_list_to_be_inferred)
+                    inferstate_ofstream << C_DELIM << a;
+
+            // header chain
+            if (setup_n_chains > 1)
+                inferstate_ofstream << C_DELIM << "CHAIN__";
+
+            inferstate_ofstream << std::endl;
+
+            //----- VALUES -----//
+
+            for (size_t c = 0; c < setup_n_chains; ++c)
+            {
+                for (size_t k = 0; k < setup_c_sample_size; k++)
+                {
+                    size_t i = k + c * setup_c_sample_size;
+
+                    // print loglikelihood
+                    inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
+
+                    // print parameter values
+                    for (const parID &p : param_to_be_inferred)
+                        inferstate_ofstream << C_DELIM << std::setprecision(5)
+                                            << std::fixed << dgn_param_value.at(p)[i];
+
+                    // print selected augmented variables
+                    if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+                        for (const augmID &a : augm_list_to_be_inferred)
+                            inferstate_ofstream << C_DELIM << std::setprecision(5)
+                                                << std::fixed << dgn_augm_value.at(a)[i];
+
+                    // print which chain
+                    if (setup_n_chains > 1)
+                        inferstate_ofstream << C_DELIM << (c + 1);
+
+                    inferstate_ofstream << std::endl;
+                }
+            }
+
+            inferstate_ofstream.close();
+        }
+        else
+            throw std::runtime_error(
+                "Unable to open file: " + output_filename);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  MCMC::Impl : print augm variables  ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Print all augmented variables of each individual */
+void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
+{
+    if (!tools::is_na(pathtofile))
+    {
+        std::ofstream augm_ofstream;
+        augm_ofstream.open(pathtofile.c_str());
+
+        if (augm_ofstream.is_open())
+        {
+            //===== Print column headers =====//
+            // default headers
+            augm_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
+
+            // data headers
+            for (const dataID &d : data_headers)
+                augm_ofstream << C_DELIM << d;
+
+            // augmented variables headers
+            for (const augmID &a : augm_list_full)
+                augm_ofstream << C_DELIM << a;
+
+            augm_ofstream << std::endl;
+
+            //===== Print data and augmented variables =====//
+            for (const Household &house : house_vector)
+            {
+                for (indiv i = 0; i < house.size(); ++i)
+                {
+                    augm_ofstream << house.id(i)
+                                  << C_DELIM << house.house_id()
+                                  << C_DELIM << house.status(i);
+                    for (const dataID &d : data_headers)
+                        augm_ofstream << C_DELIM << house.data(i, d);
+
+                    for (const augmID &a : augm_list_full)
+                        if (house.status(i) == INFECTED_STATUS)
+                            augm_ofstream << C_DELIM << house.augm(i, a);
+                        else
+                            augm_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
+
+                    augm_ofstream << std::endl;
+                }
+            }
+
+            augm_ofstream.close();
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Unable to open file: " + pathtofile);
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MCMC : show  //////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::show_full_build() const { pImpl->show_full_build(); }
+void MCMC::show_results() const { pImpl->show_results(); }
+void MCMC::show_summary() const { pImpl->show_summary(); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  MCMC : C++ Print  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::print_infer_state(const std::string &pathtofile) const { pImpl->print_infer_state(pathtofile); }
+void MCMC::print_augm_variables(const std::string &pathtofile) const { pImpl->print_augm_variables(pathtofile); }
 
 #endif

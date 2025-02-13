@@ -33,8 +33,6 @@
 /* The Main Function. */
 int main(int argc, char *argv[])
 {
-    using namespace tools;
-
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
@@ -61,7 +59,7 @@ int main(int argc, char *argv[])
         std::ostringstream oss;
         oss << "No argument or command found. Check the usage through:\n"
             << argv[0] << " -h";
-        error(oss.str());
+        tools::error(oss.str());
     }
 
     //=====Parse commands and options=====//
@@ -77,7 +75,7 @@ int main(int argc, char *argv[])
             std::ostringstream oss;
             oss << "No Software Manual is available, refer to the Rcpp tutorials.\n"
                 << "Apologies for the inconvenience.";
-            error(oss.str());
+            tools::error(oss.str());
         }
 
         else if (carg == std::string("--marginal"))
@@ -85,7 +83,7 @@ int main(int argc, char *argv[])
             is_marginal = true;
             num_rungs = tools::stoul(argv[++carg_i], "number of rungs");
         }
-        
+
         else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
             verbose = true;
 
@@ -117,7 +115,7 @@ int main(int argc, char *argv[])
             save_augm_file = argv[++carg_i];
 
         else
-            error("Unrecognized option `" + carg + "`.");
+            tools::error("Unrecognized option `" + carg + "`.");
 
         carg_i++; // Move to the next command line argument
     }
@@ -129,7 +127,7 @@ int main(int argc, char *argv[])
     //----- Check for command -----//
     int aux = is_evaluate + is_infer + is_simulate + is_marginal;
     if (aux > 1)
-        error(
+        tools::error(
             "Incompatible commands: choose one between --evaluate, --infer, --simulate or --marginal.");
 
     else if (aux == 0)
@@ -159,62 +157,60 @@ int main(int argc, char *argv[])
 
     if (is_infer)
     { //===== Inference =====//
-        print_decorator("Inference", NULL_STRING, C_DECOR, verbose);
+        tools::print_decorator("Inference", NULL_STRING, C_DECOR, verbose);
         user_model->infer(progbar);
 
         if (verbose)
         {
-            print_decorator("Inference::results", NULL_STRING);
+            tools::print_decorator("Inference::results", NULL_STRING);
             user_model->show_results();
         }
 
         if (output_file != NULL_STRING)
         {
-            print_decorator("Inference::infer state",
-                            "# save: " + output_file,
-                            C_DECOR, verbose);
+            tools::print_decorator("Inference::infer state",
+                                   "# save: " + output_file,
+                                   C_DECOR, verbose);
             user_model->print_infer_state(output_file);
         }
 
         if (save_augm_file != NULL_STRING)
         {
-            print_decorator("Inference::augmented dataframe",
-                            "# save: " + save_augm_file,
-                            C_DECOR, verbose);
+            tools::print_decorator("Inference::augmented dataframe",
+                                   "# save: " + save_augm_file,
+                                   C_DECOR, verbose);
             user_model->print_augm_variables(save_augm_file);
         }
     }
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file == NULL_STRING)
+        if (output_file != NULL_STRING)
         {
-            error("Missing output file for simulation.");
-        }
-        else
-        {
-            print_decorator("Simulation",
-                            "# save: " + output_file,
-                            C_DECOR, verbose);
+            tools::print_decorator("Simulation",
+                                   "# save: " + output_file,
+                                   C_DECOR, verbose);
             user_model->simulate(progbar);
             user_model->print_augm_variables(output_file);
 
             if (verbose)
             {
-                print_decorator("Simulation::summary");
+                tools::print_decorator("Simulation::summary");
                 user_model->show_summary();
             }
         }
+        else
+            tools::error("Missing output file for simulation.");
     }
 
     else if (is_evaluate)
     { //===== Evaluate Loglikelihood =====//
-        print_decorator("Loglikelihood", NULL_STRING, C_DECOR, verbose);
-        print_stdout(std::to_string(user_model->evaluate()) + "\n");
+        tools::print_decorator("Loglikelihood", NULL_STRING, C_DECOR, verbose);
+        tools::print_stdout(std::to_string(user_model->evaluate()) + "\n");
 
         if (save_augm_file != NULL_STRING)
         {
-            print_decorator("Loglikelihood::augmented dataframe",
+            tools::print_decorator("Loglikelihood::augmented dataframe",
                             "# save: " + save_augm_file,
                             C_DECOR, verbose);
             user_model->print_augm_variables(save_augm_file);
@@ -223,8 +219,8 @@ int main(int argc, char *argv[])
 
     else if (is_marginal)
     { //===== Power Posteriors =====//
-        print_decorator("Marginal Loglikelihood", NULL_STRING, C_DECOR, verbose);
-        print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
+        tools::print_decorator("Marginal Loglikelihood", NULL_STRING, C_DECOR, verbose);
+        tools::print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
     }
 
     return EXIT_SUCCESS;

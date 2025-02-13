@@ -7,12 +7,11 @@
 #' @title Housepi Parameter R6 Class
 #' @description
 #' Help with parameter definitions of model Rcpp object.
-#' @export HousepiParameterClass
-#' @docType class
+#' 
 #' @noRd
 HousepiParameterClass <- R6::R6Class(
   classname = "HousepiParameterClass",
-  cloneable = FALSE,
+  cloneable = TRUE,
 
   ###################
   ##### PUBLIC ######
@@ -22,7 +21,9 @@ HousepiParameterClass <- R6::R6Class(
     defs = NULL,
 
     #' @description
-    #' New instance of class [HousepiParameterClass][housepi::HousepiParameterClass].
+    #' New instance of class
+    #' [HousepiParameterClass][housepi::HousepiParameterClass].
+    #' 
     #' @noRd
     initialize = function() {
       self$drop_all()
@@ -31,8 +32,10 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' Find parameters required by the model.
+    #' 
     #' @param refer_file
     #' Path/to/.refer source file.
+    #' 
     #' @noRd
     require = function(refer_file) {
       # vector of regular expression to use for assertion
@@ -50,8 +53,10 @@ HousepiParameterClass <- R6::R6Class(
       return(template_find_requirement(refer_file, regular_expr))                                  
     },
 
-    # @description
-    # Remove a given parameter.
+    #' @description
+    #' Remove a given parameter.
+    #' 
+    #' @noRd
     remove = function(name,
                       show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == name)
@@ -62,9 +67,9 @@ HousepiParameterClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          cli::cli_alert_warning(cli::format_warning(sprintf(
+          warning(sprintf(
             "Unknown parameter \"%s\" to remove.", name
-          )))
+          ))
         }
       }
 
@@ -73,6 +78,7 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' Add a new parameter definition.
+    #' 
     #' @noRd
     add = function(name,
                    value = NA,
@@ -85,14 +91,14 @@ HousepiParameterClass <- R6::R6Class(
                    min = NA,
                    max = NA) {
       if (is.na(name)) {
-        stop(cli::format_error("Incomplete definition: missing name."))
+        hstop("Incomplete definition: missing name.")
       }
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) {
-        cli::cli_alert_warning(cli::format_warning(sprintf(
+        warning(sprintf(
           "Existing \"%s\" definition has been overwritten.", name
-        )))
+        ))
       }
 
       # assume it's a constant if a prior is not provided
@@ -103,8 +109,8 @@ HousepiParameterClass <- R6::R6Class(
       if (isTRUE(constant)) {
         # check that value is provided
         if (is.na(value)) {
-          stop(cli::format_error(
-            sprintf("Missing value for constant parameter \"%s\".", name)
+          hstop(sprintf(
+            "Missing value for constant parameter \"%s\".", name
           ))
         }
         # append constant parameter
@@ -129,9 +135,9 @@ HousepiParameterClass <- R6::R6Class(
       } else {
         # assign prior
         if (is.na(prior)) {
-          stop(cli::format_error(sprintf(
+          hstop(sprintf(
             "Incomplete definition: provide prior name for \"%s\".", name
-          )))
+          ))
         }
         # prior arguments
         arg_name_ <- NA
@@ -173,6 +179,7 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' Drop all current parameter definitions.
+    #' 
     #' @noRd
     drop_all = function() {
       self$defs <- data.frame(
@@ -194,13 +201,15 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' Associate parameters from a list. Previous definitions are dropped.
-    #' @param def_list (named `list()`)\cr
+    #' 
+    #' @param definitions (named `list()`)\cr
     #' A list containg parameter names with respective list of definitions.
+    #' 
     #' @noRd
     from_list = function(definitions,
                          append = TRUE) {
       if (!is.list(definitions)) {
-        stop(cli::format_error("Argument {.code def_list} should be a list."))
+        hstop("Argument definitions should be a list.")
       }
       if (isFALSE(append)) {
         self$drop_all()
@@ -209,14 +218,14 @@ HousepiParameterClass <- R6::R6Class(
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
-        if (is.null(names(this_def))) {
+        if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) {
             names(this_def) <- "value"
           } else {
-            stop(cli::format_error(c(
+            hstop(paste(
               sprintf("Wrong definition for parameter \"%s\"", def_name),
-              i = "Provide a definition list or a scalar (if constant)."
-            )))
+              "Provide a definition list or a scalar (if constant)."
+            ))
           }
         }
         this_def[["name"]] <- def_name
@@ -228,6 +237,7 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' Add missing parameter from template definitions.
+    #' 
     #' @param templ_file
     #' Path/to/.refer template file.
     #' @param requirements (`character()`)\cr
@@ -235,6 +245,7 @@ HousepiParameterClass <- R6::R6Class(
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` append to previous definitions (default).
     #' If `FALSE` drop previous definitions.
+    #' 
     #' @noRd
     template = function(templ_file,
                         requirements = NULL,
@@ -246,25 +257,26 @@ HousepiParameterClass <- R6::R6Class(
 
         if (isTRUE(append)) {
           # check the set of required parameters
-          if (is.null(requirements)) {
-            cli::cli_alert_warning(cli::format_warning(c(
-              "Appending template parameter definitions failed.",
-              i = "Alternatively use option {.code append = FALSE}."
-            )))
+          if (length(requirements) == 0) {
+            warning("No parameter definitions required by the model.")
           } else {
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
-            self$from_list(templ_defs[missing_set], append = TRUE)
+            if (length(missing_set) == 0) {
+              warning("No template definitions to append. Parameters are complete.")
+            } else {                                   
+              self$from_list(templ_defs[missing_set], append = TRUE)
+            }
           }
         } else {
           self$from_list(templ_defs, append = FALSE)
         }
 
       } else {
-        stop(cli::format_error(c(
+        hstop(paste(
           "Impossible to automatically initialize parameters.",
-          i = "A file with template definitionse was not found."
-        )))
+          "A file with template definitionse was not found."
+        ))
       }
 
       invisible(self)
@@ -272,15 +284,19 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' Assert parameter definitions match the requirement list.
+    #' 
     #' @param requirements (`character()`)\cr
     #' Vector containing required parameters.
-    #' @return (`logical(1)`)\cr
+    #' 
+    #' @return 
+    #' (`logical(1)`)
+    #' 
     #' @noRd
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
 
-      if (is.null(requirements)) {
+      if (length(requirements) == 0) {
         # if requirement set is NULL it means nothing can be said
         is_def_complete <- NA
 
@@ -293,9 +309,10 @@ HousepiParameterClass <- R6::R6Class(
                                              self$defs[["name"]])
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
-          oss <- paste0("Missing parameter(s): ",
-                        character_to_string_list(missing_set), ".")
-          cli::cli_alert_warning(cli::format_warning(oss))
+          warning(paste0(
+            "Missing parameter(s): ",
+            character_to_string_list(missing_set), ".")
+          )
         }
 
         # point out parameters that are not used
@@ -303,10 +320,10 @@ HousepiParameterClass <- R6::R6Class(
                                            self$defs[["name"]])
         # drop unused parameters
         if (length(unused_set) > 0) {
-          oss <- paste0("Dropping not used parameter(s): ",
-                        character_to_string_list(unused_set), ".")
-          cli::cli_alert_warning(cli::format_warning(oss))
-
+          warning(paste0(
+            "Dropping not used parameter(s): ",
+            character_to_string_list(unused_set), ".")
+          )
           for (name in unused_set) {
             self$remove(name)
           }

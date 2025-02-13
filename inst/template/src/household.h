@@ -32,7 +32,7 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Household(const std::string &ID = NULL_STRING,
+	Household(const std::string &house_id = NULL_STRING,
 			  size_t index = SIZE_MAX);
 	Household(Household &&other) noexcept;			  // Move constructor
 	Household &operator=(Household &&other) noexcept; // Move assignment
@@ -42,7 +42,7 @@ public:
 	//===== SETTER =====//
 	//==================//
 
-	void assign_individual(const std::string &ID,
+	void assign_individual(const std::string &id,
 						   int status,
 						   const dataIDmap<double> &data);
 	bool change_status(indiv i, int new_status);
@@ -52,7 +52,7 @@ public:
 	//===== GETTER =====//
 	//==================//
 
-	const std::string &house_ID() const;
+	const std::string &house_id() const;
 	size_t index() const;
 	ushort size() const;
 	ushort n_infectious() const;
@@ -70,7 +70,7 @@ public:
 	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
 
 	//----- Individual : Getter -----//
-	const std::string &ID(indiv i) const;
+	const std::string &id(indiv i) const;
 	int status(indiv i) const;
 	double data(indiv i, const dataID &d) const;
 	double group_rate(indiv i, const rateID &r) const;
@@ -130,27 +130,17 @@ public:
 	void buffer_all_extra();
 	void restore_all_extra();
 
-	//----- Single integers -----//
-	void allocate_extra_integer(const std::vector<extraID> &names, int xinit = 0.0);
-	void set_extra_integer(const extraID &e, int xnew);
-	int extra_integer(const extraID &e) const;
-
-	//----- Single doubles -----//
-	void allocate_extra_double(const std::vector<extraID> &names, double xinit = 0.0);
-	void set_extra_double(const extraID &e, double xnew);
-	double extra_double(const extraID &e) const;
+	//----- Vector of integers -----//
+	void allocate_extra_integer_vector(const extraID &e, int x0 = 0);
+	int_vec &extra_integer_vector(const extraID &e);
 
 	//----- Vector of doubles -----//
-	void allocate_extra_vector(const std::vector<extraID> &names, double xinit = 0.0);
-	void set_extra_vector(const extraID &e, size_t i, double xnew);
-	double extra_vector(const extraID &e, size_t i) const;
-	const dbl_vec &extra_vector(const extraID &e) const;
+	void allocate_extra_double_vector(const extraID &e, double x0 = 0.0);
+	dbl_vec &extra_double_vector(const extraID &e);
 
 	//----- Matrix of doubles -----//
-	void allocate_extra_matrix(const std::vector<extraID> &names, double xinit = 0.0);
-	void set_extra_matrix(const extraID &e, size_t from, size_t to, double xnew);
-	double extra_matrix(const extraID &e, size_t from, size_t to) const;
-	const matrix<double> &extra_matrix(const extraID &e) const;
+	void allocate_extra_double_matrix(const extraID &e, double x0 = 0.0);
+	matrix<double> &extra_double_matrix(const extraID &e);
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -176,6 +166,18 @@ private:
 	//===== Pointer to Implementation =====//
 	class Impl;
 	std::unique_ptr<Impl> pImpl;
+
+	//===== EXTRA ATTRIBUTES =====//
+
+	//----- Extra Attributes -----//
+	extraIDmap<int_vec> extra_int_vec = {};
+	extraIDmap<dbl_vec> extra_dbl_vec = {};
+	extraIDmap<matrix<double>> extra_mtx = {};
+
+	//----- Buffer EXTRA Attributes -----//
+	extraIDmap<int_vec> _buffer_extra_int_vec_ = {};
+	extraIDmap<dbl_vec> _buffer_extra_dbl_vec_ = {};
+	extraIDmap<matrix<double>> _buffer_extra_mtx_ = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

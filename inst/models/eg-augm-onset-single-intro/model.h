@@ -23,12 +23,12 @@ class Model : public MCMC
 {
 public:
 	//===== Model dependent methods =====//
-	double transmission_rate(const Household &house) const;
-	double _houseROI_(const Household &house, indiv i, const matrix<double> &profiles) const;
-	double ROI_inst(const Household &house, indiv i) const;
-	double ROI_cumul_infec(const Household &house, indiv i) const;
-	double ROI_cumul_suscept(const Household &house, indiv i) const;
-	double time_end_followup(const Household &house) const;
+	double transmission_rate(Household &house) const;
+	double _houseROI_(Household &house, indiv i, const matrix<double> &profiles) const;
+	double ROI_inst(Household &house, indiv i) const;
+	double ROI_cumul_infec(Household &house, indiv i) const;
+	double ROI_cumul_suscept(Household &house, indiv i) const;
+	double time_end_followup(Household &house) const;
 
 	//===== Override General Methods =====//
 	void init_model_for_inference() override;

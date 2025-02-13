@@ -4,11 +4,15 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+hstop <- function(text) {
+  stop(text, .call = FALSE)
+}
+
 internal_setup_error <- function() {
-  stop(cli::format_error(c(
+  hstop(paste(
     "Failed to setup files necessary to model.",
-    i = "Check your user permissions."
-  )))
+    "Check your user permissions."
+  ))
 }
 
 # wrapper to file.copy with overwrite option
@@ -91,10 +95,10 @@ source_files <- function(path) {
 assert_source_files <- function(path) {
   for (file_name in source_files(path)) {
     if (!file.exists(file_name)) {
-      stop(cli::format_error(c(
+      hstop(paste(
         sprintf("File \"%s\" was not found.", file_name),
-        i = "Check your model directory"
-      )))
+        "Check your model directory"
+      ))
     }
   }
   invisible()

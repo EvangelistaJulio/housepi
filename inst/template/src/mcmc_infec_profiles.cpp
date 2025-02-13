@@ -105,6 +105,67 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// InfecProfile_Ashcroft20 : class //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+ ----
+ Ref:
+ ----
+ Ashcroft P, Huisman JS, Lehtinen S, Bouman JA, Althaus CL, Regoes RR, et al.
+ COVID-19 infectivity profile correction. Swiss medical weekly. 2020. p. w20336.
+*/
+class InfecProfile_Ashcroft20 : public Distribution
+{
+public:
+	//===== CONSTRUCTOR =====//
+	InfecProfile_Ashcroft20()
+	{
+		init_defaults("ashcroft20",
+					  {"shape", "scale", "shift"},
+					  {97.32, 0.268, 25.6},
+					  0., NULL_DOUBLE, false, false);
+
+		// wrapper around gamma distribution
+		gamma_distr_ptr = distribution_switchboard("gamma");
+		gamma_distr_ptr->assign_pointer_arg("shape", get_ptr_to_arg(0));
+		gamma_distr_ptr->assign_pointer_arg("scale", get_ptr_to_arg(1));
+	}
+	~InfecProfile_Ashcroft20() = default;
+
+	//===== SETTER =====//
+	void init_reshaping(bool discrete) override
+	{
+		_init_min_zero_reshaping_(discrete, false);
+	}
+
+protected:
+	std::shared_ptr<Distribution> gamma_distr_ptr;
+
+	double _pdf_(double x, const dbl_vec &opts) const override
+	{
+		double i1 = opts.at(0);		 // incubation period infector
+		double i2 = opts.at(1);		 // incubation period infectee
+		double serial = x + i2 - i1; // serial time
+		return gamma_distr_ptr->pdf(serial + get_arg(2));
+	}
+
+	double _cdf_(double x, const dbl_vec &opts) const override
+	{
+		double i1 = opts.at(0);		 // incubation period infector
+		double i2 = opts.at(1);		 // incubation period infectee
+		double serial = x + i2 - i1; // serial time
+		return gamma_distr_ptr->cdf(serial + get_arg(2));
+	}
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : Impl : infectivity profile  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,12 +189,14 @@ void MCMC::Impl::switchboard_infec_profile(const std::string &name)
 			std::string prev = e.what();
 			if (prev.back() == '?') // found closest amongst distributions
 				throw std::invalid_argument(prev);
+
 			else // search between infectivity profiles
 			{
 				std::string curr = tools::find_closest(name, options, 3);
 				if (curr.back() == '?') // found closest amongst infec profiles
 					throw std::invalid_argument(
 						"Unknown infectivity profile \"" + name + "\"." + curr);
+
 				else // combined error messages
 					throw std::invalid_argument(
 						prev + " Implemented infectivity profile(s): " + tools::show_list(options) + ".");
@@ -195,15 +258,13 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 
 		else if (type == TYPE_PARAM)
 		{
-			if (param_map.at(value).is_constant())
-			{
-				_infec_profile_->assign_scalar_arg(key, get_param(value));
-			}
-			else
+			if (!param_map.at(value).is_constant())
 			{
 				_infec_profile_->assign_pointer_arg(key, get_param_pointer(value));
 				fix_param_to_be_inferred_list(value);
 			}
+			else
+				_infec_profile_->assign_scalar_arg(key, get_param(value));
 		}
 		else if (type == TYPE_SCALAR)
 			_infec_profile_->assign_scalar_arg(key, tools::stod(value, "argument with scalar type"));
@@ -236,13 +297,13 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 
 	else if (min_value == TYPE_PARAM)
 	{
-		if (param_map.at(min_value).is_constant())
-			_infec_profile_->assign_scalar_range_min(get_param(min_value));
-		else
+		if (!param_map.at(min_value).is_constant())
 		{
 			_infec_profile_->assign_pointer_range_min(get_param_pointer(min_value));
 			fix_param_to_be_inferred_list(min_value);
 		}
+		else
+			_infec_profile_->assign_scalar_range_min(get_param(min_value));
 	}
 
 	else if (min_type == TYPE_SCALAR)
@@ -275,13 +336,13 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 
 	else if (max_type == TYPE_PARAM)
 	{
-		if (param_map.at(max_value).is_constant())
-			_infec_profile_->assign_scalar_range_max(get_param(max_value));
-		else
+		if (!param_map.at(max_value).is_constant())
 		{
 			_infec_profile_->assign_pointer_range_max(get_param_pointer(max_value));
 			fix_param_to_be_inferred_list(max_value);
 		}
+		else
+			_infec_profile_->assign_scalar_range_max(get_param(max_value));
 	}
 
 	else if (max_type == TYPE_SCALAR)

@@ -67,24 +67,24 @@ public:
     //===== SETUP =====//
     //=================//
 
-    unsigned long long setup_seed = 1;  // random generator seed
-    bool setup_rand_init_params = true; // random initialization of parameters
+    unsigned long long setup_seed; // random generator seed
+    bool setup_rand_init_params;   // random initialization of parameters
 
-    ulong setup_n_chains = 1;    // n. chains
-    ulong setup_n_steps = 10000; // n. iterations
-    ulong setup_n_adapt = 0;     // n. (finite) adaptive steps
-    ulong setup_thin = 1;        // n. thinning iterations
-    ulong setup_n_burnin = 0;    // n. burnin iterations
+    ulong setup_n_chains; // n. chains
+    ulong setup_n_steps;  // n. iterations
+    ulong setup_n_adapt;  // n. (finite) adaptive steps
+    ulong setup_thin;     // n. thinning iterations
+    ulong setup_n_burnin; // n. burnin iterations
 
-    double setup_inv_T = 1.0;     // inverse temperature
-    unsigned setup_n_threads = 1; // number of OMP threads
+    double setup_inv_T;       // inverse temperature
+    unsigned setup_n_threads; // number of OMP threads
 
-    std::string setup_id_trace = NULL_STRING; // augmented trace to save
+    std::string setup_id_trace; // augmented trace to save
 
     ulong setup_c_sample_size; // single chain sample size
     ulong setup_c_n_sweeps;    // single chain n. of sweeps
 
-    void set_n_threads(unsigned n = 1);
+    void set_n_threads();
     void set_inver_temper(double inv_T);
 
     //=====================//
@@ -170,20 +170,6 @@ public:
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
 
-    //================//
-    //===== SHOW =====//
-    //================//
-
-    void show_setup() const;
-    void show_all_params() const;
-    void show_results() const;
-    void show_summary() const;
-    void show_full_build() const;
-
-    //----- Cpp Prints -----//
-    void print_infer_state(const std::string &pathtofile) const;
-    void print_augm_variables(const std::string &pathtofile) const;
-
 #ifdef _HOUSEPI_RCPP
     //========================//
     //===== Rcpp IMPORTS =====//
@@ -206,6 +192,20 @@ public:
     Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
                                          const Rcpp::List &xlim) const;
 
+#else
+    //================//
+    //===== SHOW =====//
+    //================//
+
+    void show_summary() const;
+    void show_setup() const;
+    void show_all_params() const;
+    void show_full_build() const;
+    void show_results() const;
+
+    //----- Cpp Prints -----//
+    void print_infer_state(const std::string &pathtofile) const;
+    void print_augm_variables(const std::string &pathtofile) const;
 #endif
 
     //===================================//
@@ -221,7 +221,6 @@ public:
     rnd_gen &(MCMC::Impl::*_func_prng_)();
     rnd_gen &_prng_unique_thread_() { return prng; }
 #ifdef _OPENMP
-    unsigned _max_n_available_threads = 1;
     rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
 #endif
 
@@ -239,6 +238,8 @@ public:
     void build_augm();
     void build_setup();
     void build_params();
+
+    void check_definitions_before_mcmc();
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::string> _setup_deflist_ = {};
@@ -288,13 +289,12 @@ public:
     //===== METROPOLIS =====//
     //======================//
 
-    ulong _chain_ = 1;           // current chain
-    ulong _tot_thin_sweeps_ = 0; // total number of sweeps
-    ulong _rung_ = 0;            // current thermodynamic rung
-    ulong _n_rungs_ = 0;         // number of rungs
+    ulong _chain_ = 1;   // current chain
+    ulong _rung_ = 0;    // current thermodynamic rung
+    ulong _n_rungs_ = 0; // number of rungs
 
     bool is_power_post() const;
-    const std::string fmt_progtxt(const std::string &txt);
+    const std::string fmt_progtxt();
 
     //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;

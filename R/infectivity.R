@@ -1,5 +1,5 @@
 #
-# miscellaneous
+# infectivity
 #
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
@@ -10,15 +10,15 @@
 ############################################################################
 ############################################################################
 
-#' @title Housepi Infectivity Profile Class
+#' @title 
+#' Housepi Infectivity Profile Class
 #' @description
 #' Auxiliary class to deal with infectivity profile.
-#' @export HousepiInfecProfileClass
-#' @docType class
+#' 
 #' @noRd
 HousepiInfecProfileClass <- R6::R6Class(
   classname = "HousepiInfecProfileClass",
-  cloneable = FALSE,
+  cloneable = TRUE,
 
   ###################
   ##### PUBLIC ######
@@ -28,7 +28,9 @@ HousepiInfecProfileClass <- R6::R6Class(
     defs = NULL,
 
     #' @description
-    #' New instance of class [HousepiInfecProfileClass][housepi::HousepiInfecProfileClass].
+    #' New instance of class
+    #' [HousepiInfecProfileClass][housepi::HousepiInfecProfileClass].
+    #' 
     #' @noRd
     initialize = function() {
       self$drop_all()
@@ -37,6 +39,7 @@ HousepiInfecProfileClass <- R6::R6Class(
 
     #' @description
     #' Find parameters required by infectivity profile variable definition.
+    #' 
     #' @noRd
     param_require = function() {
       # from : augmented variable model argument definitions
@@ -56,6 +59,7 @@ HousepiInfecProfileClass <- R6::R6Class(
 
     #' @description
     #' Add definition of infectivity profile.
+    #' 
     #' @param name (`character(1)`)\cr
     #' Name of the infectivity profile.
     #' @param discrete (`logical(1)`)\cr
@@ -70,6 +74,7 @@ HousepiInfecProfileClass <- R6::R6Class(
     #' One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`).
+    #' 
     #' @noRd
     add = function(name,
                    discrete = FALSE,
@@ -78,7 +83,7 @@ HousepiInfecProfileClass <- R6::R6Class(
                    max = NA) {
       #----- name -----#
       if (is.na(name)) {
-        stop(cli::format_error("Incomplete definition: missing name."))
+        hstop("Incomplete definition: missing name.")
       }
 
       #----- arguments -----#
@@ -121,6 +126,7 @@ HousepiInfecProfileClass <- R6::R6Class(
 
     #' @description
     #' Drop current infectivity profile definition.
+    #' 
     #' @noRd
     drop_all = function() {
       self$defs <- NULL

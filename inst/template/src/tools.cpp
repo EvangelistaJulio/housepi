@@ -136,6 +136,13 @@ namespace tools
         if (_issued_warnings_.find(txt) == _issued_warnings_.end())
         {
 #ifdef _HOUSEPI_RCPP
+            /*
+            using namespace Rcpp;
+
+            Environment cli = Environment::namespace_env("cli");
+            Function cli_warn = cli["cli_warn"];
+            cli_warn(_["message"] = txt);
+            */
             Rcpp::warning(txt);
 #else
             std::cerr << "\nWarning: " + txt << std::endl;
@@ -152,6 +159,12 @@ namespace tools
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
+        using namespace Rcpp;
+        /*
+        Environment cli = Environment::namespace_env("cli");
+        Function cli_abort = cli["cli_abort"];
+        cli_abort(_["message"] = txt);
+        */
         print_stderr("\n");
         Rcpp::stop(txt);
 #else
@@ -618,10 +631,11 @@ namespace progress
     class Bar::Impl
     {
     public:
-        bool verbose = true;
-        string text = "";
+        ulong total = 0;                  // total number of iterations
+        string text = "";                 // current text to show
         const string symbol = u8"\u25A0"; // decorator for progress bar
         unsigned barwidth = 30;           // total size of progress bar
+        bool verbose = true;              // if to show bar or not
 
         steady_clock::time_point start;
         steady_clock::time_point lastprint;
@@ -660,14 +674,15 @@ namespace progress
             }
         }
 
-        /* Update progress bar given the progress state (step / total). */
-        void update(double progress)
+        /* Update progress bar given the progress state. */
+        void update(ulong state)
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
             if (verbose)
             {
+                const double progress = static_cast<double>(state) / total;
                 steady_clock::time_point now = steady_clock::now();
 
                 if (duration_cast<seconds>(now - lastprint).count() > thintime)
@@ -725,9 +740,11 @@ namespace progress
     //-----------------------------------------------------------------------------------------------//
 
     //===== CONSTRUCTOR =====//
-    Bar::Bar(const std::string &text,
+    Bar::Bar(ulong total,
+             const std::string &text,
              bool verbose) : pImpl(std::make_unique<Impl>())
     {
+        pImpl->total = total;
         pImpl->verbose = verbose;
         pImpl->initialize(text);
     }
@@ -735,7 +752,7 @@ namespace progress
 
     //===== SETTER =====//
     void Bar::set_text(const std::string &text) { pImpl->set_text(text); }
-    void Bar::update(double progress) { pImpl->update(progress); }
+    void Bar::update(ulong state) { pImpl->update(state); }
     void Bar::finalize() { pImpl->finalize(); }
 
 } // PROGRESS NAMESPACE

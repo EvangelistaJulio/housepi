@@ -52,21 +52,21 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 		emplace_group_rate(r, REFERENCE);
 	else
 		emplace_group_rate(r, "inf_child");
-	
+
 	//----- community_susceptibility -----//
 	r = "community_susceptibility";
-	if ((is_adult) && (is_male))
+	if (is_adult && is_male)
 		emplace_group_rate(r, REFERENCE);
-	else if ((is_adult) && (!is_male))
+	else if (is_adult && (!is_male))
 		emplace_group_rate(r, "com_sus_woman");
 	else
 		emplace_group_rate(r, "com_sus_child");
 
 	//----- susceptibility -----//
 	r = "susceptibility";
-	if ((is_adult) && (is_male))
+	if (is_adult && is_male)
 		emplace_group_rate(r, REFERENCE);
-	else if ((is_adult) && (!is_male))
+	else if (is_adult && (!is_male))
 		emplace_group_rate(r, "sus_woman");
 	else
 		emplace_group_rate(r, "sus_child");
@@ -77,14 +77,6 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize the Lookup Table. */
-void Model::init_model_for_simulation()
-{
-	//===== Allocate memory for the escape matrix =====//
-	assign_extra_vector_to_all_houses({"commu-escprob"});
-	assign_extra_matrix_to_all_houses({"p2p-escprob"});
-}
-
-/* Initialize the Lookup Table. */
 void Model::init_model_for_inference()
 {
 	//==== Unknown status are not modeled =====//
@@ -93,7 +85,9 @@ void Model::init_model_for_inference()
 			"A missing status was found : incompatible with the model.");
 
 	//===== Allocate memory for the escape matrix =====//
-	init_model_for_simulation();
+	assign_extra_house_integer_vector("order");
+	assign_extra_house_double_vector("commu-escprob");
+	assign_extra_house_double_matrix("p2p-escprob");
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
@@ -107,40 +101,45 @@ void Model::init_model_for_inference()
 	Important: it must be re-ordered to have seropositives first. */
 void Model::fill_house_escape_matrix(Household &house) const
 {
-	double commu_transm_rate = community_risk();
-	double p2p_transm_rate = person_to_person_risk();
+	const double commu_transm_rate = community_risk();
+	const double p2p_transm_rate = person_to_person_risk();
 
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
-	std::vector<indiv> order;
-	order.reserve(house.size());
-	// 1) Append infectious members
-	order.insert(order.end(), house.infectious_set().begin(), house.infectious_set().end());
-	// 2) Append susceptible members
-	order.insert(order.end(), house.susceptible_set().begin(), house.susceptible_set().end());
+	auto &order = house.extra_integer_vector("order");
+
+	indiv m = 0;
+	for (indiv i : house.infectious_set())
+		order[m++] = i;
+	for (indiv s : house.susceptible_set())
+		order[m++] = s;
 
 	//----- Assign values to LUT matrix -----//
+	auto &commu_escprob = house.extra_double_vector("commu-escprob");
+	auto &p2p_escprob = house.extra_double_matrix("p2p-escprob");
+
 	for (indiv c = 0; c < house.size(); ++c)
 	{
-		double susc_commu_c = house.group_rate(order[c], "community_susceptibility");
-		double infect_c = house.group_rate(order[c], "infectivity");
-		double susc_house_c = house.group_rate(order[c], "susceptibility");
+		indiv idx_c = order[c];
+		double infect_c = house.group_rate(idx_c, "infectivity");
+		double susc_house_c = house.group_rate(idx_c, "susceptibility");
 
-		// community : i escaped from community
-		house.set_extra_vector("commu-escprob", c, exp(-susc_commu_c * commu_transm_rate));
+		//----- community -----//
+		commu_escprob[c] = exp(-commu_transm_rate * house.group_rate(idx_c, "community_susceptibility"));
 
-		// person-to-person : [1st] escaped from [2nd]
+		//----- person-to-person -----//
 		for (indiv r = 0; r < c; ++r)
 		{
-			house.set_extra_matrix(
-				"p2p-escprob", r, c,
-				exp(-house.group_rate(order[r], "infectivity") * susc_house_c * p2p_transm_rate));
-			house.set_extra_matrix(
-				"p2p-escprob", c, r,
-				exp(-infect_c * house.group_rate(order[r], "susceptibility") * p2p_transm_rate));
+			indiv idx_r = order[r];
+
+			// [c] : infector -> [r] : infectee
+			p2p_escprob[c][r] = exp(-infect_c * p2p_transm_rate * house.group_rate(idx_r, "susceptibility"));
+
+			// [r] : infector -> [c] : infectee
+			p2p_escprob[r][c] = exp(-house.group_rate(idx_r, "infectivity") * p2p_transm_rate * susc_house_c);
 		}
 
-		// note : infector always escape himself (not relevant)
-		house.set_extra_matrix("p2p-escprob", c, c, 1.0);
+		// note : infector always "escapes" himself (not relevant)
+		p2p_escprob[c][c] = 1.0;
 	}
 }
 
@@ -156,8 +155,8 @@ double Model::compute_house_loglike(Household &house) const
 
 	//=====compute the loglikelihood=====//
 	return bax::chain_binomial_heter_loglikelihood(house.n_infectious(),
-												   house.extra_vector("commu-escprob"),
-												   house.extra_matrix("p2p-escprob"));
+												   house.extra_double_vector("commu-escprob"),
+												   house.extra_double_matrix("p2p-escprob"));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -172,20 +171,18 @@ double Model::compute_house_loglike(Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
+// UPDATE : collapse to fill_house_escape_matrix(house) 
 void Model::simulate_single_house(Household &house)
 {
+	const double commu_transm_rate = community_risk();
+	const double p2p_transm_rate = person_to_person_risk();
+
 	//=========================//
 	//===== ESCAPE MATRIX =====//
 	//=========================//
 
-	fill_house_escape_matrix(house);
-
-	//==================================================//
-	//===== GENERATION 0 : infection by community ======//
-	//==================================================//
-
 	for (indiv i = 0; i < house.size(); ++i)
-		if (uniform() < house.extra_vector("commu-escprob", i))
+		if (uniform() < exp(-commu_transm_rate * house.group_rate(i, "community_susceptibility")))
 			house.change_status(i, HEALTHY_STATUS);
 		else
 			house.change_status(i, INFECTED_STATUS);
@@ -199,20 +196,24 @@ void Model::simulate_single_house(Household &house)
 
 	while ((house.n_susceptible() > 0) && (!new_gen_set.empty()))
 	{
-		old_gen_set = new_gen_set;
+		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
+		// note : loop over 'house.susceptible_set()' is not allowed because of 'change_status'
 		for (indiv i = 0; i < house.size(); ++i)
 		{
 			if (house.status(i) == HEALTHY_STATUS)
 			{
+				double sus_i = house.group_rate(i, "susceptibility");
+
+				double r = 0.;
 				for (indiv k : old_gen_set)
+					r += house.group_rate(k, "infectivity");
+
+				if (uniform() >= exp(-r * p2p_transm_rate * sus_i))
 				{
-					if (uniform() >= house.extra_matrix("commu-escprob", k, i))
-					{
-						house.change_status(i, INFECTED_STATUS);
-						new_gen_set.insert(i);
-					}
+					house.change_status(i, INFECTED_STATUS);
+					new_gen_set.insert(i);
 				}
 			}
 		}

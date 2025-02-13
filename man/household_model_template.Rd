@@ -4,15 +4,15 @@
 \alias{household_model_template}
 \title{household model template}
 \usage{
-household_model_template(name = NULL, path = NULL)
+household_model_template(name = NA, path = NA)
 }
 \arguments{
 \item{name}{(\code{character(1)})\cr
-Name of template model. If \code{NULL}, list of available templates.}
+Name of template model. If \code{NA}, list of available templates.}
 
 \item{path}{(\code{character(1)})\cr
 Where to copy the template scripts.
-If \code{NULL}, show template model description in RStudio Help window.}
+If \code{NA}, show template model description in RStudio Help window.}
 }
 \description{
 Copy a default model to a given directory.

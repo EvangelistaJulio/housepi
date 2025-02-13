@@ -6,6 +6,7 @@
 
 #' @description
 #' Show list of all available template nmodel names.
+#' 
 #' @noRd
 show_model_names <- function() {
 
@@ -20,32 +21,36 @@ show_model_names <- function() {
   invisible()
 }
 
-#' @title household model template
+#' @title 
+#' household model template
 #' @description
 #' Copy a default model to a given directory.
+#' 
 #' @param name (`character(1)`)\cr
-#' Name of template model. If `NULL`, list of available templates.
+#' Name of template model. If `NA`, list of available templates.
 #' @param path (`character(1)`)\cr
 #' Where to copy the template scripts.
-#' If `NULL`, show template model description in RStudio Help window.
+#' If `NA`, show template model description in RStudio Help window.
+#' 
 #' @export
-household_model_template <- function(name = NULL, path = NULL) {
+household_model_template <- function(name = NA, path = NA) {
 
-  if (is.null(name)) {
+  if (is.na(name)) {
     #===== Asking for model names =====#
     show_model_names()
 
   } else if (is.character(name)) {
 
     if (name %in% list.files(template_models_dir())) {
-      if (is.null(path)) {
+      if (is.na(path)) {
         #===== Asking for model description =====#
         info_file <- file.path(template_models_dir(),
                                name,
                                "template_info.Rd")
         if (!file.exists((info_file))) {
-          stop(cli::format_error(
-            "Impossible to show model description: no template info were found."
+          hstop(paste(
+            "Impossible to show model description", 
+            "No template info were foun for the chosen model."
           ))
         }
 
@@ -54,10 +59,10 @@ household_model_template <- function(name = NULL, path = NULL) {
 
       } else if (any(file.exists(source_files(path)))) {
         #===== Asking for copying template to folder with model =====#
-        cli::cli_alert_warning(cli::format_warning(c(
+        warning(paste(
           sprintf("A model already exists in folder \"%s\".", path),
-          i = "To create a model in the same folder, delete its content first."
-        )))
+          "To create a model in the same folder, delete its content first."
+        ))
 
       } else {
         #===== Asking for copying template to empty folder =====#
@@ -80,22 +85,22 @@ household_model_template <- function(name = NULL, path = NULL) {
           }
 
         } else {
-          stop(cli::format_error(c(
+          hstop(paste(
             sprintf("Failed to create directory \"%s\".", path),
-            i = "Check your user permissions."
-          )))
+            "Check your user permissions."
+          ))
         }
       }
 
     } else {
-      stop(cli::format_error(c(
+      hstop(paste(
         sprintf("Provided model name \"%s\" is unknown.", name),
-        i = "Run {.code household_model_template()} to see available template names."
-      )))
+        "Run 'household_model_template' to see available template names."
+      ))
     }
 
   } else {
-    stop(cli::format_error("Model name is not a character."))
+    hstop("Model name is not a character.")
   }
 }
 
@@ -106,13 +111,16 @@ household_model_template <- function(name = NULL, path = NULL) {
 ############################################################################
 
 #' @description
-#' Assert that all required definition names are present.
+#' Find the vector of definition names required by the model according.
+#' 
 #' @param refer_file (`character(1)`)\cr
 #' path/to/.refer containing the model source.
 #' @param regular_expr (`character()`)\cr
 #' Vector containing regular expressions.
-#' @return (`character()`)\cr
-#' Vector with necessary definitions.
+#' 
+#' @return 
+#' (`character()`)
+#' 
 #' @noRd
 template_find_requirement <- function(refer_file,
                                       regular_expr) {
@@ -134,10 +142,10 @@ template_find_requirement <- function(refer_file,
     required_set <- unique(required_set[order(required_set)])
 
   } else {
-    cli::cli_alert_warning(cli::format_warning(c(
+    warning(paste(
       sprintf("Impossible to find reference file \"%s\".", refer_file),
-      i = "Try to generate a new model object with {.code force = TRUE}."
-    )))
+      "Try to generate a new model object with 'force = TRUE'."
+    ))
 
     required_set <- NULL
   }
@@ -146,13 +154,16 @@ template_find_requirement <- function(refer_file,
 }
 
 #' @description
-#' Check for missing definitions.
+#' Compared required definitions to current definitions and find missing ones.
+#' 
 #' @param required_set (`character()`)\cr
 #' Vector with necessary definitions.
-#' @param regular_expr (`character()`)\cr
+#' @param def_set (`character()`)\cr
 #' Vector with current definitions.
-#' @return (`character()`)\cr
-#' Vector with missing definitions.
+#' 
+#' @return 
+#' (`character()`)
+#' 
 #' @noRd
 template_find_missing <- function(required_set,
                                   def_set) {
@@ -175,13 +186,16 @@ template_find_missing <- function(required_set,
 }
 
 #' @description
-#' Check for unused definitions.
+#' Compared required definitions to current definitions and find unused ones.
+#' 
 #' @param required_set (`character()`)\cr
 #' Vector with necessary definitions.
 #' @param regular_expr (`character()`)\cr
 #' Vector with current definitions.
-#' @return (`character()`)\cr
-#' Vector with unused definitions.
+#' 
+#' @return 
+#' (`character()`)
+#' 
 #' @noRd
 template_find_unused <- function(required_set,
                                  def_set) {
@@ -205,10 +219,13 @@ template_find_unused <- function(required_set,
 
 #' @description
 #' Collapse a character vector into string of quoted words.
+#' 
 #' @param (`character()`)\cr
 #' Vector of characters.
+#' 
 #' @return
 #' String formatted as a list of quoted words.
+#' 
 #' @noRd
 character_to_string_list <- function(mylist) {
   return(paste(lapply(mylist, function(x) { paste0("\"", x, "\"") }),

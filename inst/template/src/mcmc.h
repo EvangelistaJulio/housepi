@@ -84,10 +84,10 @@ public:
 	//============================//
 
 	virtual void update_extra_dependecies(Household &house, indiv i);
-	void assign_extra_integer_to_all_houses(const std::vector<extraID> &names, int xinit = 0.0);
-	void assign_extra_double_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
-	void assign_extra_vector_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
-	void assign_extra_matrix_to_all_houses(const std::vector<extraID> &names, double xinit = 0.0);
+
+	void assign_extra_house_integer_vector(const extraID &e, double x0 = 0.0);
+	void assign_extra_house_double_vector(const extraID &e, double x0 = 0.0);
+	void assign_extra_house_double_matrix(const extraID &e, double x0 = 0.0);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//
@@ -125,18 +125,6 @@ public:
 	void simulate(bool is_progbar = true);
 
 	//================//
-	//===== SHOW =====//
-	//================//
-
-	void show_full_build() const;
-	void show_results() const;
-	void show_summary() const;
-
-	//----- C++ Print -----//
-	void print_infer_state(const std::string &output_filename = NULL_STRING) const;
-	void print_augm_variables(const std::string &output_filename = NULL_STRING) const;
-
-	//================//
 	//===== READ =====//
 	//================//
 
@@ -167,6 +155,19 @@ public:
 	Rcpp::NumericMatrix export_household_loglike_traces() const;
 	Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
 										 const Rcpp::List &xlim) const;
+
+#else
+	//================//
+	//===== SHOW =====//
+	//================//
+
+	void show_summary() const;
+	void show_full_build() const;
+	void show_results() const;
+
+	//----- C++ Print -----//
+	void print_infer_state(const std::string &output_filename = NULL_STRING) const;
+	void print_augm_variables(const std::string &output_filename = NULL_STRING) const;
 #endif
 
 private:

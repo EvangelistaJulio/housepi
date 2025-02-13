@@ -12,11 +12,11 @@ list(
     rule = "norm", rule_scale = 1
   ),
   sus_vacc = list(
-    value = 0.25, prior = "unif", args = list(min = 0, max = 5),
+    value = 0.25, prior = "lnorm", args = list(sdlog = 3),
     rule = "lnorm", rule_scale = 1
   ),
   inf_vacc = list(
-    value = 0.5, prior = "unif", args = list(min = 0, max = 5),
+    value = 0.5, prior = "lnorm", args = list(sdlog = 3),
     rule = "lnorm", rule_scale = 1
   ),
   cont_adult_child = list(value = 0.75),

@@ -91,6 +91,7 @@ using ulong = unsigned long int;
 template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
+using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;
 using str_vec = std::vector<std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;
@@ -240,12 +241,12 @@ namespace progress
     {
     public:
         //===== CONSTRUCTOR =====//
-        Bar(const std::string &text = "", bool verbose = true);
+        Bar(ulong total, const std::string &text = "", bool verbose = true);
         ~Bar();
 
         //===== SETTER =====//
         void set_text(const std::string &text);
-        void update(double progress);
+        void update(ulong state);
         void finalize();
 
     private:
