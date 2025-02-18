@@ -47,8 +47,29 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Impl();
-    ~Impl();
+    Impl() : _uniform_distr_(0., 1.),
+             _infec_profile_(std::make_unique<Distribution>()) {}
+    ~Impl() = default;
+
+    //===================================//
+    //===== RANDOM NUMBER GENERATOR =====//
+    //===================================//
+
+    rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
+    std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
+
+    rnd_gen &get_prng();
+    void set_prng_seed(int seed);
+
+    rnd_gen &(MCMC::Impl::*_func_prng_)();
+    rnd_gen &_prng_unique_thread_() { return prng; }
+#ifdef _OPENMP
+    rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+#endif
+
+    //----- uniform sampler -----//
+    std::uniform_real_distribution<double> _uniform_distr_;
+    double uniform();
 
     //=========================//
     //===== LOGLIKELIHOOD =====//
@@ -67,6 +88,12 @@ public:
     //===== SETUP =====//
     //=================//
 
+    //----- Setup - Attributes -----//
+    const str_vec setup_file_headers = {"n_threads", "seed", "n_chains",
+                                        "n_steps", "n_adapt", "thin",
+                                        "n_burnin", "rand_init", "size",
+                                        "inv_temper", "id_trace"};
+
     unsigned long long setup_seed; // random generator seed
     bool setup_rand_init_params;   // random initialization of parameters
 
@@ -84,6 +111,7 @@ public:
     ulong setup_c_sample_size; // single chain sample size
     ulong setup_c_n_sweeps;    // single chain n. of sweeps
 
+    //----- Setup - Setter -----//
     void set_n_threads();
     void set_inver_temper(double inv_T);
 
@@ -100,6 +128,9 @@ public:
     std::vector<parID> param_to_be_inferred = {};
     std::vector<parID> param_to_be_constant = {};
     std::vector<parID> param_extra_to_be_inferred = {};
+
+    parIDmap<Variable> param_map = {}; // parameters dictionary
+    bool _is_undef_params_ = false;    // undefined parameters valid only if infer
 
     //----- Parameter - Getter -----//
     double get_param(const parID &p) const;
@@ -141,7 +172,7 @@ public:
     //----- Augmented - Attributes -----//
     const str_vec augm_file_headers = {"name", "status",
                                        "value", "value_type",
-                                       "discrete", "init_rand",
+                                       "constant", "discrete", "init_rand",
                                        "model", "arg_name", "arg_value", "arg_type",
                                        "rule", "rule_scale", "rule_scale_type",
                                        "rule_from", "rule_from_type",
@@ -158,17 +189,36 @@ public:
     void assign_all_augm(Household &house, indiv i);
 
     //----- Augmented - State-Checkers -----//
-    bool is_augm_infer() const;
+    bool is_augm_any() const;
+    bool is_augm_sample() const;
     bool is_augm_model() const;
+    bool is_augm_generic() const;
 
-    //================//
-    //===== READ =====//
-    //================//
 
-    void read_setup(const std::string &pathtofile);
-    void read_infec_profile(const std::string &pathtofile);
-    void read_params(const std::string &pathtofile);
-    void read_augm(const std::string &pathtofile);
+    //===============================//
+    //===== INFECTIVITY PROFILE =====//
+    //===============================//
+
+    //----- Infectivity Profile - Attributes -----//
+    const str_vec infec_profile_file_headers = {"name", "discrete",
+                                                "arg_name", "arg_value", "arg_type",
+                                                "min", "min_type",
+                                                "max", "max_type"};
+
+    std::shared_ptr<Distribution> _infec_profile_ = nullptr;
+
+    //----- Infectivity Profile - Setter -----//
+    void switchboard_infec_profile(const std::string &name);
+    void assign_infec_profile_args(const str_vec &keys,
+                                   const str_vec &vals,
+                                   const str_vec &typs);
+    void assign_infec_profile_min(const std::string &min_value,
+                                  const std::string &min_type);
+    void assign_infec_profile_max(const std::string &max_value,
+                                  const std::string &max_type);
+    void build_infec_profile();
+
+    void fix_param_to_be_inferred_list(const std::string &par_name);
 
 #ifdef _HOUSEPI_RCPP
     //========================//
@@ -194,6 +244,15 @@ public:
 
 #else
     //================//
+    //===== READ =====//
+    //================//
+
+    void read_setup(const std::string &pathtofile);
+    void read_infec_profile(const std::string &pathtofile);
+    void read_params(const std::string &pathtofile);
+    void read_augm(const std::string &pathtofile);
+    
+    //================//
     //===== SHOW =====//
     //================//
 
@@ -208,38 +267,13 @@ public:
     void print_augm_variables(const std::string &pathtofile) const;
 #endif
 
-    //===================================//
-    //===== RANDOM NUMBER GENERATOR =====//
-    //===================================//
-
-    rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
-    std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
-
-    rnd_gen &get_prng();
-    void set_prng_seed(int seed);
-
-    rnd_gen &(MCMC::Impl::*_func_prng_)();
-    rnd_gen &_prng_unique_thread_() { return prng; }
-#ifdef _OPENMP
-    rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
-#endif
-
-    //===========================//
-    //===== UNIFORM SAMPLER =====//
-    //===========================//
-
-    std::uniform_real_distribution<double> _uniform_distr_;
-    double uniform();
-
     //=================//
     //===== BUILD =====//
     //=================//
 
-    void build_augm();
     void build_setup();
     void build_params();
-
-    void check_definitions_before_mcmc();
+    void build_augm();
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::string> _setup_deflist_ = {};
@@ -261,29 +295,10 @@ public:
                                 const std::string &tkn_max_val,
                                 const std::string &tkn_max_typ);
 
-    //======================//
-    //===== PARAMETERS =====//
-    //======================//
-
-    parIDmap<Variable> param_map = {}; // parameters dictionary
-    bool _is_undef_params_ = false;    // undefined parameters valid only if infer
-
-    //===============================//
-    //===== INFECTIVITY PROFILE =====//
-    //===============================//
-
-    std::shared_ptr<Distribution> _infec_profile_ = nullptr;
-    void switchboard_infec_profile(const std::string &name);
-    void assign_infec_profile_args(const str_vec &keys,
-                                   const str_vec &vals,
-                                   const str_vec &typs);
-    void assign_infec_profile_min(const std::string &min_value,
-                                  const std::string &min_type);
-    void assign_infec_profile_max(const std::string &max_value,
-                                  const std::string &max_type);
-    void build_infec_profile();
-
-    void fix_param_to_be_inferred_list(const std::string &par_name);
+    //----- build : auxiliary methods -----//
+    const dict_str_vec _build_augm_name_status_check_();
+    void _build_augm_allocate_univocal_defs_(const dict_str_vec &check);
+    void _build_augm_clear_houses_and_set_id_trace_();
 
     //======================//
     //===== METROPOLIS =====//
@@ -296,6 +311,8 @@ public:
     bool is_power_post() const;
     const std::string fmt_progtxt();
 
+    void check_definitions_before_mcmc();
+
     //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;
     dbl_vec dgn_glob_loglike = {};
@@ -307,9 +324,6 @@ public:
     void init_move_counts();
     void init_diagnostics();
     void update_diagnostics();
-
-    //----- Metropolis - State-Checker -----//
-    bool is_augm_generic() const;
 
     //----- Metropolis - augmented moves -----//
     double compute_augm_model_loglike(const Household &house) const;

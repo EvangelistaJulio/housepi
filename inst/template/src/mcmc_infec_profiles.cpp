@@ -353,14 +353,6 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 			"Unsopported type \"" + max_type + "\" found while loading \"" + max_value + "\" for pointer value.");
 }
 
-/* Read Setup file and produce a definition list. */
-void MCMC::Impl::read_infec_profile(const std::string &pathtofile)
-{
-	tools::read_csv_list(pathtofile, _infec_profile_deflist_);
-	build_infec_profile();
-	_report_pathtofile_["infec_profile"] = pathtofile;
-}
-
 /* Build infectivity profile distribution . */
 void MCMC::Impl::build_infec_profile()
 {
@@ -371,19 +363,9 @@ void MCMC::Impl::build_infec_profile()
 
 		if (!deflist.empty())
 		{
-			//===== Check that all entries are correct =====//
-			const str_vec options = {"name", "discrete",
-									 "arg_name", "arg_value", "arg_type",
-									 "min", "min_type",
-									 "max", "max_type"};
-			str_vec entries = {};
-			for (const auto &pair : deflist)
-				entries.push_back(pair.first);
-			tools::check_unused_entries(entries, options);
-
-			//=====================================================//
-			//===== ASSIGN INFECTIVITY PROFILE CONFIGURATIONS =====//
-			//=====================================================//
+			// check entries
+			str_vec headers = tools::headers_from_deflist(deflist);
+			tools::check_for_unused_entries(headers, infec_profile_file_headers);
 
 			//----- Name -----//
 			if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))

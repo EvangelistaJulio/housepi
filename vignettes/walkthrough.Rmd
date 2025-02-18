@@ -31,8 +31,7 @@ housepi::household_model_template()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed.
-To know more about each model, choose a name from the previous list and run, e.
-g.
+To know more about each model, choose a name from the previous list and run, e. g.
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
@@ -44,7 +43,7 @@ This command will open the relative documentation file in the Help window of you
 Starting from a template we may want to create a custom model adapted to our study project.
 We discuss how to do this in the vignette [Custom Models](custom_models.html).
 
-## The Household Model Class
+# The Household Model Class
 
 The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
 It wraps an environment containing the Rcpp model class and allows to call its internal methods.
@@ -57,7 +56,7 @@ hmc <- housepi::HouseholdModelClass$new("chain-binomial")
 
 At any moment you can retrieve the template description by using the class method `help()`.
 
-### Format of the Dataset 
+## Format of the Dataset 
 
 Dataset can be provided as a numerical data.frame (or a path to a csv file) where individual information are organised by row.
 Individuals with equal values in the column `house_id` are considered to belong to same household.
@@ -80,9 +79,9 @@ aux_ <- survey[c("id", "house_id", "status")]
 knitr::kable(head(aux_))
 ```
 
-### Parameter Definitions
+## Parameter Definitions
 
-A single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `add_param`.
+A single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `$add_param`.
 
 ```{r, echo=TRUE}
 hmc$add_param(
@@ -97,16 +96,16 @@ hmc$add_param(
 )
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided). To just load template definitions you can use the method `template_param`.
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided). To just load template definitions you can use the method `$add_template_param`.
 
 For models requiring augmented variables, the definition procedure is analogous.
 We discuss an example in the vignette [Data Augmentation](data_augmentation.html).
 
 For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
-## Inference
+# Inference
 
-Now we can safely perform inference with the method `infer`:
+Now we can safely perform inference with the method `$infer`:
 
 ```{r}
 # run the Monte Carlo specifying setup options (steps, seed, etc.)
@@ -116,91 +115,101 @@ hmc$infer(dataset = survey, n_steps = 25000, n_burnin = 2500,
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# visualize the traces of the first chain
-lattice::xyplot(hmc$export_traces()[1])
-```
-
 ```{r}
 # store summary of the posterior estimates
-results <- hmc$summarise_traces()
+results <- hmc$traces_results
 ```
 
-For advanced analysis on the inference results, we can extract the traces with method `export_traces`.
-This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/index.html) package:
-a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains).
+```{r, echo=FALSE}
+knitr::kable(results)
+```
+
+For advanced analysis on the inference, we can extract the traces directly from the field `$traces` (actually a R6 active field).
+This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/) package:
+a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains):
 
 ```{r}
 # export coda object
-mctraces <- hmc$export_traces()
-
-# e. g. Gelman-Rubin criterion for convergence
-coda::gelman.diag(mctraces)
+traces <- hmc$traces
 ```
 
-### Model Comparison
+Thanks to coda bindings we can produce trellis plot of the traces using [lattice](https://cran.r-project.org/web/packages/lattice/), for example with the function `xyplot`:
 
-To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/index.html), e. g. :
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# visualize the traces of the first chain
+lattice::xyplot(traces)
+```
+
+In addition coda provides other useful functions for the mcmc diagnostics, e. g.
 
 ```{r}
-# call to loo::loo, approximate PSIS-LOO cross validation
-hmc$loo()
+# e. g. Gelman-Rubin criterion for convergence
+coda::gelman.diag(traces)
 ```
 
-Similarly for the WAIC (widely applicable information criterion) we can use the method `waic`.
+## Model Comparison
 
-## Simulation
+To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class. :
+
+```{r}
+# widely applicable information criterion WAIC calling loo::waic
+hmc$waic()
+```
+
+Similarly for the PSIS-LOO (Pareto smoothed importance sampling leave-one-out cross-validation) we can use the method `$loo`.
+
+# Simulation
 
 In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households. 
 We call the `simulate` method after having provided parameter definitions (analogous to the inference case)
 
 ```{r}
-# generate a new model object for the simulation
-simu_cb <- housepi::HouseholdModelClass$new("chain-binomial")
+# generate a new model object to use for the simulation
+simul <- housepi::HouseholdModelClass$new("chain-binomial")
 
 # define constant parameters from the inference results
 # note: definition without a prior assumes the parameter to be constant
-simu_cb$add_param(name = "alpha", 
-                  value = results["alpha", "Mean"])
-simu_cb$add_param(name = "beta", 
-                  value = results["beta", "Mean"])
+simul$add_param(name = "alpha", 
+                value = results["alpha", "mean"])
+simul$add_param(name = "beta", 
+                value = results["beta", "mean"])
 
 # build new model using the same demographic structure of dataset
 # override status of the dataset according to simulation
-simu_cb$simulate(dataset = survey, seed = 5923)
+simul$simulate(dataset = survey, seed = 5923)
 ```
 
-To return the simulated dataset, which also corresponds to the current loaded dataset, we use the method
+To return the simulated dataset, which corresponds to the current loaded dataset, we use the field `dataset`
 
 ```{r}
-# export current dataset
-dataset <- simu_cb$export_data()
+# export current dataset as a data.frame
+simulated <- simul$dataset
 ```
 
-### Simulation Study
+## Wrapping all toghet with a Simulation Study
 
 We can challenge the inference process used at the beginning with the new simulated database.
 
 ```{r}
 # run inference on new dataset keeping previous definitions
-hmc$infer(dataset = dataset, n_steps = 25000, n_burnin = 2500,
+hmc$infer(dataset = simulated, n_steps = 25000, n_burnin = 2500,
           thin = 10, n_adapt = 2500, n_chains = 4, seed = 4337)
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # visualize traces of the first chain
-lattice::xyplot(hmc$export_traces()[1])
+lattice::xyplot(hmc$traces[1])
 ```
 
 ```{r}
-# collect the results
-results_2 <- hmc$summarise_traces()
+# collect parameters used for the simulations
+simul_params <- simul$param_defs
 
-# export parameters used for the simulations
-simul_pars <- simu_cb$export_param()
+# collect the results of the inference
+results_2 <- hmc$traces_results
 
-# compare results to parameter values used for inference
-results_2[simul_pars[["name"]], "Simul"] <- simul_pars["value"]
+# compare the two
+results_2[simul_params$name, "simul"] <- simul_params$value
 ```
 
 ```{r, echo=FALSE}

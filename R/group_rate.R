@@ -39,10 +39,9 @@ group_rate_logic_table <- function(dataset, by) {
     for (name in missing[-1]) {
       oss <- sprintf("%s, \"%s\"", oss, name)
     }
-    hstop(paste(
-      paste0(oss, "."),
-      i = "Check your features and dataset headers."
-    ))
+    stop.h(
+      paste(paste0(oss, "."), "Check your features and dataset headers.")
+    )
   }
 
   # extract unique features and sort by list length
@@ -107,7 +106,7 @@ associate_param_names <- function(logic_table,
       apply(logic_table, 1, function(row) all(row == unlist(reference)))
     ))
     if (length(idx_refer) != 1) {
-      hstop("Provided reference group is not valid.")
+      stop.h("Provided reference group is not valid.")
     }
   }
 
@@ -183,10 +182,8 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' New instance of class [HousepiGroupRateClass][housepi::HousepiGroupRateClass].
-    #' 
-    #' @noRd
     initialize = function() {
-      self$drop_all()
+      self$defs <- NULL
       invisible(self)
     },
 
@@ -195,8 +192,6 @@ HousepiGroupRateClass <- R6::R6Class(
     #' 
     #' @param refer_file
     #' Path/to/.refer source file.
-    #' 
-    #' @noRd
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regular_expr <- c(
@@ -208,20 +203,7 @@ HousepiGroupRateClass <- R6::R6Class(
     },
 
     #' @description
-    #' Drop all current group rate definitions.
-    #' 
-    #' @noRd
-    drop_all = function() {
-      self$defs <- list()
-      self$param_defs = list()
-      self$logic_table <- list()
-      invisible(self)
-    },
-
-    #' @description
     #' Remove a given group_rate definition.
-    #' 
-    #' @noRd
     remove = function(name,
                       show_warnings = TRUE) {
 
@@ -251,9 +233,9 @@ HousepiGroupRateClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          warning(sprintf(
-            "Unknown group_rate \"%s\" to remove.", name
-          ))
+          warning.h(
+            sprintf("Attempt to remove unknown group_rate \"%s\".", name)
+          )
         }
       }
 
@@ -293,8 +275,6 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
     #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
-    #' 
-    #' @noRd
     add = function(name,
                    by,
                    prefix = NA,
@@ -309,14 +289,14 @@ HousepiGroupRateClass <- R6::R6Class(
 
       # UPDATE: controls are missing
       if (is.na(name)) {
-        hstop("Incomplete definition: missing name.")
+        stop.h("Incomplete definition: missing name.")
       }
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) {
-        warning(sprintf(
-          "Existing \"%s\" definition has been overwritten.", name
-        ))
+        warning.h(
+          sprintf("Overwriting existing \"%s\" definition.", name)
+        )
       }
 
       # add new definition
@@ -345,8 +325,6 @@ HousepiGroupRateClass <- R6::R6Class(
     #' Vector containing required parameters.
     #' 
     #' @return (`logical(1)`)\cr
-    #' 
-    #' @noRd
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
@@ -361,10 +339,12 @@ HousepiGroupRateClass <- R6::R6Class(
                                              names(self$defs))
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
-          warning(paste0(
-            "Missing group rate(s): ",
-            character_to_string_list(missing_set), "."
-          ))
+          warning.h(
+            paste0(
+              "Missing group rate(s): ", 
+              character_to_string_list(missing_set), "."
+            )
+          )
         }
 
         # point out parameters that are not used
@@ -372,10 +352,12 @@ HousepiGroupRateClass <- R6::R6Class(
                                            names(self$defs))
         # drop unused parameters
         if (length(unused_set) > 0) {
-          warning(paste0(
-            "Dropping not used group rate(s): ",
-            character_to_string_list(unused_set), "."
-          ))
+          warning.h(
+            paste0(
+              "Dropping not used group rate(s): ",
+              character_to_string_list(unused_set), "."
+            )
+          )
 
           for (name in unused_set) {
             self$remove(name)
@@ -391,8 +373,6 @@ HousepiGroupRateClass <- R6::R6Class(
     #' 
     #' @param dataset
     #' Dataset to be considered.
-    #' 
-    #' @noRd
     cpp_implement = function(dataset) {
 
       # initialize lines of the script
@@ -471,8 +451,6 @@ HousepiGroupRateClass <- R6::R6Class(
     #' 
     #' @return (`logical(1)`)\cr
     #' `TRUE` if definitions exist and are up to date. 
-    #' 
-    #' @noRd
     cpp_assert = function(dataset,
                           refer_file) {
       # check if there are user defined group rates
@@ -484,10 +462,12 @@ HousepiGroupRateClass <- R6::R6Class(
         # assert that group rates are complete
         requirements <- self$require(refer_file)
         if (isFALSE(self$assert(requirements))) {
-          warning(paste(
-            "Ignoring incomplete group rate definitions.",
-            "To implement changes in group rates, fill missing definitions."
-          ))
+          warning.h(
+            paste(
+              "Ignoring incomplete group rate definitions.",
+              "To implement changes in group rates, fill missing definitions."
+            )
+          )
           return(TRUE)
 
         } else {
@@ -510,14 +490,12 @@ HousepiGroupRateClass <- R6::R6Class(
     #' 
     #' @return (`logical(1)`)\cr
     #' Whether code requires recompilation or not.
-    #' 
-    #' @noRd
     cpp_write = function(dataset,
                          refer_file) {
 
       # check that source file exists
       if (!file.exists(refer_file)) {
-        hstop("Impossible to find source file.")
+        stop.h("Impossible to find reference file.")
       }
 
       # produce associated script
@@ -529,7 +507,7 @@ HousepiGroupRateClass <- R6::R6Class(
       start_line <- grep("^void\\s+Model::assign_group_rate_to_individual\\s*\\(", lines)
 
       if (length(start_line) == 0) {
-        warning("Model does not accommodate for group rates.")
+        warning.h("Model does not accommodate for group rates.")
 
       } else {
 
@@ -542,7 +520,7 @@ HousepiGroupRateClass <- R6::R6Class(
           }
         }
         if (is.na(opening_brace_line)) {
-          hstop("Unmatched curly bracket(s) found in source code.")
+          stop.h("Unmatched curly bracket found in reference code.")
         }
 
         # find method definition closing brace '}'
@@ -560,7 +538,7 @@ HousepiGroupRateClass <- R6::R6Class(
           }
         }
         if (is.na(end_line)) {
-          hstop("Unmatched curly bracket(s) found in source code.")
+          stop.h("Unmatched curly bracket found in reference code.")
         }
 
         # define the new implementation

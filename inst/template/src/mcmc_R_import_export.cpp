@@ -19,7 +19,8 @@
 #ifdef _HOUSEPI_RCPP
 
 /* Convert R List into map<string, string>. */
-void rlist_to_map(const Rcpp::List &list, std::map<std::string, std::string> &output)
+void rlist_to_map(const Rcpp::List &list,
+                  std::map<std::string, std::string> &output)
 {
     using namespace Rcpp;
 
@@ -34,7 +35,8 @@ void rlist_to_map(const Rcpp::List &list, std::map<std::string, std::string> &ou
 }
 
 /* Convert R dataframe into map<string, vector<string>>. */
-void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output)
+void rdataframe_to_map(const Rcpp::DataFrame &df,
+                       dict_str_vec &output)
 {
     using namespace Rcpp;
 
@@ -61,10 +63,21 @@ Rcpp::String stoRString(const std::string &x)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Import setup from R list and run build. */
 void MCMC::Impl::import_setup(const Rcpp::List &input)
 {
-    rlist_to_map(input, _setup_deflist_);
+    try
+    {
+        rlist_to_map(input, _setup_deflist_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While importing setup definitions: " + std::string(e.what()));
+    }
     build_setup();
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
         _report_pathtofile_.erase("setup");
@@ -73,7 +86,14 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 /* Import infectivity profile from R list and run build. */
 void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
-    rlist_to_map(input, _infec_profile_deflist_);
+    try
+    {
+        rlist_to_map(input, _infec_profile_deflist_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While importing infectivity profile definitions: " + std::string(e.what()));
+    }
     build_infec_profile();
     if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
         _report_pathtofile_.erase("infec_profile");
@@ -82,20 +102,31 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 /* Import params from R DataFrame and run build. */
 void MCMC::Impl::import_params(const Rcpp::DataFrame &input)
 {
-    rdataframe_to_map(input, _param_deftable_);
+    try
+    {
+        rdataframe_to_map(input, _param_deftable_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading parameter definitions: " + std::string(e.what()));
+    }
     build_params();
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
         _report_pathtofile_.erase("params");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  Monte_Carlo_Build : imports from Rcpp ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 /* Import data from R DataFrame then run build. */
 void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
 {
-    rdataframe_to_map(input, _augm_deftable_);
+    try
+    {
+        rdataframe_to_map(input, _augm_deftable_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While reading augmented definitions: " + std::string(e.what()));
+    }
     build_augm();
     if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
         _report_pathtofile_.erase("augm");
@@ -242,7 +273,7 @@ Rcpp::DataFrame MCMC::Impl::export_traces() const
         output.push_back(wrap(dgn_param_value.at(p)), p);
 
     // augmented variables
-    if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+    if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
         for (const augmID &a : augm_list_to_be_inferred)
             output.push_back(wrap(dgn_augm_value.at(a)), a);
 
@@ -379,6 +410,74 @@ void MCMC::import_data(const Rcpp::DataFrame &data)
 
 #else
 
+/* Read Setup file and produce a definition list. */
+void MCMC::Impl::read_setup(const std::string &pathtofile)
+{
+    try
+    {
+        tools::read_csv_list(pathtofile, _setup_deflist_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading setup definitions: " + std::string(e.what()));
+    }
+    build_setup();
+    _report_pathtofile_["setup"] = pathtofile;
+}
+
+/* Read Setup file and produce a definition list. */
+void MCMC::Impl::read_infec_profile(const std::string &pathtofile)
+{
+    try
+    {
+        tools::read_csv_list(pathtofile, _infec_profile_deflist_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading infectivity profile definitions: " + std::string(e.what()));
+    }
+    build_infec_profile();
+    _report_pathtofile_["infec_profile"] = pathtofile;
+}
+
+/* Read parameter definitions and run assignment. */
+void MCMC::Impl::read_params(const std::string &pathtofile)
+{
+    try
+    {
+        tools::read_csv_table(pathtofile, _param_deftable_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading parameter definitions: " + std::string(e.what()));
+    }
+    build_params();
+    _report_pathtofile_["params"] = pathtofile;
+}
+
+/* Read Model Augmented Variable file. */
+void MCMC::Impl::read_augm(const std::string &pathtofile)
+{
+    try
+    {
+        tools::read_csv_table(pathtofile, _augm_deftable_);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While reading augmented definitions: " + std::string(e.what()));
+    }
+    build_augm();
+    _report_pathtofile_["augm"] = pathtofile;
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -431,7 +530,6 @@ void MCMC::Impl::show_summary() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
@@ -608,7 +706,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                 inferstate_ofstream << C_DELIM << p;
 
             // augmented variables
-            if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+            if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
                 for (const augmID &a : augm_list_to_be_inferred)
                     inferstate_ofstream << C_DELIM << a;
 
@@ -635,7 +733,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                                             << std::fixed << dgn_param_value.at(p)[i];
 
                     // print selected augmented variables
-                    if (is_augm_infer() && (!tools::is_na(setup_id_trace)))
+                    if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
                         for (const augmID &a : augm_list_to_be_inferred)
                             inferstate_ofstream << C_DELIM << std::setprecision(5)
                                                 << std::fixed << dgn_augm_value.at(a)[i];
@@ -721,6 +819,30 @@ void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MCMC : read  //////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::read_setup(const std::string &pathtofile) { pImpl->read_setup(pathtofile); }
+void MCMC::read_params(const std::string &pathtofile) { pImpl->read_params(pathtofile); }
+void MCMC::read_augm(const std::string &pathtofile) { pImpl->read_augm(pathtofile); }
+
+/* Read data file and then run assignment. */
+void MCMC::read_data(const std::string &pathtofile)
+{
+    dict_str_vec datatable = {};
+    try
+    {
+        tools::read_csv_table(pathtofile, datatable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading dataset: " + std::string(e.what()));
+    }
+    build_data(datatable);
+    pImpl->_report_pathtofile_["data"] = pathtofile;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////  MCMC : show  //////////////////////////////////////////

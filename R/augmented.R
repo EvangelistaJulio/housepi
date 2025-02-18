@@ -22,10 +22,8 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' New instance of class [HousepiAugmentedClass][housepi::HousepiAugmentedClass].
-    #' 
-    #' @noRd
     initialize = function() {
-      self$drop_all()
+      self$defs <- NULL
       invisible(self)
     },
 
@@ -34,8 +32,6 @@ HousepiAugmentedClass <- R6::R6Class(
     #' 
     #' @param refer_file
     #' Path/to/.refer source file.
-    #' 
-    #' @noRd
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regular_expr <- c(
@@ -50,8 +46,6 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' Find parameters required by augmented variable definitions.
-    #' 
-    #' @noRd
     param_require = function() {
       # from : augmented variable model argument definitions
       required_param_set <- c()
@@ -82,8 +76,6 @@ HousepiAugmentedClass <- R6::R6Class(
     #' Default NA is for all infectious.
     #' @param show_warnings (`logical(1)`)\cr
     #' Wheter to show warnings or not. Default is `TRUE`.
-    #' 
-    #' @noRd
     remove = function(name,
                       status = NA,
                       show_warnings = TRUE) {
@@ -106,9 +98,11 @@ HousepiAugmentedClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          warning(sprintf(
-            "Unknown augmented variable \"%s\" to remove.", name
-          ))
+          warning.h(
+            sprintf(
+              "Attempt to remove unknown augmented variable \"%s\".", name
+            )
+          )
         }
       }
 
@@ -128,6 +122,8 @@ HousepiAugmentedClass <- R6::R6Class(
     #' - Scalar value;
     #' - Parameter name (followed by `@P`);
     #' - Data name (followed by `@D`).
+    #' @param constant (`logical(1)`)\cr
+    #' If `FALSE` the augmented variable is treated as a constant.
     #' @param discrete (`logical(1)`)\cr
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param model (`character(1)`)\cr
@@ -158,6 +154,7 @@ HousepiAugmentedClass <- R6::R6Class(
     add = function(name = NA,
                    status = NA,
                    value = NA,
+                   constant = FALSE,
                    discrete = FALSE,
                    model = NA,
                    args = list(),
@@ -169,39 +166,49 @@ HousepiAugmentedClass <- R6::R6Class(
                    init_rand = FALSE) {
       #----- name -----#
       if (is.na(name)) {
-        hstop("Incomplete definition: missing name.")
+        stop.h("Incomplete definition: missing name.")
       }
 
       # remove previous definition if it exists
       if (self$remove(name, status, FALSE)) {
         if (is.na(status)) {
-          hstop(sprintf(
-            "Existing \"%s\" definition has been overwritten.",
-            name
-          ))
+          stop.h(
+            sprintf("Overwriting existing \"%s\" definition.", name)
+          )
         } else {
-          hstop(sprintf(
-            "Existing \"%s\" with status %d definition has been overwritten.",
-            name, status
-          ))
+          stop.h(
+            sprintf(
+              "Overwriting existing \"%s\" definition for status %d.",
+              name, status
+            )
+          )
         }
       }
 
-      #----- value/init_rand -----#
+      #----- value/constant/init_rand -----#
       value_ <- NA
       value_type_ <- NA
-      if (isTRUE(init_rand)) {
+      if (isTRUE(constant)) {
+        if (is.na(value)) {
+          stop.h("Missing value for constant augmented variable.")
+        } else {
+          value_ <- str_split_(value)$var
+          value_type_ <- str_split_(value)$typ
+        }
+      } else if (isTRUE(init_rand)) {
         if (is.na(model)) {
-          hstop("Unknown model for random initialization.")
+          stop.h("Unknown model for random initialization.")
         }
       } else {
         if (is.na(value)) {
           if (is.na(model)) {
             if (is.na(rule_from)) {
-              hstop(paste(
-                "Incomplete definition: missing value.",
-                "Alternative: provide a model and set 'init_rand = TRUE'."
-              ))
+              stop.h(
+                paste(
+                  "Incomplete definition: missing value.",
+                  "Alternative: provide a model and set 'init_rand = TRUE'."
+                )
+              )
             } else {
               value_ <- str_split_(rule_from)$var
               value_type_ <- str_split_(rule_from)$typ
@@ -233,18 +240,24 @@ HousepiAugmentedClass <- R6::R6Class(
       rule_from_ <- NA
       rule_from_type_ <- NA
 
-      if (is.na(rule)) {
-        rule <- "gibbs"
-      } else if (rule != "gibbs") {
-        if (is.na(rule_scale)) {
-          rule_scale_ <- 1
-          rule_scale_type_ <- "S"
-        } else {
-          rule_scale_ <- str_split_(rule_scale)$var
-          rule_scale_type_ <- str_split_(rule_scale)$typ
+      if (isFALSE(constant)) {
+        if (is.na(rule)) {
+          if (is.na(model)) {
+            constant <- TRUE
+          } else {
+            rule <- "gibbs"
+          }
+        } else if (rule != "gibbs") {
+          if (is.na(rule_scale)) {
+            rule_scale_ <- 1
+            rule_scale_type_ <- "S"
+          } else {
+            rule_scale_ <- str_split_(rule_scale)$var
+            rule_scale_type_ <- str_split_(rule_scale)$typ
+          }
+          rule_from_ <- str_split_(rule_from)$var
+          rule_from_type_ <- str_split_(rule_from)$typ
         }
-        rule_from_ <- str_split_(rule_from)$var
-        rule_from_type_ <- str_split_(rule_from)$typ
       }
 
       #----- minimum value -----#
@@ -271,6 +284,7 @@ HousepiAugmentedClass <- R6::R6Class(
           status = status,
           value = value_,
           value_type = value_type_,
+          constant = isTRUE(constant),
           discrete = isTRUE(discrete),
           model = model,
           arg_name = arg_name_,
@@ -295,14 +309,32 @@ HousepiAugmentedClass <- R6::R6Class(
     #' @description
     #' Associate augmented variables from a list.
     #' 
-    #' @noRd
-    from_list = function(definitions,
+    #' @param ...
+    #' Augmented variable names with respective list of definitions.
+    #' @param from (named `list()`)\cr
+    #' Named list of augmented variable definitions.
+    #' @param append (`logical(1)`)\cr
+    #' If `TRUE` appends the list to current definition (default).
+    #' If `FALSE` drop all other augmented variable definitions.
+    load_list = function(...,
+                         from = NA,
                          append = TRUE) {
-      if (!is.list(definitions)) {
-        hstop("The argument definitions should be a list.")
+      definitions <- list(...) 
+
+      if (length(definitions) == 0) {
+        if (is.na(from)) {
+          stop.h("No definitions provided.")
+        } else if (is.list(from)) {
+          definitions <- from
+        } else {
+          stop.h("Argument 'from' should be a list.")
+        }
+      } else if (any(names(definitions) == "")) {
+        stop.h("Found definition without name.")
       }
+
       if (isFALSE(append)) {
-        self$drop_all()
+        self$defs <- NULL
       }
 
       for (i in seq_along(definitions)){
@@ -312,47 +344,19 @@ HousepiAugmentedClass <- R6::R6Class(
           if (length(this_def) == 1) {
             names(this_def) <- "value"
           } else {
-            hstop(paste(
-              sprintf("Wrong definition for augmented variable \"%s\"", def_name),
-              "Provide a definition list.", 
-              "Alternative: if constant, a scalar or a typed value."
-            ))
+            stop.h(
+              paste(
+                sprintf("Wrong definition for augmented variable \"%s\"", def_name),
+                "Provide a definition list.", 
+                "Alternative: if constant, a scalar or a typed value."
+              )
+            )
           }
         }
         this_def[["name"]] <- def_name
         do.call(self$add, this_def)
       }
 
-      invisible(self)
-    },
-
-    #' @description
-    #' Drop all current augmented variable definitions.
-    #' 
-    #' @noRd
-    drop_all = function() {
-      self$defs <- data.frame(
-        name = character(),
-        status = character(),
-        value = character(),
-        value_type = character(),
-        discrete = logical(),
-        model = character(),
-        arg_name = character(),
-        arg_value = character(),
-        arg_type = character(),
-        rule = character(),
-        rule_scale = character(),
-        rule_scale_type = character(),
-        rule_from = character(),
-        rule_from_type = character(),
-        min = character(),
-        min_type = character(),
-        max = character(),
-        max_type = character(),
-        init_rand = logical(),
-        stringsAsFactors = FALSE
-      )
       invisible(self)
     },
 
@@ -366,8 +370,6 @@ HousepiAugmentedClass <- R6::R6Class(
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` append to previous definitions (default).
     #' If `FALSE` drop previous definitions.
-    #' 
-    #' @noRd
     template = function(templ_file,
                         requirements = NULL,
                         append = TRUE) {
@@ -379,24 +381,35 @@ HousepiAugmentedClass <- R6::R6Class(
         if (isTRUE(append)) {
           # check set of required augmented variables
           if (length(requirements) == 0) {
-            warning(paste(
-              "Appending template augmented variable definitions failed.",
-              "Alternatively use option 'append = FALSE'."
-            ))
+            warning.h(
+              paste(
+                "Appending template augmented variable definitions failed.",
+                "Alternatively use option `append = FALSE`."
+              )
+            )
           } else {
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
-            self$from_list(templ_defs[missing_set], append = TRUE)
+
+            if (length(missing_set) == 0) {
+              warning.h(
+                "No template augmented variable to append. Definitions are complete."
+              )
+            } else {                                  
+              self$load_list(templ_defs[missing_set], append = TRUE)
+            }
           }
         } else {
-          self$from_list(templ_defs, append = FALSE)
+          self$load_list(templ_defs, append = FALSE)
         }
 
       } else {
-        hstop(paste(
-          "Impossible to automatically initialize augmented variables.",
-          "A file with template definitions was not found."
-        ))
+        stop.h(
+          paste(
+            "Impossible to automatically initialize augmented variables.",
+            "A file with template definitions was not found."
+          )
+        )
       }
 
       invisible(self)
@@ -409,8 +422,6 @@ HousepiAugmentedClass <- R6::R6Class(
     #' Vector containing required parameters.
     #' 
     #' @return (`logical(1)`)\cr
-    #' 
-    #' @noRd
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
@@ -424,15 +435,11 @@ HousepiAugmentedClass <- R6::R6Class(
         missing_set <- template_find_missing(requirements,
                                             self$defs[["name"]])
 
-        if (length(missing_set) == 0) {
-          warning("No template definitions to append. Augmented variables are complete.")
-
-        } else if (length(missing_set) > 0) {
+        if (length(missing_set) > 0) {
           is_def_complete <- FALSE
-          warning(paste0(
-            "Missing parameter(s): ",
-            character_to_string_list(missing_set), "."
-          ))  
+          warning.h(
+            paste0("Missing parameter(s): ", character_to_string_list(missing_set), ".")
+          )  
         }
 
         # point out augmented variables that are not used
@@ -441,7 +448,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
         # drop unused augmented variables
         if (length(unused_set) > 0) {
-          warning(paste0(
+          warning.h(paste0(
             "Dropping not used augmented variable(s): ",
             character_to_string_list(unused_set), "."
           ))

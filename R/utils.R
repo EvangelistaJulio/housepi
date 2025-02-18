@@ -4,15 +4,16 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-hstop <- function(text) {
-  stop(text, .call = FALSE)
-}
+stop.h <- function(x) { base::stop(x, call. = FALSE) }
+warning.h <- function(x) { base::warning(x, call. = FALSE) }
 
 internal_setup_error <- function() {
-  hstop(paste(
-    "Failed to setup files necessary to model.",
-    "Check your user permissions."
-  ))
+  stop.h(
+    paste(
+      "Failed to setup necessary files.",
+      "Check your user permissions."
+    )
+  )
 }
 
 # wrapper to file.copy with overwrite option
@@ -95,10 +96,12 @@ source_files <- function(path) {
 assert_source_files <- function(path) {
   for (file_name in source_files(path)) {
     if (!file.exists(file_name)) {
-      hstop(paste(
-        sprintf("File \"%s\" was not found.", file_name),
-        "Check your model directory"
-      ))
+      stop.h(
+        paste(
+          sprintf("File \"%s\" was not found.", file_name),
+          "Check your model directory."
+        )
+      )
     }
   }
   invisible()

@@ -28,7 +28,7 @@ To perform the sampling we consider the "blank" model, i. e. a data independent 
 hmc <- housepi::HouseholdModelClass$new("blank")
 ```
 
-## Continuos Priors
+# Continuos Priors
 
 Here's the full list of available continuous distributions present in `housepi`:
 
@@ -52,10 +52,10 @@ hmc$infer(progress = FALSE)
 
 # density plot of the traces (w\o loglikelihood)
 # option loglikelihood = FALSE avoids to export loglikelihood
-lattice::densityplot(hmc$export_traces(loglikelihood = FALSE))
+lattice::densityplot(hmc$traces_no_loglike)
 ```
 
-### How to Discretize Continuos Priors
+## How to Discretize Continuos Priors
 
 Previous continuous priors can be chosen to be discretized simply by adding the flag `discrete = TRUE`.
 
@@ -64,7 +64,7 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 hmc$drop_all()
 
 # add a parameter definition for each available distribution
-for (distr_name in available_distrs[ available_distrs != "beta"]) {
+for (distr_name in available_distrs[available_distrs != "beta"]) {
   hmc$add_param(name = distr_name, prior = distr_name, discrete = TRUE)
 }
 
@@ -72,27 +72,27 @@ for (distr_name in available_distrs[ available_distrs != "beta"]) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-coda::densplot(hmc$export_traces(FALSE), right=FALSE)
+coda::densplot(hmc$traces_no_loglike, right=FALSE)
 ```
 
-### Provide a Custom Range
+## Provide a Custom Range
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # add list of parameter definitions
 # option 'append = FALSE' drop previous definitions
 hmc$load_param_list(
-  list(
-    default = list(prior = "norm"),
-    below = list(prior = "norm", min = -1),
-    above = list(prior = "norm", max = 1),
-    both = list(prior = "norm", min = -1, max = 1)
-  ), append = FALSE)
+  default = list(prior = "norm"),
+  below = list(prior = "norm", min = -1),
+  above = list(prior = "norm", max = 1),
+  both = list(prior = "norm", min = -1, max = 1), 
+  append = FALSE
+)
 hmc$infer(progress = FALSE)
 
-lattice::densityplot(hmc$export_traces(FALSE))
+lattice::densityplot(hmc$traces_no_loglike)
 ```
 
-## Discrete Priors
+# Discrete Priors
 
 Here's the full list of available discrete distributions present in `housepi`:
 
@@ -108,10 +108,10 @@ for (distr_name in discrete_distrs) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-coda::densplot(hmc$export_traces(FALSE), right=FALSE)
+coda::densplot(hmc$traces_no_loglike, right=FALSE)
 ```
 
-## MCMC Proposer Rules
+# MCMC Proposer Rules
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 hmc$drop_all()
@@ -127,9 +127,9 @@ for (rule_name in available_proposer_rules) {
 
 hmc$infer(progress = FALSE)
 
-lattice::xyplot(hmc$export_traces(FALSE))
+lattice::xyplot(hmc$traces_no_loglike)
 
-lattice::densityplot(hmc$export_traces(FALSE))
+lattice::densityplot(hmc$traces_no_loglike)
 ```
 
 Note that the proposer rule "lnorm" does not fit the case of negative values as it's here visible.

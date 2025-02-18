@@ -10,7 +10,7 @@
 #' @noRd
 show_model_names <- function() {
 
-  cli::cli_alert_info("Template model names:")
+  cli::cli_alert_info("Available template models:")
   ulid <- cli::cli_ul()
 
   for (name in list.files(template_models_dir())) {
@@ -48,10 +48,12 @@ household_model_template <- function(name = NA, path = NA) {
                                name,
                                "template_info.Rd")
         if (!file.exists((info_file))) {
-          hstop(paste(
-            "Impossible to show model description", 
-            "No template info were foun for the chosen model."
-          ))
+          stop.h(
+            paste(
+              "Impossible to show model description", 
+              "No template info were foun for the chosen model."
+            )
+          )
         }
 
         # FIXME: this doesn't work outside of Rstudio
@@ -59,10 +61,12 @@ household_model_template <- function(name = NA, path = NA) {
 
       } else if (any(file.exists(source_files(path)))) {
         #===== Asking for copying template to folder with model =====#
-        warning(paste(
-          sprintf("A model already exists in folder \"%s\".", path),
-          "To create a model in the same folder, delete its content first."
-        ))
+        warning.h(
+          paste(
+            sprintf("A model already exists in folder \"%s\".", path),
+            "Remove its content before creating a model in it."
+          )
+        )
 
       } else {
         #===== Asking for copying template to empty folder =====#
@@ -85,22 +89,26 @@ household_model_template <- function(name = NA, path = NA) {
           }
 
         } else {
-          hstop(paste(
-            sprintf("Failed to create directory \"%s\".", path),
-            "Check your user permissions."
-          ))
+          stop.h(
+            paste(
+              sprintf("Failed to create directory \"%s\".", path),
+              "Check your user permissions."
+            )
+          )
         }
       }
 
     } else {
-      hstop(paste(
-        sprintf("Provided model name \"%s\" is unknown.", name),
-        "Run 'household_model_template' to see available template names."
-      ))
+      stop.h(
+        paste(
+          sprintf("Provided model name \"%s\" is unknown.", name),
+          "Run `household_model_template` to see available template names."
+        )
+      )
     }
 
   } else {
-    hstop("Model name is not a character.")
+    stop.h("Model name is not a character.")
   }
 }
 
@@ -142,10 +150,12 @@ template_find_requirement <- function(refer_file,
     required_set <- unique(required_set[order(required_set)])
 
   } else {
-    warning(paste(
-      sprintf("Impossible to find reference file \"%s\".", refer_file),
-      "Try to generate a new model object with 'force = TRUE'."
-    ))
+    warning.h(
+      paste(
+        sprintf("Impossible to find reference file \"%s\".", refer_file),
+        "Try to generate a new model object with 'force = TRUE'."
+      )
+    )
 
     required_set <- NULL
   }

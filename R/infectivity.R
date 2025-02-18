@@ -30,17 +30,13 @@ HousepiInfecProfileClass <- R6::R6Class(
     #' @description
     #' New instance of class
     #' [HousepiInfecProfileClass][housepi::HousepiInfecProfileClass].
-    #' 
-    #' @noRd
     initialize = function() {
-      self$drop_all()
+      self$defs <- NULL
       invisible(self)
     },
 
     #' @description
     #' Find parameters required by infectivity profile variable definition.
-    #' 
-    #' @noRd
     param_require = function() {
       # from : augmented variable model argument definitions
       required_param_set <- c()
@@ -74,8 +70,6 @@ HousepiInfecProfileClass <- R6::R6Class(
     #' One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`).
-    #' 
-    #' @noRd
     add = function(name,
                    discrete = FALSE,
                    args = list(),
@@ -83,7 +77,7 @@ HousepiInfecProfileClass <- R6::R6Class(
                    max = NA) {
       #----- name -----#
       if (is.na(name)) {
-        hstop("Incomplete definition: missing name.")
+        stop.h("Incomplete definition: missing name.")
       }
 
       #----- arguments -----#
@@ -121,15 +115,6 @@ HousepiInfecProfileClass <- R6::R6Class(
         min = min_, min_type = min_type_, max = max_, max_type = max_type_
       )
 
-      invisible(self)
-    },
-
-    #' @description
-    #' Drop current infectivity profile definition.
-    #' 
-    #' @noRd
-    drop_all = function() {
-      self$defs <- NULL
       invisible(self)
     }
   )

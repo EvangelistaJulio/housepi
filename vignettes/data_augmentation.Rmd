@@ -21,7 +21,7 @@ options(knitr.kable.NA = "")
 This tutorial introduces to data augmentation with the package `housepi`.
 We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
 
-## Estimate Incubation Periods Distribution
+# Estimate Incubation Periods Distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
@@ -48,7 +48,7 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 hmc <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
-hmc$load_param_list(list(
+hmc$load_param_list(
   shape = list(value = 2, constant = FALSE,
                prior = "unif", 
                args = list(min = 0, max = 5),
@@ -59,10 +59,10 @@ hmc$load_param_list(list(
                args = list(min = 0, max = 5),
                rule = "norm", 
                rule_scale = 1)
-))
+)
 ```
 
-### Build Augmented Variables
+## Build Augmented Variables
 
 Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo.
 However, augmented variable definitions are more delicate, since they can depend on the dataset or on model parameters.
@@ -76,8 +76,8 @@ hmc$add_augm(
   value = "exposure_min@D", # start from data value 'exposure_min'
   min = "exposure_min@D",   # move within the range 'exposure_min'
   max = "exposure_max@D",   # and 'exposure_max'
-  rule = "norm",            # with a normal proposer rule for the Monte Carlo
-  rule_scale = 0.25          # with std. dev. 0.25
+  rule = "norm",            # normal distribution for the proposer rule
+  rule_scale = 0.25         # with scale 0.25 (i. e. standard deviation)
 )
 
 # add 'onset' time definition
@@ -101,29 +101,31 @@ hmc$infer(dataset = dataset, n_steps = 1e5, n_burnin = 1e4,
 Note: The warning tells us that our dataset has no demographic structure: 
 it will be interpreted as single individuals living in separate households.
 
-```{r}
-# collect the inference results
-hmc$summarise_traces()
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+lattice::xyplot(hmc$traces)
 ```
 
-```{r}
-lattice::xyplot(hmc$export_traces())
-```
+## Other Proposer Rule for the Augmented Variables
 
 ```{r}
+# use default "blank" model to show some tests
 hmc <- housepi::HouseholdModelClass$new()
+```
 
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # with model (default Gibbs rule)
-hmc$drop_all()$add_augm(name = "move_1", model = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
+hmc$drop_all()
+hmc$add_augm(name = "move_with_model", model = "norm")
+lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces)
 
-# w\o model random walk (default Gibbs rule)
-hmc$drop_all()$add_augm(name = "move_2", value = 0, rule = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
+# random walk starting from 0 (without model)
+hmc$drop_all()
+hmc$add_augm(name = "random_walk", value = 0, rule = "norm")
+lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces)
 
-# w\o model fixed  walk (default Gibbs rule)
-hmc$drop_all()$add_augm(name = "move_3", rule_from = 0, rule = "norm")
-
-lattice::xyplot(hmc$infer(progress = FALSE)$export_traces())
+# independent normal moves from value 5 (without model)
+hmc$drop_all()
+hmc$add_augm(name = "independent_moves", rule_from = 5, rule = "norm")
+lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces)
 ```
 

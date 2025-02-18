@@ -14,11 +14,6 @@
 MCMC::MCMC() : pImpl(std::make_unique<Impl>()) {}
 MCMC::~MCMC() = default;
 
-//===== READ =====//
-void MCMC::read_setup(const std::string &pathtofile) { pImpl->read_setup(pathtofile); }
-void MCMC::read_params(const std::string &pathtofile) { pImpl->read_params(pathtofile); }
-void MCMC::read_augm(const std::string &pathtofile) { pImpl->read_augm(pathtofile); }
-
 //===== DATA =====//
 size_t MCMC::n_houses() const { return pImpl->n_households; }
 size_t MCMC::report_data(const std::string &key) const { return pImpl->report_data(key); }
@@ -101,16 +96,6 @@ void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  MCMC : build data  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Read data file and then run assignment. */
-void MCMC::read_data(const std::string &pathtofile)
-{
-    dict_str_vec datatable = {};
-    tools::read_csv_table(pathtofile, datatable);
-    build_data(datatable);
-
-    pImpl->_report_pathtofile_["data"] = pathtofile;
-}
 
 /* Assign data after pre-processing. */
 void MCMC::build_data(const dict_str_vec &datatable)
@@ -396,7 +381,7 @@ void MCMC::update_simple_global_loglike()
     pImpl->set_global_loglike(new_ll);
 }
 
-/* Store all buffers (als extra dependecies) and update values of loglikelihood. */
+/* Store all buffers (also for extra dependecies) and update values of loglikelihood. */
 void MCMC::update_extra_global_loglike()
 {
     double new_ll = 0.0;
@@ -539,16 +524,20 @@ void MCMC::move_all_and_adapt_parameters(ulong step)
 /* Initialize augmented dependecies for all households. */
 void MCMC::init_augmented_variables()
 {
-    // wheter to perform data augmentation or not
-    if (pImpl->is_augm_infer())
+    if (pImpl->is_augm_any())
     {
-        _func_move_all_augm_ = &MCMC::_move_all_augm_;
+        if (pImpl->is_augm_sample())
+        {
+            _func_move_all_augm_ = &MCMC::_move_all_augm_;
 
-        // wheter augmented variable are generic or status specific
-        if (pImpl->is_augm_generic())
-            _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
+            // wheter augmented variable are generic or status specific
+            if (pImpl->is_augm_generic())
+                _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
+            else
+                _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_by_status_;
+        }
         else
-            _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_by_status_;
+            _func_move_all_augm_ = &MCMC::_move_no_augm_;
 
         // assign augmented variables
         for (size_t H = 0; H < n_houses(); ++H)
@@ -561,10 +550,6 @@ void MCMC::init_augmented_variables()
             for (const indiv &i : house.infectious_set())
                 update_extra_dependecies(house, i);
         }
-    }
-    else
-    {
-        _func_move_all_augm_ = &MCMC::_move_no_augm_;
     }
 }
 
@@ -778,7 +763,7 @@ void MCMC::infer(bool is_progbar)
     try
     {
         pImpl->check_definitions_before_mcmc();
-        init_model_for_inference();           
+        init_model_for_inference();
 
         // start progress bar and chrono
         progress::Bar progressbar(pImpl->setup_c_n_sweeps * pImpl->setup_n_chains,

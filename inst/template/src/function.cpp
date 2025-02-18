@@ -75,7 +75,7 @@ public:
     Argument range_max = Argument();
 
     //===== Non-default arguments =====//
-    ushort find(const std::string &arg_name);
+    ushort find(const std::string &arg_name) const;
 
     //===== Range =====//
     void init_range(bool is_min_open, bool is_max_open);
@@ -115,7 +115,7 @@ private:
 ////////////////////////////////  Base Function : methods  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline ushort Function::Impl::find(const std::string &arg_name)
+inline ushort Function::Impl::find(const std::string &arg_name) const
 {
     for (ushort c = 0; c < n_args; ++c)
         if (arguments[c].name == arg_name)
@@ -197,6 +197,7 @@ Function::~Function() = default;
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+ushort Function::find(const std::string &arg_name) const { return pImpl->find(arg_name); }
 double Function::get_arg(ushort i) const { return pImpl->arguments[i].get(); }
 double Function::get_min() const { return pImpl->range_min.get(); }
 double Function::get_max() const { return pImpl->range_max.get(); }
@@ -215,26 +216,26 @@ void Function::set_arg(ushort i, double x) { pImpl->arguments[i].set(x); }
 /* Assignment of non default POINTER arguments. */
 void Function::assign_scalar_arg(const std::string &arg_name, double x)
 {
-    ushort it = pImpl->find(arg_name);
-    if (it == pImpl->n_args)
+    ushort i = this->find(arg_name);
+    if (i == pImpl->n_args)
         throw std::invalid_argument(
             "Unknown argument \"" + arg_name + "\" for \"" + pImpl->name + "\".");
     else
     {
-        pImpl->arguments[it].set(x);
-        pImpl->arguments[it].restore_internal_ptr();
+        pImpl->arguments[i].set(x);
+        pImpl->arguments[i].restore_internal_ptr();
     }
 }
 
 /* Assignment of non default POINTER arguments. */
 void Function::assign_pointer_arg(const std::string &arg_name, const double *y)
 {
-    ushort it = pImpl->find(arg_name);
-    if (it == pImpl->n_args)
+    ushort i = this->find(arg_name);
+    if (i == pImpl->n_args)
         throw std::invalid_argument(
             "Unknown argument \"" + arg_name + "\" for \"" + pImpl->name + "\".");
     else
-        pImpl->arguments[it].assign_ptr(y);
+        pImpl->arguments[i].assign_ptr(y);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -247,7 +248,7 @@ void Function::assign_scalar_range_min(double x)
     if (pImpl->name == "unif")
     {
         // Ensure uniform range min == argument "min"
-        pImpl->range_min.assign_ptr(pImpl->arguments[pImpl->find("min")].get_ptr());
+        pImpl->range_min.assign_ptr(pImpl->arguments[this->find("min")].get_ptr());
         if (!tools::is_na(x))
         {
             tools::warning(
@@ -269,7 +270,7 @@ void Function::assign_pointer_range_min(const double *y)
     if (pImpl->name == "unif")
     {
         // Ensure uniform range min == argument "min"
-        pImpl->range_min.assign_ptr(pImpl->arguments[pImpl->find("min")].get_ptr());
+        pImpl->range_min.assign_ptr(pImpl->arguments[this->find("min")].get_ptr());
         if (y != nullptr)
         {
             tools::warning(
@@ -289,7 +290,7 @@ void Function::assign_scalar_range_max(double x)
     if (pImpl->name == "unif")
     {
         // Ensure uniform range max == argument "max"
-        pImpl->range_max.assign_ptr(pImpl->arguments[pImpl->find("max")].get_ptr());
+        pImpl->range_max.assign_ptr(pImpl->arguments[this->find("max")].get_ptr());
         if (!tools::is_na(x))
         {
             tools::warning(
@@ -311,7 +312,7 @@ void Function::assign_pointer_range_max(const double *y)
     if (pImpl->name == "unif")
     {
         // Ensure uniform range max == argument "max"
-        pImpl->range_max.assign_ptr(pImpl->arguments[pImpl->find("max")].get_ptr());
+        pImpl->range_max.assign_ptr(pImpl->arguments[this->find("max")].get_ptr());
         if (y != nullptr)
         {
             tools::warning(

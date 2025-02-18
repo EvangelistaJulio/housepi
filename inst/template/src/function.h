@@ -33,6 +33,7 @@ public:
     virtual ~Function();
 
     //===== GETTER =====//
+    ushort find(const std::string &arg_name) const;
     double get_arg(ushort i) const;
     double get_min() const;
     double get_max() const;

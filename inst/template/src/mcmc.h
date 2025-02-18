@@ -124,15 +124,6 @@ public:
 	virtual void simulate_single_house(Household &house);
 	void simulate(bool is_progbar = true);
 
-	//================//
-	//===== READ =====//
-	//================//
-
-	void read_setup(const std::string &pathtofile = NULL_STRING);
-	void read_params(const std::string &pathtofile = NULL_STRING);
-	void read_data(const std::string &pathtofile = NULL_STRING);
-	void read_augm(const std::string &pathtofile = NULL_STRING);
-
 #ifdef _HOUSEPI_RCPP
 	//========================//
 	//===== Rcpp IMPORTS =====//
@@ -157,6 +148,15 @@ public:
 										 const Rcpp::List &xlim) const;
 
 #else
+	//================//
+	//===== READ =====//
+	//================//
+
+	void read_setup(const std::string &pathtofile = NULL_STRING);
+	void read_params(const std::string &pathtofile = NULL_STRING);
+	void read_data(const std::string &pathtofile = NULL_STRING);
+	void read_augm(const std::string &pathtofile = NULL_STRING);
+	
 	//================//
 	//===== SHOW =====//
 	//================//

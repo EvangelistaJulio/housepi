@@ -2,8 +2,8 @@
 
 S3method(print,housepi_model_check)
 export(HouseholdModelClass)
-export(expected_cases)
-export(extract_household_cases_by_size)
-export(extract_results_from_coda)
 export(household_model_template)
+export(retrieve_expected_cases_by_size)
+export(retrieve_household_cases_by_size)
+export(retrieve_traces_results)
 export(show_model_check_table)

@@ -94,6 +94,7 @@ using matrix = std::vector<std::vector<T>>;
 using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;
 using str_vec = std::vector<std::string>;
+using dict_str_str = std::map<std::string, std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;
 
 // Aliases for improved readibility
@@ -211,16 +212,19 @@ namespace tools
 
     // read csv files
     void read_csv_list(const std::string &pathtofile,
-                       std::map<std::string, std::string> &csv_parsed_list);
+                       dict_str_str &csv_parsed_list);
     void read_csv_table(const std::string &pathtofile,
-                        dict_str_vec &csv_parsed_table,
-                        const str_vec &required_headers = {});
+                        dict_str_vec &csv_parsed_table);
+
+    const str_vec headers_from_deflist(const dict_str_str &deflist);
+    const str_vec headers_from_deftable(const dict_str_vec &deftable);
 
     // Welford online algorithm for mean and variance
     void compute_stats(const dbl_vec &data, double &avg, double &var);
 
     // check for unused entries from a vector of options and throw exception
-    void check_unused_entries(const str_vec &entries, const str_vec &options);
+    void check_for_missing_entries(const str_vec &entries, const str_vec &options);
+    void check_for_unused_entries(const str_vec &entries, const str_vec &options);
 }
 
 //-----------------------------------------------------------------------------------------------//

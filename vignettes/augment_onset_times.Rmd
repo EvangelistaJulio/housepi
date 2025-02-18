@@ -21,7 +21,7 @@ options(knitr.kable.NA = "")
 This tutorial introduces to data augmentation with the package `housepi`.
 We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
 
-## Augment Onset Times
+# Augment Onset Times
 
 For a more realistic example, we use the template model "ex-augm-onset-single-intro", where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
@@ -34,21 +34,23 @@ This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
-hmc$template_param()
+hmc$add_template_param()
 
-# export the data.frame with parameter definitions
-par_2 <- hmc$export_param()
+# export the data.frame with formatted parameter definitions
+par_2 <- hmc$param_defs
 ```
 
 ```{r, echo=FALSE}
 knitr::kable(par_2)
 ```
 
+## Simulate an Outbreak
+
 We propose the following definitions for the augmented variable
 
 ```{r}
 # associate defininitions from a list
-aug_defs <- list(
+hmc$load_augm_list(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
@@ -64,13 +66,10 @@ aug_defs <- list(
     max = 14
   )
 )
-hmc$load_augm_list(aug_defs, append = FALSE)
 
 # append incubation period distribution parameters as constants
-hmc$load_param_list(list(inc_shape = 2, inc_scale = 1.1))
+hmc$load_param_list(inc_shape = 2, inc_scale = 1.1)
 ```
-
-### Simulate an Outbreak
 
 We run a simulation with the method `simulate`.
 
@@ -79,16 +78,16 @@ We run a simulation with the method `simulate`.
 data("survey", package = "housepi")
 hmc$simulate(dataset = survey, seed = 3731)
 
-# show a summary of the current dataset
-hmc$summarise_data()
+# show a summary of the current dataset # FIXME
+#hmc$summarise_data()
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
-This simulation, as all templated models, do not simulate a sampling process.
+Note that this simulation, as for all other templated models, do not simulate a sampling process.
 
 ```{r}
 # remove incubation period from simulated dataset
-dataset <- subset(hmc$export_data(), select = -c(incub_period))
+dataset <- subset(hmc$dataset, select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
 is_infec <- dataset$status == 1
@@ -102,29 +101,27 @@ dataset[is_infec, "onset_date"] <- sapply(
 knitr::kable(head(dataset))
 ```
 
-### Validate the Simulation
+## Validate the Simulation
 
 We can check that inference returns the parameters used for the simulation.
 
 ```{r}
 # load definitions from list and drop previous definitions 
 hmc$load_augm_list(
-  list(
-    # add 'onset_date' definition
-    onset_date = list(
-      value = "onset_date@D",
-      rule = "norm", rule_scale = 0.25,
-      rule_from = "onset_date@D"
-    ),
-    # add 'incub_period' definition
-    incub_period = list(
-      init_rand = TRUE,
-      model = "gamma", args = list(shape = "inc_shape@P",
-                                   scale = "inc_scale@P"),
-      rule = "gibbs", max = 14
-    )
+  # add 'onset_date' definition
+  onset_date = list(
+    value = "onset_date@D",
+    rule = "norm", rule_scale = 0.25,
+    rule_from = "onset_date@D"
   ),
-  append = FALSE
+  # add 'incub_period' definition
+  incub_period = list(
+    init_rand = TRUE,
+    model = "gamma", args = list(shape = "inc_shape@P",
+                                 scale = "inc_scale@P"),
+    rule = "gibbs", max = 14
+  ),
+  append = FALSE # we drop previous definitions
 )
 
 # perform the inference
@@ -135,12 +132,12 @@ hmc$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the traces of all chains 
-lattice::xyplot(hmc$export_traces())
+lattice::xyplot(hmc$traces)
 ```
 
 ```{r}
 # collect the results
-results_2 <- hmc$summarise_traces()
+results_2 <- hmc$traces_results
 
 # compare results to parameter values used for inference
 imask <- par_2["constant"] == FALSE

@@ -176,8 +176,8 @@ public:
 	std::vector<Individual> members = {};
 
 	std::string house_id = NULL_STRING; // user id
-	size_t index = -1;			  // index of household
-	ushort house_size = 0;		  // number of house members
+	size_t index = -1;					// index of household
+	ushort house_size = 0;				// number of house members
 
 	double house_loglike = NULL_DOUBLE; // current loglikelihood value
 	double buffer = NULL_DOUBLE;		// buffer loglikelihood value

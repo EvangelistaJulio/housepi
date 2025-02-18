@@ -16,21 +16,22 @@
 #' (`data.frame`)
 #' 
 #' @export
-extract_results_from_coda <- function(trs) {
+retrieve_traces_results <- function(trs) {
   if ((class(trs) != "mcmc") && (class(trs) != "mcmc.list")) {
-    hstop("Input should be a coda 'mcmc' or 'mcmc.list' object.")
+    stop.h(
+      "Input should be a `coda::mcmc` or a `coda::mcmc.list` object."
+    )
   }
   
   smr <- summary(trs)
   output <- data.frame(
-    name = row.names(smr$statistics),
-    mean = smr$statistics[, "Mean"],
-    sd = smr$statistics[, "SD"],
-    Q2.5 = smr$quantiles[, "2.5%"],
-    Q97.5 = smr$quantiles[, "97.5%"]
+    "mean" = smr$statistics[, "Mean"],
+    "sd" = smr$statistics[, "SD"],
+    "q2.5%" = smr$quantiles[, "2.5%"],
+    "q97.5%" = smr$quantiles[, "97.5%"], 
+    check.names = FALSE
   )
-  row.names(output) <- NULL
-  
+  row.names(output) <- row.names(smr$statistics)
   return(output)
 }
 
@@ -62,9 +63,9 @@ apply_on_homogeneous_frames <- function (FUN, frame_list) {
 }
 
 #' @title
-#' Extract Household Cases by Size
+#' Retrieve Household Cases by Size
 #' @description
-#' Function to extract cases by size from a given data.frame.
+#' Function to retrieve cases by size from a given data.frame.
 #' 
 #' @param dataset (`data.frame`)\cr
 #' Dataset containing the the individual 'id', their 'status' and their 'house_id'.
@@ -72,10 +73,10 @@ apply_on_homogeneous_frames <- function (FUN, frame_list) {
 #' @return (`data.frame`)\cr
 #' 
 #' @export
-extract_household_cases_by_size <- function(dataset) {
+retrieve_household_cases_by_size <- function(dataset) {
   # check that dataset is consistent
   if (length(dataset) == 0) {
-    hstop("No valid dataset was provided.")
+    stop.h("No valid dataset was provided.")
   } else {
     dataset <- as.data.frame(dataset)
   }
@@ -122,7 +123,7 @@ extract_household_cases_by_size <- function(dataset) {
 }
 
 #' @title
-#' Compute Expected Cases according to Household Model
+#' Retrieve Expected Cases by Size
 #' @description
 #' For a given `house_model` simulate different household datasets
 #' according to parameters sampled from the model posterior distribution.
@@ -153,18 +154,18 @@ extract_household_cases_by_size <- function(dataset) {
 #' Maximum household size to consider.
 #' 
 #' @export
-expected_cases <- function(house_model,
-                           dataset = NULL,
-                           size = 100,
-                           n_burnin = 0,
-                           thin = 1,
-                           n_adapt = 0,
-                           n_chains = 1,
-                           n_threads = 1,
-                           rand_init = TRUE,
-                           seed = NA,
-                           progress = TRUE,
-                           max_house_size = NA) {
+retrieve_expected_cases_by_size <- function(house_model,
+                                            dataset = NULL,
+                                            size = 100,
+                                            n_burnin = 0,
+                                            thin = 1,
+                                            n_adapt = 0,
+                                            n_chains = 1,
+                                            n_threads = 1,
+                                            rand_init = TRUE,
+                                            seed = NA,
+                                            progress = TRUE,
+                                            max_house_size = NA) {
   # FIXME deep clone not working
   # clone the model before proceeding further
   # hmc <- house_model$clone(deep = TRUE) 
@@ -188,10 +189,10 @@ expected_cases <- function(house_model,
     progress = progress, seed = rng_seeds[n_repetitions + 1])
   
   # extract traces
-  traces <- hmc$export_traces(keep_loglike = FALSE)
+  traces <- hmc$traces_no_loglike
   
   # extract constant parameters
-  params <- hmc$export_param()
+  params <- hmc$param_defs
   tmp <- params[params$constant, c("name", "value")]
   constants <- as.list(tmp$value)
   names(constants) <- as.list(tmp$name)
@@ -210,16 +211,14 @@ expected_cases <- function(house_model,
     # extract cases by size tables
     # UPDATE: remove `datasete` once fixed pre-loading issue
     hmc$simulate(dataset, seed = rng_seeds[r], progress = FALSE)
-    simulations_list[[r]] <- extract_household_cases_by_size(hmc$export_data())
+    simulations_list[[r]] <- retrieve_household_cases_by_size(hmc$dataset)
     
     if (isTRUE(progress)) cli::cli_progress_update()
   }
   if (isTRUE(progress)) cli::cli_progress_done()
   
-  # compute mean values
-  
   # extract observed household case table
-  obs_hh_case_table <- extract_household_cases_by_size(dataset)
+  obs_hh_case_table <- retrieve_household_cases_by_size(dataset)
   
   # keep only observed house sizes and discard according to maximum
   a <- obs_hh_case_table
@@ -236,7 +235,9 @@ expected_cases <- function(house_model,
   
   # consistency check
   if (all(dim(obs_hh_case_table) != dim(exp_hh_case_table))) {
-    hstop("Internal inconsistency in expected observed and expected tables.")
+    stop.h(
+      "Internal inconsistency in observed and expected tables."
+    )
   }
   
   # perform Pearson chi-squared test
@@ -297,14 +298,10 @@ print.housepi_model_check <- function(x) {
 #' @export
 show_model_check_table <- function(x) {
   
-  # format `mean` with its `lower` and `upper` values
-  format_expression <- function(mean, lower, upper) {
-    return(ifelse(is.na(mean) | is.na(lower) | is.na(upper),
-                  NA, sprintf("%.1f[%.0f-%.0f]", mean, lower, upper)))
-  }
-  
   if (class(x) != "housepi_model_check") {
-    hstop("Input should be the result of function 'check_household_model'.")
+    stop.h(
+      "Input should be the result of function 'check_household_model'."
+    )
   }
   
   # curate observed dataframe
@@ -314,6 +311,12 @@ show_model_check_table <- function(x) {
   rownames(A) <- seq(1, 2*nrow(A), 2)
   
   # curate expected dataframe
+
+  # format `mean` with its `lower` and `upper` values
+  format_expression <- function(mean, lower, upper) {
+    return(ifelse(is.na(mean) | is.na(lower) | is.na(upper),
+                  NA, sprintf("%.1f[%.0f-%.0f]", mean, lower, upper)))
+  }
   B <- as.data.frame(mapply(format_expression, 
                             x$expected_cases_by_size, x$Q2.5, x$Q97.5))
   B$size <- A$size

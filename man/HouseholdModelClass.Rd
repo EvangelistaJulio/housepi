@@ -8,42 +8,62 @@
 Compile household model, manage your data and parameters from a single class.
 }
 \references{
-Friel N, Hurn M, Wyse J.
-Improving power posterior estimation of statistical evidence.
-Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
-
 Cauchemez, et al. (2009)
 Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
 New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
+
+Friel N, Hurn M, Wyse J.
+Improving power posterior estimation of statistical evidence.
+Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
+}
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{dataset}}{(\code{data.frame})\cr
+Dataset with individual level information of current dataset.
+If the case, it also return the associated augmented variables.}
+
+\item{\code{param_defs}}{(\code{data.frame})\cr
+Parameter formatted definitions.}
+
+\item{\code{augm_defs}}{(\code{data.frame})\cr
+Augmented variable formatted definitions.}
+
+\item{\code{traces}}{(\code{coda::mcmc} or \code{coda::mcmc.list})\cr
+Full traces of last inference.}
+
+\item{\code{traces_no_loglike}}{(\code{coda::mcmc} or \code{coda::mcmc.list})\cr
+Traces of last inference without loglikelihood.}
+
+\item{\code{traces_results}}{(\code{data.frame})\cr
+Results extracted from the traces of last inference.}
+}
+\if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HouseholdModelClass-new}{\code{HouseholdModelClass$new()}}
+\item \href{#method-HouseholdModelClass-print}{\code{HouseholdModelClass$print()}}
+\item \href{#method-HouseholdModelClass-finalize}{\code{HouseholdModelClass$finalize()}}
 \item \href{#method-HouseholdModelClass-help}{\code{HouseholdModelClass$help()}}
-\item \href{#method-HouseholdModelClass-infer}{\code{HouseholdModelClass$infer()}}
-\item \href{#method-HouseholdModelClass-simulate}{\code{HouseholdModelClass$simulate()}}
-\item \href{#method-HouseholdModelClass-loglikelihood}{\code{HouseholdModelClass$loglikelihood()}}
-\item \href{#method-HouseholdModelClass-evidence}{\code{HouseholdModelClass$evidence()}}
+\item \href{#method-HouseholdModelClass-drop_param_defs}{\code{HouseholdModelClass$drop_param_defs()}}
+\item \href{#method-HouseholdModelClass-drop_augm_defs}{\code{HouseholdModelClass$drop_augm_defs()}}
+\item \href{#method-HouseholdModelClass-drop_group_rate_defs}{\code{HouseholdModelClass$drop_group_rate_defs()}}
+\item \href{#method-HouseholdModelClass-drop_all}{\code{HouseholdModelClass$drop_all()}}
 \item \href{#method-HouseholdModelClass-add_param}{\code{HouseholdModelClass$add_param()}}
+\item \href{#method-HouseholdModelClass-add_template_param}{\code{HouseholdModelClass$add_template_param()}}
+\item \href{#method-HouseholdModelClass-load_param_list}{\code{HouseholdModelClass$load_param_list()}}
 \item \href{#method-HouseholdModelClass-add_augm}{\code{HouseholdModelClass$add_augm()}}
+\item \href{#method-HouseholdModelClass-add_template_augm}{\code{HouseholdModelClass$add_template_augm()}}
+\item \href{#method-HouseholdModelClass-load_augm_list}{\code{HouseholdModelClass$load_augm_list()}}
 \item \href{#method-HouseholdModelClass-add_group_rate}{\code{HouseholdModelClass$add_group_rate()}}
 \item \href{#method-HouseholdModelClass-add_infectivity_profile}{\code{HouseholdModelClass$add_infectivity_profile()}}
-\item \href{#method-HouseholdModelClass-load_param_list}{\code{HouseholdModelClass$load_param_list()}}
-\item \href{#method-HouseholdModelClass-load_augm_list}{\code{HouseholdModelClass$load_augm_list()}}
-\item \href{#method-HouseholdModelClass-template_param}{\code{HouseholdModelClass$template_param()}}
-\item \href{#method-HouseholdModelClass-template_augm}{\code{HouseholdModelClass$template_augm()}}
-\item \href{#method-HouseholdModelClass-export_data}{\code{HouseholdModelClass$export_data()}}
-\item \href{#method-HouseholdModelClass-export_traces}{\code{HouseholdModelClass$export_traces()}}
-\item \href{#method-HouseholdModelClass-export_param}{\code{HouseholdModelClass$export_param()}}
-\item \href{#method-HouseholdModelClass-export_augm}{\code{HouseholdModelClass$export_augm()}}
 \item \href{#method-HouseholdModelClass-export_infectivity_profile}{\code{HouseholdModelClass$export_infectivity_profile()}}
-\item \href{#method-HouseholdModelClass-summarise_data}{\code{HouseholdModelClass$summarise_data()}}
-\item \href{#method-HouseholdModelClass-summarise_traces}{\code{HouseholdModelClass$summarise_traces()}}
-\item \href{#method-HouseholdModelClass-drop_all_param}{\code{HouseholdModelClass$drop_all_param()}}
-\item \href{#method-HouseholdModelClass-drop_all_augm}{\code{HouseholdModelClass$drop_all_augm()}}
-\item \href{#method-HouseholdModelClass-drop_all_group_rate}{\code{HouseholdModelClass$drop_all_group_rate()}}
-\item \href{#method-HouseholdModelClass-drop_all}{\code{HouseholdModelClass$drop_all()}}
+\item \href{#method-HouseholdModelClass-infer}{\code{HouseholdModelClass$infer()}}
+\item \href{#method-HouseholdModelClass-simulate}{\code{HouseholdModelClass$simulate()}}
+\item \href{#method-HouseholdModelClass-compute_loglikelihood}{\code{HouseholdModelClass$compute_loglikelihood()}}
+\item \href{#method-HouseholdModelClass-estimate_evidence}{\code{HouseholdModelClass$estimate_evidence()}}
 \item \href{#method-HouseholdModelClass-loo}{\code{HouseholdModelClass$loo()}}
 \item \href{#method-HouseholdModelClass-waic}{\code{HouseholdModelClass$waic()}}
 \item \href{#method-HouseholdModelClass-clone}{\code{HouseholdModelClass$clone()}}
@@ -84,6 +104,26 @@ IF \code{FALSE} recompile the model at every new session.}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-print"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-print}{}}}
+\subsection{Method \code{print()}}{
+Override the default printing behaviour.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$print()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-finalize"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-finalize}{}}}
+\subsection{Method \code{finalize()}}{
+Cleaning up any resources created by the initializer.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$finalize()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-help"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-help}{}}}
 \subsection{Method \code{help()}}{
@@ -94,216 +134,44 @@ Show model description in RStudio Help window.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-infer"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-infer}{}}}
-\subsection{Method \code{infer()}}{
-Run Bayesian MCMC inference and store internally the chain traces.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_param_defs"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_param_defs}{}}}
+\subsection{Method \code{drop_param_defs()}}{
+Drop all current parameter definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$infer(
-  dataset = NULL,
-  size = NA,
-  n_steps = 10000,
-  n_burnin = 0,
-  thin = 1,
-  n_adapt = 0,
-  n_chains = 1,
-  n_threads = 1,
-  rand_init = TRUE,
-  id_trace = NA,
-  inv_temper = 1,
-  seed = NA,
-  progress = TRUE
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_param_defs()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv file or a data.frame containing the dataset.}
-
-\item{\code{size}}{(\code{integer(1)})\cr
-Sample size of a single chain according to posterior distribution.}
-
-\item{\code{n_steps}}{(\code{integer(1)})\cr
-Number of MCMC steps.}
-
-\item{\code{n_burnin}}{(\code{integer(1)})\cr
-Number of steps to discard at the beginning of the sample.}
-
-\item{\code{thin}}{(\code{integer(1)})\cr
-Number of steps to discard between each sample.}
-
-\item{\code{n_adapt}}{(\code{integer(1)})\cr
-Number of steps with finite adaptation before sampling.}
-
-\item{\code{n_chains}}{(\code{integer(1)})\cr
-Number of independent MCMC chains.}
-
-\item{\code{n_threads}}{(\code{integer(1)})\cr
-Number of threads for the parallel computations.}
-
-\item{\code{rand_init}}{(\code{logical(1)})\cr
-If \code{TRUE} the initial value of the parameters is drawn from prior.}
-
-\item{\code{id_trace}}{(\code{character(1)})\cr
-Individual identifier to show augmented traces. Default is NA.}
-
-\item{\code{inv_temper}}{(\code{double(1)})\cr
-Value of the inverse temperature.
-For standard usage this is 1.}
-
-\item{\code{seed}}{(\code{integer(1)})\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
-
-\item{\code{progress}}{(\code{logical(1)})\cr
-If \code{FALSE} suppress the inference progress bar.}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-simulate"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-simulate}{}}}
-\subsection{Method \code{simulate()}}{
-Run the simulation.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_augm_defs"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_augm_defs}{}}}
+\subsection{Method \code{drop_augm_defs()}}{
+Drop all current augmented variable definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$simulate(
-  dataset = NULL,
-  n_threads = 1,
-  seed = NA,
-  progress = FALSE
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_augm_defs()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv file or a data.frame containing the dataset.}
-
-\item{\code{n_threads}}{(\code{integer(1)})\cr
-Number of threads for the parallelization of the loglikelihood.}
-
-\item{\code{seed}}{(\code{integer(1)})\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
-
-\item{\code{progress}}{(\code{logical(1)})\cr
-If \code{FALSE} suppress the simulation progress bar.}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-loglikelihood"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-loglikelihood}{}}}
-\subsection{Method \code{loglikelihood()}}{
-Estimate the loglikelihood for the given parameters.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_group_rate_defs"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_group_rate_defs}{}}}
+\subsection{Method \code{drop_group_rate_defs()}}{
+Drop all current augmented variable definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$loglikelihood(
-  dataset = NULL,
-  n_threads = 1,
-  rand_init = FALSE,
-  inv_temper = 1
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_group_rate_defs()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv file or a data.frame containing the dataset.}
-
-\item{\code{n_threads}}{(\code{integer(1)})\cr
-Number of threads for the parallelization of the loglikelihood.}
-
-\item{\code{rand_init}}{(\code{logical(1)})\cr
-If \code{TRUE} the initial value of parameters is drawn from prior.
-Default is \code{FALSE}.}
-
-\item{\code{inv_temper}}{(\code{double(1)})\cr
-Value of the inverse temperature in the range \link{0, 1}.
-For standard usage this is 1.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-(\code{double(1)})\cr
-The value of the loglikelihood.
-}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-evidence"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-evidence}{}}}
-\subsection{Method \code{evidence()}}{
-Estimate the model evidence (or marginal likelihood).
-It uses the method of power posteriors with different available schemes.
+\if{html}{\out{<a id="method-HouseholdModelClass-drop_all"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all}{}}}
+\subsection{Method \code{drop_all()}}{
+Drop all current definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$evidence(
-  dataset = NULL,
-  scheme = "adaptive",
-  n_rungs = 40,
-  size = NA,
-  n_steps = 1000,
-  n_burnin = 0,
-  thin = 1,
-  n_adapt = 0,
-  n_chains = 1,
-  n_threads = 1,
-  seed = NA,
-  progress = TRUE
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{dataset}}{(\code{character(1)} | \code{data.frame})\cr
-Path to a csv file or a data.frame containing the dataset.}
-
-\item{\code{scheme}}{(\code{character(1)})\cr
-If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
-Other available scheme is "power-fractions".}
-
-\item{\code{n_rungs}}{(\code{integer})\cr
-Number of rungs in the thermodynamic ladder.}
-
-\item{\code{size}}{(\code{integer(1)})\cr
-Sample size of a single chain according to posterior distribution.}
-
-\item{\code{n_steps}}{(\code{integer(1)})\cr
-Number of MCMC steps.}
-
-\item{\code{n_burnin}}{(\code{integer(1)})\cr
-Number of steps to discard at the beginning of the sample.}
-
-\item{\code{thin}}{(\code{integer(1)})\cr
-Number of steps to discard between each sample.}
-
-\item{\code{n_adapt}}{(\code{integer(1)})\cr
-Number of steps with finite adptation before sampling.}
-
-\item{\code{n_chains}}{(\code{integer(1)})\cr
-Number of independent MCMC chains.}
-
-\item{\code{n_threads}}{(\code{integer(1)})\cr
-Number of threads for the parallelization of the loglikelihood.}
-
-\item{\code{seed}}{(\code{integer(1)})\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
-
-\item{\code{progress}}{(\code{logical(1)})\cr
-If \code{FALSE} suppress the simulation progress bar.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-(\code{double(1)})\cr
-The value of the model evidence.
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-add_param"></a>}}
@@ -314,7 +182,7 @@ Add a new parameter definition.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_param(
   name = NA,
   value = NA,
-  constant = NA,
+  constant = FALSE,
   discrete = FALSE,
   prior = NA,
   args = list(),
@@ -363,6 +231,48 @@ Value of the maximum.}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-add_template_param"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_template_param}{}}}
+\subsection{Method \code{add_template_param()}}{
+Add parameter definitions from model template.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_template_param(append = TRUE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+Else drop all previous definitions.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-load_param_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_param_list}{}}}
+\subsection{Method \code{load_param_list()}}{
+Associate parameters from a list.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_param_list(..., from = NA, append = TRUE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Parameter names with respective list of definitions.}
+
+\item{\code{from}}{(named \code{list()})\cr
+Named list of parameter definitions.}
+
+\item{\code{append}}{(\code{logical(1)})\cr
+If \code{TRUE} appends the list to current definition (default).
+If \code{FALSE} drop all other parameter definitions.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-add_augm"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_augm}{}}}
 \subsection{Method \code{add_augm()}}{
@@ -372,6 +282,7 @@ Add a new augmented variable definition.
   name = NA,
   status = NA,
   value = NA,
+  constant = FALSE,
   discrete = FALSE,
   model = NA,
   args = list(),
@@ -401,6 +312,9 @@ One between:
 \item Parameter name (followed by \verb{@P});
 \item Data name (followed by \verb{@D}).
 }}
+
+\item{\code{constant}}{(\code{logical(1)})\cr
+If \code{FALSE} the augmented variable is treated as a constant.}
 
 \item{\code{discrete}}{(\code{logical(1)})\cr
 IF \code{TRUE} the augmenter variable is discrete.}
@@ -439,6 +353,48 @@ Maxmimum tvalue. One between:
 
 \item{\code{init_rand}}{(\code{character(1)})\cr
 If \code{TRUE} draw initial vale from model distribution.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-add_template_augm"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_template_augm}{}}}
+\subsection{Method \code{add_template_augm()}}{
+Add missing augmented variables from template definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_template_augm(append = TRUE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+Else drop all previous definitions.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-load_augm_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_augm_list}{}}}
+\subsection{Method \code{load_augm_list()}}{
+Associate augmented variables from a list.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_augm_list(..., from = NA, append = TRUE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Augmented variable names with respective list of definitions.}
+
+\item{\code{from}}{(named \code{list()})\cr
+Named list of augmented variable definitions.}
+
+\item{\code{append}}{(\code{logical(1)})\cr
+If \code{TRUE} appends the list to current definition (default).
+If \code{FALSE} drop all other augmented variable definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -553,149 +509,6 @@ One between:
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-load_param_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_param_list}{}}}
-\subsection{Method \code{load_param_list()}}{
-Associate parameters from a list.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_param_list(definitions, append = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{definitions}}{(named \code{list()})\cr
-A list containg parameter names with respective list of definitions.}
-
-\item{\code{append}}{(\code{logical(1)})\cr
-If \code{TRUE} appends the list to current definition (default).
-If \code{FALSE} drop all other parameter definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-load_augm_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_augm_list}{}}}
-\subsection{Method \code{load_augm_list()}}{
-Associate augmented variables from a list.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_augm_list(definitions, append = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{definitions}}{(named \code{list()})\cr
-Augmented variable names with respective list of definitions.}
-
-\item{\code{append}}{(\code{logical(1)})\cr
-If \code{TRUE} appends the list to current definition (default).
-If \code{FALSE} drop all other augmented variable definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-template_param"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-template_param}{}}}
-\subsection{Method \code{template_param()}}{
-Add missing parameters from template definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_param(append = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
-Else drop all previous definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-template_augm"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-template_augm}{}}}
-\subsection{Method \code{template_augm()}}{
-Add missing augmented variables from template definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$template_augm(append = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
-Else drop all previous definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-export_data"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_data}{}}}
-\subsection{Method \code{export_data()}}{
-Export the current dataset at current state.
-If the case, it also return the associated augmented variables.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_data()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-(\code{data.frame})\cr
-A data.frame with individual level information.
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-export_traces"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_traces}{}}}
-\subsection{Method \code{export_traces()}}{
-Export the traces of last inference call as a coda object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_traces(keep_loglike = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{keep_loglike}}{(\code{logical(1)})\cr
-If \code{FALSE} don't export the trace of the loglikelihood.
-Default is \code{TRUE}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-(\code{coda::mcmc} or \code{coda::mcmc.list})
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-export_param"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_param}{}}}
-\subsection{Method \code{export_param()}}{
-Export the parameter data.frame with formatted definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_param()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-(\code{data.frame})\cr
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-export_augm"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_augm}{}}}
-\subsection{Method \code{export_augm()}}{
-Export the augmnted variable data.frame with formatted definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_augm()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-(\code{data.frame})\cr
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-export_infectivity_profile"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-export_infectivity_profile}{}}}
 \subsection{Method \code{export_infectivity_profile()}}{
@@ -721,67 +534,211 @@ To keep the default value of one limit, set it to \code{NA}.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-summarise_data"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-summarise_data}{}}}
-\subsection{Method \code{summarise_data()}}{
-Print a summary of the current dataset.
+\if{html}{\out{<a id="method-HouseholdModelClass-infer"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-infer}{}}}
+\subsection{Method \code{infer()}}{
+Run Bayesian MCMC inference and store internally the chain traces.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$summarise_data()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$infer(
+  dataset = NULL,
+  size = NA,
+  n_steps = 10000,
+  n_burnin = 0,
+  thin = 1,
+  n_adapt = 0,
+  n_chains = 1,
+  n_threads = 1,
+  rand_init = TRUE,
+  id_trace = NA,
+  inv_temper = 1,
+  seed = NA,
+  progress = TRUE
+)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{dataset}}{(\code{data.frame})\cr
+A data.frame containing the dataset.}
+
+\item{\code{size}}{(\code{integer(1)})\cr
+Sample size of a single chain according to posterior distribution.}
+
+\item{\code{n_steps}}{(\code{integer(1)})\cr
+Number of MCMC steps.}
+
+\item{\code{n_burnin}}{(\code{integer(1)})\cr
+Number of steps to discard at the beginning of the sample.}
+
+\item{\code{thin}}{(\code{integer(1)})\cr
+Number of steps to discard between each sample.}
+
+\item{\code{n_adapt}}{(\code{integer(1)})\cr
+Number of steps with finite adaptation before sampling.}
+
+\item{\code{n_chains}}{(\code{integer(1)})\cr
+Number of independent MCMC chains.}
+
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallel computations.}
+
+\item{\code{rand_init}}{(\code{logical(1)})\cr
+If \code{TRUE} the initial value of the parameters is drawn from prior.}
+
+\item{\code{id_trace}}{(\code{character(1)})\cr
+Individual identifier to show augmented traces. Default is NA.}
+
+\item{\code{inv_temper}}{(\code{double(1)})\cr
+Value of the inverse temperature.
+For standard usage this is 1.}
+
+\item{\code{seed}}{(\code{integer(1)})\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
+
+\item{\code{progress}}{(\code{logical(1)})\cr
+If \code{FALSE} suppress the inference progress bar.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-summarise_traces"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-summarise_traces}{}}}
-\subsection{Method \code{summarise_traces()}}{
-Return a summary of last MCMC traces.
+\if{html}{\out{<a id="method-HouseholdModelClass-simulate"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-simulate}{}}}
+\subsection{Method \code{simulate()}}{
+Run the simulation.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$summarise_traces()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$simulate(
+  dataset = NULL,
+  n_threads = 1,
+  seed = NA,
+  progress = FALSE
+)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{dataset}}{(\code{data.frame})\cr
+A data.frame containing the dataset.}
+
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{seed}}{(\code{integer(1)})\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
+
+\item{\code{progress}}{(\code{logical(1)})\cr
+If \code{FALSE} suppress the simulation progress bar.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-compute_loglikelihood"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-compute_loglikelihood}{}}}
+\subsection{Method \code{compute_loglikelihood()}}{
+Compute the loglikelihood for the given parameters.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$compute_loglikelihood(
+  dataset = NULL,
+  n_threads = 1,
+  rand_init = FALSE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{dataset}}{(\code{data.frame})\cr
+A data.frame containing the dataset.}
+
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{rand_init}}{(\code{logical(1)})\cr
+If \code{TRUE} the initial value of parameters is drawn from prior.
+Default is \code{FALSE}.}
+}
+\if{html}{\out{</div>}}
+}
 \subsection{Returns}{
-(\code{data.frame})
+(\code{double(1)})\cr
+The value of the loglikelihood.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_all_param"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all_param}{}}}
-\subsection{Method \code{drop_all_param()}}{
-Drop all current parameter definitions.
+\if{html}{\out{<a id="method-HouseholdModelClass-estimate_evidence"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-estimate_evidence}{}}}
+\subsection{Method \code{estimate_evidence()}}{
+Estimate the model evidence (or marginal likelihood).
+It uses the method of power posteriors with different available schemes.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all_param()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$estimate_evidence(
+  dataset = NULL,
+  scheme = "adaptive",
+  n_rungs = 40,
+  size = NA,
+  n_steps = 1000,
+  n_burnin = 0,
+  thin = 1,
+  n_adapt = 0,
+  n_chains = 1,
+  n_threads = 1,
+  seed = NA,
+  progress = TRUE
+)}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_all_augm"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all_augm}{}}}
-\subsection{Method \code{drop_all_augm()}}{
-Drop all current augmented variable definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all_augm()}\if{html}{\out{</div>}}
-}
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{dataset}}{(\code{data.frame})\cr
+A data.frame containing the dataset.}
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_all_group_rate"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all_group_rate}{}}}
-\subsection{Method \code{drop_all_group_rate()}}{
-Drop all current augmented variable definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all_group_rate()}\if{html}{\out{</div>}}
-}
+\item{\code{scheme}}{(\code{character(1)})\cr
+If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
+Other available scheme is "power-fractions".}
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-drop_all"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-drop_all}{}}}
-\subsection{Method \code{drop_all()}}{
-Drop all current definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$drop_all()}\if{html}{\out{</div>}}
-}
+\item{\code{n_rungs}}{(\code{integer})\cr
+Number of rungs in the thermodynamic ladder.}
 
+\item{\code{size}}{(\code{integer(1)})\cr
+Sample size of a single chain according to posterior distribution.}
+
+\item{\code{n_steps}}{(\code{integer(1)})\cr
+Number of MCMC steps.}
+
+\item{\code{n_burnin}}{(\code{integer(1)})\cr
+Number of steps to discard at the beginning of the sample.}
+
+\item{\code{thin}}{(\code{integer(1)})\cr
+Number of steps to discard between each sample.}
+
+\item{\code{n_adapt}}{(\code{integer(1)})\cr
+Number of steps with finite adptation before sampling.}
+
+\item{\code{n_chains}}{(\code{integer(1)})\cr
+Number of independent MCMC chains.}
+
+\item{\code{n_threads}}{(\code{integer(1)})\cr
+Number of threads for the parallelization of the loglikelihood.}
+
+\item{\code{seed}}{(\code{integer(1)})\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
+
+\item{\code{progress}}{(\code{logical(1)})\cr
+If \code{FALSE} suppress the simulation progress bar.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+(\code{double(1)})\cr
+The value of the model evidence.
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-loo"></a>}}

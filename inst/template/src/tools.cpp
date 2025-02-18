@@ -126,6 +126,13 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
+    /* Reference:
+     * ---------
+     * Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+     * Michael Weylandt — written Mar 27, 2018
+     * https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+     */
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Warning Functions  //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,14 +143,8 @@ namespace tools
         if (_issued_warnings_.find(txt) == _issued_warnings_.end())
         {
 #ifdef _HOUSEPI_RCPP
-            /*
-            using namespace Rcpp;
-
-            Environment cli = Environment::namespace_env("cli");
-            Function cli_warn = cli["cli_warn"];
-            cli_warn(_["message"] = txt);
-            */
-            Rcpp::warning(txt);
+            // Rcpp::warning(txt);
+            Rf_warningcall(R_NilValue, txt.c_str());
 #else
             std::cerr << "\nWarning: " + txt << std::endl;
 #endif
@@ -159,14 +160,8 @@ namespace tools
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
-        using namespace Rcpp;
-        /*
-        Environment cli = Environment::namespace_env("cli");
-        Function cli_abort = cli["cli_abort"];
-        cli_abort(_["message"] = txt);
-        */
-        print_stderr("\n");
-        Rcpp::stop(txt);
+        // Rcpp::stop(txt);
+        throw Rcpp::exception(txt.c_str(), false);
 #else
         std::cerr << "\nError: " + txt + "\nExit...\n"
                   << std::endl;
@@ -280,7 +275,7 @@ namespace tools
     }
 
     /* Read column headers and compare to required headers. */
-    str_vec read_column_headers(std::ifstream &input, const str_vec &required_headers)
+    str_vec read_column_headers(std::ifstream &input)
     {
         // clean headers
         str_vec headers = {};
@@ -294,26 +289,11 @@ namespace tools
         while (getline(iss, tkn, C_DELIM))
             headers.push_back(strcleaner(tkn));
 
-        // check that all required headers are present
-        if (!required_headers.empty())
-        {
-            std::string sms = "";
-
-            // check the validity of the headers
-            for (const std::string &req : required_headers)
-                if (std::find(headers.begin(), headers.end(), req) == headers.end())
-                    sms += ((sms.empty()) ? "Missing column(s)" : ",") + (" \"" + req + "\"");
-
-            // raise the error if something was missing
-            if (!sms.empty())
-                throw std::invalid_argument(sms + ".");
-        }
-
         return headers;
     }
 
     /* Load files from the row with headers */
-    bool read_row_by_headers(std::ifstream &input, const str_vec &headers, std::map<std::string, std::string> &this_row)
+    bool read_row_by_headers(std::ifstream &input, const str_vec &headers, dict_str_str &this_row)
     {
         std::string line, tkn;
 
@@ -358,54 +338,66 @@ namespace tools
         return output;
     }
 
-    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
-    void read_csv_list(const std::string &pathtofile, std::map<std::string, std::string> &csv_parsed_list)
+    /* Extract headers from deflist. */
+    const str_vec headers_from_deflist(const dict_str_str &deflist)
     {
-        try
+        str_vec entries = {};
+        for (const auto &pair : deflist)
+            entries.push_back(pair.first);
+        return entries;
+    }
+
+    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
+    void read_csv_list(const std::string &pathtofile,
+                       dict_str_str &csv_parsed_list)
+    {
+
+        if (!is_na(pathtofile))
         {
-            if (!is_na(pathtofile))
+            std::ifstream input(pathtofile.c_str());
+
+            if (input.is_open())
             {
-                std::ifstream input(pathtofile.c_str());
+                csv_parsed_list.clear();
 
-                if (input.is_open())
+                // Create a std::stringstream of the current line
+                for (std::string line; getline(input, line);)
                 {
-                    csv_parsed_list.clear();
+                    std::string name, choice;
+                    std::istringstream iss(line);
 
-                    // Create a std::stringstream of the current line
-                    for (std::string line; getline(input, line);)
-                    {
-                        std::string name, choice;
-                        std::istringstream iss(line);
+                    //===== NAME =====//
+                    if (!getline(iss, name, C_DELIM))
+                        throw std::runtime_error(
+                            "Unable to extract list name. Check file line \"" + line + "\".");
 
-                        //===== NAME =====//
-                        if (!getline(iss, name, C_DELIM))
-                            throw std::runtime_error(
-                                "Unable to extract list name. Check file line \"" + line + "\".");
+                    //===== CHOICE =====//
+                    if (!getline(iss, choice))
+                        throw std::runtime_error(
+                            "Unable to extract list value. Check file line \"" + line + "\".");
 
-                        //===== CHOICE =====//
-                        if (!getline(iss, choice))
-                            throw std::runtime_error(
-                                "Unable to extract list value. Check file line \"" + line + "\".");
-
-                        // add the new setup
-                        csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
-                    }
+                    // add the new setup
+                    csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
                 }
-                else
-                    throw std::runtime_error(
-                        "Impossible to open file \"" + pathtofile + "\".");
             }
+            else
+                throw std::runtime_error(
+                    "Impossible to open file \"" + pathtofile + "\".");
         }
-        catch (std::exception &e)
-        {
-            error(e.what());
-        }
+    }
+
+    /* Extract headers from deftable. */
+    const str_vec headers_from_deftable(const dict_str_vec &deftable)
+    {
+        str_vec entries = {};
+        for (const auto &pair : deftable)
+            entries.push_back(pair.first);
+        return entries;
     }
 
     /* Read csv table store in pathtofile and store it parsed in csv_parsed_table. */
     void read_csv_table(const std::string &pathtofile,
-                        dict_str_vec &csv_parsed_table,
-                        const str_vec &required_headers)
+                        dict_str_vec &csv_parsed_table)
     {
         if (!is_na(pathtofile))
         {
@@ -413,10 +405,13 @@ namespace tools
 
             if (input.is_open())
             {
-                str_vec headers = read_column_headers(input, required_headers);
-                std::map<std::string, std::string> this_row = {};
+                // read and check for valid headers
+                const str_vec headers = read_column_headers(input);
 
+                // clean all content of previous table
                 csv_parsed_table.clear();
+
+                dict_str_str this_row = {};
                 while (read_row_by_headers(input, headers, this_row))
                 {
                     for (const auto &x : this_row)
@@ -549,12 +544,31 @@ namespace tools
             return " Did you mean \"" + closest + "\"?";
     }
 
-    /* Check for unused entries from a vector of options and throw exception. */
-    void check_unused_entries(const str_vec &entries, const str_vec &options)
+    /* Check for missing entries given a vector of options. */
+    void check_for_missing_entries(const str_vec &entries, const str_vec &options)
     {
-        // check for unused entries
+        // proceed only if there's a given vector of options
+        if (!options.empty())
+        {
+            //----- check for missing entries -----//
+            str_vec missing = {};
+
+            for (const std::string &x : options)
+                if (std::find(entries.begin(), entries.end(), x) == entries.end())
+                    missing.push_back(x);
+
+            if (!missing.empty())
+                throw std::invalid_argument(
+                    "Missing column(s): " + show_list(missing) + ".");
+        }
+    }
+
+    /* Check for unused entries given a vector of options. */
+    void check_for_unused_entries(const str_vec &entries, const str_vec &options)
+    {
+        //----- check for unused entries -----//
         str_vec unused = {};
-        for (const auto &x : entries)
+        for (const std::string &x : entries)
             if (find(options.begin(), options.end(), x) == options.end())
                 unused.push_back(x);
 

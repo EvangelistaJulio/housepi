@@ -17,14 +17,6 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : Impl : constructor  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-MCMC::Impl::Impl() : _uniform_distr_(0., 1.),
-                     _infec_profile_(std::make_unique<Distribution>()) {}
-MCMC::Impl::~Impl() = default;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC::Impl : methods (getter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,7 +59,7 @@ void MCMC::Impl::set_n_threads()
         throw std::invalid_argument("N. of threads must be greater than 0.");
 
 #ifdef _OPENMP
-    auto max_threads = omp_get_max_threads();
+    unsigned int max_threads = omp_get_max_threads();
     if (setup_n_threads > max_threads)
     {
         tools::warning(
@@ -107,14 +99,6 @@ void MCMC::Impl::set_inver_temper(double inv_T)
         setup_inv_T = inv_T;
 }
 
-/* Read Setup file and produce a definition list. */
-void MCMC::Impl::read_setup(const std::string &pathtofile)
-{
-    tools::read_csv_list(pathtofile, _setup_deflist_);
-    build_setup();
-    _report_pathtofile_["setup"] = pathtofile;
-}
-
 /* Assign setup. */
 void MCMC::Impl::build_setup()
 {
@@ -123,7 +107,7 @@ void MCMC::Impl::build_setup()
         //===== DEFAULT SETUP VALUES =====//
         auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
 
-        setup_seed = static_cast<unsigned long long>(time_now); // random generator seed
+        setup_seed = static_cast<unsigned long long>(time_now); // seed of random number generator
         setup_rand_init_params = true;                          // random initialization of parameters
 
         setup_n_chains = 1;    // n. chains
@@ -141,19 +125,13 @@ void MCMC::Impl::build_setup()
         setup_id_trace = NULL_STRING; // augmented trace to save
 
         // reference to definition list
-        const std::map<std::string, std::string> &deflist = _setup_deflist_;
+        const dict_str_str &deflist = _setup_deflist_;
 
         if (!deflist.empty())
         {
-            //===== Dispatch options from the setup definition list =====//
-            const str_vec options = {"n_threads", "seed", "n_chains",
-                                     "n_steps", "n_adapt", "thin",
-                                     "n_burnin", "rand_init", "size",
-                                     "n_rungs", "inv_temper", "id_trace"};
-            str_vec entries = {};
-            for (const auto &pair : deflist)
-                entries.push_back(pair.first);
-            tools::check_unused_entries(entries, options);
+            // check entries
+            str_vec headers = tools::headers_from_deflist(_setup_deflist_);
+            tools::check_for_unused_entries(headers, setup_file_headers);
 
             // N. of Threads
             if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
@@ -220,24 +198,6 @@ void MCMC::Impl::build_setup()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Read parameter definitions and run assignment. */
-void MCMC::Impl::read_params(const std::string &pathtofile)
-{
-    try
-    {
-        tools::read_csv_table(pathtofile, _param_deftable_, param_file_headers);
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While reading parameter definitions: " + std::string(e.what()));
-    }
-
-    // use loaded definitions to build
-    build_params();
-    // store the file name in the report
-    _report_pathtofile_["params"] = pathtofile;
-}
-
 /* Assign parameter definitions to dictionary. */
 void MCMC::Impl::build_params()
 {
@@ -246,31 +206,20 @@ void MCMC::Impl::build_params()
         // reference to parameter definition table
         const dict_str_vec &deftable = _param_deftable_;
 
-        if (deftable.empty())
+        if (!deftable.empty())
         {
-            // error if nothing was previously defined
-            if (param_to_be_constant.empty() && param_to_be_inferred.empty())
-                throw std::invalid_argument(
-                    "Undefined parameter definitions.");
-        }
-        else
-        {
-            // check no unused options in deftable
-            str_vec entries = {};
-            for (const auto &pair : deftable)
-                entries.push_back(pair.first);
-            tools::check_unused_entries(entries, param_file_headers);
+            // check entries
+            str_vec headers = tools::headers_from_deftable(deftable);
+            tools::check_for_missing_entries(headers, param_file_headers);
+            tools::check_for_unused_entries(headers, param_file_headers);
 
-            //===== Read Parameter Definitions =====//
-            size_t table_length = deftable.at("name").size();
-
-            //===== Empty current list of parameters =====//
+            // drop current list of parameters
             param_map.clear();
             param_to_be_constant.clear();
             param_to_be_inferred.clear();
 
             //===== Load parameters from the row with options =====//
-            for (size_t k = 0; k < table_length; ++k)
+            for (size_t k = 0; k < deftable.at("name").size(); ++k)
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
                 double value = NULL_DOUBLE;                       // init value
@@ -590,28 +539,132 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
 ///////////////////////////////////  MCMC::Impl : build augmented  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Read Model Augmented Variable file. */
-void MCMC::Impl::read_augm(const std::string &pathtofile)
+/* Produce auxiliary variable to load definitions : a -> status lists */
+const dict_str_vec MCMC::Impl::_build_augm_name_status_check_()
 {
-    try
+    const dict_str_vec &deftable = _augm_deftable_;
+    const size_t table_length = deftable.at("name").size();
+
+    dict_str_vec output = {};
+
+    //===== Check Augmented Variables lists of usage =====//
+    for (size_t k = 0; k < table_length; ++k)
     {
-        tools::read_csv_table(pathtofile, _augm_deftable_, augm_file_headers);
-    }
-    catch (const std::exception &e)
-    {
-        tools::error(
-            "While reading augmented definitions: " + std::string(e.what()));
+        const std::string &a = deftable.at("name")[k];
+        const std::string &status = deftable.at("status")[k];
+
+        // check that augmID and status are correct
+        if (tools::is_na(a))
+            throw std::invalid_argument(
+                "Augmented variable name can not be undefined.");
+
+        else if (output.count(a))
+        {
+            // check no multiple augmID with same status
+            const str_vec &mylist = output.at(a);
+            if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
+                output.at(a).push_back(status);
+            else
+                throw std::invalid_argument(
+                    "Incompatible definitions for augmented variable \"" + a + "\".");
+        }
+
+        else // new augmented variable status
+            output.emplace(a, str_vec{status});
     }
 
-    // use loaded definitions to build
-    build_augm();
-    // store the file name in the report
-    _report_pathtofile_["augm"] = pathtofile;
+    return output;
 }
 
-/* Assign augmented variables to all individuals.
-    UPDATE: this function has to be simplified.
-*/
+/* Check univocal definitions and allocate new lists. */
+void MCMC::Impl::_build_augm_allocate_univocal_defs_(const dict_str_vec &check)
+{
+    // drop previous definitions
+    augm_list_full.clear();
+    augm_status_map_infer.clear();
+    augm_status_map_model.clear();
+
+    for (const auto &pair : check)
+    {
+        const std::string &a = pair.first;
+        const str_vec &mylist = pair.second;
+
+        for (const std::string &status : mylist)
+        {
+            if (!tools::is_na(status))
+            {
+                int s = tools::stoi(status, "augmented status");
+                if (s >= INFECTED_STATUS)
+                {
+                    augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
+                    augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
+                }
+                else
+                    throw std::invalid_argument(
+                        "Impossible to associate augmented \"" + a + "\" for non infectious status.");
+            }
+            else if (mylist.size() > 1)
+                throw std::invalid_argument(
+                    "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
+
+            augm_list_full.emplace(a);
+        }
+    }
+
+    // set generic or status-specifc augmented variables
+    if (augm_status_map_infer.empty())
+        // only generic definitions
+        _func_augm_model_by_definition_ = &MCMC::Impl::_augm_model_generic_;
+    else
+        // status specific definitions
+        _func_augm_model_by_definition_ = &MCMC::Impl::_augm_model_by_status_;
+}
+
+/* Allocate memory for augmented variables to each individual.
+Search individual id for augmented traces follow-up. */
+void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace_()
+{
+
+    if ((!is_augm_sample()) && (!tools::is_na(setup_id_trace)))
+    {
+        tools::warning(
+            "Ignoring id trace: no augmented variables to be inferred was provided.");
+        setup_id_trace = NULL_STRING;
+    }
+
+    dgn_H_star = n_households;
+    for (size_t H = 0; H < n_households; ++H)
+    {
+        Household &house = house_vector[H];
+        for (indiv i = 0; i < house.size(); ++i)
+        {
+            clear_all_augm(house, i);
+            if (!tools::is_na(setup_id_trace))
+            {
+                if (house.id(i) == setup_id_trace)
+                {
+                    dgn_H_star = H;
+                    dgn_i_star = i;
+                }
+            }
+        }
+    }
+
+    if (!tools::is_na(setup_id_trace))
+    {
+        if (dgn_H_star == n_households)
+        {
+            setup_id_trace = NULL_STRING;
+            tools::warning(
+                "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
+        }
+        else if (house_vector[dgn_H_star].status(dgn_i_star) < INFECTED_STATUS)
+            tools::warning(
+                "Individual id \"" + setup_id_trace + "\" correspond to a healthy individual.");
+    }
+}
+
+/* Assign augmented variables to all individuals. */
 void MCMC::Impl::build_augm()
 {
     try
@@ -619,107 +672,45 @@ void MCMC::Impl::build_augm()
         const dict_str_vec &deftable = _augm_deftable_;
         if (!deftable.empty())
         {
-            // check no unused options in deftable
-            str_vec entries = {};
-            for (const auto &pair : deftable)
-                entries.push_back(pair.first);
-            tools::check_unused_entries(entries, augm_file_headers);
+            // check entries
+            str_vec headers = tools::headers_from_deftable(_augm_deftable_);
+            tools::check_for_missing_entries(headers, augm_file_headers);
+            tools::check_for_unused_entries(headers, augm_file_headers);
 
-            // n. of definitions
-            size_t table_length = deftable.at("name").size();
+            // auxiliary variable to load definitions : a -> status lists
+            const dict_str_vec name_status_check = _build_augm_name_status_check_();
+            _build_augm_allocate_univocal_defs_(name_status_check);
 
-            if (table_length > 0)
+            //===========================================//
+            //===== Assign new definitions to lists =====//
+            //===========================================//
+
+            // drop previous definitions
+            augm_list_to_be_inferred.clear();
+            augm_list_model.clear();
+
+            // note : I didn't manage to collapse this with the previous because of generic status
+            for (size_t k = 0; k < deftable.at("name").size(); ++k)
             {
-                // auxiliary variable to load definitions : a -> status lists
-                dict_str_vec name_status_check = {};
+                const std::string &a = deftable.at("name")[k];
+                const std::string &status = deftable.at("status")[k];
 
-                //===== Check Augmented Variables lists of usage =====//
-                for (size_t k = 0; k < table_length; ++k)
+                // read option for constant variable
+                bool is_constant = false;
+                if (!tools::is_na(deftable.at("constant")[k]))
+                    is_constant = tools::stobool(deftable.at("constant")[k]);
+
+                //----- Augmented Variables to be Inferred -----//
+                if (!is_constant)
                 {
-                    const std::string &a = deftable.at("name")[k];
-                    const std::string &status = deftable.at("status")[k];
-                    bool is_init_rand = false;
-
-                    // check that augmID and status are correct
-                    if (tools::is_na(a))
-                        throw std::invalid_argument(
-                            "Augmented variable name can not be undefined.");
-
-                    else if (name_status_check.count(a))
-                    {
-                        // check no multiple augmID with same status
-                        const str_vec &mylist = name_status_check.at(a);
-                        if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
-                            name_status_check.at(a).push_back(status);
-                        else
-                            throw std::invalid_argument(
-                                "Incompatible definitions for augmented variable \"" + a + "\".");
-                    }
-
-                    else // new augmented variable status
-                        name_status_check.emplace(a, str_vec{status});
-
-                    // option for random initialization
+                    // check random initialization option
                     if (!tools::is_na(deftable.at("init_rand")[k]))
-                        is_init_rand = tools::stobool(deftable.at("init_rand")[k]);
-
-                    if ((tools::is_na(deftable.at("model")[k])) && (is_init_rand))
-                        throw std::invalid_argument(
-                            "Impossible to initialize \"" + a + "\" without a model.");
-                }
-
-                //===== Drop previous definitions =====//
-                augm_list_full.clear();
-                augm_list_to_be_inferred.clear();
-                augm_list_model.clear();
-                augm_status_map_infer.clear();
-                augm_status_map_model.clear();
-
-                //===== Check Univocal Definitions and Allocate New Lists =====//
-                for (const auto &pair : name_status_check)
-                {
-                    const std::string &a = pair.first;
-                    const str_vec &mylist = pair.second;
-
-                    for (const std::string &status : mylist)
-                    {
-                        if (!tools::is_na(status))
-                        {
-                            int s = tools::stoi(status, "augmented status");
-                            if (s >= INFECTED_STATUS)
-                            {
-                                augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
-                                augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
-                            }
-                            else
+                        if (tools::stobool(deftable.at("init_rand")[k]))
+                            if (tools::is_na(deftable.at("model")[k]))
                                 throw std::invalid_argument(
-                                    "Impossible to associate augmented \"" + a + "\" for non infectious status.");
-                        }
-                        else if (mylist.size() > 1)
-                            throw std::invalid_argument(
-                                "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
+                                    "Impossible to initialize \"" + a + "\" without a model.");
 
-                        augm_list_full.emplace(a);
-                    }
-                }
-
-                //===== Case of Only Generic Definitions =====//
-                if ((table_length > 0) && (augm_status_map_infer.empty()))
-                    _func_augm_model_by_definition_ = &MCMC::Impl::_augm_model_generic_;
-                else
-                    _func_augm_model_by_definition_ = &MCMC::Impl::_augm_model_by_status_;
-
-                //===========================================//
-                //===== Assign new definitions to lists =====//
-                //===========================================//
-
-                // note : I didn't manage to collapse this with the previous because of generic status
-                for (size_t k = 0; k < table_length; ++k)
-                {
-                    const std::string &a = deftable.at("name")[k];
-                    const std::string &status = deftable.at("status")[k];
-
-                    //----- Augmented Variables to be Inferred -----//
+                    // read option for monte carlo proposer
                     if (!tools::is_na(deftable.at("rule")[k]))
                     {
                         augm_list_to_be_inferred.emplace(a);
@@ -731,65 +722,24 @@ void MCMC::Impl::build_augm()
                             for (const auto &pair : augm_status_map_infer)
                                 augm_status_map_infer.at(pair.first).emplace(a);
                     }
-
-                    //----- Augmented Variables with a Model -----//
-                    if (!tools::is_na(deftable.at("model")[k]))
-                    {
-                        augm_list_model.emplace(a);
-
-                        if (!tools::is_na(status)) // status-specific definition
-                            augm_status_map_model.at(tools::stoi(status)).emplace(a);
-
-                        else if (!is_augm_generic()) // generic definition
-                            for (const auto &pair : augm_status_map_model)
-                                augm_status_map_model.at(pair.first).emplace(a);
-                    }
                 }
 
-                //================================================//
-                //===== Finalize assigment in the households =====//
-                //================================================//
-
-                if ((!is_augm_infer()) && (!tools::is_na(setup_id_trace)))
+                //----- Augmented Variables with a Model -----//
+                if (!tools::is_na(deftable.at("model")[k]))
                 {
-                    tools::warning(
-                        "Ignoring id trace: no augmented variables to be inferred was provided.");
-                    setup_id_trace = NULL_STRING;
-                }
+                    augm_list_model.emplace(a);
 
-                // Allocate memory for augmented variables to each individual
-                // Search individual id for augmented traces follow-up
-                dgn_H_star = n_households;
-                for (size_t H = 0; H < n_households; ++H)
-                {
-                    Household &house = house_vector[H];
-                    for (indiv i = 0; i < house.size(); ++i)
-                    {
-                        clear_all_augm(house, i);
-                        if (!tools::is_na(setup_id_trace))
-                        {
-                            if (house.id(i) == setup_id_trace)
-                            {
-                                dgn_H_star = H;
-                                dgn_i_star = i;
-                            }
-                        }
-                    }
-                }
+                    if (!tools::is_na(status)) // status-specific definition
+                        augm_status_map_model.at(tools::stoi(status)).emplace(a);
 
-                if (!tools::is_na(setup_id_trace))
-                {
-                    if (dgn_H_star == n_households)
-                    {
-                        setup_id_trace = NULL_STRING;
-                        tools::warning(
-                            "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
-                    }
-                    else if (house_vector[dgn_H_star].status(dgn_i_star) < INFECTED_STATUS)
-                        tools::warning(
-                            "Individual id \"" + setup_id_trace + "\" correspond to a healthy individual.");
+                    else if (!is_augm_generic()) // generic definition
+                        for (const auto &pair : augm_status_map_model)
+                            augm_status_map_model.at(pair.first).emplace(a);
                 }
             }
+
+            // finalize assigment in the households
+            _build_augm_clear_houses_and_set_id_trace_();
         }
     }
     catch (const std::exception &e)
@@ -803,17 +753,17 @@ void MCMC::Impl::build_augm()
 ////////////////////////////////  MCMC::Impl : state checkers   /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Check if there are ant augmented variable definitions. */
+bool MCMC::Impl::is_augm_any() const { return !augm_list_full.empty(); }
+
 /* Check if there are non-constant augmented variable definitions. */
-bool MCMC::Impl::is_augm_infer() const { return !augm_list_to_be_inferred.empty(); }
+bool MCMC::Impl::is_augm_sample() const { return !augm_list_to_be_inferred.empty(); }
 
 /* Check if there are augmented variable definitions with a model. */
 bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
 
 /* Check if augmented variable definition are generic or not (i. e. individual status specific). */
-bool MCMC::Impl::is_augm_generic() const
-{
-    return _func_augm_model_by_definition_ == &MCMC::Impl::_augm_model_generic_;
-}
+bool MCMC::Impl::is_augm_generic() const { return _func_augm_model_by_definition_ == &MCMC::Impl::_augm_model_generic_; }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMC::Impl : assign augmented variables  /////////////////////////
@@ -841,8 +791,8 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                 //----- Name -----//
                 const std::string &name = deftable.at("name")[k];
 
-                //----- is Discrete -----//
-                bool is_discrete = tools::stobool(deftable.at("discrete")[k]);
+                //----- is Constant -----//
+                bool is_constant = tools::stobool(deftable.at("constant")[k]);
 
                 //----- Value -----//
                 double value = type_to_double(deftable.at("value")[k],
@@ -852,19 +802,31 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                 //----- Model -----//
                 const std::string &model_name = deftable.at("model")[k];
 
-                //----- Proposer Rule -----//
-                const std::string &rule_name = deftable.at("rule")[k];
-                double rule_scale = type_to_double(deftable.at("rule_scale")[k],
-                                                   deftable.at("rule_scale_type")[k],
-                                                   house, i);
-                double rule_from = type_to_double(deftable.at("rule_from")[k],
-                                                  deftable.at("rule_from_type")[k],
-                                                  house, i);
+                //----- is Discrete -----//
+                bool is_discrete = tools::stobool(deftable.at("discrete")[k]);
 
-                //----- Assign Augmented Variable -----//
-                house.assign_augm(i, a, name, value,
-                                  is_discrete, model_name,
-                                  rule_name, rule_scale, rule_from);
+                if (is_constant)
+                {
+                    //----- Assign Constant Augmented Variable -----//
+                    house.assign_augm(i, a, name, value,
+                                      is_discrete, model_name);
+                }
+                else
+                {
+                    //----- Proposer Rule -----//
+                    const std::string &rule_name = deftable.at("rule")[k];
+                    double rule_scale = type_to_double(deftable.at("rule_scale")[k],
+                                                       deftable.at("rule_scale_type")[k],
+                                                       house, i);
+                    double rule_from = type_to_double(deftable.at("rule_from")[k],
+                                                      deftable.at("rule_from_type")[k],
+                                                      house, i);
+
+                    //----- Assign Augmented Variable -----//
+                    house.assign_augm(i, a, name, value,
+                                      is_discrete, model_name,
+                                      rule_name, rule_scale, rule_from);
+                }
 
                 //----- Arguments -----//
                 assign_augm_type_args(house, i, a,
@@ -880,8 +842,9 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                                        deftable.at("max_type")[k]);
 
                 // random initialization at assignment
-                if (tools::stobool(deftable.at("init_rand")[k]))
-                    house.augm_model_rand(i, name, get_prng());
+                if (!is_constant)
+                    if (tools::stobool(deftable.at("init_rand")[k]))
+                        house.augm_model_rand(i, name, get_prng());
             }
         }
     }
@@ -1051,6 +1014,7 @@ void MCMC::Impl::update_diagnostics()
 double MCMC::Impl::compute_augm_model_loglike(const Household &house) const
 {
     double hh_loglike = 0.;
+
     // Contribution of model associated to augmented variables
     for (const indiv &i : house.infectious_set())
         (this->*_func_augm_model_by_definition_)(house, i, hh_loglike);
@@ -1124,7 +1088,7 @@ void MCMC::Impl::check_definitions_before_mcmc()
         throw std::length_error("Dataset is empty or was not provided.");
 
     // check if there is actually something to sample
-    if ((param_to_be_inferred.empty()) && (!is_augm_infer()))
+    if ((param_to_be_inferred.empty()) && (!is_augm_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 }
