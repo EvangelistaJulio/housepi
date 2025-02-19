@@ -154,7 +154,7 @@ HousepiAugmentedClass <- R6::R6Class(
     add = function(name = NA,
                    status = NA,
                    value = NA,
-                   constant = FALSE,
+                   constant = NA,
                    discrete = FALSE,
                    model = NA,
                    args = list(),
@@ -183,6 +183,11 @@ HousepiAugmentedClass <- R6::R6Class(
             )
           )
         }
+      }
+
+      # assume it's a constant if model and rule are not provided
+      if (is.na(constant)) {
+        constant <- is.na(model) && is.na(rule)
       }
 
       #----- value/constant/init_rand -----#
@@ -317,12 +322,12 @@ HousepiAugmentedClass <- R6::R6Class(
     #' If `TRUE` appends the list to current definition (default).
     #' If `FALSE` drop all other augmented variable definitions.
     load_list = function(...,
-                         from = NA,
+                         from = NULL,
                          append = TRUE) {
       definitions <- list(...) 
 
       if (length(definitions) == 0) {
-        if (is.na(from)) {
+        if (length(from) == 0) {
           stop.h("No definitions provided.")
         } else if (is.list(from)) {
           definitions <- from
@@ -361,7 +366,7 @@ HousepiAugmentedClass <- R6::R6Class(
     },
 
     #' @description
-    #' Add missing augmented variables from template definitions.
+    #' Load augmented variables from template definitions.
     #' 
     #' @param templ_file
     #' Path/to/.refer template file.
@@ -370,9 +375,9 @@ HousepiAugmentedClass <- R6::R6Class(
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` append to previous definitions (default).
     #' If `FALSE` drop previous definitions.
-    template = function(templ_file,
-                        requirements = NULL,
-                        append = TRUE) {
+    load_template = function(templ_file,
+                             requirements = NULL,
+                             append = TRUE) {
       # check if template file exists
       if (file.exists((templ_file))) {
         # template augmented variable definitions
@@ -396,11 +401,11 @@ HousepiAugmentedClass <- R6::R6Class(
                 "No template augmented variable to append. Definitions are complete."
               )
             } else {                                  
-              self$load_list(templ_defs[missing_set], append = TRUE)
+              self$load_list(from = templ_defs[missing_set], append = TRUE)
             }
           }
         } else {
-          self$load_list(templ_defs, append = FALSE)
+          self$load_list(from = templ_defs, append = FALSE)
         }
 
       } else {

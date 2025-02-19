@@ -165,7 +165,7 @@ HouseholdModelClass <- R6::R6Class(
         }
       }
       if (length(new_definitions) > 0) {
-        self$load_param_list(new_definitions, append = TRUE)
+        self$load_param_list(from = new_definitions, append = TRUE)
       }
 
       return(self)
@@ -218,7 +218,7 @@ HouseholdModelClass <- R6::R6Class(
       if (private$.model$is_blank) {
         # blank dataset
         # note: no assert definitions in such case
-        id_trace <- "HH_1_1"
+        id_trace <- 1
         dataset <- data.frame(id = c(id_trace),
                               house_id = c("HH_1"),
                               status = c(1))
@@ -270,20 +270,21 @@ HouseholdModelClass <- R6::R6Class(
       options(scipen = 100)
 
       #----- 1) SETUP -----#
-      load_setup <- list()
-      load_setup[["n_steps"]] <- n_steps
-      load_setup[["n_burnin"]] <- n_burnin
-      load_setup[["thin"]] <- thin
-      load_setup[["n_adapt"]] <- n_adapt
-      load_setup[["n_chains"]] <- n_chains
-      load_setup[["n_threads"]] <- n_threads
-      load_setup[["rand_init"]] <- rand_init
-      load_setup[["id_trace"]] <- id_trace
-      load_setup[["inv_temper"]] <- inv_temper
-      load_setup[["seed"]] <- seed
+      setup_list <- list()
+      setup_list[["size"]] <- size
+      setup_list[["n_steps"]] <- n_steps
+      setup_list[["n_burnin"]] <- n_burnin
+      setup_list[["thin"]] <- thin
+      setup_list[["n_adapt"]] <- n_adapt
+      setup_list[["n_chains"]] <- n_chains
+      setup_list[["n_threads"]] <- n_threads
+      setup_list[["rand_init"]] <- rand_init
+      setup_list[["id_trace"]] <- id_trace
+      setup_list[["inv_temper"]] <- inv_temper
+      setup_list[["seed"]] <- seed
 
       private$.model$rcpp$import_setup(
-        lapply(load_setup, as.character)
+        lapply(setup_list, as.character)
       )
 
       #----- 2) PARAMETERS -----#
@@ -326,7 +327,7 @@ HouseholdModelClass <- R6::R6Class(
     # 
     # @return
     # (`coda::mcmc` or `coda::mcmc.list`)
-    .export_traces = function(keep_loglike = TRUE) {
+    .traces = function(keep_loglike = TRUE) {
 
       # load traces from last inference
       df <- NULL
@@ -342,20 +343,20 @@ HouseholdModelClass <- R6::R6Class(
 
       # drop loglikelihood if flag is true
       if (isFALSE(keep_loglike)) {
-        df <- df[, names(df) != "loglikelihood"]
+        df <- df[, names(df) != "loglikelihood", drop = FALSE]
       }
 
       # extract setup information for coda
-      load_setup <- private$.model$rcpp$export_setup()
+      setup_list <- private$.model$rcpp$export_setup()
 
       # Check if multiple chains
       if ("CHAIN__" %in% colnames(df)) {
         df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
           coda::mcmc(
             data = x[, !names(x) %in% "CHAIN__"],
-            start = load_setup[["n_burnin"]] + load_setup[["thin"]],
-            end = load_setup[["n_steps"]],
-            thin = load_setup[["thin"]]
+            start = setup_list[["n_burnin"]] + setup_list[["thin"]],
+            end = setup_list[["n_steps"]],
+            thin = setup_list[["thin"]]
           )
         })
         return(coda::as.mcmc.list(df_list))
@@ -363,9 +364,9 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         return(coda::mcmc(
           data = df,
-          start = load_setup[["n_burnin"]] + load_setup[["thin"]],
-          end = load_setup[["n_steps"]],
-          thin = load_setup[["thin"]]
+          start = setup_list[["n_burnin"]] + setup_list[["thin"]],
+          end = setup_list[["n_steps"]],
+          thin = setup_list[["thin"]]
         ))
       }
     }
@@ -420,7 +421,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Full traces of last inference.
     traces = function(value) {
       if (missing(value)) {
-        return(private$.export_traces(keep_loglike = TRUE))
+        return(private$.traces(keep_loglike = TRUE))
       } else {
         stop.h("'traces' is read only.")
       }
@@ -430,7 +431,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Traces of last inference without loglikelihood.
     traces_no_loglike = function(value) {
       if (missing(value)) {
-        return(private$.export_traces(keep_loglike = FALSE))
+        return(private$.traces(keep_loglike = FALSE))
       } else {
         stop.h("'traces_no_loglike' is read only.")
       }
@@ -591,7 +592,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Value of the maximum.
     add_param = function(name = NA,
                          value = NA,
-                         constant = FALSE,
+                         constant = NA,
                          discrete = FALSE,
                          prior = NA,
                          args = list(),
@@ -603,27 +604,6 @@ HouseholdModelClass <- R6::R6Class(
                         discrete = discrete, prior = prior, args = args,
                         rule = rule, rule_scale = rule_scale,
                         min = min, max = max)
-      invisible(self)
-    },
-
-    #' @description
-    #' Add parameter definitions from model template.
-    #' 
-    #' @param append
-    #' If `TRUE` append only missing definitions (default).
-    #' Else drop all previous definitions.
-    add_template_param = function(append = TRUE) {
-      if (private$.model$is_blank) {
-        warning.h("No template parameters available for blank model.")
-
-      } else {
-        # retrieve the template parameters file
-        private$.param$template(
-          file.path(private$.model$path, "template_params.R"),
-          private$.param$require(private$.model$reference), 
-          isTRUE(append)
-        )
-      }
       invisible(self)
     },
 
@@ -641,6 +621,27 @@ HouseholdModelClass <- R6::R6Class(
                                from = NA,
                                append = TRUE) {
       private$.param$load_list(..., from = from, append = append)
+      invisible(self)
+    },
+
+    #' @description
+    #' Load parameter definitions from model template.
+    #' 
+    #' @param append
+    #' If `TRUE` append only missing definitions (default).
+    #' Else drop all previous definitions.
+    load_param_template = function(append = TRUE) {
+      if (private$.model$is_blank) {
+        warning.h("No template parameters available for blank model.")
+
+      } else {
+        # retrieve the template parameters file
+        private$.param$load_template(
+          file.path(private$.model$path, "template_params.R"),
+          private$.param$require(private$.model$reference), 
+          isTRUE(append)
+        )
+      }
       invisible(self)
     },
 
@@ -691,7 +692,7 @@ HouseholdModelClass <- R6::R6Class(
     add_augm = function(name = NA,
                         status = NA,
                         value = NA,
-                        constant = FALSE,
+                        constant = NA,
                         discrete = FALSE,
                         model = NA,
                         args = list(),
@@ -710,28 +711,6 @@ HouseholdModelClass <- R6::R6Class(
     },
 
     #' @description
-    #' Add missing augmented variables from template definitions.
-    #' 
-    #' @param append
-    #' If `TRUE` append only missing definitions (default).
-    #' Else drop all previous definitions.
-    add_template_augm = function(append = TRUE) {
-      if (private$.model$is_blank) {
-        warning.h("No template augmented variables available for blank model.")
-
-      } else {
-        # retrieve the template augmented file
-        private$.augm$template(
-          file.path(private$.model$path, "template_augm.R"),
-          private$.augm$require(private$.model$reference), 
-          isTRUE(append)
-        )
-      }
-
-      invisible(self)
-    },
-
-    #' @description
     #' Associate augmented variables from a list.
     #' 
     #' @param ...
@@ -745,6 +724,28 @@ HouseholdModelClass <- R6::R6Class(
                               from = NA,
                               append = TRUE) {
       private$.augm$load_list(..., from = from, append = append)
+      invisible(self)
+    },
+
+    #' @description
+    #' Load augmented variables from template definitions.
+    #' 
+    #' @param append
+    #' If `TRUE` append only missing definitions (default).
+    #' Else drop all previous definitions.
+    load_augm_template = function(append = TRUE) {
+      if (private$.model$is_blank) {
+        warning.h("No template augmented variables available for blank model.")
+
+      } else {
+        # retrieve the template augmented file
+        private$.augm$load_template(
+          file.path(private$.model$path, "template_augm.R"),
+          private$.augm$require(private$.model$reference), 
+          isTRUE(append)
+        )
+      }
+
       invisible(self)
     },
 

@@ -460,7 +460,6 @@ void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng)
 bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 {
 	Variable &this_augm = pImpl->members[i].augm_map.at(a);
-
 	this_augm.propose(prng); // propose new value and buffer old
 
 	if (this_augm.valid_move()) // proceed only if valid

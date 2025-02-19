@@ -129,8 +129,8 @@ void MCMC::build_data(const dict_str_vec &datatable)
             for (size_t i = 0; i < pImpl->n_individuals; ++i)
             {
                 //----- Read individual data -----//
-                std::string id = std::to_string(i);                // default value
-                std::string house_id = std::to_string(n_houses()); // default value
+                std::string id = std::to_string(i + 1);                // default id
+                std::string house_id = std::to_string(n_houses() + 1); // default house_id
                 int status = MISSING_STATUS;
                 dataIDmap<double> data = {};
 
@@ -474,8 +474,9 @@ bool MCMC::move_extra_param(const parID &p)
 /* Move all model parameters. */
 void MCMC::move_all()
 {
-    // move all augmented variables
-    (this->*_func_move_all_augm_)();
+    // move augmented variables
+    if (pImpl->is_augm_sample())
+        move_all_augm();
 
     // move all simple model parameters
     for (const parID &p : pImpl->param_to_be_inferred)
@@ -489,8 +490,9 @@ void MCMC::move_all()
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
 void MCMC::move_all_and_adapt_parameters(ulong step)
 {
-    // move all augmented variables
-    (this->*_func_move_all_augm_)();
+    // move augmented variables
+    if (pImpl->is_augm_sample())
+        move_all_augm();
 
     // move all model parameters and adapt their rule arguments
     double adapt_ratio = static_cast<double>(step) / pImpl->setup_n_adapt;
@@ -528,16 +530,12 @@ void MCMC::init_augmented_variables()
     {
         if (pImpl->is_augm_sample())
         {
-            _func_move_all_augm_ = &MCMC::_move_all_augm_;
-
             // wheter augmented variable are generic or status specific
             if (pImpl->is_augm_generic())
                 _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_generic_;
             else
                 _func_move_augm_indiv_ = &MCMC::_move_augm_indiv_by_status_;
         }
-        else
-            _func_move_all_augm_ = &MCMC::_move_no_augm_;
 
         // assign augmented variables
         for (size_t H = 0; H < n_houses(); ++H)
@@ -557,11 +555,8 @@ void MCMC::init_augmented_variables()
 ////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Don't move anything. */
-void MCMC::_move_no_augm_() {}
-
 /* Move augmented variables from all households. */
-void MCMC::_move_all_augm_()
+void MCMC::move_all_augm()
 {
     double delta_ll = 0.;
 

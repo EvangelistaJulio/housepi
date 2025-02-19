@@ -275,7 +275,7 @@ Rcpp::DataFrame MCMC::Impl::export_traces() const
     // augmented variables
     if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
         for (const augmID &a : augm_list_to_be_inferred)
-            output.push_back(wrap(dgn_augm_value.at(a)), a);
+            output.push_back(wrap(dgn_augm_value.at(a)), a + "_id_" + setup_id_trace);
 
     // retrieve chain identities
     if (setup_n_chains > 1)
@@ -708,7 +708,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             // augmented variables
             if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
                 for (const augmID &a : augm_list_to_be_inferred)
-                    inferstate_ofstream << C_DELIM << a;
+                    inferstate_ofstream << C_DELIM << a + "_id_" + setup_id_trace;
 
             // header chain
             if (setup_n_chains > 1)

@@ -125,12 +125,13 @@ HousepiParameterClass <- R6::R6Class(
         )
 
       } else {
-        # assign prior
+        # prior to tell if constant
         if (is.na(prior)) {
           stop.h(
-            sprintf("Provide aprior name for \"%s\".", name)
+            sprintf("No prior provided for parameter \"%s\".", name)
           )
         }
+
         # prior arguments
         arg_name_ <- NA
         arg_value_ <- NA
@@ -180,12 +181,12 @@ HousepiParameterClass <- R6::R6Class(
     #' If `TRUE` appends the list to current definition (default).
     #' If `FALSE` drop all other parameter definitions.
     load_list = function(...,
-                         from = NA,
+                         from = NULL,
                          append = TRUE) {
       definitions <- list(...) 
 
       if (length(definitions) == 0) {
-        if (is.na(from)) {
+        if (length(from) == 0) {
           stop.h("No definitions provided.")
         } else if (is.list(from)) {
           definitions <- from
@@ -223,7 +224,7 @@ HousepiParameterClass <- R6::R6Class(
     },
 
     #' @description
-    #' Add missing parameter from template definitions.
+    #' Load missing parameter from template definitions.
     #' 
     #' @param templ_file
     #' Path/to/.refer template file.
@@ -232,9 +233,9 @@ HousepiParameterClass <- R6::R6Class(
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` append to previous definitions (default).
     #' If `FALSE` drop previous definitions.
-    template = function(templ_file,
-                        requirements = NULL,
-                        append = TRUE) {
+    load_template = function(templ_file,
+                             requirements = NULL,
+                             append = TRUE) {
       # check if template file exists
       if (file.exists((templ_file))) {
         # template parameter definitions
@@ -254,11 +255,11 @@ HousepiParameterClass <- R6::R6Class(
                 "No template parameters to append. Definitions are complete."
               )
             } else {                                   
-              self$load_list(templ_defs[missing_set], append = TRUE)
+              self$load_list(from = templ_defs[missing_set], append = TRUE)
             }
           }
         } else {
-          self$load_list(templ_defs, append = FALSE)
+          self$load_list(from = templ_defs, append = FALSE)
         }
 
       } else {

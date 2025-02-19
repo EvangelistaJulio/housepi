@@ -23,19 +23,19 @@ hmc <- housepi::HouseholdModelClass$new("chain-binomial-heterogeneous")
 ```
 
 ```{r, fig.width=6, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-data("survey", package = "housepi")
+dataset <- housepi::survey
 
-survey$agegroup <- as.integer(survey$age <= 15)
-survey$susgroup <- survey$agegroup
-survey$susgroup[(survey$agegroup == 1) & (survey$sex == 1)] <- 2
+dataset$agegroup <- as.integer(dataset$age <= 15)
+dataset$susgroup <- dataset$agegroup
+dataset$susgroup[(dataset$agegroup == 1) & (dataset$sex == 1)] <- 2
 
 hmc$add_group_rate("infectivity", by = "agegroup")
 hmc$add_group_rate("community_susceptibility", by = "susgroup")
 hmc$add_group_rate("susceptibility", by = "susgroup")
 
-hmc$add_template_param()
+hmc$load_param_template()
 
-hmc$infer(survey, progress = FALSE)
+hmc$infer(dataset, progress = FALSE)
 lattice::xyplot(hmc$traces)
 ```
 

@@ -170,9 +170,9 @@ simul <- housepi::HouseholdModelClass$new("chain-binomial")
 # define constant parameters from the inference results
 # note: definition without a prior assumes the parameter to be constant
 simul$add_param(name = "alpha", 
-                value = results["alpha", "mean"])
+                value = results["alpha", ]$mean)
 simul$add_param(name = "beta", 
-                value = results["beta", "mean"])
+                value = results["beta", ]$mean)
 
 # build new model using the same demographic structure of dataset
 # override status of the dataset according to simulation
@@ -206,12 +206,12 @@ lattice::xyplot(hmc$traces[1])
 simul_params <- simul$param_defs
 
 # collect the results of the inference
-results_2 <- hmc$traces_results
+results <- hmc$traces_results
 
-# compare the two
-results_2[simul_params$name, "simul"] <- simul_params$value
+# data.frame to check
+check <- cbind(expec = simul_params$value, results[simul_params$name,])
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(results_2, digits = 3)
+knitr::kable(check, digits = 3)
 ```

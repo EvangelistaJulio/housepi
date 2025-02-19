@@ -6,10 +6,11 @@ Author:
     person("Francesco", "Camaglia", role = c("aut", "cre"), email = "francesco.camaglia@pasteur.fr")
 Maintainer: <francesco.camaglia@pasteur.fr>
 Description: A platform for epidemiological modeling of household surveys.
-License: GPL-3
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 Imports:
     utils,
+    stats,
     R6, 
     devtools,
     pkgbuild, 
@@ -27,6 +28,7 @@ Suggests:
     rmarkdown,
     withr,
     flextable,
+    lattice,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 SystemRequirements: GNU make, C++14

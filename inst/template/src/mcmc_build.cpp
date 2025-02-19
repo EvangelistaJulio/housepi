@@ -624,6 +624,10 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs_(const dict_str_vec &check)
 Search individual id for augmented traces follow-up. */
 void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace_()
 {
+    // cleaer all augmented definitions
+    for (Household &house : house_vector)
+        for (indiv i = 0; i < house.size(); ++i)
+            clear_all_augm(house, i);
 
     if ((!is_augm_sample()) && (!tools::is_na(setup_id_trace)))
     {
@@ -631,32 +635,23 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace_()
             "Ignoring id trace: no augmented variables to be inferred was provided.");
         setup_id_trace = NULL_STRING;
     }
-
-    dgn_H_star = n_households;
-    for (size_t H = 0; H < n_households; ++H)
+    else
     {
-        Household &house = house_vector[H];
-        for (indiv i = 0; i < house.size(); ++i)
-        {
-            clear_all_augm(house, i);
-            if (!tools::is_na(setup_id_trace))
-            {
-                if (house.id(i) == setup_id_trace)
-                {
-                    dgn_H_star = H;
-                    dgn_i_star = i;
-                }
-            }
-        }
-    }
+        dgn_H_star = n_households;
+        for (Household &house : house_vector)
+            for (indiv i = 0; i < house.size(); ++i)
+                if (!tools::is_na(setup_id_trace))
+                    if (house.id(i) == setup_id_trace)
+                    {
+                        dgn_H_star = house.index();
+                        dgn_i_star = i;
+                    }
 
-    if (!tools::is_na(setup_id_trace))
-    {
         if (dgn_H_star == n_households)
         {
-            setup_id_trace = NULL_STRING;
             tools::warning(
                 "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
+            setup_id_trace = NULL_STRING;
         }
         else if (house_vector[dgn_H_star].status(dgn_i_star) < INFECTED_STATUS)
             tools::warning(

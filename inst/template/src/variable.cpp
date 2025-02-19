@@ -20,7 +20,7 @@ public:
     //=======================//
     Proposer() {};
     Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = 1.,
+             double rule_scale = NULL_DOUBLE,
              double rule_start_value = NULL_DOUBLE,
              const std::vector<ushort> &args_to_adapt = {},
              bool is_discrete = false);
@@ -140,7 +140,8 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     _distr_ptr_->init_reshaping(is_discrete);
 
     // assign user rule scale
-    _user_rule_scale_ = std::fabs(rule_scale);
+    if (!tools::is_na(rule_scale))
+        _user_rule_scale_ = std::fabs(rule_scale);
 
     // by default proposal is from previous state
     _is_start_from_zero_ = false;
@@ -235,7 +236,7 @@ class Uniform_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Uniform_Proposer(
-        double rule_scale = 0.5,
+        double rule_scale = NULL_DOUBLE,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("unif"),
                                              rule_scale,
@@ -270,7 +271,7 @@ class Normal_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
-        double rule_scale = 1.,
+        double rule_scale = NULL_DOUBLE,
         double rule_from = NULL_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switchboard("norm"),
                                              rule_scale,
@@ -471,33 +472,33 @@ double Variable::Impl::_propose_from_zero_(rnd_gen &prng) { return (_prop_ptr_->
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Store the buffer and change value. */
-inline void Variable::Impl::set_value(double x)
+void Variable::Impl::set_value(double x)
 {
     buffer = value;
     value = x;
 }
 
 /* Restore buffered value. */
-inline void Variable::Impl::restore_value() { value = buffer; }
+void Variable::Impl::restore_value() { value = buffer; }
 
-inline double Variable::Impl::get_move_logratio() const { return (this->*_func_move_logratio_)(); }
-inline bool Variable::Impl::valid_move() const { return (this->*_func_valid_move_)(); }
+double Variable::Impl::get_move_logratio() const { return (this->*_func_move_logratio_)(); }
+bool Variable::Impl::valid_move() const { return (this->*_func_valid_move_)(); }
 
 //----- distr_ptr : prior/model methods -----//
-inline void Variable::Impl::rand(rnd_gen &prng) { set_value(_distr_ptr_->rand(prng)); }
+void Variable::Impl::rand(rnd_gen &prng) { set_value(_distr_ptr_->rand(prng)); }
 
-inline double Variable::Impl::distr_logpdf() const { return _distr_ptr_->logpdf(value); }
-inline double Variable::Impl::distr_logratio() const { return _distr_ptr_->logratio(buffer, value); }
+double Variable::Impl::distr_logpdf() const { return _distr_ptr_->logpdf(value); }
+double Variable::Impl::distr_logratio() const { return _distr_ptr_->logratio(buffer, value); }
 
 //----- prop_ptr : propose methods -----//
-inline void Variable::Impl::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
-inline double Variable::Impl::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
+void Variable::Impl::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
+double Variable::Impl::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
 
 //----- prop_ptr : adaptive methods -----//
-inline double Variable::Impl::get_accept_rate() const { return _prop_ptr_->get_accept_rate(); }
-inline void Variable::Impl::update_accept_rate(bool is_accepted) { _prop_ptr_->update_accept_rate(is_accepted); }
-inline void Variable::Impl::reset_accept_rate() { _prop_ptr_->reset_accept_rate(); }
-inline void Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
+double Variable::Impl::get_accept_rate() const { return _prop_ptr_->get_accept_rate(); }
+void Variable::Impl::update_accept_rate(bool is_accepted) { _prop_ptr_->update_accept_rate(is_accepted); }
+void Variable::Impl::reset_accept_rate() { _prop_ptr_->reset_accept_rate(); }
+void Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

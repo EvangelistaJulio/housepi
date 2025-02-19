@@ -52,11 +52,11 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModelClass-drop_group_rate_defs}{\code{HouseholdModelClass$drop_group_rate_defs()}}
 \item \href{#method-HouseholdModelClass-drop_all}{\code{HouseholdModelClass$drop_all()}}
 \item \href{#method-HouseholdModelClass-add_param}{\code{HouseholdModelClass$add_param()}}
-\item \href{#method-HouseholdModelClass-add_template_param}{\code{HouseholdModelClass$add_template_param()}}
 \item \href{#method-HouseholdModelClass-load_param_list}{\code{HouseholdModelClass$load_param_list()}}
+\item \href{#method-HouseholdModelClass-load_param_template}{\code{HouseholdModelClass$load_param_template()}}
 \item \href{#method-HouseholdModelClass-add_augm}{\code{HouseholdModelClass$add_augm()}}
-\item \href{#method-HouseholdModelClass-add_template_augm}{\code{HouseholdModelClass$add_template_augm()}}
 \item \href{#method-HouseholdModelClass-load_augm_list}{\code{HouseholdModelClass$load_augm_list()}}
+\item \href{#method-HouseholdModelClass-load_augm_template}{\code{HouseholdModelClass$load_augm_template()}}
 \item \href{#method-HouseholdModelClass-add_group_rate}{\code{HouseholdModelClass$add_group_rate()}}
 \item \href{#method-HouseholdModelClass-add_infectivity_profile}{\code{HouseholdModelClass$add_infectivity_profile()}}
 \item \href{#method-HouseholdModelClass-export_infectivity_profile}{\code{HouseholdModelClass$export_infectivity_profile()}}
@@ -182,7 +182,7 @@ Add a new parameter definition.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_param(
   name = NA,
   value = NA,
-  constant = FALSE,
+  constant = NA,
   discrete = FALSE,
   prior = NA,
   args = list(),
@@ -231,24 +231,6 @@ Value of the maximum.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-add_template_param"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_template_param}{}}}
-\subsection{Method \code{add_template_param()}}{
-Add parameter definitions from model template.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_template_param(append = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
-Else drop all previous definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-load_param_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_param_list}{}}}
 \subsection{Method \code{load_param_list()}}{
@@ -273,6 +255,24 @@ If \code{FALSE} drop all other parameter definitions.}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-load_param_template"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_param_template}{}}}
+\subsection{Method \code{load_param_template()}}{
+Load parameter definitions from model template.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_param_template(append = TRUE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+Else drop all previous definitions.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-add_augm"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_augm}{}}}
 \subsection{Method \code{add_augm()}}{
@@ -282,7 +282,7 @@ Add a new augmented variable definition.
   name = NA,
   status = NA,
   value = NA,
-  constant = FALSE,
+  constant = NA,
   discrete = FALSE,
   model = NA,
   args = list(),
@@ -358,24 +358,6 @@ If \code{TRUE} draw initial vale from model distribution.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModelClass-add_template_augm"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_template_augm}{}}}
-\subsection{Method \code{add_template_augm()}}{
-Add missing augmented variables from template definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_template_augm(append = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
-Else drop all previous definitions.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModelClass-load_augm_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_augm_list}{}}}
 \subsection{Method \code{load_augm_list()}}{
@@ -395,6 +377,24 @@ Named list of augmented variable definitions.}
 \item{\code{append}}{(\code{logical(1)})\cr
 If \code{TRUE} appends the list to current definition (default).
 If \code{FALSE} drop all other augmented variable definitions.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModelClass-load_augm_template"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModelClass-load_augm_template}{}}}
+\subsection{Method \code{load_augm_template()}}{
+Load augmented variables from template definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$load_augm_template(append = TRUE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+Else drop all previous definitions.}
 }
 \if{html}{\out{</div>}}
 }

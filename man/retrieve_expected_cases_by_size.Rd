@@ -39,6 +39,9 @@ Number of steps to discard between each sample.}
 \item{n_adapt}{(\code{integer(1)})\cr
 Number of steps with finite adaptation before sampling.}
 
+\item{n_chains}{(\code{integer(1)})\cr
+Number of independent MCMC chains.}
+
 \item{n_threads}{(\code{integer(1)})\cr
 Number of threads for the parallel computations.}
 

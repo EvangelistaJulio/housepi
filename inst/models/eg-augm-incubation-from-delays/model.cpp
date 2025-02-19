@@ -62,7 +62,7 @@ double Model::compute_house_loglike(Household &house) const
 		if (incub_distr_ptr->valid(incub))
 			output += incub_distr_ptr->logpdf(incub);
 		else
-			return -1.e-20;
+			return -1e20;
 	}
 
 	return output;

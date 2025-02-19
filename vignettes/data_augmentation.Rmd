@@ -30,15 +30,14 @@ Assuming the incubation period to be described by a gamma distribution, we want 
 We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
 
 ```{r}
-data("delays", package = "housepi")
-dataset <- delays
-dataset[["exposure_max"]] <- dataset[["exposure_max"]] + 0.999
-dataset[["onset_max"]] <- dataset[["onset_max"]] + 0.999
-dataset[["status"]] <- 1
+dataset <- housepi::delays
+dataset$exposure_max <- dataset$exposure_max + 0.999
+dataset$onset_max <- dataset$onset_max + 0.999
+dataset$status <- 1
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(head(delays))
+knitr::kable(head(dataset))
 ```
 
 We generate the model as showed in the [Walkthrough](walkthrough.html):
@@ -49,12 +48,12 @@ hmc <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
 hmc$load_param_list(
-  shape = list(value = 2, constant = FALSE,
+  shape = list(value = 2,
                prior = "unif", 
                args = list(min = 0, max = 5),
                rule = "norm", 
                rule_scale = 1),
-  scale = list(value = 1.1, constant = FALSE,
+  scale = list(value = 1.1,
                prior = "unif", 
                args = list(min = 0, max = 5),
                rule = "norm", 
@@ -95,7 +94,7 @@ We run the inference and we extract the results
 
 ```{r}
 hmc$infer(dataset = dataset, n_steps = 1e5, n_burnin = 1e4, 
-          thin = 10, n_adapt = 2500, seed = 4349)
+          thin = 10, n_adapt = 2500, seed = 4349, id_trace = 5)
 ```
 
 Note: The warning tells us that our dataset has no demographic structure: 
@@ -109,7 +108,7 @@ lattice::xyplot(hmc$traces)
 
 ```{r}
 # use default "blank" model to show some tests
-hmc <- housepi::HouseholdModelClass$new()
+hmc <- housepi::HouseholdModelClass$new("blank")
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}

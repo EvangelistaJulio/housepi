@@ -34,14 +34,14 @@ This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
-hmc$add_template_param()
+hmc$load_param_template()
 
 # export the data.frame with formatted parameter definitions
-par_2 <- hmc$param_defs
+param_defs <- hmc$param_defs
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(par_2)
+knitr::kable(param_defs)
 ```
 
 ## Simulate an Outbreak
@@ -75,8 +75,8 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 # override status of the dataset according to simulation
-data("survey", package = "housepi")
-hmc$simulate(dataset = survey, seed = 3731)
+dataset <- housepi::survey
+hmc$simulate(dataset = dataset, seed = 3731)
 
 # show a summary of the current dataset # FIXME
 #hmc$summarise_data()
@@ -137,16 +137,17 @@ lattice::xyplot(hmc$traces)
 
 ```{r}
 # collect the results
-results_2 <- hmc$traces_results
+results <- hmc$traces_results
 
 # compare results to parameter values used for inference
-imask <- par_2["constant"] == FALSE
-inames <- par_2[imask, "name"]
-results_2[inames, "Simul"] <- par_2[imask, "value"]
+imask <- param_defs$constant == FALSE
+inames <- param_defs[imask, ]$name
+
+check <- cbind(expec = param_defs[imask, ]$value, results)
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(results_2, digits = 3)
+knitr::kable(check, digits = 3)
 
 # cross-machine checking
 # Mean	SD	Q2.5	Q97.5	Simul

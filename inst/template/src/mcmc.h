@@ -193,9 +193,7 @@ private:
 	double move_augm_single_house(Household &house);
 	void metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
 
-	void (MCMC::*_func_move_all_augm_)() = &MCMC::_move_no_augm_;
-	void _move_no_augm_();
-	void _move_all_augm_();
+	void move_all_augm();
 
 	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &) = &MCMC::_move_augm_indiv_generic_;
 	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);

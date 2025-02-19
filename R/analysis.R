@@ -17,21 +17,34 @@
 #' 
 #' @export
 retrieve_traces_results <- function(trs) {
-  if ((class(trs) != "mcmc") && (class(trs) != "mcmc.list")) {
+  if (!(methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
     stop.h(
       "Input should be a `coda::mcmc` or a `coda::mcmc.list` object."
     )
   }
-  
+
+  # note: coda is changing format for single columns...
   smr <- summary(trs)
-  output <- data.frame(
-    "mean" = smr$statistics[, "Mean"],
-    "sd" = smr$statistics[, "SD"],
-    "q2.5%" = smr$quantiles[, "2.5%"],
-    "q97.5%" = smr$quantiles[, "97.5%"], 
-    check.names = FALSE
-  )
-  row.names(output) <- row.names(smr$statistics)
+  if (is.null(dim(smr$statistics))) {
+    output <- data.frame(
+      "mean" = smr$statistics["Mean"],
+      "sd" = smr$statistics["SD"],
+      "q2.5%" = smr$quantiles["2.5%"],
+      "q97.5%" = smr$quantiles["97.5%"], 
+      check.names = FALSE
+    )
+    row.names(output) <- colnames(trs)
+  } else {
+    output <- data.frame(
+      "mean" = smr$statistics[, "Mean"],
+      "sd" = smr$statistics[, "SD"],
+      "q2.5%" = smr$quantiles[, "2.5%"],
+      "q97.5%" = smr$quantiles[, "97.5%"], 
+      check.names = FALSE
+    )
+    row.names(output) <- row.names(smr$statistics)
+  }
+
   return(output)
 }
 
@@ -85,7 +98,7 @@ retrieve_household_cases_by_size <- function(dataset) {
   dataset$status <- as.integer(dataset$status > 0)
 
   # aggregate data by house_id
-  house_df <- aggregate(status ~ house_id, data = dataset, FUN = sum)
+  house_df <- stats::aggregate(status ~ house_id, data = dataset, FUN = sum)
   tmp_size <- table(dataset$house_id)
   house_df$size <- tmp_size[match(house_df$house_id, names(tmp_size))]
 
@@ -105,10 +118,10 @@ retrieve_household_cases_by_size <- function(dataset) {
   merged_data$counts[is.na(merged_data$counts)] <- 0
 
   # reshape to wide format
-  result <- reshape(merged_data, 
-                    idvar = "size", 
-                    timevar = "cases", 
-                    direction = "wide")
+  result <- stats::reshape(merged_data, 
+                           idvar = "size", 
+                           timevar = "cases", 
+                           direction = "wide")
 
   # rename columns to match tidyverse output
   colnames(result) <- sub("counts\\.", "", colnames(result))
@@ -141,6 +154,8 @@ retrieve_household_cases_by_size <- function(dataset) {
 #' Number of steps to discard between each sample.
 #' @param n_adapt (`integer(1)`)\cr
 #' Number of steps with finite adaptation before sampling.
+#' @param n_chains (`integer(1)`)\cr
+#' Number of independent MCMC chains.
 #' @param n_threads (`integer(1)`)\cr
 #' Number of threads for the parallel computations.
 #' @param rand_init (`logical(1)`)\cr
@@ -177,8 +192,8 @@ retrieve_expected_cases_by_size <- function(house_model,
   if (is.na(seed)) seed <- sample(1:max(1e8), 1)
   withr::with_seed(
     seed,
-    rng_seeds <- sample(1:max(1e8, n_repetitions), 
-                        n_repetitions + 1, replace = FALSE)
+    rng_seeds <- sample(1:max(1e8, size), 
+                        size + 1, replace = FALSE)
   )
   
   # associate dataset through 'infer()' and then perform sampling
@@ -186,7 +201,7 @@ retrieve_expected_cases_by_size <- function(house_model,
     size = size, n_burnin = n_burnin, thin = thin, 
     n_adapt = n_adapt, n_chains = n_chains,
     n_threads = n_threads, rand_init = rand_init, 
-    progress = progress, seed = rng_seeds[n_repetitions + 1])
+    progress = progress, seed = rng_seeds[size + 1])
   
   # extract traces
   traces <- hmc$traces_no_loglike
@@ -244,7 +259,7 @@ retrieve_expected_cases_by_size <- function(house_model,
   res <- (obs_hh_case_table - exp_hh_case_table)^2 / exp_hh_case_table
   chisq_value <- sum(res, na.rm = TRUE)
   ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
-  p_value <- pchisq(chisq_value, df = ddof, lower.tail = FALSE)
+  p_value <- stats::pchisq(chisq_value, df = ddof, lower.tail = FALSE)
   
   # create a S3 object for the output
   output <- structure(
@@ -253,10 +268,10 @@ retrieve_expected_cases_by_size <- function(house_model,
       "observed_cases_by_size" = obs_hh_case_table,
       "expected_cases_by_size" = exp_hh_case_table,
       "Q2.5" = apply_on_homogeneous_frames(
-        function(x) {quantile(x, probs = 0.025, na.rm = TRUE)}, 
+        function(x) {stats::quantile(x, probs = 0.025, na.rm = TRUE)}, 
         simulations_list)[m, ],
       "Q97.5" = apply_on_homogeneous_frames(
-        function(x) {quantile(x, probs = 0.975, na.rm = TRUE)},
+        function(x) {stats::quantile(x, probs = 0.975, na.rm = TRUE)},
         simulations_list)[m, ],
       "X_squared" = chisq_value,
       "df" = ddof,
@@ -278,7 +293,7 @@ retrieve_expected_cases_by_size <- function(house_model,
 #' An object of class `housepi_model_check`.
 #' 
 #' @export
-print.housepi_model_check <- function(x) {
+print.housepi_model_check <- function(x, ...) {
   cat("Household model check with Chi-squared test:\n")
   cat(sprintf("X-squared = %.1f, df = %s, p-value = %s", 
               x$X_squared, x$df, x$p_value))
@@ -298,7 +313,7 @@ print.housepi_model_check <- function(x) {
 #' @export
 show_model_check_table <- function(x) {
   
-  if (class(x) != "housepi_model_check") {
+  if (!methods::is(x, "housepi_model_check")) {
     stop.h(
       "Input should be the result of function 'check_household_model'."
     )

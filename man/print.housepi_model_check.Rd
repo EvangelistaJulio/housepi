@@ -4,7 +4,7 @@
 \alias{print.housepi_model_check}
 \title{Print S3 method for housepi_model_check objects}
 \usage{
-\method{print}{housepi_model_check}(x)
+\method{print}{housepi_model_check}(x, ...)
 }
 \arguments{
 \item{x}{An object of class \code{housepi_model_check}.}
