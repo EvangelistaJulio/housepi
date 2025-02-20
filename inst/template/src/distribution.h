@@ -53,21 +53,23 @@ public:
 
 protected:
 	//===== SETTER =====//
-	void init_discretization(ushort discr_type);
-	void init_truncation(ushort discr_type);
+	void init_functional_discretization(ushort discr_type);
+	void init_functional_truncation(ushort discr_type);
 
 	void _init_min_zero_reshaping_(bool discrete, bool is_open_zero);
 
 	//===== GETTER =====//
 	// note: distribution specific virtual methods
-	virtual double _pdf_(double x, const dbl_vec &opts) const;
-	virtual double _cdf_(double x, const dbl_vec &opts) const;
-	virtual double _logpdf_(double x, const dbl_vec &opts) const;
-	virtual double _logratio_(double xold, double xnew, const dbl_vec &opts) const;
-	virtual void _update_args_();
-	virtual double _rand_(rnd_gen &prng);
+	virtual double raw_pdf(double x, const dbl_vec &opts) const;
+	virtual double raw_cdf(double x, const dbl_vec &opts) const;
+	virtual double raw_logpdf(double x, const dbl_vec &opts) const;
+	virtual double raw_logratio(double xold, double xnew, const dbl_vec &opts) const;
+	virtual void update_args();
+	virtual double raw_rand(rnd_gen &prng);
 
 private:
+	double _rejection_sampling_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
+
 	//===== Functional methods for public getter methods =====//
 	double (Distribution::*_func_pdf_)(double, const dbl_vec &) const = &Distribution::_default_pdf_;
 	double (Distribution::*_func_cdf_)(double, const dbl_vec &) const = &Distribution::_default_cdf_;
@@ -113,16 +115,19 @@ private:
 	double _trunc_min_(double x, const dbl_vec &opts) const;
 	double _trunc_max_(double x, const dbl_vec &opts) const;
 	double _trunc_both_sides_(double x, const dbl_vec &opts) const;
+	double _trunc_rand_(rnd_gen &prng);
 
 	// case of center discretization
 	double _trunc_min_discr_center_(double x, const dbl_vec &opts) const;
 	double _trunc_max_discr_center_(double x, const dbl_vec &opts) const;
 	double _trunc_both_sides_discr_center_(double x, const dbl_vec &opts) const;
+	double _trunc_rand_discr_center_(rnd_gen &prng);
 
 	// case of left discretization
 	double _trunc_min_discr_left_(double x, const dbl_vec &opts) const;
 	double _trunc_max_discr_left_(double x, const dbl_vec &opts) const;
 	double _trunc_both_sides_discr_left_(double x, const dbl_vec &opts) const;
+	double _trunc_rand_discr_left_(rnd_gen &prng);
 
 	//----- Functional methods for the (log) truncation -----//
 	double _logtrunc_dummy_(double x, const dbl_vec &opts) const;

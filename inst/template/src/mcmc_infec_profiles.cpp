@@ -57,7 +57,7 @@ public:
 	}
 
 protected:
-	double _pdf_(double x, const dbl_vec &opts) const override
+	double raw_pdf(double x, const dbl_vec &opts) const override
 	{
 		double i = opts.at(0); // incubation period
 		double a = get_arg(0); // 'alpha' : shape
@@ -74,7 +74,7 @@ protected:
 		return exp((m - tOST) / s) * pow(1. + exp((m - tOST) / s), -a - 1.) / norm_pdf;
 	}
 
-	double _cdf_(double x, const dbl_vec &opts) const override
+	double raw_cdf(double x, const dbl_vec &opts) const override
 	{
 		double i = opts.at(0); // incubation period
 		double a = get_arg(0); // 'alpha' : shape
@@ -142,7 +142,7 @@ public:
 protected:
 	std::shared_ptr<Distribution> gamma_distr_ptr;
 
-	double _pdf_(double x, const dbl_vec &opts) const override
+	double raw_pdf(double x, const dbl_vec &opts) const override
 	{
 		double i1 = opts.at(0);		 // incubation period infector
 		double i2 = opts.at(1);		 // incubation period infectee
@@ -150,7 +150,7 @@ protected:
 		return gamma_distr_ptr->pdf(serial + get_arg(2));
 	}
 
-	double _cdf_(double x, const dbl_vec &opts) const override
+	double raw_cdf(double x, const dbl_vec &opts) const override
 	{
 		double i1 = opts.at(0);		 // incubation period infector
 		double i2 = opts.at(1);		 // incubation period infectee

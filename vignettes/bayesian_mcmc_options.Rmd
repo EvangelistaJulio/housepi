@@ -72,7 +72,7 @@ for (distr_name in available_distrs[available_distrs != "beta"]) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-bayesplot::mcmc_hist(hmc$traces_no_loglike, binwith = 1)
+bayesplot::mcmc_hist(hmc$traces_no_loglike, binwidth = 1)
 ```
 
 ## Provide a Custom Range
@@ -127,7 +127,7 @@ for (rule_name in available_proposer_rules) {
 
 hmc$infer(progress = FALSE)
 
-bayesplot::mcmc_trace(hmc$traces_no_loglike, binwidth = 1)
+bayesplot::mcmc_trace(hmc$traces_no_loglike)
 bayesplot::mcmc_dens(hmc$traces_no_loglike)
 ```
 

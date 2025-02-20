@@ -53,7 +53,7 @@ public:
     void assign_pointer_range_min(const double *ptr_to_lower);
     void assign_scalar_range_max(double upper);
     void assign_pointer_range_max(const double *ptr_to_upper);
-    void init_range(bool is_min_open, bool is_max_open);
+    void init_functional_range(bool is_min_open, bool is_max_open);
 
     //===== SHOW =====//
     const std::string show_name() const;

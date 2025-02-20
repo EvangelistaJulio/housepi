@@ -178,11 +178,16 @@ void MCMC::Impl::build_setup()
                 setup_id_trace = deflist.at("id_trace");
         }
 
-        //===== Define Number of Threads =====//
+        // define number of threads
         set_n_threads();
 
-        //===== Pseudo-Random Number Generator Seeding =====//
+        // pseudo-random number generator seeding
         set_prng_seed(setup_seed);
+
+        // reset internal states
+        ulong _chain_ = 1;   // current chain
+        ulong _rung_ = 0;    // current thermodynamic rung
+        ulong _n_rungs_ = 0; // number of rungs
     }
     catch (const std::exception &e)
     {

@@ -78,7 +78,7 @@ public:
     ushort find(const std::string &arg_name) const;
 
     //===== Range =====//
-    void init_range(bool is_min_open, bool is_max_open);
+    void init_functional_range(bool is_min_open, bool is_max_open);
 
     //===== Getter =====//
     bool valid(double x) const { return (this->*_func_valid_range_)(x); }
@@ -141,7 +141,7 @@ ushort Function::Impl::which_valid_case() const
 }
 
 /* Set the range of validity of the value, and the corresponding validation function. */
-void Function::Impl::init_range(bool is_min_open, bool is_max_open)
+void Function::Impl::init_functional_range(bool is_min_open, bool is_max_open)
 {
     switch (which_valid_case())
     {
@@ -366,7 +366,7 @@ void Function::assign_pointer_range_max(const double *y)
 }
 
 /* Initialize open range functional methods. */
-void Function::init_range(bool is_min_open, bool is_max_open) { pImpl->init_range(is_min_open, is_max_open); }
+void Function::init_functional_range(bool is_min_open, bool is_max_open) { pImpl->init_functional_range(is_min_open, is_max_open); }
 
 /* Return which valid case. */
 ushort Function::which_valid_case() const { return pImpl->which_valid_case(); }
@@ -460,5 +460,5 @@ void Function::init_defaults(const std::string &name,
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
     assign_scalar_range_min(domain_min);
     assign_scalar_range_max(domain_max);
-    pImpl->init_range(is_min_open, is_max_open);
+    pImpl->init_functional_range(is_min_open, is_max_open);
 }

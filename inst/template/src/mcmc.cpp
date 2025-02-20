@@ -655,7 +655,6 @@ double MCMC::evaluate()
 {
     try
     {
-
         init_model_for_inference();     // initialize model for inference
         pImpl->init_parameters();       // check no undefined parameters
         init_augmented_variables();     // initialize augmented dependencies

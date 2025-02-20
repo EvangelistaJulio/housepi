@@ -73,18 +73,20 @@ Here we associate to each individual an exposure and an onset time.
 hmc$add_augm(
   name = "exposure",
   value = "exposure_min@D", # start from data value 'exposure_min'
-  min = "exposure_min@D",   # move within the range 'exposure_min'
-  max = "exposure_max@D",   # and 'exposure_max'
-  rule = "norm",            # normal distribution for the proposer rule
-  rule_scale = 0.25         # with scale 0.25 (i. e. standard deviation)
+  model = "unif",
+  args = list(min = "exposure_min@D",  # move within the range 'exposure_min'
+              max = "exposure_max@D"), # and 'exposure_max'
+  rule = "norm",    # normal distribution for the mcmc proposer 
+  rule_scale = 0.25 # with scale 0.25 (i. e. standard deviation)
 )
 
 # add 'onset' time definition
 hmc$add_augm(
   name = "onset",
   value = "onset_max@D",
-  min = "onset_min@D",
-  max = "onset_max@D",
+  model = "unif",
+  args = list(min = "onset_min@D",
+              max = "onset_max@D"),
   rule = "norm", 
   rule_scale = 0.25
 )
@@ -94,7 +96,7 @@ We run the inference and we extract the results
 
 ```{r}
 hmc$infer(dataset = dataset, n_steps = 1e5, n_burnin = 1e4, 
-          thin = 10, n_adapt = 2500, seed = 4349, id_trace = 5)
+          thin = 10, n_adapt = 2500, seed = 4349, id_trace = 7)
 ```
 
 Note: The warning tells us that our dataset has no demographic structure: 
