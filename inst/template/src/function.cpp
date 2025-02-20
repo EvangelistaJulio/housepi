@@ -164,10 +164,6 @@ void Function::Impl::init_functional_range(bool is_min_open, bool is_max_open)
         break;
 
     case 3: //----- within an interval -----//
-        if (range_min.get() >= range_max.get())
-            throw std::invalid_argument(
-                "Inconsistent range {min:" + range_min.show() + ", max:" + range_max.show() + "}.");
-
         if ((is_min_open) && (is_max_open))
             _func_valid_range_ = &Impl::_valid_range_both_open_;
 
@@ -179,6 +175,10 @@ void Function::Impl::init_functional_range(bool is_min_open, bool is_max_open)
 
         else
             _func_valid_range_ = &Impl::_valid_range_both_close_;
+
+        if (range_min.get() >= range_max.get())
+            throw std::invalid_argument(
+                "Inconsistent range " + show_range() + ".");
 
         break;
     }

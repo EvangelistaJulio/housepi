@@ -53,7 +53,7 @@ public:
 	//===== SETTER =====//
 	void init_reshaping(bool discrete) override
 	{
-		_init_min_zero_reshaping_(discrete, false);
+		init_min_zero_reshaping(discrete, false);
 	}
 
 protected:
@@ -136,7 +136,7 @@ public:
 	//===== SETTER =====//
 	void init_reshaping(bool discrete) override
 	{
-		_init_min_zero_reshaping_(discrete, false);
+		init_min_zero_reshaping(discrete, false);
 	}
 
 protected:

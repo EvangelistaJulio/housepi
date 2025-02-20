@@ -56,7 +56,7 @@ protected:
 	void init_functional_discretization(ushort discr_type);
 	void init_functional_truncation(ushort discr_type);
 
-	void _init_min_zero_reshaping_(bool discrete, bool is_open_zero);
+	void init_min_zero_reshaping(bool discrete, bool is_open_zero);
 
 	//===== GETTER =====//
 	// note: distribution specific virtual methods

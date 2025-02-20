@@ -371,7 +371,7 @@ void Distribution::init_reshaping(bool discrete)
 }
 
 /* Frequent reshaping while domain has zero lower bound. */
-void Distribution::_init_min_zero_reshaping_(bool discrete, bool is_open_zero)
+void Distribution::init_min_zero_reshaping(bool discrete, bool is_open_zero)
 {
     ushort discr_case = (discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE;
     init_functional_discretization(discr_case);
@@ -713,7 +713,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_min_zero_reshaping_(discrete, false);
+        init_min_zero_reshaping(discrete, false);
     }
 
 protected:
@@ -848,7 +848,7 @@ public:
     //==== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_min_zero_reshaping_(discrete, false);
+        init_min_zero_reshaping(discrete, false);
     }
 
 protected:
@@ -906,7 +906,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_min_zero_reshaping_(discrete, false);
+        init_min_zero_reshaping(discrete, false);
     }
 
 protected:
@@ -958,7 +958,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_min_zero_reshaping_(discrete, false);
+        init_min_zero_reshaping(discrete, false);
     }
 
 protected:
@@ -1016,7 +1016,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        _init_min_zero_reshaping_(discrete, false);
+        init_min_zero_reshaping(discrete, false);
     }
 
 protected:
@@ -1082,7 +1082,7 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        _init_min_zero_reshaping_(false, false);
+        init_min_zero_reshaping(false, false);
     }
 
 protected:
@@ -1153,7 +1153,7 @@ public:
         {
             if (get_max() > get_arg(0))
                 throw std::invalid_argument(
-                    "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size .");
+                    "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size " + std::to_string(get_arg(0)) + ".");
 
             init_functional_range(false, false);
             init_functional_truncation(D_DISCR_TYPE_DFND);
@@ -1216,7 +1216,7 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        _init_min_zero_reshaping_(false, false);
+        init_min_zero_reshaping(false, false);
     }
 
 protected:
@@ -1275,7 +1275,7 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        _init_min_zero_reshaping_(false, false);
+        init_min_zero_reshaping(false, false);
     }
 
 protected:
@@ -1328,9 +1328,9 @@ protected:
 /* Auxiliary hidden template to return the chosen distribution. */
 std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
 {
-    const str_vec &options = {
-        "unif", "norm", "lnorm", "beta", "gamma", "rayleigh", "weibull", "exp",
-        "pois", "binom", "nbinom", "geom"};
+    const str_vec &options = {"unif", "norm", "lnorm",
+                              "beta", "gamma", "rayleigh", "weibull", "exp",
+                              "pois", "binom", "nbinom", "geom"};
 
     if (tools::is_na(name))
         return std::make_shared<Distribution>();
