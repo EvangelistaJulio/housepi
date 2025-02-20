@@ -106,9 +106,9 @@ HouseholdModelClass <- R6::R6Class(
                                              data_headers)
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
-          warning.h(paste0(
-            "Missing data headers(s): ",
-            character_to_string_list(unused_set), ".")
+          warning.h(
+            "Missing data headers(s):",
+            character_to_string_list(unused_set)
           )
         }
       }
@@ -228,10 +228,10 @@ HouseholdModelClass <- R6::R6Class(
         if (length(dataset) > 0) {
           # check that dataset type is correct
           if (!is.data.frame(dataset)) {
-            stop.h(paste(
+            stop.h(
               "Unsupported type for dataset.",
               "Dataset should be a data.frame."
-            ))
+            )
           }
 
           # deal with group rates
@@ -386,9 +386,7 @@ HouseholdModelClass <- R6::R6Class(
     dataset = function(value) {
       if (missing(value)) {
         if (is.null(private$.model$rcpp)) {
-          stop.h(
-            "Impossible to export data before model build."
-          )
+          stop.h("Impossible to export data before model build.")
         }
         return(private$.model$rcpp$export_data())
 
@@ -511,14 +509,21 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      templ_info_file <- file.path(private$.model$path, "template_info.Rd")
-      if (!file.exists((templ_info_file))) {
-        stop.h(paste(
-          "Impossible to show model description.",
-          "No template info was found."
-        ))
+      if (requireNamespace("rstudioapi", quietly = TRUE)) {
+        templ_info_file <- file.path(private$.model$path, "template_info.Rd")
+        if (!file.exists((templ_info_file))) {
+          stop.h(
+            "Impossible to show model description.",
+            "No template info was found."
+          )
+        }
+        rstudioapi::previewRd(templ_info_file)
+      } else {
+        warning.h(
+          "Help method not yet supported outside of R studio.",
+          "Sorry for the inconvenience."
+        )
       }
-      rstudioapi::previewRd(templ_info_file)
       
       invisible(self)
     },
@@ -841,11 +846,14 @@ HouseholdModelClass <- R6::R6Class(
     #' @param xlim (`double(2)`)\cr
     #' Customize the left and/or right limits for the x axis.
     #' To keep the default value of one limit, set it to `NA`.
+    #' @param n_bins (`integer(1)`)\cr
+    #' Number of bins for continuos profile (ignored if discrete).
     #' 
     #' @return 
     #' (`data.frame`)\cr
     export_infectivity_profile = function(opts = list(),
-                                          xlim = double()) {
+                                          xlim = double(),
+                                          n_bins = 2000) {
       # internal build function
       private$.build()
       
@@ -873,7 +881,7 @@ HouseholdModelClass <- R6::R6Class(
         stop.h("Provide exactly 2 limits for the x axis.")
       }
 
-      return(private$.model$rcpp$export_infec_profile(opts_, xlim_))
+      return(private$.model$rcpp$export_infec_profile(opts_, xlim_, n_bins))
     },
 
     ############################################################################

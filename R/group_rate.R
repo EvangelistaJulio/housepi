@@ -40,7 +40,8 @@ group_rate_logic_table <- function(dataset, by) {
       oss <- sprintf("%s, \"%s\"", oss, name)
     }
     stop.h(
-      paste(paste0(oss, "."), "Check your features and dataset headers.")
+      paste0(oss, "."),
+      "Check your features and dataset headers."
     )
   }
 
@@ -340,10 +341,8 @@ HousepiGroupRateClass <- R6::R6Class(
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           warning.h(
-            paste0(
-              "Missing group rate(s): ", 
-              character_to_string_list(missing_set), "."
-            )
+            "Missing group rate(s):", 
+            character_to_string_list(missing_set)
           )
         }
 
@@ -353,10 +352,8 @@ HousepiGroupRateClass <- R6::R6Class(
         # drop unused parameters
         if (length(unused_set) > 0) {
           warning.h(
-            paste0(
-              "Dropping not used group rate(s): ",
-              character_to_string_list(unused_set), "."
-            )
+            "Dropping not used group rate(s):",
+            character_to_string_list(unused_set),
           )
 
           for (name in unused_set) {
@@ -463,10 +460,8 @@ HousepiGroupRateClass <- R6::R6Class(
         requirements <- self$require(refer_file)
         if (isFALSE(self$assert(requirements))) {
           warning.h(
-            paste(
-              "Ignoring incomplete group rate definitions.",
-              "To implement changes in group rates, fill missing definitions."
-            )
+            "Ignoring incomplete group rate definitions.",
+            "To implement changes in group rates, fill missing definitions."
           )
           return(TRUE)
 

@@ -19,7 +19,7 @@
 retrieve_traces_results <- function(trs) {
   if (!(methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
     stop.h(
-      "Input should be a `coda::mcmc` or a `coda::mcmc.list` object."
+      "Input should be a 'coda::mcmc' or a 'coda::mcmc.list' object."
     )
   }
 
@@ -214,12 +214,12 @@ retrieve_expected_cases_by_size <- function(house_model,
   
   # store simulated datasets
   if (isTRUE(progress)) {
-    cli::cli_progress_bar("simulations", total = n_repetitions, 
+    cli::cli_progress_bar("simulations", total = size, 
                           type = "tasks", clear = FALSE)
   }
   simulations_list <- list()
   
-  for (r in 1:n_repetitions) {
+  for (r in 1:size) {
     # extract parameters from posterior sample
     hmc$load_param_list(c(as.list(traces[r,]), constants), append = FALSE)
     
@@ -250,9 +250,7 @@ retrieve_expected_cases_by_size <- function(house_model,
   
   # consistency check
   if (all(dim(obs_hh_case_table) != dim(exp_hh_case_table))) {
-    stop.h(
-      "Internal inconsistency in observed and expected tables."
-    )
+    stop.h("Internal inconsistency in observed and expected tables.")
   }
   
   # perform Pearson chi-squared test
@@ -291,12 +289,15 @@ retrieve_expected_cases_by_size <- function(house_model,
 #' 
 #' @param x 
 #' An object of class `housepi_model_check`.
+#' @param ... 
+#' Other arguments passed to print.
 #' 
 #' @export
 print.housepi_model_check <- function(x, ...) {
   cat("Household model check with Chi-squared test:\n")
   cat(sprintf("X-squared = %.1f, df = %s, p-value = %s", 
               x$X_squared, x$df, x$p_value))
+  print(...)
 }
 
 #' @title

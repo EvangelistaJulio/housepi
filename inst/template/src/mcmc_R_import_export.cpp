@@ -316,7 +316,8 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 
 /* Export a showcase of the selected infectivity profile. */
 Rcpp::DataFrame MCMC::Impl::export_infec_profile(const Rcpp::List &opts,
-                                                 const Rcpp::List &xlim) const
+                                                 const Rcpp::List &xlim,
+                                                 int n_bins) const
 {
     using namespace Rcpp;
 
@@ -344,7 +345,7 @@ Rcpp::DataFrame MCMC::Impl::export_infec_profile(const Rcpp::List &opts,
     }
 
     // produce a showcase of the distribution profile
-    std::map<double, dbl_vec> values = _infec_profile_->showcase(opts_, xlim_);
+    std::map<double, dbl_vec> values = _infec_profile_->showcase(opts_, xlim_, n_bins);
     size_t c = 0, n = values.size();
     NumericVector t(n), inst(n), cumu(n);
 
@@ -377,9 +378,11 @@ Rcpp::DataFrame MCMC::export_params() const { return pImpl->export_params(); }
 Rcpp::DataFrame MCMC::export_data() const { return pImpl->export_data(); }
 Rcpp::DataFrame MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
-Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts, const Rcpp::List &xlim) const
+Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
+                                           const Rcpp::List &xlim,
+                                           int n_bins) const
 {
-    return pImpl->export_infec_profile(opts, xlim);
+    return pImpl->export_infec_profile(opts, xlim, n_bins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

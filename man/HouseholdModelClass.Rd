@@ -514,7 +514,11 @@ One between:
 \subsection{Method \code{export_infectivity_profile()}}{
 Export instantaneoud and cumulative values of the infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_infectivity_profile(opts = list(), xlim = double())}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$export_infectivity_profile(
+  opts = list(),
+  xlim = double(),
+  n_bins = 2000
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -526,6 +530,9 @@ Additional values for the computation.}
 \item{\code{xlim}}{(\code{double(2)})\cr
 Customize the left and/or right limits for the x axis.
 To keep the default value of one limit, set it to \code{NA}.}
+
+\item{\code{n_bins}}{(\code{integer(1)})\cr
+Number of bins for continuos profile (ignored if discrete).}
 }
 \if{html}{\out{</div>}}
 }

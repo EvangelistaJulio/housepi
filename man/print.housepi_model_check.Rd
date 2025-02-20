@@ -8,6 +8,8 @@
 }
 \arguments{
 \item{x}{An object of class \code{housepi_model_check}.}
+
+\item{...}{Other arguments passed to print.}
 }
 \description{
 Provide a custom print method for objects of class \code{housepi_model_check}.

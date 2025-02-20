@@ -83,8 +83,15 @@ double Distribution::_rand_(rnd_gen &prng)
         "Attempt to call undefined method \"rand\" of distribution \"" + show_name() + "\".");
 }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base Distribution : deaults  //////////////////////////////////
+////////////////////////////////  Base Distribution : defaults  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 double Distribution::_default_pdf_(double x, const dbl_vec &opts) const
@@ -128,23 +135,23 @@ double Distribution::_default_rand_(rnd_gen &prng)
 
 double Distribution::_discr_defined_pdf_(double x, const dbl_vec &opts) const
 {
-    return _default_pdf_(floor(x), opts);
+    return _default_pdf_(std::floor(x), opts);
 }
 double Distribution::_discr_defined_cdf_(double x, const dbl_vec &opts) const
 {
-    return _default_cdf_(floor(x), opts);
+    return _default_cdf_(std::floor(x), opts);
 }
 double Distribution::_discr_defined_logpdf_(double x, const dbl_vec &opts) const
 {
-    return _default_logpdf_(floor(x), opts);
+    return _default_logpdf_(std::floor(x), opts);
 }
 double Distribution::_discr_defined_logratio_(double xold, double xnew, const dbl_vec &opts) const
 {
-    return _default_logratio_(floor(xold), floor(xnew), opts);
+    return _default_logratio_(std::floor(xold), std::floor(xnew), opts);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Base Distribution : discretized center /////////////////////////////
+///////////////////////////  Base Distribution : discretized CENTER /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 double Distribution::_discr_center_pdf_(double x, const dbl_vec &opts) const
@@ -166,7 +173,7 @@ double Distribution::_discr_center_logpdf_(double x, const dbl_vec &opts) const
 
 double Distribution::_discr_center_logratio_(double xold, double xnew, const dbl_vec &opts) const
 {
-    const double dold = round(xold), dnew = round(xnew);
+    const double dold = std::round(xold), dnew = std::round(xnew);
     return std::log((_cdf_(dnew + .5, opts) - _cdf_(dnew - .5, opts)) / (_cdf_(dold + .5, opts) - _cdf_(dold - .5, opts)));
 }
 
@@ -177,18 +184,18 @@ double Distribution::_discr_center_rand_(rnd_gen &prng)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Base Distribution : discretized left /////////////////////////////
+/////////////////////////////  Base Distribution : discretized LEFT  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 double Distribution::_discr_left_pdf_(double x, const dbl_vec &opts) const
 {
-    const double d = floor(x);
+    const double d = std::floor(x);
     return (this->*_func_trunc_)(_cdf_(d + 1., opts) - _cdf_(d, opts), opts);
 }
 
 double Distribution::_discr_left_cdf_(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(floor(x) + 1., opts), opts), opts);
+    return (this->*_func_trunc_)((this->*_func_shift_)(_cdf_(std::floor(x) + 1., opts), opts), opts);
 }
 
 double Distribution::_discr_left_logpdf_(double x, const dbl_vec &opts) const
@@ -198,18 +205,14 @@ double Distribution::_discr_left_logpdf_(double x, const dbl_vec &opts) const
 
 double Distribution::_discr_left_logratio_(double xold, double xnew, const dbl_vec &opts) const
 {
-    const double dold = floor(xold), dnew = floor(xnew);
+    const double dold = std::floor(xold), dnew = std::floor(xnew);
     return std::log((_cdf_(dnew + 1., opts) - _cdf_(dnew, opts)) / (_cdf_(dold + 1., opts) - _cdf_(dold, opts)));
 }
 
-double Distribution::_discr_left_rand_(rnd_gen &prng) { return floor(_default_rand_(prng)); }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+double Distribution::_discr_left_rand_(rnd_gen &prng)
+{
+    return std::floor(_default_rand_(prng));
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////  Base Distribution : truncation (functional)  //////////////////////////
@@ -233,32 +236,32 @@ double Distribution::_trunc_both_sides_(double x, const dbl_vec &opts) const
     return x / (_cdf_(get_max(), opts) - _cdf_(get_min(), opts));
 }
 
-//----- Case of Center Discretization -----//
+//----- Case of CENTER Discretization -----//
 double Distribution::_trunc_min_discr_center_(double x, const dbl_vec &opts) const
 {
-    return x / (1. - _cdf_(floor(get_min()) - .5, opts));
+    return x / (1. - _cdf_(std::floor(get_min()) - .5, opts));
 }
 double Distribution::_trunc_max_discr_center_(double x, const dbl_vec &opts) const
 {
-    return x / (_cdf_(ceil(get_max()) + .5, opts));
+    return x / (_cdf_(std::ceil(get_max()) + .5, opts));
 }
 double Distribution::_trunc_both_sides_discr_center_(double x, const dbl_vec &opts) const
 {
-    return x / (_cdf_(ceil(get_max()) + .5, opts) - _cdf_(floor(get_min()) - .5, opts));
+    return x / (_cdf_(std::ceil(get_max()) + .5, opts) - _cdf_(std::floor(get_min()) - .5, opts));
 }
 
-//----- Case of Left Discretization -----//
+//----- Case of LEFT Discretization -----//
 double Distribution::_trunc_min_discr_left_(double x, const dbl_vec &opts) const
 {
-    return x / (1. - _cdf_(floor(get_min()), opts));
+    return x / (1. - _cdf_(std::floor(get_min()), opts));
 }
 double Distribution::_trunc_max_discr_left_(double x, const dbl_vec &opts) const
 {
-    return x / (_cdf_(ceil(get_max()), opts));
+    return x / (_cdf_(std::ceil(get_max()), opts));
 }
 double Distribution::_trunc_both_sides_discr_left_(double x, const dbl_vec &opts) const
 {
-    return x / (_cdf_(ceil(get_max()), opts) - _cdf_(floor(get_min()), opts));
+    return x / (_cdf_(std::ceil(get_max()), opts) - _cdf_(std::floor(get_min()), opts));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -270,19 +273,46 @@ double Distribution::_logtrunc_dummy_(double x, const dbl_vec &opts) const
     UNUSED(opts);
     return x;
 }
-double Distribution::_logtrunc_min_(double x, const dbl_vec &opts) const { return x - std::log(1. - _cdf_(get_min(), opts)); }
-double Distribution::_logtrunc_max_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(get_max(), opts)); }
-double Distribution::_logtrunc_both_sides_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(get_max(), opts) - _cdf_(get_min(), opts)); }
+double Distribution::_logtrunc_min_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(1. - _cdf_(get_min(), opts));
+}
+double Distribution::_logtrunc_max_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(_cdf_(get_max(), opts));
+}
+double Distribution::_logtrunc_both_sides_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(_cdf_(get_max(), opts) - _cdf_(get_min(), opts));
+}
 
 //----- Case of Center Discretization -----//
-double Distribution::_logtrunc_min_discr_center_(double x, const dbl_vec &opts) const { return x - std::log(1. - _cdf_(floor(get_min()) - .5, opts)); }
-double Distribution::_logtrunc_max_discr_center_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()) + .5, opts)); }
-double Distribution::_logtrunc_both_sides_discr_center_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()) + .5, opts) - _cdf_(floor(get_min()) - .5, opts)); }
+double Distribution::_logtrunc_min_discr_center_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(1. - _cdf_(std::floor(get_min()) - .5, opts));
+}
+double Distribution::_logtrunc_max_discr_center_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(_cdf_(std::ceil(get_max()) + .5, opts));
+}
+double Distribution::_logtrunc_both_sides_discr_center_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(_cdf_(std::ceil(get_max()) + .5, opts) - _cdf_(std::floor(get_min()) - .5, opts));
+}
 
 //----- Case of Left Discretization -----//
-double Distribution::_logtrunc_min_discr_left_(double x, const dbl_vec &opts) const { return x - std::log(1. - _cdf_(floor(get_min()), opts)); }
-double Distribution::_logtrunc_max_discr_left_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()), opts)); }
-double Distribution::_logtrunc_both_sides_discr_left_(double x, const dbl_vec &opts) const { return x - std::log(_cdf_(ceil(get_max()), opts) - _cdf_(floor(get_min()), opts)); }
+double Distribution::_logtrunc_min_discr_left_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(1. - _cdf_(std::floor(get_min()), opts));
+}
+double Distribution::_logtrunc_max_discr_left_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(_cdf_(std::ceil(get_max()), opts));
+}
+double Distribution::_logtrunc_both_sides_discr_left_(double x, const dbl_vec &opts) const
+{
+    return x - std::log(_cdf_(std::ceil(get_max()), opts) - _cdf_(std::floor(get_min()), opts));
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
@@ -293,9 +323,18 @@ double Distribution::_shift_dummy_(double x, const dbl_vec &opts) const
     UNUSED(opts);
     return x;
 }
-double Distribution::_shift_min_(double x, const dbl_vec &opts) const { return x - _cdf_(get_min(), opts); }
-double Distribution::_shift_min_discr_center_(double x, const dbl_vec &opts) const { return x - _cdf_(floor(get_min()) - .5, opts); }
-double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const { return x - _cdf_(floor(get_min()), opts); }
+double Distribution::_shift_min_(double x, const dbl_vec &opts) const
+{
+    return x - _cdf_(get_min(), opts);
+}
+double Distribution::_shift_min_discr_center_(double x, const dbl_vec &opts) const
+{
+    return x - _cdf_(std::floor(get_min()) - .5, opts);
+}
+double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const
+{
+    return x - _cdf_(std::floor(get_min()), opts);
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -455,9 +494,18 @@ void Distribution::init_truncation(ushort discr_type)
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Distribution : showcase (method)  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Return values to showcase the profile of the distribution. */
-const std::map<double, dbl_vec> Distribution::showcase(dbl_vec opts, dbl_vec xlim) const
+const std::map<double, dbl_vec> Distribution::showcase(const dbl_vec &opts,
+                                                       const dbl_vec &xlim,
+                                                       int n_bins) const
 {
+    if (n_bins < 1)
+        throw std::invalid_argument("Number of bins should be greater than 0.");
+
     // pick extremes for the showcase
     double lower = get_min();
     double upper = get_max();
@@ -475,7 +523,7 @@ const std::map<double, dbl_vec> Distribution::showcase(dbl_vec opts, dbl_vec xli
         upper = (xlim[1] > upper) ? upper : xlim[1];
 
     // adjust binning width
-    double delta_x = is_discrete() ? 1. : ((upper - lower) * 5.e-4);
+    double delta_x = is_discrete() ? 1. : ((upper - lower) / n_bins);
 
     // adjust extremes if interval is open
     if (!valid(lower))

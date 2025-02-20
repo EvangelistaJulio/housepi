@@ -209,10 +209,8 @@ HousepiParameterClass <- R6::R6Class(
             names(this_def) <- "value"
           } else {
             stop.h(
-              paste(
-                sprintf("Wrong definition for parameter \"%s\"", def_name),
-                "Provide a definition list or a scalar (if constant)."
-              )
+              sprintf("Wrong definition for parameter \"%s\"", def_name),
+              "Provide a definition list or a scalar (if constant)."
             )
           }
         }
@@ -244,15 +242,14 @@ HousepiParameterClass <- R6::R6Class(
         if (isTRUE(append)) {
           # check the set of required parameters
           if (length(requirements) == 0) {
-            warning.h(
-              "No parameter definitions required by the model."
-            )
+            warning.h("No parameter definitions required by the model.")
           } else {
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
             if (length(missing_set) == 0) {
               warning.h(
-                "No template parameters to append. Definitions are complete."
+                "No template parameters to append.",
+                "Definitions are complete."
               )
             } else {                                   
               self$load_list(from = templ_defs[missing_set], append = TRUE)
@@ -264,10 +261,8 @@ HousepiParameterClass <- R6::R6Class(
 
       } else {
         stop.h(
-          paste(
-            "Impossible to automatically initialize parameters.",
-            "A file with template definitionse was not found."
-          )
+          "Impossible to automatically initialize parameters.",
+          "A file with template definitionse was not found."
         )
       }
 
@@ -300,10 +295,8 @@ HousepiParameterClass <- R6::R6Class(
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           warning.h(
-            paste0(
-              "Missing parameter(s): ",
-              character_to_string_list(missing_set), "."
-            )
+            "Missing parameter(s):",
+            character_to_string_list(missing_set)
           )
         }
 
@@ -313,10 +306,8 @@ HousepiParameterClass <- R6::R6Class(
         # drop unused parameters
         if (length(unused_set) > 0) {
           warning.h(
-            paste0(
-              "Dropping not used parameter(s): ",
-              character_to_string_list(unused_set), "."
-            )
+            "Dropping not used parameter(s):",
+            character_to_string_list(unused_set)
           )
           for (name in unused_set) {
             self$remove(name)

@@ -165,10 +165,8 @@ HousepiGeneratorClass <- R6::R6Class(
         # check if reference file exists
         if (!dir.exists(output)) {
           stop.h(
-            paste(
-             sprintf("Impossible to find environment path: \"%s\".", output),
-             "Try to re-generate the model with `force = TRUE`."
-            )
+            sprintf("Impossible to find environment path: \"%s\".", output),
+            "Try to re-generate the model with 'force = TRUE'."
           )
         }
         return(output)
@@ -186,10 +184,8 @@ HousepiGeneratorClass <- R6::R6Class(
         # check if reference file exists
         if (!file.exists(output)) {
           stop.h(
-            paste(
-             sprintf("Impossible to find reference file: \"%s\".", output),
-             "Try to re-generate the model with `force = TRUE`."
-            )
+            sprintf("Impossible to find reference file: \"%s\".", output),
+            "Try to re-generate the model with 'force = TRUE'."
           )
         }
         return(output)
@@ -233,10 +229,8 @@ HousepiGeneratorClass <- R6::R6Class(
       if (model_choice == ".") {
         # prohibit current directory
         stop.h(
-          paste(
-            "Invalid folder name \".\" for housepi model.",
-            "Move your implementation in a different folder."
-          )
+          "Invalid folder name \".\" for housepi model.",
+          "Move your implementation in a different folder."
         )
       }
 
@@ -271,10 +265,8 @@ HousepiGeneratorClass <- R6::R6Class(
                             recursive = TRUE,
                             showWarnings = FALSE)) {
               stop.h(
-                paste(
-                  "Impossibile to create a cache directory for compilation.",
-                  "Check your user permissions."
-                )
+                "Impossibile to create a cache directory for compilation.",
+                "Check your user permissions."
               )
             }
           }
@@ -302,10 +294,8 @@ HousepiGeneratorClass <- R6::R6Class(
       } else {
         #===== ERROR =====#
         stop.h(
-          paste(
-            sprintf("\"%s\" is not a folder nor a template name.", model_choice),
-            "Run `household_model_template` to see available template names."
-          )
+          sprintf("\"%s\" is not a folder nor a template name.", model_choice),
+          "Run 'household_model_template' to see available template names."
         )
       }
 

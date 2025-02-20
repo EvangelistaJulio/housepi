@@ -49,10 +49,8 @@ household_model_template <- function(name = NA, path = NA) {
                                "template_info.Rd")
         if (!file.exists((info_file))) {
           stop.h(
-            paste(
-              "Impossible to show model description", 
-              "No template info were foun for the chosen model."
-            )
+            "Impossible to show model description", 
+            "No template info were foun for the chosen model."
           )
         }
 
@@ -62,10 +60,8 @@ household_model_template <- function(name = NA, path = NA) {
       } else if (any(file.exists(source_files(path)))) {
         #===== Asking for copying template to folder with model =====#
         warning.h(
-          paste(
-            sprintf("A model already exists in folder \"%s\".", path),
-            "Remove its content before creating a model in it."
-          )
+          sprintf("A model already exists in folder \"%s\".", path),
+          "Remove its content before creating a model in it."
         )
 
       } else {
@@ -90,20 +86,16 @@ household_model_template <- function(name = NA, path = NA) {
 
         } else {
           stop.h(
-            paste(
-              sprintf("Failed to create directory \"%s\".", path),
-              "Check your user permissions."
-            )
+            sprintf("Failed to create directory \"%s\".", path),
+            "Check your user permissions."
           )
         }
       }
 
     } else {
       stop.h(
-        paste(
-          sprintf("Provided model name \"%s\" is unknown.", name),
-          "Run `household_model_template` to see available template names."
-        )
+        sprintf("Provided model name \"%s\" is unknown.", name),
+        "Run `household_model_template` to see available template names."
       )
     }
 
@@ -151,10 +143,8 @@ template_find_requirement <- function(refer_file,
 
   } else {
     warning.h(
-      paste(
-        sprintf("Impossible to find reference file \"%s\".", refer_file),
-        "Try to generate a new model object with 'force = TRUE'."
-      )
+      sprintf("Impossible to find reference file \"%s\".", refer_file),
+      "Try to generate a new model object with 'force = TRUE'."
     )
 
     required_set <- NULL
@@ -238,6 +228,6 @@ template_find_unused <- function(required_set,
 #' 
 #' @noRd
 character_to_string_list <- function(mylist) {
-  return(paste(lapply(mylist, function(x) { paste0("\"", x, "\"") }),
-               collapse = ", "))
+  return(paste0(paste(lapply(mylist, function(x) { paste0("\"", x, "\"") }),
+               collapse = ", "), "."))
 }
