@@ -84,6 +84,11 @@ public:
     bool valid(double x) const { return (this->*_func_valid_range_)(x); }
     ushort which_valid_case() const;
 
+    //===== SHOW =====//
+    const std::string show_min() const;
+    const std::string show_max() const;
+    const std::string show_range() const;
+
 private:
     //===== VALID =====//
     // note: for the moment range extremes can't be one open and other close
@@ -177,6 +182,40 @@ void Function::Impl::init_range(bool is_min_open, bool is_max_open)
 
         break;
     }
+}
+
+const std::string Function::Impl::show_min() const { return range_min.show(); }
+const std::string Function::Impl::show_max() const { return range_max.show(); }
+
+/* Return formatted maximum range. */
+const std::string Function::Impl::show_range() const
+{
+    if (_func_valid_range_ == &Impl::_valid_range_always_)
+        return "";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_open_min_)
+        return "(" + show_min() + ", infty)";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_close_min_)
+        return "[" + show_min() + ", infty)";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_open_max_)
+        return "(-infty, " + show_max() + ")";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_close_max_)
+        return "(-infty, " + show_max() + "]";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_both_open_)
+        return "(" + show_min() + ", " + show_max() + ")";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_open_min_close_max_)
+        return "(" + show_min() + ", " + show_max() + "]";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_close_min_open_max_)
+        return "[" + show_min() + ", " + show_max() + ")";
+
+    else if (_func_valid_range_ == &Impl::_valid_range_both_close_)
+        return "[" + show_min() + ", " + show_max() + "]";
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -375,10 +414,13 @@ const std::string Function::show_arg_values() const
 }
 
 /* Return formatted minimum value. */
-const std::string Function::show_min() const { return pImpl->range_min.show(); }
+const std::string Function::show_min() const { return pImpl->show_min(); }
 
 /* Return formatted maximum value. */
-const std::string Function::show_max() const { return pImpl->range_max.show(); }
+const std::string Function::show_max() const { return pImpl->show_max(); }
+
+/* Return formatted maximum range. */
+const std::string Function::show_range() const { return pImpl->show_range(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -389,12 +431,12 @@ const std::string Function::show_max() const { return pImpl->range_max.show(); }
 
 /* Initial defaults for function. */
 void Function::init_defaults(const std::string &name,
-                               const str_vec &arg_name,
-                               const dbl_vec &arg_value,
-                               double domain_min,
-                               double domain_max,
-                               bool is_min_open,
-                               bool is_max_open)
+                             const str_vec &arg_name,
+                             const dbl_vec &arg_value,
+                             double domain_min,
+                             double domain_max,
+                             bool is_min_open,
+                             bool is_max_open)
 {
     // name of the function
     pImpl->name = name;

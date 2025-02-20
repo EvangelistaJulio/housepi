@@ -39,7 +39,7 @@ const double NULL_DOUBLE = 1e10;        // undefined double
 const std::string NULL_STRING = "<NA>"; // undefined string
 
 // constants
-const unsigned MAX_NUM_ATTEMPTS = 50;    // max n. of attempts for initialization
+const unsigned MAX_NUM_ATTEMPTS = 100;    // max n. of attempts for initialization
 const double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases

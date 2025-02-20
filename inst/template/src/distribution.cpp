@@ -121,7 +121,7 @@ double Distribution::_default_rand_(rnd_gen &prng)
     {
         if (n_attempts > MAX_NUM_ATTEMPTS)
             throw std::runtime_error(
-                "Exceeded attempts (N > " + std::to_string(MAX_NUM_ATTEMPTS) + ")" + " in random draw of " + show_name() + "(" + show_arg_values() + ")" + " with truncation {" + show_min() + ", " + show_max() + "}.");
+                "Exceeded attempts (N > " + std::to_string(MAX_NUM_ATTEMPTS) + ")" + " in random draw of " + show_name() + "(" + show_arg_values() + ")" + " with truncation " + show_range() + ".");
         xnew = _rand_(prng);
         ++n_attempts;
     }

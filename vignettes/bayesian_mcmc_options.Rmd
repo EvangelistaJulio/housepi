@@ -52,7 +52,7 @@ hmc$infer(progress = FALSE)
 
 # density plot of the traces (w\o loglikelihood)
 # option loglikelihood = FALSE avoids to export loglikelihood
-lattice::densityplot(hmc$traces_no_loglike)
+bayesplot::mcmc_dens(hmc$traces_no_loglike)
 ```
 
 ## How to Discretize Continuos Priors
@@ -72,7 +72,7 @@ for (distr_name in available_distrs[available_distrs != "beta"]) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-coda::densplot(hmc$traces_no_loglike, right=FALSE)
+bayesplot::mcmc_hist(hmc$traces_no_loglike, binwith = 1)
 ```
 
 ## Provide a Custom Range
@@ -89,7 +89,7 @@ hmc$load_param_list(
 )
 hmc$infer(progress = FALSE)
 
-lattice::densityplot(hmc$traces_no_loglike)
+bayesplot::mcmc_dens(hmc$traces_no_loglike)
 ```
 
 # Discrete Priors
@@ -108,7 +108,7 @@ for (distr_name in discrete_distrs) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-coda::densplot(hmc$traces_no_loglike, right=FALSE)
+bayesplot::mcmc_hist(hmc$traces_no_loglike, binwidth = 1)
 ```
 
 # MCMC Proposer Rules
@@ -127,9 +127,8 @@ for (rule_name in available_proposer_rules) {
 
 hmc$infer(progress = FALSE)
 
-lattice::xyplot(hmc$traces_no_loglike)
-
-lattice::densityplot(hmc$traces_no_loglike)
+bayesplot::mcmc_trace(hmc$traces_no_loglike, binwidth = 1)
+bayesplot::mcmc_dens(hmc$traces_no_loglike)
 ```
 
 Note that the proposer rule "lnorm" does not fit the case of negative values as it's here visible.

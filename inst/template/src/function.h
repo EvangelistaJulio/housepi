@@ -61,6 +61,7 @@ public:
     const std::string show_arg_values() const;
     const std::string show_min() const;
     const std::string show_max() const;
+    const std::string show_range() const;
 
 protected:
     void init_defaults(const std::string &name,
