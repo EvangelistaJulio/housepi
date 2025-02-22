@@ -4,8 +4,6 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include <fstream>
-#include <iomanip>
 #include <chrono>
 
 #include "mcmc_build.h"
@@ -185,9 +183,9 @@ void MCMC::Impl::build_setup()
         set_prng_seed(setup_seed);
 
         // reset internal states
-        ulong _chain_ = 1;   // current chain
-        ulong _rung_ = 0;    // current thermodynamic rung
-        ulong _n_rungs_ = 0; // number of rungs
+        _chain_ = 1;   // current chain
+        _rung_ = 0;    // current thermodynamic rung
+        _n_rungs_ = 0; // number of rungs
     }
     catch (const std::exception &e)
     {
@@ -1019,7 +1017,7 @@ double MCMC::Impl::compute_augm_model_loglike(const Household &house) const
     double hh_loglike = 0.;
 
     // Contribution of model associated to augmented variables
-    for (const indiv &i : house.infectious_set())
+    for (const indiv &i : house.infectious_list())
         (this->*_func_augm_model_by_definition_)(house, i, hh_loglike);
 
     return hh_loglike;

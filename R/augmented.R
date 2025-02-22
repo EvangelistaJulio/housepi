@@ -7,7 +7,7 @@
 #' @title Housepi Augmented R6 Class
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
-#' 
+#'
 #' @noRd
 HousepiAugmentedClass <- R6::R6Class(
   classname = "HousepiAugmentedClass",
@@ -21,7 +21,8 @@ HousepiAugmentedClass <- R6::R6Class(
     defs = NULL,
 
     #' @description
-    #' New instance of class [HousepiAugmentedClass][housepi::HousepiAugmentedClass].
+    #' New instance of class 
+    #' [HousepiAugmentedClass][housepi::HousepiAugmentedClass].
     initialize = function() {
       self$defs <- NULL
       invisible(self)
@@ -29,7 +30,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' Find augmented variables required by the model.
-    #' 
+    #'
     #' @param refer_file
     #' Path/to/.refer source file.
     require = function(refer_file) {
@@ -53,7 +54,7 @@ HousepiAugmentedClass <- R6::R6Class(
         x <- self$defs[c("arg_value", "arg_type")]
         for (i in seq_along(x)) {
           r <- unlist(x[i, ])
-          if (!any(is.na(r))){
+          if (!any(is.na(r))) {
             arg2par <- data.frame(
               vals = strsplit(r[1], "/")[[1]],
               keys = strsplit(r[2], "/")[[1]]
@@ -68,7 +69,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' Remove a given augmented variable
-    #' 
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the augmented variable.
     #' @param status (`integer(1)`)\cr
@@ -98,7 +99,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
       } else {
         if (isTRUE(show_warnings)) {
-          warning.h(
+          warning_h(
             sprintf(
               "Attempt to remove unknown augmented variable \"%s\".", name
             )
@@ -111,7 +112,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' Add a new augmented variable definition.
-    #' 
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the augmented variable.
     #' @param status (`integer(1)`)\cr
@@ -149,7 +150,7 @@ HousepiAugmentedClass <- R6::R6Class(
     #' - Data name (followed by `@D`).
     #' @param init_rand (`character(1)`)\cr
     #' If `TRUE` draw initial vale from model distribution.
-    #' 
+    #'
     #' @noRd
     add = function(name = NA,
                    status = NA,
@@ -166,17 +167,17 @@ HousepiAugmentedClass <- R6::R6Class(
                    init_rand = FALSE) {
       #----- name -----#
       if (is.na(name)) {
-        stop.h("Incomplete definition: missing name.")
+        stop_h("Incomplete definition: missing name.")
       }
 
       # remove previous definition if it exists
       if (self$remove(name, status, FALSE)) {
         if (is.na(status)) {
-          stop.h(
+          stop_h(
             sprintf("Overwriting existing \"%s\" definition.", name)
           )
         } else {
-          stop.h(
+          stop_h(
             sprintf(
               "Overwriting existing \"%s\" definition for status %d.",
               name, status
@@ -195,20 +196,20 @@ HousepiAugmentedClass <- R6::R6Class(
       value_type_ <- NA
       if (isTRUE(constant)) {
         if (is.na(value)) {
-          stop.h("Missing value for constant augmented variable.")
+          stop_h("Missing value for constant augmented variable.")
         } else {
           value_ <- str_split_(value)$var
           value_type_ <- str_split_(value)$typ
         }
       } else if (isTRUE(init_rand)) {
         if (is.na(model)) {
-          stop.h("Unknown model for random initialization.")
+          stop_h("Unknown model for random initialization.")
         }
       } else {
         if (is.na(value)) {
           if (is.na(model)) {
             if (is.na(rule_from)) {
-              stop.h(
+              stop_h(
                 "Incomplete definition: missing value.",
                 "Alternative: provide a model and set 'init_rand = TRUE'."
               )
@@ -311,7 +312,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' Associate augmented variables from a list.
-    #' 
+    #'
     #' @param ...
     #' Augmented variable names with respective list of definitions.
     #' @param from (named `list()`)\cr
@@ -322,18 +323,18 @@ HousepiAugmentedClass <- R6::R6Class(
     load_list = function(...,
                          from = NULL,
                          append = TRUE) {
-      definitions <- list(...) 
+      definitions <- list(...)
 
       if (length(definitions) == 0) {
         if (length(from) == 0) {
-          stop.h("No definitions provided.")
+          stop_h("No definitions provided.")
         } else if (is.list(from)) {
           definitions <- from
         } else {
-          stop.h("Argument 'from' should be a list.")
+          stop_h("Argument 'from' should be a list.")
         }
       } else if (any(names(definitions) == "")) {
-        stop.h("Found definition without name.")
+        stop_h("Found definition without name.")
       }
 
       if (isFALSE(append)) {
@@ -347,9 +348,11 @@ HousepiAugmentedClass <- R6::R6Class(
           if (length(this_def) == 1) {
             names(this_def) <- "value"
           } else {
-            stop.h(
-              sprintf("Wrong definition for augmented variable \"%s\"", def_name),
-              "Provide a definition list.", 
+            stop_h(
+              sprintf(
+                "Wrong definition for augmented variable \"%s\".", def_name
+              ),
+              "Provide a definition list.",
               "Alternative: if constant, a scalar or a typed value."
             )
           }
@@ -363,7 +366,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
     #' @description
     #' Load augmented variables from template definitions.
-    #' 
+    #'
     #' @param templ_file
     #' Path/to/.refer template file.
     #' @param requirements (`character()`)\cr
@@ -382,7 +385,7 @@ HousepiAugmentedClass <- R6::R6Class(
         if (isTRUE(append)) {
           # check set of required augmented variables
           if (length(requirements) == 0) {
-            warning.h(
+            warning_h(
               "Appending template augmented variable definitions failed.",
               "Alternatively use option 'append = FALSE'."
             )
@@ -391,10 +394,11 @@ HousepiAugmentedClass <- R6::R6Class(
                                                  self$defs[["name"]])
 
             if (length(missing_set) == 0) {
-              warning.h(
-                "No template augmented variable to append. Definitions are complete."
+              warning_h(
+                "No template augmented variable to append.",
+                "Definitions are complete."
               )
-            } else {                                  
+            } else {
               self$load_list(from = templ_defs[missing_set], append = TRUE)
             }
           }
@@ -403,7 +407,7 @@ HousepiAugmentedClass <- R6::R6Class(
         }
 
       } else {
-        stop.h(
+        stop_h(
           "Impossible to automatically initialize augmented variables.",
           "A file with template definitions was not found."
         )
@@ -434,10 +438,10 @@ HousepiAugmentedClass <- R6::R6Class(
 
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
-          warning.h(
-            "Missing parameter(s):", 
+          warning_h(
+            "Missing parameter(s):",
             character_to_string_list(missing_set)
-          )  
+          )
         }
 
         # point out augmented variables that are not used
@@ -446,7 +450,7 @@ HousepiAugmentedClass <- R6::R6Class(
 
         # drop unused augmented variables
         if (length(unused_set) > 0) {
-          warning.h(
+          warning_h(
             "Dropping not used augmented variable(s):",
             character_to_string_list(unused_set)
           )

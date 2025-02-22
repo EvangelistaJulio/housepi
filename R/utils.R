@@ -4,15 +4,15 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-stop.h <- function(...) { 
-  base::stop(paste(..., collapse = ' '), call. = FALSE)
+stop_h <- function(...) {
+  base::stop(paste(..., collapse = " "), call. = FALSE)
 }
-warning.h <- function(...) { 
-  base::warning(paste(..., collapse = ' '), call. = FALSE)
+warning_h <- function(...) {
+  base::warning(paste(..., collapse = " "), call. = FALSE)
 }
 
 internal_setup_error <- function() {
-  stop.h(
+  stop_h(
     "Failed to setup necessary files.",
     "Check your user permissions."
   )
@@ -98,7 +98,7 @@ source_files <- function(path) {
 assert_source_files <- function(path) {
   for (file_name in source_files(path)) {
     if (!file.exists(file_name)) {
-      stop.h(
+      stop_h(
         sprintf("File \"%s\" was not found.", file_name),
         "Check your model directory."
       )

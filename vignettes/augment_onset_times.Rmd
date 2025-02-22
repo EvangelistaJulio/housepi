@@ -27,7 +27,7 @@ For a more realistic example, we use the template model "ex-augm-onset-single-in
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
-hmc <- housepi::HouseholdModelClass$new("eg-augm-onset-single-intro")
+hmc <- housepi::HouseholdModelClass$new("augm-onset-single-intro")
 ```
 
 This time we load the parameter definitions directly from the model template.

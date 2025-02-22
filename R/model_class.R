@@ -4,11 +4,11 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-#' @title 
+#' @title
 #' Household Model Class
 #' @description
 #' Compile household model, manage your data and parameters from a single class.
-#' 
+#'
 #' @export HouseholdModelClass
 #' @docType class
 HouseholdModelClass <- R6::R6Class(
@@ -30,7 +30,7 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Assert if parameter definitions match the implementation script.
-    # 
+    #
     # @return (`logical(1)`)
     .assert_param = function() {
       # extract requirements from reference file
@@ -49,7 +49,7 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Assert if augmented definitions match the model implementation script.
-    # 
+    #
     # @return (`logical(1)`)
     .assert_augm = function() {
       if (private$.model$is_blank) {
@@ -63,7 +63,7 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Assert group rate definitions from the model implementation script.
-    # 
+    #
     # @return (`logical(1)`)\cr
     .assert_group_rate = function() {
       if (private$.model$is_blank) {
@@ -77,12 +77,12 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Assert that dataset headers match implementation file.
-    # 
+    #
     # @param refer_file (`character()`)\cr
     # Path/to/.refer source file.
     # @param data_headers (`character()`)\cr
     # Vector with the dataset headers.
-    # 
+    #
     # @return (`logical(1)`)\cr
     .assert_data = function(refer_file, data_headers) {
       # logical state for complete definitions
@@ -106,9 +106,9 @@ HouseholdModelClass <- R6::R6Class(
                                              data_headers)
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
-          warning.h(
+          warning_h(
             "Missing data headers(s):",
-            character_to_string_list(unused_set)
+            character_to_string_list(missing_set)
           )
         }
       }
@@ -146,7 +146,7 @@ HouseholdModelClass <- R6::R6Class(
             source_file <- file.path(private$.model$cache_dir,
                                      "src", "model.cpp")
           } else {
-            stop.h("Impossible to find reference file.")
+            stop_h("Impossible to find reference file.")
           }
         }
 
@@ -156,16 +156,16 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       # append new parameter definitions
-      new_definitions <- list()
+      new_defs <- list()
       for (rate_id in names(private$.group_rate$logic_table)) {
         for (par_id in private$.group_rate$logic_table[[rate_id]]$.param_name) {
           if (par_id != "REFERENCE") {
-            new_definitions[[par_id]] <- private$.group_rate$param_defs[[rate_id]]
+            new_defs[[par_id]] <- private$.group_rate$param_defs[[rate_id]]
           }
         }
       }
-      if (length(new_definitions) > 0) {
-        self$load_param_list(from = new_definitions, append = TRUE)
+      if (length(new_defs) > 0) {
+        self$load_param_list(from = new_defs, append = TRUE)
       }
 
       return(self)
@@ -228,7 +228,7 @@ HouseholdModelClass <- R6::R6Class(
         if (length(dataset) > 0) {
           # check that dataset type is correct
           if (!is.data.frame(dataset)) {
-            stop.h(
+            stop_h(
               "Unsupported type for dataset.",
               "Dataset should be a data.frame."
             )
@@ -240,24 +240,24 @@ HouseholdModelClass <- R6::R6Class(
           # assert dataset headers
           if (isFALSE(private$.assert_data(private$.model$reference,
                                            colnames(dataset)))) {
-            stop.h("Incomplete dataset headers.")
+            stop_h("Incomplete dataset headers.")
           }
 
         } else {
           # FIXME: programs breaks if I don't provide a dataset each time
           # this is because I always re-assign paramters but not group rates
           # I should just rebuild group rates (<==> parameters have changed)
-          stop.h("Pre-loaded dataset are not implemented yet.")
+          stop_h("Pre-loaded dataset are not implemented yet.")
         }
       }
 
       # assert parameter definitions
       if (isFALSE(private$.assert_param())) {
-        stop.h("Incomplete parameter definitions.")
+        stop_h("Incomplete parameter definitions.")
       }
       # assert augmented variable definitions
       if (isFALSE(private$.assert_augm())) {
-        stop.h("Incomplete augmented variable definitions.")
+        stop_h("Incomplete augmented variable definitions.")
       }
 
       #----- MODEL GENERATION -----#
@@ -297,7 +297,7 @@ HouseholdModelClass <- R6::R6Class(
         private$.model$rcpp$import_data(
           data.frame(lapply(dataset, as.character))
         )
-      } 
+      }
 
       #----- 4) AUGMENTED -----#
       if (length(private$.augm$defs) > 0) {
@@ -320,11 +320,11 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Export the traces of last inference call as a coda object.
-    # 
+    #
     # @param keep_loglike (`logical(1)`)\cr
     # If `FALSE` don't export the trace of the loglikelihood.
     # Default is `TRUE`.
-    # 
+    #
     # @return
     # (`coda::mcmc` or `coda::mcmc.list`)
     .traces = function(keep_loglike = TRUE) {
@@ -338,7 +338,7 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       if (is_wrong_usage) {
-        stop.h("Impossible to export MCMC traces before model inference.")
+        stop_h("Impossible to export MCMC traces before model inference.")
       }
 
       # drop loglikelihood if flag is true
@@ -386,12 +386,12 @@ HouseholdModelClass <- R6::R6Class(
     dataset = function(value) {
       if (missing(value)) {
         if (is.null(private$.model$rcpp)) {
-          stop.h("Impossible to export data before model build.")
+          stop_h("Impossible to export data before model build.")
         }
         return(private$.model$rcpp$export_data())
 
       } else {
-        stop.h("'dataset' is read only.")
+        stop_h("'dataset' is read only.")
       }
     },
 
@@ -401,7 +401,7 @@ HouseholdModelClass <- R6::R6Class(
       if (missing(value)) {
         return(private$.param$defs)
       } else {
-        stop.h("'augm_def' is read only.")
+        stop_h("'augm_def' is read only.")
       }
     },
 
@@ -411,7 +411,7 @@ HouseholdModelClass <- R6::R6Class(
       if (missing(value)) {
         return(private$.augm$defs)
       } else {
-        stop.h("'augm_def' is read only.")
+        stop_h("'augm_def' is read only.")
       }
     },
 
@@ -421,7 +421,7 @@ HouseholdModelClass <- R6::R6Class(
       if (missing(value)) {
         return(private$.traces(keep_loglike = TRUE))
       } else {
-        stop.h("'traces' is read only.")
+        stop_h("'traces' is read only.")
       }
     },
 
@@ -431,7 +431,7 @@ HouseholdModelClass <- R6::R6Class(
       if (missing(value)) {
         return(private$.traces(keep_loglike = FALSE))
       } else {
-        stop.h("'traces_no_loglike' is read only.")
+        stop_h("'traces_no_loglike' is read only.")
       }
     },
 
@@ -443,7 +443,7 @@ HouseholdModelClass <- R6::R6Class(
       if (missing(value)) {
         return(retrieve_traces_results(self$traces_no_loglike))
       } else {
-        stop.h("'traces_results' is read only.")
+        stop_h("'traces_results' is read only.")
       }
     }
   ),
@@ -456,9 +456,9 @@ HouseholdModelClass <- R6::R6Class(
 
   public = list(
     #' @description
-    #' New instance of class 
+    #' New instance of class
     #' \[HouseholdModelClass][housepi::HouseholdModelClass].
-    #' 
+    #'
     #' @param model (`character(1)`)\cr
     #' One between:
     # - template name;
@@ -478,7 +478,7 @@ HouseholdModelClass <- R6::R6Class(
                           as_template = FALSE) {
       if (is.na(model)) {
         model <- "blank"
-        warning.h("No model specified. Falling back to \"blank\" model.")
+        warning_h("No model specified. Falling back to \"blank\" model.")
       }
 
       # assign model definitions
@@ -502,7 +502,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Cleaning up any resources created by the initializer.
     finalize = function() {
-       # FIXME
+      # FIXME
       invisible(self)
     },
 
@@ -512,19 +512,19 @@ HouseholdModelClass <- R6::R6Class(
       if (requireNamespace("rstudioapi", quietly = TRUE)) {
         templ_info_file <- file.path(private$.model$path, "template_info.Rd")
         if (!file.exists((templ_info_file))) {
-          stop.h(
+          stop_h(
             "Impossible to show model description.",
             "No template info was found."
           )
         }
         rstudioapi::previewRd(templ_info_file)
       } else {
-        warning.h(
+        warning_h(
           "Help method not yet supported outside of R studio.",
           "Sorry for the inconvenience."
         )
       }
-      
+
       invisible(self)
     },
 
@@ -573,7 +573,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Add a new parameter definition.
-    #' 
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the parameter.
     #' @param value (`double(1)`)\cr
@@ -606,15 +606,15 @@ HouseholdModelClass <- R6::R6Class(
                          min = NA,
                          max = NA) {
       private$.param$add(name = name, value = value, constant = constant,
-                        discrete = discrete, prior = prior, args = args,
-                        rule = rule, rule_scale = rule_scale,
-                        min = min, max = max)
+                         discrete = discrete, prior = prior, args = args,
+                         rule = rule, rule_scale = rule_scale,
+                         min = min, max = max)
       invisible(self)
     },
 
     #' @description
     #' Associate parameters from a list.
-    #' 
+    #'
     #' @param ...
     #' Parameter names with respective list of definitions.
     #' @param from (named `list()`)\cr
@@ -631,13 +631,13 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Load parameter definitions from model template.
-    #' 
+    #'
     #' @param append
     #' If `TRUE` append only missing definitions (default).
     #' Else drop all previous definitions.
     load_param_template = function(append = TRUE) {
       if (private$.model$is_blank) {
-        warning.h("No template parameters available for blank model.")
+        warning_h("No template parameters available for blank model.")
 
       } else {
         # retrieve the template parameters file
@@ -656,7 +656,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Add a new augmented variable definition.
-    #' 
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the augmented variable.
     #' @param status (`integer(1)`)\cr
@@ -717,7 +717,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Associate augmented variables from a list.
-    #' 
+    #'
     #' @param ...
     #' Augmented variable names with respective list of definitions.
     #' @param from (named `list()`)\cr
@@ -734,19 +734,19 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Load augmented variables from template definitions.
-    #' 
+    #'
     #' @param append
     #' If `TRUE` append only missing definitions (default).
     #' Else drop all previous definitions.
     load_augm_template = function(append = TRUE) {
       if (private$.model$is_blank) {
-        warning.h("No template augmented variables available for blank model.")
+        warning_h("No template augmented variables available for blank model.")
 
       } else {
         # retrieve the template augmented file
         private$.augm$load_template(
           file.path(private$.model$path, "template_augm.R"),
-          private$.augm$require(private$.model$reference), 
+          private$.augm$require(private$.model$reference),
           isTRUE(append)
         )
       }
@@ -759,10 +759,10 @@ HouseholdModelClass <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Add definitions of a group rate by given data feature(s). 
-    #' Reference value has unitary rate and can be specified (default is most represented group).
-    #' Associated parameter definition(s) with default prior "lnorm" (meanlog = 0, sdlog = 3).
-    #' 
+    #' Add definitions of a group rate by given data feature(s).
+    #' Reference value has unitary rate and can be specified
+    #' (default is most represented group).
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the group rate.
     #' @param by (`list()`)\cr
@@ -777,18 +777,20 @@ HouseholdModelClass <- R6::R6Class(
     #' If `TRUE` then features are considered independently.
     #' @param prior (`character(1)`)\cr
     #' Name of the prior distribution.
+    #' Default associated parameter definitions
+    #' have prior "lnorm" and `args = list(meanlog = 0, sdlog = 3)`.
     #' @param args (named `list()`)\cr
     #' Arguments for the prior distribution.
     #' @param rule (`character(1)`)\cr
     #' Name of the inference proposal rule.
     #' @param rule_scale (`double(1)`)\cr
     #' Scale parameter for the proposal rule.
-    #' Changed automatically during inference if `n_adpat`>0.
+    #' Changed automatically during inference if `n_adpat` > 0.
     #' @param min (`double(1)`)\cr
     #' Value of the minimum.
     #' @param max (`double(1)`)\cr
     #' Value of the maximum.
-    #' 
+    #'
     #' @references
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
@@ -813,7 +815,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Add definition of infectivity profile.
-    #' 
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the infectivity profile.
     #' @param discrete (`logical(1)`)\cr
@@ -840,7 +842,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Export instantaneoud and cumulative values of the infectivity profile.
-    #' 
+    #'
     #' @param opts (`double()`)\cr
     #' Additional values for the computation.
     #' @param xlim (`double(2)`)\cr
@@ -848,15 +850,15 @@ HouseholdModelClass <- R6::R6Class(
     #' To keep the default value of one limit, set it to `NA`.
     #' @param n_bins (`integer(1)`)\cr
     #' Number of bins for continuos profile (ignored if discrete).
-    #' 
-    #' @return 
+    #'
+    #' @return
     #' (`data.frame`)\cr
     export_infectivity_profile = function(opts = list(),
                                           xlim = double(),
                                           n_bins = 2000) {
       # internal build function
       private$.build()
-      
+
       # load options
       opts_ <- as.list(as.numeric(opts))
 
@@ -868,9 +870,9 @@ HouseholdModelClass <- R6::R6Class(
           # check 
           if (!any(is.na(xlim))) {
             if (xlim[[1]] == xlim[[2]]) {
-              stop.h("Left x limit larger than right limit.")
+              stop_h("Left x limit larger than right limit.")
             } else if (xlim[[1]] > xlim[[2]]) {
-              stop.h("Left x limit equal to right limit.")
+              stop_h("Left x limit equal to right limit.")
             }
           }
           xlim_ <- lapply(xlim, as.character)
@@ -878,7 +880,7 @@ HouseholdModelClass <- R6::R6Class(
         }
 
       } else if (length(xlim) > 0) {
-        stop.h("Provide exactly 2 limits for the x axis.")
+        stop_h("Provide exactly 2 limits for the x axis.")
       }
 
       return(private$.model$rcpp$export_infec_profile(opts_, xlim_, n_bins))
@@ -890,7 +892,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Run Bayesian MCMC inference and store internally the chain traces.
-    #' 
+    #'
     #' @param dataset (`data.frame`)\cr
     #' A data.frame containing the dataset.
     #' @param size (`integer(1)`)\cr
@@ -947,7 +949,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Run the simulation.
-    #' 
+    #'
     #' @param dataset (`data.frame`)\cr
     #' A data.frame containing the dataset.
     #' @param n_threads (`integer(1)`)\cr
@@ -971,7 +973,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Compute the loglikelihood for the given parameters.
-    #' 
+    #'
     #' @param dataset (`data.frame`)\cr
     #' A data.frame containing the dataset.
     #' @param n_threads (`integer(1)`)\cr
@@ -979,7 +981,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param rand_init (`logical(1)`)\cr
     #' If `TRUE` the initial value of parameters is drawn from prior.
     #' Default is `FALSE`.
-    #' 
+    #'
     #' @return (`double(1)`)\cr
     #' The value of the loglikelihood.
     compute_loglikelihood = function(dataset = NULL,
@@ -995,7 +997,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @description
     #' Estimate the model evidence (or marginal likelihood).
     #' It uses the method of power posteriors with different available schemes.
-    #' 
+    #'
     #' @param dataset (`data.frame`)\cr
     #' A data.frame containing the dataset.
     #' @param scheme (`character(1)`)\cr
@@ -1024,10 +1026,10 @@ HouseholdModelClass <- R6::R6Class(
     #' If `FALSE` suppress the simulation progress bar.
     #' @return (`double(1)`)\cr
     #' The value of the model evidence.
-    #' 
-    #' @references 
-    #' Friel N, Hurn M, Wyse J. 
-    #' Improving power posterior estimation of statistical evidence. 
+    #'
+    #' @references
+    #' Friel N, Hurn M, Wyse J.
+    #' Improving power posterior estimation of statistical evidence.
     #' Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
     estimate_evidence = function(dataset = NULL,
                                  scheme = "adaptive",
@@ -1057,7 +1059,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Use loo package to compute the leave-one-out cross-validation.
-    #' 
+    #'
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
     loo = function(...) {
@@ -1067,7 +1069,7 @@ HouseholdModelClass <- R6::R6Class(
         is_wrong_usage <- (dim(df)[1] == 0)
       }
       if (is_wrong_usage) {
-        stop.h("Impossible to run method 'loo' before model inference.")
+        stop_h("Impossible to run method 'loo' before model inference.")
       }
 
       return(loo::loo(df, ...))
@@ -1075,7 +1077,7 @@ HouseholdModelClass <- R6::R6Class(
 
     #' @description
     #' Use loo package to compute the widely applicable information criterion.
-    #' 
+    #'
     #' @param ... arguments passed to [loo][loo::waic].
     #' For arguments and further details type ?loo::waic.
     waic = function(...) {
@@ -1085,9 +1087,9 @@ HouseholdModelClass <- R6::R6Class(
         is_wrong_usage <- (dim(df)[1] == 0)
       }
       if (is_wrong_usage) {
-        stop.h("Impossible to run method 'waic' before model inference.")
+        stop_h("Impossible to run method 'waic' before model inference.")
       }
-      
+
       return(loo::waic(df, ...))
     }
   )

@@ -142,7 +142,7 @@ HousepiGeneratorClass <- R6::R6Class(
       if (missing(value)) {
         return(private$.name)
       } else {
-        stop.h("'model_name' is read only.")
+        stop_h("'model_name' is read only.")
       }
     },
 
@@ -152,7 +152,7 @@ HousepiGeneratorClass <- R6::R6Class(
       if (missing(value)) {
         return(private$.name == "blank")
       } else {
-        stop.h("'is_blank' is read only.")
+        stop_h("'is_blank' is read only.")
       }
     },
 
@@ -164,14 +164,14 @@ HousepiGeneratorClass <- R6::R6Class(
         output <- dirname(private$.dll)
         # check if reference file exists
         if (!dir.exists(output)) {
-          stop.h(
+          stop_h(
             sprintf("Impossible to find environment path: \"%s\".", output),
             "Try to re-generate the model with 'force = TRUE'."
           )
         }
         return(output)
       } else {
-        stop.h("'path' is read only.")
+        stop_h("'path' is read only.")
       }
     },
 
@@ -183,14 +183,14 @@ HousepiGeneratorClass <- R6::R6Class(
         output <- file.path(self$path, ".refer")
         # check if reference file exists
         if (!file.exists(output)) {
-          stop.h(
+          stop_h(
             sprintf("Impossible to find reference file: \"%s\".", output),
             "Try to re-generate the model with 'force = TRUE'."
           )
         }
         return(output)
       } else {
-        stop.h("'reference' is read only.")
+        stop_h("'reference' is read only.")
       }
     }
   ),
@@ -207,7 +207,7 @@ HousepiGeneratorClass <- R6::R6Class(
 
     #' @description
     #' Initialize model generator defining name of dynamic library.
-    #' 
+    #'
     #' @param model_choice (`character(1)`)\cr
     #' One between:
     #' - template name;
@@ -228,7 +228,7 @@ HousepiGeneratorClass <- R6::R6Class(
 
       if (model_choice == ".") {
         # prohibit current directory
-        stop.h(
+        stop_h(
           "Invalid folder name \".\" for housepi model.",
           "Move your implementation in a different folder."
         )
@@ -242,8 +242,8 @@ HousepiGeneratorClass <- R6::R6Class(
         #===== Developer Mode =====#
         private$.name <- "blank"
         private$.dll <- file.path(system.file(package = "housepi"),
-                                 "template", "src",
-                                 dll_file_ext("housepienvironment"))
+                                  "template", "src",
+                                  dll_file_ext("housepienvironment"))
 
       } else if (model_choice %in% list.files(template_models_dir())) {
         #===== Plain Template Model Name =====#
@@ -264,7 +264,7 @@ HousepiGeneratorClass <- R6::R6Class(
             if (!dir.create(self$cache_dir,
                             recursive = TRUE,
                             showWarnings = FALSE)) {
-              stop.h(
+              stop_h(
                 "Impossibile to create a cache directory for compilation.",
                 "Check your user permissions."
               )
@@ -283,7 +283,7 @@ HousepiGeneratorClass <- R6::R6Class(
             # change dll name if not as template
             if (isFALSE(as_template)) {
               private$.dll <- file.path(self$cache_dir,
-                                       dll_file_ext(random_name(model_choice)))
+                                        dll_file_ext(random_name(model_choice)))
             }
             private$.need_compile <- TRUE
             # organize cache directory to perform compilation
@@ -293,7 +293,7 @@ HousepiGeneratorClass <- R6::R6Class(
 
       } else {
         #===== ERROR =====#
-        stop.h(
+        stop_h(
           sprintf("\"%s\" is not a folder nor a template name.", model_choice),
           "Run 'household_model_template' to see available template names."
         )
@@ -344,12 +344,12 @@ HousepiGeneratorClass <- R6::R6Class(
 #' @description
 #' Re-compiles all required objects of the housepi library.
 #' Passed to .onLoad in file zzz.R
-#' 
+#'
 #' @param pkgname
 #' Name of the package.
 #' @param force
 #' Force compilation even if it already exists.
-#' 
+#'
 #' @noRd
 re_compile_library <- function(pkgname,
                                force = FALSE) {

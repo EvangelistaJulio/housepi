@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <set>
 
 #include "tools.h"
 
@@ -58,9 +57,9 @@ public:
 	ushort n_infectious() const;
 	ushort n_susceptible() const;
 	ushort n_missing_status() const;
-	const std::set<indiv> &infectious_set() const;
-	const std::set<indiv> &susceptible_set() const;
-	const std::set<indiv> &missing_status_set() const;
+	const std::vector<indiv> &infectious_list() const;
+	const std::vector<indiv> &susceptible_list() const;
+	const std::vector<indiv> &missing_status_list() const;
 
 	//======================//
 	//===== INDIVIDUAL =====//
@@ -68,6 +67,7 @@ public:
 
 	//----- Individual : Setter -----//
 	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
+	void set_data_value(indiv i, const dataID &d, double x);
 
 	//----- Individual : Getter -----//
 	const std::string &id(indiv i) const;
@@ -127,19 +127,20 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
+	bool is_any_extra();
 	void buffer_all_extra();
 	void restore_all_extra();
 
 	//----- Vector of integers -----//
-	void allocate_extra_integer_vector(const extraID &e, int x0 = 0);
+	void allocate_extra_integer_vector(const extraID &e);
 	int_vec &extra_integer_vector(const extraID &e);
 
 	//----- Vector of doubles -----//
-	void allocate_extra_double_vector(const extraID &e, double x0 = 0.0);
+	void allocate_extra_double_vector(const extraID &e);
 	dbl_vec &extra_double_vector(const extraID &e);
 
 	//----- Matrix of doubles -----//
-	void allocate_extra_double_matrix(const extraID &e, double x0 = 0.0);
+	void allocate_extra_double_matrix(const extraID &e);
 	matrix<double> &extra_double_matrix(const extraID &e);
 
 	//=========================//
@@ -172,12 +173,12 @@ private:
 	//----- Extra Attributes -----//
 	extraIDmap<int_vec> extra_int_vec = {};
 	extraIDmap<dbl_vec> extra_dbl_vec = {};
-	extraIDmap<matrix<double>> extra_mtx = {};
+	extraIDmap<matrix<double>> extra_dbl_mtx = {};
 
 	//----- Buffer EXTRA Attributes -----//
 	extraIDmap<int_vec> _buffer_extra_int_vec_ = {};
 	extraIDmap<dbl_vec> _buffer_extra_dbl_vec_ = {};
-	extraIDmap<matrix<double>> _buffer_extra_mtx_ = {};
+	extraIDmap<matrix<double>> _buffer_extra_dbl_mtx_ = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

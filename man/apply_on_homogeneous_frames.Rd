@@ -4,11 +4,11 @@
 \alias{apply_on_homogeneous_frames}
 \title{Apply on Homogeneous Frames}
 \usage{
-apply_on_homogeneous_frames(FUN, frame_list)
+apply_on_homogeneous_frames(func, frame_list)
 }
 \arguments{
-\item{FUN}{(\code{closure()})\cr
-Function to be applied element-wise across corresponding positions in the data frames.}
+\item{func}{(\code{closure()})\cr
+Function applied to corresponding elements across data frames in the list.}
 
 \item{frame_list}{(\code{list()} | \code{data.frame})\cr
 List of data frames, all having the same dimensions.}
@@ -18,6 +18,6 @@ List of data frames, all having the same dimensions.}
 Data frame of the same dimensions as the input frames.
 }
 \description{
-Apply function \code{FUN} to corresponding elements
+Apply function \code{func} to corresponding elements
 across a list of data frames that share the same dimensions.
 }

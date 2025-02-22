@@ -172,41 +172,35 @@ double Individual::GroupRate::get() const
 class Household::Impl
 {
 public:
-	//===== ATTRIBUTES =====//
-	std::vector<Individual> members = {};
-
 	std::string house_id = NULL_STRING; // user id
 	size_t index = -1;					// index of household
 	ushort house_size = 0;				// number of house members
 
+	std::vector<Individual> members = {}; //
+
 	double house_loglike = NULL_DOUBLE; // current loglikelihood value
 	double buffer = NULL_DOUBLE;		// buffer loglikelihood value
 
-	ushort n_infectious = 0;
-	ushort n_susceptible = 0;
-	ushort n_missing_status = 0;
-
-	// wheter members correspond to a given status or not
-	std::vector<bool> _is_infectious_ = {};
-	std::vector<bool> _is_susceptible_ = {};
-	std::vector<bool> _is_missing_status_ = {};
+	dbl_vec dgn_loglike = {}; // diagnostics
 
 	void assign_individual(const std::string &id,
 						   int status,
 						   const dataIDmap<double> &data);
 	bool change_status(indiv i, int new_status);
 
-	// diagnostics
-	dbl_vec dgn_loglike = {};
-
 	// contact rate pointers
 	matrix<const double *> contact_rates;
 
-	// list with ONLY indexes of members with a given status
-	std::set<indiv> infectious_set = {};
-	std::set<indiv> susceptible_set = {};
-	std::set<indiv> missing_status_set = {};
+	ushort n_infectious = 0;
+	ushort n_susceptible = 0;
+	ushort n_missing_status = 0;
+
+	// wheter members correspond to a given status or not
+	std::vector<indiv> infectious_list = {};
+	std::vector<indiv> susceptible_list = {};
+	std::vector<indiv> missing_status_list = {};
 };
+
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -224,26 +218,17 @@ void Household::Impl::assign_individual(const std::string &id,
 	if (status >= INFECTED_STATUS)
 	{
 		++n_infectious;
-		infectious_set.insert(house_size);
-		_is_infectious_.push_back(true);
-		_is_susceptible_.push_back(false);
-		_is_missing_status_.push_back(false);
+		infectious_list.push_back(house_size);
 	}
 	else if (status == HEALTHY_STATUS)
 	{
 		++n_susceptible;
-		susceptible_set.insert(house_size);
-		_is_infectious_.push_back(false);
-		_is_susceptible_.push_back(true);
-		_is_missing_status_.push_back(false);
+		susceptible_list.push_back(house_size);
 	}
 	else
 	{
 		++n_missing_status;
-		missing_status_set.insert(house_size);
-		_is_infectious_.push_back(false);
-		_is_susceptible_.push_back(false);
-		_is_missing_status_.push_back(true);
+		missing_status_list.push_back(house_size);
 	}
 
 	//----- emplace new individual -----//
@@ -266,20 +251,17 @@ bool Household::Impl::change_status(indiv i, int new_status)
 		if (old_status >= INFECTED_STATUS)
 		{
 			--n_infectious;
-			infectious_set.erase(i);
-			_is_infectious_[i] = false;
+			infectious_list.erase(find(infectious_list.begin(), infectious_list.end(), i));
 		}
 		else if (old_status == HEALTHY_STATUS)
 		{
 			--n_susceptible;
-			susceptible_set.erase(i);
-			_is_susceptible_[i] = false;
+			susceptible_list.erase(find(susceptible_list.begin(), susceptible_list.end(), i));
 		}
 		else if (old_status == MISSING_STATUS)
 		{
 			--n_missing_status;
-			missing_status_set.erase(i);
-			_is_missing_status_[i] = false;
+			missing_status_list.erase(find(missing_status_list.begin(), missing_status_list.end(), i));
 		}
 		else
 			throw std::runtime_error(
@@ -288,20 +270,17 @@ bool Household::Impl::change_status(indiv i, int new_status)
 		if (new_status >= INFECTED_STATUS)
 		{
 			++n_infectious;
-			infectious_set.insert(i);
-			_is_infectious_[i] = true;
+			infectious_list.push_back(i);
 		}
 		else if (new_status == HEALTHY_STATUS)
 		{
 			++n_susceptible;
-			susceptible_set.insert(i);
-			_is_susceptible_[i] = true;
+			susceptible_list.push_back(i);
 		}
 		else if (new_status == MISSING_STATUS)
 		{
 			++n_missing_status;
-			missing_status_set.insert(i);
-			_is_missing_status_[i] = true;
+			missing_status_list.push_back(i);
 		}
 		else
 			throw std::runtime_error(
@@ -381,14 +360,21 @@ ushort Household::n_infectious() const { return pImpl->n_infectious; }
 ushort Household::n_susceptible() const { return pImpl->n_susceptible; }
 ushort Household::n_missing_status() const { return pImpl->n_missing_status; }
 
-const std::set<indiv> &Household::infectious_set() const { return pImpl->infectious_set; }
-const std::set<indiv> &Household::susceptible_set() const { return pImpl->susceptible_set; }
-const std::set<indiv> &Household::missing_status_set() const { return pImpl->missing_status_set; }
-
 double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }
 
-//===== SETTER =====//
+const std::vector<indiv> & Household::infectious_list() const { pImpl->infectious_list; }
+const std::vector<indiv> & Household::susceptible_list() const { pImpl->susceptible_list; }
+const std::vector<indiv> & Household::missing_status_list() const { pImpl->missing_status_list; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Household : setter  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Household::set_data_value(indiv i, const dataID &d, double x)
+{
+	pImpl->members[i].data[d] = x;
+}
 
 void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x)
 {
@@ -496,16 +482,21 @@ void Household::update_diagnostics(ulong count) { pImpl->dgn_loglike[count] = pI
 /* Return the loglikelihood sample vector. */
 const dbl_vec &Household::get_dgn_loglike() const { return pImpl->dgn_loglike; }
 
-//============================//
-//===== EXTRA ATTRIBUTES =====//
-//============================//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Household : extra attributes  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Household::is_any_extra()
+{
+	return !(extra_int_vec.empty() && extra_dbl_vec.empty() && extra_dbl_mtx.empty());
+}
 
 /* Deep copies of extra attributes in the buffer */
 void Household::buffer_all_extra()
 {
 	_buffer_extra_int_vec_ = extra_int_vec;
 	_buffer_extra_dbl_vec_ = extra_dbl_vec;
-	_buffer_extra_mtx_ = extra_mtx;
+	_buffer_extra_dbl_mtx_ = extra_dbl_mtx;
 }
 
 /* Swap buffer into  extra attributes */
@@ -513,17 +504,17 @@ void Household::restore_all_extra()
 {
 	extra_int_vec.swap(_buffer_extra_int_vec_);
 	extra_dbl_vec.swap(_buffer_extra_dbl_vec_);
-	extra_mtx.swap(_buffer_extra_mtx_);
+	extra_dbl_mtx.swap(_buffer_extra_dbl_mtx_);
 }
 
 //----- Extra integer vector -----//
-void Household::allocate_extra_integer_vector(const extraID &e, int x0) { extra_int_vec[e] = int_vec(size(), x0); }
+void Household::allocate_extra_integer_vector(const extraID &e) { extra_int_vec[e] = int_vec(size(), 0); }
 int_vec &Household::extra_integer_vector(const extraID &e) { return extra_int_vec[e]; }
 
 //----- Extra double vector -----//
-void Household::allocate_extra_double_vector(const extraID &e, double x0) { extra_dbl_vec[e] = dbl_vec(size(), x0); }
+void Household::allocate_extra_double_vector(const extraID &e) { extra_dbl_vec[e] = dbl_vec(size(), 0.); }
 dbl_vec &Household::extra_double_vector(const extraID &e) { return extra_dbl_vec[e]; }
 
 //----- Extra double matrix -----//
-void Household::allocate_extra_double_matrix(const extraID &e, double x0) { extra_mtx[e] = matrix<double>(size(), dbl_vec(size(), x0)); }
-matrix<double> &Household::extra_double_matrix(const extraID &e) { return extra_mtx[e]; }
+void Household::allocate_extra_double_matrix(const extraID &e) { extra_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+matrix<double> &Household::extra_double_matrix(const extraID &e) { return extra_dbl_mtx[e]; }

@@ -15,6 +15,8 @@ MCMC::MCMC() : pImpl(std::make_unique<Impl>()) {}
 MCMC::~MCMC() = default;
 
 //===== DATA =====//
+
+Household &MCMC::get_household(size_t H) const { return pImpl->house_vector.at(H); }
 size_t MCMC::n_houses() const { return pImpl->n_households; }
 size_t MCMC::report_data(const std::string &key) const { return pImpl->report_data(key); }
 double MCMC::uniform() { return pImpl->uniform(); }
@@ -28,22 +30,22 @@ void MCMC::clear_all_augm(Household &house, indiv i) { pImpl->clear_all_augm(hou
 //===== EXTRA ATTRIBUTES =====//
 
 /* Extra integer vectors for all households. */
-void MCMC::assign_extra_house_integer_vector(const extraID &e, double x0)
+void MCMC::allocate_extra_house_integer_vector(const extraID &e)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pImpl->house_vector[H].allocate_extra_integer_vector(e, x0);
+        pImpl->house_vector[H].allocate_extra_integer_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::assign_extra_house_double_vector(const extraID &e, double x0)
+void MCMC::allocate_extra_house_double_vector(const extraID &e)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pImpl->house_vector[H].allocate_extra_double_vector(e, x0);
+        pImpl->house_vector[H].allocate_extra_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::assign_extra_house_double_matrix(const extraID &e, double x0)
+void MCMC::allocate_extra_house_double_matrix(const extraID &e)
 {
     for (size_t H = 0; H < n_houses(); ++H)
-        pImpl->house_vector[H].allocate_extra_double_matrix(e, x0);
+        pImpl->house_vector[H].allocate_extra_double_matrix(e);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -168,7 +170,6 @@ void MCMC::build_data(const dict_str_vec &datatable)
                 }
 
                 // if household index doesn't exist, add new household
-                // note : this is redundant if no structure
                 if (hh_ID_to_index.find(house_id) == hh_ID_to_index.end())
                 {
                     // map data index to household number
@@ -399,7 +400,7 @@ void MCMC::update_extra_global_loglike()
 
             // buffer all extra dependencies
             house.buffer_all_extra();
-            for (const indiv &i : house.infectious_set())
+            for (const indiv &i : house.infectious_list())
                 update_extra_dependecies(house, i);
 
             // update house loglikelihood
@@ -538,17 +539,16 @@ void MCMC::init_augmented_variables()
         }
 
         // assign augmented variables
-        for (size_t H = 0; H < n_houses(); ++H)
-        {
-            // assign augmented to preallocated variables
-            Household &house = pImpl->house_vector[H];
+        for (Household &house : pImpl->house_vector)
             for (indiv i = 0; i < house.size(); ++i)
                 assign_all_augm(house, i);
-
-            for (const indiv &i : house.infectious_set())
-                update_extra_dependecies(house, i);
-        }
     }
+    
+    // initialize extra dependencies 
+    if (pImpl->house_vector[0].is_any_extra())
+        for (Household &house : pImpl->house_vector)
+            for (const indiv &i : house.infectious_list())
+                update_extra_dependecies(house, i);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -594,7 +594,7 @@ double MCMC::move_augm_single_house(Household &house)
     double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
-    for (const indiv &i : house.infectious_set())
+    for (const indiv &i : house.infectious_list())
         (this->*_func_move_augm_indiv_)(house, i, delta_global_loglike);
 
     return delta_global_loglike;

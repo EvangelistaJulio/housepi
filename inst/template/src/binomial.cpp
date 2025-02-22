@@ -115,11 +115,9 @@ namespace bax
 	*/
 	std::vector<gentype> recursive_span_generation(ushort n)
 	{
-		ushort root = n - 1;
 		std::vector<gentype> output(1, gentype(n, 0));
 
-		while (root > 0)
-		{
+		for (ushort root = n - 1; root > 0; --root)
 			for (gentype g : recursive_span_generation(n - root))
 			{
 				gentype temp(root, 0);
@@ -128,8 +126,6 @@ namespace bax
 				temp.insert(temp.end(), g.begin(), g.end());
 				output.push_back(temp);
 			}
-			--root;
-		}
 
 		return output;
 	}
@@ -242,13 +238,11 @@ namespace bax
 			results.push_back(current);
 		}
 		else
-		{
 			for (ushort i = start; i < N; ++i)
 			{
 				current[loop] = i;
 				recursive_span_combinations(N, k, current, results, i + 1, loop + 1);
 			}
-		}
 	}
 
 	/* Store all combinations + complement of N elements in k positions. */
@@ -319,7 +313,6 @@ namespace bax
 	void recursive_escape_patterns_function(ushort N_star, ushort N, ushort_vec access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
 	{
 		for (ushort k = 0; k < N; ++k)
-		{
 			for (ulong c = 0; c < Num_Combin_LookupTable[N][k]; ++c)
 			{
 				EscapePattern new_child(N_star);
@@ -359,7 +352,6 @@ namespace bax
 				// store pattern
 				results.push_back(new_child);
 			}
-		}
 	}
 
 	/* Initialize the Look Up Table of escape patterns and the access object. */

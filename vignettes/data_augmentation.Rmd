@@ -44,7 +44,7 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate an instance of the household model class
-hmc <- housepi::HouseholdModelClass$new("eg-augm-incubation-from-delays")
+hmc <- housepi::HouseholdModelClass$new("augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
 hmc$load_param_list(

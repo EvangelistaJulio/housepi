@@ -43,6 +43,7 @@ public:
 	//===== DATA =====//
 	//================//
 
+	Household &get_household(size_t H) const;
 	size_t n_houses() const;
 	size_t report_data(const std::string &key) const;
 
@@ -85,9 +86,9 @@ public:
 
 	virtual void update_extra_dependecies(Household &house, indiv i);
 
-	void assign_extra_house_integer_vector(const extraID &e, double x0 = 0.0);
-	void assign_extra_house_double_vector(const extraID &e, double x0 = 0.0);
-	void assign_extra_house_double_matrix(const extraID &e, double x0 = 0.0);
+	void allocate_extra_house_integer_vector(const extraID &e);
+	void allocate_extra_house_double_vector(const extraID &e);
+	void allocate_extra_house_double_matrix(const extraID &e);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//

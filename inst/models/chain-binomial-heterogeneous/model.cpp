@@ -85,9 +85,9 @@ void Model::init_model_for_inference()
 			"A missing status was found : incompatible with the model.");
 
 	//===== Allocate memory for the escape matrix =====//
-	assign_extra_house_integer_vector("order");
-	assign_extra_house_double_vector("commu-escprob");
-	assign_extra_house_double_matrix("p2p-escprob");
+	allocate_extra_house_integer_vector("order");
+	allocate_extra_house_double_vector("commu-escprob");
+	allocate_extra_house_double_matrix("p2p-escprob");
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
@@ -108,9 +108,9 @@ void Model::fill_house_escape_matrix(Household &house) const
 	auto &order = house.extra_integer_vector("order");
 
 	indiv m = 0;
-	for (indiv i : house.infectious_set())
+	for (indiv i : house.infectious_list())
 		order[m++] = i;
-	for (indiv s : house.susceptible_set())
+	for (indiv s : house.susceptible_list())
 		order[m++] = s;
 
 	//----- Assign values to LUT matrix -----//
@@ -171,37 +171,40 @@ double Model::compute_house_loglike(Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
-// UPDATE : collapse to fill_house_escape_matrix(house) 
+// UPDATE : collapse to fill_house_escape_matrix(house)
 void Model::simulate_single_house(Household &house)
 {
 	const double commu_transm_rate = community_risk();
 	const double p2p_transm_rate = person_to_person_risk();
 
-	//=========================//
-	//===== ESCAPE MATRIX =====//
-	//=========================//
+	//=================================================//
+	//===== GENERATION 0 : infection by community =====//
+	//=================================================//
+
+	std::vector<indiv> new_gen_set = {};
 
 	for (indiv i = 0; i < house.size(); ++i)
 		if (uniform() < exp(-commu_transm_rate * house.group_rate(i, "community_susceptibility")))
 			house.change_status(i, HEALTHY_STATUS);
 		else
+		{
 			house.change_status(i, INFECTED_STATUS);
+			new_gen_set.push_back(i);
+		}
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	std::set<indiv> old_gen_set = {};
-	std::set<indiv> new_gen_set = house.infectious_set();
+	std::vector<indiv> old_gen_set = {};
 
 	while ((house.n_susceptible() > 0) && (!new_gen_set.empty()))
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		// note : loop over 'house.susceptible_set()' is not allowed because of 'change_status'
+		// note : loop over 'house.susceptible_list()' is not allowed because of 'change_status'
 		for (indiv i = 0; i < house.size(); ++i)
-		{
 			if (house.status(i) == HEALTHY_STATUS)
 			{
 				double sus_i = house.group_rate(i, "susceptibility");
@@ -213,9 +216,8 @@ void Model::simulate_single_house(Household &house)
 				if (uniform() >= exp(-r * p2p_transm_rate * sus_i))
 				{
 					house.change_status(i, INFECTED_STATUS);
-					new_gen_set.insert(i);
+					new_gen_set.push_back(i);
 				}
 			}
-		}
 	}
 }

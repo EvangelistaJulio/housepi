@@ -155,17 +155,13 @@ void Model::simulate_single_house(Household &house)
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		// note : here house.susceptible_set is not allowed because of change_status
+		// note : here house.susceptible_list is not allowed because of change_status
 		for (indiv i = 0; i < house.size(); ++i)
-		{
 			if (house.status(i) == HEALTHY_STATUS)
-			{
 				if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 				{
 					house.change_status(i, INFECTED_STATUS);
 					++n_new_gen;
 				}
-			}
-		}
 	}
 }

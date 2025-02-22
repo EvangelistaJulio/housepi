@@ -404,8 +404,8 @@ Else drop all previous definitions.}
 \if{latex}{\out{\hypertarget{method-HouseholdModelClass-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
 Add definitions of a group rate by given data feature(s).
-Reference value has unitary rate and can be specified (default is most represented group).
-Associated parameter definition(s) with default prior "lnorm" (meanlog = 0, sdlog = 3).
+Reference value has unitary rate and can be specified
+(default is most represented group).
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModelClass$add_group_rate(
   name,
@@ -443,7 +443,9 @@ Default is the group with the largest sample size.}
 If \code{TRUE} then features are considered independently.}
 
 \item{\code{prior}}{(\code{character(1)})\cr
-Name of the prior distribution.}
+Name of the prior distribution.
+Default associated parameter definitions
+have prior "lnorm" and \code{args = list(meanlog = 0, sdlog = 3)}.}
 
 \item{\code{args}}{(named \code{list()})\cr
 Arguments for the prior distribution.}
@@ -453,7 +455,7 @@ Name of the inference proposal rule.}
 
 \item{\code{rule_scale}}{(\code{double(1)})\cr
 Scale parameter for the proposal rule.
-Changed automatically during inference if \code{n_adpat}>0.}
+Changed automatically during inference if \code{n_adpat} > 0.}
 
 \item{\code{min}}{(\code{double(1)})\cr
 Value of the minimum.}

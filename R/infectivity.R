@@ -10,11 +10,11 @@
 ############################################################################
 ############################################################################
 
-#' @title 
+#' @title
 #' Housepi Infectivity Profile Class
 #' @description
 #' Auxiliary class to deal with infectivity profile.
-#' 
+#'
 #' @noRd
 HousepiInfecProfileClass <- R6::R6Class(
   classname = "HousepiInfecProfileClass",
@@ -40,7 +40,7 @@ HousepiInfecProfileClass <- R6::R6Class(
     param_require = function() {
       # from : augmented variable model argument definitions
       required_param_set <- c()
-      if (is.list(self$defs) &&(length(self$defs) > 0)) {
+      if (is.list(self$defs) && (length(self$defs) > 0)) {
         if (!any(is.na((self$defs[c("arg_value", "arg_type")])))) {
           aux <- data.frame(
             vals = strsplit(self$defs[["arg_value"]], "/")[[1]],
@@ -55,7 +55,7 @@ HousepiInfecProfileClass <- R6::R6Class(
 
     #' @description
     #' Add definition of infectivity profile.
-    #' 
+    #'
     #' @param name (`character(1)`)\cr
     #' Name of the infectivity profile.
     #' @param discrete (`logical(1)`)\cr
@@ -77,7 +77,7 @@ HousepiInfecProfileClass <- R6::R6Class(
                    max = NA) {
       #----- name -----#
       if (is.na(name)) {
-        stop.h("Incomplete definition: missing name.")
+        stop_h("Incomplete definition: missing name.")
       }
 
       #----- arguments -----#

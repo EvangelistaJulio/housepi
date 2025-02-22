@@ -138,9 +138,7 @@ void Model::simulate_single_house(Household &house)
 
 	// set all cases to susceptible
 	for (indiv i = 0; i < house.size(); i++)
-	{
 		house.change_status(i, HEALTHY_STATUS);
-	}
 
 	// pick a random introduction
 	indiv first_case = uniform() * house.size();
@@ -156,17 +154,13 @@ void Model::simulate_single_house(Household &house)
 	{
 		n_new_gen = 0;
 
-		// note : here househ[h].susceptible_set is not allowed because of change_status
+		// note : here househ[h].susceptible_list is not allowed because of change_status
 		for (indiv i = 0; i < house.size(); ++i)
-		{
 			if (house.status(i) == HEALTHY_STATUS)
-			{
 				if (uniform() >= exp(log_p2p_esc_proba))
 				{
 					house.change_status(i, INFECTED_STATUS);
 					++n_new_gen;
 				}
-			}
-		}
 	}
 }

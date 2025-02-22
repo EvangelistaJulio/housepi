@@ -31,7 +31,8 @@ housepi::household_model_template()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed.
-To know more about each model, choose a name from the previous list and run, e. g.
+To know more about each model, choose a name from the previous list and run, e.
+g.
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
@@ -56,7 +57,7 @@ hmc <- housepi::HouseholdModelClass$new("chain-binomial")
 
 At any moment you can retrieve the template description by using the class method `help()`.
 
-## Format of the Dataset 
+## Format of the Dataset
 
 Dataset can be provided as a numerical data.frame (or a path to a csv file) where individual information are organised by row.
 Individuals with equal values in the column `house_id` are considered to belong to same household.
@@ -68,7 +69,8 @@ To provide the `status` of each individual (required to perform inference), each
 -   healthy status: $0$.
 -   missing status: $-1$.
 
-The package comes with a few synthetic dataset to be used for testing, e. g.
+The package comes with a few synthetic dataset to be used for testing, e.
+g.
 
 ```{r}
 data("survey", package = "housepi")
@@ -96,7 +98,8 @@ hmc$add_param(
 )
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided). To just load template definitions you can use the method `$add_template_param`.
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided).
+To just load template definitions you can use the method `$add_template_param`.
 
 For models requiring augmented variables, the definition procedure is analogous.
 We discuss an example in the vignette [Data Augmentation](data_augmentation.html).
@@ -125,8 +128,7 @@ knitr::kable(results)
 ```
 
 For advanced analysis on the inference, we can extract the traces directly from the field `$traces` (actually a R6 active field).
-This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/) package:
-a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains):
+This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains):
 
 ```{r}
 # export coda object
@@ -140,7 +142,8 @@ Thanks to coda bindings we can produce trellis plot of the traces using [lattice
 lattice::xyplot(traces)
 ```
 
-In addition coda provides other useful functions for the mcmc diagnostics, e. g.
+In addition coda provides other useful functions for the mcmc diagnostics, e.
+g.
 
 ```{r}
 # e. g. Gelman-Rubin criterion for convergence
@@ -149,7 +152,8 @@ coda::gelman.diag(traces)
 
 ## Model Comparison
 
-To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class. :
+To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class.
+:
 
 ```{r}
 # widely applicable information criterion WAIC calling loo::waic
@@ -160,7 +164,7 @@ Similarly for the PSIS-LOO (Pareto smoothed importance sampling leave-one-out cr
 
 # Simulation
 
-In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households. 
+In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households.
 We call the `simulate` method after having provided parameter definitions (analogous to the inference case)
 
 ```{r}

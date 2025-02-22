@@ -184,7 +184,7 @@ namespace tools
         catch (const std::invalid_argument &e)
         {
             std::string sms = (errtxt.empty()) ? "" : "Impossible to import " + errtxt + ". ";
-            throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitabe to conversion.");
+            throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
         }
     }
 

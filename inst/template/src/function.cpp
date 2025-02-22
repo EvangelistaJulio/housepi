@@ -214,7 +214,7 @@ const std::string Function::Impl::show_range() const
     else if (_func_valid_range_ == &Impl::_valid_range_close_min_open_max_)
         return "[" + show_min() + ", " + show_max() + ")";
 
-    else if (_func_valid_range_ == &Impl::_valid_range_both_close_)
+    else // (_func_valid_range_ == &Impl::_valid_range_both_close_)
         return "[" + show_min() + ", " + show_max() + "]";
 }
 

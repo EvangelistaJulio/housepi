@@ -4,9 +4,6 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include <fstream>
-#include <iomanip>
-
 #include "mcmc_build.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -412,6 +409,11 @@ void MCMC::import_data(const Rcpp::DataFrame &data)
 //-----------------------------------------------------------------------------------------------//
 
 #else
+
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <iostream>
 
 /* Read Setup file and produce a definition list. */
 void MCMC::Impl::read_setup(const std::string &pathtofile)
