@@ -4,6 +4,33 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
+coerce_traces_to_coda <- function(trs) {
+  if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
+    return(trs)
+  } else {
+    # Check if multiple chains
+    if ("CHAIN__" %in% colnames(df)) {
+      df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
+        coda::mcmc(
+          data = x[, !names(x) %in% "CHAIN__"],
+          start = setup_list$n_burnin + setup_list$thin,
+          end = setup_list$n_steps,
+          thin = setup_list$thin
+        )
+      })
+      return(coda::as.mcmc.list(df_list))
+
+    } else {
+      return(coda::mcmc(
+        data = df,
+        start = setup_list$n_burnin + setup_list$thin,
+        end = setup_list$n_steps,
+        thin = setup_list$thin
+      ))
+    }
+  }
+}
+
 #' @title
 #' Extract results from coda
 #' @description
@@ -17,22 +44,16 @@
 #'
 #' @export
 retrieve_traces_results <- function(trs) {
-  if (!(methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
-    stop_h(
-      "Input should be a 'coda::mcmc' or a 'coda::mcmc.list' object."
-    )
-  }
-
-  # note: coda is changing format for single columns...
+  trs <- coerce_traces_to_coda(trs)
   smr <- summary(trs)
+
+  # note: coda changes format for single columns...
   if (is.null(dim(smr$statistics))) {
-    output <- data.frame(
-      "mean" = smr$statistics["Mean"],
-      "sd" = smr$statistics["SD"],
-      "q2.5%" = smr$quantiles["2.5%"],
-      "q97.5%" = smr$quantiles["97.5%"],
-      check.names = FALSE
-    )
+    output <- data.frame("mean" = smr$statistics["Mean"],
+                         "sd" = smr$statistics["SD"],
+                         "q2.5%" = smr$quantiles["2.5%"],
+                         "q97.5%" = smr$quantiles["97.5%"],
+                         check.names = FALSE)
     row.names(output) <- colnames(trs)
   } else {
     output <- data.frame(
@@ -187,7 +208,7 @@ retrieve_model_expected_cases <- function(house_model,
   # clone the model before proceeding further
   # hmc <- house_model$clone(deep = TRUE)
   # cleanup at end
-  #withr::defer(rm(hmc))
+  # withr::defer(rm(hmc))
   hmc <- house_model
 
   # generator seeds
@@ -206,7 +227,7 @@ retrieve_model_expected_cases <- function(house_model,
             progress = progress, seed = rng_seeds[size + 1])
 
   # extract traces
-  traces <- hmc$traces_no_loglike
+  traces <- subset(hmc$traces, select = - c(loglikelihood, CHAIN__))
 
   # extract constant parameters
   params <- hmc$param_defs
@@ -223,11 +244,10 @@ retrieve_model_expected_cases <- function(house_model,
 
   for (r in 1:size) {
     # extract parameters from posterior sample
-    hmc$load_param_list(c(as.list(traces[r, ]), constants), append = FALSE)
-
-    # extract cases by size tables
-    # UPDATE: remove `datasete` once fixed pre-loading issue
-    hmc$simulate(dataset, seed = rng_seeds[r], progress = FALSE)
+    hmc$load_param_list(from = c(as.list(traces[r, ]), constants),
+                        append = FALSE)
+    # retrieve tables with cases by size
+    hmc$simulate(seed = rng_seeds[r], progress = FALSE)
     simulations_list[[r]] <- retrieve_cases_by_size(hmc$dataset)
 
     if (isTRUE(progress)) cli::cli_progress_update()
@@ -268,12 +288,12 @@ retrieve_model_expected_cases <- function(house_model,
       "traces" = traces,
       "observed_cases_by_size" = obs_hh_case_table,
       "expected_cases_by_size" = exp_hh_case_table,
-      "Q2.5" = apply_on_homogeneous_frames(
+      "q2.5%" = apply_on_homogeneous_frames(
         function(x) {
           stats::quantile(x, probs = 0.025, na.rm = TRUE)
         }, simulations_list
       )[m, ],
-      "Q97.5" = apply_on_homogeneous_frames(
+      "q97.5%" = apply_on_homogeneous_frames(
         function(x) {
           stats::quantile(x, probs = 0.975, na.rm = TRUE)
         }, simulations_list
@@ -281,7 +301,8 @@ retrieve_model_expected_cases <- function(house_model,
       "X_squared" = chisq_value,
       "df" = ddof,
       "p_value" = p_value,
-      "seed" = seed
+      "seed" = seed,
+      check.names = FALSE
     ),
     class = "housepi_model_check"
   )

@@ -219,9 +219,9 @@ public:
         _distr_ptr_ = distr;
 
         name = "gibbs";
-        // method for proposer
+        // proposer functional method
         _func_propose_ = &Gibbs_Proposer::_propose_draw_rand_;
-        // method for logratio
+        // logratio functional method
         _func_logratio_ = &Gibbs_Proposer::_logratio_pdf_;
     }
     ~Gibbs_Proposer() = default;
@@ -247,9 +247,9 @@ public:
         name = _distr_ptr_->show_name();
         // initialize
         user_reset();
-        // method for proposer
+        // proposer functional method
         _func_propose_ = &Uniform_Proposer::_propose_sum_to_previous_;
-        // method for logratio
+        // logratio functional method
         _func_logratio_ = &Uniform_Proposer::_logratio_symm_;
     }
     ~Uniform_Proposer() = default;
@@ -282,9 +282,9 @@ public:
         name = _distr_ptr_->show_name();
         // initialize
         user_reset();
-        // method for proposer
+        // proposer functional method
         _func_propose_ = &Normal_Proposer::_propose_sum_to_previous_;
-        // method for logratio
+        // logratio functional method
         if (is_rule_start_from_zero())
             _func_logratio_ = &Normal_Proposer::_logratio_sum_to_zero_;
         else
@@ -320,9 +320,9 @@ public:
         name = _distr_ptr_->show_name();
         // initialize
         user_reset();
-        // method for proposer
+        // proposer functional method
         _func_propose_ = &Lognorm_Proposer::_propose_times_previous_;
-        // method for logratio
+        // logratio functional method
         if (is_rule_start_from_zero())
             _func_logratio_ = &Lognorm_Proposer::_logratio_times_zero_;
         else
@@ -381,7 +381,7 @@ class Variable::Impl
 {
 public:
     std::shared_ptr<Distribution> _distr_ptr_; // prior/model distribution of the variable
-    std::shared_ptr<Proposer> _prop_ptr_;      // proposer for Monte Carlo
+    std::shared_ptr<Proposer> _prop_ptr_;      // Monte Carlo proposer
 
     std::string name = NULL_STRING; // name of the variable
     double value = NULL_DOUBLE;     // value of the variable

@@ -95,118 +95,22 @@ void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  MCMC : build data  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign data after pre-processing. */
-void MCMC::build_data(const dict_str_vec &datatable)
+/* Build all group rates and contact rates and set rate per group */
+void MCMC::build_all_rates()
 {
     try
     {
-        if (datatable.empty())
+        for (Household &house : pImpl->house_vector)
         {
-            // If nothing was previously defined
-            if (pImpl->house_vector.empty())
-                throw std::length_error(
-                    "No database was found.");
-        }
-        else
-        {
-            //=====  Drop all Previous Data and Prepare for New  =====//
-            pImpl->data_headers.clear();
-            for (const auto &x : datatable)
-                pImpl->data_headers.push_back(x.first);
-            pImpl->n_individuals = datatable.at(pImpl->data_headers[0]).size();
-            pImpl->n_households = 0;
-            pImpl->house_vector.clear();
-
-            //===== Assess the presence of house IDs =====//
-            if (std::find(pImpl->data_headers.begin(), pImpl->data_headers.end(), "house_id") == pImpl->data_headers.end())
-                tools::warning(
-                    "Unknown household structure: missing data column \"house_id\".");
-
-            //===== Safe Load of Households =====//
-            std::unordered_map<std::string, size_t> hh_ID_to_index = {};
-            for (size_t i = 0; i < pImpl->n_individuals; ++i)
-            {
-                //----- Read individual data -----//
-                std::string id = std::to_string(i + 1);                // default id
-                std::string house_id = std::to_string(n_houses() + 1); // default house_id
-                int status = MISSING_STATUS;
-                dataIDmap<double> data = {};
-
-                for (const std::string &key : pImpl->data_headers)
-                {
-                    if (key == "id")
-                    {
-                        if (tools::is_na(datatable.at("id")[i]))
-                            throw std::invalid_argument(
-                                "Missing id for individual in row n." + std::to_string(i + 2) + ".");
-                        else
-                            id = datatable.at("id")[i];
-                    }
-                    else if (key == "house_id")
-                    {
-                        if (tools::is_na(datatable.at("house_id")[i]))
-                            throw std::invalid_argument(
-                                "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
-                        else
-                            house_id = datatable.at("house_id")[i];
-                    }
-                    else if (key == "status")
-                    {
-                        // NA status is a missing status
-                        if (!tools::is_na(datatable.at("status")[i]))
-                            status = tools::stoul(datatable.at("status")[i], "individual status");
-                    }
-                    else if (tools::is_na(datatable.at(key)[i]))
-                    {
-                        data.emplace(key, std::numeric_limits<double>::quiet_NaN());
-                        tools::warning("Found NA value(s) in the database.");
-                    }
-                    else
-                        data.emplace(key, tools::stod(datatable.at(key)[i], "data \"" + key + "\""));
-                }
-
-                // if household index doesn't exist, add new household
-                if (hh_ID_to_index.find(house_id) == hh_ID_to_index.end())
-                {
-                    // map data index to household number
-                    hh_ID_to_index.emplace(house_id, n_houses());
-                    // create a new empty household
-                    pImpl->house_vector.emplace_back(house_id, pImpl->n_households++);
-                }
-
-                // extract the household reference
-                Household &house = pImpl->house_vector[hh_ID_to_index.at(house_id)];
-
-                // Assign the individual the respective household
-                house.assign_individual(id, status, data);
-
-                // Assign and set rate per group
-                set_rate_per_group(house, house.size() - 1);
-            }
-
-            //===== Set Contact Rates =====//
-            pImpl->_n_contacts_ = 0;
-            for (Household &house : pImpl->house_vector)
-                set_rate_per_contact(house);
-
-            //===== Update Report for Data =====//
-            pImpl->update_report_data();
-
-            //===== Clean up data entries for output files =====//
-            // eventually remove standard headers to reorder them at the end
-            for (const std::string &col : {"house_id", "id", "status"})
-                pImpl->data_headers.erase(
-                    std::remove(pImpl->data_headers.begin(), pImpl->data_headers.end(), col),
-                    pImpl->data_headers.end());
+            for (indiv i = 0; i < house.size(); ++i)
+                set_rate_per_group(house, i);
+            set_rate_per_contact(house);
         }
     }
     catch (const std::exception &e)
     {
-        tools::error(e.what());
+        tools::error(
+            "While building group and contact rates: " + std::string(e.what()));
     }
 }
 
@@ -321,9 +225,6 @@ void MCMC::set_rate_per_contact(Household &house)
                             house.assign_contact_rate(k, i,
                                                       pImpl->get_param_pointer(_pair_contact_rate_));
                     }
-
-                    // count the total number of pairs
-                    ++pImpl->_n_contacts_;
                 }
             }
         }
@@ -436,7 +337,7 @@ void MCMC::update_extra_global_loglike()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::move_simple_param(const parID &p)
+bool MCMC::move_independent_param(const parID &p)
 {
     bool is_accepted = false;
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
@@ -454,7 +355,7 @@ bool MCMC::move_simple_param(const parID &p)
 }
 
 /* Attempt to move parameter with extra dependencies. */
-bool MCMC::move_extra_param(const parID &p)
+bool MCMC::move_extra_depen_param(const parID &p)
 {
     bool is_accepted = false;
 
@@ -480,12 +381,12 @@ void MCMC::move_all()
         move_all_augm();
 
     // move all simple model parameters
-    for (const parID &p : pImpl->param_to_be_inferred)
-        move_simple_param(p);
+    for (const parID &p : pImpl->param_infer_list)
+        move_independent_param(p);
 
     // move parameters with extra dependecies
-    for (const parID &p : pImpl->param_extra_to_be_inferred)
-        move_extra_param(p);
+    for (const parID &p : pImpl->param_extra_infer_list)
+        move_extra_depen_param(p);
 }
 
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
@@ -499,16 +400,16 @@ void MCMC::move_all_and_adapt_parameters(ulong step)
     double adapt_ratio = static_cast<double>(step) / pImpl->setup_n_adapt;
 
     // move all simple model parameters
-    for (const parID &p : pImpl->param_to_be_inferred)
+    for (const parID &p : pImpl->param_infer_list)
     {
-        pImpl->update_param_accept_rate(p, move_simple_param(p));
+        pImpl->update_param_accept_rate(p, move_independent_param(p));
         pImpl->adapt_param_rule(p, adapt_ratio);
     }
 
     // move parameters with extra dependecies
-    for (const parID &p : pImpl->param_extra_to_be_inferred)
+    for (const parID &p : pImpl->param_extra_infer_list)
     {
-        pImpl->update_param_accept_rate(p, move_extra_param(p));
+        pImpl->update_param_accept_rate(p, move_extra_depen_param(p));
         pImpl->adapt_param_rule(p, adapt_ratio);
     }
 }
@@ -543,8 +444,8 @@ void MCMC::init_augmented_variables()
             for (indiv i = 0; i < house.size(); ++i)
                 assign_all_augm(house, i);
     }
-    
-    // initialize extra dependencies 
+
+    // initialize extra dependencies
     if (pImpl->house_vector[0].is_any_extra())
         for (Household &house : pImpl->house_vector)
             for (const indiv &i : house.infectious_list())
@@ -586,7 +487,7 @@ void MCMC::move_all_augm()
     pImpl->increment_global_loglike(delta_ll);
 }
 
-/* Move augmented variables for infectious members of a single household.
+/* Move augmented variables of infectious members inside household.
 The move is performed one member at a time, one augmented variable at a time.
 */
 double MCMC::move_augm_single_house(Household &house)
@@ -604,7 +505,7 @@ double MCMC::move_augm_single_house(Household &house)
 void MCMC::_move_augm_indiv_generic_(Household &house, indiv i, double &delta)
 {
     // Loop over augmented variables of infectious
-    for (const augmID &a : pImpl->augm_list_to_be_inferred)
+    for (const augmID &a : pImpl->augm_infer_list)
         metropolis_augm_single_move(house, i, a, delta);
 }
 
@@ -655,10 +556,13 @@ double MCMC::evaluate()
 {
     try
     {
-        init_model_for_inference();     // initialize model for inference
-        pImpl->init_parameters();       // check no undefined parameters
-        init_augmented_variables();     // initialize augmented dependencies
-        update_simple_global_loglike(); // initialize global loglikelihood
+        pImpl->assert_proper_dataset();        // check if dataset is empty
+        pImpl->setup_rand_init_params = false; // disable random initialization
+        pImpl->init_parameters();              // check no undefined parameters
+        init_infec_profile();                  // initialize user infectivity profile
+        init_model_for_inference();            // initialize model for inference
+        init_augmented_variables();            // initialize augmented dependencies
+        update_simple_global_loglike();        // initialize global loglikelihood
     }
     catch (const std::exception &e)
     {
@@ -687,8 +591,7 @@ void MCMC::run_monte_carlo(progress::Bar &progressbar, ulong sweep)
     //===== Initialization =====//
     //==========================//
 
-    // initialize diagnostics
-    pImpl->init_diagnostics();
+    pImpl->init_diagnostics(); // initialize diagnostics
 
     // run multiple MCMC chains
     for (pImpl->_chain_ = 1; pImpl->_chain_ <= pImpl->setup_n_chains; ++pImpl->_chain_)
@@ -756,14 +659,16 @@ void MCMC::infer(bool is_progbar)
 {
     try
     {
-        pImpl->check_definitions_before_mcmc();
-        init_model_for_inference();
+        pImpl->assert_proper_dataset();    // check if dataset is empty
+        pImpl->assert_proper_mcmc_setup(); // check setup for mcmc sampling
+        init_infec_profile();              // initialize user infectivity profile
+        init_model_for_inference();        // user initialization model
 
         // start progress bar and chrono
         progress::Bar progressbar(pImpl->setup_c_n_sweeps * pImpl->setup_n_chains,
                                   pImpl->fmt_progtxt(), is_progbar);
 
-        run_monte_carlo(progressbar); // run Markov Chain
+        run_monte_carlo(progressbar); // run Monte Carlo
         progressbar.finalize();       // close progress bar
     }
     catch (std::exception &e)
@@ -796,7 +701,8 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
     try
     {
-        pImpl->check_definitions_before_mcmc();
+        pImpl->assert_proper_dataset();    // check if dataset is empty
+        pImpl->assert_proper_mcmc_setup(); // check setup for mcmc sampling
 
         // fix internal number of rungs (for progress bar)
         if (n_rungs >= 2)
@@ -960,14 +866,11 @@ void MCMC::simulate(bool is_progbar)
         //===== Initialization =====//
         //==========================//
 
-        // check if dataset is empty
-        if (pImpl->n_individuals == 0)
-            throw std::length_error(
-                "Impossible to proceed with simulation. Dataset is empty.");
-
+        pImpl->assert_proper_dataset();        // check if dataset is empty
         pImpl->setup_rand_init_params = false; // disable random initialization
-        init_model_for_simulation();           // initialize model for simulation
         pImpl->init_parameters();              // check no undefined parameters
+        init_infec_profile();                  // initialize user infectivity profile
+        init_model_for_simulation();           // initialize model for simulation
         init_augmented_variables();            // initialize augmented dependencies
 
         //======================//

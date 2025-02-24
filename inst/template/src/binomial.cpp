@@ -4,12 +4,12 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
-#include <cmath>
 #include <map>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 
+#include "numerical_recipes.h"
 #include "binomial.h"
 
 namespace bax
@@ -167,12 +167,10 @@ namespace bax
 
 				// I take advantage of the order granted by the map
 				for (ushort val : g)
-				{
 					if (freq_map.find(val) != freq_map.end())
 						++freq_map[val];
 					else
 						freq_map.emplace(val, 1);
-				}
 
 				// assign counts
 				for (const auto &x : freq_map)

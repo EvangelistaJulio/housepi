@@ -120,6 +120,7 @@ private:
 ////////////////////////////////  Base Function : methods  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Auxiliary function to retrieve the index of a given argument by name. */
 inline ushort Function::Impl::find(const std::string &arg_name) const
 {
     for (ushort c = 0; c < n_args; ++c)
@@ -257,8 +258,13 @@ void Function::assign_scalar_arg(const std::string &arg_name, double x)
 {
     ushort i = this->find(arg_name);
     if (i == pImpl->n_args)
+    {
+        str_vec options = {};
+        for (ushort c = 0; c < pImpl->n_args; ++c)
+            options.push_back(pImpl->arguments[c].name);
         throw std::invalid_argument(
-            "Unknown argument \"" + arg_name + "\" for \"" + pImpl->name + "\".");
+            "Unknown argument \"" + arg_name + "\" for \"" + pImpl->name + "\"." + tools::find_closest(arg_name, options));
+    }
     else
     {
         pImpl->arguments[i].set(x);

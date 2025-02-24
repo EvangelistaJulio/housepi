@@ -13,11 +13,11 @@
 #include <vector>
 #include <map>
 
-/* note : flag used to predispose to different wrappers
+/* note : flag used to predispose to different wrappers*/
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-*/
+
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -88,8 +88,6 @@ using rnd_gen = std::mt19937;
 
 using ushort = unsigned short int;
 using ulong = unsigned long int;
-template <typename T>
-using matrix = std::vector<std::vector<T>>;
 
 using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;
@@ -97,7 +95,10 @@ using str_vec = std::vector<std::string>;
 using dict_str_str = std::map<std::string, std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;
 
-// Aliases for improved readibility
+template <typename T>
+using matrix = std::vector<std::vector<T>>;
+
+//----- Aliases for improved readibility -----//
 using indiv = unsigned short int;
 
 #ifdef DEBUG_TEMPORARY_MACRO
@@ -156,6 +157,31 @@ using rateIDmapvec = rateIDmap<std::vector<T>>;
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  OPERATOR OVERLOADS  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Concatenate with overloaded + operator. */ 
+template <typename T>
+std::vector<T> operator+(const std::vector<T>  &x, const std::vector<T> &y)
+{
+    std::vector<T> vec;
+    vec.reserve(x.size() + y.size());
+    vec.insert(vec.end(), x.begin(), x.end());
+    vec.insert(vec.end(), y.begin(), y.end());
+    return vec;
+}
+
+
+/* Append with overloaded += operator. */
+template <typename T>
+std::vector<T>& operator+=(std::vector<T>& x,const std::vector<T> & y)
+{
+    x.reserve(x.size() + y.size()); 
+    x.insert(x.end(), y.begin(), y.end()); 
+    return x; 
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Basic Tools Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -183,6 +209,10 @@ namespace tools
 
     // print error message to stderr
     void error(const std::string &txt);
+
+    // convert to upper\lower case
+    const std::string stolower(const std::string s);
+    const std::string stoupper(const std::string s);
 
     // converter functions
     bool stobool(const std::string &tkn);

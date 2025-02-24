@@ -129,6 +129,16 @@ void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
         _report_pathtofile_.erase("augm");
 }
 
+/* Import data from R DataFrame and run build. */
+void MCMC::Impl::import_data(const Rcpp::DataFrame &data)
+{
+    dict_str_vec datatable = {};
+    rdataframe_to_map(data, datatable);
+    build_data(datatable);
+    if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
+        _report_pathtofile_.erase("data");
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,17 +148,16 @@ Rcpp::List MCMC::Impl::export_setup() const
 {
     using namespace Rcpp;
 
-    return List::create(
-        _["n_chains"] = setup_n_chains,
-        _["size"] = setup_c_sample_size,
-        _["n_steps"] = setup_n_steps,
-        _["n_adapt"] = setup_n_adapt,
-        _["n_burnin"] = setup_n_burnin,
-        _["thin"] = setup_thin,
-        _["rand_init"] = setup_rand_init_params,
-        _["seed"] = setup_seed,
-        _["n_threads"] = setup_n_threads,
-        _["inv_temper"] = setup_inv_T);
+    return List::create(_["n_chains"] = setup_n_chains,
+                        _["size"] = setup_c_sample_size,
+                        _["n_steps"] = setup_n_steps,
+                        _["n_adapt"] = setup_n_adapt,
+                        _["n_burnin"] = setup_n_burnin,
+                        _["thin"] = setup_thin,
+                        _["rand_init"] = setup_rand_init_params,
+                        _["seed"] = setup_seed,
+                        _["n_threads"] = setup_n_threads,
+                        _["inv_temper"] = setup_inv_T);
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -156,13 +165,7 @@ Rcpp::DataFrame MCMC::Impl::export_params() const
 {
     using namespace Rcpp;
 
-    std::vector<parID> V_names = {};
-
-    if (!param_to_be_inferred.empty())
-        V_names.insert(V_names.end(), param_to_be_inferred.begin(), param_to_be_inferred.end());
-
-    if (!param_to_be_constant.empty())
-        V_names.insert(V_names.end(), param_to_be_constant.begin(), param_to_be_constant.end());
+    std::vector<parID> V_names = param_infer_list + param_extra_infer_list + param_const_list;
 
     size_t n_rows = V_names.size();
 
@@ -226,7 +229,6 @@ Rcpp::DataFrame MCMC::Impl::export_data() const
 
     size_t r = 0, c = 0;
     for (const Household &house : house_vector)
-    {
         for (indiv i = 0; i < house.size(); ++i)
         {
             df_index[r] = house.id(i);
@@ -242,7 +244,6 @@ Rcpp::DataFrame MCMC::Impl::export_data() const
 
             ++r;
         }
-    }
 
     DataFrame output = DataFrame::create(_["id"] = df_index,
                                          _["house_id"] = df_house_index,
@@ -258,32 +259,55 @@ Rcpp::DataFrame MCMC::Impl::export_data() const
 }
 
 /* Export MCMC traces of parameter posterior samples. */
-Rcpp::DataFrame MCMC::Impl::export_traces() const
+Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 {
     using namespace Rcpp;
 
-    DataFrame output = DataFrame::create(
-        _["loglikelihood"] = wrap(dgn_glob_loglike));
+    if (is_power_post())
+        tools::error(
+            "Impossible to export traces when computing power posteriors.");
+
+    // collect the column names
+    str_vec headers = {"loglikelihood"};
+    headers += param_infer_list + param_extra_infer_list;
+    if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
+        headers += augm_infer_list; // FIXME : , a + "_id_" + setup_id_trace)
+    if (setup_n_chains > 1)
+        headers += {"CHAIN__"};
+
+    // Create a NumericMatrix with n_house columns
+    ulong sample_size = setup_n_chains * setup_c_sample_size;
+    NumericMatrix output(sample_size, n_households);
+    size_t c = 0;
+
+    // loglikelihood
+    output(_, c++) = wrap(dgn_glob_loglike);
 
     // parameters
-    for (const parID &p : param_to_be_inferred)
-        output.push_back(wrap(dgn_param_value.at(p)), p);
+    for (const parID &p : param_infer_list + param_extra_infer_list)
+        output(_, c++) = wrap(dgn_param_value.at(p));
 
     // augmented variables
     if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-        for (const augmID &a : augm_list_to_be_inferred)
-            output.push_back(wrap(dgn_augm_value.at(a)), a + "_id_" + setup_id_trace);
+        for (const augmID &a : augm_infer_list)
+            output(_, c++) = wrap(dgn_augm_value.at(a));
 
     // retrieve chain identities
     if (setup_n_chains > 1)
     {
         IntegerVector df_chain(setup_c_sample_size * setup_n_chains);
-        for (ulong c = 0; c < setup_n_chains; ++c)
+        for (size_t c = 0; c < setup_n_chains; ++c)
             std::fill(df_chain.begin() + c * setup_c_sample_size,
                       df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
-
-        output.push_back(df_chain, "CHAIN__");
+        output(_, c++) = df_chain;
     }
+
+    // associate row names
+    IntegerVector sweep(setup_c_sample_size * setup_n_chains);
+    for (size_t c = 0; c < setup_n_chains; ++c)
+        for (size_t k = 0; k < setup_c_sample_size; k++)
+            sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
+    rownames(output) = sweep;
 
     return output;
 }
@@ -295,7 +319,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 
     if (is_power_post())
         tools::error(
-            "Impossible to export loglikelihood traces of households when computing power posteriors.");
+            "Impossible to export traces when computing power posteriors.");
 
     // Create a NumericMatrix with n_house columns
     ulong sample_size = setup_n_chains * setup_c_sample_size;
@@ -303,10 +327,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 
     // Assign each NumericVector to a column of the matrix
     for (size_t H = 0; H < n_households; ++H)
-    {
-        NumericVector column = wrap(house_vector[H].get_dgn_loglike());
-        output(_, H) = column;
-    }
+        output(_, H) = wrap(house_vector[H].get_dgn_loglike());
 
     return output;
 }
@@ -377,8 +398,9 @@ Rcpp::DataFrame MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
 Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
                                            const Rcpp::List &xlim,
-                                           int n_bins) const
+                                           int n_bins)
 {
+    init_infec_profile();
     return pImpl->export_infec_profile(opts, xlim, n_bins);
 }
 
@@ -390,16 +412,7 @@ void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
 void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
 void MCMC::import_params(const Rcpp::DataFrame &x) { pImpl->import_params(x); }
 void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
-
-/* Import data from R DataFrame and run build. */
-void MCMC::import_data(const Rcpp::DataFrame &data)
-{
-    dict_str_vec datatable = {};
-    rdataframe_to_map(data, datatable);
-    build_data(datatable);
-    if (pImpl->_report_pathtofile_.find("data") != pImpl->_report_pathtofile_.end())
-        pImpl->_report_pathtofile_.erase("data");
-}
+void MCMC::import_data(const Rcpp::DataFrame &x) { pImpl->import_data(x); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -474,6 +487,22 @@ void MCMC::Impl::read_augm(const std::string &pathtofile)
     }
     build_augm();
     _report_pathtofile_["augm"] = pathtofile;
+}
+
+/* Read data file and then run assignment. */
+void MCMC::Impl::read_data(const std::string &pathtofile)
+{
+    dict_str_vec datatable = {};
+    try
+    {
+        tools::read_csv_table(pathtofile, datatable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While reading dataset: " + std::string(e.what()));
+    }
+    build_data(datatable);
+    _report_pathtofile_["data"] = pathtofile;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -574,10 +603,7 @@ void MCMC::Impl::show_all_params() const
     for (size_t k = 1; k < param_file_headers.size(); ++k)
         oss << C_DELIM << param_file_headers[k];
 
-    str_vec all_params = param_to_be_inferred;
-    all_params.insert(all_params.end(),
-                      param_to_be_constant.begin(),
-                      param_to_be_constant.end());
+    std::vector<parID> all_params = param_infer_list + param_extra_infer_list + param_const_list;
 
     for (const parID &p : all_params)
     {
@@ -657,7 +683,7 @@ void MCMC::Impl::show_results() const
 
     oss << "\n";
 
-    for (const parID &p : param_to_be_inferred)
+    for (const parID &p : param_infer_list)
     {
         const Variable &this_param = param_map.at(p);
         double avg = 0, var = 0;
@@ -704,15 +730,16 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
         {
             //----- HEADERS -----//
             // header loglikelihood
-            inferstate_ofstream << "loglikelihood";
+            inferstate_ofstream << "iteration"
+                                << C_DELIM << "loglikelihood";
 
             // header parameters
-            for (const parID &p : param_to_be_inferred)
+            for (const parID &p : param_infer_list)
                 inferstate_ofstream << C_DELIM << p;
 
             // augmented variables
             if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-                for (const augmID &a : augm_list_to_be_inferred)
+                for (const augmID &a : augm_infer_list)
                     inferstate_ofstream << C_DELIM << a + "_id_" + setup_id_trace;
 
             // header chain
@@ -724,22 +751,26 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             //----- VALUES -----//
 
             for (size_t c = 0; c < setup_n_chains; ++c)
-            {
                 for (size_t k = 0; k < setup_c_sample_size; k++)
                 {
                     size_t i = k + c * setup_c_sample_size;
 
+                    // print iteration
+                    ulong sweep = setup_n_burnin + (k + 1) * setup_thin;
+                    inferstate_ofstream << sweep;
+
                     // print loglikelihood
-                    inferstate_ofstream << std::setprecision(2) << std::fixed << dgn_glob_loglike[i];
+                    inferstate_ofstream << C_DELIM << std::setprecision(2)
+                                        << std::fixed << dgn_glob_loglike[i];
 
                     // print parameter values
-                    for (const parID &p : param_to_be_inferred)
+                    for (const parID &p : param_infer_list)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
                                             << std::fixed << dgn_param_value.at(p)[i];
 
                     // print selected augmented variables
                     if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-                        for (const augmID &a : augm_list_to_be_inferred)
+                        for (const augmID &a : augm_infer_list)
                             inferstate_ofstream << C_DELIM << std::setprecision(5)
                                                 << std::fixed << dgn_augm_value.at(a)[i];
 
@@ -749,7 +780,6 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
                     inferstate_ofstream << std::endl;
                 }
-            }
 
             inferstate_ofstream.close();
         }
@@ -789,7 +819,6 @@ void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
 
             //===== Print data and augmented variables =====//
             for (const Household &house : house_vector)
-            {
                 for (indiv i = 0; i < house.size(); ++i)
                 {
                     augm_ofstream << house.id(i)
@@ -806,7 +835,6 @@ void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
 
                     augm_ofstream << std::endl;
                 }
-            }
 
             augm_ofstream.close();
         }
@@ -832,22 +860,7 @@ void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
 void MCMC::read_setup(const std::string &pathtofile) { pImpl->read_setup(pathtofile); }
 void MCMC::read_params(const std::string &pathtofile) { pImpl->read_params(pathtofile); }
 void MCMC::read_augm(const std::string &pathtofile) { pImpl->read_augm(pathtofile); }
-
-/* Read data file and then run assignment. */
-void MCMC::read_data(const std::string &pathtofile)
-{
-    dict_str_vec datatable = {};
-    try
-    {
-        tools::read_csv_table(pathtofile, datatable);
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While reading dataset: " + std::string(e.what()));
-    }
-    build_data(datatable);
-    pImpl->_report_pathtofile_["data"] = pathtofile;
-}
+void MCMC::read_data(const std::string &pathtofile) { pImpl->read_data(pathtofile); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////  MCMC : show  //////////////////////////////////////////

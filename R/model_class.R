@@ -122,7 +122,7 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Pre-build to deal with group rates.
-    # 
+    #
     # @param dataset (`data.frame`)\cr
     # The dataset from which to extract group rates.
     .build_group_rate = function(dataset) {
@@ -173,7 +173,7 @@ HouseholdModelClass <- R6::R6Class(
 
     # @description
     # Associate dataset to the model and options for the setup.
-    # 
+    #
     # @param dataset (`data.frame`)\cr
     # A data.frame containing the dataset.
     # @param size (`integer(1)`)\cr
@@ -223,32 +223,24 @@ HouseholdModelClass <- R6::R6Class(
                               house_id = c("HH_1"),
                               status = c(1))
 
-      } else {
-        # operations on non-null dataset
-        if (length(dataset) > 0) {
-          # check that dataset type is correct
-          if (!is.data.frame(dataset)) {
-            stop_h(
-              "Unsupported type for dataset.",
-              "Dataset should be a data.frame."
-            )
-          }
-
-          # deal with group rates
-          private$.build_group_rate(dataset)
-
-          # assert dataset headers
-          if (isFALSE(private$.assert_data(private$.model$reference,
-                                           colnames(dataset)))) {
-            stop_h("Incomplete dataset headers.")
-          }
-
-        } else {
-          # FIXME: programs breaks if I don't provide a dataset each time
-          # this is because I always re-assign paramters but not group rates
-          # I should just rebuild group rates (<==> parameters have changed)
-          stop_h("Pre-loaded dataset are not implemented yet.")
+      } else if (length(dataset) > 0) {
+        # check that dataset type is correct
+        if (!is.data.frame(dataset)) {
+          stop_h(
+            "Unsupported type for dataset.",
+            "Dataset should be a data.frame."
+          )
         }
+
+        # deal with group rates
+        private$.build_group_rate(dataset)
+
+        # assert dataset headers
+        if (isFALSE(private$.assert_data(private$.model$reference,
+                                         colnames(dataset)))) {
+          stop_h("Incomplete dataset headers.")
+        }
+
       }
 
       # assert parameter definitions
@@ -263,71 +255,63 @@ HouseholdModelClass <- R6::R6Class(
       #----- MODEL GENERATION -----#
       private$.model$generate()
 
-      #----- ASSOCIATE DEFINITIONS -----#
+      #----- 1) DATA -----#
+      private$.model$rcpp$import_data(
+        data.frame(lapply(dataset, as.character))
+      )
+
+      #----- 2) SETUP -----#
 
       # change scientific notation
       store_scipen <- options()$scipen
       options(scipen = 100)
 
-      #----- 1) SETUP -----#
-      setup_list <- list()
-      setup_list[["size"]] <- size
-      setup_list[["n_steps"]] <- n_steps
-      setup_list[["n_burnin"]] <- n_burnin
-      setup_list[["thin"]] <- thin
-      setup_list[["n_adapt"]] <- n_adapt
-      setup_list[["n_chains"]] <- n_chains
-      setup_list[["n_threads"]] <- n_threads
-      setup_list[["rand_init"]] <- rand_init
-      setup_list[["id_trace"]] <- id_trace
-      setup_list[["inv_temper"]] <- inv_temper
-      setup_list[["seed"]] <- seed
+      setup_list <- list(size = size, n_steps = n_steps,
+                         n_burnin = n_burnin, thin = thin,
+                         n_adapt = n_adapt, n_chains = n_chains,
+                         n_threads = n_threads, rand_init = rand_init,
+                         id_trace = id_trace, inv_temper = inv_temper,
+                         seed = seed)
 
       private$.model$rcpp$import_setup(
         lapply(setup_list, as.character)
       )
 
-      #----- 2) PARAMETERS -----#
+      # restore scientific notation option
+      options(scipen = store_scipen)
+
+      #----- 3) PARAMETERS -----#
       private$.model$rcpp$import_params(
         data.frame(lapply(private$.param$defs, as.character))
       )
 
-      #----- 3) DATA -----#
-      if (length(dataset) > 0) {
-        private$.model$rcpp$import_data(
-          data.frame(lapply(dataset, as.character))
-        )
-      }
+      #----- 4) GROUP & CONTACT RATES -----#
+      # UPDATE: rebuild group rates <==> something has changed
+      private$.model$rcpp$build_all_rates()
 
-      #----- 4) AUGMENTED -----#
+      #----- 5) AUGMENTED -----#
       if (length(private$.augm$defs) > 0) {
         private$.model$rcpp$import_augm(
           data.frame(lapply(private$.augm$defs, as.character))
         )
       }
 
-      #----- 5) INFECTIVITY PROFILE -----#
+      #----- 6) INFECTIVITY PROFILE -----#
       if (length(private$.infec_profile$defs) > 0) {
         private$.model$rcpp$import_infec_profile(
           lapply(private$.infec_profile$defs, as.character)
         )
       }
 
-      # restore scientific notation option
-      options(scipen = store_scipen)
       invisible(self)
     },
 
     # @description
     # Export the traces of last inference call as a coda object.
     #
-    # @param keep_loglike (`logical(1)`)\cr
-    # If `FALSE` don't export the trace of the loglikelihood.
-    # Default is `TRUE`.
-    #
     # @return
-    # (`coda::mcmc` or `coda::mcmc.list`)
-    .traces = function(keep_loglike = TRUE) {
+    # (`data.frame`)
+    .traces = function() {
 
       # load traces from last inference
       df <- NULL
@@ -336,39 +320,11 @@ HouseholdModelClass <- R6::R6Class(
         df <- private$.model$rcpp$export_traces()
         is_wrong_usage <- (dim(df)[1] == 0)
       }
-
       if (is_wrong_usage) {
         stop_h("Impossible to export MCMC traces before model inference.")
       }
 
-      # drop loglikelihood if flag is true
-      if (isFALSE(keep_loglike)) {
-        df <- df[, names(df) != "loglikelihood", drop = FALSE]
-      }
-
-      # extract setup information for coda
-      setup_list <- private$.model$rcpp$export_setup()
-
-      # Check if multiple chains
-      if ("CHAIN__" %in% colnames(df)) {
-        df_list <- lapply(split(df, df[["CHAIN__"]]), function(x) {
-          coda::mcmc(
-            data = x[, !names(x) %in% "CHAIN__"],
-            start = setup_list[["n_burnin"]] + setup_list[["thin"]],
-            end = setup_list[["n_steps"]],
-            thin = setup_list[["thin"]]
-          )
-        })
-        return(coda::as.mcmc.list(df_list))
-
-      } else {
-        return(coda::mcmc(
-          data = df,
-          start = setup_list[["n_burnin"]] + setup_list[["thin"]],
-          end = setup_list[["n_steps"]],
-          thin = setup_list[["thin"]]
-        ))
-      }
+      return(df)
     }
   ),
 
@@ -419,23 +375,22 @@ HouseholdModelClass <- R6::R6Class(
     #' Full traces of last inference.
     traces = function(value) {
       if (missing(value)) {
-        return(private$.traces(keep_loglike = TRUE))
+        return(private$.traces())
       } else {
         stop_h("'traces' is read only.")
       }
     },
 
-    #' @field traces_no_loglike (`coda::mcmc` or `coda::mcmc.list`)\cr
-    #' Traces of last inference without loglikelihood.
-    traces_no_loglike = function(value) {
+    #' @field traces_as_coda (`coda::mcmc` or `coda::mcmc.list`)\cr
+    #' Full traces of last inference as a `coda` object.
+    traces_as_coda = function(value) {
       if (missing(value)) {
-        return(private$.traces(keep_loglike = FALSE))
+        df <- private$.traces()
+
       } else {
-        stop_h("'traces_no_loglike' is read only.")
+        stop_h("'traces' is read only.")
       }
     },
-
-
 
     #' @field traces_results (`data.frame`)\cr
     #' Results extracted from the traces of last inference.
@@ -643,7 +598,7 @@ HouseholdModelClass <- R6::R6Class(
         # retrieve the template parameters file
         private$.param$load_template(
           file.path(private$.model$path, "template_params.R"),
-          private$.param$require(private$.model$reference), 
+          private$.param$require(private$.model$reference),
           isTRUE(append)
         )
       }
@@ -867,7 +822,7 @@ HouseholdModelClass <- R6::R6Class(
       xlim <- unlist(xlim)
       if (length(xlim) == 2) {
         if (!all(is.na(xlim))) {
-          # check 
+          # check
           if (!any(is.na(xlim))) {
             if (xlim[[1]] == xlim[[2]]) {
               stop_h("Left x limit larger than right limit.")

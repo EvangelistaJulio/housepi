@@ -4,8 +4,8 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include "numerical_recipes.h"
 #include "distribution.h"
-#include "num_recipes.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -383,6 +383,19 @@ void Distribution::init_min_zero_reshaping(bool discrete, bool is_open_zero)
     {
         init_functional_range(((is_open_zero) ? (get_min() == 0.) : false), false);
         init_functional_truncation(discr_case);
+    }
+}
+
+/* Frequent reshaping while domain has zero lower bound for discrete defined distributions. */
+void Distribution::init_min_zero_discr_defined_reshaping()
+{
+    if (get_min() < 0.)
+        throw std::invalid_argument(
+            "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
+    else if ((get_min() > 0.) || (!tools::is_na(get_max())))
+    {
+        init_functional_range(false, false);
+        init_functional_truncation(D_DISCR_TYPE_DFND);
     }
 }
 
@@ -974,22 +987,22 @@ protected:
     double raw_pdf(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return numr::weibull::_pdf_(x, get_arg(0), get_arg(1));
+        return numr::weibull::pdf(x, get_arg(0), get_arg(1));
     }
     double raw_cdf(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return numr::weibull::_cdf_(x, get_arg(0), get_arg(1));
+        return numr::weibull::cdf(x, get_arg(0), get_arg(1));
     }
     double raw_logpdf(double x, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return numr::weibull::_logpdf_(x, get_arg(0), get_arg(1));
+        return numr::weibull::logpdf(x, get_arg(0), get_arg(1));
     }
     double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
     {
         UNUSED(opts);
-        return numr::weibull::_logratio_(xold, xnew, get_arg(0), get_arg(1));
+        return numr::weibull::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override
     {
@@ -1075,6 +1088,7 @@ public:
     {
         init_defaults("pois", {"lambda"}, {1.},
                       0., NULL_DOUBLE, false, false);
+        init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Poisson_Distribution() = default;
 
@@ -1082,7 +1096,7 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        init_min_zero_reshaping(false, false);
+        init_min_zero_discr_defined_reshaping();
     }
 
 protected:
@@ -1132,9 +1146,10 @@ public:
     //===== CONSTRUCTOR =====//
     Binomial_Distribution() : distr_gen(4, .5)
     {
-        // FIXME : setting size as domain just for testing
         init_defaults("binom", {"size", "prob"}, {4, .5},
-                      0., 4, false, false);
+                      0., NULL_DOUBLE, false, false);
+        init_functional_discretization(D_DISCR_TYPE_DFND);
+        
         assign_pointer_range_max(get_ptr_to_arg(0));
         init_functional_range(false, false);
     }
@@ -1144,7 +1159,6 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        init_functional_discretization(D_DISCR_TYPE_DFND);
 
         if (get_min() < 0.)
             throw std::invalid_argument(
@@ -1154,7 +1168,6 @@ public:
             if (get_max() > get_arg(0))
                 throw std::invalid_argument(
                     "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size " + std::to_string(get_arg(0)) + ".");
-
             init_functional_range(false, false);
             init_functional_truncation(D_DISCR_TYPE_DFND);
         }
@@ -1209,6 +1222,7 @@ public:
     {
         init_defaults("nbinom", {"size", "prob"}, {4, .5},
                       0., NULL_DOUBLE, false, false);
+        init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~NegativeBinomial_Distribution() = default;
 
@@ -1216,7 +1230,7 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        init_min_zero_reshaping(false, false);
+        init_min_zero_discr_defined_reshaping();
     }
 
 protected:
@@ -1268,6 +1282,7 @@ public:
     {
         init_defaults("geom", {"proba"}, {0.5},
                       0., NULL_DOUBLE, false, false);
+        init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Geometric_Distribution() = default;
 
@@ -1275,7 +1290,7 @@ public:
     void init_reshaping(bool discrete) override
     {
         UNUSED(discrete);
-        init_min_zero_reshaping(false, false);
+        init_min_zero_discr_defined_reshaping();
     }
 
 protected:

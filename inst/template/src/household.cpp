@@ -363,9 +363,9 @@ ushort Household::n_missing_status() const { return pImpl->n_missing_status; }
 double Household::get_loglike() const { return pImpl->house_loglike; }
 double Household::get_delta_loglike() const { return pImpl->house_loglike - pImpl->buffer; }
 
-const std::vector<indiv> & Household::infectious_list() const { pImpl->infectious_list; }
-const std::vector<indiv> & Household::susceptible_list() const { pImpl->susceptible_list; }
-const std::vector<indiv> & Household::missing_status_list() const { pImpl->missing_status_list; }
+const std::vector<indiv> & Household::infectious_list() const { return pImpl->infectious_list; }
+const std::vector<indiv> & Household::susceptible_list() const { return pImpl->susceptible_list; }
+const std::vector<indiv> & Household::missing_status_list() const { return pImpl->missing_status_list; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////

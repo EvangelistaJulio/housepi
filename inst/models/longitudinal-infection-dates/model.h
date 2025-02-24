@@ -31,6 +31,7 @@ public:
 	double time_end_followup(Household &house) const;
 
 	//===== Override General Methods =====//
+	void init_infec_profile() override;
 	void init_model_for_inference() override;
 	void init_model_for_simulation() override;
 	void update_extra_dependecies(Household &house, indiv i) override;

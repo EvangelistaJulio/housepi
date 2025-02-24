@@ -7,10 +7,7 @@
 #ifndef HOUSEPI__BINOMIAL__H
 #define HOUSEPI__BINOMIAL__H
 
-#include <string>
-#include <vector>
-
-#include "num_recipes.h"
+#include "tools.h"
 
 namespace bax
 {
@@ -18,14 +15,8 @@ namespace bax
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     
-    using ushort = unsigned short int;
-    using ulong = unsigned long int;
     using ushort_vec = std::vector<ushort>;
-    using dbl_vec = std::vector<double>;
     using gentype = std::vector<ushort>;
-
-    template <typename T>
-    using matrix = std::vector<std::vector<T>>;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
@@ -78,11 +69,6 @@ namespace bax
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    ulong factorial(ulong n);
-    ulong binom_coeff(ushort N, ushort k);
-    double log_binom_coeff(ushort N, ushort k);
-    double logratio_binom_coeff(ushort N, ushort kold, ushort knew);
 
     // functions for the generations lookup table
     void init_generations_lookuptable(ushort max_N);

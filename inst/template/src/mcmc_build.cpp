@@ -218,8 +218,8 @@ void MCMC::Impl::build_params()
 
             // drop current list of parameters
             param_map.clear();
-            param_to_be_constant.clear();
-            param_to_be_inferred.clear();
+            param_const_list.clear();
+            param_infer_list.clear();
 
             //===== Load parameters from the row with options =====//
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
@@ -250,7 +250,7 @@ void MCMC::Impl::build_params()
                     // assign constant parameter to the set of variables
                     param_map.emplace(p, Variable(name, value));
                     // update the lists of constant parameters
-                    param_to_be_constant.push_back(p);
+                    param_const_list.push_back(p);
                 }
                 else
                 {
@@ -311,7 +311,7 @@ void MCMC::Impl::build_params()
                     new_param.assign_proposer(rule_name, rule_scale);
 
                     // update the lists of parameters to be inferred
-                    param_to_be_inferred.push_back(p);
+                    param_infer_list.push_back(p);
                 }
             }
         }
@@ -326,7 +326,7 @@ void MCMC::Impl::build_params()
 /* Randomly initialize values of the parameters to be inferred */
 void MCMC::Impl::init_parameters()
 {
-    for (const parID &p : param_to_be_inferred)
+    for (const parID &p : param_infer_list)
     {
         // restore user initialization (meaningful for multiple chains)
         param_map.at(p).user_reset();
@@ -374,13 +374,13 @@ double MCMC::Impl::type_to_double(const std::string &value,
                 tools::warning(
                     "Ignoring value type without a paired value.");
 
-            else if (type == TYPE_SCALAR)
+            else if (tools::stoupper(type) == TYPE_SCALAR)
                 output = tools::stod(value, "argument with scalar type");
 
-            else if (type == TYPE_DATA)
+            else if (tools::stoupper(type) == TYPE_DATA)
                 output = house.data(i, value);
 
-            else if (type == TYPE_PARAM)
+            else if (tools::stoupper(type) == TYPE_PARAM)
                 // UPDATE: here it won't be straightforward to drop maps
                 if (param_map.at(value).is_constant())
                     output = get_param(value);
@@ -430,17 +430,17 @@ void MCMC::Impl::assign_augm_type_args(Household &house, indiv i, augmID a,
             tools::warning(
                 "Found a type without a paired value. Falling back to default.");
 
-        else if (type == TYPE_DATA)
+        else if (tools::stoupper(type) == TYPE_DATA)
             house.assign_augm_model_scalar_arg(i, a, key, house.data(i, value));
 
-        else if (type == TYPE_PARAM)
+        else if (tools::stoupper(type) == TYPE_PARAM)
         {
             if (param_map.at(value).is_constant())
                 house.assign_augm_model_scalar_arg(i, a, key, get_param(value));
             else
                 house.assign_augm_model_pointer_arg(i, a, key, get_param_pointer(value));
         }
-        else if (type == TYPE_SCALAR)
+        else if (tools::stoupper(type) == TYPE_SCALAR)
             house.assign_augm_model_scalar_arg(i, a, key, tools::stod(value, "argument with scalar type"));
 
         else
@@ -471,10 +471,10 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
         tools::warning(
             "Found a type without a paired value. Falling back to default.");
 
-    else if (min_type == TYPE_DATA)
+    else if (tools::stoupper(min_type) == TYPE_DATA)
         house.assign_augm_model_scalar_range_min(i, a, house.data(i, min_value));
 
-    else if (min_value == TYPE_PARAM)
+    else if (tools::stoupper(min_type) == TYPE_PARAM)
     {
         if (param_map.at(min_value).is_constant())
             house.assign_augm_model_scalar_range_min(i, a, get_param(min_value));
@@ -482,7 +482,7 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
             house.assign_augm_model_pointer_range_min(i, a, get_param_pointer(min_value));
     }
 
-    else if (min_type == TYPE_SCALAR)
+    else if (tools::stoupper(min_type) == TYPE_SCALAR)
         house.assign_augm_model_scalar_range_min(i, a,
                                                  tools::stod(min_value, "scalar type argument"));
 
@@ -505,10 +505,10 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
         tools::warning(
             "Found a type without a paired value. Falling back to default.");
 
-    else if (max_type == TYPE_DATA)
+    else if (tools::stoupper(max_type) == TYPE_DATA)
         house.assign_augm_model_scalar_range_max(i, a, house.data(i, max_value));
 
-    else if (max_type == TYPE_PARAM)
+    else if (tools::stoupper(max_type) == TYPE_PARAM)
     {
         if (param_map.at(max_value).is_constant())
             house.assign_augm_model_scalar_range_max(i, a, get_param(max_value));
@@ -516,7 +516,7 @@ void MCMC::Impl::assign_augm_type_range(Household &house, indiv i, augmID a,
             house.assign_augm_model_pointer_range_max(i, a, get_param_pointer(max_value));
     }
 
-    else if (max_type == TYPE_SCALAR)
+    else if (tools::stoupper(max_type) == TYPE_SCALAR)
         house.assign_augm_model_scalar_range_max(i, a,
                                                  tools::stod(max_value, "argument with scalar type"));
 
@@ -687,7 +687,7 @@ void MCMC::Impl::build_augm()
             //===========================================//
 
             // drop previous definitions
-            augm_list_to_be_inferred.clear();
+            augm_infer_list.clear();
             augm_list_model.clear();
 
             // note : I didn't manage to collapse this with the previous because of generic status
@@ -714,7 +714,7 @@ void MCMC::Impl::build_augm()
                     // read option for monte carlo proposer
                     if (!tools::is_na(deftable.at("rule")[k]))
                     {
-                        augm_list_to_be_inferred.emplace(a);
+                        augm_infer_list.emplace(a);
 
                         if (!tools::is_na(status)) // status-specific definition
                             augm_status_map_infer.at(tools::stoi(status, "augmented status")).emplace(a);
@@ -758,7 +758,7 @@ void MCMC::Impl::build_augm()
 bool MCMC::Impl::is_augm_any() const { return !augm_list_full.empty(); }
 
 /* Check if there are non-constant augmented variable definitions. */
-bool MCMC::Impl::is_augm_sample() const { return !augm_list_to_be_inferred.empty(); }
+bool MCMC::Impl::is_augm_sample() const { return !augm_infer_list.empty(); }
 
 /* Check if there are augmented variable definitions with a model. */
 bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
@@ -877,7 +877,7 @@ void MCMC::Impl::clear_all_augm(Household &house, indiv i)
 /* Set accept rates to zero. */
 void MCMC::Impl::init_move_counts()
 {
-    for (const parID &p : param_to_be_inferred)
+    for (const parID &p : param_infer_list)
         param_map.at(p).reset_accept_rate();
 }
 
@@ -972,7 +972,7 @@ void MCMC::Impl::init_diagnostics()
     if (!is_power_post())
     {
         // diagnostics over parameters
-        for (const parID &p : param_to_be_inferred)
+        for (const parID &p : param_infer_list + param_extra_infer_list)
             dgn_param_value[p] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
 
         // diagnostics over households
@@ -981,7 +981,7 @@ void MCMC::Impl::init_diagnostics()
 
         // diagnostics over augmented variables
         if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_list_to_be_inferred)
+            for (const augmID &a : augm_infer_list)
                 dgn_augm_value[a] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
     }
 }
@@ -995,7 +995,7 @@ void MCMC::Impl::update_diagnostics()
     if (!is_power_post())
     {
         // diagnostics for all parameters
-        for (const parID &p : param_to_be_inferred)
+        for (const parID &p : param_infer_list + param_extra_infer_list)
             dgn_param_value.at(p)[dgn_count] = get_param(p);
 
         // diagnostics for all households
@@ -1004,7 +1004,7 @@ void MCMC::Impl::update_diagnostics()
 
         // diagnostics for individual followup
         if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_list_to_be_inferred)
+            for (const augmID &a : augm_infer_list)
                 dgn_augm_value.at(a)[dgn_count] = house_vector[dgn_H_star].augm(dgn_i_star, a);
     }
 
@@ -1042,8 +1042,16 @@ void MCMC::Impl::_augm_model_generic_(const Household &house, indiv i, double &d
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Check that setup definitions are ok to proceed with mcmc sampling. */
-void MCMC::Impl::check_definitions_before_mcmc()
+/* Assert dataset is not empty. */
+void MCMC::Impl::assert_proper_dataset()
+{
+    if (house_vector.empty())
+        throw std::length_error(
+            "Impossible to proceed. No database was found.");
+}
+
+/* Assert setup definitions are ok to proceed with mcmc sampling. */
+void MCMC::Impl::assert_proper_mcmc_setup()
 {
     if ((setup_n_chains > 1) && (setup_rand_init_params == false))
     {
@@ -1089,7 +1097,7 @@ void MCMC::Impl::check_definitions_before_mcmc()
         throw std::length_error("Dataset is empty or was not provided.");
 
     // check if there is actually something to sample
-    if ((param_to_be_inferred.empty()) && (!is_augm_sample()))
+    if ((param_infer_list.empty()) && (!is_augm_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 }
@@ -1114,6 +1122,106 @@ const std::string MCMC::Impl::fmt_progtxt()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  MCMC : build data  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign data after pre-processing. */
+void MCMC::Impl::build_data(const dict_str_vec &datatable)
+{
+    try
+    {
+        if (!datatable.empty())
+        {
+            //=====  Drop all Previous Data and Prepare for New  =====//
+            data_headers.clear();
+            for (const auto &x : datatable)
+                data_headers.push_back(x.first);
+            n_individuals = datatable.at(data_headers[0]).size();
+            n_households = 0;
+            house_vector.clear();
+
+            //===== Assess the presence of house IDs =====//
+            if (std::find(data_headers.begin(), data_headers.end(), "house_id") == data_headers.end())
+                tools::warning(
+                    "Unknown household structure: missing data column \"house_id\".");
+
+            //===== Safe Load of Households =====//
+            std::unordered_map<std::string, size_t> hh_ID_to_index = {};
+            for (size_t i = 0; i < n_individuals; ++i)
+            {
+                //----- Read individual data -----//
+                std::string id = std::to_string(i + 1);                  // default id
+                std::string house_id = std::to_string(n_households + 1); // default house_id
+                int status = MISSING_STATUS;
+                dataIDmap<double> data = {};
+
+                for (const std::string &key : data_headers)
+                    if (key == "id")
+                    {
+                        if (tools::is_na(datatable.at("id")[i]))
+                            throw std::invalid_argument(
+                                "Missing id for individual in row n." + std::to_string(i + 2) + ".");
+                        else
+                            id = datatable.at("id")[i];
+                    }
+                    else if (key == "house_id")
+                    {
+                        if (tools::is_na(datatable.at("house_id")[i]))
+                            throw std::invalid_argument(
+                                "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
+                        else
+                            house_id = datatable.at("house_id")[i];
+                    }
+                    else if (key == "status")
+                    {
+                        // note: NA status is a missing status
+                        if (!tools::is_na(datatable.at("status")[i]))
+                            status = tools::stoul(datatable.at("status")[i], "individual status");
+                    }
+                    else if (tools::is_na(datatable.at(key)[i]))
+                    {
+                        data.emplace(key, std::numeric_limits<double>::quiet_NaN());
+                        tools::warning("Found NA value(s) in the database.");
+                    }
+                    else
+                        data.emplace(key, tools::stod(datatable.at(key)[i], "data \"" + key + "\""));
+
+
+                // if household index doesn't exist, add new household
+                if (hh_ID_to_index.find(house_id) == hh_ID_to_index.end())
+                {
+                    // map data index to household number
+                    hh_ID_to_index.emplace(house_id, n_households);
+                    // create a new empty household
+                    house_vector.emplace_back(house_id, n_households++);
+                }
+
+                // extract the household reference
+                Household &house = house_vector[hh_ID_to_index.at(house_id)];
+
+                // Assign the individual the respective household
+                house.assign_individual(id, status, data);
+            }
+
+            //===== Update Report for Data =====//
+            update_report_data();
+
+            //===== Clean up data entries for output files =====//
+            // eventually remove standard headers to reorder them at the end
+            for (const std::string &col : {"house_id", "id", "status"})
+                data_headers.erase(
+                    std::remove(data_headers.begin(), data_headers.end(), col),
+                    data_headers.end());
+        }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While initializing dataset: " + std::string(e.what()));
+    }
+}
 
 /* Use the loaded data to fill-in the respective report. */
 void MCMC::Impl::update_report_data()

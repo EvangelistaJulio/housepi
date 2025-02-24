@@ -47,11 +47,8 @@ public:
 	size_t n_houses() const;
 	size_t report_data(const std::string &key) const;
 
-	// note : I didn't find a way to PIMPL build_data
-	// because of the virtual functions set_rate_per_group and set_rate_per_contact
-	void build_data(const dict_str_vec &datatable);
-
 	//----- Group & Contact Rates -----//
+	void build_all_rates();
 	void emplace_group_rate(rateID r, parID p);
 	void emplace_contact_rate(parID p);
 	virtual void assign_group_rate_to_individual(Household &house, indiv i);
@@ -94,7 +91,8 @@ public:
 	//===== INFECTIVITY PROFILE =====//
 	//===============================//
 
-	void assign_infec_profile(const std::string &default_name);
+	virtual void init_infec_profile();
+	void assign_default_infec_profile(const std::string &default_name);
 	double infec_profile_inst(double gener_time, const dbl_vec &opts = {}) const;
 	double infec_profile_cumul(double gener_time, const dbl_vec &opts = {}) const;
 
@@ -147,7 +145,7 @@ public:
 	Rcpp::NumericMatrix export_household_loglike_traces() const;
 	Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
 										 const Rcpp::List &xlim,
-										 int n_bins) const;
+										 int n_bins);
 
 #else
 	//================//
@@ -188,8 +186,8 @@ private:
 	void run_monte_carlo(progress::Bar &progbar, ulong sweep = 0);
 	void move_all();
 	void move_all_and_adapt_parameters(ulong step);
-	bool move_simple_param(const parID &p);
-	bool move_extra_param(const parID &p);
+	bool move_independent_param(const parID &p);
+	bool move_extra_depen_param(const parID &p);
 
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);

@@ -136,16 +136,19 @@ int main(int argc, char *argv[])
     //----- Initialize the custom Model object -----//
     std::unique_ptr<Model> user_model = std::make_unique<Model>();
 
-    // 1) Load Setup (optional)
-    user_model->read_setup(setup_file);
-
-    // 2) Load Parameters and Check (required)
-    user_model->read_params(params_file);
-
-    // 3) Load Data and Check (required)
+    // 1) Load Data
     user_model->read_data(data_file);
 
-    // 4) Load Augmented Variables (optional)
+    // 2) Load Setup
+    user_model->read_setup(setup_file);
+
+    // 3) Load Parameters
+    user_model->read_params(params_file);
+
+    // 4) Load Group & Contact Rates
+    user_model->build_all_rates();
+
+    // 5) Load Augmented Variables
     user_model->read_augm(augm_file);
 
     if (verbose)

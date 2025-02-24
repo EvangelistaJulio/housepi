@@ -170,6 +170,26 @@ namespace tools
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  String Converter Functions ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /* Convert to lower case. */
+    const std::string stolower(const std::string s)
+    {
+        std::string out = s;
+        std::transform(out.begin(), out.end(), out.begin(), ::tolower);
+        return out;
+    }
+
+    /* Convert to upper case. */
+    const std::string stoupper(const std::string s)
+    {
+        std::string out = s;
+        std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+        return out;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////  Converter Functions ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -242,12 +262,10 @@ namespace tools
     /* Convert std::string to boolean variable. */
     bool stobool(const std::string &tkn)
     {
-        if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
+        if (stoupper(tkn) == "TRUE" || tkn == "1")
             return true;
-
-        else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
+        else if (stoupper(tkn) == "FALSE" || tkn == "0")
             return false;
-
         else
             throw std::invalid_argument(
                 "Unrecognized boolean value \"" + tkn + "\".");
@@ -539,9 +557,9 @@ namespace tools
         else if (dist_closest == 0)
             return "";
         else if (closest.empty())
-            return " Available option(s): " + show_list(options) + ".";
+            return "\nAvailable option(s): " + show_list(options) + ".";
         else
-            return " Did you mean \"" + closest + "\"?";
+            return "\nDid you mean \"" + closest + "\"?";
     }
 
     /* Check for missing entries given a vector of options. */
@@ -647,9 +665,9 @@ namespace progress
     public:
         ulong total = 0;                  // total number of iterations
         string text = "";                 // current text to show
-        const string symbol = u8"\u25A0"; // decorator for progress bar
-        unsigned barwidth = 30;           // total size of progress bar
-        bool verbose = true;              // if to show bar or not
+        const string symbol = u8"\u25A0"; // bar decorator
+        unsigned barwidth = 30;           // bar total size
+        bool verbose = true;              // wheter to show bar
 
         steady_clock::time_point start;
         steady_clock::time_point lastprint;

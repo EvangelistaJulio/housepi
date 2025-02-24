@@ -17,14 +17,14 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Raise error for undefined model usage. */
+/* Raise error when "blank" model. */
 void Model::init_model_for_inference()
 {
 	tools::warning(
 		"Computing the likelihood with \"blank\" model.");
 }
 
-/* Raise error for undefined model usage. */
+/* Raise error when "blank" model. */
 void Model::init_model_for_simulation()
 {
 	tools::error(

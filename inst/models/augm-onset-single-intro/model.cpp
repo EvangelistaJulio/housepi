@@ -36,20 +36,16 @@ double Model::transmission_rate(Household &house) const
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	rateID r;
+	UNUSED(house);
+	UNUSED(i);
 
 	//----- infectivity -----//
 	r = "infectivity";
-	if (house.data(i, "vacc_status") == 0)
-		emplace_group_rate(r, REFERENCE);
-	else
-		emplace_group_rate(r, "inf_vacc");
+	emplace_group_rate(r, REFERENCE);
 
 	//----- susceptibility -----//
 	r = "susceptibility";
-	if (house.data(i, "vacc_status") == 0)
-		emplace_group_rate(r, REFERENCE);
-	else
-		emplace_group_rate(r, "sus_vacc");
+	emplace_group_rate(r, REFERENCE);
 }
 
 /* Assign the contact patterns between a couple of individuals. */
@@ -70,32 +66,32 @@ void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Model : initialization for simulation  ///////////////////////////
+///////////////////////////////////////  Model : initialization  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize parameters and augmented variables. */
-void Model::init_model_for_simulation()
+/* Initialize infectivity profile. */
+void Model::init_infec_profile()
 {
-	init_model_for_inference();
+	// default infectivity profile: Ferretti et al (2020)
+	// otherwise user defined
+	assign_default_infec_profile("ferretti20");
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Model : initialization for inference  ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize parameters and augmented variables. */
 void Model::init_model_for_inference()
 {
-	// default infectivity profile: Ferretti et al (2020)
-	// otherwise user defined
-	assign_infec_profile("ferretti20");
-
 	// integer for index of introduction case
 	allocate_extra_house_integer_vector("intro-case");
 
 	// matrices for the instantaneous and cumulative infectivity profiles
 	allocate_extra_house_double_matrix("inst");
 	allocate_extra_house_double_matrix("cumul");
+}
+
+/* Initialize parameters and augmented variables. */
+void Model::init_model_for_simulation()
+{
+	init_model_for_inference();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

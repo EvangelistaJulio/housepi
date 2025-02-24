@@ -52,12 +52,17 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 ///////////////////////////////  Model : initialization for simulation  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Initialize infectivity profile. */
+void Model::init_infec_profile()
+{
+	// default infectivity profile: negative binomial
+	// otherwise user defined
+	assign_default_infec_profile("nbinom");
+}
+
 /* Initialize parameters and augmented variables. */
 void Model::init_model_for_simulation()
 {
-	// default infectivity profile: binomial
-	assign_infec_profile("binom");
-
 	// matrices for the cumulative infectivity profiles
 	allocate_extra_house_double_matrix("inst");
 	allocate_extra_house_double_matrix("cumul");
@@ -65,10 +70,6 @@ void Model::init_model_for_simulation()
 	// integer for index of introduction case
 	allocate_extra_house_integer_vector("intro-case");
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Model : initialization for inference  ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize parameters and augmented variables. */
 void Model::init_model_for_inference()

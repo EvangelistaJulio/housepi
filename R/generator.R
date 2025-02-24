@@ -85,10 +85,10 @@ HousepiGeneratorClass <- R6::R6Class(
 
       # expose internally the module
       package <- tools::file_path_sans_ext(basename(private$.dll))
-      m <- Rcpp::Module("model_housepi_rcpp", PACKAGE = package)
+      m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
 
       # assign the model object
-      self$rcpp <- m$ModelHousepiRcpp$new()
+      self$rcpp <- m$ModelHousepi$new()
 
       invisible(self)
     },

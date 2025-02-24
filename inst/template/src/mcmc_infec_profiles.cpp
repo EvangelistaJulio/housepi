@@ -219,13 +219,13 @@ void MCMC::Impl::switchboard_infec_profile(const std::string &name)
 /* Adjust lists of parameters to be inferred */
 void MCMC::Impl::fix_param_to_be_inferred_list(const std::string &par_name)
 {
-	auto it = std::find(param_to_be_inferred.begin(), param_to_be_inferred.end(), par_name);
-	if (it != param_to_be_inferred.end())
-		param_to_be_inferred.erase(it);
+	auto it = std::find(param_infer_list.begin(), param_infer_list.end(), par_name);
+	if (it != param_infer_list.end())
+		param_infer_list.erase(it);
 
-	it = std::find(param_extra_to_be_inferred.begin(), param_extra_to_be_inferred.end(), par_name);
-	if (it == param_extra_to_be_inferred.end())
-		param_extra_to_be_inferred.push_back(par_name);
+	it = std::find(param_extra_infer_list.begin(), param_extra_infer_list.end(), par_name);
+	if (it == param_extra_infer_list.end())
+		param_extra_infer_list.push_back(par_name);
 }
 
 /* Assign arguments to infectivity profile. */
@@ -418,8 +418,11 @@ void MCMC::Impl::build_infec_profile()
 /////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Virtual method for user initialization of infectivity profile. */
+void MCMC::init_infec_profile() {};
+
 /* Assign default infectivity profile during user model initialization. */
-void MCMC::assign_infec_profile(const std::string &default_name)
+void MCMC::assign_default_infec_profile(const std::string &default_name)
 {
 	if (pImpl->_infec_profile_deflist_.empty())
 		pImpl->switchboard_infec_profile(default_name);

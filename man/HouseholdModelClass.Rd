@@ -32,8 +32,8 @@ Augmented variable formatted definitions.}
 \item{\code{traces}}{(\code{coda::mcmc} or \code{coda::mcmc.list})\cr
 Full traces of last inference.}
 
-\item{\code{traces_no_loglike}}{(\code{coda::mcmc} or \code{coda::mcmc.list})\cr
-Traces of last inference without loglikelihood.}
+\item{\code{traces_as_coda}}{(\code{coda::mcmc} or \code{coda::mcmc.list})\cr
+Full traces of last inference as a \code{coda} object.}
 
 \item{\code{traces_results}}{(\code{data.frame})\cr
 Results extracted from the traces of last inference.}

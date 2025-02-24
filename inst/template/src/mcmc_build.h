@@ -125,9 +125,9 @@ public:
                                         "prior", "arg_name", "arg_value",
                                         "rule", "rule_scale",
                                         "min", "max"};
-    std::vector<parID> param_to_be_inferred = {};
-    std::vector<parID> param_to_be_constant = {};
-    std::vector<parID> param_extra_to_be_inferred = {};
+    std::vector<parID> param_infer_list = {};
+    std::vector<parID> param_const_list = {};
+    std::vector<parID> param_extra_infer_list = {};
 
     parIDmap<Variable> param_map = {}; // parameters dictionary
     bool _is_undef_params_ = false;    // undefined parameters valid only if infer
@@ -158,7 +158,6 @@ public:
     size_t n_households = 0;
     std::vector<Household> house_vector = {};
     str_vec data_headers = {};
-    ulong _n_contacts_ = 0;
     std::map<std::string, size_t> _report_data_ = {};
     std::map<std::string, std::string> _report_pathtofile_ = {};
 
@@ -180,7 +179,7 @@ public:
                                        "max", "max_type"};
     std::unordered_set<augmID> augm_list_full = {};
     std::unordered_set<augmID> augm_list_model = {};
-    std::unordered_set<augmID> augm_list_to_be_inferred = {};
+    std::unordered_set<augmID> augm_infer_list = {};
     std::map<int, std::unordered_set<augmID>> augm_status_map_model = {};
     std::map<int, std::unordered_set<augmID>> augm_status_map_infer = {};
 
@@ -193,7 +192,6 @@ public:
     bool is_augm_sample() const;
     bool is_augm_model() const;
     bool is_augm_generic() const;
-
 
     //===============================//
     //===== INFECTIVITY PROFILE =====//
@@ -229,6 +227,7 @@ public:
     void import_infec_profile(const Rcpp::List &input);
     void import_params(const Rcpp::DataFrame &input);
     void import_augm(const Rcpp::DataFrame &input);
+    void import_data(const Rcpp::DataFrame &input);
 
     //========================//
     //===== Rcpp EXPORTS =====//
@@ -252,6 +251,7 @@ public:
     void read_infec_profile(const std::string &pathtofile);
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
+    void read_data(const std::string &pathtofile);
     
     //================//
     //===== SHOW =====//
@@ -275,6 +275,7 @@ public:
     void build_setup();
     void build_params();
     void build_augm();
+    void build_data(const dict_str_vec &datatable);
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::string> _setup_deflist_ = {};
@@ -312,7 +313,8 @@ public:
     bool is_power_post() const;
     const std::string fmt_progtxt();
 
-    void check_definitions_before_mcmc();
+    void assert_proper_dataset();
+    void assert_proper_mcmc_setup();
 
     //----- Containers for sample values (aka diagnostics) -----//
     ulong dgn_count = 0;
