@@ -9,20 +9,22 @@
 #' Help with augmented variable definitions of model Rcpp object.
 #'
 #' @noRd
-HousepiAugmentedClass <- R6::R6Class(
-  classname = "HousepiAugmentedClass",
+HousepiAugmented <- R6::R6Class(
+  classname = "HousepiAugmented",
   cloneable = TRUE,
 
-  ###################
-  ##### PUBLIC ######
-  ###################
+  ############################################################################
+  ############################################################################
+  ################################## PUBLIC ##################################
+  ############################################################################
+  ############################################################################
 
   public = list(
     defs = NULL,
 
     #' @description
     #' New instance of class 
-    #' [HousepiAugmentedClass][housepi::HousepiAugmentedClass].
+    #' [HousepiAugmented][housepi::HousepiAugmented].
     initialize = function() {
       self$defs <- NULL
       invisible(self)

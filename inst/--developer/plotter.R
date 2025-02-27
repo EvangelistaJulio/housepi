@@ -5,7 +5,7 @@ library(ggplot2)
 house_df <- housepi::survey %>% 
   group_by(house_id) %>% 
   add_count() %>% 
-  summarise(size = unique(n), cases = sum(status))
+  summarise(size = unique(n), cases = sum(status, na.rm = TRUE))
 #  summarise(size = unique(n), cases = sum(status), surface = unique(HH_surface))
 
 # binomial mean error function
@@ -18,6 +18,7 @@ sar_df <- house_df %>%
   filter(size > 1, cases > 0) %>%
   group_by(size) %>% 
   add_count() %>% 
+  filter(n > 2) %>%
   summarise(sar = (mean(cases - 1)) / (unique(size) - 1), 
             sar_sd = (err_fun(cases - 1)) / (unique(size) - 1),
             counts = unique(n))

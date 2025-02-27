@@ -27,7 +27,7 @@ For a more realistic example, we use the template model "ex-augm-onset-single-in
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
-hmc <- housepi::HouseholdModelClass$new("augm-onset-single-intro")
+hmc <- housepi::HouseholdModel$new("augm-onset-single-intro")
 ```
 
 This time we load the parameter definitions directly from the model template.
@@ -54,15 +54,15 @@ hmc$load_augm_list(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
-    model = "lnorm", args = list(meanlog = 4, sdlog = 0.5),
+    model = "lnorm", args = c(meanlog = 4, sdlog = 0.5),
     max = 365
   ),
   # add augmented variable definition 'incub_period'
   incub_period = list(
     init_rand = TRUE,
     # assign arguments of incubation period from parameter definitions
-    model = "gamma", args = list(shape = "inc_shape@P",
-                                 scale = "inc_scale@P"),
+    model = "gamma", args = c(shape = "inc_shape",
+                              scale = "inc_scale"),
     max = 14
   )
 )
@@ -116,10 +116,10 @@ hmc$load_augm_list(
   ),
   # add 'incub_period' definition
   incub_period = list(
-    init_rand = TRUE,
-    model = "gamma", args = list(shape = "inc_shape@P",
-                                 scale = "inc_scale@P"),
-    rule = "gibbs", max = 14
+    model = "gamma", args = c(shape = "inc_shape",
+                              scale = "inc_scale"),
+    rule = "gibbs", max = 14,
+    init_rand = TRUE
   ),
   append = FALSE # we drop previous definitions
 )

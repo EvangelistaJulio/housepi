@@ -105,8 +105,9 @@ void MCMC::Impl::build_setup()
         //===== DEFAULT SETUP VALUES =====//
         auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
 
-        setup_seed = static_cast<unsigned long long>(time_now); // seed of random number generator
-        setup_rand_init_params = true;                          // random initialization of parameters
+        setup_seed = static_cast<ulong>(time_now); // seed of random number generator
+        setup_rand_init_params = true;             // random initialization of parameters
+        setup_is_progbar = true;                   // if to show progressbar
 
         setup_n_chains = 1;    // n. chains
         setup_n_steps = 10000; // n. iterations
@@ -131,21 +132,25 @@ void MCMC::Impl::build_setup()
             str_vec headers = tools::headers_from_deflist(_setup_deflist_);
             tools::check_for_unused_entries(headers, setup_file_headers);
 
+            // Random Initialization of Parameters
+            if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
+                setup_is_progbar = tools::stobool(deflist.at("progress"));
+
             // N. of Threads
             if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
                 setup_n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
 
             // PRNG Seed
             if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
-                setup_seed = tools::stoull(deflist.at("seed"), "random seed");
+                setup_seed = tools::stoul(deflist.at("seed"), "random seed");
 
             // N. of Chains
             if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
                 setup_n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
 
             // Single Chain Sample Size
-            if (deflist.count("size") && (!tools::is_na(deflist.at("size"))))
-                setup_c_sample_size = tools::stoul(deflist.at("size"), "sample size");
+            if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
+                setup_c_sample_size = tools::stoul(deflist.at("sample_size"), "sample size");
 
             // N. of Steps
             if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
@@ -219,7 +224,8 @@ void MCMC::Impl::build_params()
             // drop current list of parameters
             param_map.clear();
             param_const_list.clear();
-            param_infer_list.clear();
+            param_standard_infer_list.clear();
+            param_extra_infer_list.clear();
 
             //===== Load parameters from the row with options =====//
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
@@ -311,7 +317,7 @@ void MCMC::Impl::build_params()
                     new_param.assign_proposer(rule_name, rule_scale);
 
                     // update the lists of parameters to be inferred
-                    param_infer_list.push_back(p);
+                    param_standard_infer_list.push_back(p);
                 }
             }
         }
@@ -326,9 +332,9 @@ void MCMC::Impl::build_params()
 /* Randomly initialize values of the parameters to be inferred */
 void MCMC::Impl::init_parameters()
 {
-    for (const parID &p : param_infer_list)
+    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
     {
-        // restore user initialization (meaningful for multiple chains)
+        // restore user initialization (for multiple chains)
         param_map.at(p).user_reset();
 
         if (setup_rand_init_params)
@@ -877,7 +883,7 @@ void MCMC::Impl::clear_all_augm(Household &house, indiv i)
 /* Set accept rates to zero. */
 void MCMC::Impl::init_move_counts()
 {
-    for (const parID &p : param_infer_list)
+    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
         param_map.at(p).reset_accept_rate();
 }
 
@@ -900,7 +906,7 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::restore_simple_param_value(const parID &p)
+void MCMC::Impl::restore_standard_param_value(const parID &p)
 {
     // restore buffer value of parameter
     param_map.at(p).restore_value();
@@ -972,7 +978,7 @@ void MCMC::Impl::init_diagnostics()
     if (!is_power_post())
     {
         // diagnostics over parameters
-        for (const parID &p : param_infer_list + param_extra_infer_list)
+        for (const parID &p : param_standard_infer_list + param_extra_infer_list)
             dgn_param_value[p] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
 
         // diagnostics over households
@@ -995,7 +1001,7 @@ void MCMC::Impl::update_diagnostics()
     if (!is_power_post())
     {
         // diagnostics for all parameters
-        for (const parID &p : param_infer_list + param_extra_infer_list)
+        for (const parID &p : param_standard_infer_list + param_extra_infer_list)
             dgn_param_value.at(p)[dgn_count] = get_param(p);
 
         // diagnostics for all households
@@ -1097,7 +1103,7 @@ void MCMC::Impl::assert_proper_mcmc_setup()
         throw std::length_error("Dataset is empty or was not provided.");
 
     // check if there is actually something to sample
-    if ((param_infer_list.empty()) && (!is_augm_sample()))
+    if (((param_standard_infer_list + param_extra_infer_list).empty()) && (!is_augm_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 }
@@ -1187,7 +1193,6 @@ void MCMC::Impl::build_data(const dict_str_vec &datatable)
                     }
                     else
                         data.emplace(key, tools::stod(datatable.at(key)[i], "data \"" + key + "\""));
-
 
                 // if household index doesn't exist, add new household
                 if (hh_ID_to_index.find(house_id) == hh_ID_to_index.end())

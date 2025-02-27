@@ -1,6 +1,6 @@
 Package: housepi
 Type: Package
-Title: Household Epidemiological Modeling and Inference Rcpp Toolkit
+Title: Household Epidemiological Modeling and Analysis
 Version: 0.5.0
 Author:
     person("Francesco", "Camaglia", role = c("aut", "cre"), email = "francesco.camaglia@pasteur.fr")
@@ -11,11 +11,10 @@ Encoding: UTF-8
 Imports:
     utils,
     stats,
-    R6, 
+    R6,
     devtools,
     pkgbuild, 
     cli, 
-    coda, 
     loo, 
     stringr, 
     methods, 
@@ -28,6 +27,8 @@ Suggests:
     rmarkdown,
     withr,
     flextable,
+    bayesplot,
+    coda,
     lattice,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr

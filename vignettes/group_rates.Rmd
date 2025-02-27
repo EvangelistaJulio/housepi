@@ -19,7 +19,7 @@ options(knitr.kable.NA = "")
 ```
 
 ```{r}
-hmc <- housepi::HouseholdModelClass$new("chain-binomial-heterogeneous")
+hmc <- housepi::HouseholdModel$new("chain-binomial-heterogeneous")
 ```
 
 ```{r, fig.width=6, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}

@@ -253,12 +253,6 @@ namespace tools
         return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
 
-    /* Converter to unsigned long long using std::stoull with function pointer casting */
-    unsigned long long stoull(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter_(static_cast<unsigned long long (*)(const std::string &, std::size_t *, int)>(std::stoull), input, errtxt, nullptr, 10);
-    }
-
     /* Convert std::string to boolean variable. */
     bool stobool(const std::string &tkn)
     {

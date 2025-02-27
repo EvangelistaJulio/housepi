@@ -219,10 +219,12 @@ void MCMC::Impl::switchboard_infec_profile(const std::string &name)
 /* Adjust lists of parameters to be inferred */
 void MCMC::Impl::fix_param_to_be_inferred_list(const std::string &par_name)
 {
-	auto it = std::find(param_infer_list.begin(), param_infer_list.end(), par_name);
-	if (it != param_infer_list.end())
-		param_infer_list.erase(it);
+	// remove a parameter from standard if it was defined as such
+	auto it = std::find(param_standard_infer_list.begin(), param_standard_infer_list.end(), par_name);
+	if (it != param_standard_infer_list.end())
+		param_standard_infer_list.erase(it);
 
+	// add the parameter as extra
 	it = std::find(param_extra_infer_list.begin(), param_extra_infer_list.end(), par_name);
 	if (it == param_extra_infer_list.end())
 		param_extra_infer_list.push_back(par_name);

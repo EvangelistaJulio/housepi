@@ -9,8 +9,8 @@
 #' Help with parameter definitions of model Rcpp object.
 #'
 #' @noRd
-HousepiParameterClass <- R6::R6Class(
-  classname = "HousepiParameterClass",
+HousepiParameter <- R6::R6Class(
+  classname = "HousepiParameter",
   cloneable = TRUE,
 
   ###################
@@ -22,7 +22,7 @@ HousepiParameterClass <- R6::R6Class(
 
     #' @description
     #' New instance of class
-    #' [HousepiParameterClass][housepi::HousepiParameterClass].
+    #' [HousepiParameter][housepi::HousepiParameter].
     initialize = function() {
       self$defs <- NULL
       invisible(self)

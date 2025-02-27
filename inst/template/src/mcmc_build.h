@@ -89,13 +89,14 @@ public:
     //=================//
 
     //----- Setup - Attributes -----//
-    const str_vec setup_file_headers = {"n_threads", "seed", "n_chains",
+    const str_vec setup_file_headers = {"sample_size", "seed", "n_chains",
                                         "n_steps", "n_adapt", "thin",
-                                        "n_burnin", "rand_init", "size",
-                                        "inv_temper", "id_trace"};
+                                        "n_burnin", "rand_init", "n_threads",
+                                        "inv_temper", "id_trace", "progress"};
 
-    unsigned long long setup_seed; // random generator seed
-    bool setup_rand_init_params;   // random initialization of parameters
+    ulong setup_seed;             // random generator seed
+    bool setup_rand_init_params;  // random initialization of parameters
+    bool setup_is_progbar = true; // if to show progressbar
 
     ulong setup_n_chains; // n. chains
     ulong setup_n_steps;  // n. iterations
@@ -125,8 +126,8 @@ public:
                                         "prior", "arg_name", "arg_value",
                                         "rule", "rule_scale",
                                         "min", "max"};
-    std::vector<parID> param_infer_list = {};
     std::vector<parID> param_const_list = {};
+    std::vector<parID> param_standard_infer_list = {};
     std::vector<parID> param_extra_infer_list = {};
 
     parIDmap<Variable> param_map = {}; // parameters dictionary
@@ -146,7 +147,7 @@ public:
     void update_param_accept_rate(const parID &p, bool is_accepted);
     void adapt_param_rule(const parID &p, double ratio);
 
-    void restore_simple_param_value(const parID &p);
+    void restore_standard_param_value(const parID &p);
     void restore_extra_param_value(const parID &p);
 
     //==========================//
@@ -236,7 +237,7 @@ public:
     Rcpp::List export_setup() const;
     Rcpp::DataFrame export_params() const;
     Rcpp::DataFrame export_data() const;
-    Rcpp::DataFrame export_traces() const;
+    Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_traces() const;
     Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
                                          const Rcpp::List &xlim,
@@ -252,7 +253,7 @@ public:
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
     void read_data(const std::string &pathtofile);
-    
+
     //================//
     //===== SHOW =====//
     //================//

@@ -5,14 +5,14 @@
 #
 
 #' @title
-#' Household Model Class
+#' Household Model R6 Class
 #' @description
 #' Compile household model, manage your data and parameters from a single class.
 #'
-#' @export HouseholdModelClass
+#' @export HouseholdModel
 #' @docType class
-HouseholdModelClass <- R6::R6Class(
-  classname = "HouseholdModelClass",
+HouseholdModel <- R6::R6Class(
+  classname = "HouseholdModel",
   cloneable = TRUE,
 
   ############################################################################
@@ -27,6 +27,7 @@ HouseholdModelClass <- R6::R6Class(
     .augm = NULL,
     .group_rate = NULL,
     .infec_profile = NULL,
+    .expec_cases = NULL,
 
     # @description
     # Assert if parameter definitions match the implementation script.
@@ -140,8 +141,8 @@ HouseholdModelClass <- R6::R6Class(
           model_choice <- private$.model$path
           if (file.exists(file.path(model_choice, "model.cpp"))) {
             # re-assign model object forcing copy of source to cache
-            private$.model <- HousepiGeneratorClass$new(model_choice,
-                                                        force = TRUE)
+            private$.model <- HousepiGenerator$new(model_choice,
+                                                   force = TRUE)
             # assign new cache file
             source_file <- file.path(private$.model$cache_dir,
                                      "src", "model.cpp")
@@ -176,7 +177,7 @@ HouseholdModelClass <- R6::R6Class(
     #
     # @param dataset (`data.frame`)\cr
     # A data.frame containing the dataset.
-    # @param size (`integer(1)`)\cr
+    # @param sample_size (`integer(1)`)\cr
     # Sample size of a single chain according to posterior distribution.
     # @param n_steps (`integer(1)`)\cr
     # Number of MCMC steps.
@@ -201,7 +202,7 @@ HouseholdModelClass <- R6::R6Class(
     # Seed of the random number generator.
     # If `NA` uses the internal clock (default).
     .build = function(dataset = NULL,
-                      size = NA,
+                      sample_size = NA,
                       n_steps = 0,
                       n_burnin = 0,
                       thin = 1,
@@ -266,7 +267,7 @@ HouseholdModelClass <- R6::R6Class(
       store_scipen <- options()$scipen
       options(scipen = 100)
 
-      setup_list <- list(size = size, n_steps = n_steps,
+      setup_list <- list(sample_size = sample_size, n_steps = n_steps,
                          n_burnin = n_burnin, thin = thin,
                          n_adapt = n_adapt, n_chains = n_chains,
                          n_threads = n_threads, rand_init = rand_init,
@@ -303,6 +304,9 @@ HouseholdModelClass <- R6::R6Class(
         )
       }
 
+      # initialize output sub-classes
+      .expec_cases <- NULL
+
       invisible(self)
     },
 
@@ -312,19 +316,28 @@ HouseholdModelClass <- R6::R6Class(
     # @return
     # (`data.frame`)
     .traces = function() {
+      if (is.null(private$.model$rcpp)) {
+        stop_h("Impossible to export traces before inference.")
 
-      # load traces from last inference
-      df <- NULL
-      is_wrong_usage <- is.null(private$.model$rcpp)
-      if (!is_wrong_usage) {
+      } else {
+        # load traces from last inference
         df <- private$.model$rcpp$export_traces()
-        is_wrong_usage <- (dim(df)[1] == 0)
-      }
-      if (is_wrong_usage) {
-        stop_h("Impossible to export MCMC traces before model inference.")
-      }
 
-      return(df)
+        if (dim(df)[1] == 0) {
+          # note: this is never be possible actually...
+          stop_h("Traces are empty.")
+          
+        } else if ("CHAIN__" %in% colnames(df)) {
+          df_list <- lapply(
+            split(seq_len(nrow(df)), df[, "CHAIN__"]), 
+            function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
+          )
+          return(df_list)
+
+        } else {
+          return(df)
+        }
+      }
     }
   ),
 
@@ -335,7 +348,6 @@ HouseholdModelClass <- R6::R6Class(
   ############################################################################
 
   active = list(
-
     #' @field dataset (`data.frame`)\cr
     #' Dataset with individual level information of current dataset.
     #' If the case, it also return the associated augmented variables.
@@ -345,7 +357,6 @@ HouseholdModelClass <- R6::R6Class(
           stop_h("Impossible to export data before model build.")
         }
         return(private$.model$rcpp$export_data())
-
       } else {
         stop_h("'dataset' is read only.")
       }
@@ -371,8 +382,8 @@ HouseholdModelClass <- R6::R6Class(
       }
     },
 
-    #' @field traces (`coda::mcmc` or `coda::mcmc.list`)\cr
-    #' Full traces of last inference.
+    #' @field traces (`matrix()` | `list()` of `matrix()`)\cr
+    #' Traces of last inference.
     traces = function(value) {
       if (missing(value)) {
         return(private$.traces())
@@ -381,12 +392,11 @@ HouseholdModelClass <- R6::R6Class(
       }
     },
 
-    #' @field traces_as_coda (`coda::mcmc` or `coda::mcmc.list`)\cr
-    #' Full traces of last inference as a `coda` object.
+    #' @field traces_as_coda (`coda::mcmc` | `coda::mcmc.list`)\cr
+    #' Traces of last inference as a `coda` object.
     traces_as_coda = function(value) {
       if (missing(value)) {
-        df <- private$.traces()
-
+        return(coerce_traces_to_coda(private$.traces()))
       } else {
         stop_h("'traces' is read only.")
       }
@@ -400,7 +410,20 @@ HouseholdModelClass <- R6::R6Class(
       } else {
         stop_h("'traces_results' is read only.")
       }
-    }
+    },
+
+    #' @field seed (`list()`)\cr
+    #' Last setup used by the build process.
+    setup = function(value) {
+      if (missing(value)) {
+        if (is.null(private$.model$rcpp)) {
+          stop_h("Impossible to export seed before model build.")
+        }
+        return(private$.model$rcpp$export_setup())
+      } else {
+        stop_h("'setup' is read only.")
+      }
+    },
   ),
 
   ############################################################################
@@ -412,7 +435,7 @@ HouseholdModelClass <- R6::R6Class(
   public = list(
     #' @description
     #' New instance of class
-    #' \[HouseholdModelClass][housepi::HouseholdModelClass].
+    #' \[HouseholdModel][housepi::HouseholdMode].
     #'
     #' @param model (`character(1)`)\cr
     #' One between:
@@ -437,10 +460,10 @@ HouseholdModelClass <- R6::R6Class(
       }
 
       # assign model definitions
-      private$.model <- HousepiGeneratorClass$new(model = model,
-                                                  quiet = quiet,
-                                                  force = force,
-                                                  as_template = as_template)
+      private$.model <- HousepiGenerator$new(model = model,
+                                             quiet = quiet,
+                                             force = force,
+                                             as_template = as_template)
       # initialize internal fields
       self$drop_all()
 
@@ -512,13 +535,13 @@ HouseholdModelClass <- R6::R6Class(
     #' Drop all current definitions.
     drop_all = function() {
       # initialize parameter helper
-      private$.param <- HousepiParameterClass$new()
+      private$.param <- HousepiParameter$new()
       # initialize augmented helper
-      private$.augm <- HousepiAugmentedClass$new()
+      private$.augm <- HousepiAugmented$new()
       # initialize group rate helper
-      private$.group_rate <- HousepiGroupRateClass$new()
+      private$.group_rate <- HousepiGroupRate$new()
       # initialize infectivity profile helper
-      private$.infec_profile <- HousepiInfecProfileClass$new()
+      private$.infec_profile <- HousepiInfecProfile$new()
       invisible(self)
     },
 
@@ -850,7 +873,7 @@ HouseholdModelClass <- R6::R6Class(
     #'
     #' @param dataset (`data.frame`)\cr
     #' A data.frame containing the dataset.
-    #' @param size (`integer(1)`)\cr
+    #' @param sample_size (`integer(1)`)\cr
     #' Sample size of a single chain according to posterior distribution.
     #' @param n_steps (`integer(1)`)\cr
     #' Number of MCMC steps.
@@ -877,7 +900,7 @@ HouseholdModelClass <- R6::R6Class(
     #' @param progress (`logical(1)`)\cr
     #' If `FALSE` suppress the inference progress bar.
     infer = function(dataset = NULL,
-                     size = NA,
+                     sample_size = NA,
                      n_steps = 10000,
                      n_burnin = 0,
                      thin = 1,
@@ -890,7 +913,7 @@ HouseholdModelClass <- R6::R6Class(
                      seed = NA,
                      progress = TRUE) {
       # internal build function
-      private$.build(dataset, size = size,
+      private$.build(dataset, sample_size = sample_size,
                      n_steps = n_steps, n_burnin = n_burnin, thin = thin,
                      n_adapt = n_adapt, n_chains = n_chains,
                      n_threads = n_threads, rand_init = rand_init,
@@ -901,6 +924,8 @@ HouseholdModelClass <- R6::R6Class(
       private$.model$rcpp$infer(progress)
       invisible(self)
     },
+
+
 
     #' @description
     #' Run the simulation.
@@ -960,7 +985,7 @@ HouseholdModelClass <- R6::R6Class(
     #' Other available scheme is "power-fractions".
     #' @param n_rungs (`integer`)\cr
     #' Number of rungs in the thermodynamic ladder.
-    #' @param size (`integer(1)`)\cr
+    #' @param sample_size (`integer(1)`)\cr
     #' Sample size of a single chain according to posterior distribution.
     #' @param n_steps (`integer(1)`)\cr
     #' Number of MCMC steps.
@@ -989,7 +1014,7 @@ HouseholdModelClass <- R6::R6Class(
     estimate_evidence = function(dataset = NULL,
                                  scheme = "adaptive",
                                  n_rungs = 40,
-                                 size = NA,
+                                 sample_size = NA,
                                  n_steps = 1000,
                                  n_burnin = 0,
                                  thin = 1,
@@ -999,7 +1024,7 @@ HouseholdModelClass <- R6::R6Class(
                                  seed = NA,
                                  progress = TRUE) {
       # internal build function
-      private$.build(dataset, size = size,
+      private$.build(dataset, sample_size = sample_size,
                      n_steps = n_steps, n_burnin = n_burnin,
                      thin = thin, n_adapt = n_adapt, n_chains = n_chains,
                      n_threads = n_threads, rand_init = TRUE, seed = seed)

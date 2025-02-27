@@ -168,8 +168,8 @@ cpp_ifclause_line <- function(r, is_ref = FALSE) {
 #' Help with group rate definitions of model Rcpp object.
 #'
 #' @noRd
-HousepiGroupRateClass <- R6::R6Class(
-  classname = "HousepiGroupRateClass",
+HousepiGroupRate <- R6::R6Class(
+  classname = "HousepiGroupRate",
   cloneable = FALSE,
 
   ###################
@@ -183,7 +183,7 @@ HousepiGroupRateClass <- R6::R6Class(
 
     #' @description
     #' New instance of class
-    #' [HousepiGroupRateClass][housepi::HousepiGroupRateClass].
+    #' [HousepiGroupRate][housepi::HousepiGroupRate].
     initialize = function() {
       self$defs <- NULL
       invisible(self)

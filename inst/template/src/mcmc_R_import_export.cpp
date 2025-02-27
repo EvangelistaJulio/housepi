@@ -149,7 +149,7 @@ Rcpp::List MCMC::Impl::export_setup() const
     using namespace Rcpp;
 
     return List::create(_["n_chains"] = setup_n_chains,
-                        _["size"] = setup_c_sample_size,
+                        _["sample_size"] = setup_c_sample_size,
                         _["n_steps"] = setup_n_steps,
                         _["n_adapt"] = setup_n_adapt,
                         _["n_burnin"] = setup_n_burnin,
@@ -157,7 +157,10 @@ Rcpp::List MCMC::Impl::export_setup() const
                         _["rand_init"] = setup_rand_init_params,
                         _["seed"] = setup_seed,
                         _["n_threads"] = setup_n_threads,
+                        _["id_trace"] = setup_id_trace,
+                        _["progress"] = setup_is_progbar,
                         _["inv_temper"] = setup_inv_T);
+
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -165,7 +168,7 @@ Rcpp::DataFrame MCMC::Impl::export_params() const
 {
     using namespace Rcpp;
 
-    std::vector<parID> V_names = param_infer_list + param_extra_infer_list + param_const_list;
+    std::vector<parID> V_names = param_standard_infer_list + param_extra_infer_list + param_const_list;
 
     size_t n_rows = V_names.size();
 
@@ -267,30 +270,35 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         tools::error(
             "Impossible to export traces when computing power posteriors.");
 
-    // collect the column names
+    //----- Collect the column names -----//
     str_vec headers = {"loglikelihood"};
-    headers += param_infer_list + param_extra_infer_list;
-    if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-        headers += augm_infer_list; // FIXME : , a + "_id_" + setup_id_trace)
+    headers += param_standard_infer_list + param_extra_infer_list;
+
+    // augmented variable of id trace
+    if (!dgn_augm_value.empty())
+        for (const augmID &a : augm_infer_list)
+            headers += {a + "_id_" + setup_id_trace};
+
+    // multiple chains
     if (setup_n_chains > 1)
         headers += {"CHAIN__"};
 
-    // Create a NumericMatrix with n_house columns
-    ulong sample_size = setup_n_chains * setup_c_sample_size;
-    NumericMatrix output(sample_size, n_households);
-    size_t c = 0;
+    //----- NumericMatrix with traces -----//
+    NumericMatrix output(setup_n_chains * setup_c_sample_size,
+                         headers.size());
+    size_t col = 0;
 
     // loglikelihood
-    output(_, c++) = wrap(dgn_glob_loglike);
+    output(_, col++) = NumericVector(wrap(dgn_glob_loglike));
 
     // parameters
-    for (const parID &p : param_infer_list + param_extra_infer_list)
-        output(_, c++) = wrap(dgn_param_value.at(p));
+    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+        output(_, col++) = NumericVector(wrap(dgn_param_value.at(p)));
 
     // augmented variables
-    if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
+    if (!dgn_augm_value.empty())
         for (const augmID &a : augm_infer_list)
-            output(_, c++) = wrap(dgn_augm_value.at(a));
+            output(_, col++) = NumericVector(wrap(dgn_augm_value.at(a)));
 
     // retrieve chain identities
     if (setup_n_chains > 1)
@@ -299,15 +307,18 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         for (size_t c = 0; c < setup_n_chains; ++c)
             std::fill(df_chain.begin() + c * setup_c_sample_size,
                       df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
-        output(_, c++) = df_chain;
+        output(_, col++) = df_chain;
     }
 
-    // associate row names
+    //----- associate row names -----//
+    colnames(output) = CharacterVector(wrap(headers));
+
+    //----- associate row names -----//
     IntegerVector sweep(setup_c_sample_size * setup_n_chains);
     for (size_t c = 0; c < setup_n_chains; ++c)
         for (size_t k = 0; k < setup_c_sample_size; k++)
             sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
-    rownames(output) = sweep;
+    rownames(output) = CharacterVector(wrap(sweep));
 
     return output;
 }
@@ -319,7 +330,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 
     if (is_power_post())
         tools::error(
-            "Impossible to export traces when computing power posteriors.");
+            "Impossible to export household traces when computing power posteriors.");
 
     // Create a NumericMatrix with n_house columns
     ulong sample_size = setup_n_chains * setup_c_sample_size;
@@ -327,7 +338,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 
     // Assign each NumericVector to a column of the matrix
     for (size_t H = 0; H < n_households; ++H)
-        output(_, H) = wrap(house_vector[H].get_dgn_loglike());
+        output(_, H) = NumericVector(wrap(house_vector[H].get_dgn_loglike()));
 
     return output;
 }
@@ -394,7 +405,7 @@ Rcpp::DataFrame MCMC::Impl::export_infec_profile(const Rcpp::List &opts,
 Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
 Rcpp::DataFrame MCMC::export_params() const { return pImpl->export_params(); }
 Rcpp::DataFrame MCMC::export_data() const { return pImpl->export_data(); }
-Rcpp::DataFrame MCMC::export_traces() const { return pImpl->export_traces(); }
+Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
 Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
                                            const Rcpp::List &xlim,
@@ -577,12 +588,13 @@ void MCMC::Impl::show_setup() const
     oss << "seed" << C_DELIM << setup_seed
         << "\nn_threads" << C_DELIM << setup_n_threads
         << "\nn_chains" << C_DELIM << setup_n_chains
-        << "\nsize" << C_DELIM << setup_c_sample_size
+        << "\nsample_size" << C_DELIM << setup_c_sample_size
         << "\nn_steps" << C_DELIM << setup_n_steps
         << "\nn_adapt" << C_DELIM << setup_n_adapt
         << "\nn_burnin" << C_DELIM << setup_n_burnin
         << "\nthin" << C_DELIM << setup_thin
         << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
+        << "\progress" << C_DELIM << tools::truth(setup_is_progbar)
         << "\nid_trace" << C_DELIM << setup_id_trace
         << "\ninv_temper" << C_DELIM << setup_inv_T
         << "\n";
@@ -603,7 +615,7 @@ void MCMC::Impl::show_all_params() const
     for (size_t k = 1; k < param_file_headers.size(); ++k)
         oss << C_DELIM << param_file_headers[k];
 
-    std::vector<parID> all_params = param_infer_list + param_extra_infer_list + param_const_list;
+    std::vector<parID> all_params = param_standard_infer_list + param_extra_infer_list + param_const_list;
 
     for (const parID &p : all_params)
     {
@@ -683,7 +695,7 @@ void MCMC::Impl::show_results() const
 
     oss << "\n";
 
-    for (const parID &p : param_infer_list)
+    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
     {
         const Variable &this_param = param_map.at(p);
         double avg = 0, var = 0;
@@ -734,7 +746,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                                 << C_DELIM << "loglikelihood";
 
             // header parameters
-            for (const parID &p : param_infer_list)
+            for (const parID &p : param_standard_infer_list + param_extra_infer_list)
                 inferstate_ofstream << C_DELIM << p;
 
             // augmented variables
@@ -764,7 +776,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                                         << std::fixed << dgn_glob_loglike[i];
 
                     // print parameter values
-                    for (const parID &p : param_infer_list)
+                    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
                                             << std::fixed << dgn_param_value.at(p)[i];
 

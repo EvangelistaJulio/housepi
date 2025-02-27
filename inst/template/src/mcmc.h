@@ -110,10 +110,10 @@ public:
 	//=================//
 
 	virtual void init_model_for_inference();
-	void infer(bool is_progbar = true);
+	void infer();
 
 	//----- Marginal Loglikelihood (Power Posteriors) -----//
-	double evaluate_marginal(int n_rungs, std::string scheme = "adaptive", bool is_progbar = true);
+	double evaluate_marginal(int n_rungs, std::string scheme = "adaptive");
 
 	//====================//
 	//===== SIMULATE =====//
@@ -121,7 +121,7 @@ public:
 
 	virtual void init_model_for_simulation();
 	virtual void simulate_single_house(Household &house);
-	void simulate(bool is_progbar = true);
+	void simulate();
 
 #ifdef _HOUSEPI_RCPP
 	//========================//
@@ -141,7 +141,7 @@ public:
 	Rcpp::List export_setup() const;
 	Rcpp::DataFrame export_params() const;
 	Rcpp::DataFrame export_data() const;
-	Rcpp::DataFrame export_traces() const;
+	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_household_loglike_traces() const;
 	Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
 										 const Rcpp::List &xlim,

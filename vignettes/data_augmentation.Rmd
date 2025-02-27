@@ -44,20 +44,14 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate an instance of the household model class
-hmc <- housepi::HouseholdModelClass$new("augm-incubation-from-delays")
+hmc <- housepi::HouseholdModel$new("augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
 hmc$load_param_list(
-  shape = list(value = 2,
-               prior = "unif", 
-               args = list(min = 0, max = 5),
-               rule = "norm", 
-               rule_scale = 1),
-  scale = list(value = 1.1,
-               prior = "unif", 
-               args = list(min = 0, max = 5),
-               rule = "norm", 
-               rule_scale = 1)
+  shape = list(prior = "unif", args = c(min = 0, max = 5),
+               rule = "norm", rule_scale = 1),
+  scale = list(prior = "unif", args = c(min = 0, max = 5),
+               rule = "norm", rule_scale = 1)
 )
 ```
 
@@ -74,8 +68,8 @@ hmc$add_augm(
   name = "exposure",
   value = "exposure_min@D", # start from data value 'exposure_min'
   model = "unif",
-  args = list(min = "exposure_min@D",  # move within the range 'exposure_min'
-              max = "exposure_max@D"), # and 'exposure_max'
+  args = c(min = "exposure_min@D",  # move within the range 'exposure_min'
+           max = "exposure_max@D"), # and 'exposure_max'
   rule = "norm",    # normal distribution for the mcmc proposer 
   rule_scale = 0.25 # with scale 0.25 (i. e. standard deviation)
 )
@@ -85,8 +79,8 @@ hmc$add_augm(
   name = "onset",
   value = "onset_max@D",
   model = "unif",
-  args = list(min = "onset_min@D",
-              max = "onset_max@D"),
+  args = c(min = "onset_min@D",
+           max = "onset_max@D"),
   rule = "norm", 
   rule_scale = 0.25
 )
@@ -110,23 +104,23 @@ lattice::xyplot(hmc$traces)
 
 ```{r}
 # use default "blank" model to show some tests
-hmc <- housepi::HouseholdModelClass$new("blank")
+hmc <- housepi::HouseholdModel$new("blank")
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # with model (default Gibbs rule)
 hmc$drop_all()
 hmc$add_augm(name = "move_with_model", model = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces)
+lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces_as_coda)
 
 # random walk starting from 0 (without model)
 hmc$drop_all()
 hmc$add_augm(name = "random_walk", value = 0, rule = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces)
+lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces_as_coda)
 
 # independent normal moves from value 5 (without model)
 hmc$drop_all()
 hmc$add_augm(name = "independent_moves", rule_from = 5, rule = "norm")
-lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces)
+lattice::xyplot(hmc$infer(progress = FALSE, seed = 31)$traces_as_coda)
 ```
 

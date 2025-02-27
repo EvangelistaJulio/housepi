@@ -11,13 +11,13 @@
 ############################################################################
 
 #' @title
-#' Housepi Infectivity Profile Class
+#' Housepi Infectivity Profile R6 Class
 #' @description
 #' Auxiliary class to deal with infectivity profile.
 #'
 #' @noRd
-HousepiInfecProfileClass <- R6::R6Class(
-  classname = "HousepiInfecProfileClass",
+HousepiInfecProfile <- R6::R6Class(
+  classname = "HousepiInfecProfile",
   cloneable = TRUE,
 
   ###################
@@ -29,7 +29,7 @@ HousepiInfecProfileClass <- R6::R6Class(
 
     #' @description
     #' New instance of class
-    #' [HousepiInfecProfileClass][housepi::HousepiInfecProfileClass].
+    #' [HousepiInfecProfile][housepi::HousepiInfecProfile].
     initialize = function() {
       self$defs <- NULL
       invisible(self)

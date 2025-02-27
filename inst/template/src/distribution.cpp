@@ -608,12 +608,6 @@ public:
 protected:
     std::uniform_real_distribution<double> distr_gen;
 
-    //===== SETTER =====//
-    void update_args() override
-    {
-        distr_gen.param(std::uniform_real_distribution<double>::param_type(get_arg(0), get_arg(1)));
-    }
-
     //===== GETTER =====//
     double raw_pdf(double x, const dbl_vec &opts) const override
     {
@@ -641,7 +635,8 @@ protected:
     }
     double raw_rand(rnd_gen &prng) override
     {
-        return distr_gen(prng);
+        const double r = distr_gen(prng);
+        return get_arg(0) * (1 - r) + get_arg(1) * r;
     }
 };
 
@@ -674,12 +669,6 @@ public:
 protected:
     std::normal_distribution<double> distr_gen;
 
-    //===== SETTER =====//
-    void update_args() override
-    {
-        distr_gen.param(std::normal_distribution<double>::param_type(get_arg(0), get_arg(1)));
-    }
-
     //===== GETTER =====//
     double raw_pdf(double x, const dbl_vec &opts) const override
     {
@@ -703,7 +692,7 @@ protected:
     }
     double raw_rand(rnd_gen &prng) override
     {
-        return distr_gen(prng);
+        return get_arg(0) + get_arg(1) * distr_gen(prng);
     }
 };
 

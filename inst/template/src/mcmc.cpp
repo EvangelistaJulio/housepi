@@ -348,7 +348,7 @@ bool MCMC::move_independent_param(const parID &p)
         if (pImpl->accept_valid_param_move(p))
             is_accepted = true;
         else
-            pImpl->restore_simple_param_value(p);
+            pImpl->restore_standard_param_value(p);
     }
 
     return is_accepted;
@@ -381,7 +381,7 @@ void MCMC::move_all()
         move_all_augm();
 
     // move all simple model parameters
-    for (const parID &p : pImpl->param_infer_list)
+    for (const parID &p : pImpl->param_standard_infer_list)
         move_independent_param(p);
 
     // move parameters with extra dependecies
@@ -400,7 +400,7 @@ void MCMC::move_all_and_adapt_parameters(ulong step)
     double adapt_ratio = static_cast<double>(step) / pImpl->setup_n_adapt;
 
     // move all simple model parameters
-    for (const parID &p : pImpl->param_infer_list)
+    for (const parID &p : pImpl->param_standard_infer_list)
     {
         pImpl->update_param_accept_rate(p, move_independent_param(p));
         pImpl->adapt_param_rule(p, adapt_ratio);
@@ -655,7 +655,7 @@ void MCMC::run_monte_carlo(progress::Bar &progressbar, ulong sweep)
 void MCMC::init_model_for_inference() {}
 
 /* Performs the inference using Metropolis-Hastings. */
-void MCMC::infer(bool is_progbar)
+void MCMC::infer()
 {
     try
     {
@@ -666,7 +666,7 @@ void MCMC::infer(bool is_progbar)
 
         // start progress bar and chrono
         progress::Bar progressbar(pImpl->setup_c_n_sweeps * pImpl->setup_n_chains,
-                                  pImpl->fmt_progtxt(), is_progbar);
+                                  pImpl->fmt_progtxt(), pImpl->setup_is_progbar);
 
         run_monte_carlo(progressbar); // run Monte Carlo
         progressbar.finalize();       // close progress bar
@@ -694,7 +694,7 @@ void MCMC::infer(bool is_progbar)
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
+double MCMC::evaluate_marginal(int n_rungs, std::string scheme)
 {
     const str_vec options = {"adaptive", "power-fractions"};
     double output = 0.;
@@ -731,7 +731,7 @@ double MCMC::evaluate_marginal(int n_rungs, std::string scheme, bool is_progbar)
 
         // start progress bar and chrono
         progress::Bar progressbar(rung_sweeps * (pImpl->_n_rungs_ + 1),
-                                  pImpl->fmt_progtxt(), is_progbar);
+                                  pImpl->fmt_progtxt(), pImpl->setup_is_progbar);
 
         //==================================//
         //===== INVERSE TEMPEREATURE 0 =====//
@@ -858,7 +858,7 @@ void MCMC::init_model_for_simulation() {}
 void MCMC::simulate_single_house(Household &house) { UNUSED(house); }
 
 /* Perform simulation. */
-void MCMC::simulate(bool is_progbar)
+void MCMC::simulate()
 {
     try
     {
@@ -879,7 +879,7 @@ void MCMC::simulate(bool is_progbar)
 
 #ifdef _OPENMP
         ulong thin_n_house = n_houses() / pImpl->setup_n_threads;
-        progress::Bar progressbar(thin_n_house, "simulate", is_progbar);
+        progress::Bar progressbar(thin_n_house, "simulate", pImpl->setup_is_progbar);
 
 #pragma omp parallel for default(shared)
         for (size_t H = 0; H < n_houses(); ++H)
@@ -904,7 +904,7 @@ void MCMC::simulate(bool is_progbar)
                 progressbar.update(H);
         }
 #else
-        progress::Bar progressbar(n_houses(), "simulate", is_progbar);
+        progress::Bar progressbar(n_houses(), "simulate", pImpl->setup_is_progbar);
 
         for (size_t H = 0; H < n_houses(); ++H)
         {

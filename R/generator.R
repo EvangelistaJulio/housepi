@@ -4,13 +4,13 @@
 # Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
 #
 
-#' @title Housepi Generator Class
+#' @title Housepi Generator R6 Class
 #' @description
 #' Help with generating model Rcpp object.
 #' 
 #' @noRd
-HousepiGeneratorClass <- R6::R6Class(
-  classname = "HousepiGeneratorClass",
+HousepiGenerator <- R6::R6Class(
+  classname = "HousepiGenerator",
   cloneable = TRUE,
 
   ############################################################################
@@ -361,10 +361,10 @@ re_compile_library <- function(pkgname,
   models_dir <- file.path(system.file(package = pkgname), "models")
   for (m in list.files(models_dir, full.names = TRUE)) {
     if ((!file.exists(template_dll_file(m))) || isTRUE(force)) {
-      HousepiGeneratorClass$new(m,
-                                force = force,
-                                quiet = FALSE,
-                                as_template = TRUE)$generate()
+      HousepiGenerator$new(m,
+                           force = force,
+                           quiet = FALSE,
+                           as_template = TRUE)$generate()
     }
   }
 }

@@ -47,12 +47,12 @@ default_types_ <- function(typs, vals) {
       typs[i] <- "S"
     } else if (is.character(y)) {
       if (is.na(suppressWarnings(as.numeric(y)))) {
-        typs[i] <- "D"
+        typs[i] <- "P"
       } else {
         typs[i] <- "S"
       }
     } else {
-      typs[i] <- "D"
+      typs[i] <- "P"
     }
   }
   return(typs)

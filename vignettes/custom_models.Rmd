@@ -36,7 +36,7 @@ Modify all relevant parts of the C++ implementation *model.cpp* and of the heade
 We can then generate an instance of our custom model from its path. All other methods remain the same already seen in [Walkthrough](walkthrough.html).
 
 ```{r, eval=FALSE}
-hemi <- housepi::HouseholdModelClass$new(my_model_path)
+hemi <- housepi::HouseholdModel$new(my_model_path)
 ```
 
 By default a new instance requires the model compilation which is repeated at every R session. 

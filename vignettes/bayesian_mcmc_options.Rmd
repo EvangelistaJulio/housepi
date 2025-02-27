@@ -25,7 +25,7 @@ To perform the sampling we consider the "blank" model, i. e. a data independent 
 
 ```{r, eval = TRUE}
 # create an instance of the blank model
-hmc <- housepi::HouseholdModelClass$new("blank")
+hmc <- housepi::HouseholdModel$new("blank")
 ```
 
 # Continuos Priors
@@ -52,7 +52,8 @@ hmc$infer(progress = FALSE)
 
 # density plot of the traces (w\o loglikelihood)
 # option loglikelihood = FALSE avoids to export loglikelihood
-bayesplot::mcmc_dens(hmc$traces_no_loglike)
+traces <- subset(hmc$traces, select = -loglikelihood)
+bayesplot::mcmc_dens(traces)
 ```
 
 ## How to Discretize Continuos Priors
@@ -72,7 +73,8 @@ for (distr_name in available_distrs[available_distrs != "beta"]) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-bayesplot::mcmc_hist(hmc$traces_no_loglike, binwidth = 1)
+traces <- subset(hmc$traces, select = -loglikelihood)
+bayesplot::mcmc_hist(traces, binwidth = 1)
 ```
 
 ## Provide a Custom Range
@@ -89,7 +91,8 @@ hmc$load_param_list(
 )
 hmc$infer(progress = FALSE)
 
-bayesplot::mcmc_dens(hmc$traces_no_loglike)
+traces <- subset(hmc$traces, select = -loglikelihood)
+bayesplot::mcmc_dens(traces)
 ```
 
 # Discrete Priors
@@ -108,7 +111,8 @@ for (distr_name in discrete_distrs) {
 hmc$infer(progress = FALSE)
 
 # plot the histograms
-bayesplot::mcmc_hist(hmc$traces_no_loglike, binwidth = 1)
+traces <- subset(hmc$traces, select = -loglikelihood)
+bayesplot::mcmc_hist(traces, binwidth = 1)
 ```
 
 # MCMC Proposer Rules
@@ -127,8 +131,9 @@ for (rule_name in available_proposer_rules) {
 
 hmc$infer(progress = FALSE)
 
-bayesplot::mcmc_trace(hmc$traces_no_loglike)
-bayesplot::mcmc_dens(hmc$traces_no_loglike)
+traces <- subset(hmc$traces, select = -loglikelihood)
+bayesplot::mcmc_trace(traces)
+bayesplot::mcmc_dens(traces)
 ```
 
 Note that the proposer rule "lnorm" does not fit the case of negative values as it's here visible.

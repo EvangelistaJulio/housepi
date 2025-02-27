@@ -13,11 +13,11 @@
 #include <vector>
 #include <map>
 
-/* note : flag used to predispose to different wrappers*/
+/* note : flag used to predispose to different wrappers
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-
+*/
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -34,29 +34,30 @@
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// UPDATE: NaN \ NA have to be revised
-const double NULL_DOUBLE = 1e10;        // undefined double
+// UPDATE: NaN and NA values need to be revised
+constexpr double NULL_DOUBLE = 1e10;    // undefined double
 const std::string NULL_STRING = "<NA>"; // undefined string
 
 // constants
-const unsigned MAX_NUM_ATTEMPTS = 100;    // max n. of attempts for initialization
-const double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
+constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
+constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // status aliases
-const int INFECTED_STATUS = 1; // infected status (>=)
-const int HEALTHY_STATUS = 0;  // healthy status (==)
-const int MISSING_STATUS = -1; // missing status (<=)
+
+constexpr int INFECTED_STATUS = 1; // infected status (>=)
+constexpr int HEALTHY_STATUS = 0;  // healthy status (==)
+constexpr int MISSING_STATUS = -1; // missing status (<=)
 
 // group rates
 const std::string REFERENCE = "REFERENCE";       // name for reference choice
 const std::string CONTACT_RATE = "Contact";      // name for Contact rate
-const double REFERENCE_VALUE = 1.0;              // auxiliary reference value for the parameters
+constexpr double REFERENCE_VALUE = 1.0;          // auxiliary reference value for the parameters
 const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
 
 // file formatters
-const char C_DELIM = ',';      // file delimiter
-const char C_LIST_DELIM = '/'; // dictionary delimiter
-const char C_DECOR = '-';      // decorator for prints
+constexpr char C_DELIM = ',';      // file delimiter
+constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
+constexpr char C_DECOR = '-';      // decorator for prints
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -103,7 +104,7 @@ using indiv = unsigned short int;
 
 #ifdef DEBUG_TEMPORARY_MACRO
 using __access_ID__ = unsigned short int;
-const __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
+constexpr __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
 #else
 using __access_ID__ = std::string;
 const __access_ID__ __undef_ID__ = NULL_STRING; // name for undefined choice
@@ -160,9 +161,9 @@ using rateIDmapvec = rateIDmap<std::vector<T>>;
 ////////////////////////////////////  OPERATOR OVERLOADS  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Concatenate with overloaded + operator. */ 
+/* Concatenate with overloaded + operator. */
 template <typename T>
-std::vector<T> operator+(const std::vector<T>  &x, const std::vector<T> &y)
+std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
 {
     std::vector<T> vec;
     vec.reserve(x.size() + y.size());
@@ -171,14 +172,13 @@ std::vector<T> operator+(const std::vector<T>  &x, const std::vector<T> &y)
     return vec;
 }
 
-
 /* Append with overloaded += operator. */
 template <typename T>
-std::vector<T>& operator+=(std::vector<T>& x,const std::vector<T> & y)
+std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
 {
-    x.reserve(x.size() + y.size()); 
-    x.insert(x.end(), y.begin(), y.end()); 
-    return x; 
+    x.reserve(x.size() + y.size());
+    x.insert(x.end(), y.begin(), y.end());
+    return x;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +218,6 @@ namespace tools
     bool stobool(const std::string &tkn);
     int stoi(const std::string &input, const std::string &errtxt = "");
     unsigned long stoul(const std::string &input, const std::string &errtxt = "");
-    unsigned long long stoull(const std::string &input, const std::string &errtxt = "");
     double stod(const std::string &input, const std::string &errtxt = "");
 
     // formatter for the case NA
