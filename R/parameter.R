@@ -1,7 +1,7 @@
 #
 # parameter.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 #' @title Housepi Parameter R6 Class
@@ -250,6 +250,10 @@ HousepiParameter <- R6::R6Class(
               warning_h(
                 "No template parameters to append.",
                 "Definitions are complete."
+              )
+            } else if (!all(missing_set %in% names(templ_defs))) {
+              stop_h(
+                "No template found for the missing parameters."
               )
             } else {
               self$load_list(from = templ_defs[missing_set], append = TRUE)

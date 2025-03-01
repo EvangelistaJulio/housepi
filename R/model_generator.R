@@ -1,12 +1,12 @@
 #
-# generator.R
+# model_generator.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 #' @title Housepi Generator R6 Class
 #' @description
-#' Help with generating model Rcpp object.
+#' Help with generating Rcpp model object.
 #' 
 #' @noRd
 HousepiGenerator <- R6::R6Class(
@@ -27,7 +27,7 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Create temporary folder and copy source code there.
-    copy_source_code = function(source_dir) {
+    .copy_source_code = function(source_dir) {
 
       # source directory must contain source files
       assert_source_files(source_dir)
@@ -68,18 +68,8 @@ HousepiGenerator <- R6::R6Class(
     },
 
     #' @description
-    #' Remove all cache files.
-    clear_cache = function() {
-      cache_files <- file.path(self$cache_dir,
-                               c("src", "R", "NAMESPACE", "DESCRIPTION"))
-      unlink(cache_files, recursive = TRUE)
-
-      invisible(self)
-    },
-
-    #' @description
     #' Load model dynamic library.
-    load = function() {
+    .load = function() {
       # load dynamic library
       dyn.load(private$.dll)
 
@@ -97,7 +87,7 @@ HousepiGenerator <- R6::R6Class(
     #' Compile and load the source files inside cached directory.
     #' Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
     #' To avoid recompiling immutable files I just touch them.
-    compile = function() {
+    .compile = function() {
       # source folder within cache directory
       cache_dir_src <- file.path(self$cache_dir, "src")
 
@@ -121,9 +111,6 @@ HousepiGenerator <- R6::R6Class(
       from_file <- file.path(cache_dir_src, dll_file_ext("housepienvironment"))
       overwrite(from_file, private$.dll)
 
-      #load the compiled package
-      private$load()
-
       invisible(self)
     }
   ),
@@ -141,9 +128,8 @@ HousepiGenerator <- R6::R6Class(
     model_name = function(value) {
       if (missing(value)) {
         return(private$.name)
-      } else {
-        stop_h("'model_name' is read only.")
       }
+      stop_h("'model_name' is read only.")
     },
 
     #' @field path (`logical(1)`)\cr
@@ -151,9 +137,8 @@ HousepiGenerator <- R6::R6Class(
     is_blank = function(value) {
       if (missing(value)) {
         return(private$.name == "blank")
-      } else {
-        stop_h("'is_blank' is read only.")
       }
+      stop_h("'is_blank' is read only.")
     },
 
     #' @field path (`character(1)`)\cr
@@ -170,9 +155,8 @@ HousepiGenerator <- R6::R6Class(
           )
         }
         return(output)
-      } else {
-        stop_h("'path' is read only.")
       }
+      stop_h("'path' is read only.")
     },
 
     #' @field reference (`character(1)`)\cr
@@ -189,9 +173,104 @@ HousepiGenerator <- R6::R6Class(
           )
         }
         return(output)
-      } else {
-        stop_h("'reference' is read only.")
       }
+      stop_h("'reference' is read only.")
+    },
+
+    #' @field dataset (`data.frame`)\cr
+    #' Dataset with individual level information of current dataset.
+    #' If the case, it also return the associated augmented variables.
+    dataset = function(value) {
+      if (missing(value)) {
+        if (is.null(self$rcpp)) {
+          stop_h("Impossible to export dataset before model build.")
+        }
+        return(self$rcpp$export_dataset())
+      }
+      stop_h("'dataset' is read only.")
+    },
+
+    #' @field setup (`list()`)\cr
+    #' Last setup used by the build process.
+    setup = function(value) {
+      if (missing(value)) {
+        if (is.null(self$rcpp)) {
+          stop_h("Impossible to export setup before model build.")
+        }
+        return(self$rcpp$export_setup())
+      }
+      stop_h("'setup' is read only.")
+    },
+
+    #' @description
+    #' Export the traces of last inference call.
+    #'
+    #' @return
+    #' (`matrix()` | `list()` of `matrix()`)
+    traces = function(value) {
+      if (missing(value)) {
+        if (is.null(self$rcpp)) {
+          stop_h("Impossible to export traces before inference.")
+
+        } else {
+          # load traces from last inference
+          df <- self$rcpp$export_traces()
+
+          if (dim(df)[1] == 0) {
+            # note: this should never be possible...
+            stop_h("Traces are empty.")
+
+          } else if ("CHAIN__" %in% colnames(df)) {
+            df_list <- lapply(
+              split(seq_len(nrow(df)), df[, "CHAIN__"]),
+              function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
+            )
+            return(df_list)
+
+          } else {
+            return(df)
+          }
+        }
+      }
+      stop_h("'traces' is read only.")
+    },
+
+    #' @description
+    #' Export the traces of last inference call without loglikelihood.
+    #'
+    #' @return
+    #' (`matrix()` | `list()` of `matrix()`)
+    traces_no_loglike = function(value) {
+      if (missing(value)) {
+        trs <- self$traces
+        if (is.list(trs)) {
+          return(lapply(trs, function(x) { 
+            x <- x[, colnames(x) != "loglikelihood", drop = FALSE] 
+          }))
+        } else {
+          return(trs)
+        }   
+      }
+      stop_h("'traces' is read only.")
+    },
+
+    #' @field reference (`matrix()`)\cr
+    #' Household loglikelihood traces.
+    household_loglike_traces = function(value) {
+      if (missing(value)) {
+        # check model has been built
+        if (is.null(self$rcpp)) {
+          stop_h("Impossible to export household traces before inference.")
+        }
+        # extract household loglikelihood traces
+        df <- self$rcpp$export_household_loglike_traces()
+        # check
+        if (dim(df)[1] == 0) {
+          stop_h("Household traces are empty.")
+        }
+        return(df)
+      }
+      stop_h("'household_loglike_traces' is read only.")
     }
   ),
 
@@ -287,7 +366,7 @@ HousepiGenerator <- R6::R6Class(
             }
             private$.need_compile <- TRUE
             # organize cache directory to perform compilation
-            private$copy_source_code(model_choice)
+            private$.copy_source_code(model_choice)
           }
         }
 
@@ -295,7 +374,7 @@ HousepiGenerator <- R6::R6Class(
         #===== ERROR =====#
         stop_h(
           sprintf("\"%s\" is not a folder nor a template name.", model_choice),
-          "Run 'household_model_template' to see available template names."
+          "Run function 'template_household_model' to see available templates."
         )
       }
 
@@ -311,12 +390,13 @@ HousepiGenerator <- R6::R6Class(
     generate = function() {
       if (isTRUE(private$.need_compile)) {
         cli::cli_alert_info("Compiling {.pkg {private$.name}}")
-        private$compile()
+        private$.compile()
+        private$.load()
 
       } else if (is.null(self$rcpp)) {
         # load if not already generated
         cli::cli_alert_info("Loading {.pkg {private$.name}}")
-        private$load()
+        private$.load()
       }
 
       invisible(self)
@@ -331,6 +411,120 @@ HousepiGenerator <- R6::R6Class(
                 refer_file)
 
       invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    #' @description
+    #' Wrapper of the Rcpp import_dataset method.
+    #' 
+    #' @param dataset (`data.frame`)\cr
+    #' Dataset with rowise individual information.
+    import_dataset = function(dataset) {
+      self$rcpp$import_dataset(
+        data.frame(lapply(dataset, as.character))
+      )
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp import_setup method.
+    #' 
+    #' @param setup_list (`list()`)\cr
+    #' Setup definitions.
+    import_setup = function(setup_list) {
+      # backup scientific notation 
+      # UPDATE: use withr
+      store_scipen <- options()$scipen
+      # change scientific notation
+      options(scipen = 100)
+      self$rcpp$import_setup(
+        lapply(setup_list, as.character)
+      )
+      # restore scientific notation option
+      options(scipen = store_scipen)
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp import_parameter method.
+    #' 
+    #' @param param_defs (`data.frame`)\cr
+    #' Formatted parameter definitions.
+    import_parameter = function(param_defs) {
+      self$rcpp$import_parameter(
+        data.frame(lapply(param_defs, as.character))
+      )
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp import_augmented method.
+    #' 
+    #' @param augm_defs (`data.frame`)\cr
+    #' Formatted augmented variable definitions.
+    import_augmented = function(augm_defs) {
+      self$rcpp$import_augmented(
+        data.frame(lapply(augm_defs, as.character))
+      )
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp import_infec_profile method.
+    #' 
+    #' @param infec_profile_defs (`list()`)\cr
+    #' Infectivity profile definitions.
+    import_infec_profile = function(infec_profile_defs) {
+      self$rcpp$import_infec_profile(
+        lapply(infec_profile_defs, as.character)
+      )
+      invisible(self)
+    },
+
+    #' @description
+    #' Export instantaneous and cumulative values of the infectivity profile.
+    #'
+    #' @param opts (`double()`)\cr
+    #' Additional values for the computation.
+    #' @param xlim (`double(2)`)\cr
+    #' Customize the left and/or right limits for the x axis.
+    #' To keep the default value of one limit, set it to `NA`.
+    #' @param n_bins (`integer(1)`)\cr
+    #' Number of bins for continuous profile (ignored if discrete).
+    #'
+    #' @return
+    #' (`data.frame`)\cr
+    export_infectivity_profile = function(opts = list(),
+                                          xlim = double(),
+                                          n_bins = 2000) {
+      # load options
+      opts_ <- as.list(as.numeric(opts))
+
+      # load x-limits
+      xlim_ <- list()
+      xlim <- unlist(xlim)
+      if (length(xlim) == 2) {
+        if (!all(is.na(xlim))) {
+          # check
+          if (!any(is.na(xlim))) {
+            if (xlim[[1]] == xlim[[2]]) {
+              stop_h("Left x limit larger than right limit.")
+            } else if (xlim[[1]] > xlim[[2]]) {
+              stop_h("Left x limit equal to right limit.")
+            }
+          }
+          xlim_ <- lapply(xlim, as.character)
+          names(xlim_) <- c("min", "max")
+        }
+
+      } else if (length(xlim) > 0) {
+        stop_h("Provide exactly 2 limits for the x axis.")
+      }
+
+      return(self$rcpp$export_infec_profile(opts_, xlim_, n_bins))
     }
   )
 )

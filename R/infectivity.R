@@ -1,7 +1,7 @@
 #
 # infectivity
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 ############################################################################
@@ -20,6 +20,34 @@ HousepiInfecProfile <- R6::R6Class(
   classname = "HousepiInfecProfile",
   cloneable = TRUE,
 
+  ############################################################################
+  ############################################################################
+  ################################## ACTIVE ##################################
+  ############################################################################
+  ############################################################################
+
+  active = list(
+    #' @description
+    #' Find parameters required by infectivity profile variable definition.
+    param_require = function(value) {
+      if (missing(value)) {
+        required_param_set <- c()
+        if (is.list(self$defs) && (length(self$defs) > 0)) {
+          if (!any(is.na((self$defs[c("arg_value", "arg_type")])))) {
+            aux <- data.frame(
+              vals = strsplit(self$defs[["arg_value"]], "/")[[1]],
+              keys = strsplit(self$defs[["arg_type"]], "/")[[1]]
+            )
+            aux <- aux[aux[["keys"]] == "P", "vals"]
+            required_param_set <- c(required_param_set, aux[!is.na(aux)])
+          }
+        }
+        return(required_param_set)
+      }
+      stop_h("'param_require' is read only.")
+    }
+  ),
+
   ###################
   ##### PUBLIC ######
   ###################
@@ -33,24 +61,6 @@ HousepiInfecProfile <- R6::R6Class(
     initialize = function() {
       self$defs <- NULL
       invisible(self)
-    },
-
-    #' @description
-    #' Find parameters required by infectivity profile variable definition.
-    param_require = function() {
-      # from : augmented variable model argument definitions
-      required_param_set <- c()
-      if (is.list(self$defs) && (length(self$defs) > 0)) {
-        if (!any(is.na((self$defs[c("arg_value", "arg_type")])))) {
-          aux <- data.frame(
-            vals = strsplit(self$defs[["arg_value"]], "/")[[1]],
-            keys = strsplit(self$defs[["arg_type"]], "/")[[1]]
-          )
-          aux <- aux[aux[["keys"]] == "P", "vals"]
-          required_param_set <- c(required_param_set, aux[!is.na(aux)])
-        }
-      }
-      return(required_param_set)
     },
 
     #' @description

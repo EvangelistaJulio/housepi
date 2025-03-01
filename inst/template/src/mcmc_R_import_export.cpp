@@ -97,7 +97,7 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 }
 
 /* Import params from R DataFrame and run build. */
-void MCMC::Impl::import_params(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_parameter(const Rcpp::DataFrame &input)
 {
     try
     {
@@ -113,7 +113,7 @@ void MCMC::Impl::import_params(const Rcpp::DataFrame &input)
 }
 
 /* Import data from R DataFrame then run build. */
-void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_augmented(const Rcpp::DataFrame &input)
 {
     try
     {
@@ -130,7 +130,7 @@ void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
 }
 
 /* Import data from R DataFrame and run build. */
-void MCMC::Impl::import_data(const Rcpp::DataFrame &data)
+void MCMC::Impl::import_dataset(const Rcpp::DataFrame &data)
 {
     dict_str_vec datatable = {};
     rdataframe_to_map(data, datatable);
@@ -164,7 +164,7 @@ Rcpp::List MCMC::Impl::export_setup() const
 }
 
 /* Export current parameter configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::export_params() const
+Rcpp::DataFrame MCMC::Impl::export_parameter() const
 {
     using namespace Rcpp;
 
@@ -219,7 +219,7 @@ Rcpp::DataFrame MCMC::Impl::export_params() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::export_data() const
+Rcpp::DataFrame MCMC::Impl::export_dataset() const
 {
     using namespace Rcpp;
 
@@ -310,7 +310,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         output(_, col++) = df_chain;
     }
 
-    //----- associate row names -----//
+    //----- associate column names -----//
     colnames(output) = CharacterVector(wrap(headers));
 
     //----- associate row names -----//
@@ -335,11 +335,25 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
     // Create a NumericMatrix with n_house columns
     ulong sample_size = setup_n_chains * setup_c_sample_size;
     NumericMatrix output(sample_size, n_households);
+    CharacterVector headers(n_households);
 
     // Assign each NumericVector to a column of the matrix
     for (size_t H = 0; H < n_households; ++H)
+    {
         output(_, H) = NumericVector(wrap(house_vector[H].get_dgn_loglike()));
+        headers[H] = house_vector[H].house_id();
+    }
 
+    //----- associate column names -----//
+    colnames(output) = headers;
+    
+    //----- associate row names -----//
+    IntegerVector sweep(setup_c_sample_size * setup_n_chains);
+    for (size_t c = 0; c < setup_n_chains; ++c)
+        for (size_t k = 0; k < setup_c_sample_size; k++)
+            sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
+    rownames(output) = CharacterVector(wrap(sweep));
+    
     return output;
 }
 
@@ -403,8 +417,8 @@ Rcpp::DataFrame MCMC::Impl::export_infec_profile(const Rcpp::List &opts,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
-Rcpp::DataFrame MCMC::export_params() const { return pImpl->export_params(); }
-Rcpp::DataFrame MCMC::export_data() const { return pImpl->export_data(); }
+Rcpp::DataFrame MCMC::export_parameter() const { return pImpl->export_parameter(); }
+Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
 Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
@@ -421,9 +435,9 @@ Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
 
 void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
 void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
-void MCMC::import_params(const Rcpp::DataFrame &x) { pImpl->import_params(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
-void MCMC::import_data(const Rcpp::DataFrame &x) { pImpl->import_data(x); }
+void MCMC::import_parameter(const Rcpp::DataFrame &x) { pImpl->import_parameter(x); }
+void MCMC::import_augmented(const Rcpp::DataFrame &x) { pImpl->import_augmented(x); }
+void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

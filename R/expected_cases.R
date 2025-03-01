@@ -1,86 +1,8 @@
 #
 # analysis.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
-
-#' @title
-#' Coerce traces to coda.
-#' @description
-#' Convert HouseholdModel traces to coda.
-#'
-#' @param trs
-#' Traces as exported from HouseholdModel.
-#'
-#' @return
-#' (`coda::mcmc` | `coda::mcmc.list`)\cr
-#'
-#' @noRd
-coerce_traces_to_coda <- function(trs) {
-  if (requireNamespace("coda", quietly = TRUE)) {
-    if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
-      return(trs)
-
-    } else if (is.matrix(trs) || (is.data.frame(trs))) {
-      sweeps <- as.integer(rownames(df))
-      return(coda::mcmc(data = trs,
-                        start = sweeps[1],
-                        end = sweeps[length(sweeps)],
-                        thin = sweeps[2] - sweeps[1]))
-
-    } else if (is.list(trs)) {
-      sweeps <- as.integer(rownames(trs[[1]]))
-      df_list <- lapply(trs, function(x) {
-        coda::mcmc(
-          data = x,
-          start = sweeps[1],
-          end = sweeps[length(sweeps)],
-          thin = sweeps[2] - sweeps[1]
-        )
-      })
-      return(coda::as.mcmc.list(df_list))
-    }
-  } else {
-    stop.h(
-      "Impossible to coerce to coda object.",
-      "Package 'coda' not installed."
-    )
-  }
-}
-
-#' @title
-#' Extract results from coda
-#' @description
-#' Collects relevant statistics from the the input mcmc traces.
-#'
-#' @param trs
-#' Traces as exported from HouseholdModel.
-#' @param credible_interval (`double(1)`)\cr
-#' Probability for credible interval (default is 0.95).
-#'
-#' @return
-#' (`data.frame`)
-#'
-#' @noRd
-retrieve_traces_results <- function(trs,
-                                    credible_interval = 0.95) {
-  # change in case of multiple chains
-  if (is.list(trs)) trs <- do.call(rbind, trs)
-
-  cri_lower <- 0.5 - 0.5 * credible_interval
-  cri_upper <- 0.5 + 0.5 * credible_interval
-  out <- data.frame(
-    mean = apply(trs, 2, mean, na.rm = TRUE),
-    sd = apply(trs, 2, sd, na.rm = TRUE),
-    low = apply(trs, 2, quantile, probs = cri_lower, na.rm = TRUE),
-    up = apply(trs, 2, quantile, probs = cri_upper, na.rm = TRUE),
-    check.names = FALSE
-  )
-  colnames(out)[3] <- sprintf("cri%.1f", cri_lower * 100)
-  colnames(out)[4] <- sprintf("cri%.1f", cri_upper * 100)
-
-  return(out)
-}
 
 #' @title
 #' Apply on Homogeneous Frames
@@ -121,7 +43,7 @@ apply_on_homogeneous_frames <- function(func, frame_list) {
 #'
 #' @return (`data.frame`)\cr
 #'
-#' @export
+#' @noRd
 retrieve_cases_by_size <- function(dataset) {
   # check that dataset is consistent
   if (length(dataset) == 0) {
@@ -184,7 +106,7 @@ retrieve_cases_by_size <- function(dataset) {
 #' @keywords internal
 HousepiOutExpCases <- R6::R6Class(
   classname = "HousepiOutExpCases",
-  cloneable = TRUE,
+  cloneable = FALSE,
 
   ############################################################################
   ############################################################################
@@ -199,7 +121,7 @@ HousepiOutExpCases <- R6::R6Class(
     .q_upper = NULL,
     .traces = NULL, # temporary
 
-    # @dscription
+    # @description
     # Assign a filtering on the case table.
     #
     # @param max_house_size (`integer(1)`)\cr
@@ -242,11 +164,23 @@ HousepiOutExpCases <- R6::R6Class(
     #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
     #'
     #' @param house_model (`HouseholdModel`)\cr
-    #' Object of class \[HouseholdModel][housepi::HouseholdModel]
+    #' Object of class
+    #' \[HouseholdModel][housepi::HouseholdModel]
     #' containing all model definitions after having run `$infer`.
+    #' @param cred_level (`double(1)`)\cr
+    #' Probability for credible interval (default is 0.95).
+    #' @param progress (`logical(1)`)\cr
+    #' Progress of simulations. Default is inherited from the model.
     initialize = function(house_model,
-                          credible_interval = 0.95,
+                          cred_level = 0.95,
                           progress = NA) {
+      # check credible interval
+      if( (cred_level <= 0) || (cred_level >= 1)) {
+        stop_h(
+          "Credible interval level must be a value between 0 and 1."
+        )
+      }
+
       # extract observed household case table
       private$.obs_hh_case_table <- retrieve_cases_by_size(house_model$dataset)
 
@@ -275,7 +209,7 @@ HousepiOutExpCases <- R6::R6Class(
       n_rep <- sample_size * n_chains
 
       # progress?
-      progress <- isTRUE(progress) || 
+      progress <- isTRUE(progress) || isTRUE(house_model$setup$progress)
 
       # generator seeds
       withr::with_seed(
@@ -326,12 +260,12 @@ HousepiOutExpCases <- R6::R6Class(
       )
 
       # internal consistency check
-      if (all(dim(private$.obs_hh_case_table) != dim(private$.exp_hh_case_table))) {
+      if (any(dim(private$.obs_hh_case_table) != dim(private$.exp_hh_case_table))) {
         stop_h("Internal inconsistency in observed and expected tables.")
       }
 
       # compute lower credible interval
-      probs_lower <- 0.5 - 0.5 * credible_interval
+      probs_lower <- 0.5 - 0.5 * cred_level
       private$.q_lower = apply_on_homogeneous_frames(
         function(x) {
           stats::quantile(x, probs = probs_lower, na.rm = TRUE)
@@ -339,10 +273,10 @@ HousepiOutExpCases <- R6::R6Class(
       )
 
       # compute upper credible interval
-      probs_upper <- 0.5 + 0.5 * credible_interval
+      probs_upper <- 0.5 + 0.5 * cred_level
       private$.q_upper = apply_on_homogeneous_frames(
         function(x) {
-          stats::quantile(x, probs = 0.975, na.rm = TRUE)
+          stats::quantile(x, probs = probs_upper, na.rm = TRUE)
         }, simulations_list
       )
 
@@ -358,11 +292,14 @@ HousepiOutExpCases <- R6::R6Class(
       invisible(self)
     },
 
-    #' @dscription
-    #' Perform Chi-squared test.
+    #' @description
+    #' Perform Chi-squared test and return list with results.
     #'
     #' @param max_house_size (`integer(1)`)\cr
     #' Maximum household size to consider.
+    #'
+    #' @return
+    #' (`list()`)
     chisq_test = function(max_house_size = NA) {
       x <- private$.filter_table(max_house_size)
       res <- (x$observed - x$expected)^2 / x$expected
@@ -378,6 +315,11 @@ HousepiOutExpCases <- R6::R6Class(
     #'
     #' @param max_house_size (`integer(1)`)\cr
     #' Maximum household size to consider.
+    #' @param show_chisq (`\logical(1)`)\cr
+    #' Whether to show footer with Chi-squared test.
+    #' @param cri_format (`character(1)`)\cr
+    #' Formatting string for the credible interval passed to `sprintf`.
+    #' It expects three double values (mean, CRI lower and CRI upper).
     #'
     #' @return
     #' (`flextable` | `data.frame`)
@@ -458,22 +400,3 @@ HousepiOutExpCases <- R6::R6Class(
     }
   )
 )
-
-#' @title
-#' Print S3 method for housepi_model_check objects
-#' @description
-#' Provide a custom print method for objects of class `housepi_model_check`.
-#'
-#' @param x
-#' An object of class `housepi_model_check`.
-#' @param ...
-#' Other arguments passed to print.
-#'
-#' @export
-print.housepi_model_check <- function(x, ...) {
-  cat("Household model check with Chi-squared test:\n")
-  cat(sprintf("X-squared = %.1f, df = %s, p-value = %s",
-              x$X_squared, x$df, x$p_value))
-  other <- list(...)
-  if (length(other) > 0) print(other)
-}

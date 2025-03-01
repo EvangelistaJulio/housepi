@@ -1,7 +1,7 @@
 #
 # utils.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 stop_h <- function(...) {
@@ -132,4 +132,95 @@ random_name <- function(path) {
 # DLL fyle with templated name convention
 template_dll_file <- function(path) {
   return(file.path(path, dll_file_ext(template_name(path))))
+}
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+#' @title
+#' Coerce traces to coda.
+#' @description
+#' Convert HouseholdModel traces to coda.
+#'
+#' @param trs
+#' Traces as exported from HouseholdModel.
+#'
+#' @return
+#' (`coda::mcmc` | `coda::mcmc.list`)\cr
+#'
+#' @noRd
+coerce_traces_to_coda <- function(trs) {
+  if (requireNamespace("coda", quietly = TRUE)) {
+    if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
+      return(trs)
+
+    } else if (is.matrix(trs) || (is.data.frame(trs))) {
+      sweeps <- as.integer(rownames(df))
+      return(coda::mcmc(data = trs,
+                        start = sweeps[1],
+                        end = sweeps[length(sweeps)],
+                        thin = sweeps[2] - sweeps[1]))
+
+    } else if (is.list(trs)) {
+      sweeps <- as.integer(rownames(trs[[1]]))
+      df_list <- lapply(trs, function(x) {
+        coda::mcmc(
+          data = x,
+          start = sweeps[1],
+          end = sweeps[length(sweeps)],
+          thin = sweeps[2] - sweeps[1]
+        )
+      })
+      return(coda::as.mcmc.list(df_list))
+    }
+  } else {
+    stop.h(
+      "Impossible to coerce to coda object.",
+      "Package 'coda' not installed."
+    )
+  }
+}
+
+#' @title
+#' Extract results from mcmc traces.
+#' @description
+#' Collects relevant statistics from the input mcmc traces.
+#'
+#' @param trs
+#' Traces as exported from HouseholdModel.
+#' @param cred_level (`double(1)`)\cr
+#' Level for the credible interval.
+#' Value between 0 and 1 (default is 0.95).
+#'
+#' @return
+#' (`data.frame`)
+#'
+#' @noRd
+retrieve_traces_results <- function(trs,
+                                    cred_level = 0.95) {
+  if( (cred_level <= 0) || (cred_level >= 1)) {
+    stop_h(
+      "Credible interval level must be a value between 0 and 1."
+    )
+  }
+
+  # change in case of multiple chains
+  if (is.list(trs)) trs <- do.call(rbind, trs)
+
+  cri_lower <- 0.5 - 0.5 * cred_level
+  cri_upper <- 0.5 + 0.5 * cred_level
+  out <- data.frame(
+    mean = apply(trs, 2, mean, na.rm = TRUE),
+    sd = apply(trs, 2, sd, na.rm = TRUE),
+    low = apply(trs, 2, quantile, probs = cri_lower, na.rm = TRUE),
+    up = apply(trs, 2, quantile, probs = cri_upper, na.rm = TRUE),
+    check.names = FALSE
+  )
+  colnames(out)[3] <- sprintf("cri%.1f", cri_lower * 100)
+  colnames(out)[4] <- sprintf("cri%.1f", cri_upper * 100)
+
+  return(out)
 }

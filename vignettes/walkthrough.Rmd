@@ -16,6 +16,8 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 options(knitr.kable.NA = "")
+
+bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
@@ -25,9 +27,9 @@ We'll walk through the process of loading a model, associating necessary definit
 
 To see the complete list of available template models, from within Rstudio just run
 
-```{r, eval = FALSE}
+```{r, eval = TRUE}
 # present the list of template model name
-housepi::household_model_template()
+housepi::template_household_model()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed.
@@ -36,7 +38,7 @@ g.
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
-housepi::household_model_template("chain-binomial")
+housepi::template_household_model("chain-binomial")
 ```
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
@@ -52,25 +54,24 @@ We show how to generate a new instance of such a class and its methods with a te
 
 ```{r}
 # generate an instance of the chain binomial model
-hmc <- housepi::HouseholdModel$new("chain-binomial")
+hhmodel <- housepi::HouseholdModel$new("chain-binomial")
 ```
 
-At any moment you can retrieve the template description by using the class method `help()`.
+At any moment you can retrieve the template description by using the method `$help`.
 
 ## Format of the Dataset
 
 Dataset can be provided as a numerical data.frame (or a path to a csv file) where individual information are organised by row.
-Individuals with equal values in the column `house_id` are considered to belong to same household.
-Additionally, an individual identifier `id` can be provided within the respective column.
+Individuals with equal values in the column `"house_id"` are considered to belong to same household.
+Additionally, an individual identifier `"id"` can be provided within the respective column.
 
-To provide the `status` of each individual (required to perform inference), each value must satisfy the following convention:
+To provide the `"status"` of each individual (required to perform inference), each value must satisfy the following convention:
 
 -   infected status: $1$ (or $>{1}$).
 -   healthy status: $0$.
 -   missing status: $-1$.
 
-The package comes with a few synthetic dataset to be used for testing, e.
-g.
+The package comes with a few synthetic dataset to be used for testing, e. g.
 
 ```{r}
 data("survey", package = "housepi")
@@ -86,12 +87,12 @@ knitr::kable(head(aux_))
 A single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo) can be provided using the method `$add_param`.
 
 ```{r, echo=TRUE}
-hmc$add_param(name = "alpha",
-              prior = "unif", args = c(min = 0, max = 3),
-              rule = "lnorm")
-hmc$add_param(name = "beta",
-              prior = "unif", args = c(min = 0, max = 3),
-              rule = "lnorm")
+hhmodel$add_param(name = "alpha",
+                  prior = "unif", args = c(min = 0, max = 3),
+                  rule = "lnorm")
+hhmodel$add_param(name = "beta",
+                  prior = "unif", args = c(min = 0, max = 3),
+                  rule = "lnorm")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided).
@@ -108,55 +109,48 @@ Now we can safely perform inference with the method `$infer`:
 
 ```{r}
 # run the Monte Carlo specifying setup options (steps, seed, etc.)
-hmc$infer(dataset = survey, n_steps = 25000, n_burnin = 2500,
-          thin = 10, n_adapt = 2500, n_chains = 4, seed = 6043)
+hhmodel$infer(dataset = survey, n_steps = 25000, n_burnin = 2500,
+              thin = 10, n_adapt = 2500, n_chains = 4, seed = 6043)
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
 ```{r}
 # store summary of the posterior estimates
-results <- hmc$traces_results
+results <- hhmodel$traces_results
 ```
 
 ```{r, echo=FALSE}
 knitr::kable(results)
 ```
 
-For advanced analysis on the inference, we can extract the traces directly from the field `$traces_as_coda` (actually a R6 active field).
-This method returns objects from the [coda](https://cran.r-project.org/web/packages/coda/) package: a `mcmc` object (if single chain) or a `mcmc.list` (if multiple chains):
+For advanced analysis on the inference, we can extract the traces directly from the field `$traces`:
 
 ```{r}
-# export coda object
-traces <- hmc$traces_as_coda
+# export traces using an R6 active field
+traces <- hhmodel$traces
 ```
 
-Thanks to coda bindings we can produce trellis plot of the traces using [lattice](https://cran.r-project.org/web/packages/lattice/), for example with the function `xyplot`:
+We can use [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) to show the traces:
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # visualize the traces of the first chain
-lattice::xyplot(traces)
+bayesplot::mcmc_trace(traces)
 ```
 
-In addition coda provides other useful functions for the mcmc diagnostics, e.
-g.
-
-```{r}
-# e. g. Gelman-Rubin criterion for convergence
-coda::gelman.diag(traces)
-```
+For those more accustomed withe the package [coda](https://cran.r-project.org/web/packages/coda/), a method `traces_as_coda`. This will return a `mcmc` object (or a `mcmc.list`).
+Trellis plot of the coda traces can be done using the function `xyplot` from [lattice](https://cran.r-project.org/web/packages/lattice/). 
 
 ## Model Comparison
 
-To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class.
-:
+To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class, e. g. for WAIC:
 
 ```{r}
 # widely applicable information criterion WAIC calling loo::waic
-hmc$waic()
+hhmodel$waic()
 ```
 
-Similarly for the PSIS-LOO (Pareto smoothed importance sampling leave-one-out cross-validation) we can use the method `$loo`.
+Similarly can be done with the method `$loo` for the LOO-CV (leave-one-out cross-validation).
 
 # Simulation
 
@@ -165,25 +159,25 @@ We call the `simulate` method after having provided parameter definitions (analo
 
 ```{r}
 # generate a new model object to use for the simulation
-simul <- housepi::HouseholdModel$new("chain-binomial")
+hhsimul <- housepi::HouseholdModel$new("chain-binomial")
 
 # define constant parameters from the inference results
 # note: definition without a prior assumes the parameter to be constant
-simul$add_param(name = "alpha", 
-                value = results["alpha", ]$mean)
-simul$add_param(name = "beta", 
-                value = results["beta", ]$mean)
+hhsimul$add_param(name = "alpha", 
+                  value = results["alpha", ]$mean)
+hhsimul$add_param(name = "beta", 
+                  value = results["beta", ]$mean)
 
 # build new model using the same demographic structure of dataset
 # override status of the dataset according to simulation
-simul$simulate(dataset = survey, seed = 5923)
+hhsimul$simulate(dataset = survey, seed = 5923)
 ```
 
 To return the simulated dataset, which corresponds to the current loaded dataset, we use the field `dataset`
 
 ```{r}
 # export current dataset as a data.frame
-simulated <- simul$dataset
+simulated <- hhsimul$dataset
 ```
 
 ## Wrapping all toghet with a Simulation Study
@@ -192,21 +186,16 @@ We can challenge the inference process used at the beginning with the new simula
 
 ```{r}
 # run inference on new dataset keeping previous definitions
-hmc$infer(dataset = simulated, n_steps = 25000, n_burnin = 2500,
-          thin = 10, n_adapt = 2500, n_chains = 4, seed = 4337)
-```
-
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# visualize traces of the first chain
-lattice::xyplot(hmc$traces_as_coda[1])
+hhmodel$infer(dataset = simulated, n_steps = 25000, n_burnin = 2500,
+              thin = 10, n_adapt = 2500, n_chains = 4, seed = 4337)
 ```
 
 ```{r}
 # collect parameters used for the simulations
-simul_params <- simul$param_defs
+simul_params <- hhsimul$param_defs
 
 # collect the results of the inference
-results <- hmc$traces_results
+results <- hhmodel$traces_results
 
 # data.frame to check
 check <- cbind(expec = simul_params$value, results[simul_params$name,])

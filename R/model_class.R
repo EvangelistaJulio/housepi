@@ -1,7 +1,7 @@
 #
 # model_class.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 #' @title
@@ -43,8 +43,8 @@ HouseholdModel <- R6::R6Class(
         requirements <- private$.param$require(refer_file)
       }
       requirements <- c(requirements,
-                        private$.augm$param_require(),
-                        private$.infec_profile$param_require())
+                        private$.augm$param_require,
+                        private$.infec_profile$param_require)
       return(private$.param$assert(requirements))
     },
 
@@ -201,6 +201,8 @@ HouseholdModel <- R6::R6Class(
     # @param seed (`integer(1)`)\cr
     # Seed of the random number generator.
     # If `NA` uses the internal clock (default).
+    # @param progress (`logical(1)`)\cr
+    # If `TRUE` prints the progress bar.
     .build = function(dataset = NULL,
                       sample_size = NA,
                       n_steps = 0,
@@ -212,7 +214,8 @@ HouseholdModel <- R6::R6Class(
                       rand_init = TRUE,
                       id_trace = NA,
                       inv_temper = 1.0,
-                      seed = NA) {
+                      seed = NA,
+                      progress = FALSE) {
 
       #----- MODEL PRE-BUILD -----#
 
@@ -253,91 +256,42 @@ HouseholdModel <- R6::R6Class(
         stop_h("Incomplete augmented variable definitions.")
       }
 
-      #----- MODEL GENERATION -----#
-      private$.model$generate()
+      # 0) model generation
+      private$.model$generate() 
 
-      #----- 1) DATA -----#
-      private$.model$rcpp$import_data(
-        data.frame(lapply(dataset, as.character))
-      )
+      # 1) dataset 
+      private$.model$import_dataset(dataset)
 
-      #----- 2) SETUP -----#
+      # 2) setup
+      private$.model$import_setup(list(
+        sample_size = sample_size, n_steps = n_steps, thin = thin,
+        n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
+        n_threads = n_threads, rand_init = rand_init,
+        id_trace = id_trace, inv_temper = inv_temper,
+        seed = seed, progress = progress
+      ))
 
-      # change scientific notation
-      store_scipen <- options()$scipen
-      options(scipen = 100)
+      # 3) parameters
+      private$.model$import_parameter(self$param_defs)
 
-      setup_list <- list(sample_size = sample_size, n_steps = n_steps,
-                         n_burnin = n_burnin, thin = thin,
-                         n_adapt = n_adapt, n_chains = n_chains,
-                         n_threads = n_threads, rand_init = rand_init,
-                         id_trace = id_trace, inv_temper = inv_temper,
-                         seed = seed)
-
-      private$.model$rcpp$import_setup(
-        lapply(setup_list, as.character)
-      )
-
-      # restore scientific notation option
-      options(scipen = store_scipen)
-
-      #----- 3) PARAMETERS -----#
-      private$.model$rcpp$import_params(
-        data.frame(lapply(private$.param$defs, as.character))
-      )
-
-      #----- 4) GROUP & CONTACT RATES -----#
+      # 4) group & contact rates
       # UPDATE: rebuild group rates <==> something has changed
       private$.model$rcpp$build_all_rates()
 
-      #----- 5) AUGMENTED -----#
-      if (length(private$.augm$defs) > 0) {
-        private$.model$rcpp$import_augm(
-          data.frame(lapply(private$.augm$defs, as.character))
-        )
+      # 5) augmented variables
+      if (length(self$augm_defs) > 0) {
+        private$.model$import_augmented(self$augm_defs)
       }
 
-      #----- 6) INFECTIVITY PROFILE -----#
+      # 6) infectivity profile
       if (length(private$.infec_profile$defs) > 0) {
-        private$.model$rcpp$import_infec_profile(
-          lapply(private$.infec_profile$defs, as.character)
-        )
+        private$.model$import_infec_profile(private$.infec_profile$defs)
       }
 
-      # initialize output sub-classes
+      # 7) clear output sub-classes
       .expec_cases <- NULL
 
       invisible(self)
-    },
-
-    # @description
-    # Export the traces of last inference call as a coda object.
-    #
-    # @return
-    # (`data.frame`)
-    .traces = function() {
-      if (is.null(private$.model$rcpp)) {
-        stop_h("Impossible to export traces before inference.")
-
-      } else {
-        # load traces from last inference
-        df <- private$.model$rcpp$export_traces()
-
-        if (dim(df)[1] == 0) {
-          # note: this is never be possible actually...
-          stop_h("Traces are empty.")
-          
-        } else if ("CHAIN__" %in% colnames(df)) {
-          df_list <- lapply(
-            split(seq_len(nrow(df)), df[, "CHAIN__"]), 
-            function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
-          )
-          return(df_list)
-
-        } else {
-          return(df)
-        }
-      }
     }
   ),
 
@@ -352,78 +306,60 @@ HouseholdModel <- R6::R6Class(
     #' Dataset with individual level information of current dataset.
     #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.model$rcpp)) {
-          stop_h("Impossible to export data before model build.")
-        }
-        return(private$.model$rcpp$export_data())
-      } else {
-        stop_h("'dataset' is read only.")
-      }
+      if (missing(value)) return(private$.model$dataset)
+      stop_h("'dataset' is read only.")
+    },
+
+    #' @field setup (`list()`)\cr
+    #' Last setup used by the build process.
+    setup = function(value) {
+      if (missing(value)) return(private$.model$setup)
+      stop_h("'setup' is read only.")
     },
 
     #' @field param_defs (`data.frame`)\cr
     #' Parameter formatted definitions.
     param_defs = function(value) {
-      if (missing(value)) {
-        return(private$.param$defs)
-      } else {
-        stop_h("'augm_def' is read only.")
-      }
+      if (missing(value)) return(private$.param$defs)
+      stop_h("'param_defs' is read only.")
     },
 
     #' @field augm_defs (`data.frame`)\cr
     #' Augmented variable formatted definitions.
     augm_defs = function(value) {
-      if (missing(value)) {
-        return(private$.augm$defs)
-      } else {
-        stop_h("'augm_def' is read only.")
-      }
+      if (missing(value)) return(private$.augm$defs)
+      stop_h("'augm_defs' is read only.")
     },
 
     #' @field traces (`matrix()` | `list()` of `matrix()`)\cr
     #' Traces of last inference.
     traces = function(value) {
-      if (missing(value)) {
-        return(private$.traces())
-      } else {
-        stop_h("'traces' is read only.")
-      }
+      if (missing(value)) return(private$.model$traces)
+      stop_h("'traces' is read only.")
+    },
+
+    #' @field traces (`matrix()` | `list()` of `matrix()`)\cr
+    #' Traces of last inference without loglikelihood.
+    traces_no_loglike = function(value) {
+      if (missing(value)) return(private$.model$traces_no_loglike)
+      stop_h("'traces_no_loglike' is read only.")
     },
 
     #' @field traces_as_coda (`coda::mcmc` | `coda::mcmc.list`)\cr
     #' Traces of last inference as a `coda` object.
     traces_as_coda = function(value) {
-      if (missing(value)) {
-        return(coerce_traces_to_coda(private$.traces()))
-      } else {
-        stop_h("'traces' is read only.")
-      }
+      if (missing(value)) return(coerce_traces_to_coda(private$.model$traces))
+      stop_h("'traces' is read only.")
     },
 
     #' @field traces_results (`data.frame`)\cr
     #' Results extracted from the traces of last inference.
     traces_results = function(value) {
       if (missing(value)) {
-        return(retrieve_traces_results(self$traces_no_loglike))
-      } else {
-        stop_h("'traces_results' is read only.")
+        return(retrieve_traces_results(private$.model$traces_no_loglike))
       }
-    },
-
-    #' @field seed (`list()`)\cr
-    #' Last setup used by the build process.
-    setup = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.model$rcpp)) {
-          stop_h("Impossible to export seed before model build.")
-        }
-        return(private$.model$rcpp$export_setup())
-      } else {
-        stop_h("'setup' is read only.")
-      }
-    },
+      stop_h("'traces_results' is read only.")
+    }
   ),
 
   ############################################################################
@@ -435,7 +371,7 @@ HouseholdModel <- R6::R6Class(
   public = list(
     #' @description
     #' New instance of class
-    #' \[HouseholdModel][housepi::HouseholdMode].
+    #' [HouseholdModel][housepi::HouseholdModel].
     #'
     #' @param model (`character(1)`)\cr
     #' One between:
@@ -466,21 +402,13 @@ HouseholdModel <- R6::R6Class(
                                              as_template = as_template)
       # initialize internal fields
       self$drop_all()
-
       invisible(self)
     },
 
     #' @description
-    #' Override the default printing behaviour.
+    #' Override the default printing behavior.
     print = function() {
       cli::cli_alert_info("Household model {.pkg {private$.model$model_name}}.")
-      invisible(self)
-    },
-
-    #' @description
-    #' Cleaning up any resources created by the initializer.
-    finalize = function() {
-      # FIXME
       invisible(self)
     },
 
@@ -513,35 +441,33 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Drop all current parameter definitions.
     drop_param_defs = function() {
-      private$.param$defs <- NULL
+      private$.param <- HousepiParameter$new()
       invisible(self)
     },
 
     #' @description
     #' Drop all current augmented variable definitions.
     drop_augm_defs = function() {
-      private$.augm$defs <- NULL
+      private$.augm <- HousepiAugmented$new()
       invisible(self)
     },
 
     #' @description
     #' Drop all current augmented variable definitions.
     drop_group_rate_defs = function() {
-      private$.group_rate$defs <- NULL
+      private$.group_rate <- HousepiGroupRate$new()
       invisible(self)
     },
 
     #' @description
     #' Drop all current definitions.
     drop_all = function() {
-      # initialize parameter helper
-      private$.param <- HousepiParameter$new()
-      # initialize augmented helper
-      private$.augm <- HousepiAugmented$new()
-      # initialize group rate helper
-      private$.group_rate <- HousepiGroupRate$new()
-      # initialize infectivity profile helper
+      self$drop_param_defs()
+      self$drop_augm_defs()
+      self$drop_group_rate_defs()
       private$.infec_profile <- HousepiInfecProfile$new()
+      # drop outputs
+      private$.expec_cases <- NULL
       invisible(self)
     },
 
@@ -643,7 +569,7 @@ HouseholdModel <- R6::R6Class(
     #' @param value (`double(1)` | `character(1)`)\cr
     #' One between:
     #' - Scalar value;
-    #' - Parameter name (followed by `@P`);
+    #' - Parameter name (optionally followed by `@P`);
     #' - Data name (followed by `@D`).
     #' @param constant (`logical(1)`)\cr
     #' If `FALSE` the augmented variable is treated as a constant.
@@ -663,12 +589,12 @@ HouseholdModel <- R6::R6Class(
     #' @param min (`double(1)` | `character(1)`)\cr
     #' Minimum value. One between:
     #' - Scalar value;
-    #' - Parameter name (followed by `@P`);
+    #' - Parameter name (optionally followed by `@P`);
     #' - Data name (followed by `@D`).
     #' @param max (`double(1)` | `character(1)`)\cr
     #' Maxmimum tvalue. One between:
     #' - Scalar value;
-    #' - Parameter name (followed by `@P`);
+    #' - Parameter name (optionally followed by `@P`);
     #' - Data name (followed by `@D`).
     #' @param init_rand (`character(1)`)\cr
     #' If `TRUE` draw initial vale from model distribution.
@@ -702,7 +628,7 @@ HouseholdModel <- R6::R6Class(
     #' Named list of augmented variable definitions.
     #' @param append (`logical(1)`)\cr
     #' If `TRUE` appends the list to current definition (default).
-    #' If `FALSE` drop all other augmented variable definitions.
+    #' Else drop all other augmented variable definitions.
     load_augm_list = function(...,
                               from = NA,
                               append = TRUE) {
@@ -803,11 +729,11 @@ HouseholdModel <- R6::R6Class(
     #' @param min (`double(1)` | `character(1)`)\cr
     #' One between:
     #' - Scalar value;
-    #' - Parameter name (followed by `@P`).
+    #' - Parameter name (optionally followed by `@P`).
     #' @param max (`double(1)` | `character(1)`)\cr
     #' One between:
     #' - Scalar value;
-    #' - Parameter name (followed by `@P`).
+    #' - Parameter name (optionally followed by `@P`).
     add_infectivity_profile = function(name,
                                        discrete = FALSE,
                                        args = list(),
@@ -819,7 +745,7 @@ HouseholdModel <- R6::R6Class(
     },
 
     #' @description
-    #' Export instantaneoud and cumulative values of the infectivity profile.
+    #' Export instantaneous and cumulative values of the infectivity profile.
     #'
     #' @param opts (`double()`)\cr
     #' Additional values for the computation.
@@ -827,7 +753,7 @@ HouseholdModel <- R6::R6Class(
     #' Customize the left and/or right limits for the x axis.
     #' To keep the default value of one limit, set it to `NA`.
     #' @param n_bins (`integer(1)`)\cr
-    #' Number of bins for continuos profile (ignored if discrete).
+    #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return
     #' (`data.frame`)\cr
@@ -836,32 +762,9 @@ HouseholdModel <- R6::R6Class(
                                           n_bins = 2000) {
       # internal build function
       private$.build()
-
-      # load options
-      opts_ <- as.list(as.numeric(opts))
-
-      # load x-limits
-      xlim_ <- list()
-      xlim <- unlist(xlim)
-      if (length(xlim) == 2) {
-        if (!all(is.na(xlim))) {
-          # check
-          if (!any(is.na(xlim))) {
-            if (xlim[[1]] == xlim[[2]]) {
-              stop_h("Left x limit larger than right limit.")
-            } else if (xlim[[1]] > xlim[[2]]) {
-              stop_h("Left x limit equal to right limit.")
-            }
-          }
-          xlim_ <- lapply(xlim, as.character)
-          names(xlim_) <- c("min", "max")
-        }
-
-      } else if (length(xlim) > 0) {
-        stop_h("Provide exactly 2 limits for the x axis.")
-      }
-
-      return(private$.model$rcpp$export_infec_profile(opts_, xlim_, n_bins))
+      return(private$.model$export_infec_profile(opts = opts,
+                                                 xlim = xlim,
+                                                 n_bins = n_bins))
     },
 
     ############################################################################
@@ -918,14 +821,33 @@ HouseholdModel <- R6::R6Class(
                      n_adapt = n_adapt, n_chains = n_chains,
                      n_threads = n_threads, rand_init = rand_init,
                      id_trace = id_trace, inv_temper = inv_temper,
-                     seed = seed)
+                     seed = seed, progress = progress)
 
       # infer method from cpp model object
-      private$.model$rcpp$infer(progress)
+      private$.model$rcpp$infer()
       invisible(self)
     },
 
-
+    #' @description
+    #' After `$infer` has been run, use the sample to perform simulations.
+    #' Extract the expected number of household cases per size
+    #' and the credible interval. 
+    #'
+    #' @param cred_level (`double(1)`)\cr
+    #' Level for the credible interval.
+    #' Value between 0 and 1 (default is 0.95).
+    #' @param progress (`logical(1)`)\cr
+    #' Progress of simulations. Default is inherited from the model.
+    #' @return 
+    #' (`HousepiOutExpCases`)
+    #' An instance of class
+    #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
+    expec_cases_by_size = function(cred_level = 0.95,
+                                   progress = NA) {
+      return(HousepiOutExpCases$new(self, 
+                                    cred_level = cred_level,
+                                    progress = progress))
+    },
 
     #' @description
     #' Run the simulation.
@@ -944,10 +866,11 @@ HouseholdModel <- R6::R6Class(
                         seed = NA,
                         progress = FALSE) {
       # internal build function
-      private$.build(dataset = dataset, n_threads = n_threads, seed = seed)
+      private$.build(dataset = dataset, n_threads = n_threads,
+                     seed = seed, progress = progress)
 
       # call simulate method from internal Rcpp object
-      private$.model$rcpp$simulate(progress)
+      private$.model$rcpp$simulate()
       invisible(self)
     },
 
@@ -1024,12 +947,12 @@ HouseholdModel <- R6::R6Class(
                                  seed = NA,
                                  progress = TRUE) {
       # internal build function
-      private$.build(dataset, sample_size = sample_size,
-                     n_steps = n_steps, n_burnin = n_burnin,
-                     thin = thin, n_adapt = n_adapt, n_chains = n_chains,
-                     n_threads = n_threads, rand_init = TRUE, seed = seed)
+      private$.build(dataset, sample_size = sample_size, n_steps = n_steps,
+                     n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
+                     n_chains = n_chains, n_threads = n_threads, 
+                     rand_init = TRUE, seed = seed, progress = progress)
       # evaluate marginal from the internal Rcpp object
-      output <- private$.model$rcpp$evaluate_marginal(n_rungs, scheme, progress)
+      output <- private$.model$rcpp$evaluate_marginal(n_rungs, scheme)
       return(output)
     },
 
@@ -1043,34 +966,16 @@ HouseholdModel <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
     loo = function(...) {
-      is_wrong_usage <- is.null(private$.model$rcpp)
-      if (!is_wrong_usage) {
-        df <- private$.model$rcpp$export_household_loglike_traces()
-        is_wrong_usage <- (dim(df)[1] == 0)
-      }
-      if (is_wrong_usage) {
-        stop_h("Impossible to run method 'loo' before model inference.")
-      }
-
-      return(loo::loo(df, ...))
+      return(loo::loo(private$.model$household_loglike_traces, ...))
     },
 
     #' @description
     #' Use loo package to compute the widely applicable information criterion.
     #'
-    #' @param ... arguments passed to [loo][loo::waic].
+    #' @param ... arguments passed to [waic][loo::waic].
     #' For arguments and further details type ?loo::waic.
     waic = function(...) {
-      is_wrong_usage <- is.null(private$.model$rcpp)
-      if (!is_wrong_usage) {
-        df <- private$.model$rcpp$export_household_loglike_traces()
-        is_wrong_usage <- (dim(df)[1] == 0)
-      }
-      if (is_wrong_usage) {
-        stop_h("Impossible to run method 'waic' before model inference.")
-      }
-
-      return(loo::waic(df, ...))
+      return(loo::waic(private$.model$household_loglike_traces, ...))
     }
   )
 )

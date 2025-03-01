@@ -20,13 +20,13 @@
 //' }
 //' @filed import_setup Import setup from R List.
 //' @filed import_infec_profile Import infectivity profile definition from R List.
-//' @filed import_params Import parameter definitions from R Data.Frame.
-//' @filed import_data Import data definitions from R Data.Frame.
-//' @filed import_augm Import augmented variable definitions from R Data.Frame.
+//' @filed import_parameter Import parameter definitions from R Data.Frame.
+//' @filed import_dataset Import data definitions from R Data.Frame.
+//' @filed import_augmented Import augmented variable definitions from R Data.Frame.
 //' @filed buil_all_rates Assign all contact and group rates.
 //' @field export_setup Return a List with current setup.
-//' @field export_params Return a DataFrame with current parameters.
-//' @field export_data Return a DataFrame with current database.
+//' @field export_parameter Return a DataFrame with current parameters.
+//' @field export_dataset Return a DataFrame with current database.
 //' @field export_traces Return a DataFrame with MCMC traces.
 //' @field export_household_loglike_traces Return a NumericMatrix with household loglikelihood traces.
 //' @field export_infec_profile Return a DataFrame values of the infectivity profile.
@@ -49,13 +49,13 @@ RCPP_MODULE(housepi_model_core)
       .method("evaluate_marginal", &MCMC::evaluate_marginal)
       .method("import_setup", &MCMC::import_setup)
       .method("import_infec_profile", &MCMC::import_infec_profile)
-      .method("import_params", &MCMC::import_params)
-      .method("import_data", &MCMC::import_data)
-      .method("import_augm", &MCMC::import_augm)
+      .method("import_parameter", &MCMC::import_parameter)
+      .method("import_dataset", &MCMC::import_dataset)
+      .method("import_augmented", &MCMC::import_augmented)
       .method("build_all_rates", &MCMC::build_all_rates)
       .method("export_setup", &MCMC::export_setup)
-      .method("export_params", &MCMC::export_params)
-      .method("export_data", &MCMC::export_data)
+      .method("export_parameter", &MCMC::export_parameter)
+      .method("export_dataset", &MCMC::export_dataset)
       .method("export_traces", &MCMC::export_traces)
       .method("export_household_loglike_traces", &MCMC::export_household_loglike_traces)
       .method("export_infec_profile", &MCMC::export_infec_profile);

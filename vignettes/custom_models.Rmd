@@ -15,6 +15,8 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
+
+bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 This tutorial introduces to custom models with the package `housepi`.
@@ -22,12 +24,12 @@ To create a custom model, we recommend not starting from scratch, but instead to
 
 ## Template Models
 
-To copy a template to a custom path we use the function `household_model_template`:
+To copy a template to a custom path we use the function `template_household_model`:
 
 ```{r, eval=FALSE}
 # copy the heterogeneous chain binomial template to a custom directory
 my_model_path <- "custom_folder"
-housepi::household_model_template(which = "chain-binomial-heterogeneous",
+housepi::template_household_model(which = "chain-binomial-heterogeneous",
                                   path = my_model_path)
 ```
 
@@ -36,7 +38,7 @@ Modify all relevant parts of the C++ implementation *model.cpp* and of the heade
 We can then generate an instance of our custom model from its path. All other methods remain the same already seen in [Walkthrough](walkthrough.html).
 
 ```{r, eval=FALSE}
-hemi <- housepi::HouseholdModel$new(my_model_path)
+hhmodel <- housepi::HouseholdModel$new(my_model_path)
 ```
 
 By default a new instance requires the model compilation which is repeated at every R session. 

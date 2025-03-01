@@ -51,18 +51,10 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 /* Assign the contact patterns between a couple of individuals. */
 void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
 {
-	// child if younger than 'child_age'; adult otherwise
-	bool is_from_adult = (house.data(from, "age") < param("child_age"));
-	bool is_to_adult = (house.data(to, "age") < param("child_age"));
-
-	if (is_from_adult && is_to_adult)
-		emplace_contact_rate(REFERENCE);
-	else if (is_from_adult && (!is_to_adult))
-		emplace_contact_rate("cont_adult_child");
-	else if ((!is_from_adult) && is_to_adult)
-		emplace_contact_rate("cont_child_adult");
-	else
-		emplace_contact_rate("cont_child_child");
+	UNUSED(house);
+	UNUSED(from);
+	UNUSED(to);
+	emplace_contact_rate(REFERENCE);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -43,33 +43,20 @@ double Model::person_to_person_risk() const
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	rateID r;
-	bool is_adult = house.data(i, "age") > param("child_age");
-	bool is_male = (house.data(i, "sex") == 1);
+	UNUSED(house);
+	UNUSED(i);
 
 	//----- infectivity -----//
 	r = "infectivity";
-	if (is_adult)
-		emplace_group_rate(r, REFERENCE);
-	else
-		emplace_group_rate(r, "inf_child");
+	emplace_group_rate(r, REFERENCE);
 
 	//----- community_susceptibility -----//
 	r = "community_susceptibility";
-	if (is_adult && is_male)
-		emplace_group_rate(r, REFERENCE);
-	else if (is_adult && (!is_male))
-		emplace_group_rate(r, "com_sus_woman");
-	else
-		emplace_group_rate(r, "com_sus_child");
+	emplace_group_rate(r, REFERENCE);
 
 	//----- susceptibility -----//
 	r = "susceptibility";
-	if (is_adult && is_male)
-		emplace_group_rate(r, REFERENCE);
-	else if (is_adult && (!is_male))
-		emplace_group_rate(r, "sus_woman");
-	else
-		emplace_group_rate(r, "sus_child");
+	emplace_group_rate(r, REFERENCE);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

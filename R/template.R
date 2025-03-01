@@ -1,7 +1,7 @@
 #
 # template.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 #' @description
@@ -22,7 +22,7 @@ show_model_names <- function() {
 }
 
 #' @title
-#' household model template
+#' Template household model
 #' @description
 #' Copy a default model to a given directory.
 #'
@@ -33,7 +33,7 @@ show_model_names <- function() {
 #' If `NA`, show template model description in RStudio Help window.
 #'
 #' @export
-household_model_template <- function(name = NA, path = NA) {
+template_household_model <- function(name = NA, path = NA) {
 
   if (is.na(name)) {
     #===== Asking for model names =====#
@@ -95,7 +95,7 @@ household_model_template <- function(name = NA, path = NA) {
     } else {
       stop_h(
         sprintf("Provided model name \"%s\" is unknown.", name),
-        "Run `household_model_template` to see available template names."
+        "Run `template_household_model` to see available template names."
       )
     }
 

@@ -64,7 +64,7 @@ protected:
 		double m = get_arg(1); // 'mu' : location
 		double s = get_arg(2); // 'sigma' : scale
 		double T = get_arg(3); // 'tau' : mean incubation period
-		double tOST = x - i;   // t. from onset to transmission
+		double tOST = x - i;   // time from onset to transmission
 
 		double norm_pdf = (s / a) * (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * pow(1. + exp((m + T) / s), -a));
 
@@ -81,7 +81,7 @@ protected:
 		double m = get_arg(1); // 'mu' : location
 		double s = get_arg(2); // 'sigma' : scale
 		double T = get_arg(3); // 'tau' : mean incubation period
-		double tOST = x - i;   // t. from onset to transmission
+		double tOST = x - i;   // time from onset to transmission
 
 		double norm_cdf = (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * (pow(1. + exp((m + T) / s), -a)));
 

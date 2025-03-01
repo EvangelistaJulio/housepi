@@ -16,6 +16,8 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 options(knitr.kable.NA = "")
+
+bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 In this vignette we present all available options for the choice of the prior and Monte Carlo rule in `housepi`. 
@@ -25,7 +27,7 @@ To perform the sampling we consider the "blank" model, i. e. a data independent 
 
 ```{r, eval = TRUE}
 # create an instance of the blank model
-hmc <- housepi::HouseholdModel$new("blank")
+blank_model <- housepi::HouseholdModel$new("blank")
 ```
 
 # Continuos Priors
@@ -39,7 +41,7 @@ available_distrs <- c("unif", "norm", "lnorm", "gamma",
 
 # add a parameter definition for each available distribution
 for (distr_name in available_distrs) {
-  hmc$add_param(name = distr_name, prior = distr_name)
+  blank_model$add_param(name = distr_name, prior = distr_name)
 }
 ```
 
@@ -48,12 +50,10 @@ Here we associated definitions of parameters to infer with default arguments and
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # perform the sampling with the inference command
 # note: since loglikelihood is 0, posterior and prior sampling are equal
-hmc$infer(progress = FALSE)
+blank_model$infer(progress = FALSE)
 
 # density plot of the traces (w\o loglikelihood)
-# option loglikelihood = FALSE avoids to export loglikelihood
-traces <- subset(hmc$traces, select = -loglikelihood)
-bayesplot::mcmc_dens(traces)
+bayesplot::mcmc_dens(blank_model$traces_no_loglike)
 ```
 
 ## How to Discretize Continuos Priors
@@ -62,19 +62,18 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 
 ```{r, eval = TRUE}
 # drop all current definitions
-hmc$drop_all()
+blank_model$drop_all()
 
 # add a parameter definition for each available distribution
 for (distr_name in available_distrs[available_distrs != "beta"]) {
-  hmc$add_param(name = distr_name, prior = distr_name, discrete = TRUE)
+  blank_model$add_param(name = distr_name, prior = distr_name, discrete = TRUE)
 }
 
 # perform the sampling 
-hmc$infer(progress = FALSE)
+blank_model$infer(progress = FALSE)
 
 # plot the histograms
-traces <- subset(hmc$traces, select = -loglikelihood)
-bayesplot::mcmc_hist(traces, binwidth = 1)
+bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
 ```
 
 ## Provide a Custom Range
@@ -82,17 +81,16 @@ bayesplot::mcmc_hist(traces, binwidth = 1)
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # add list of parameter definitions
 # option 'append = FALSE' drop previous definitions
-hmc$load_param_list(
+blank_model$load_param_list(
   default = list(prior = "norm"),
   below = list(prior = "norm", min = -1),
   above = list(prior = "norm", max = 1),
   both = list(prior = "norm", min = -1, max = 1), 
   append = FALSE
 )
-hmc$infer(progress = FALSE)
+blank_model$infer(progress = FALSE)
 
-traces <- subset(hmc$traces, select = -loglikelihood)
-bayesplot::mcmc_dens(traces)
+bayesplot::mcmc_dens(blank_model$traces_no_loglike)
 ```
 
 # Discrete Priors
@@ -102,38 +100,36 @@ Here's the full list of available discrete distributions present in `housepi`:
 ```{r, eval = TRUE}
 # discrete distributions in housepi
 discrete_distrs <- c("pois", "binom", "nbinom", "geom")
-hmc$drop_all()
+blank_model$drop_all()
 for (distr_name in discrete_distrs) {
-  hmc$add_param(name = distr_name, prior = distr_name)
+  blank_model$add_param(name = distr_name, prior = distr_name)
 }
 
 # perform the sampling 
-hmc$infer(progress = FALSE)
+blank_model$infer(progress = FALSE)
 
 # plot the histograms
-traces <- subset(hmc$traces, select = -loglikelihood)
-bayesplot::mcmc_hist(traces, binwidth = 1)
+bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
 ```
 
 # MCMC Proposer Rules
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-hmc$drop_all()
+blank_model$drop_all()
 
 # available proposer rules in housepi
 available_proposer_rules <- c("gibbs", "unif", "norm", "lnorm")
 
 # add a parameter definition for each available proposer rule
 for (rule_name in available_proposer_rules) {
-  hmc$add_param(name = paste("rule", rule_name), 
+  blank_model$add_param(name = paste("rule", rule_name), 
                 prior = "norm", min = 0, rule = rule_name)
 }
 
-hmc$infer(progress = FALSE)
+blank_model$infer(progress = FALSE)
 
-traces <- subset(hmc$traces, select = -loglikelihood)
-bayesplot::mcmc_trace(traces)
-bayesplot::mcmc_dens(traces)
+bayesplot::mcmc_trace(blank_model$traces_no_loglike)
+bayesplot::mcmc_dens(blank_model$traces_no_loglike)
 ```
 
 Note that the proposer rule "lnorm" does not fit the case of negative values as it's here visible.

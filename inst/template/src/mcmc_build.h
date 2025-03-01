@@ -226,17 +226,17 @@ public:
 
     void import_setup(const Rcpp::List &input);
     void import_infec_profile(const Rcpp::List &input);
-    void import_params(const Rcpp::DataFrame &input);
-    void import_augm(const Rcpp::DataFrame &input);
-    void import_data(const Rcpp::DataFrame &input);
+    void import_parameter(const Rcpp::DataFrame &input);
+    void import_augmented(const Rcpp::DataFrame &input);
+    void import_dataset(const Rcpp::DataFrame &input);
 
     //========================//
     //===== Rcpp EXPORTS =====//
     //========================//
 
     Rcpp::List export_setup() const;
-    Rcpp::DataFrame export_params() const;
-    Rcpp::DataFrame export_data() const;
+    Rcpp::DataFrame export_parameter() const;
+    Rcpp::DataFrame export_dataset() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_traces() const;
     Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,

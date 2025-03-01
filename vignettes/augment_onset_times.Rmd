@@ -16,6 +16,8 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 options(knitr.kable.NA = "")
+
+bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 This tutorial introduces to data augmentation with the package `housepi`.
@@ -27,17 +29,17 @@ For a more realistic example, we use the template model "ex-augm-onset-single-in
 For simplicity the model assumes no asymptomatic cases.
 
 ```{r}
-hmc <- housepi::HouseholdModel$new("augm-onset-single-intro")
+hhmodel <- housepi::HouseholdModel$new("augm-onset-single-intro")
 ```
 
 This time we load the parameter definitions directly from the model template.
 
 ```{r}
 # use example parameters associated to the templated model
-hmc$load_param_template()
+hhmodel$load_param_template()
 
 # export the data.frame with formatted parameter definitions
-param_defs <- hmc$param_defs
+param_defs <- hhmodel$param_defs
 ```
 
 ```{r, echo=FALSE}
@@ -50,25 +52,26 @@ We propose the following definitions for the augmented variable
 
 ```{r}
 # associate defininitions from a list
-hmc$load_augm_list(
+hhmodel$load_augm_list(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
-    model = "lnorm", args = c(meanlog = 4, sdlog = 0.5),
+    model = "lnorm",
+    args = c(meanlog = 4, sdlog = 0.5),
     max = 365
   ),
   # add augmented variable definition 'incub_period'
   incub_period = list(
     init_rand = TRUE,
+    model = "gamma",
     # assign arguments of incubation period from parameter definitions
-    model = "gamma", args = c(shape = "inc_shape",
-                              scale = "inc_scale"),
+    args = c(shape = "inc_shape",  scale = "inc_scale"),
     max = 14
   )
 )
 
 # append incubation period distribution parameters as constants
-hmc$load_param_list(inc_shape = 2, inc_scale = 1.1)
+hhmodel$load_param_list(inc_shape = 2, inc_scale = 1.1)
 ```
 
 We run a simulation with the method `simulate`.
@@ -76,10 +79,10 @@ We run a simulation with the method `simulate`.
 ```{r}
 # override status of the dataset according to simulation
 dataset <- housepi::survey
-hmc$simulate(dataset = dataset, seed = 3731)
+hhmodel$simulate(dataset = dataset, seed = 3731)
 
 # show a summary of the current dataset # FIXME
-#hmc$summarise_data()
+#hhmodel$summarise_data()
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
@@ -87,7 +90,7 @@ Note that this simulation, as for all other templated models, do not simulate a 
 
 ```{r}
 # remove incubation period from simulated dataset
-dataset <- subset(hmc$dataset, select = -c(incub_period))
+dataset <- subset(hhmodel$dataset, select = -c(incub_period))
 
 # change all onsets after 9 PM to next day
 is_infec <- dataset$status == 1
@@ -107,7 +110,7 @@ We can check that inference returns the parameters used for the simulation.
 
 ```{r}
 # load definitions from list and drop previous definitions 
-hmc$load_augm_list(
+hhmodel$load_augm_list(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
@@ -116,8 +119,8 @@ hmc$load_augm_list(
   ),
   # add 'incub_period' definition
   incub_period = list(
-    model = "gamma", args = c(shape = "inc_shape",
-                              scale = "inc_scale"),
+    model = "gamma",
+    args = c(shape = "inc_shape", scale = "inc_scale"),
     rule = "gibbs", max = 14,
     init_rand = TRUE
   ),
@@ -126,18 +129,18 @@ hmc$load_augm_list(
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hmc$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
-          n_chains = 3, n_adapt = 2000, seed = 3413, progress = TRUE)
+hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
+              n_chains = 3, n_adapt = 2000, seed = 3413, progress = TRUE)
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the traces of all chains 
-lattice::xyplot(hmc$traces)
+bayesplot::mcmc_trace(hhmodel$traces)
 ```
 
 ```{r}
 # collect the results
-results <- hmc$traces_results
+results <- hhmodel$traces_results
 
 # compare results to parameter values used for inference
 imask <- param_defs$constant == FALSE
@@ -164,6 +167,6 @@ We can estimate the model evidence (or marginal loglikelihood) with the method o
 
 ```{r, eval=FALSE}
 # return the estimate of the model evidence
-hmc$evidence(n_rungs = 30)
+hhmodel$evidence(n_rungs = 30)
 ```
 

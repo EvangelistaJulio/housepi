@@ -1,7 +1,7 @@
 #
 # model_class.R
 #
-# Copyright (C) 2025 Francesco Camaglia - Institut Pasteur, Paris (France).
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
 #' @title Housepi Augmented R6 Class
@@ -12,6 +12,39 @@
 HousepiAugmented <- R6::R6Class(
   classname = "HousepiAugmented",
   cloneable = TRUE,
+
+  ############################################################################
+  ############################################################################
+  ################################## ACTIVE ##################################
+  ############################################################################
+  ############################################################################
+
+  active = list(
+    #' @description
+    #' Find parameters required by augmented variable definitions.
+    param_require = function(value) {
+      if (missing(value)) {
+        # from : augmented variable model argument definitions
+        required_param_set <- c()
+        if (length(self$defs) > 0) {
+          x <- self$defs[c("arg_value", "arg_type")]
+          for (i in seq_along(x)) {
+            r <- unlist(x[i, ])
+            if (!any(is.na(r))) {
+              arg2par <- data.frame(
+                vals = strsplit(r[1], "/")[[1]],
+                keys = strsplit(r[2], "/")[[1]]
+              )
+              required_param_set <- c(required_param_set,
+                                      arg2par[arg2par$keys == "P"]$vals)
+            }
+          }
+        }
+        return(required_param_set)
+      }
+      stop_h("'param_require' is read only.")
+    }
+  ),
 
   ############################################################################
   ############################################################################
@@ -45,28 +78,6 @@ HousepiAugmented <- R6::R6Class(
       )
       # find required augmented variables from regular expressions
       return(template_find_requirement(refer_file, regular_expr))
-    },
-
-    #' @description
-    #' Find parameters required by augmented variable definitions.
-    param_require = function() {
-      # from : augmented variable model argument definitions
-      required_param_set <- c()
-      if (length(self$defs) > 0) {
-        x <- self$defs[c("arg_value", "arg_type")]
-        for (i in seq_along(x)) {
-          r <- unlist(x[i, ])
-          if (!any(is.na(r))) {
-            arg2par <- data.frame(
-              vals = strsplit(r[1], "/")[[1]],
-              keys = strsplit(r[2], "/")[[1]]
-            )
-            required_param_set <- c(required_param_set,
-                                    arg2par[arg2par$keys == "P"]$vals)
-          }
-        }
-      }
-      return(required_param_set)
     },
 
     #' @description
@@ -399,6 +410,10 @@ HousepiAugmented <- R6::R6Class(
               warning_h(
                 "No template augmented variable to append.",
                 "Definitions are complete."
+              )
+            } else if (!all(missing_set %in% names(templ_defs))) {
+              stop_h(
+                "No template found for the missing augmented variables."
               )
             } else {
               self$load_list(from = templ_defs[missing_set], append = TRUE)

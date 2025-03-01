@@ -23,6 +23,9 @@ Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
 Dataset with individual level information of current dataset.
 If the case, it also return the associated augmented variables.}
 
+\item{\code{setup}}{(\code{list()})\cr
+Last setup used by the build process.}
+
 \item{\code{param_defs}}{(\code{data.frame})\cr
 Parameter formatted definitions.}
 
@@ -31,6 +34,9 @@ Augmented variable formatted definitions.}
 
 \item{\code{traces}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
 Traces of last inference.}
+
+\item{\code{traces}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
+Traces of last inference without loglikelihood.}
 
 \item{\code{traces_as_coda}}{(\code{coda::mcmc} | \code{coda::mcmc.list})\cr
 Traces of last inference as a \code{coda} object.}
@@ -45,7 +51,6 @@ Results extracted from the traces of last inference.}
 \itemize{
 \item \href{#method-HouseholdModel-new}{\code{HouseholdModel$new()}}
 \item \href{#method-HouseholdModel-print}{\code{HouseholdModel$print()}}
-\item \href{#method-HouseholdModel-finalize}{\code{HouseholdModel$finalize()}}
 \item \href{#method-HouseholdModel-help}{\code{HouseholdModel$help()}}
 \item \href{#method-HouseholdModel-drop_param_defs}{\code{HouseholdModel$drop_param_defs()}}
 \item \href{#method-HouseholdModel-drop_augm_defs}{\code{HouseholdModel$drop_augm_defs()}}
@@ -61,6 +66,7 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-add_infectivity_profile}{\code{HouseholdModel$add_infectivity_profile()}}
 \item \href{#method-HouseholdModel-export_infectivity_profile}{\code{HouseholdModel$export_infectivity_profile()}}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
+\item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
 \item \href{#method-HouseholdModel-simulate}{\code{HouseholdModel$simulate()}}
 \item \href{#method-HouseholdModel-compute_loglikelihood}{\code{HouseholdModel$compute_loglikelihood()}}
 \item \href{#method-HouseholdModel-estimate_evidence}{\code{HouseholdModel$estimate_evidence()}}
@@ -74,7 +80,7 @@ Results extracted from the traces of last inference.}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-new}{}}}
 \subsection{Method \code{new()}}{
 New instance of class
-[HouseholdModel][housepi::HouseholdMode].
+\link[=HouseholdModel]{HouseholdModel}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$new(
   model = NA,
@@ -107,19 +113,9 @@ IF \code{FALSE} recompile the model at every new session.}
 \if{html}{\out{<a id="method-HouseholdModel-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-print}{}}}
 \subsection{Method \code{print()}}{
-Override the default printing behaviour.
+Override the default printing behavior.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$print()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-finalize"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-finalize}{}}}
-\subsection{Method \code{finalize()}}{
-Cleaning up any resources created by the initializer.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$finalize()}\if{html}{\out{</div>}}
 }
 
 }
@@ -309,7 +305,7 @@ Default NA is for all infectious.}
 One between:
 \itemize{
 \item Scalar value;
-\item Parameter name (followed by \verb{@P});
+\item Parameter name (optionally followed by \verb{@P});
 \item Data name (followed by \verb{@D}).
 }}
 
@@ -339,7 +335,7 @@ Advanced options for non random walk moves.
 Minimum value. One between:
 \itemize{
 \item Scalar value;
-\item Parameter name (followed by \verb{@P});
+\item Parameter name (optionally followed by \verb{@P});
 \item Data name (followed by \verb{@D}).
 }}
 
@@ -347,7 +343,7 @@ Minimum value. One between:
 Maxmimum tvalue. One between:
 \itemize{
 \item Scalar value;
-\item Parameter name (followed by \verb{@P});
+\item Parameter name (optionally followed by \verb{@P});
 \item Data name (followed by \verb{@D}).
 }}
 
@@ -376,7 +372,7 @@ Named list of augmented variable definitions.}
 
 \item{\code{append}}{(\code{logical(1)})\cr
 If \code{TRUE} appends the list to current definition (default).
-If \code{FALSE} drop all other augmented variable definitions.}
+Else drop all other augmented variable definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -497,14 +493,14 @@ Arguments (eventually with types) for the profile.}
 One between:
 \itemize{
 \item Scalar value;
-\item Parameter name (followed by \verb{@P}).
+\item Parameter name (optionally followed by \verb{@P}).
 }}
 
 \item{\code{max}}{(\code{double(1)} | \code{character(1)})\cr
 One between:
 \itemize{
 \item Scalar value;
-\item Parameter name (followed by \verb{@P}).
+\item Parameter name (optionally followed by \verb{@P}).
 }}
 }
 \if{html}{\out{</div>}}
@@ -514,7 +510,7 @@ One between:
 \if{html}{\out{<a id="method-HouseholdModel-export_infectivity_profile"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-export_infectivity_profile}{}}}
 \subsection{Method \code{export_infectivity_profile()}}{
-Export instantaneoud and cumulative values of the infectivity profile.
+Export instantaneous and cumulative values of the infectivity profile.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$export_infectivity_profile(
   opts = list(),
@@ -534,7 +530,7 @@ Customize the left and/or right limits for the x axis.
 To keep the default value of one limit, set it to \code{NA}.}
 
 \item{\code{n_bins}}{(\code{integer(1)})\cr
-Number of bins for continuos profile (ignored if discrete).}
+Number of bins for continuous profile (ignored if discrete).}
 }
 \if{html}{\out{</div>}}
 }
@@ -610,6 +606,35 @@ If \code{NA} uses the internal clock (default).}
 If \code{FALSE} suppress the inference progress bar.}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-expec_cases_by_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-expec_cases_by_size}{}}}
+\subsection{Method \code{expec_cases_by_size()}}{
+After \verb{$infer} has been run, use the sample to perform simulations.
+Extract the expected number of household cases per size
+and the credible interval.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_size(cred_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{cred_level}}{(\code{double(1)})\cr
+Level for the credible interval.
+Value between 0 and 1 (default is 0.95).}
+
+\item{\code{progress}}{(\code{logical(1)})\cr
+Progress of simulations. Default is inherited from the model.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+(\code{HousepiOutExpCases})
+An instance of class
+\link[=HousepiOutExpCases]{HousepiOutExpCases}.
 }
 }
 \if{html}{\out{<hr>}}
@@ -779,7 +804,7 @@ Use loo package to compute the widely applicable information criterion.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{arguments passed to \link[loo:waic]{loo}.
+\item{\code{...}}{arguments passed to \link[loo:waic]{waic}.
 For arguments and further details type ?loo::waic.}
 }
 \if{html}{\out{</div>}}
