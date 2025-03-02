@@ -27,7 +27,6 @@ HouseholdModel <- R6::R6Class(
     .augm = NULL,
     .group_rate = NULL,
     .infec_profile = NULL,
-    .expec_cases = NULL,
 
     # @description
     # Assert if parameter definitions match the implementation script.
@@ -169,11 +168,60 @@ HouseholdModel <- R6::R6Class(
         self$load_param_list(from = new_defs, append = TRUE)
       }
 
-      return(self)
+      invisible(self)
     },
 
     # @description
-    # Associate dataset to the model and options for the setup.
+    # Associate dataset and parameters for a minimal build.
+    # @param dataset (`data.frame`)\cr
+    # A data.frame containing the dataset.
+    .pre_build = function(dataset = NULL) {
+      if (private$.model$is_blank) {
+        # blank dataset
+        # note: no assert definitions in such case
+        id_trace <- 1
+        dataset <- data.frame(id = c(id_trace),
+                              house_id = c("HH_1"),
+                              status = c(1))
+
+      } else if (length(dataset) > 0) {
+        # check that dataset type is correct
+        if (!is.data.frame(dataset)) {
+          stop_h(
+            "Unsupported type for dataset.",
+            "Dataset should be a data.frame."
+          )
+        }
+
+        # deal with group rates
+        private$.build_group_rate(dataset)
+
+        # assert dataset headers
+        if (isFALSE(private$.assert_data(private$.model$reference,
+                                         colnames(dataset)))) {
+          stop_h("Incomplete dataset headers.")
+        }
+      }
+
+      # assert parameter definitions
+      if (isFALSE(private$.assert_param())) {
+        stop_h("Incomplete parameter definitions.")
+      }
+
+      # 0) model generation
+      private$.model$generate()
+
+      # 1) parameters
+      private$.model$import_parameter(self$param_defs)
+
+      # 2) dataset
+      private$.model$import_dataset(dataset)
+
+      invisible(self)
+    },
+
+    # @description
+    # Full model build with complete list of definitions.
     #
     # @param dataset (`data.frame`)\cr
     # A data.frame containing the dataset.
@@ -216,53 +264,16 @@ HouseholdModel <- R6::R6Class(
                       inv_temper = 1.0,
                       seed = NA,
                       progress = FALSE) {
+      # run model pre-build
+      private$.pre_build(dataset)
 
-      #----- MODEL PRE-BUILD -----#
-
-      if (private$.model$is_blank) {
-        # blank dataset
-        # note: no assert definitions in such case
-        id_trace <- 1
-        dataset <- data.frame(id = c(id_trace),
-                              house_id = c("HH_1"),
-                              status = c(1))
-
-      } else if (length(dataset) > 0) {
-        # check that dataset type is correct
-        if (!is.data.frame(dataset)) {
-          stop_h(
-            "Unsupported type for dataset.",
-            "Dataset should be a data.frame."
-          )
-        }
-
-        # deal with group rates
-        private$.build_group_rate(dataset)
-
-        # assert dataset headers
-        if (isFALSE(private$.assert_data(private$.model$reference,
-                                         colnames(dataset)))) {
-          stop_h("Incomplete dataset headers.")
-        }
-
-      }
-
-      # assert parameter definitions
-      if (isFALSE(private$.assert_param())) {
-        stop_h("Incomplete parameter definitions.")
-      }
       # assert augmented variable definitions
       if (isFALSE(private$.assert_augm())) {
         stop_h("Incomplete augmented variable definitions.")
       }
 
-      # 0) model generation
-      private$.model$generate() 
-
-      # 1) dataset 
-      private$.model$import_dataset(dataset)
-
-      # 2) setup
+      # 3) setup
+      if (private$.model$is_blank) id_trace <- 1
       private$.model$import_setup(list(
         sample_size = sample_size, n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
@@ -271,12 +282,9 @@ HouseholdModel <- R6::R6Class(
         seed = seed, progress = progress
       ))
 
-      # 3) parameters
-      private$.model$import_parameter(self$param_defs)
-
       # 4) group & contact rates
       # UPDATE: rebuild group rates <==> something has changed
-      private$.model$rcpp$build_all_rates()
+      private$.model$build_all_rates()
 
       # 5) augmented variables
       if (length(self$augm_defs) > 0) {
@@ -285,11 +293,8 @@ HouseholdModel <- R6::R6Class(
 
       # 6) infectivity profile
       if (length(private$.infec_profile$defs) > 0) {
-        private$.model$import_infec_profile(private$.infec_profile$defs)
+        private$.model$import_infectivity_profile(private$.infec_profile$defs)
       }
-
-      # 7) clear output sub-classes
-      .expec_cases <- NULL
 
       invisible(self)
     }
@@ -338,7 +343,7 @@ HouseholdModel <- R6::R6Class(
       stop_h("'traces' is read only.")
     },
 
-    #' @field traces (`matrix()` | `list()` of `matrix()`)\cr
+    #' @field traces_no_loglike (`matrix()` | `list()` of `matrix()`)\cr
     #' Traces of last inference without loglikelihood.
     traces_no_loglike = function(value) {
       if (missing(value)) return(private$.model$traces_no_loglike)
@@ -375,20 +380,20 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param model (`character(1)`)\cr
     #' One between:
-    # - template name;
-    # - path/to/folder with implementation;
-    # - path/to/folder with previously compiled model;
-    # - "blank": template name for blank model (default).
-    #' @param quiet (`logical(1)`)\cr
-    #' If `TRUE` hide compilation commands.
+    #' - template name;
+    #' - path/to/folder with implementation;
+    #' - path/to/folder with previously compiled model;
+    #' - "blank": template name for blank model (default).
     #' @param force (`logical(1)`)\cr
     #' If `TRUE` compile even if a cached model already exists.
+    #' @param quiet_pkgbuild (`logical(1)`)\cr
+    #' If `TRUE` hide `pkgbuild` compilation commands.
     #' @param as_template (`logical(1)`)\cr
     #' If `TRUE` store the dynamic library as a local template.
     #' IF `FALSE` recompile the model at every new session.
     initialize = function(model = NA,
-                          quiet = TRUE,
                           force = FALSE,
+                          quiet_pkgbuild = TRUE,
                           as_template = FALSE) {
       if (is.na(model)) {
         model <- "blank"
@@ -397,8 +402,8 @@ HouseholdModel <- R6::R6Class(
 
       # assign model definitions
       private$.model <- HousepiGenerator$new(model = model,
-                                             quiet = quiet,
                                              force = force,
+                                             quiet_pkgbuild = quiet_pkgbuild,
                                              as_template = as_template)
       # initialize internal fields
       self$drop_all()
@@ -466,8 +471,6 @@ HouseholdModel <- R6::R6Class(
       self$drop_augm_defs()
       self$drop_group_rate_defs()
       private$.infec_profile <- HousepiInfecProfile$new()
-      # drop outputs
-      private$.expec_cases <- NULL
       invisible(self)
     },
 
@@ -761,10 +764,10 @@ HouseholdModel <- R6::R6Class(
                                           xlim = double(),
                                           n_bins = 2000) {
       # internal build function
-      private$.build()
-      return(private$.model$export_infec_profile(opts = opts,
-                                                 xlim = xlim,
-                                                 n_bins = n_bins))
+      private$.pre_build()
+      return(private$.model$export_infectivity_profile(opts = opts,
+                                                       xlim = xlim,
+                                                       n_bins = n_bins))
     },
 
     ############################################################################
@@ -824,27 +827,27 @@ HouseholdModel <- R6::R6Class(
                      seed = seed, progress = progress)
 
       # infer method from cpp model object
-      private$.model$rcpp$infer()
+      private$.model$infer()
       invisible(self)
     },
 
     #' @description
     #' After `$infer` has been run, use the sample to perform simulations.
     #' Extract the expected number of household cases per size
-    #' and the credible interval. 
+    #' and the credible interval.
     #'
     #' @param cred_level (`double(1)`)\cr
     #' Level for the credible interval.
     #' Value between 0 and 1 (default is 0.95).
     #' @param progress (`logical(1)`)\cr
     #' Progress of simulations. Default is inherited from the model.
-    #' @return 
+    #' @return
     #' (`HousepiOutExpCases`)
     #' An instance of class
     #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
     expec_cases_by_size = function(cred_level = 0.95,
                                    progress = NA) {
-      return(HousepiOutExpCases$new(self, 
+      return(HousepiOutExpCases$new(self,
                                     cred_level = cred_level,
                                     progress = progress))
     },
@@ -870,12 +873,12 @@ HouseholdModel <- R6::R6Class(
                      seed = seed, progress = progress)
 
       # call simulate method from internal Rcpp object
-      private$.model$rcpp$simulate()
+      private$.model$simulate()
       invisible(self)
     },
 
     #' @description
-    #' Compute the loglikelihood for the given parameters.
+    #' Evaluate the loglikelihood for the given parameters.
     #'
     #' @param dataset (`data.frame`)\cr
     #' A data.frame containing the dataset.
@@ -887,14 +890,14 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @return (`double(1)`)\cr
     #' The value of the loglikelihood.
-    compute_loglikelihood = function(dataset = NULL,
-                                     n_threads = 1,
-                                     rand_init = FALSE) {
+    evaluate_loglikelihood = function(dataset = NULL,
+                                      n_threads = 1,
+                                      rand_init = FALSE) {
       # internal build function
       private$.build(dataset = dataset, n_threads = n_threads,
                      rand_init = rand_init)
       # evaluate loglikelihood from the internal Rcpp object
-      return(private$.model$rcpp$evaluate())
+      return(private$.model$evaluate())
     },
 
     #' @description
@@ -949,11 +952,11 @@ HouseholdModel <- R6::R6Class(
       # internal build function
       private$.build(dataset, sample_size = sample_size, n_steps = n_steps,
                      n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
-                     n_chains = n_chains, n_threads = n_threads, 
+                     n_chains = n_chains, n_threads = n_threads,
                      rand_init = TRUE, seed = seed, progress = progress)
       # evaluate marginal from the internal Rcpp object
-      output <- private$.model$rcpp$evaluate_marginal(n_rungs, scheme)
-      return(output)
+      return(private$.model$evaluate_marginal(scheme = scheme,
+                                              n_rungs = n_rungs))
     },
 
     ############################################################################
@@ -966,7 +969,7 @@ HouseholdModel <- R6::R6Class(
     #' @param ... arguments passed to [loo][loo::loo].
     #' For arguments and further details type ?loo::loo.
     loo = function(...) {
-      return(loo::loo(private$.model$household_loglike_traces, ...))
+      return(loo::loo(private$.model$household_loglike_matrix, ...))
     },
 
     #' @description
@@ -975,7 +978,7 @@ HouseholdModel <- R6::R6Class(
     #' @param ... arguments passed to [waic][loo::waic].
     #' For arguments and further details type ?loo::waic.
     waic = function(...) {
-      return(loo::waic(private$.model$household_loglike_traces, ...))
+      return(loo::waic(private$.model$household_loglike_matrix, ...))
     }
   )
 )

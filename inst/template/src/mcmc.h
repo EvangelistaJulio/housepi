@@ -113,7 +113,8 @@ public:
 	void infer();
 
 	//----- Marginal Loglikelihood (Power Posteriors) -----//
-	double evaluate_marginal(int n_rungs, std::string scheme = "adaptive");
+	double estimate_evidence(const std::string &scheme,
+							 int n_rungs);
 
 	//====================//
 	//===== SIMULATE =====//
@@ -129,7 +130,7 @@ public:
 	//========================//
 
 	void import_setup(const Rcpp::List &setup);
-	void import_infec_profile(const Rcpp::List &setup);
+	void import_infectivity_profile(const Rcpp::List &setup);
 	void import_parameter(const Rcpp::DataFrame &params);
 	void import_dataset(const Rcpp::DataFrame &data);
 	void import_augmented(const Rcpp::DataFrame &augm);
@@ -142,10 +143,10 @@ public:
 	Rcpp::DataFrame export_parameter() const;
 	Rcpp::DataFrame export_dataset() const;
 	Rcpp::NumericMatrix export_traces() const;
-	Rcpp::NumericMatrix export_household_loglike_traces() const;
-	Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
-										 const Rcpp::List &xlim,
-										 int n_bins);
+	Rcpp::NumericMatrix export_household_loglike_matrix() const;
+	Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
+											   const Rcpp::List &xlim,
+											   int n_bins);
 
 #else
 	//================//
@@ -156,7 +157,7 @@ public:
 	void read_params(const std::string &pathtofile = NULL_STRING);
 	void read_data(const std::string &pathtofile = NULL_STRING);
 	void read_augm(const std::string &pathtofile = NULL_STRING);
-	
+
 	//================//
 	//===== SHOW =====//
 	//================//

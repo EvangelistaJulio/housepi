@@ -106,7 +106,7 @@ retrieve_cases_by_size <- function(dataset) {
 #' @keywords internal
 HousepiOutExpCases <- R6::R6Class(
   classname = "HousepiOutExpCases",
-  cloneable = FALSE,
+  cloneable = TRUE,
 
   ############################################################################
   ############################################################################
@@ -119,7 +119,6 @@ HousepiOutExpCases <- R6::R6Class(
     .exp_hh_case_table = NULL,
     .q_lower = NULL,
     .q_upper = NULL,
-    .traces = NULL, # temporary
 
     # @description
     # Assign a filtering on the case table.
@@ -184,29 +183,18 @@ HousepiOutExpCases <- R6::R6Class(
       # extract observed household case table
       private$.obs_hh_case_table <- retrieve_cases_by_size(house_model$dataset)
 
-      # extract traces
-      traces <- house_model$traces
-
-      if (is.matrix(traces) || (is.data.frame(traces))) {
-        n_chains <- 1
-        sample_size <- dim(traces)[1]
-      } else {
-        n_chains <- length(traces)
-        sample_size <- dim(traces[[1]])[1]
-      }
-
-      # FLAG
-      # FIXME: deep clone not working!
-      # clone the model before proceeding further
-      # hmc <- house_model$clone(deep = TRUE)
-      # cleanup at end
-      # withr::defer(rm(hmc))
-      hmc <- house_model
-      private$.traces <- traces # FIXME: temporary backup
-      # FLAG-END
+      # extract traces without loglikelihood
+      traces <- house_model$traces_no_loglike
+      # stuck multiple chains
+      if (is.list(traces)) traces <- do.call(rbind, traces)
 
       # number of repetitions
-      n_rep <- sample_size * n_chains
+      n_rep <- dim(traces)[1]
+
+      # deep clone model before proceeding
+      hmc <- house_model$clone(deep = TRUE)
+      # cleanup at end
+      withr::defer(rm(hmc))
 
       # progress?
       progress <- isTRUE(progress) || isTRUE(house_model$setup$progress)
@@ -217,40 +205,35 @@ HousepiOutExpCases <- R6::R6Class(
         rng_seeds <- sample(1:max(1e8, n_rep), n_rep, replace = FALSE)
       )
 
-      # extract traces columns
-      traces_cols <- colnames(if (n_chains > 1) traces[[1]] else traces)
-      mask_traces <- !(traces_cols %in% c("loglikelihood", "CHAIN__"))
-
       # extract constant parameters
       aux <- house_model$param_defs
       tmp <- aux[aux$constant, c("name", "value")]
       constants <- as.list(tmp$value)
       names(constants) <- as.list(tmp$name)
 
-      # store simulated datasets
+      # define loop function working by row index
+      loop_func <- function(r) {
+        # associate parameters from posterior sample
+        new_param_defs <- c(as.list(traces[r, ]), constants)
+        hmc$load_param_list(from = new_param_defs, append = FALSE)
+
+        # run simulation
+        hmc$simulate(seed = rng_seeds[r], progress = FALSE)
+
+        # retrieve and return results
+        return(retrieve_cases_by_size(hmc$dataset))
+      }
+
       if (isTRUE(progress)) {
-        cli::cli_progress_bar("simulations", total = n_rep,
-                              type = "tasks", clear = FALSE)
+        simulations_list <- lapply(
+          cli::cli_progress_along(
+            seq_len(n_rep), name = "simulations",
+            type = "tasks", clear = FALSE
+          ), loop_func
+        )
+      } else {
+        simulations_list <- lapply(seq_len(n_rep), loop_func)
       }
-      simulations_list <- list()
-
-      for (c in seq_len(n_chains)) {
-        for (s in seq_len(sample_size)) {
-          r <- s + sample_size * (c - 1)
-          traces_row <- if (n_chains > 1) traces[[c]][s, ] else traces[s, ]
-
-          # associate parameters from posterior sample
-          new_param_defs <- c(as.list(traces_row[mask_traces]), constants)
-          hmc$load_param_list(from = new_param_defs, append = FALSE)
-          # run simulation
-          hmc$simulate(seed = rng_seeds[r], progress = FALSE)
-          # append tables with cases by size
-          simulations_list[[r]] <- retrieve_cases_by_size(hmc$dataset)
-
-          if (isTRUE(progress)) cli::cli_progress_update()
-        }
-      }
-      if (isTRUE(progress)) cli::cli_progress_done()
 
       # compute mean values
       private$.exp_hh_case_table <- apply_on_homogeneous_frames(
@@ -296,22 +279,26 @@ HousepiOutExpCases <- R6::R6Class(
     #' Perform Chi-squared test and return list with results.
     #'
     #' @param max_house_size (`integer(1)`)\cr
-    #' Maximum household size to consider.
+    #' maximum household size to consider.
+    #' @param lower.tail (`logical(1)`)\cr
+    #' if TRUE (default), probabilities are P[X≤x], otherwise P[X>x].
     #'
     #' @return
     #' (`list()`)
-    chisq_test = function(max_house_size = NA) {
+    chisq_test = function(max_house_size = NA,
+                          lower.tail = FALSE) {
       x <- private$.filter_table(max_house_size)
       res <- (x$observed - x$expected)^2 / x$expected
+      chisq_value <- sum(res, na.rm = TRUE)
+      ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
       return(list(
-        chisq_value = sum(res, na.rm = TRUE),
-        ddof = prod(dim(res)) - dim(res)[1] - sum(is.na(res)),
-        p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = FALSE)
+        chisq_value = chisq_value, ddof = ddof,
+        p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = lower.tail)
       ))
     },
 
     #' @description
-    #' Return a `flextable` combining the results of the check on household model
+    #' Return a `flextable` combining observed and expected cases by size.
     #'
     #' @param max_house_size (`integer(1)`)\cr
     #' Maximum household size to consider.
@@ -323,7 +310,7 @@ HousepiOutExpCases <- R6::R6Class(
     #'
     #' @return
     #' (`flextable` | `data.frame`)
-    show_model_check_table = function(max_house_size = NA,
+    show_cases_table = function(max_house_size = NA,
                                       show_chisq = FALSE,
                                       cri_format = "%.0f [%.0f, %.0f]") {
       # format counts to character

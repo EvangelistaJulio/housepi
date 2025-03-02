@@ -37,7 +37,6 @@ int main(int argc, char *argv[])
     std::string carg; // command line argument
 
     bool verbose = false; // verbose option
-    bool progbar = true;  // progressbar option
 
     bool is_infer = false;    // inference option
     bool is_simulate = false; // simulation option
@@ -161,7 +160,7 @@ int main(int argc, char *argv[])
     if (is_infer)
     { //===== Inference =====//
         tools::print_decorator("Inference", NULL_STRING, C_DECOR, verbose);
-        user_model->infer(progbar);
+        user_model->infer();
 
         if (verbose)
         {
@@ -193,7 +192,7 @@ int main(int argc, char *argv[])
             tools::print_decorator("Simulation",
                                    "# save: " + output_file,
                                    C_DECOR, verbose);
-            user_model->simulate(progbar);
+            user_model->simulate();
             user_model->print_augm_variables(output_file);
 
             if (verbose)
@@ -223,7 +222,10 @@ int main(int argc, char *argv[])
     else if (is_marginal)
     { //===== Power Posteriors =====//
         tools::print_decorator("Marginal Loglikelihood", NULL_STRING, C_DECOR, verbose);
-        tools::print_stdout(std::to_string(user_model->evaluate_marginal(num_rungs)) + "\n");
+        tools::print_stdout(
+            std::to_string(
+                user_model->estimate_evidence("adaptive", num_rungs)
+            ) + "\n");
     }
 
     return EXIT_SUCCESS;

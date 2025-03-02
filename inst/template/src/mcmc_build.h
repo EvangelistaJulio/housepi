@@ -225,7 +225,7 @@ public:
     //========================//
 
     void import_setup(const Rcpp::List &input);
-    void import_infec_profile(const Rcpp::List &input);
+    void import_infectivity_profile(const Rcpp::List &input);
     void import_parameter(const Rcpp::DataFrame &input);
     void import_augmented(const Rcpp::DataFrame &input);
     void import_dataset(const Rcpp::DataFrame &input);
@@ -238,8 +238,8 @@ public:
     Rcpp::DataFrame export_parameter() const;
     Rcpp::DataFrame export_dataset() const;
     Rcpp::NumericMatrix export_traces() const;
-    Rcpp::NumericMatrix export_household_loglike_traces() const;
-    Rcpp::DataFrame export_infec_profile(const Rcpp::List &opts,
+    Rcpp::NumericMatrix export_household_loglike_matrix() const;
+    Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
                                          const Rcpp::List &xlim,
                                          int n_bins) const;
 

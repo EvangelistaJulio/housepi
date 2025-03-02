@@ -17,6 +17,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 options(knitr.kable.NA = "")
 
+bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
@@ -88,11 +89,28 @@ hhmodel$add_augm(
 )
 ```
 
-We run the inference and we extract the results
+We can inspect our current augmented variable definitions by calling the field `$augm_defs`: 
 
 ```{r}
-hhmodel$infer(dataset = dataset, n_steps = 1e5, n_burnin = 1e4, 
-              thin = 10, n_adapt = 2500, seed = 4349, id_trace = 7)
+augm_defs <- hhmodel$augm_defs
+```
+
+```{r, echo=FALSE}
+knitr::kable(augm_defs[1:10],
+             caption = "Augmented variable definitions 1/2.")
+knitr::kable(augm_defs[11:(dim(augm_defs)[2])],
+             caption = "Augmented variable definitions 2/2.")
+  
+```
+
+### Extract Augmented Variable Traces
+
+We could run the inference and extract the results as usual.
+However, sometimes we might be interested in extracting also to check if augmented variables evolve as expected. We can do so by providing the `id` of  individual augmented variables we want to store in the setup arguments of $infer()$ method:
+
+```{r}
+hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, thin = 8,
+              n_chains = 4, n_adapt = 2000, seed = 4349, id_trace = 7)
 ```
 
 Note: The warning tells us that our dataset has no demographic structure: 
@@ -102,14 +120,17 @@ it will be interpreted as single individuals living in separate households.
 bayesplot::mcmc_trace(hhmodel$traces)
 ```
 
-## Other Proposer Rule for the Augmented Variables
+## Other Proposer Rules for the Augmented Variables
+```{r, include=FALSE}
+bayesplot::color_scheme_set(scheme = "red")
+```
 
 ```{r}
 # use default "blank" model to show some tests
 hhmodel <- housepi::HouseholdModel$new("blank")
 ```
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # with model (default Gibbs rule)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "move_with_model", model = "norm")
@@ -125,4 +146,3 @@ hhmodel$drop_all()
 hhmodel$add_augm(name = "independent_moves", rule_from = 87, rule = "norm")
 bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 3)$traces)
 ```
-

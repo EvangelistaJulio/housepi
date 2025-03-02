@@ -170,7 +170,7 @@ cpp_ifclause_line <- function(r, is_ref = FALSE) {
 #' @noRd
 HousepiGroupRate <- R6::R6Class(
   classname = "HousepiGroupRate",
-  cloneable = FALSE,
+  cloneable = TRUE,
 
   ###################
   ##### PUBLIC ######

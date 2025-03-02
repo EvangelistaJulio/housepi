@@ -14,6 +14,7 @@ Output object from expected cases by size.
 \item \href{#method-HousepiOutExpCases-print}{\code{HousepiOutExpCases$print()}}
 \item \href{#method-HousepiOutExpCases-chisq_test}{\code{HousepiOutExpCases$chisq_test()}}
 \item \href{#method-HousepiOutExpCases-show_model_check_table}{\code{HousepiOutExpCases$show_model_check_table()}}
+\item \href{#method-HousepiOutExpCases-clone}{\code{HousepiOutExpCases$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -104,6 +105,23 @@ It expects three double values (mean, CRI lower and CRI upper).}
 }
 \subsection{Returns}{
 (\code{flextable} | \code{data.frame})
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiOutExpCases-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiOutExpCases-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
 }
 }
 }

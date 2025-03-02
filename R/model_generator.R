@@ -7,7 +7,7 @@
 #' @title Housepi Generator R6 Class
 #' @description
 #' Help with generating Rcpp model object.
-#' 
+#'
 #' @noRd
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
@@ -22,11 +22,12 @@ HousepiGenerator <- R6::R6Class(
   private = list(
     .name = NA,
     .dll = NA,
-    .quiet = TRUE,
+    .quiet_pkgbuild = TRUE,
     .need_compile = FALSE,
+    .rcpp = NULL,
 
-    #' @description
-    #' Create temporary folder and copy source code there.
+    # @description
+    # Create temporary folder and copy source code there.
     .copy_source_code = function(source_dir) {
 
       # source directory must contain source files
@@ -67,9 +68,9 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load model dynamic library.
-    .load = function() {
+    # @description
+    # Return new instance of Rcpp Model.
+    .new_rcpp_model = function() {
       # load dynamic library
       dyn.load(private$.dll)
 
@@ -77,16 +78,13 @@ HousepiGenerator <- R6::R6Class(
       package <- tools::file_path_sans_ext(basename(private$.dll))
       m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
 
-      # assign the model object
-      self$rcpp <- m$ModelHousepi$new()
-
-      invisible(self)
+      return(m$ModelHousepi$new())
     },
 
-    #' @description
-    #' Compile and load the source files inside cached directory.
-    #' Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
-    #' To avoid recompiling immutable files I just touch them.
+    # @description
+    # Compile and load the source files inside cached directory.
+    # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
+    # To avoid recompiling immutable files I just touch them.
     .compile = function() {
       # source folder within cache directory
       cache_dir_src <- file.path(self$cache_dir, "src")
@@ -104,7 +102,8 @@ HousepiGenerator <- R6::R6Class(
 
       # compile the dynamic library
       pkgbuild::compile_dll(self$cache_dir,
-                            quiet = private$.quiet, debug = FALSE)
+                            quiet = private$.quiet_pkgbuild,
+                            debug = FALSE)
       private$.need_compile <- FALSE
 
       # copy DLL outside of the source directory
@@ -112,6 +111,27 @@ HousepiGenerator <- R6::R6Class(
       overwrite(from_file, private$.dll)
 
       invisible(self)
+    },
+
+    # @description
+    # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
+    # each field, with the name and value.
+    deep_clone = function(name, value) {
+      if (name == "rcpp") {
+        # make a new instance of rcpp model object
+        output <- private$.new_rcpp_model()
+        output$import_setup(
+          data.frame(lapply(value$export_setup(), as.character))
+        )
+        output$import_dataset(
+          data.frame(lapply(value$export_dataset(), as.character))
+        )
+        return(output)
+
+      } else {
+        # for all other fields, just return the value
+        return(value)
+      }
     }
   ),
 
@@ -182,10 +202,10 @@ HousepiGenerator <- R6::R6Class(
     #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
       if (missing(value)) {
-        if (is.null(self$rcpp)) {
+        if (is.null(private$.rcpp)) {
           stop_h("Impossible to export dataset before model build.")
         }
-        return(self$rcpp$export_dataset())
+        return(private$.rcpp$export_dataset())
       }
       stop_h("'dataset' is read only.")
     },
@@ -194,27 +214,24 @@ HousepiGenerator <- R6::R6Class(
     #' Last setup used by the build process.
     setup = function(value) {
       if (missing(value)) {
-        if (is.null(self$rcpp)) {
+        if (is.null(private$.rcpp)) {
           stop_h("Impossible to export setup before model build.")
         }
-        return(self$rcpp$export_setup())
+        return(private$.rcpp$export_setup())
       }
       stop_h("'setup' is read only.")
     },
 
-    #' @description
+    #' @field (`matrix()` | `list()` of `matrix()`)
     #' Export the traces of last inference call.
-    #'
-    #' @return
-    #' (`matrix()` | `list()` of `matrix()`)
     traces = function(value) {
       if (missing(value)) {
-        if (is.null(self$rcpp)) {
+        if (is.null(private$.rcpp)) {
           stop_h("Impossible to export traces before inference.")
 
         } else {
           # load traces from last inference
-          df <- self$rcpp$export_traces()
+          df <- private$.rcpp$export_traces()
 
           if (dim(df)[1] == 0) {
             # note: this should never be possible...
@@ -235,35 +252,32 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'traces' is read only.")
     },
 
-    #' @description
+    #' @field (`matrix()` | `list()` of `matrix()`)
     #' Export the traces of last inference call without loglikelihood.
-    #'
-    #' @return
-    #' (`matrix()` | `list()` of `matrix()`)
     traces_no_loglike = function(value) {
       if (missing(value)) {
         trs <- self$traces
         if (is.list(trs)) {
-          return(lapply(trs, function(x) { 
-            x <- x[, colnames(x) != "loglikelihood", drop = FALSE] 
+          return(lapply(trs, function(x) {
+            x <- x[, colnames(x) != "loglikelihood", drop = FALSE]
           }))
         } else {
-          return(trs)
-        }   
+          return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
+        }
       }
       stop_h("'traces' is read only.")
     },
 
     #' @field reference (`matrix()`)\cr
     #' Household loglikelihood traces.
-    household_loglike_traces = function(value) {
+    household_loglike_matrix = function(value) {
       if (missing(value)) {
         # check model has been built
-        if (is.null(self$rcpp)) {
+        if (is.null(private$.rcpp)) {
           stop_h("Impossible to export household traces before inference.")
         }
         # extract household loglikelihood traces
-        df <- self$rcpp$export_household_loglike_traces()
+        df <- private$.rcpp$export_household_loglike_matrix()
         # check
         if (dim(df)[1] == 0) {
           stop_h("Household traces are empty.")
@@ -281,7 +295,6 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   public = list(
-    rcpp = NULL,
     cache_dir = NA,
 
     #' @description
@@ -293,16 +306,16 @@ HousepiGenerator <- R6::R6Class(
     #' - path/to/folder with implementation;
     #' - path/to/folder with previously compiled model;
     #' - "blank" template name.
-    #' @param quiet (`logical(1)`)\cr
-    #' If `TRUE` hide compilation commands.
     #' @param force (`logical(1)`)\cr
     #' If `TRUE` compile even if a cached model already exists.
+    #' @param quiet_pkgbuild (`logical(1)`)\cr
+    #' If `TRUE` hide `pkgbuild` compilation commands.
     #' @param as_template (`logical(1)`)\cr
     #' If `TRUE` store the dynamic library as a local template.
     #' If `FALSE` recompile the model at every new session.
     initialize = function(model_choice,
-                          quiet = TRUE,
                           force = FALSE,
+                          quiet_pkgbuild = TRUE,
                           as_template = FALSE) {
 
       if (model_choice == ".") {
@@ -313,8 +326,8 @@ HousepiGenerator <- R6::R6Class(
         )
       }
 
-      # assign quiet field
-      private$.quiet <- isTRUE(quiet)
+      # assign quiet_pkgbuild field
+      private$.quiet_pkgbuild <- isTRUE(quiet_pkgbuild)
 
       # interpret model choice
       if (isTRUE(model_choice == "blank")) {
@@ -387,16 +400,24 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Name of model dynamic library. Extract name of the dynamic library.
-    generate = function() {
+    #'
+    #' @param verbose (`logical(1)`)\cr
+    #' If `TRUE` show message about generation.
+    generate = function(verbose = TRUE) {
       if (isTRUE(private$.need_compile)) {
-        cli::cli_alert_info("Compiling {.pkg {private$.name}}")
+        if (isTRUE(verbose)) {
+          cli::cli_alert_info("Compiling {.pkg {private$.name}}")
+        }
+        # compile model
         private$.compile()
-        private$.load()
+        private$.rcpp <- private$.new_rcpp_model()
 
-      } else if (is.null(self$rcpp)) {
+      } else if (is.null(private$.rcpp)) {
+        if (isTRUE(verbose)) {
+          cli::cli_alert_info("Loading {.pkg {private$.name}}")
+        }
         # load if not already generated
-        cli::cli_alert_info("Loading {.pkg {private$.name}}")
-        private$.load()
+        private$.rcpp <- private$.new_rcpp_model()
       }
 
       invisible(self)
@@ -419,11 +440,11 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Wrapper of the Rcpp import_dataset method.
-    #' 
+    #'
     #' @param dataset (`data.frame`)\cr
     #' Dataset with rowise individual information.
     import_dataset = function(dataset) {
-      self$rcpp$import_dataset(
+      private$.rcpp$import_dataset(
         data.frame(lapply(dataset, as.character))
       )
       invisible(self)
@@ -431,56 +452,58 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Wrapper of the Rcpp import_setup method.
-    #' 
+    #'
     #' @param setup_list (`list()`)\cr
     #' Setup definitions.
     import_setup = function(setup_list) {
-      # backup scientific notation 
-      # UPDATE: use withr
-      store_scipen <- options()$scipen
-      # change scientific notation
-      options(scipen = 100)
-      self$rcpp$import_setup(
+      # change scientific notation locally
+      withr::local_options(list(scipen = 500))
+      private$.rcpp$import_setup(
         lapply(setup_list, as.character)
       )
-      # restore scientific notation option
-      options(scipen = store_scipen)
       invisible(self)
     },
 
     #' @description
     #' Wrapper of the Rcpp import_parameter method.
-    #' 
-    #' @param param_defs (`data.frame`)\cr
+    #'
+    #' @param defs (`data.frame`)\cr
     #' Formatted parameter definitions.
-    import_parameter = function(param_defs) {
-      self$rcpp$import_parameter(
-        data.frame(lapply(param_defs, as.character))
+    import_parameter = function(defs) {
+      private$.rcpp$import_parameter(
+        data.frame(lapply(defs, as.character))
       )
       invisible(self)
     },
 
     #' @description
     #' Wrapper of the Rcpp import_augmented method.
-    #' 
-    #' @param augm_defs (`data.frame`)\cr
+    #'
+    #' @param defs (`data.frame`)\cr
     #' Formatted augmented variable definitions.
-    import_augmented = function(augm_defs) {
-      self$rcpp$import_augmented(
-        data.frame(lapply(augm_defs, as.character))
+    import_augmented = function(defs) {
+      private$.rcpp$import_augmented(
+        data.frame(lapply(defs, as.character))
       )
       invisible(self)
     },
 
     #' @description
     #' Wrapper of the Rcpp import_infec_profile method.
-    #' 
-    #' @param infec_profile_defs (`list()`)\cr
+    #'
+    #' @param defs (`list()`)\cr
     #' Infectivity profile definitions.
-    import_infec_profile = function(infec_profile_defs) {
-      self$rcpp$import_infec_profile(
-        lapply(infec_profile_defs, as.character)
+    import_infectivity_profile = function(defs) {
+      private$.rcpp$import_infectivity_profile(
+        lapply(defs, as.character)
       )
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp build_all_rates method.
+    build_all_rates = function() {
+      private$.rcpp$build_all_rates()
       invisible(self)
     },
 
@@ -524,7 +547,40 @@ HousepiGenerator <- R6::R6Class(
         stop_h("Provide exactly 2 limits for the x axis.")
       }
 
-      return(self$rcpp$export_infec_profile(opts_, xlim_, n_bins))
+      return(private$.rcpp$export_infectivity_profile(opts_, xlim_, n_bins))
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp evaluate method.
+    evaluate = function() {
+      return(private$.rcpp$evaluate())
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp infer method.
+    infer = function() {
+      private$.rcpp$infer()
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp infer method.
+    simulate = function() {
+      private$.rcpp$simulate()
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp estimate_evidence method.
+    #'
+    #' @param scheme (`character(1)`)\cr
+    #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
+    #' Other available scheme is "power-fractions".
+    #' @param n_rungs (`integer`)\cr
+    #' Number of rungs in the thermodynamic ladder.
+    estimate_evidence = function(scheme = "adaptive",
+                                 n_rungs = 40) {
+      return(private$.rcpp$estimate_evidence(scheme, n_rungs))
     }
   )
 )
@@ -557,7 +613,7 @@ re_compile_library <- function(pkgname,
     if ((!file.exists(template_dll_file(m))) || isTRUE(force)) {
       HousepiGenerator$new(m,
                            force = force,
-                           quiet = FALSE,
+                           quiet_pkgbuild = FALSE,
                            as_template = TRUE)$generate()
     }
   }

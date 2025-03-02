@@ -56,7 +56,7 @@ HousepiAugmented <- R6::R6Class(
     defs = NULL,
 
     #' @description
-    #' New instance of class 
+    #' New instance of class
     #' [HousepiAugmented][housepi::HousepiAugmented].
     initialize = function() {
       self$defs <- NULL
@@ -435,10 +435,10 @@ HousepiAugmented <- R6::R6Class(
 
     #' @description
     #' Assert augmented definitions from the model implementation script.
-    #' 
+    #'
     #' @param requirements (`character()`)\cr
     #' Vector containing required parameters.
-    #' 
+    #'
     #' @return (`logical(1)`)\cr
     assert = function(requirements) {
       # logical state for complete definitions
@@ -456,7 +456,7 @@ HousepiAugmented <- R6::R6Class(
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           warning_h(
-            "Missing parameter(s):",
+            "Missing augmented variable(s):",
             character_to_string_list(missing_set)
           )
         }

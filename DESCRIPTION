@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.5.0
+Version: 0.5.5
 Author:
     person("Francesco", "Camaglia", role = c("aut", "cre"), email = "francesco.camaglia@pasteur.fr")
 Maintainer: <francesco.camaglia@pasteur.fr>
@@ -11,21 +11,22 @@ Encoding: UTF-8
 Imports:
     utils,
     stats,
-    R6,
+    methods, 
+    Rcpp (>= 1.0.0),
     devtools,
     pkgbuild, 
-    cli, 
-    loo, 
+    R6,
     stringr, 
-    methods, 
-    Rcpp (>= 1.0.0)
+    withr,
+    loo, 
+    cli
 RcppModules: user_model_module
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.1
 Suggests: 
     knitr,
     rmarkdown,
-    withr,
+    ggplot2,
     flextable,
     bayesplot,
     coda,

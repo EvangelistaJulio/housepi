@@ -81,7 +81,7 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 }
 
 /* Import infectivity profile from R list and run build. */
-void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
+void MCMC::Impl::import_infectivity_profile(const Rcpp::List &input)
 {
     try
     {
@@ -266,9 +266,9 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 {
     using namespace Rcpp;
 
-    if (is_power_post())
+    if ((setup_n_chains == 0) || (is_power_post()))
         tools::error(
-            "Impossible to export traces when computing power posteriors.");
+            "No traces to export were found.");
 
     //----- Collect the column names -----//
     str_vec headers = {"loglikelihood"};
@@ -324,14 +324,14 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 }
 
 /* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
+Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 {
     using namespace Rcpp;
 
-    if (is_power_post())
+    if ((setup_n_chains == 0) || (is_power_post()))
         tools::error(
-            "Impossible to export household traces when computing power posteriors.");
-
+            "No traces to export were found.");
+            
     // Create a NumericMatrix with n_house columns
     ulong sample_size = setup_n_chains * setup_c_sample_size;
     NumericMatrix output(sample_size, n_households);
@@ -358,7 +358,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_traces() const
 }
 
 /* Export a showcase of the selected infectivity profile. */
-Rcpp::DataFrame MCMC::Impl::export_infec_profile(const Rcpp::List &opts,
+Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
                                                  const Rcpp::List &xlim,
                                                  int n_bins) const
 {
@@ -420,13 +420,13 @@ Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
 Rcpp::DataFrame MCMC::export_parameter() const { return pImpl->export_parameter(); }
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
-Rcpp::NumericMatrix MCMC::export_household_loglike_traces() const { return pImpl->export_household_loglike_traces(); }
-Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
+Rcpp::NumericMatrix MCMC::export_household_loglike_matrix() const { return pImpl->export_household_loglike_matrix(); }
+Rcpp::DataFrame MCMC::export_infectivity_profile(const Rcpp::List &opts,
                                            const Rcpp::List &xlim,
                                            int n_bins)
 {
     init_infec_profile();
-    return pImpl->export_infec_profile(opts, xlim, n_bins);
+    return pImpl->export_infectivity_profile(opts, xlim, n_bins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -434,7 +434,7 @@ Rcpp::DataFrame MCMC::export_infec_profile(const Rcpp::List &opts,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
-void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
+void MCMC::import_infectivity_profile(const Rcpp::List &x) { pImpl->import_infectivity_profile(x); }
 void MCMC::import_parameter(const Rcpp::DataFrame &x) { pImpl->import_parameter(x); }
 void MCMC::import_augmented(const Rcpp::DataFrame &x) { pImpl->import_augmented(x); }
 void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }

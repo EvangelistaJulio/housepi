@@ -557,6 +557,7 @@ double MCMC::evaluate()
     try
     {
         pImpl->assert_proper_dataset();        // check if dataset is empty
+        pImpl->setup_n_chains = 0;             // use 0 chains as a state variable
         pImpl->setup_rand_init_params = false; // disable random initialization
         pImpl->init_parameters();              // check no undefined parameters
         init_infec_profile();                  // initialize user infectivity profile
@@ -694,7 +695,7 @@ void MCMC::infer()
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-double MCMC::evaluate_marginal(int n_rungs, std::string scheme)
+double MCMC::estimate_evidence(const std::string &scheme, int n_rungs)
 {
     const str_vec options = {"adaptive", "power-fractions"};
     double output = 0.;
@@ -867,6 +868,7 @@ void MCMC::simulate()
         //==========================//
 
         pImpl->assert_proper_dataset();        // check if dataset is empty
+        pImpl->setup_n_chains = 0;             // use 0 chains as a state variable
         pImpl->setup_rand_init_params = false; // disable random initialization
         pImpl->init_parameters();              // check no undefined parameters
         init_infec_profile();                  // initialize user infectivity profile

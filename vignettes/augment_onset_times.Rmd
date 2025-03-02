@@ -1,11 +1,11 @@
 ---
-title: "Augmentat Onset Times"
+title: "Augment Onset Times"
 output: 
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Augmentat Onset Times}
+  %\VignetteIndexEntry{Augment Onset Times}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -17,13 +17,9 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, comment = NA)
 options(knitr.kable.NA = "")
 
+bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
-
-This tutorial introduces to data augmentation with the package `housepi`.
-We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
-
-# Augment Onset Times
 
 For a more realistic example, we use the template model "ex-augm-onset-single-intro", where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
@@ -44,6 +40,42 @@ param_defs <- hhmodel$param_defs
 
 ```{r, echo=FALSE}
 knitr::kable(param_defs)
+```
+
+## Infectivity Profile
+
+When model comes shipped with a default infectivity profile, we can export its values for different generation times with the method `export_infectivity_profile()`\$.
+
+In `housepi` the convention is for an infectivity profile to be a function of the generation time (i. e. time from infection to transmission).
+
+Certain infectivity profiles will then conditioned on individual augmented variables, as incubation periods $\tau$ as follows.
+
+| Time                       | Infector Condition    | Infectee Condition    |
+|----------------------------|-----------------------|-----------------------|
+| generation                 | \-                    | \-                    |
+| from onset to transmission | $\tau_{\rm infector}$ | \-                    |
+| serial                     | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ |
+
+```{r}
+inf_prof <- hhmodel$export_infectivity_profile(opts = c(3))
+```
+
+```{r, fig.width=6, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# plot instantaneous and cumulative profile with ggplot
+library(ggplot2)
+
+coeff <- max(inf_prof$cumulative) / max(inf_prof$instantaneous)
+ggplot(inf_prof, aes(x = generation_time)) +
+  theme(axis.ticks.y.right = element_line(color = "coral"),
+        axis.text.y.right = element_text(color = "coral"),
+        axis.title.y.right = element_text(color = "coral")) +
+  geom_line(aes(y = cumulative / coeff), color = "coral") +
+  geom_line(aes(y = instantaneous)) +
+  scale_y_continuous(
+    name = "Instantaneous",
+    sec.axis = sec_axis(~. * coeff, name = "Cumulative")
+  ) +
+  labs(x = "Generation Time", title = "Infectivity Profile")
 ```
 
 ## Simulate an Outbreak
@@ -109,8 +141,12 @@ knitr::kable(head(dataset))
 We can check that inference returns the parameters used for the simulation.
 
 ```{r}
+hhclone <- hhmodel$clone(deep = TRUE)
+```
+
+```{r}
 # load definitions from list and drop previous definitions 
-hhmodel$load_augm_list(
+hhclone$load_augm_list(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
@@ -129,18 +165,18 @@ hhmodel$load_augm_list(
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
-              n_chains = 3, n_adapt = 2000, seed = 3413, progress = TRUE)
+hhclone$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
+              n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the traces of all chains 
-bayesplot::mcmc_trace(hhmodel$traces)
+bayesplot::mcmc_trace(hhclone$traces)
 ```
 
 ```{r}
 # collect the results
-results <- hhmodel$traces_results
+results <- hhclone$traces_results
 
 # compare results to parameter values used for inference
 imask <- param_defs$constant == FALSE
@@ -150,7 +186,7 @@ check <- cbind(expec = param_defs[imask, ]$value, results)
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(check, digits = 3)
+knitr::kable(check, digits = 4)
 
 # cross-machine checking
 # Mean	SD	Q2.5	Q97.5	Simul
@@ -167,6 +203,5 @@ We can estimate the model evidence (or marginal loglikelihood) with the method o
 
 ```{r, eval=FALSE}
 # return the estimate of the model evidence
-hhmodel$evidence(n_rungs = 30)
+hhclone$evidence(n_rungs = 30)
 ```
-
