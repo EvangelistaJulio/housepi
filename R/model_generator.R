@@ -117,7 +117,7 @@ HousepiGenerator <- R6::R6Class(
     # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
     # each field, with the name and value.
     deep_clone = function(name, value) {
-      if (name == "rcpp") {
+      if (name == ".rcpp") {
         # make a new instance of rcpp model object
         output <- private$.new_rcpp_model()
         output$import_setup(
@@ -265,7 +265,23 @@ HousepiGenerator <- R6::R6Class(
           return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
         }
       }
-      stop_h("'traces' is read only.")
+      stop_h("'traces_no_loglike' is read only.")
+    },
+
+    #' @field traces_as_coda (`coda::mcmc` | `coda::mcmc.list`)\cr
+    #' Traces of last inference as a `coda` object.
+    traces_as_coda = function(value) {
+      if (missing(value)) return(coerce_traces_to_coda(self$traces))
+      stop_h("'traces_as_coda' is read only.")
+    },
+
+    #' @field traces_results (`data.frame`)\cr
+    #' Results extracted from the traces of last inference.
+    traces_results = function(value) {
+      if (missing(value)) {
+        return(retrieve_traces_results(self$traces_no_loglike))
+      }
+      stop_h("'traces_results' is read only.")
     },
 
     #' @field reference (`matrix()`)\cr

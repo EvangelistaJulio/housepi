@@ -185,11 +185,16 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 			double gentime = house.data(k, "infec_date") - t_infec_i;
 
 			if (gentime > 0)
-				// `i` : infector, `k` : infectee
+			{ // `i` : infector, `k` : infectee
+				cumul_mtx[i][k] = infec_profile_inst(gentime);
 				cumul_mtx[i][k] = infec_profile_cumul(gentime);
+			}
 			else
+			{
 				// `k` : infector, `i` : infectee
+				cumul_mtx[k][i] = infec_profile_inst(-gentime);
 				cumul_mtx[k][i] = infec_profile_cumul(-gentime);
+			}
 		}
 
 	//===============================//
@@ -232,7 +237,7 @@ double Model::compute_house_loglike(Household &house) const
 	for (indiv i : house.infectious_list())
 		// Contribution of secondary cases
 		if (i != house.extra_integer_vector("intro-case")[0])
-			loglike_house += std::log(1. - std::exp(-ROI_cumul_infec(house, i)));
+			loglike_house += std::log(1. - std::exp(-ROI_inst(house, i))) - ROI_cumul_infec(house, i);
 
 	return loglike_house;
 }

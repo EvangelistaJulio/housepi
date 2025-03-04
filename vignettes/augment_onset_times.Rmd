@@ -71,10 +71,8 @@ ggplot(inf_prof, aes(x = generation_time)) +
         axis.title.y.right = element_text(color = "coral")) +
   geom_line(aes(y = cumulative / coeff), color = "coral") +
   geom_line(aes(y = instantaneous)) +
-  scale_y_continuous(
-    name = "Instantaneous",
-    sec.axis = sec_axis(~. * coeff, name = "Cumulative")
-  ) +
+  scale_y_continuous(name = "Instantaneous",
+                     sec.axis = sec_axis(~. * coeff, name = "Cumulative")) +
   labs(x = "Generation Time", title = "Infectivity Profile")
 ```
 

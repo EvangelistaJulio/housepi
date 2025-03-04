@@ -151,7 +151,6 @@ double Model::ROI_cumul_suscept(Household &house, indiv i) const
    WARNING: this function should not call any mutable parameter. */
 void Model::update_extra_dependecies(Household &house, indiv i)
 {
-
 	auto &inst_mtx = house.extra_double_matrix("inst");
 	auto &cumul_mtx = house.extra_double_matrix("cumul");
 
@@ -169,36 +168,28 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 
 	//----- Update Lookup Tables for infectious -----//
 	double onset_k, incub_k, t_infec_k;
-	double gentime; // generation time
-
+	
 	// note: setting lut to 0 this is necessary because _houseROI_ is brute
-
 	for (indiv k : house.infectious_list())
 		if (k != i)
 		{
-			onset_k = house.augm(k, "onset_date");
 			incub_k = house.augm(k, "incub_period");
-			t_infec_k = onset_k - incub_k;
+			t_infec_k = house.augm(k, "onset_date") - incub_k;
+			double gentime = t_infec_k - t_infec_i;
 
-			if (t_infec_i < t_infec_k)
+			if (gentime > 0)
 			{ //----- `i` : infector, `k` : infectee -----//
-				gentime = t_infec_k - t_infec_i;
-
 				inst_mtx[i][k] = infec_profile_inst(gentime, {incub_i, incub_k});
+				cumul_mtx[i][k] = infec_profile_cumul(gentime, {incub_i, incub_k});				
 				inst_mtx[k][i] = 0.0;
-
-				cumul_mtx[i][k] = infec_profile_cumul(gentime, {incub_i, incub_k});
 				cumul_mtx[k][i] = 0.0;
 			}
 			else
 			{ //----- `k` : infector, `i` : infectee -----//
-				gentime = t_infec_i - t_infec_k;
-
 				inst_mtx[i][k] = 0.0;
-				inst_mtx[k][i] = infec_profile_inst(gentime, {incub_k, incub_i});
-
-				cumul_mtx[i][k] = 0.0;
-				cumul_mtx[k][i] = infec_profile_cumul(gentime, {incub_k, incub_i});
+				inst_mtx[i][k] = 0.0;
+				inst_mtx[k][i] = infec_profile_inst(-gentime, {incub_k, incub_i});
+				cumul_mtx[k][i] = infec_profile_cumul(-gentime, {incub_k, incub_i});
 
 				//----- update first case -----//
 				if (t_infec_k < new_t0)
@@ -216,11 +207,11 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	//===== Susceptible Members =====//
 	//===============================//
 
-	gentime = time_end_followup(house) - t_infec_i;
+	double exposure = time_end_followup(house) - t_infec_i;
 	for (indiv k : house.susceptible_list())
 	{
 		incub_k = house.augm(k, "incub_period");
-		cumul_mtx[i][k] = infec_profile_cumul(gentime, {incub_i, incub_k});
+		cumul_mtx[i][k] = infec_profile_cumul(exposure, {incub_i, incub_k});
 		cumul_mtx[k][i] = 0.0;
 	}
 }

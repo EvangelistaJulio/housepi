@@ -4,6 +4,8 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <algorithm>
+
 #include "variable.h"
 #include "household.h"
 
@@ -251,17 +253,17 @@ bool Household::Impl::change_status(indiv i, int new_status)
 		if (old_status >= INFECTED_STATUS)
 		{
 			--n_infectious;
-			infectious_list.erase(find(infectious_list.begin(), infectious_list.end(), i));
+			infectious_list.erase(std::find(infectious_list.begin(), infectious_list.end(), i));
 		}
 		else if (old_status == HEALTHY_STATUS)
 		{
 			--n_susceptible;
-			susceptible_list.erase(find(susceptible_list.begin(), susceptible_list.end(), i));
+			susceptible_list.erase(std::find(susceptible_list.begin(), susceptible_list.end(), i));
 		}
 		else if (old_status == MISSING_STATUS)
 		{
 			--n_missing_status;
-			missing_status_list.erase(find(missing_status_list.begin(), missing_status_list.end(), i));
+			missing_status_list.erase(std::find(missing_status_list.begin(), missing_status_list.end(), i));
 		}
 		else
 			throw std::runtime_error(

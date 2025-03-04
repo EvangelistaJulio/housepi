@@ -35,7 +35,7 @@ Augmented variable formatted definitions.}
 \item{\code{traces}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
 Traces of last inference.}
 
-\item{\code{traces}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
+\item{\code{traces_no_loglike}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
 Traces of last inference without loglikelihood.}
 
 \item{\code{traces_as_coda}}{(\code{coda::mcmc} | \code{coda::mcmc.list})\cr
@@ -66,9 +66,9 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-add_infectivity_profile}{\code{HouseholdModel$add_infectivity_profile()}}
 \item \href{#method-HouseholdModel-export_infectivity_profile}{\code{HouseholdModel$export_infectivity_profile()}}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
-\item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
 \item \href{#method-HouseholdModel-simulate}{\code{HouseholdModel$simulate()}}
-\item \href{#method-HouseholdModel-compute_loglikelihood}{\code{HouseholdModel$compute_loglikelihood()}}
+\item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
+\item \href{#method-HouseholdModel-evaluate_loglikelihood}{\code{HouseholdModel$evaluate_loglikelihood()}}
 \item \href{#method-HouseholdModel-estimate_evidence}{\code{HouseholdModel$estimate_evidence()}}
 \item \href{#method-HouseholdModel-loo}{\code{HouseholdModel$loo()}}
 \item \href{#method-HouseholdModel-waic}{\code{HouseholdModel$waic()}}
@@ -84,8 +84,8 @@ New instance of class
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$new(
   model = NA,
-  quiet = TRUE,
   force = FALSE,
+  quiet_pkgbuild = TRUE,
   as_template = FALSE
 )}\if{html}{\out{</div>}}
 }
@@ -94,13 +94,19 @@ New instance of class
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{model}}{(\code{character(1)})\cr
-One between:}
-
-\item{\code{quiet}}{(\code{logical(1)})\cr
-If \code{TRUE} hide compilation commands.}
+One between:
+\itemize{
+\item template name;
+\item path/to/folder with implementation;
+\item path/to/folder with previously compiled model;
+\item "blank": template name for blank model (default).
+}}
 
 \item{\code{force}}{(\code{logical(1)})\cr
 If \code{TRUE} compile even if a cached model already exists.}
+
+\item{\code{quiet_pkgbuild}}{(\code{logical(1)})\cr
+If \code{TRUE} hide \code{pkgbuild} compilation commands.}
 
 \item{\code{as_template}}{(\code{logical(1)})\cr
 If \code{TRUE} store the dynamic library as a local template.
@@ -609,35 +615,6 @@ If \code{FALSE} suppress the inference progress bar.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-expec_cases_by_size"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-expec_cases_by_size}{}}}
-\subsection{Method \code{expec_cases_by_size()}}{
-After \verb{$infer} has been run, use the sample to perform simulations.
-Extract the expected number of household cases per size
-and the credible interval.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_size(cred_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{cred_level}}{(\code{double(1)})\cr
-Level for the credible interval.
-Value between 0 and 1 (default is 0.95).}
-
-\item{\code{progress}}{(\code{logical(1)})\cr
-Progress of simulations. Default is inherited from the model.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-(\code{HousepiOutExpCases})
-An instance of class
-\link[=HousepiOutExpCases]{HousepiOutExpCases}.
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-simulate"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-simulate}{}}}
 \subsection{Method \code{simulate()}}{
@@ -671,12 +648,41 @@ If \code{FALSE} suppress the simulation progress bar.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-compute_loglikelihood"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-compute_loglikelihood}{}}}
-\subsection{Method \code{compute_loglikelihood()}}{
-Compute the loglikelihood for the given parameters.
+\if{html}{\out{<a id="method-HouseholdModel-expec_cases_by_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-expec_cases_by_size}{}}}
+\subsection{Method \code{expec_cases_by_size()}}{
+After \verb{$infer} has been run, use the sample to perform simulations.
+Extract the expected number of household cases per size
+and the credible interval.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$compute_loglikelihood(
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_size(cri_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{cri_level}}{(\code{double(1)})\cr
+Level for the credible interval.
+Value between 0 and 1 (default is 0.95).}
+
+\item{\code{progress}}{(\code{logical(1)})\cr
+Progress of simulations. Default is inherited from the model.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+(\code{HousepiOutExpCases})
+An instance of class
+\link[=HousepiOutExpCases]{HousepiOutExpCases}.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-evaluate_loglikelihood"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-evaluate_loglikelihood}{}}}
+\subsection{Method \code{evaluate_loglikelihood()}}{
+Evaluate the loglikelihood for the given parameters.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$evaluate_loglikelihood(
   dataset = NULL,
   n_threads = 1,
   rand_init = FALSE

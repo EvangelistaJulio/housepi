@@ -51,10 +51,8 @@ hhmodel <- housepi::HouseholdModel$new("augm-incubation-from-delays")
 
 # gamma distribution parameter definitions
 hhmodel$load_param_list(
-  shape = list(prior = "unif", args = c(min = 0, max = 5),
-               rule = "norm", rule_scale = 1),
-  scale = list(prior = "unif", args = c(min = 0, max = 5),
-               rule = "norm", rule_scale = 1)
+  shape = list(prior = "unif", args = c(max = 5), rule = "norm"),
+  scale = list(prior = "unif", args = c(max = 5), rule = "norm")
 )
 ```
 

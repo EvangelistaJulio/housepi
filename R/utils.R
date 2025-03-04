@@ -191,7 +191,7 @@ coerce_traces_to_coda <- function(trs) {
 #'
 #' @param trs
 #' Traces as exported from HouseholdModel.
-#' @param cred_level (`double(1)`)\cr
+#' @param cri_level (`double(1)`)\cr
 #' Level for the credible interval.
 #' Value between 0 and 1 (default is 0.95).
 #'
@@ -200,8 +200,8 @@ coerce_traces_to_coda <- function(trs) {
 #'
 #' @noRd
 retrieve_traces_results <- function(trs,
-                                    cred_level = 0.95) {
-  if( (cred_level <= 0) || (cred_level >= 1)) {
+                                    cri_level = 0.95) {
+  if( (cri_level <= 0) || (cri_level >= 1)) {
     stop_h(
       "Credible interval level must be a value between 0 and 1."
     )
@@ -210,8 +210,8 @@ retrieve_traces_results <- function(trs,
   # change in case of multiple chains
   if (is.list(trs)) trs <- do.call(rbind, trs)
 
-  cri_lower <- 0.5 - 0.5 * cred_level
-  cri_upper <- 0.5 + 0.5 * cred_level
+  cri_lower <- 0.5 - 0.5 * cri_level
+  cri_upper <- 0.5 + 0.5 * cri_level
   out <- data.frame(
     mean = apply(trs, 2, mean, na.rm = TRUE),
     sd = apply(trs, 2, sd, na.rm = TRUE),

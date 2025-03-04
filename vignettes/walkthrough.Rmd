@@ -199,12 +199,12 @@ simulated <- hhsimul$dataset
 
 ## Expected Cases by Size
 
-We can use the simulation process to challenge the validity of the inferred model on top of the orginal dataset. 
+We can use the simulation process to challenge the validity of the inferred model on top of the original dataset. 
 We do so by computing the expected numbers of cases per household size according to our posterior distribution (i. e. by producing simulations according to posterior values).
 
 ```{r}
-# simulations according to posterior traces to compute expectations
-expec <- hhmodel$expec_cases_by_size()
+# run simulations according to posterior traces to compute expectations
+expec <- hhmodel$expec_cases_by_size(progress = FALSE)
 ```
 To show both observed and expected cases by size, we use the method `$show_cases_table()$ from our output object:
 
@@ -222,3 +222,31 @@ expec$chisq_test(max_house_size = 5)
 ```
 The $p$-value tells us that there is no significant difference between the distribution, thus we can trust our inference process.
 
+## Secondary Attack rate
+
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# extract secondary attack rates
+sar <- expec$sar(max_house_size = 5)
+
+# plot expected and observed SAR
+library(ggplot2)
+
+col_dict <- c("Expected" = "coral", "Observed" = "black")
+ggplot(sar, aes(x = house_size)) +
+  # expected SAR
+  geom_point(aes(y = expected, color = "Expected")) +
+  geom_errorbar(aes(y = expected, 
+                    ymin = cri_lower, ymax = cri_upper, 
+                    color = "Expected"),
+                width = 0.2) +
+  # observed SAR
+  geom_point(aes(y = observed, color = "Observed")) +
+  # text with observed counts
+  geom_text(aes(x = house_size + 0.2,
+                y = observed, 
+                label = sprintf("[%s]", counts)),
+            color = col_dict["Observed"]) +
+  labs(x = "Household Size", y = "Secondary Attack Rate", color = "") +
+  scale_color_manual(values = col_dict)
+
+```

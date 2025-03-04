@@ -13,11 +13,6 @@
 
 #include "function.h"
 
-#define D_DISCR_TYPE_NONE 0 // none
-#define D_DISCR_TYPE_LEFT 1 // left
-#define D_DISCR_TYPE_CNTR 2 // center
-#define D_DISCR_TYPE_DFND 3 // defined
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -57,6 +52,7 @@ protected:
 	void init_functional_truncation(ushort discr_type);
 
 	void init_min_zero_reshaping(bool discrete, bool is_open_zero);
+	void init_discr_center_reshaping(bool discrete);
 	void init_min_zero_discr_defined_reshaping();
 
 	//===== GETTER =====//

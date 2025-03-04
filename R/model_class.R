@@ -208,13 +208,18 @@ HouseholdModel <- R6::R6Class(
         stop_h("Incomplete parameter definitions.")
       }
 
-      # 0) model generation
+      # model generation
       private$.model$generate()
 
-      # 1) parameters
+      # parameters
       private$.model$import_parameter(self$param_defs)
 
-      # 2) dataset
+      # infectivity profile
+      if (length(private$.infec_profile$defs) > 0) {
+        private$.model$import_infectivity_profile(private$.infec_profile$defs)
+      }
+
+      # dataset
       private$.model$import_dataset(dataset)
 
       invisible(self)
@@ -291,11 +296,6 @@ HouseholdModel <- R6::R6Class(
         private$.model$import_augmented(self$augm_defs)
       }
 
-      # 6) infectivity profile
-      if (length(private$.infec_profile$defs) > 0) {
-        private$.model$import_infectivity_profile(private$.infec_profile$defs)
-      }
-
       invisible(self)
     }
   ),
@@ -353,16 +353,14 @@ HouseholdModel <- R6::R6Class(
     #' @field traces_as_coda (`coda::mcmc` | `coda::mcmc.list`)\cr
     #' Traces of last inference as a `coda` object.
     traces_as_coda = function(value) {
-      if (missing(value)) return(coerce_traces_to_coda(private$.model$traces))
-      stop_h("'traces' is read only.")
+      if (missing(value)) return(private$.model$traces_as_coda)
+      stop_h("'traces_as_coda' is read only.")
     },
 
     #' @field traces_results (`data.frame`)\cr
     #' Results extracted from the traces of last inference.
     traces_results = function(value) {
-      if (missing(value)) {
-        return(retrieve_traces_results(private$.model$traces_no_loglike))
-      }
+      if (missing(value)) return(private$.model$traces_results)
       stop_h("'traces_results' is read only.")
     }
   ),
@@ -405,6 +403,9 @@ HouseholdModel <- R6::R6Class(
                                              force = force,
                                              quiet_pkgbuild = quiet_pkgbuild,
                                              as_template = as_template)
+      # initial generation
+      private$.model$generate()
+
       # initialize internal fields
       self$drop_all()
       invisible(self)
@@ -764,7 +765,8 @@ HouseholdModel <- R6::R6Class(
                                           xlim = double(),
                                           n_bins = 2000) {
       # internal build function
-      private$.pre_build()
+      private$.pre_build() 
+
       return(private$.model$export_infectivity_profile(opts = opts,
                                                        xlim = xlim,
                                                        n_bins = n_bins))
@@ -832,27 +834,6 @@ HouseholdModel <- R6::R6Class(
     },
 
     #' @description
-    #' After `$infer` has been run, use the sample to perform simulations.
-    #' Extract the expected number of household cases per size
-    #' and the credible interval.
-    #'
-    #' @param cred_level (`double(1)`)\cr
-    #' Level for the credible interval.
-    #' Value between 0 and 1 (default is 0.95).
-    #' @param progress (`logical(1)`)\cr
-    #' Progress of simulations. Default is inherited from the model.
-    #' @return
-    #' (`HousepiOutExpCases`)
-    #' An instance of class
-    #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
-    expec_cases_by_size = function(cred_level = 0.95,
-                                   progress = NA) {
-      return(HousepiOutExpCases$new(self,
-                                    cred_level = cred_level,
-                                    progress = progress))
-    },
-
-    #' @description
     #' Run the simulation.
     #'
     #' @param dataset (`data.frame`)\cr
@@ -875,6 +856,27 @@ HouseholdModel <- R6::R6Class(
       # call simulate method from internal Rcpp object
       private$.model$simulate()
       invisible(self)
+    },
+
+    #' @description
+    #' After `$infer` has been run, use the sample to perform simulations.
+    #' Extract the expected number of household cases per size
+    #' and the credible interval.
+    #'
+    #' @param cri_level (`double(1)`)\cr
+    #' Level for the credible interval.
+    #' Value between 0 and 1 (default is 0.95).
+    #' @param progress (`logical(1)`)\cr
+    #' Progress of simulations. Default is inherited from the model.
+    #' @return
+    #' (`HousepiOutExpCases`)
+    #' An instance of class
+    #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
+    expec_cases_by_size = function(cri_level = 0.95,
+                                   progress = NA) {
+      return(HousepiOutExpCases$new(self,
+                                    cri_level = cri_level,
+                                    progress = progress))
     },
 
     #' @description

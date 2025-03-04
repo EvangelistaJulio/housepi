@@ -7,6 +7,11 @@
 #include "numerical_recipes.h"
 #include "distribution.h"
 
+#define D_DISCR_TYPE_NONE 0 // none
+#define D_DISCR_TYPE_LEFT 1 // left
+#define D_DISCR_TYPE_CNTR 2 // center
+#define D_DISCR_TYPE_DFND 3 // defined
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -270,11 +275,11 @@ double Distribution::_trunc_min_discr_left_(double x, const dbl_vec &opts) const
 }
 double Distribution::_trunc_max_discr_left_(double x, const dbl_vec &opts) const
 {
-    return x / (raw_cdf(std::ceil(get_max()), opts));
+    return x / (raw_cdf(std::ceil(get_max() + 1), opts));
 }
 double Distribution::_trunc_both_sides_discr_left_(double x, const dbl_vec &opts) const
 {
-    return x / (raw_cdf(std::ceil(get_max()), opts) - raw_cdf(std::floor(get_min()), opts));
+    return x / (raw_cdf(std::ceil(get_max() + 1), opts) - raw_cdf(std::floor(get_min()), opts));
 }
 double Distribution::_trunc_rand_discr_left_(rnd_gen &prng)
 {
@@ -368,6 +373,27 @@ double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const
 void Distribution::init_reshaping(bool discrete)
 {
     UNUSED(discrete);
+}
+/* Center discretization reshaping. */
+void Distribution::init_discr_center_reshaping(bool discrete)
+{
+    init_functional_range(false, false);
+
+    ushort discr_case = D_DISCR_TYPE_NONE;
+    if (discrete)
+        switch (which_valid_case())
+        {
+        case 1: //----- lower range truncation -----//
+            discr_case = D_DISCR_TYPE_LEFT;
+            break;
+        case 3: //----- both sides truncation -----//
+            discr_case = D_DISCR_TYPE_LEFT;
+            break;
+        default:
+            discr_case = D_DISCR_TYPE_CNTR;
+        }
+    init_functional_discretization(discr_case);
+    init_functional_truncation(discr_case);
 }
 
 /* Frequent reshaping while domain has zero lower bound. */
@@ -598,11 +624,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        ushort discr_case = (discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE;
-
-        init_functional_range(false, false);
-        init_functional_discretization(discr_case);
-        init_functional_truncation(discr_case);
+        init_discr_center_reshaping(discrete);
     }
 
 protected:
@@ -659,11 +681,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override
     {
-        ushort discr_case = (discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE;
-
-        init_functional_range(false, false);
-        init_functional_discretization(discr_case);
-        init_functional_truncation(discr_case);
+        init_discr_center_reshaping(discrete);
     }
 
 protected:
@@ -1138,7 +1156,7 @@ public:
         init_defaults("binom", {"size", "prob"}, {4, .5},
                       0., NULL_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
-        
+
         assign_pointer_range_max(get_ptr_to_arg(0));
         init_functional_range(false, false);
     }

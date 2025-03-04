@@ -608,7 +608,7 @@ void MCMC::Impl::show_setup() const
         << "\nn_burnin" << C_DELIM << setup_n_burnin
         << "\nthin" << C_DELIM << setup_thin
         << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
-        << "\progress" << C_DELIM << tools::truth(setup_is_progbar)
+        << "\nprogress" << C_DELIM << tools::truth(setup_is_progbar)
         << "\nid_trace" << C_DELIM << setup_id_trace
         << "\ninv_temper" << C_DELIM << setup_inv_T
         << "\n";

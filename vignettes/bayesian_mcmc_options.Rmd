@@ -130,7 +130,7 @@ bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
 # MCMC Proposer Rules
 
 ```{r, include=FALSE}
-bayesplot::color_scheme_set(scheme = "brightblue")
+bayesplot::color_scheme_set(scheme = "pink")
 ```
 
 ```{r}
@@ -142,15 +142,24 @@ available_proposer_rules <- c("gibbs", "unif", "norm", "lnorm")
 # add a parameter definition for each available proposer rule
 for (rule_name in available_proposer_rules) {
   blank_model$add_param(name = paste("rule", rule_name), 
-                prior = "norm", min = 0, rule = rule_name)
+                prior = "norm", min = 0, rule = rule_name,
+                rule_scale = 0.1)
 }
 
-blank_model$infer(progress = FALSE)
+blank_model$infer(progress = FALSE, n_steps = 100)
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 bayesplot::mcmc_trace(blank_model$traces_no_loglike)
-bayesplot::mcmc_dens(blank_model$traces_no_loglike)
 ```
+Note that the proposer rule "lnorm" does not fit the case of negative values.
 
-Note that the proposer rule "lnorm" does not fit the case of negative values as it's here visible.
+### Role of Finite Adaptation
+
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+
+blank_model$infer(progress = FALSE, n_steps = 100, 
+                  n_adapt = 1000)
+
+bayesplot::mcmc_trace(blank_model$traces_no_loglike)
+```

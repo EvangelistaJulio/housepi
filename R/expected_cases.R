@@ -5,10 +5,10 @@
 #
 
 #' @title
-#' Apply on Homogeneous Frames
+#' Frame Apply
 #' @description
 #' Apply function `func` to corresponding elements
-#' across a list of data frames that share the same dimensions.
+#' across a list of data.frame that share the same dimensions.
 #'
 #' @param func (`closure()`)\cr
 #' Function applied to corresponding elements across data frames in the list.
@@ -17,9 +17,10 @@
 #'
 #' @return (`data.frame()`)\cr
 #' Data frame of the same dimensions as the input frames.
+#' Columns and rownames of the first data.frame in the list.
 #'
 #' @noRd
-apply_on_homogeneous_frames <- function(func, frame_list) {
+frame_apply <- function(func, frame_list) {
   # perform element-wise operations
   output <- matrix(
     sapply(seq_along(frame_list[[1]]), function(x) {
@@ -29,6 +30,7 @@ apply_on_homogeneous_frames <- function(func, frame_list) {
     byrow = FALSE
   )
   colnames(output) <- colnames(frame_list[[1]])
+  rownames(output) <- rownames(frame_list[[1]])
   return(as.data.frame(output))
 }
 
@@ -94,6 +96,44 @@ retrieve_cases_by_size <- function(dataset) {
   return(output)
 }
 
+#' @title
+#' Retrieve SAR from Cases by Size
+#' @description
+#' Function to retrieve secondary attack rates from data.frame
+#' with cases by size.
+#'
+#' @param dataset (`data.frame`)\cr
+#' Dataset containing the the individual 'id'
+#' their 'status' and their 'house_id'.
+#'
+#' @return (`data.frame`)\cr
+#'
+#' @noRd
+retrieve_sar_from_casesbysize <- function(cases_df) {
+  # drop size column
+  cases_df$size <- NULL
+  # drop zero size column
+  cases_df$`0` <- NULL
+  cases_df <- cases_df[as.integer(row.names(cases_df)) > 1,]
+
+  # total n. cases (row names stay stored)
+  n <- rowSums(cases_df, na.rm = TRUE)
+  # normalization factors
+  norm <- 1. / (as.vector(n) * (as.integer(names(n)) - 1))
+
+  # extract vector of secondary cases
+  sec_cases <- as.integer(colnames(cases_df)) - 1
+
+  # substitute NAs with 0s
+  cases_df[is.na(cases_df)] <- 0
+  output <- data.frame(
+    sar = as.vector(as.matrix(cases_df) %*% sec_cases) * norm,
+    row.names = names(n)
+  )
+
+  return(output)
+}
+
 ############################################################################
 ############################################################################
 ############################################################################
@@ -115,39 +155,80 @@ HousepiOutExpCases <- R6::R6Class(
   ############################################################################
 
   private = list(
-    .obs_hh_case_table = NULL,
-    .exp_hh_case_table = NULL,
-    .q_lower = NULL,
-    .q_upper = NULL,
+    .case_table = NULL,
+    .sar = NULL,
+    .cri_level = 0.95,
 
     # @description
-    # Assign a filtering on the case table.
+    # Return a list with all filtered case tables.
     #
     # @param max_house_size (`integer(1)`)\cr
     # Maximum household size to consider.
-    .filter_table = function(max_house_size = NA) {
+    #
+    # @return
+    # (`list()`)
+    .filtered_tables = function(max_house_size = NA) {
       # load observed table
-      obsdf <- private$.obs_hh_case_table
+      obsdf <- private$.case_table$observed
 
-      # FIXME: what if size != 0 has all zeros!?
+      # remove rows without counts
       mask_row <- rowSums(obsdf[colnames(obsdf) != "size"], na.rm = TRUE) != 0
+
+      # remove column with zero cases if none was observed
+      mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
+
       # implement max household size mask
-      if (is.na(max_house_size)) {
-        mask_col <- TRUE
-      } else {
+      if (!is.na(max_house_size)) {
         col_max <- which(colnames(obsdf) == as.character(max_house_size))
         row_max <- which(rownames(obsdf) == as.character(max_house_size))
-
-        mask_col <- seq_len(ncol(obsdf)) <= col_max
-        mask_row <- seq_along(mask_row) <= row_max & mask_row
+        
+        mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
+        mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
       }
 
       return(list(
         observed = obsdf[mask_row, mask_col],
-        expected = private$.exp_hh_case_table[mask_row, mask_col],
-        cri_lower = private$.q_lower[mask_row, mask_col],
-        cri_upper = private$.q_upper[mask_row, mask_col]
+        expected = private$.case_table$expected[mask_row, mask_col],
+        cri_lower = private$.case_table$cri_lower[mask_row, mask_col],
+        cri_upper = private$.case_table$cri_upper[mask_row, mask_col]
       ))
+    },
+
+    # @description
+    # Extract expected quantities from cases-by-size table list
+    #
+    # @param (`list` of `data.frame`)\cr
+    # List of data.frame containing cases-by-size.
+    .expected_from_casesbysize_list = function(y) {
+      # extract list of secondary attack rates
+      sar_list <- lapply(y, retrieve_sar_from_casesbysize)
+
+      # compute mean values
+      f_mean <- function(x) { mean(x, na.rm = TRUE) }
+      private$.sar$expected <- frame_apply(f_mean, sar_list)
+      private$.case_table$expected <- frame_apply(f_mean, y)
+
+      # internal consistency check
+      # note: normally it shouldn't be possible...
+      if (any(dim(private$.case_table$observed) != dim(private$.case_table$expected))) {
+        stop_h("Internal inconsistency in observed and expected tables.")
+      }
+
+      # compute lower credible interval
+      f_cri_lower <- function(x) {
+        stats::quantile(x, probs = 0.5 * (1 - private$.cri_level), na.rm = TRUE)
+      }
+      private$.sar$cri_lower <- frame_apply(f_cri_lower, sar_list)
+      private$.case_table$cri_lower = frame_apply(f_cri_lower, y)
+
+      # compute upper credible interval
+      f_cri_upper <- function(x) {
+        stats::quantile(x, probs = 0.5 * (1 + private$.cri_level), na.rm = TRUE)
+      }
+      private$.sar$cri_upper <- frame_apply(f_cri_upper, sar_list)
+      private$.case_table$cri_upper = frame_apply(f_cri_upper, y)
+
+      invisible(self)
     }
   ),
 
@@ -164,24 +245,27 @@ HousepiOutExpCases <- R6::R6Class(
     #'
     #' @param house_model (`HouseholdModel`)\cr
     #' Object of class
-    #' \[HouseholdModel][housepi::HouseholdModel]
+    #' [HouseholdModel][housepi::HouseholdModel]
     #' containing all model definitions after having run `$infer`.
-    #' @param cred_level (`double(1)`)\cr
+    #' @param cri_level (`double(1)`)\cr
     #' Probability for credible interval (default is 0.95).
     #' @param progress (`logical(1)`)\cr
     #' Progress of simulations. Default is inherited from the model.
     initialize = function(house_model,
-                          cred_level = 0.95,
+                          cri_level = 0.95,
                           progress = NA) {
       # check credible interval
-      if( (cred_level <= 0) || (cred_level >= 1)) {
+      if( (cri_level <= 0) || (cri_level >= 1)) {
         stop_h(
           "Credible interval level must be a value between 0 and 1."
         )
       }
+      private$.cri_level <- cri_level
 
-      # extract observed household case table
-      private$.obs_hh_case_table <- retrieve_cases_by_size(house_model$dataset)
+      # initialize with observed case table
+      obs <- retrieve_cases_by_size(house_model$dataset)
+      private$.sar <- list(observed = retrieve_sar_from_casesbysize(obs))
+      private$.case_table <- list(observed = obs)
 
       # extract traces without loglikelihood
       traces <- house_model$traces_no_loglike
@@ -196,17 +280,20 @@ HousepiOutExpCases <- R6::R6Class(
       # cleanup at end
       withr::defer(rm(hmc))
 
-      # progress?
-      progress <- isTRUE(progress) || isTRUE(house_model$setup$progress)
+      if (is.na(progress)) {
+        progress <- isTRUE(hmc$setup$progress)
+      } else {
+        progress <- isTRUE(progress)
+      }
 
       # generator seeds
       withr::with_seed(
-        house_model$setup$seed,
+        hmc$setup$seed,
         rng_seeds <- sample(1:max(1e8, n_rep), n_rep, replace = FALSE)
       )
 
       # extract constant parameters
-      aux <- house_model$param_defs
+      aux <- hmc$param_defs
       tmp <- aux[aux$constant, c("name", "value")]
       constants <- as.list(tmp$value)
       names(constants) <- as.list(tmp$name)
@@ -218,50 +305,24 @@ HousepiOutExpCases <- R6::R6Class(
         hmc$load_param_list(from = new_param_defs, append = FALSE)
 
         # run simulation
-        hmc$simulate(seed = rng_seeds[r], progress = FALSE)
+        hmc$simulate(seed = rng_seeds[r], progress = FALSE, n_threads = 1)
 
         # retrieve and return results
         return(retrieve_cases_by_size(hmc$dataset))
       }
 
       if (isTRUE(progress)) {
-        simulations_list <- lapply(
+        results <- lapply(
           cli::cli_progress_along(
             seq_len(n_rep), name = "simulations",
             type = "tasks", clear = FALSE
           ), loop_func
         )
       } else {
-        simulations_list <- lapply(seq_len(n_rep), loop_func)
+        results <- lapply(seq_len(n_rep), loop_func)
       }
-
-      # compute mean values
-      private$.exp_hh_case_table <- apply_on_homogeneous_frames(
-        function(x) {
-          mean(x, na.rm = TRUE)
-        }, simulations_list
-      )
-
-      # internal consistency check
-      if (any(dim(private$.obs_hh_case_table) != dim(private$.exp_hh_case_table))) {
-        stop_h("Internal inconsistency in observed and expected tables.")
-      }
-
-      # compute lower credible interval
-      probs_lower <- 0.5 - 0.5 * cred_level
-      private$.q_lower = apply_on_homogeneous_frames(
-        function(x) {
-          stats::quantile(x, probs = probs_lower, na.rm = TRUE)
-        }, simulations_list
-      )
-
-      # compute upper credible interval
-      probs_upper <- 0.5 + 0.5 * cred_level
-      private$.q_upper = apply_on_homogeneous_frames(
-        function(x) {
-          stats::quantile(x, probs = probs_upper, na.rm = TRUE)
-        }, simulations_list
-      )
+      # extract expected quantities from cases-by-size table list
+      private$.expected_from_casesbysize_list(results)
 
       invisible(self)
     },
@@ -287,7 +348,7 @@ HousepiOutExpCases <- R6::R6Class(
     #' (`list()`)
     chisq_test = function(max_house_size = NA,
                           lower.tail = FALSE) {
-      x <- private$.filter_table(max_house_size)
+      x <- private$.filtered_tables(max_house_size)
       res <- (x$observed - x$expected)^2 / x$expected
       chisq_value <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
@@ -295,6 +356,32 @@ HousepiOutExpCases <- R6::R6Class(
         chisq_value = chisq_value, ddof = ddof,
         p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = lower.tail)
       ))
+    },
+
+    #' @description
+    #' A data.frame with observed and expected secondary attack rates.
+    #'
+    #' @param max_house_size (`integer(1)`)\cr
+    #' Maximum household size to consider.
+    #'
+    #' @return
+    #' (`data.frame`)
+    sar = function(max_house_size = NA) {
+      # convert list to data.frame
+      output <- as.data.frame(private$.sar)
+      colnames(output) <- names(private$.sar)
+
+      output$house_size <- as.integer(row.names(output))
+      if (!is.na(max_house_size)) {
+        output <- output[output$house_size <= 5, ]
+      }
+
+      n <- private$.case_table$observed[row.names(output), ]
+      n$size <- NULL
+      n$`0`<- NULL
+      output$counts <- as.vector(rowSums(n, na.rm = TRUE))
+
+      return(output)
     },
 
     #' @description
@@ -311,8 +398,8 @@ HousepiOutExpCases <- R6::R6Class(
     #' @return
     #' (`flextable` | `data.frame`)
     show_cases_table = function(max_house_size = NA,
-                                      show_chisq = FALSE,
-                                      cri_format = "%.0f [%.0f, %.0f]") {
+                                show_chisq = FALSE,
+                                cri_format = "%.0f [%.0f, %.0f]") {
       # format counts to character
       format_obs <- function(x) {
         as.character(as.integer(x, na.rm = TRUE), na.rm = TRUE)
@@ -324,7 +411,7 @@ HousepiOutExpCases <- R6::R6Class(
       }
 
       # filter according to max_house_size
-      cases <- private$.filter_table(max_house_size)
+      cases <- private$.filtered_tables(max_house_size)
 
       # curate observed dataframe
       obsdf <- as.data.frame(apply(cases$observed, 2, format_obs))

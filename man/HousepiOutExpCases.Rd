@@ -13,7 +13,8 @@ Output object from expected cases by size.
 \item \href{#method-HousepiOutExpCases-new}{\code{HousepiOutExpCases$new()}}
 \item \href{#method-HousepiOutExpCases-print}{\code{HousepiOutExpCases$print()}}
 \item \href{#method-HousepiOutExpCases-chisq_test}{\code{HousepiOutExpCases$chisq_test()}}
-\item \href{#method-HousepiOutExpCases-show_model_check_table}{\code{HousepiOutExpCases$show_model_check_table()}}
+\item \href{#method-HousepiOutExpCases-sar}{\code{HousepiOutExpCases$sar()}}
+\item \href{#method-HousepiOutExpCases-show_cases_table}{\code{HousepiOutExpCases$show_cases_table()}}
 \item \href{#method-HousepiOutExpCases-clone}{\code{HousepiOutExpCases$clone()}}
 }
 }
@@ -24,7 +25,7 @@ Output object from expected cases by size.
 New instance of class
 \link[=HousepiOutExpCases]{HousepiOutExpCases}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$new(house_model, cred_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$new(house_model, cri_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -32,10 +33,10 @@ New instance of class
 \describe{
 \item{\code{house_model}}{(\code{HouseholdModel})\cr
 Object of class
-[HouseholdModel][housepi::HouseholdModel]
+\link[=HouseholdModel]{HouseholdModel}
 containing all model definitions after having run \verb{$infer}.}
 
-\item{\code{cred_level}}{(\code{double(1)})\cr
+\item{\code{cri_level}}{(\code{double(1)})\cr
 Probability for credible interval (default is 0.95).}
 
 \item{\code{progress}}{(\code{logical(1)})\cr
@@ -60,7 +61,31 @@ Override the default printing behaviour.
 \subsection{Method \code{chisq_test()}}{
 Perform Chi-squared test and return list with results.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$chisq_test(max_house_size = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$chisq_test(max_house_size = NA, lower.tail = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{max_house_size}}{(\code{integer(1)})\cr
+maximum household size to consider.}
+
+\item{\code{lower.tail}}{(\code{logical(1)})\cr
+if TRUE (default), probabilities are P\link{X≤x}, otherwise P\link{X>x}.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+(\code{list()})
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiOutExpCases-sar"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiOutExpCases-sar}{}}}
+\subsection{Method \code{sar()}}{
+A data.frame with observed and expected secondary attack rates.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$sar(max_house_size = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -72,16 +97,16 @@ Maximum household size to consider.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{list()})
+(\code{data.frame})
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiOutExpCases-show_model_check_table"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiOutExpCases-show_model_check_table}{}}}
-\subsection{Method \code{show_model_check_table()}}{
-Return a \code{flextable} combining the results of the check on household model
+\if{html}{\out{<a id="method-HousepiOutExpCases-show_cases_table"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiOutExpCases-show_cases_table}{}}}
+\subsection{Method \code{show_cases_table()}}{
+Return a \code{flextable} combining observed and expected cases by size.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$show_model_check_table(
+\if{html}{\out{<div class="r">}}\preformatted{HousepiOutExpCases$show_cases_table(
   max_house_size = NA,
   show_chisq = FALSE,
   cri_format = "\%.0f [\%.0f, \%.0f]"
