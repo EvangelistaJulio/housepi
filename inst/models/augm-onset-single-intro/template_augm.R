@@ -6,7 +6,7 @@ list(
   ),
   incub_period = list(
     init_rand = TRUE, model = "gamma",
-    args = list(shape = "inc_shape@P", scale = "inc_scale@P"),
-    rule = "gibbs", range = list(max = 14)
+    args = c(shape = "inc_shape@P", scale = "inc_scale@P"),
+    rule = "gibbs", max = 14
   )
 )

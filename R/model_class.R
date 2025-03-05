@@ -765,7 +765,7 @@ HouseholdModel <- R6::R6Class(
                                           xlim = double(),
                                           n_bins = 2000) {
       # internal build function
-      private$.pre_build() 
+      private$.pre_build() # UPDATE: this overwrites last outcome...
 
       return(private$.model$export_infectivity_profile(opts = opts,
                                                        xlim = xlim,

@@ -60,8 +60,8 @@ template_household_model <- function(name = NA, path = NA) {
       } else if (any(file.exists(source_files(path)))) {
         #===== Asking for copying template to folder with model =====#
         warning_h(
-          sprintf("A model already exists in folder \"%s\".", path),
-          "Remove its content before creating a model in it."
+          "A model already in the specified folder.",
+          "Remove its content before creating a new one."
         )
 
       } else {
