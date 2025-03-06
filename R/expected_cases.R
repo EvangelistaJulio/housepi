@@ -144,8 +144,8 @@ retrieve_sar_from_casesbysize <- function(cases_df) {
 #' Output object from expected cases by size.
 #'
 #' @keywords internal
-HousepiOutExpCases <- R6::R6Class(
-  classname = "HousepiOutExpCases",
+ExpectedCases <- R6::R6Class(
+  classname = "ExpectedCases",
   cloneable = TRUE,
 
   ############################################################################
@@ -158,16 +158,14 @@ HousepiOutExpCases <- R6::R6Class(
     .case_table = NULL,
     .sar = NULL,
     .cri_level = 0.95,
+    .max_house_size = NA,
 
     # @description
     # Return a list with all filtered case tables.
     #
-    # @param max_house_size (`integer(1)`)\cr
-    # Maximum household size to consider.
-    #
     # @return
     # (`list()`)
-    .filtered_tables = function(max_house_size = NA) {
+    .filtered_tables = function() {
       # load observed table
       obsdf <- private$.case_table$observed
 
@@ -178,10 +176,10 @@ HousepiOutExpCases <- R6::R6Class(
       mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
 
       # implement max household size mask
-      if (!is.na(max_house_size)) {
-        col_max <- which(colnames(obsdf) == as.character(max_house_size))
-        row_max <- which(rownames(obsdf) == as.character(max_house_size))
-        
+      if (!is.na(.max_house_size)) {
+        col_max <- which(colnames(obsdf) == as.character(.max_house_size))
+        row_max <- which(rownames(obsdf) == as.character(.max_house_size))
+
         mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
       }
@@ -234,6 +232,38 @@ HousepiOutExpCases <- R6::R6Class(
 
   ############################################################################
   ############################################################################
+  ################################## ACTIVE ##################################
+  ############################################################################
+  ############################################################################
+
+  active = list(
+    #' @field sar (`data.frame`)\cr
+    #' Observed and expected cases by household size.
+    #' If a maximum house size is set, larger sizes are not returned.
+    sar = function(value) {
+      if (missing(value)) {
+        # convert internal list to data.frame
+        output <- as.data.frame(private$.sar)
+        colnames(output) <- names(private$.sar)
+
+        output$house_size <- as.integer(row.names(output))
+        if (!is.na(private$.max_house_size)) {
+          output <- output[output$house_size <= private$.max_house_size, ]
+        }
+
+        n <- private$.case_table$observed[row.names(output), ]
+        n$size <- NULL
+        n$`0`<- NULL
+        output$counts <- as.vector(rowSums(n, na.rm = TRUE))
+
+        return(output)
+      }
+      stop_h("'sar' is read only.")
+    }
+  ),
+
+  ############################################################################
+  ############################################################################
   ################################## PUBLIC ##################################
   ############################################################################
   ############################################################################
@@ -241,7 +271,7 @@ HousepiOutExpCases <- R6::R6Class(
   public = list(
     #' @description
     #' New instance of class
-    #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
+    #' [ExpectedCases][housepi::ExpectedCases].
     #'
     #' @param house_model (`HouseholdModel`)\cr
     #' Object of class
@@ -276,6 +306,7 @@ HousepiOutExpCases <- R6::R6Class(
       n_rep <- dim(traces)[1]
 
       # deep clone model before proceeding
+      # FIXME/UPDATE/NOTE: deep clone is not cloning traces e. g.!
       hmc <- house_model$clone(deep = TRUE)
       # cleanup at end
       withr::defer(rm(hmc))
@@ -305,7 +336,11 @@ HousepiOutExpCases <- R6::R6Class(
         hmc$load_param_list(from = new_param_defs, append = FALSE)
 
         # run simulation
-        hmc$simulate(seed = rng_seeds[r], progress = FALSE, n_threads = 1)
+        hmc$simulate(seed = rng_seeds[r], 
+                     progress = FALSE, n_threads = 1)
+        # FIXME:
+        # if simulations depend on dataset status and augmented variables
+        # run 2 simulations with dataset = NULL will crash simulations  
 
         # retrieve and return results
         return(retrieve_cases_by_size(hmc$dataset))
@@ -328,7 +363,7 @@ HousepiOutExpCases <- R6::R6Class(
     },
 
     #' @description
-    #' Override the default printing behaviour.
+    #' Override the default printing behavior.
     print = function() {
       cli::cli_alert_info(
         "Output of method `$expec_cases_by_size` of HouseholdModel."
@@ -337,18 +372,32 @@ HousepiOutExpCases <- R6::R6Class(
     },
 
     #' @description
+    #' Set maximum household size to consider in result outputs.
+    #' 
+    #' @param n (`integer(1)`)\cr
+    #' Maximum household size. If `NA`, restore observed maximum.
+    set_max_house_size = function(n) {
+      private$.max_house_size <- n
+      invisible(self)
+    },
+
+    #' @description
+    #' Restore maximum household size to observed maximum.
+    drop_max_house_size = function() {
+      self$set_max_house_size(NA)
+      invisible(self)
+    },
+
+    #' @description
     #' Perform Chi-squared test and return list with results.
     #'
-    #' @param max_house_size (`integer(1)`)\cr
-    #' maximum household size to consider.
     #' @param lower.tail (`logical(1)`)\cr
     #' if TRUE (default), probabilities are P[X≤x], otherwise P[X>x].
     #'
     #' @return
     #' (`list()`)
-    chisq_test = function(max_house_size = NA,
-                          lower.tail = FALSE) {
-      x <- private$.filtered_tables(max_house_size)
+    chisq_test = function(lower.tail = FALSE) {
+      x <- private$.filtered_tables()
       res <- (x$observed - x$expected)^2 / x$expected
       chisq_value <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
@@ -359,36 +408,35 @@ HousepiOutExpCases <- R6::R6Class(
     },
 
     #' @description
-    #' A data.frame with observed and expected secondary attack rates.
-    #'
-    #' @param max_house_size (`integer(1)`)\cr
-    #' Maximum household size to consider.
+    #' Plot observed vs expected secondary attack rates.
     #'
     #' @return
-    #' (`data.frame`)
-    sar = function(max_house_size = NA) {
-      # convert list to data.frame
-      output <- as.data.frame(private$.sar)
-      colnames(output) <- names(private$.sar)
-
-      output$house_size <- as.integer(row.names(output))
-      if (!is.na(max_house_size)) {
-        output <- output[output$house_size <= 5, ]
+    #' (`ggplot` object)
+    plot_sar = function() {
+      if (requireNamespace("ggplot2", quietly = TRUE)) {
+        col_dict <- c("Expected" = "coral", "Observed" = "black")
+        g <- ggplot2::ggplot(sar, ggplot2::aes(x = house_size)) +
+          # expected SAR
+          ggplot2::geom_point(ggplot2::aes(y = expected, color = "Expected")) +
+          ggplot2::geom_errorbar(ggplot2::aes(
+            y = expected, ymin = cri_lower, ymax = cri_upper, color = "Expected"
+          ), width = 0.2) +
+          # observed SAR
+          ggplot2::geom_point(ggplot2::aes(y = observed, color = "Observed")) +
+          # text with observed counts
+          ggplot2::geom_text(ggplot2::aes(
+            x = house_size + 0.2, y = observed, label = sprintf("[%s]", counts)
+          ),
+          color = col_dict["Observed"]) +
+          ggplot2::labs(x = "Household Size", y = "Secondary Attack Rate", color = "Distribution") +
+          ggplot2::scale_color_manual(values = col_dict)
+        return(g)
       }
-
-      n <- private$.case_table$observed[row.names(output), ]
-      n$size <- NULL
-      n$`0`<- NULL
-      output$counts <- as.vector(rowSums(n, na.rm = TRUE))
-
-      return(output)
     },
 
     #' @description
     #' Return a `flextable` combining observed and expected cases by size.
     #'
-    #' @param max_house_size (`integer(1)`)\cr
-    #' Maximum household size to consider.
     #' @param show_chisq (`\logical(1)`)\cr
     #' Whether to show footer with Chi-squared test.
     #' @param cri_format (`character(1)`)\cr
@@ -397,8 +445,7 @@ HousepiOutExpCases <- R6::R6Class(
     #'
     #' @return
     #' (`flextable` | `data.frame`)
-    show_cases_table = function(max_house_size = NA,
-                                show_chisq = FALSE,
+    show_cases_table = function(show_chisq = FALSE,
                                 cri_format = "%.0f [%.0f, %.0f]") {
       # format counts to character
       format_obs <- function(x) {
@@ -411,7 +458,7 @@ HousepiOutExpCases <- R6::R6Class(
       }
 
       # filter according to max_house_size
-      cases <- private$.filtered_tables(max_house_size)
+      cases <- private$.filtered_tables()
 
       # curate observed dataframe
       obsdf <- as.data.frame(apply(cases$observed, 2, format_obs))
@@ -428,10 +475,8 @@ HousepiOutExpCases <- R6::R6Class(
 
       # combine data frames
       combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
-
       # reset row names
       rownames(combined) <- NULL
-
       # reorder columns
       y <- colnames(combined)
       aux <- c("size", "distr")
@@ -440,7 +485,7 @@ HousepiOutExpCases <- R6::R6Class(
       # format to extract labels with labelizor
       colnames(combined)[3:ncol(combined)] <- sapply(
         colnames(combined)[3:ncol(combined)], function(x) {
-          return(paste("cases", x, sep="_"))
+          return(paste("cases", x, sep = "_"))
         }
       )
 
@@ -460,7 +505,7 @@ HousepiOutExpCases <- R6::R6Class(
         ft <- flextable::autofit(ft, add_w = 0, add_h=0)
 
         if (isTRUE(show_chisq)) {
-          x <- self$chisq_test(max_house_size)
+          x <- self$chisq_test()
           footer <- sprintf("X-squared = %.1f, df = %.0f, p-value = %f",
                             x$chisq_value, x$ddof, x$p_value)
           ft <- flextable::add_footer_lines(ft, footer)

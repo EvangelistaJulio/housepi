@@ -27,7 +27,7 @@ HousepiAugmented <- R6::R6Class(
         # from : augmented variable model argument definitions
         required_param_set <- c()
         if (length(self$defs) > 0) {
-          x <- self$defs[c("arg_value", "arg_type")]
+          x <- self$defs[c("arg_value", "arg_at")]
           for (i in seq_along(x)) {
             r <- unlist(x[i, ])
             if (!any(is.na(r))) {
@@ -206,13 +206,13 @@ HousepiAugmented <- R6::R6Class(
 
       #----- value/constant/init_rand -----#
       value_ <- NA
-      value_type_ <- NA
+      value_at_ <- NA
       if (isTRUE(constant)) {
         if (is.na(value)) {
           stop_h("Missing value for constant augmented variable.")
         } else {
           value_ <- str_split_(value)$var
-          value_type_ <- str_split_(value)$typ
+          value_at_ <- str_split_(value)$typ
         }
       } else if (isTRUE(init_rand)) {
         if (is.na(model)) {
@@ -228,34 +228,34 @@ HousepiAugmented <- R6::R6Class(
               )
             } else {
               value_ <- str_split_(rule_from)$var
-              value_type_ <- str_split_(rule_from)$typ
+              value_at_ <- str_split_(rule_from)$typ
             }
           } else {
             init_rand <- TRUE
           }
         } else {
           value_ <- str_split_(value)$var
-          value_type_ <- str_split_(value)$typ
+          value_at_ <- str_split_(value)$typ
         }
       }
 
       #----- method -----#
       arg_name_ <- NA
       arg_value_ <- NA
-      arg_type_ <- NA
+      arg_at_ <- NA
       # assign method only if arguments are provided
       if ((!is.na(model)) && (length(args) > 0)) {
         arg_name_ <- str_join_(names(args))
         tmp <- str_split_(args)
         arg_value_ <- str_join_(tmp$var)
-        arg_type_ <- str_join_(tmp$typ)
+        arg_at_ <- str_join_(tmp$typ)
       }
 
       #----- rule -----#
       rule_scale_ <- NA
-      rule_scale_type_ <- NA
+      rule_scale_at_ <- NA
       rule_from_ <- NA
-      rule_from_type_ <- NA
+      rule_from_at_ <- NA
 
       if (isFALSE(constant)) {
         if (is.na(rule)) {
@@ -267,30 +267,30 @@ HousepiAugmented <- R6::R6Class(
         } else if (rule != "gibbs") {
           if (is.na(rule_scale)) {
             rule_scale_ <- 1
-            rule_scale_type_ <- "S"
+            rule_scale_at_ <- "S"
           } else {
             rule_scale_ <- str_split_(rule_scale)$var
-            rule_scale_type_ <- str_split_(rule_scale)$typ
+            rule_scale_at_ <- str_split_(rule_scale)$typ
           }
           rule_from_ <- str_split_(rule_from)$var
-          rule_from_type_ <- str_split_(rule_from)$typ
+          rule_from_at_ <- str_split_(rule_from)$typ
         }
       }
 
       #----- minimum value -----#
       min_ <- NA
-      min_type_ <- NA
+      min_at_ <- NA
       if (!is.na(min)) {
         min_ <- str_split_(min)$var
-        min_type_ <- str_split_(min)$typ
+        min_at_ <- str_split_(min)$typ
       }
 
       #----- maximum value -----#
       max_ <- NA
-      max_type_ <- NA
+      max_at_ <- NA
       if (!is.na(max)) {
         max_ <- str_split_(max)$var
-        max_type_ <- str_split_(max)$typ
+        max_at_ <- str_split_(max)$typ
       }
 
       #----- append the new definitions -----#
@@ -300,22 +300,22 @@ HousepiAugmented <- R6::R6Class(
           name = name,
           status = status,
           value = value_,
-          value_type = value_type_,
+          value_at = value_at_,
           constant = isTRUE(constant),
           discrete = isTRUE(discrete),
           model = model,
           arg_name = arg_name_,
           arg_value = arg_value_,
-          arg_type = arg_type_,
+          arg_at = arg_at_,
           rule = rule,
           rule_scale = rule_scale_,
-          rule_scale_type = rule_scale_type_,
+          rule_scale_at = rule_scale_at_,
           rule_from = rule_from_,
-          rule_from_type = rule_from_type_,
+          rule_from_at = rule_from_at_,
           min = min_,
-          min_type = min_type_,
+          min_at = min_at_,
           max = max_,
-          max_type = max_type_,
+          max_at = max_at_,
           init_rand = init_rand,
           stringsAsFactors = FALSE
         )

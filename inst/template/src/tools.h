@@ -7,6 +7,11 @@
 #ifndef HOUSEPI__TOOLS__H
 #define HOUSEPI__TOOLS__H
 
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <iostream>
+
 #include <memory>
 #include <random>
 #include <string>

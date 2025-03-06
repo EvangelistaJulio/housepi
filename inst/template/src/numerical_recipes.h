@@ -4,6 +4,7 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <stdexcept>
 #include <cmath>
 #include <algorithm>
 
@@ -122,6 +123,7 @@ namespace numr
                     return sum * std::exp(-z + shape * std::log(z) - std::lgamma(shape));
             }
 
+            throw std::overflow_error("Overflow in gamma_p function.");
             return std::numeric_limits<double>::quiet_NaN();
         }
 
@@ -152,6 +154,7 @@ namespace numr
                     return 1. - std::exp(-z + shape * std::log(z) - std::lgamma(shape)) * h;
             }
 
+            throw std::overflow_error("Overflow in gamma_p function.");
             return std::numeric_limits<double>::quiet_NaN();
         }
     }
@@ -218,7 +221,8 @@ namespace numr
                 if (std::fabs(del - 1.) < EPSILON)
                     return h;
             }
-
+            
+            throw std::overflow_error("Overflow in ibeta function.");
             return std::numeric_limits<double>::quiet_NaN();
         }
     }

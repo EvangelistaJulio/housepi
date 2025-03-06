@@ -849,6 +849,10 @@ HouseholdModel <- R6::R6Class(
                         n_threads = 1,
                         seed = NA,
                         progress = FALSE) {
+      # FIXME:
+      # if simulations depend on dataset status and augmented variables
+      # run 2 simulations with dataset = NULL will crash simulations                     
+
       # internal build function
       private$.build(dataset = dataset, n_threads = n_threads,
                      seed = seed, progress = progress)
@@ -869,14 +873,15 @@ HouseholdModel <- R6::R6Class(
     #' @param progress (`logical(1)`)\cr
     #' Progress of simulations. Default is inherited from the model.
     #' @return
-    #' (`HousepiOutExpCases`)
+    #' (`ExpectedCases`)
     #' An instance of class
-    #' [HousepiOutExpCases][housepi::HousepiOutExpCases].
+    #' [ExpectedCases][housepi::ExpectedCases]
+    #' containing method to compare observed and expected cases.
     expec_cases_by_size = function(cri_level = 0.95,
                                    progress = NA) {
-      return(HousepiOutExpCases$new(self,
-                                    cri_level = cri_level,
-                                    progress = progress))
+      return(ExpectedCases$new(self,
+                               cri_level = cri_level,
+                               progress = progress))
     },
 
     #' @description

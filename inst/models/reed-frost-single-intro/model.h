@@ -33,9 +33,9 @@ class Model : public MCMC
 	double person_to_person_risk() const;
 
 	//===== Override MCMC methods =====//
-	void init_model_for_inference() override;
-	double compute_house_loglike(Household &house) const override;	
-	void simulate_single_house(Household &house) override;
+	void init_model_for_inference() override final;
+	double compute_house_loglike(Household &house) const override final;	
+	void simulate_single_house(Household &house) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

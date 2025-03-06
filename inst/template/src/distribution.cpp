@@ -622,7 +622,7 @@ public:
     ~Uniform_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_discr_center_reshaping(discrete);
     }
@@ -631,31 +631,31 @@ protected:
     std::uniform_real_distribution<double> distr_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(x);
         UNUSED(opts);
         return 1.;
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return x;
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(x);
         UNUSED(opts);
         return 0.;
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(xold);
         UNUSED(xnew);
         UNUSED(opts);
         return 0.;
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         const double r = distr_gen(prng);
         return get_arg(0) * (1 - r) + get_arg(1) * r;
@@ -679,7 +679,7 @@ public:
     ~Normal_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_discr_center_reshaping(discrete);
     }
@@ -688,27 +688,27 @@ protected:
     std::normal_distribution<double> distr_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::normal::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::normal::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::normal::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::normal::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return get_arg(0) + get_arg(1) * distr_gen(prng);
     }
@@ -731,7 +731,7 @@ public:
     ~Lognormal_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_min_zero_reshaping(discrete, false);
     }
@@ -740,33 +740,33 @@ protected:
     std::lognormal_distribution<double> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::lognormal::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::lognormal::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::lognormal::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::lognormal::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -789,7 +789,7 @@ public:
     ~Beta_Distribution() = default;
 
     //==== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         if (discrete)
             throw std::invalid_argument(
@@ -814,34 +814,34 @@ protected:
     std::gamma_distribution<double> gamma_2;
 
     //==== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         gamma_1.param(std::gamma_distribution<double>::param_type(get_arg(0), 1.));
         gamma_2.param(std::gamma_distribution<double>::param_type(get_arg(1), 1.));
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::beta::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::beta::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::beta::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::beta::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         double x1 = gamma_1(prng);
         double x2 = gamma_2(prng);
@@ -866,7 +866,7 @@ public:
     ~Gamma_Distribution() = default;
 
     //==== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_min_zero_reshaping(discrete, false);
     }
@@ -875,33 +875,33 @@ protected:
     std::gamma_distribution<double> distr_gen;
 
     //==== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::gamma::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::gamma::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::gamma::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::gamma::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -924,7 +924,7 @@ public:
     ~Rayleigh_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_min_zero_reshaping(discrete, false);
     }
@@ -933,27 +933,27 @@ protected:
     std::uniform_real_distribution<double> unif_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::rayleigh::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::rayleigh::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::rayleigh::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::rayleigh::logratio(xold, xnew, get_arg(0));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return get_arg(0) * sqrt(-2 * std::log(unif_gen(prng)));
     }
@@ -976,7 +976,7 @@ public:
     ~Weibull_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_min_zero_reshaping(discrete, false);
     }
@@ -985,33 +985,33 @@ protected:
     std::weibull_distribution<double> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::weibull::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::weibull::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::weibull::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::weibull::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -1034,7 +1034,7 @@ public:
     ~Exponential_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         init_min_zero_reshaping(discrete, false);
     }
@@ -1043,33 +1043,33 @@ protected:
     std::exponential_distribution<double> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::exponential_distribution<double>::param_type(get_arg(0)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::exponential::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::exponential::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::exponential::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::exponential::logratio(xold, xnew, get_arg(0));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -1100,7 +1100,7 @@ public:
     ~Poisson_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         UNUSED(discrete);
         init_min_zero_discr_defined_reshaping();
@@ -1110,33 +1110,33 @@ protected:
     std::poisson_distribution<unsigned> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::poisson_distribution<unsigned>::param_type(get_arg(0)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::poisson::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::poisson::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::poisson::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::poisson::logratio(xold, xnew, get_arg(0));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -1163,7 +1163,7 @@ public:
     ~Binomial_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         UNUSED(discrete);
 
@@ -1184,33 +1184,33 @@ protected:
     std::binomial_distribution<unsigned> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::binomial_distribution<unsigned>::param_type(get_arg(0), get_arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::binomial::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::binomial::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::binomial::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::binomial::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -1234,7 +1234,7 @@ public:
     ~NegativeBinomial_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         UNUSED(discrete);
         init_min_zero_discr_defined_reshaping();
@@ -1244,33 +1244,33 @@ protected:
     std::negative_binomial_distribution<unsigned> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::negative_binomial_distribution<unsigned>::param_type(get_arg(0), get_arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::negbinomial::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::negbinomial::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::negbinomial::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::negbinomial::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }
@@ -1294,7 +1294,7 @@ public:
     ~Geometric_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override
+    void init_reshaping(bool discrete) override final
     {
         UNUSED(discrete);
         init_min_zero_discr_defined_reshaping();
@@ -1304,33 +1304,33 @@ protected:
     std::geometric_distribution<unsigned> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override
+    void update_args() override final
     {
         distr_gen.param(std::geometric_distribution<unsigned>::param_type(get_arg(0)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override
+    double raw_pdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::geometric::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override
+    double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::geometric::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::geometric::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         return numr::geometric::logratio(xold, xnew, get_arg(0));
     }
-    double raw_rand(rnd_gen &prng) override
+    double raw_rand(rnd_gen &prng) override final
     {
         return distr_gen(prng);
     }

@@ -227,7 +227,21 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
     CharacterVector df_house_index(n_individuals);
     IntegerVector df_status(n_individuals);
     std::vector<NumericVector> df_dbl;
-    for (size_t s = 0; s < data_headers.size() + augm_list_full.size(); ++s)
+
+    str_vec reduc_data_headers = data_headers;
+
+    // remove data columns if they have same name than augmented
+    str_vec &vec = reduc_data_headers;
+    const std::unordered_set<augmID> &y = augm_list_full;
+    auto new_end = std::remove_if(vec.begin(), vec.end(),
+                       [&y](const dataID &elem)
+                       {
+                           return y.find(elem) != y.end();
+                       });
+    vec.erase(new_end, vec.end());
+    //
+
+    for (size_t s = 0; s < reduc_data_headers.size() + augm_list_full.size(); ++s)
         df_dbl.emplace_back(n_individuals);
 
     size_t r = 0, c = 0;
@@ -239,7 +253,7 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
             df_status[r] = house.status(i);
 
             c = 0;
-            for (const dataID &d : data_headers)
+            for (const dataID &d : reduc_data_headers)
                 df_dbl[c++][r] = house.data(i, d);
 
             for (const augmID &a : augm_list_full)
@@ -252,7 +266,7 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
                                          _["house_id"] = df_house_index,
                                          _["status"] = df_status);
     c = 0;
-    for (const dataID &d : data_headers)
+    for (const dataID &d : reduc_data_headers)
         output.push_back(df_dbl[c++], d);
 
     for (const augmID &a : augm_list_full)

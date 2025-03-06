@@ -19,8 +19,8 @@
 
 class Model : public MCMC
 {
-	void init_model_for_inference() override;
-	void init_model_for_simulation() override;
+	void init_model_for_inference() override final;
+	void init_model_for_simulation() override final;
 };
 
 #endif // HOUSEPI__MODEL__H

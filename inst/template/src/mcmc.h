@@ -72,15 +72,22 @@ public:
 	//===============================//
 	//===== AUGMENTED VARIABLES =====//
 	//===============================//
-
+	
+	bool is_augm_any() const;
+	bool is_augm_sample() const;
+	bool is_augm_model() const;
+	bool is_augm_generic() const;
+	
 	void init_augmented_variables();
 	void assign_all_augm(Household &house, indiv i);
 	void clear_all_augm(Household &house, indiv i);
+	double compute_augm_model_loglike(const Household &house) const;
 
 	//============================//
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
+	void init_extra_dependecies();
 	virtual void update_extra_dependecies(Household &house, indiv i);
 
 	void allocate_extra_house_integer_vector(const extraID &e);

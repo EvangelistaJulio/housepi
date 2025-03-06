@@ -51,13 +51,13 @@ public:
 	~InfecProfile_Ferretti20() = default;
 
 	//===== SETTER =====//
-	void init_reshaping(bool discrete) override
+	void init_reshaping(bool discrete) override final
 	{
 		init_min_zero_reshaping(discrete, false);
 	}
 
 protected:
-	double raw_pdf(double x, const dbl_vec &opts) const override
+	double raw_pdf(double x, const dbl_vec &opts) const override final
 	{
 		double i = opts.at(0); // incubation period
 		double a = get_arg(0); // 'alpha' : shape
@@ -74,7 +74,7 @@ protected:
 		return exp((m - tOST) / s) * pow(1. + exp((m - tOST) / s), -a - 1.) / norm_pdf;
 	}
 
-	double raw_cdf(double x, const dbl_vec &opts) const override
+	double raw_cdf(double x, const dbl_vec &opts) const override final
 	{
 		double i = opts.at(0); // incubation period
 		double a = get_arg(0); // 'alpha' : shape
@@ -134,7 +134,7 @@ public:
 	~InfecProfile_Ashcroft20() = default;
 
 	//===== SETTER =====//
-	void init_reshaping(bool discrete) override
+	void init_reshaping(bool discrete) override final
 	{
 		init_min_zero_reshaping(discrete, false);
 	}
@@ -142,7 +142,7 @@ public:
 protected:
 	std::shared_ptr<Distribution> gamma_distr_ptr;
 
-	double raw_pdf(double x, const dbl_vec &opts) const override
+	double raw_pdf(double x, const dbl_vec &opts) const override final
 	{
 		double i1 = opts.at(0);		 // incubation period infector
 		double i2 = opts.at(1);		 // incubation period infectee
@@ -150,7 +150,7 @@ protected:
 		return gamma_distr_ptr->pdf(serial + get_arg(2));
 	}
 
-	double raw_cdf(double x, const dbl_vec &opts) const override
+	double raw_cdf(double x, const dbl_vec &opts) const override final
 	{
 		double i1 = opts.at(0);		 // incubation period infector
 		double i2 = opts.at(1);		 // incubation period infectee
@@ -283,17 +283,17 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 
 /* Assign minimum of infectivity profile. */
 void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
-										  const std::string &min_type)
+										  const std::string &min_at)
 {
-	if (tools::is_na(min_value) && tools::is_na(min_type))
+	if (tools::is_na(min_value) && tools::is_na(min_at))
 		// impose minimum equal to 0.
 		_infec_profile_->assign_scalar_range_min(0.);
 
-	else if (!tools::is_na(min_value) && tools::is_na(min_type))
+	else if (!tools::is_na(min_value) && tools::is_na(min_at))
 		throw std::invalid_argument(
 			"Impossible to interpret type of value  \"" + min_value + "\". Please provide a type.");
 
-	else if (tools::is_na(min_value) && !tools::is_na(min_type))
+	else if (tools::is_na(min_value) && !tools::is_na(min_at))
 		tools::warning(
 			"Found a type without a paired value. Falling back to default.");
 
@@ -308,12 +308,12 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 			_infec_profile_->assign_scalar_range_min(get_param(min_value));
 	}
 
-	else if (min_type == TYPE_SCALAR)
+	else if (min_at == TYPE_SCALAR)
 		_infec_profile_->assign_scalar_range_min(tools::stod(min_value, "scalar type argument"));
 
 	else
 		throw std::invalid_argument(
-			"Unsopported type \"" + min_type + "\" found while loading \"" + min_value + "\" for pointer value.");
+			"Unsopported type \"" + min_at + "\" found while loading \"" + min_value + "\" for pointer value.");
 
 	// check minimum is correct
 	if (_infec_profile_->get_min() < 0.)
@@ -323,20 +323,20 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 
 /* Assign maximum of infectivity profile. */
 void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
-										  const std::string &max_type)
+										  const std::string &max_at)
 {
-	if (tools::is_na(max_value) && tools::is_na(max_type))
+	if (tools::is_na(max_value) && tools::is_na(max_at))
 		; // pass
 
-	else if (!tools::is_na(max_value) && tools::is_na(max_type))
+	else if (!tools::is_na(max_value) && tools::is_na(max_at))
 		throw std::invalid_argument(
 			"Impossible to interpret type of value  \"" + max_value + "\". Please provide a type.");
 
-	else if (tools::is_na(max_value) && !tools::is_na(max_type))
+	else if (tools::is_na(max_value) && !tools::is_na(max_at))
 		tools::warning(
 			"Found a type without a paired value. Falling back to default.");
 
-	else if (max_type == TYPE_PARAM)
+	else if (max_at == TYPE_PARAM)
 	{
 		if (!param_map.at(max_value).is_constant())
 		{
@@ -347,12 +347,12 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 			_infec_profile_->assign_scalar_range_max(get_param(max_value));
 	}
 
-	else if (max_type == TYPE_SCALAR)
+	else if (max_at == TYPE_SCALAR)
 		_infec_profile_->assign_scalar_range_max(tools::stod(max_value, "argument with scalar type"));
 
 	else
 		throw std::invalid_argument(
-			"Unsopported type \"" + max_type + "\" found while loading \"" + max_value + "\" for pointer value.");
+			"Unsopported type \"" + max_at + "\" found while loading \"" + max_value + "\" for pointer value.");
 }
 
 /* Build infectivity profile distribution . */
@@ -376,22 +376,22 @@ void MCMC::Impl::build_infec_profile()
 				throw std::invalid_argument("missing name.");
 
 			//----- Arguments -----//
-			if ((deflist.count("arg_name")) && (deflist.count("arg_value")) && (deflist.count("arg_type")))
+			if ((deflist.count("arg_name")) && (deflist.count("arg_value")) && (deflist.count("arg_at")))
 				assign_infec_profile_args(tools::parse_list_args(deflist.at("arg_name")),
 										  tools::parse_list_args(deflist.at("arg_value")),
-										  tools::parse_list_args(deflist.at("arg_type")));
+										  tools::parse_list_args(deflist.at("arg_at")));
 			else
 				throw std::invalid_argument("not a valid list of arguments.");
 
 			//----- Range minimum -----//
-			if ((deflist.count("min")) && (deflist.count("min_type")))
-				assign_infec_profile_min(deflist.at("min"), deflist.at("min_type"));
+			if ((deflist.count("min")) && (deflist.count("min_at")))
+				assign_infec_profile_min(deflist.at("min"), deflist.at("min_at"));
 			else
 				throw std::invalid_argument("not a valid minimum.");
 
 			//----- Range maximum -----//
-			if ((deflist.count("max")) && (deflist.count("max_type")))
-				assign_infec_profile_max(deflist.at("max"), deflist.at("max_type"));
+			if ((deflist.count("max")) && (deflist.count("max_at")))
+				assign_infec_profile_max(deflist.at("max"), deflist.at("max_at"));
 			else
 				throw std::invalid_argument("not a valid maximum.");
 
@@ -433,11 +433,19 @@ void MCMC::assign_default_infec_profile(const std::string &default_name)
 /* Value of the instantaneous infectivity profile. */
 double MCMC::infec_profile_inst(double gener_time, const dbl_vec &opts) const
 {
+	if (gener_time < 0)
+		std::overflow_error(
+			"Negative generation time passed infectivity profile.");
+
 	return pImpl->_infec_profile_->pdf(gener_time, opts);
 }
 
 /* Value of the cumulative infectivity profile. */
 double MCMC::infec_profile_cumul(double gener_time, const dbl_vec &opts) const
 {
+	if (gener_time < 0)
+		std::overflow_error(
+			"Negative generation time passed infectivity profile.");
+
 	return pImpl->_infec_profile_->cdf(gener_time, opts);
 }

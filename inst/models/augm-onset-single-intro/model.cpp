@@ -167,7 +167,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	indiv i0 = i;
 
 	//----- Update Lookup Tables for infectious -----//
-	double onset_k, incub_k, t_infec_k;
+	double incub_k, t_infec_k;
 	
 	// note: setting lut to 0 this is necessary because _houseROI_ is brute
 	for (indiv k : house.infectious_list())

@@ -171,13 +171,13 @@ public:
 
     //----- Augmented - Attributes -----//
     const str_vec augm_file_headers = {"name", "status",
-                                       "value", "value_type",
+                                       "value", "value_at",
                                        "constant", "discrete", "init_rand",
-                                       "model", "arg_name", "arg_value", "arg_type",
-                                       "rule", "rule_scale", "rule_scale_type",
-                                       "rule_from", "rule_from_type",
-                                       "min", "min_type",
-                                       "max", "max_type"};
+                                       "model", "arg_name", "arg_value", "arg_at",
+                                       "rule", "rule_scale", "rule_scale_at",
+                                       "rule_from", "rule_from_at",
+                                       "min", "min_at",
+                                       "max", "max_at"};
     std::unordered_set<augmID> augm_list_full = {};
     std::unordered_set<augmID> augm_list_model = {};
     std::unordered_set<augmID> augm_infer_list = {};
@@ -200,9 +200,9 @@ public:
 
     //----- Infectivity Profile - Attributes -----//
     const str_vec infec_profile_file_headers = {"name", "discrete",
-                                                "arg_name", "arg_value", "arg_type",
-                                                "min", "min_type",
-                                                "max", "max_type"};
+                                                "arg_name", "arg_value", "arg_at",
+                                                "min", "min_at",
+                                                "max", "max_at"};
 
     std::shared_ptr<Distribution> _infec_profile_ = nullptr;
 
@@ -212,9 +212,9 @@ public:
                                    const str_vec &vals,
                                    const str_vec &typs);
     void assign_infec_profile_min(const std::string &min_value,
-                                  const std::string &min_type);
+                                  const std::string &min_at);
     void assign_infec_profile_max(const std::string &max_value,
-                                  const std::string &max_type);
+                                  const std::string &max_at);
     void build_infec_profile();
 
     void fix_param_to_be_inferred_list(const std::string &par_name);

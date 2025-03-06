@@ -18,10 +18,11 @@ EXECUTABLE := $(MODEL)/model.exe
 
 # Compilation flags
 CXXFLAGS := -Wall -Wextra -std=gnu++14
-ifdef DEBUG
-CXXFLAGS += -g -O2 -Wno-unknown-pragmas
-else
+ifdef FAST
 CXXFLAGS += -Ofast
+else
+CXXFLAGS += -g -O2 -Wno-unknown-pragmas
+
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)
 CXX := g++
@@ -70,6 +71,6 @@ clean:
 	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe} ${TMPL}/*/.refer 
 
 # To run make in a debug mode
-.PHONY: debug
-debug:
-	$(MAKE) DEBUG=1
+.PHONY: fast
+fast:
+	$(MAKE) FAST=1

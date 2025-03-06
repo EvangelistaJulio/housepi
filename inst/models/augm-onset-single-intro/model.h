@@ -31,16 +31,16 @@ public:
 	double time_end_followup(Household &house) const;
 
 	//===== Override General Methods =====//
-	void init_infec_profile() override;
-	void init_model_for_inference() override;
-	void init_model_for_simulation() override;
-	void update_extra_dependecies(Household &house, indiv i) override;
-	double compute_house_loglike(Household &house) const override;
-	void simulate_single_house(Household &house) override;
+	void init_infec_profile() override final;
+	void init_model_for_inference() override final;
+	void init_model_for_simulation() override final;
+	void update_extra_dependecies(Household &house, indiv i) override final;
+	double compute_house_loglike(Household &house) const override final;
+	void simulate_single_house(Household &house) override final;
 
 	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Household &house, indiv i) override;
-	void assign_contact_rate_to_household(Household &house, indiv from, indiv to) override;
+	void assign_group_rate_to_individual(Household &house, indiv i) override final;
+	void assign_contact_rate_to_household(Household &house, indiv from, indiv to) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

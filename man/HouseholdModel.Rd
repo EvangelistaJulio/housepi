@@ -671,9 +671,10 @@ Progress of simulations. Default is inherited from the model.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{HousepiOutExpCases})
+(\code{ExpectedCases})
 An instance of class
-\link[=HousepiOutExpCases]{HousepiOutExpCases}.
+\link[=ExpectedCases]{ExpectedCases}
+containing method to compare observed and expected cases.
 }
 }
 \if{html}{\out{<hr>}}

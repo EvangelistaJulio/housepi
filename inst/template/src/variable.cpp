@@ -255,7 +255,7 @@ public:
     ~Uniform_Proposer() = default;
 
     //===== SETTER =====//
-    void user_reset() override
+    void user_reset() override final
     {
         _distr_ptr_->assign_scalar_arg("min", -_user_rule_scale_);
         _distr_ptr_->assign_scalar_arg("max", _user_rule_scale_);
@@ -293,7 +293,7 @@ public:
     ~Normal_Proposer() = default;
 
     //===== SETTER =====//
-    void user_reset() override
+    void user_reset() override final
     {
         _distr_ptr_->assign_scalar_arg("mean", 0.);
         _distr_ptr_->assign_scalar_arg("sd", _user_rule_scale_);
@@ -331,7 +331,7 @@ public:
     ~Lognorm_Proposer() = default;
 
     //===== SETTER =====//
-    void user_reset() override
+    void user_reset() override final
     {
         _distr_ptr_->assign_scalar_arg("meanlog", 0.);
         _distr_ptr_->assign_scalar_arg("sdlog", _user_rule_scale_);

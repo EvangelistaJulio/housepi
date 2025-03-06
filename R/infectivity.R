@@ -33,10 +33,10 @@ HousepiInfecProfile <- R6::R6Class(
       if (missing(value)) {
         required_param_set <- c()
         if (is.list(self$defs) && (length(self$defs) > 0)) {
-          if (!any(is.na((self$defs[c("arg_value", "arg_type")])))) {
+          if (!any(is.na((self$defs[c("arg_value", "arg_at")])))) {
             aux <- data.frame(
               vals = strsplit(self$defs[["arg_value"]], "/")[[1]],
-              keys = strsplit(self$defs[["arg_type"]], "/")[[1]]
+              keys = strsplit(self$defs[["arg_at"]], "/")[[1]]
             )
             aux <- aux[aux[["keys"]] == "P", "vals"]
             required_param_set <- c(required_param_set, aux[!is.na(aux)])
@@ -93,36 +93,36 @@ HousepiInfecProfile <- R6::R6Class(
       #----- arguments -----#
       arg_name_ <- NA
       arg_value_ <- NA
-      arg_type_ <- NA
+      arg_at_ <- NA
       # assign method only if arguments are provided
       if (length(args) > 0) {
         arg_name_ <- str_join_(names(args))
         tmp <- str_split_(args)
         arg_value_ <- str_join_(tmp$var)
-        arg_type_ <- str_join_(tmp$typ)
+        arg_at_ <- str_join_(tmp$typ)
       }
 
       #----- minimum value -----#
       min_ <- NA
-      min_type_ <- NA
+      min_at_ <- NA
       if (!is.na(min)) {
         min_ <- str_split_(min)$var
-        min_type_ <- str_split_(min)$typ
+        min_at_ <- str_split_(min)$typ
       }
 
       #----- maximum value -----#
       max_ <- NA
-      max_type_ <- NA
+      max_at_ <- NA
       if (!is.na(max)) {
         max_ <- str_split_(max)$var
-        max_type_ <- str_split_(max)$typ
+        max_at_ <- str_split_(max)$typ
       }
 
       # finally store definition
       self$defs <- list(
         name = name, discrete = isTRUE(discrete),
-        arg_name = arg_name_, arg_value = arg_value_, arg_type = arg_type_,
-        min = min_, min_type = min_type_, max = max_, max_type = max_type_
+        arg_name = arg_name_, arg_value = arg_value_, arg_at = arg_at_,
+        min = min_, min_at = min_at_, max = max_, max_at = max_at_
       )
 
       invisible(self)
