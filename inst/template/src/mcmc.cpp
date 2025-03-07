@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
-#include <atomic>
+
 #include "mcmc_build.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -17,7 +17,10 @@ MCMC::~MCMC() = default;
 //===== DATA =====//
 Household &MCMC::get_household(size_t H) const { return pImpl->house_vector.at(H); }
 size_t MCMC::n_houses() const { return pImpl->n_households; }
-size_t MCMC::report_data(const std::string &key) const { return pImpl->report_data(key); }
+
+ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_report_indiv(key); }
+ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
+std::pair<ushort,ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
 
 //===== RAND NUMBER GENERATOR =====//
 double MCMC::uniform() { return pImpl->uniform(); }
@@ -262,84 +265,7 @@ void MCMC::set_rate_per_contact(Household &house)
 ///////////////////////////////////  MCMC : methods (general)  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::update_simple_global_loglike()
-{
-    double new_ll = 0.0;
-    std::atomic<bool> has_error(false);
 
-#pragma omp parallel for reduction(+ : new_ll)
-    for (size_t H = 0; H < n_houses(); ++H)
-    {
-        if (has_error.load(std::memory_order_relaxed))
-            continue;
-
-        try
-        {
-            Household &house = get_household(H);
-
-            // update house loglikelihood
-            house.set_loglike(compute_house_loglike(house));
-            new_ll += house.get_loglike();
-            if (is_augm_model())
-                new_ll += compute_augm_model_loglike(house);
-        }
-        catch (const std::exception &e)
-        {
-#pragma omp critical
-            {
-                if (!has_error.exchange(true))
-                    _error_message_ = "While computing likelihood for household " + get_household(H).house_id() + ": " + e.what();
-            }
-        }
-    }
-    if (!_error_message_.empty())
-        tools::error(_error_message_);
-
-    pImpl->set_global_loglike(new_ll);
-}
-
-/* Store all buffers (also for extra dependecies) and update values of loglikelihood. */
-void MCMC::update_extra_global_loglike()
-{
-    double new_ll = 0.0;
-    std::atomic<bool> has_error(false);
-
-#pragma omp parallel for reduction(+ : new_ll)
-    for (size_t H = 0; H < n_houses(); ++H)
-    {
-        if (has_error.load(std::memory_order_relaxed))
-            continue;
-
-        try
-        {
-            Household &house = get_household(H);
-
-            // buffer all extra dependencies
-            house.buffer_all_extra();
-            for (const indiv &i : house.infectious_list())
-                update_extra_dependecies(house, i);
-
-            // update house loglikelihood
-            house.set_loglike(compute_house_loglike(house));
-            new_ll += house.get_loglike();
-            if (is_augm_model())
-                new_ll += compute_augm_model_loglike(house);
-        }
-        catch (const std::exception &e)
-        {
-#pragma omp critical
-            {
-                if (!has_error.exchange(true))
-                    _error_message_ = "While computing likelihood for household " + get_household(H).house_id() + " : " + e.what();
-            }
-        }
-    }
-    if (!_error_message_.empty())
-        tools::error(_error_message_);
-
-    pImpl->set_global_loglike(new_ll);
-}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -466,37 +392,6 @@ void MCMC::init_augmented_variables()
 ////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Move augmented variables from all households. */
-void MCMC::move_all_augm()
-{
-    double delta_ll = 0.;
-    std::atomic<bool> has_error(false);
-
-#pragma omp parallel for reduction(+ : delta_ll)
-    for (size_t H = 0; H < n_houses(); ++H)
-    {
-        if (has_error.load(std::memory_order_relaxed))
-            continue;
-
-        try
-        {
-            delta_ll += move_augm_single_house(get_household(H));
-        }
-        catch (const std::exception &e)
-        {
-#pragma omp critical
-            {
-                if (!has_error.exchange(true))
-                    _error_message_ = "While moving augmented variables in household " + get_household(H).house_id() + ": " + e.what();
-            }
-        }
-    }
-
-    if (!_error_message_.empty())
-        tools::error(_error_message_);
-
-    pImpl->increment_global_loglike(delta_ll);
-}
 
 /* Move augmented variables of infectious members inside household.
 The move is performed one member at a time, one augmented variable at a time.
@@ -871,83 +766,3 @@ void MCMC::init_model_for_simulation() {}
 /* Model specific simulation for a single household. */
 void MCMC::simulate_single_house(Household &house) { UNUSED(house); }
 
-/* Perform simulation. */
-void MCMC::simulate()
-{
-    try
-    {
-        std::atomic<bool> has_error(false);
-
-        //==========================//
-        //===== Initialization =====//
-        //==========================//
-
-        pImpl->assert_proper_dataset();        // check if dataset is empty
-        pImpl->setup_n_chains = 0;             // use 0 chains as a state variable
-        pImpl->setup_rand_init_params = false; // disable random initialization
-        pImpl->init_parameters();              // check no undefined parameters
-        init_infec_profile();                  // initialize user infectivity profile
-        init_augmented_variables();            // initialize augmented dependencies
-        init_model_for_simulation();           // initialize model for simulation
-
-        //======================//
-        //===== Simulation =====//
-        //======================//
-
-#ifdef _OPENMP
-        ulong thin_n_house = n_houses() / pImpl->setup_n_threads;
-        progress::Bar progressbar(thin_n_house, "simulate", pImpl->setup_is_progbar);
-
-#pragma omp parallel for default(shared)
-        for (size_t H = 0; H < n_houses(); ++H)
-        {
-            if (has_error.load(std::memory_order_relaxed))
-                continue;
-
-            try
-            {
-                simulate_single_house(get_household(H));
-            }
-            catch (const std::exception &e)
-            {
-#pragma omp critical
-                {
-                    if (!has_error.exchange(true))
-                        _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
-                }
-            }
-
-            if (omp_get_thread_num() == 0)
-                progressbar.update(H);
-        }
-#else
-        progress::Bar progressbar(n_houses(), "simulate", pImpl->setup_is_progbar);
-
-        for (size_t H = 0; H < n_houses(); ++H)
-        {
-            if (has_error.load(std::memory_order_relaxed))
-                continue;
-
-            try
-            {
-                simulate_single_house(get_household(H));
-            }
-            catch (const std::exception &e)
-            {
-                _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
-            }
-            progressbar.update(H);
-        }
-#endif
-
-        if (!_error_message_.empty())
-            tools::error(_error_message_);
-
-        progressbar.finalize();
-        pImpl->update_report_data();
-    }
-    catch (std::exception &e)
-    {
-        tools::error(e.what());
-    }
-}

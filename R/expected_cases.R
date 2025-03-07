@@ -10,12 +10,12 @@
 #' Apply function `func` to corresponding elements
 #' across a list of data.frame that share the same dimensions.
 #'
-#' @param func (`closure()`)\cr
+#' @param func `closure()`\cr
 #' Function applied to corresponding elements across data frames in the list.
-#' @param frame_list (`list()` | `data.frame`)\cr
+#' @param frame_list `list()` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
 #'
-#' @return (`data.frame()`)\cr
+#' @return `data.frame()`\cr
 #' Data frame of the same dimensions as the input frames.
 #' Columns and rownames of the first data.frame in the list.
 #'
@@ -39,11 +39,11 @@ frame_apply <- function(func, frame_list) {
 #' @description
 #' Function to retrieve cases by size from a given data.frame.
 #'
-#' @param dataset (`data.frame`)\cr
+#' @param dataset `data.frame`\cr
 #' Dataset containing the the individual 'id'
 #' their 'status' and their 'house_id'.
 #'
-#' @return (`data.frame`)\cr
+#' @return `data.frame`\cr
 #'
 #' @noRd
 retrieve_cases_by_size <- function(dataset) {
@@ -102,11 +102,11 @@ retrieve_cases_by_size <- function(dataset) {
 #' Function to retrieve secondary attack rates from data.frame
 #' with cases by size.
 #'
-#' @param dataset (`data.frame`)\cr
+#' @param dataset `data.frame`\cr
 #' Dataset containing the the individual 'id'
 #' their 'status' and their 'house_id'.
 #'
-#' @return (`data.frame`)\cr
+#' @return `data.frame`\cr
 #'
 #' @noRd
 retrieve_sar_from_casesbysize <- function(cases_df) {
@@ -164,7 +164,7 @@ ExpectedCases <- R6::R6Class(
     # Return a list with all filtered case tables.
     #
     # @return
-    # (`list()`)
+    # `list()`)
     .filtered_tables = function() {
       # load observed table
       obsdf <- private$.case_table$observed
@@ -176,9 +176,9 @@ ExpectedCases <- R6::R6Class(
       mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
 
       # implement max household size mask
-      if (!is.na(.max_house_size)) {
-        col_max <- which(colnames(obsdf) == as.character(.max_house_size))
-        row_max <- which(rownames(obsdf) == as.character(.max_house_size))
+      if (!is.na(private$.max_house_size)) {
+        col_max <- which(colnames(obsdf) == as.character(private$.max_house_size))
+        row_max <- which(rownames(obsdf) == as.character(private$.max_house_size))
 
         mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
@@ -195,7 +195,7 @@ ExpectedCases <- R6::R6Class(
     # @description
     # Extract expected quantities from cases-by-size table list
     #
-    # @param (`list` of `data.frame`)\cr
+    # @param `list` of `data.frame`\cr
     # List of data.frame containing cases-by-size.
     .expected_from_casesbysize_list = function(y) {
       # extract list of secondary attack rates
@@ -237,7 +237,7 @@ ExpectedCases <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field sar (`data.frame`)\cr
+    #' @field sar `data.frame`\cr
     #' Observed and expected cases by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     sar = function(value) {
@@ -273,13 +273,13 @@ ExpectedCases <- R6::R6Class(
     #' New instance of class
     #' [ExpectedCases][housepi::ExpectedCases].
     #'
-    #' @param house_model (`HouseholdModel`)\cr
+    #' @param house_model `HouseholdModel`\cr
     #' Object of class
     #' [HouseholdModel][housepi::HouseholdModel]
     #' containing all model definitions after having run `$infer`.
-    #' @param cri_level (`double(1)`)\cr
+    #' @param cri_level `double(1)`\cr
     #' Probability for credible interval (default is 0.95).
-    #' @param progress (`logical(1)`)\cr
+    #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
     initialize = function(house_model,
                           cri_level = 0.95,
@@ -374,7 +374,7 @@ ExpectedCases <- R6::R6Class(
     #' @description
     #' Set maximum household size to consider in result outputs.
     #' 
-    #' @param n (`integer(1)`)\cr
+    #' @param n `integer(1)`\cr
     #' Maximum household size. If `NA`, restore observed maximum.
     set_max_house_size = function(n) {
       private$.max_house_size <- n
@@ -391,11 +391,11 @@ ExpectedCases <- R6::R6Class(
     #' @description
     #' Perform Chi-squared test and return list with results.
     #'
-    #' @param lower.tail (`logical(1)`)\cr
+    #' @param lower.tail `logical(1)`\cr
     #' if TRUE (default), probabilities are P[X≤x], otherwise P[X>x].
     #'
     #' @return
-    #' (`list()`)
+    #' `list()`)
     chisq_test = function(lower.tail = FALSE) {
       x <- private$.filtered_tables()
       res <- (x$observed - x$expected)^2 / x$expected
@@ -411,11 +411,11 @@ ExpectedCases <- R6::R6Class(
     #' Plot observed vs expected secondary attack rates.
     #'
     #' @return
-    #' (`ggplot` object)
+    #' `ggplot` object)
     plot_sar = function() {
       if (requireNamespace("ggplot2", quietly = TRUE)) {
         col_dict <- c("Expected" = "coral", "Observed" = "black")
-        g <- ggplot2::ggplot(sar, ggplot2::aes(x = house_size)) +
+        g <- ggplot2::ggplot(self$sar, ggplot2::aes(x = house_size)) +
           # expected SAR
           ggplot2::geom_point(ggplot2::aes(y = expected, color = "Expected")) +
           ggplot2::geom_errorbar(ggplot2::aes(
@@ -425,7 +425,7 @@ ExpectedCases <- R6::R6Class(
           ggplot2::geom_point(ggplot2::aes(y = observed, color = "Observed")) +
           # text with observed counts
           ggplot2::geom_text(ggplot2::aes(
-            x = house_size + 0.2, y = observed, label = sprintf("[%s]", counts)
+            x = house_size + 0.25, y = observed, label = sprintf("[%s]", counts)
           ),
           color = col_dict["Observed"]) +
           ggplot2::labs(x = "Household Size", y = "Secondary Attack Rate", color = "Distribution") +
@@ -437,14 +437,14 @@ ExpectedCases <- R6::R6Class(
     #' @description
     #' Return a `flextable` combining observed and expected cases by size.
     #'
-    #' @param show_chisq (`\logical(1)`)\cr
+    #' @param show_chisq `\logical(1)`\cr
     #' Whether to show footer with Chi-squared test.
-    #' @param cri_format (`character(1)`)\cr
+    #' @param cri_format `character(1)`\cr
     #' Formatting string for the credible interval passed to `sprintf`.
     #' It expects three double values (mean, CRI lower and CRI upper).
     #'
     #' @return
-    #' (`flextable` | `data.frame`)
+    #' `flextable` | `data.frame`)
     show_cases_table = function(show_chisq = FALSE,
                                 cri_format = "%.0f [%.0f, %.0f]") {
       # format counts to character

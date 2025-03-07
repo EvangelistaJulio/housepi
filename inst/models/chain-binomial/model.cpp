@@ -42,11 +42,11 @@ double Model::person_to_person_risk() const
 void Model::init_model_for_inference()
 {
 	// Unknown status are not modeled
-	if (report_data("n.miss.stat") > 0)
+	if (get_report_indiv("missing") > 0)
 		tools::error("A missing status was found : incompatible with the model.");
 
 	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_generations_lookuptable(report_data("max.n.HH.cases"));
+	bax::init_generations_lookuptable(get_report_hh_size("max cases").first);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -69,7 +69,7 @@ double Model::compute_house_loglike(Household &house) const
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
 	double log_p2p_esc_proba = -person_to_person_risk();
 
-	ushort n_positive = house.n_infectious();
+	ushort n_positive = house.n_infec_status();
 
 	//================================================//
 	//======== Contribution of Sero-Negatives ========//
@@ -148,9 +148,9 @@ void Model::simulate_single_house(Household &house)
 	//==============================================================//
 
 	ushort n_old_gen = 0;
-	ushort n_new_gen = house.n_infectious();
+	ushort n_new_gen = house.n_infec_status();
 
-	while ((house.n_infectious() > 0) && (n_new_gen > 0))
+	while ((house.n_infec_status() > 0) && (n_new_gen > 0))
 	{
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;

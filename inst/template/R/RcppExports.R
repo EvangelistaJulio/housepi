@@ -24,6 +24,8 @@
 #' @field export_setup Return a List with current setup.
 #' @field export_parameter Return a DataFrame with current parameters.
 #' @field export_dataset Return a DataFrame with current database.
+#' @field export_data_report Return a DataFrame with a report of the current database.
+#' @field export_house_size_report Return a DataFrame with a report of household sizes.
 #' @field export_traces Return a DataFrame with MCMC traces.
 #' @field export_household_loglikelihoods Return a NumericMatrix with household loglikelihood traces.
 #' @field export_infectivity_profile Return a DataFrame values of the infectivity profile.

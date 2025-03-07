@@ -149,7 +149,7 @@ template_dll_file <- function(path) {
 #' Traces as exported from HouseholdModel.
 #'
 #' @return
-#' (`coda::mcmc` | `coda::mcmc.list`)\cr
+#' `coda::mcmc` | `coda::mcmc.list`\cr
 #'
 #' @noRd
 coerce_traces_to_coda <- function(trs) {
@@ -191,12 +191,12 @@ coerce_traces_to_coda <- function(trs) {
 #'
 #' @param trs
 #' Traces as exported from HouseholdModel.
-#' @param cri_level (`double(1)`)\cr
+#' @param cri_level `double(1)`\cr
 #' Level for the credible interval.
 #' Value between 0 and 1 (default is 0.95).
 #'
 #' @return
-#' (`data.frame`)
+#' `data.frame`)
 #'
 #' @noRd
 retrieve_traces_results <- function(trs,

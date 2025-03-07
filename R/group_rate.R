@@ -247,30 +247,30 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Add a new group rate definition.
     #'
-    #' @param name (`character(1)`)\cr
+    #' @param name `character(1)`\cr
     #' Name of the group rate.
-    #' @param by (`list()`)\cr
+    #' @param by `list()`\cr
     #' Feature(s) associated to group rate as dataset headers.
     #' Corresponding dataset column have to be categorical.
-    #' @param prefix (`character(1)`)\cr
+    #' @param prefix `character(1)`\cr
     #' Prefix to parameter names associated to the group rate.
-    #' @param reference (named `list()`)\cr
+    #' @param reference (named `list()`\cr
     #' Choose reference group providing corresponding features.
     #' Default is the group with the largest sample size.
     #' @param independent
     #' If `TRUE` features are considered separately.
-    #' @param prior (`character(1)`)\cr
+    #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
-    #' @param args (named `list()`)\cr
+    #' @param args (named `list()`\cr
     #' Arguments for the prior distribution.
-    #' @param rule (`character(1)`)\cr
+    #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
-    #' @param rule_scale (`double(1)`)\cr
+    #' @param rule_scale `double(1)`\cr
     #' Scale parameter for the proposal rule.
     #' Changed automatically during inference if `n_adpat`>0.
-    #' @param min (`double(1)`)\cr
+    #' @param min `double(1)`\cr
     #' Value of the minimum.
-    #' @param max (`double(1)`)\cr
+    #' @param max `double(1)`\cr
     #' Value of the maximum.
     #'
     #' @references
@@ -323,10 +323,10 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Assert that parameter definitions match the requirement list.
     #'
-    #' @param requirements (`character()`)\cr
+    #' @param requirements `character()`\cr
     #' Vector containing required parameters.
     #'
-    #' @return (`logical(1)`)\cr
+    #' @return `logical(1)`\cr
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE
@@ -448,7 +448,7 @@ HousepiGroupRate <- R6::R6Class(
     #' @param refer_file
     #' Path/to/model.cpp source code.
     #'
-    #' @return (`logical(1)`)\cr
+    #' @return `logical(1)`\cr
     #' `TRUE` if definitions exist and are up to date.
     cpp_assert = function(dataset,
                           refer_file) {
@@ -485,7 +485,7 @@ HousepiGroupRate <- R6::R6Class(
     #' @param dataset
     #' Dataset to be considered.
     #' 
-    #' @return (`logical(1)`)\cr
+    #' @return `logical(1)`\cr
     #' Whether code requires recompilation or not.
     cpp_write = function(dataset,
                          refer_file) {

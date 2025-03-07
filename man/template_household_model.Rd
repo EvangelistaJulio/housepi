@@ -7,10 +7,10 @@
 template_household_model(name = NA, path = NA)
 }
 \arguments{
-\item{name}{(\code{character(1)})\cr
+\item{name}{\code{character(1)}\cr
 Name of template model. If \code{NA}, list of available templates.}
 
-\item{path}{(\code{character(1)})\cr
+\item{path}{\code{character(1)}\cr
 Where to copy the template scripts.
 If \code{NA}, show template model description in RStudio Help window.}
 }

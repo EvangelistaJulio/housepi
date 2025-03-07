@@ -27,6 +27,8 @@
 //' @field export_setup Return a List with current setup.
 //' @field export_parameter Return a DataFrame with current parameters.
 //' @field export_dataset Return a DataFrame with current database.
+//' @field export_data_report Return a DataFrame with a report of the current database.
+//' @field export_house_size_report Return a DataFrame with a report of household sizes.
 //' @field export_traces Return a DataFrame with MCMC traces.
 //' @field export_household_loglikelihoods Return a NumericMatrix with household loglikelihood traces.
 //' @field export_infectivity_profile Return a DataFrame values of the infectivity profile.
@@ -56,6 +58,8 @@ RCPP_MODULE(housepi_model_core)
       .method("export_setup", &MCMC::export_setup)
       .method("export_parameter", &MCMC::export_parameter)
       .method("export_dataset", &MCMC::export_dataset)
+      .method("export_data_report", &MCMC::export_data_report)
+      .method("export_house_size_report", &MCMC::export_house_size_report)
       .method("export_traces", &MCMC::export_traces)
       .method("export_household_loglike_matrix", &MCMC::export_household_loglike_matrix)
       .method("export_infectivity_profile", &MCMC::export_infectivity_profile);

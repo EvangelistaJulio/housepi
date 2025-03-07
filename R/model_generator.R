@@ -143,7 +143,7 @@ HousepiGenerator <- R6::R6Class(
 
   active = list(
 
-    #' @field path (`character(1)`)\cr
+    #' @field path `character(1)`\cr
     #' Model name.
     model_name = function(value) {
       if (missing(value)) {
@@ -152,7 +152,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'model_name' is read only.")
     },
 
-    #' @field path (`logical(1)`)\cr
+    #' @field path `logical(1)`\cr
     #' Wheter model is blank.
     is_blank = function(value) {
       if (missing(value)) {
@@ -161,7 +161,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'is_blank' is read only.")
     },
 
-    #' @field path (`character(1)`)\cr
+    #' @field path `character(1)`\cr
     #' Envirnoment path.
     path = function(value) {
       if (missing(value)) {
@@ -179,7 +179,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'path' is read only.")
     },
 
-    #' @field reference (`character(1)`)\cr
+    #' @field reference `character(1)`\cr
     #' Reference script.
     reference = function(value) {
       if (missing(value)) {
@@ -197,7 +197,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'reference' is read only.")
     },
 
-    #' @field dataset (`data.frame`)\cr
+    #' @field dataset `data.frame`\cr
     #' Dataset with individual level information of current dataset.
     #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
@@ -210,7 +210,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'dataset' is read only.")
     },
 
-    #' @field setup (`list()`)\cr
+    #' @field setup `list()`\cr
     #' Last setup used by the build process.
     setup = function(value) {
       if (missing(value)) {
@@ -222,7 +222,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'setup' is read only.")
     },
 
-    #' @field (`matrix()` | `list()` of `matrix()`)
+    #' @field `matrix()` | `list()` of `matrix()`)
     #' Export the traces of last inference call.
     traces = function(value) {
       if (missing(value)) {
@@ -252,7 +252,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'traces' is read only.")
     },
 
-    #' @field (`matrix()` | `list()` of `matrix()`)
+    #' @field `matrix()` | `list()` of `matrix()`)
     #' Export the traces of last inference call without loglikelihood.
     traces_no_loglike = function(value) {
       if (missing(value)) {
@@ -268,14 +268,14 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'traces_no_loglike' is read only.")
     },
 
-    #' @field traces_as_coda (`coda::mcmc` | `coda::mcmc.list`)\cr
+    #' @field traces_as_coda `coda::mcmc` | `coda::mcmc.list`\cr
     #' Traces of last inference as a `coda` object.
     traces_as_coda = function(value) {
       if (missing(value)) return(coerce_traces_to_coda(self$traces))
       stop_h("'traces_as_coda' is read only.")
     },
 
-    #' @field traces_results (`data.frame`)\cr
+    #' @field traces_results `data.frame`\cr
     #' Results extracted from the traces of last inference.
     traces_results = function(value) {
       if (missing(value)) {
@@ -284,7 +284,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'traces_results' is read only.")
     },
 
-    #' @field reference (`matrix()`)\cr
+    #' @field reference `matrix()`\cr
     #' Household loglikelihood traces.
     household_loglike_matrix = function(value) {
       if (missing(value)) {
@@ -316,17 +316,17 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Initialize model generator defining name of dynamic library.
     #'
-    #' @param model_choice (`character(1)`)\cr
+    #' @param model_choice `character(1)`\cr
     #' One between:
     #' - template name;
     #' - path/to/folder with implementation;
     #' - path/to/folder with previously compiled model;
     #' - "blank" template name.
-    #' @param force (`logical(1)`)\cr
+    #' @param force `logical(1)`\cr
     #' If `TRUE` compile even if a cached model already exists.
-    #' @param quiet_pkgbuild (`logical(1)`)\cr
+    #' @param quiet_pkgbuild `logical(1)`\cr
     #' If `TRUE` hide `pkgbuild` compilation commands.
-    #' @param as_template (`logical(1)`)\cr
+    #' @param as_template `logical(1)`\cr
     #' If `TRUE` store the dynamic library as a local template.
     #' If `FALSE` recompile the model at every new session.
     initialize = function(model_choice,
@@ -417,7 +417,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Name of model dynamic library. Extract name of the dynamic library.
     #'
-    #' @param verbose (`logical(1)`)\cr
+    #' @param verbose `logical(1)`\cr
     #' If `TRUE` show message about generation.
     generate = function(verbose = TRUE) {
       if (isTRUE(private$.need_compile)) {
@@ -457,7 +457,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Wrapper of the Rcpp import_dataset method.
     #'
-    #' @param dataset (`data.frame`)\cr
+    #' @param dataset `data.frame`\cr
     #' Dataset with rowise individual information.
     import_dataset = function(dataset) {
       private$.rcpp$import_dataset(
@@ -469,7 +469,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Wrapper of the Rcpp import_setup method.
     #'
-    #' @param setup_list (`list()`)\cr
+    #' @param setup_list `list()`\cr
     #' Setup definitions.
     import_setup = function(setup_list) {
       # change scientific notation locally
@@ -483,7 +483,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Wrapper of the Rcpp import_parameter method.
     #'
-    #' @param defs (`data.frame`)\cr
+    #' @param defs `data.frame`\cr
     #' Formatted parameter definitions.
     import_parameter = function(defs) {
       private$.rcpp$import_parameter(
@@ -495,7 +495,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Wrapper of the Rcpp import_augmented method.
     #'
-    #' @param defs (`data.frame`)\cr
+    #' @param defs `data.frame`\cr
     #' Formatted augmented variable definitions.
     import_augmented = function(defs) {
       private$.rcpp$import_augmented(
@@ -507,7 +507,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Wrapper of the Rcpp import_infec_profile method.
     #'
-    #' @param defs (`list()`)\cr
+    #' @param defs `list()`\cr
     #' Infectivity profile definitions.
     import_infectivity_profile = function(defs) {
       private$.rcpp$import_infectivity_profile(
@@ -526,16 +526,16 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Export instantaneous and cumulative values of the infectivity profile.
     #'
-    #' @param opts (`double()`)\cr
+    #' @param opts `double()`\cr
     #' Additional values for the computation.
-    #' @param xlim (`double(2)`)\cr
+    #' @param xlim `double(2)`\cr
     #' Customize the left and/or right limits for the x axis.
     #' To keep the default value of one limit, set it to `NA`.
-    #' @param n_bins (`integer(1)`)\cr
+    #' @param n_bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return
-    #' (`data.frame`)\cr
+    #' `data.frame`\cr
     export_infectivity_profile = function(opts = list(),
                                           xlim = double(),
                                           n_bins = 2000) {
@@ -589,10 +589,10 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Wrapper of the Rcpp estimate_evidence method.
     #'
-    #' @param scheme (`character(1)`)\cr
+    #' @param scheme `character(1)`\cr
     #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
     #' Other available scheme is "power-fractions".
-    #' @param n_rungs (`integer`)\cr
+    #' @param n_rungs `integer`\cr
     #' Number of rungs in the thermodynamic ladder.
     estimate_evidence = function(scheme = "adaptive",
                                  n_rungs = 40) {

@@ -44,8 +44,10 @@ public:
 	//================//
 
 	Household &get_household(size_t H) const;
-	size_t n_houses() const;
-	size_t report_data(const std::string &key) const;
+	ulong n_houses() const;
+	ulong get_report_indiv(const std::string &key) const;
+	ulong get_report_house(const std::string &key) const;
+	std::pair<ushort,ulong> get_report_hh_size(const std::string &key) const;
 
 	//----- Group & Contact Rates -----//
 	void build_all_rates();
@@ -149,6 +151,8 @@ public:
 	Rcpp::List export_setup() const;
 	Rcpp::DataFrame export_parameter() const;
 	Rcpp::DataFrame export_dataset() const;
+	Rcpp::DataFrame export_data_report() const;
+	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_household_loglike_matrix() const;
 	Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,

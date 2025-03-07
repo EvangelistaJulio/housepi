@@ -19,29 +19,29 @@ Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{dataset}}{(\code{data.frame})\cr
+\item{\code{dataset}}{\code{data.frame}\cr
 Dataset with individual level information of current dataset.
 If the case, it also return the associated augmented variables.}
 
-\item{\code{setup}}{(\code{list()})\cr
+\item{\code{setup}}{\code{list()}\cr
 Last setup used by the build process.}
 
-\item{\code{param_defs}}{(\code{data.frame})\cr
+\item{\code{param_defs}}{\code{data.frame}\cr
 Parameter formatted definitions.}
 
-\item{\code{augm_defs}}{(\code{data.frame})\cr
+\item{\code{augm_defs}}{\code{data.frame}\cr
 Augmented variable formatted definitions.}
 
-\item{\code{traces}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
+\item{\code{traces}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
 Traces of last inference.}
 
-\item{\code{traces_no_loglike}}{(\code{matrix()} | \code{list()} of \code{matrix()})\cr
+\item{\code{traces_no_loglike}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
 Traces of last inference without loglikelihood.}
 
-\item{\code{traces_as_coda}}{(\code{coda::mcmc} | \code{coda::mcmc.list})\cr
+\item{\code{traces_as_coda}}{\code{coda::mcmc} | \code{coda::mcmc.list}\cr
 Traces of last inference as a \code{coda} object.}
 
-\item{\code{traces_results}}{(\code{data.frame})\cr
+\item{\code{traces_results}}{\code{data.frame}\cr
 Results extracted from the traces of last inference.}
 }
 \if{html}{\out{</div>}}
@@ -68,8 +68,8 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
 \item \href{#method-HouseholdModel-simulate}{\code{HouseholdModel$simulate()}}
 \item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
-\item \href{#method-HouseholdModel-evaluate_loglikelihood}{\code{HouseholdModel$evaluate_loglikelihood()}}
-\item \href{#method-HouseholdModel-estimate_evidence}{\code{HouseholdModel$estimate_evidence()}}
+\item \href{#method-HouseholdModel-loglikelihood}{\code{HouseholdModel$loglikelihood()}}
+\item \href{#method-HouseholdModel-evidence}{\code{HouseholdModel$evidence()}}
 \item \href{#method-HouseholdModel-loo}{\code{HouseholdModel$loo()}}
 \item \href{#method-HouseholdModel-waic}{\code{HouseholdModel$waic()}}
 \item \href{#method-HouseholdModel-clone}{\code{HouseholdModel$clone()}}
@@ -93,7 +93,7 @@ New instance of class
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model}}{(\code{character(1)})\cr
+\item{\code{model}}{\code{character(1)}\cr
 One between:
 \itemize{
 \item template name;
@@ -102,13 +102,13 @@ One between:
 \item "blank": template name for blank model (default).
 }}
 
-\item{\code{force}}{(\code{logical(1)})\cr
+\item{\code{force}}{\code{logical(1)}\cr
 If \code{TRUE} compile even if a cached model already exists.}
 
-\item{\code{quiet_pkgbuild}}{(\code{logical(1)})\cr
+\item{\code{quiet_pkgbuild}}{\code{logical(1)}\cr
 If \code{TRUE} hide \code{pkgbuild} compilation commands.}
 
-\item{\code{as_template}}{(\code{logical(1)})\cr
+\item{\code{as_template}}{\code{logical(1)}\cr
 If \code{TRUE} store the dynamic library as a local template.
 IF \code{FALSE} recompile the model at every new session.}
 }
@@ -198,35 +198,35 @@ Add a new parameter definition.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{(\code{character(1)})\cr
+\item{\code{name}}{\code{character(1)}\cr
 Name of the parameter.}
 
-\item{\code{value}}{(\code{double(1)})\cr
+\item{\code{value}}{\code{double(1)}\cr
 Initial value of the parameter.}
 
-\item{\code{constant}}{(\code{logical(1)})\cr
+\item{\code{constant}}{\code{logical(1)}\cr
 If \code{FALSE} the parameter is treated as a constant.}
 
-\item{\code{discrete}}{(\code{logical(1)})\cr
+\item{\code{discrete}}{\code{logical(1)}\cr
 If \code{TRUE} the parameter is discrete.}
 
-\item{\code{prior}}{(\code{character(1)})\cr
+\item{\code{prior}}{\code{character(1)}\cr
 Name of the prior distribution.}
 
-\item{\code{args}}{(named \code{list()})\cr
+\item{\code{args}}{(named \code{list()}\cr
 Arguments for the prior distribution.}
 
-\item{\code{rule}}{(\code{character(1)})\cr
+\item{\code{rule}}{\code{character(1)}\cr
 Name of the inference proposal rule.}
 
-\item{\code{rule_scale}}{(\code{double(1)})\cr
+\item{\code{rule_scale}}{\code{double(1)}\cr
 Scale parameter for the proposal rule.
 Changed automatically during inference if \code{n_adpat}>0.}
 
-\item{\code{min}}{(\code{double(1)})\cr
+\item{\code{min}}{\code{double(1)}\cr
 Value of the minimum.}
 
-\item{\code{max}}{(\code{double(1)})\cr
+\item{\code{max}}{\code{double(1)}\cr
 Value of the maximum.}
 }
 \if{html}{\out{</div>}}
@@ -246,10 +246,10 @@ Associate parameters from a list.
 \describe{
 \item{\code{...}}{Parameter names with respective list of definitions.}
 
-\item{\code{from}}{(named \code{list()})\cr
+\item{\code{from}}{(named \code{list()}\cr
 Named list of parameter definitions.}
 
-\item{\code{append}}{(\code{logical(1)})\cr
+\item{\code{append}}{\code{logical(1)}\cr
 If \code{TRUE} appends the list to current definition (default).
 If \code{FALSE} drop all other parameter definitions.}
 }
@@ -300,14 +300,14 @@ Add a new augmented variable definition.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{(\code{character(1)})\cr
+\item{\code{name}}{\code{character(1)}\cr
 Name of the augmented variable.}
 
-\item{\code{status}}{(\code{integer(1)})\cr
+\item{\code{status}}{\code{integer(1)}\cr
 The associated status of the definition.
 Default NA is for all infectious.}
 
-\item{\code{value}}{(\code{double(1)} | \code{character(1)})\cr
+\item{\code{value}}{\code{double(1)} | \code{character(1)}\cr
 One between:
 \itemize{
 \item Scalar value;
@@ -315,29 +315,29 @@ One between:
 \item Data name (followed by \verb{@D}).
 }}
 
-\item{\code{constant}}{(\code{logical(1)})\cr
+\item{\code{constant}}{\code{logical(1)}\cr
 If \code{FALSE} the augmented variable is treated as a constant.}
 
-\item{\code{discrete}}{(\code{logical(1)})\cr
+\item{\code{discrete}}{\code{logical(1)}\cr
 IF \code{TRUE} the augmenter variable is discrete.}
 
-\item{\code{model}}{(\code{character(1)})\cr
+\item{\code{model}}{\code{character(1)}\cr
 Name of the model distribution.}
 
-\item{\code{args}}{(named \code{list()})\cr
+\item{\code{args}}{(named \code{list()}\cr
 Arguments for the model distribution.}
 
-\item{\code{rule}}{(\code{character(1)})\cr
+\item{\code{rule}}{\code{character(1)}\cr
 Name of the inference proposal rule.}
 
-\item{\code{rule_scale}}{(\code{double(1)})\cr
+\item{\code{rule_scale}}{\code{double(1)}\cr
 Scale parameter for the proposal rule.}
 
-\item{\code{rule_from}}{(\code{double(1)} | \code{character(1)})\cr
+\item{\code{rule_from}}{\code{double(1)} | \code{character(1)}\cr
 Advanced options for non random walk moves.
 \code{FIXME: missing}}
 
-\item{\code{min}}{(\code{double(1)} | \code{character(1)})\cr
+\item{\code{min}}{\code{double(1)} | \code{character(1)}\cr
 Minimum value. One between:
 \itemize{
 \item Scalar value;
@@ -345,7 +345,7 @@ Minimum value. One between:
 \item Data name (followed by \verb{@D}).
 }}
 
-\item{\code{max}}{(\code{double(1)} | \code{character(1)})\cr
+\item{\code{max}}{\code{double(1)} | \code{character(1)}\cr
 Maxmimum tvalue. One between:
 \itemize{
 \item Scalar value;
@@ -353,7 +353,7 @@ Maxmimum tvalue. One between:
 \item Data name (followed by \verb{@D}).
 }}
 
-\item{\code{init_rand}}{(\code{character(1)})\cr
+\item{\code{init_rand}}{\code{character(1)}\cr
 If \code{TRUE} draw initial vale from model distribution.}
 }
 \if{html}{\out{</div>}}
@@ -373,10 +373,10 @@ Associate augmented variables from a list.
 \describe{
 \item{\code{...}}{Augmented variable names with respective list of definitions.}
 
-\item{\code{from}}{(named \code{list()})\cr
+\item{\code{from}}{(named \code{list()}\cr
 Named list of augmented variable definitions.}
 
-\item{\code{append}}{(\code{logical(1)})\cr
+\item{\code{append}}{\code{logical(1)}\cr
 If \code{TRUE} appends the list to current definition (default).
 Else drop all other augmented variable definitions.}
 }
@@ -427,42 +427,42 @@ Reference value has unitary rate and can be specified
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{(\code{character(1)})\cr
+\item{\code{name}}{\code{character(1)}\cr
 Name of the group rate.}
 
-\item{\code{by}}{(\code{list()})\cr
+\item{\code{by}}{\code{list()}\cr
 Feature(s) associated to group rate as dataset headers.
 Corresponding dataset column have to be categorical.}
 
-\item{\code{prefix}}{(\code{character(1)})\cr
+\item{\code{prefix}}{\code{character(1)}\cr
 Prefix to parameter names associated to the group rate.}
 
-\item{\code{reference}}{(named \code{list()})\cr
+\item{\code{reference}}{(named \code{list()}\cr
 Choose reference group providing corresponding features.
 Default is the group with the largest sample size.}
 
-\item{\code{independent}}{(\code{logical(1)})\cr
+\item{\code{independent}}{\code{logical(1)}\cr
 If \code{TRUE} then features are considered independently.}
 
-\item{\code{prior}}{(\code{character(1)})\cr
+\item{\code{prior}}{\code{character(1)}\cr
 Name of the prior distribution.
 Default associated parameter definitions
 have prior "lnorm" and \code{args = list(meanlog = 0, sdlog = 3)}.}
 
-\item{\code{args}}{(named \code{list()})\cr
+\item{\code{args}}{(named \code{list()}\cr
 Arguments for the prior distribution.}
 
-\item{\code{rule}}{(\code{character(1)})\cr
+\item{\code{rule}}{\code{character(1)}\cr
 Name of the inference proposal rule.}
 
-\item{\code{rule_scale}}{(\code{double(1)})\cr
+\item{\code{rule_scale}}{\code{double(1)}\cr
 Scale parameter for the proposal rule.
 Changed automatically during inference if \code{n_adpat} > 0.}
 
-\item{\code{min}}{(\code{double(1)})\cr
+\item{\code{min}}{\code{double(1)}\cr
 Value of the minimum.}
 
-\item{\code{max}}{(\code{double(1)})\cr
+\item{\code{max}}{\code{double(1)}\cr
 Value of the maximum.}
 }
 \if{html}{\out{</div>}}
@@ -486,23 +486,23 @@ Add definition of infectivity profile.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{(\code{character(1)})\cr
+\item{\code{name}}{\code{character(1)}\cr
 Name of the infectivity profile.}
 
-\item{\code{discrete}}{(\code{logical(1)})\cr
+\item{\code{discrete}}{\code{logical(1)}\cr
 IF \code{TRUE} the profile is discrete.}
 
-\item{\code{args}}{(named \code{list()})\cr
+\item{\code{args}}{(named \code{list()}\cr
 Arguments (eventually with types) for the profile.}
 
-\item{\code{min}}{(\code{double(1)} | \code{character(1)})\cr
+\item{\code{min}}{\code{double(1)} | \code{character(1)}\cr
 One between:
 \itemize{
 \item Scalar value;
 \item Parameter name (optionally followed by \verb{@P}).
 }}
 
-\item{\code{max}}{(\code{double(1)} | \code{character(1)})\cr
+\item{\code{max}}{\code{double(1)} | \code{character(1)}\cr
 One between:
 \itemize{
 \item Scalar value;
@@ -528,20 +528,20 @@ Export instantaneous and cumulative values of the infectivity profile.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{opts}}{(\code{double()})\cr
+\item{\code{opts}}{\code{double()}\cr
 Additional values for the computation.}
 
-\item{\code{xlim}}{(\code{double(2)})\cr
+\item{\code{xlim}}{\code{double(2)}\cr
 Customize the left and/or right limits for the x axis.
 To keep the default value of one limit, set it to \code{NA}.}
 
-\item{\code{n_bins}}{(\code{integer(1)})\cr
+\item{\code{n_bins}}{\code{integer(1)}\cr
 Number of bins for continuous profile (ignored if discrete).}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{data.frame})\cr
+\code{data.frame}\cr
 }
 }
 \if{html}{\out{<hr>}}
@@ -570,45 +570,45 @@ Run Bayesian MCMC inference and store internally the chain traces.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{(\code{data.frame})\cr
+\item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset.}
 
-\item{\code{sample_size}}{(\code{integer(1)})\cr
+\item{\code{sample_size}}{\code{integer(1)}\cr
 Sample size of a single chain according to posterior distribution.}
 
-\item{\code{n_steps}}{(\code{integer(1)})\cr
+\item{\code{n_steps}}{\code{integer(1)}\cr
 Number of MCMC steps.}
 
-\item{\code{n_burnin}}{(\code{integer(1)})\cr
+\item{\code{n_burnin}}{\code{integer(1)}\cr
 Number of steps to discard at the beginning of the sample.}
 
-\item{\code{thin}}{(\code{integer(1)})\cr
+\item{\code{thin}}{\code{integer(1)}\cr
 Number of steps to discard between each sample.}
 
-\item{\code{n_adapt}}{(\code{integer(1)})\cr
+\item{\code{n_adapt}}{\code{integer(1)}\cr
 Number of steps with finite adaptation before sampling.}
 
-\item{\code{n_chains}}{(\code{integer(1)})\cr
+\item{\code{n_chains}}{\code{integer(1)}\cr
 Number of independent MCMC chains.}
 
-\item{\code{n_threads}}{(\code{integer(1)})\cr
+\item{\code{n_threads}}{\code{integer(1)}\cr
 Number of threads for the parallel computations.}
 
-\item{\code{rand_init}}{(\code{logical(1)})\cr
+\item{\code{rand_init}}{\code{logical(1)}\cr
 If \code{TRUE} the initial value of the parameters is drawn from prior.}
 
-\item{\code{id_trace}}{(\code{character(1)})\cr
+\item{\code{id_trace}}{\code{character(1)}\cr
 Individual identifier to show augmented traces. Default is NA.}
 
-\item{\code{inv_temper}}{(\code{double(1)})\cr
+\item{\code{inv_temper}}{\code{double(1)}\cr
 Value of the inverse temperature.
 For standard usage this is 1.}
 
-\item{\code{seed}}{(\code{integer(1)})\cr
+\item{\code{seed}}{\code{integer(1)}\cr
 Seed of the random number generator.
 If \code{NA} uses the internal clock (default).}
 
-\item{\code{progress}}{(\code{logical(1)})\cr
+\item{\code{progress}}{\code{logical(1)}\cr
 If \code{FALSE} suppress the inference progress bar.}
 }
 \if{html}{\out{</div>}}
@@ -631,17 +631,17 @@ Run the simulation.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{(\code{data.frame})\cr
+\item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset.}
 
-\item{\code{n_threads}}{(\code{integer(1)})\cr
+\item{\code{n_threads}}{\code{integer(1)}\cr
 Number of threads for the parallelization of the loglikelihood.}
 
-\item{\code{seed}}{(\code{integer(1)})\cr
+\item{\code{seed}}{\code{integer(1)}\cr
 Seed of the random number generator.
 If \code{NA} uses the internal clock (default).}
 
-\item{\code{progress}}{(\code{logical(1)})\cr
+\item{\code{progress}}{\code{logical(1)}\cr
 If \code{FALSE} suppress the simulation progress bar.}
 }
 \if{html}{\out{</div>}}
@@ -661,63 +661,54 @@ and the credible interval.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{cri_level}}{(\code{double(1)})\cr
+\item{\code{cri_level}}{\code{double(1)}\cr
 Level for the credible interval.
 Value between 0 and 1 (default is 0.95).}
 
-\item{\code{progress}}{(\code{logical(1)})\cr
+\item{\code{progress}}{\code{logical(1)}\cr
 Progress of simulations. Default is inherited from the model.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{ExpectedCases})
+\code{ExpectedCases})
 An instance of class
 \link[=ExpectedCases]{ExpectedCases}
 containing method to compare observed and expected cases.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-evaluate_loglikelihood"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-evaluate_loglikelihood}{}}}
-\subsection{Method \code{evaluate_loglikelihood()}}{
+\if{html}{\out{<a id="method-HouseholdModel-loglikelihood"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-loglikelihood}{}}}
+\subsection{Method \code{loglikelihood()}}{
 Evaluate the loglikelihood for the given parameters.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$evaluate_loglikelihood(
-  dataset = NULL,
-  n_threads = 1,
-  rand_init = FALSE
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$loglikelihood(dataset = NULL, n_threads = 1)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{(\code{data.frame})\cr
+\item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset.}
 
-\item{\code{n_threads}}{(\code{integer(1)})\cr
+\item{\code{n_threads}}{\code{integer(1)}\cr
 Number of threads for the parallelization of the loglikelihood.}
-
-\item{\code{rand_init}}{(\code{logical(1)})\cr
-If \code{TRUE} the initial value of parameters is drawn from prior.
-Default is \code{FALSE}.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{double(1)})\cr
-The value of the loglikelihood.
+\code{double(1)}\cr
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-estimate_evidence"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-estimate_evidence}{}}}
-\subsection{Method \code{estimate_evidence()}}{
+\if{html}{\out{<a id="method-HouseholdModel-evidence"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-evidence}{}}}
+\subsection{Method \code{evidence()}}{
 Estimate the model evidence (or marginal likelihood).
 It uses the method of power posteriors with different available schemes.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$estimate_evidence(
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$evidence(
   dataset = NULL,
   scheme = "adaptive",
   n_rungs = 40,
@@ -736,48 +727,48 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{(\code{data.frame})\cr
+\item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset.}
 
-\item{\code{scheme}}{(\code{character(1)})\cr
+\item{\code{scheme}}{\code{character(1)}\cr
 If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
 Other available scheme is "power-fractions".}
 
-\item{\code{n_rungs}}{(\code{integer})\cr
+\item{\code{n_rungs}}{\code{integer}\cr
 Number of rungs in the thermodynamic ladder.}
 
-\item{\code{sample_size}}{(\code{integer(1)})\cr
+\item{\code{sample_size}}{\code{integer(1)}\cr
 Sample size of a single chain according to posterior distribution.}
 
-\item{\code{n_steps}}{(\code{integer(1)})\cr
+\item{\code{n_steps}}{\code{integer(1)}\cr
 Number of MCMC steps.}
 
-\item{\code{n_burnin}}{(\code{integer(1)})\cr
+\item{\code{n_burnin}}{\code{integer(1)}\cr
 Number of steps to discard at the beginning of the sample.}
 
-\item{\code{thin}}{(\code{integer(1)})\cr
+\item{\code{thin}}{\code{integer(1)}\cr
 Number of steps to discard between each sample.}
 
-\item{\code{n_adapt}}{(\code{integer(1)})\cr
+\item{\code{n_adapt}}{\code{integer(1)}\cr
 Number of steps with finite adptation before sampling.}
 
-\item{\code{n_chains}}{(\code{integer(1)})\cr
+\item{\code{n_chains}}{\code{integer(1)}\cr
 Number of independent MCMC chains.}
 
-\item{\code{n_threads}}{(\code{integer(1)})\cr
+\item{\code{n_threads}}{\code{integer(1)}\cr
 Number of threads for the parallelization of the loglikelihood.}
 
-\item{\code{seed}}{(\code{integer(1)})\cr
+\item{\code{seed}}{\code{integer(1)}\cr
 Seed of the random number generator.
 If \code{NA} uses the internal clock (default).}
 
-\item{\code{progress}}{(\code{logical(1)})\cr
+\item{\code{progress}}{\code{logical(1)}\cr
 If \code{FALSE} suppress the simulation progress bar.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{double(1)})\cr
+\code{double(1)}\cr
 The value of the model evidence.
 }
 }

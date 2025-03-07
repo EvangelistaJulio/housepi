@@ -71,6 +71,7 @@ show_dataset_report <- function(df) {
   # re-order
   combined <- combined[, c("what", "comment", "counts", "pct")]
 
+
   combined$pct <- sapply(combined$pct, function(x) sprintf("%.0f%%", x))
 
   ft <- flextable::flextable(combined)

@@ -10,7 +10,7 @@ Output object from expected cases by size.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{sar}}{(\code{data.frame})\cr
+\item{\code{sar}}{\code{data.frame}\cr
 Observed and expected cases by household size.
 If a maximum house size is set, larger sizes are not returned.}
 }
@@ -42,15 +42,15 @@ New instance of class
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_model}}{(\code{HouseholdModel})\cr
+\item{\code{house_model}}{\code{HouseholdModel}\cr
 Object of class
 \link[=HouseholdModel]{HouseholdModel}
 containing all model definitions after having run \verb{$infer}.}
 
-\item{\code{cri_level}}{(\code{double(1)})\cr
+\item{\code{cri_level}}{\code{double(1)}\cr
 Probability for credible interval (default is 0.95).}
 
-\item{\code{progress}}{(\code{logical(1)})\cr
+\item{\code{progress}}{\code{logical(1)}\cr
 Progress of simulations. Default is inherited from the model.}
 }
 \if{html}{\out{</div>}}
@@ -78,7 +78,7 @@ Set maximum household size to consider in result outputs.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{n}}{(\code{integer(1)})\cr
+\item{\code{n}}{\code{integer(1)}\cr
 Maximum household size. If \code{NA}, restore observed maximum.}
 }
 \if{html}{\out{</div>}}
@@ -106,13 +106,13 @@ Perform Chi-squared test and return list with results.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{lower.tail}}{(\code{logical(1)})\cr
+\item{\code{lower.tail}}{\code{logical(1)}\cr
 if TRUE (default), probabilities are P\link{X≤x}, otherwise P\link{X>x}.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{list()})
+\code{list()})
 }
 }
 \if{html}{\out{<hr>}}
@@ -125,7 +125,7 @@ Plot observed vs expected secondary attack rates.
 }
 
 \subsection{Returns}{
-(\code{ggplot} object)
+\code{ggplot} object)
 }
 }
 \if{html}{\out{<hr>}}
@@ -143,17 +143,17 @@ Return a \code{flextable} combining observed and expected cases by size.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{show_chisq}}{(\verb{\\logical(1)})\cr
+\item{\code{show_chisq}}{\verb{\\logical(1)}\cr
 Whether to show footer with Chi-squared test.}
 
-\item{\code{cri_format}}{(\code{character(1)})\cr
+\item{\code{cri_format}}{\code{character(1)}\cr
 Formatting string for the credible interval passed to \code{sprintf}.
 It expects three double values (mean, CRI lower and CRI upper).}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-(\code{flextable} | \code{data.frame})
+\code{flextable} | \code{data.frame})
 }
 }
 \if{html}{\out{<hr>}}

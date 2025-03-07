@@ -83,12 +83,12 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Remove a given augmented variable
     #'
-    #' @param name (`character(1)`)\cr
+    #' @param name `character(1)`\cr
     #' Name of the augmented variable.
-    #' @param status (`integer(1)`)\cr
+    #' @param status `integer(1)`\cr
     #' The associated status of the definition.
     #' Default NA is for all infectious.
-    #' @param show_warnings (`logical(1)`)\cr
+    #' @param show_warnings `logical(1)`\cr
     #' Wheter to show warnings or not. Default is `TRUE`.
     remove = function(name,
                       status = NA,
@@ -126,42 +126,42 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Add a new augmented variable definition.
     #'
-    #' @param name (`character(1)`)\cr
+    #' @param name `character(1)`\cr
     #' Name of the augmented variable.
-    #' @param status (`integer(1)`)\cr
+    #' @param status `integer(1)`\cr
     #' The associated status of the definition.
     #' Default NA is for all infectious.
-    #' @param value (`double(1)` | `character(1)`)\cr
+    #' @param value `double(1)` | `character(1)`\cr
     #' One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`);
     #' - Data name (followed by `@D`).
-    #' @param constant (`logical(1)`)\cr
+    #' @param constant `logical(1)`\cr
     #' If `FALSE` the augmented variable is treated as a constant.
-    #' @param discrete (`logical(1)`)\cr
+    #' @param discrete `logical(1)`\cr
     #' IF `TRUE` the augmenter variable is discrete.
-    #' @param model (`character(1)`)\cr
+    #' @param model `character(1)`\cr
     #' Name of the model distribution.
-    #' @param args (named `list()`)\cr
+    #' @param args (named `list()`\cr
     #' Arguments for the model distribution.
-    #' @param rule (`character(1)`)\cr
+    #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
-    #' @param rule_scale (`double(1)`)\cr
+    #' @param rule_scale `double(1)`\cr
     #' Scale parameter for the proposal rule.
-    #' @param rule_from (`double(1)` | `character(1)`)\cr
+    #' @param rule_from `double(1)` | `character(1)`\cr
     #' Advanced options for non random walk moves.
     #' `FIXME: missing`
-    #' @param min (`double(1)` | `character(1)`)\cr
+    #' @param min `double(1)` | `character(1)`\cr
     #' Minimum value. One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`);
     #' - Data name (followed by `@D`).
-    #' @param max (`double(1)` | `character(1)`)\cr
+    #' @param max `double(1)` | `character(1)`\cr
     #' Maxmimum value. One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`);
     #' - Data name (followed by `@D`).
-    #' @param init_rand (`character(1)`)\cr
+    #' @param init_rand `character(1)`\cr
     #' If `TRUE` draw initial vale from model distribution.
     #'
     #' @noRd
@@ -328,9 +328,9 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param ...
     #' Augmented variable names with respective list of definitions.
-    #' @param from (named `list()`)\cr
+    #' @param from (named `list()`\cr
     #' Named list of augmented variable definitions.
-    #' @param append (`logical(1)`)\cr
+    #' @param append `logical(1)`\cr
     #' If `TRUE` appends the list to current definition (default).
     #' If `FALSE` drop all other augmented variable definitions.
     load_list = function(...,
@@ -382,9 +382,9 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param templ_file
     #' Path/to/.refer template file.
-    #' @param requirements (`character()`)\cr
+    #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    #' @param append (`logical(1)`)\cr
+    #' @param append `logical(1)`\cr
     #' If `TRUE` append to previous definitions (default).
     #' If `FALSE` drop previous definitions.
     load_template = function(templ_file,
@@ -436,10 +436,10 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Assert augmented definitions from the model implementation script.
     #'
-    #' @param requirements (`character()`)\cr
+    #' @param requirements `character()`\cr
     #' Vector containing required parameters.
     #'
-    #' @return (`logical(1)`)\cr
+    #' @return `logical(1)`\cr
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE

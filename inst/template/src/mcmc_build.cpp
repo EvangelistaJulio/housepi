@@ -29,63 +29,11 @@ const double *MCMC::Impl::get_param_pointer(const parID &p) const { return param
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign seed for random generators. */
-void MCMC::Impl::set_prng_seed(int seed)
-{
-    // seed for the unique thread rand num generator
-    prng.seed(seed);
-
-    // seeds for the case of parallelization
-    if (setup_n_threads > 1)
-    {
-        std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
-        for (unsigned n = 0; n < setup_n_threads; ++n)
-            prng_parallel[n].seed(seed_generator(prng));
-    }
-}
-
 /* Return the pseudo random number generator. */
 rnd_gen &MCMC::Impl::get_prng() { return (this->*_func_prng_)(); }
 
 /* Draw a random variable uniformly distributed. */
 double MCMC::Impl::uniform() { return _uniform_distr_(get_prng()); }
-
-/* Set the number of threads for parrell computations (default is 1). */
-void MCMC::Impl::set_n_threads()
-{
-    if (setup_n_threads == 0)
-        throw std::invalid_argument("N. of threads must be greater than 0.");
-
-#ifdef _OPENMP
-    unsigned int max_threads = omp_get_max_threads();
-    if (setup_n_threads > max_threads)
-    {
-        tools::warning(
-            "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
-        setup_n_threads = max_threads;
-    }
-
-    // declare the global number of omp threads
-    omp_set_num_threads(setup_n_threads);
-
-    // create different generators for different parallel threads
-    // note: they are used only to parallelize data augmentantion
-    if (setup_n_threads > 1)
-    {
-        prng_parallel.reserve(setup_n_threads);
-        _func_prng_ = &Impl::_prng_parallel_threads_;
-    }
-    else
-        _func_prng_ = &Impl::_prng_unique_thread_;
-
-#else
-    if (setup_n_threads != 1)
-        tools::warning("Parallelization with OpenMP not supported.");
-
-    setup_n_threads = 1;
-    _func_prng_ = &Impl::_prng_unique_thread_;
-#endif
-}
 
 /* Set inverse temperature and its relative functional methods. */
 void MCMC::Impl::set_inver_temper(double inv_T)
@@ -185,7 +133,7 @@ void MCMC::Impl::build_setup()
         set_n_threads();
 
         // pseudo-random number generator seeding
-        set_prng_seed(setup_seed);
+        set_prng_seed();
 
         // reset internal states
         _chain_ = 1;   // current chain
@@ -1211,7 +1159,7 @@ void MCMC::Impl::build_data(const dict_str_vec &datatable)
             }
 
             //===== Update Report for Data =====//
-            update_report_data();
+            fill_report_data();
 
             //===== Clean up data entries for output files =====//
             // eventually remove standard headers to reorder them at the end
@@ -1229,72 +1177,103 @@ void MCMC::Impl::build_data(const dict_str_vec &datatable)
 }
 
 /* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::update_report_data()
+void MCMC::Impl::fill_report_data()
 {
-    _report_data_ = {{"n.cases", 0},
-                     {"n.miss.stat", 0},
-                     {"no.HH.case", 0},
-                     {"lst.1.case", 0},
-                     {"lst.2.case", 0},
-                     {"max.n.HH.cases", 0},
-                     {"n.HH.with.max.cases", 0},
-                     {"min.HH.size", 1000},
-                     {"n.HH.with.min.size", 0},
-                     {"max.HH.size", 0},
-                     {"n.HH.with.max.size", 0}};
+    _report_indiv_ = {{"total", n_individuals},
+                      {"missing", 0},
+                      {"healthy", 0},
+                      {"infected", 0}};
+
+    _report_house_ = {{"total", n_households},
+                      {"no cases", 0},
+                      {"at least 1 case", 0},
+                      {"at least 2 cases", 0}};
+
+    _report_hh_size_ = {{"max cases", {0, 0}},
+                        {"min size", {1000, 0}},
+                        {"max size", {0, 0}}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
     for (const Household &house : house_vector)
     {
         const ushort house_size = house.size();
-        const ushort n_infec = house.n_infectious();
+        const ushort n_infec = house.n_infec_status();
 
-        _report_data_["n.cases"] += n_infec;
-        _report_data_["n.miss.stat"] += house.n_missing_status();
+        _report_indiv_["missing"] += house.n_missing_status();
+        _report_indiv_["healthy"] += house.n_healthy_status();
+        _report_indiv_["infected"] += n_infec;
 
-        _report_data_["no.HH.case"] += (n_infec == 0);
-        _report_data_["lst.1.case"] += (n_infec > 0);
-        _report_data_["lst.2.case"] += (n_infec > 1);
+        _report_house_["no cases"] += (n_infec == 0);
+        _report_house_["at least 1 case"] += (n_infec > 0);
+        _report_house_["at least 2 cases"] += (n_infec > 1);
 
         // max number of house cases
-        if (_report_data_["max.n.HH.cases"] < n_infec)
+        if (_report_hh_size_["max cases"].first < n_infec)
         {
-            _report_data_["n.HH.with.max.cases"] = 1;
-            _report_data_["max.n.HH.cases"] = n_infec;
+            _report_hh_size_["max cases"].first = n_infec;
+            _report_hh_size_["max cases"].second = 1;
         }
-        else if (_report_data_["max.n.HH.cases"] == n_infec)
-            ++_report_data_["n.HH.with.max.cases"];
+        else if (_report_hh_size_["max cases"].first == n_infec)
+            ++_report_hh_size_["max cases"].second;
 
         // minimum house number of members
-        if (_report_data_["min.HH.size"] > house_size)
+        if (_report_hh_size_["min size"].first > house_size)
         {
-            _report_data_["n.HH.with.min.size"] = 1;
-            _report_data_["min.HH.size"] = house_size;
+            _report_hh_size_["min size"].first = house_size;
+            _report_hh_size_["min size"].second = 1;
         }
-        else if (_report_data_["min.HH.size"] == house_size)
-            ++_report_data_["n.HH.with.min.size"];
+        else if (_report_hh_size_["min size"].first == house_size)
+            ++_report_hh_size_["min size"].second;
 
         // maximum house number of members
-        if (_report_data_["max.HH.size"] < house_size)
+        if (_report_hh_size_["max size"].first < house_size)
         {
-            _report_data_["n.HH.with.max.size"] = 1;
-            _report_data_["max.HH.size"] = house_size;
+            _report_hh_size_["max size"].first = house_size;
+            _report_hh_size_["max size"].second = 1;
         }
-        else if (_report_data_["max.HH.size"] == house_size)
-            ++_report_data_["n.HH.with.max.size"];
+        else if (_report_hh_size_["max size"].first == house_size)
+            ++_report_hh_size_["max size"].second;
     }
 }
 
-/* Return a value from report data. */
-size_t MCMC::Impl::report_data(const std::string &key) const
+/* Return a value from individaul data report. */
+ulong MCMC::Impl::get_report_indiv(const std::string &key) const
 {
     size_t output = 0;
-    if (_report_data_.count(key))
-        output = _report_data_.at(key);
+    if (_report_indiv_.count(key))
+        output = _report_indiv_.at(key);
 
     else
         throw std::invalid_argument(
-            "Unknown summary entry \"" + key + "\".");
+            "Unknown individual report entry \"" + key + "\".");
+
+    return output;
+}
+
+/* Return a value from household data report. */
+ulong MCMC::Impl::get_report_house(const std::string &key) const
+{
+    ulong output = 0;
+    if (_report_house_.count(key))
+        output = _report_house_.at(key);
+
+    else
+        throw std::invalid_argument(
+            "Unknown household report entry \"" + key + "\".");
+
+    return output;
+}
+
+/* Return a value from household sizes report. */
+std::pair<ushort,ulong> MCMC::Impl::get_report_hh_size(const std::string &key) const
+{
+    std::pair<ushort,ulong> output = {0,0};
+    if (_report_hh_size_.count(key))
+        output = _report_hh_size_.at(key);
+
+    else
+        throw std::invalid_argument(
+            "Unknown household sizes report entry \"" + key + "\".");
 
     return output;
 }

@@ -193,7 +193,7 @@ public:
 	// contact rate pointers
 	matrix<const double *> contact_rates;
 
-	ushort n_infectious = 0;
+	ushort n_infec_status = 0;
 	ushort n_susceptible = 0;
 	ushort n_missing_status = 0;
 
@@ -219,7 +219,7 @@ void Household::Impl::assign_individual(const std::string &id,
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
 	{
-		++n_infectious;
+		++n_infec_status;
 		infectious_list.push_back(house_size);
 	}
 	else if (status == HEALTHY_STATUS)
@@ -252,7 +252,7 @@ bool Household::Impl::change_status(indiv i, int new_status)
 	{
 		if (old_status >= INFECTED_STATUS)
 		{
-			--n_infectious;
+			--n_infec_status;
 			infectious_list.erase(std::find(infectious_list.begin(), infectious_list.end(), i));
 		}
 		else if (old_status == HEALTHY_STATUS)
@@ -271,7 +271,7 @@ bool Household::Impl::change_status(indiv i, int new_status)
 
 		if (new_status >= INFECTED_STATUS)
 		{
-			++n_infectious;
+			++n_infec_status;
 			infectious_list.push_back(i);
 		}
 		else if (new_status == HEALTHY_STATUS)
@@ -358,8 +358,8 @@ double Household::augm_model_logratio(indiv i, const augmID &a) const { return p
 double Household::augm_propose_logratio(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).propose_logratio(); }
 double Household::augm_move_logratio(indiv i, const augmID &a) const { return pImpl->members[i].augm_map.at(a).get_move_logratio(); }
 
-ushort Household::n_infectious() const { return pImpl->n_infectious; }
-ushort Household::n_susceptible() const { return pImpl->n_susceptible; }
+ushort Household::n_infec_status() const { return pImpl->n_infec_status; }
+ushort Household::n_healthy_status() const { return pImpl->n_susceptible; }
 ushort Household::n_missing_status() const { return pImpl->n_missing_status; }
 
 double Household::get_loglike() const { return pImpl->house_loglike; }

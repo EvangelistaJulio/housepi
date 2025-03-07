@@ -67,7 +67,7 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 void Model::init_model_for_inference()
 {
 	//==== Unknown status are not modeled =====//
-	if (report_data("n.miss.stat") > 0)
+	if (get_report_indiv("missing") > 0)
 		tools::error(
 			"A missing status was found : incompatible with the model.");
 
@@ -77,7 +77,7 @@ void Model::init_model_for_inference()
 	allocate_extra_house_double_matrix("p2p-escprob");
 
 	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_escape_patterns_lookuptable(report_data("max.n.HH.cases"));
+	bax::init_escape_patterns_lookuptable(get_report_hh_size("max cases").first);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +141,7 @@ double Model::compute_house_loglike(Household &house) const
 	fill_house_escape_matrix(house);
 
 	//=====compute the loglikelihood=====//
-	return bax::chain_binomial_heter_loglikelihood(house.n_infectious(),
+	return bax::chain_binomial_heter_loglikelihood(house.n_infec_status(),
 												   house.extra_double_vector("commu-escprob"),
 												   house.extra_double_matrix("p2p-escprob"));
 }
@@ -185,7 +185,7 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<indiv> old_gen_set = {};
 
-	while ((house.n_susceptible() > 0) && (!new_gen_set.empty()))
+	while ((house.n_healthy_status() > 0) && (!new_gen_set.empty()))
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();

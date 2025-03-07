@@ -26,9 +26,9 @@ show_model_names <- function() {
 #' @description
 #' Copy a default model to a given directory.
 #'
-#' @param name (`character(1)`)\cr
+#' @param name `character(1)`\cr
 #' Name of template model. If `NA`, list of available templates.
-#' @param path (`character(1)`)\cr
+#' @param path `character(1)`\cr
 #' Where to copy the template scripts.
 #' If `NA`, show template model description in RStudio Help window.
 #'
@@ -113,13 +113,13 @@ template_household_model <- function(name = NA, path = NA) {
 #' @description
 #' Find the vector of definition names required by the model according.
 #'
-#' @param refer_file (`character(1)`)\cr
+#' @param refer_file `character(1)`\cr
 #' path/to/.refer containing the model source.
-#' @param regular_expr (`character()`)\cr
+#' @param regular_expr `character()`\cr
 #' Vector containing regular expressions.
 #'
 #' @return
-#' (`character()`)
+#' `character()`)
 #'
 #' @noRd
 template_find_requirement <- function(refer_file,
@@ -156,13 +156,13 @@ template_find_requirement <- function(refer_file,
 #' @description
 #' Compared required definitions to current definitions and find missing ones.
 #'
-#' @param required_set (`character()`)\cr
+#' @param required_set `character()`\cr
 #' Vector with necessary definitions.
-#' @param def_set (`character()`)\cr
+#' @param def_set `character()`\cr
 #' Vector with current definitions.
 #'
 #' @return
-#' (`character()`)
+#' `character()`)
 #'
 #' @noRd
 template_find_missing <- function(required_set,
@@ -188,13 +188,13 @@ template_find_missing <- function(required_set,
 #' @description
 #' Compared required definitions to current definitions and find unused ones.
 #'
-#' @param required_set (`character()`)\cr
+#' @param required_set `character()`\cr
 #' Vector with necessary definitions.
-#' @param regular_expr (`character()`)\cr
+#' @param regular_expr `character()`\cr
 #' Vector with current definitions.
 #'
 #' @return
-#' (`character()`)
+#' `character()`)
 #'
 #' @noRd
 template_find_unused <- function(required_set,
@@ -220,7 +220,7 @@ template_find_unused <- function(required_set,
 #' @description
 #' Collapse a character vector into string of quoted words.
 #'
-#' @param (`character()`)\cr
+#' @param `character()`\cr
 #' Vector of characters.
 #'
 #' @return

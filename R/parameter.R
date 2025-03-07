@@ -175,9 +175,9 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param ...
     #' Parameter names with respective list of definitions.
-    #' @param from (named `list()`)\cr
+    #' @param from (named `list()`\cr
     #' Named list of parameter definitions.
-    #' @param append (`logical(1)`)\cr
+    #' @param append `logical(1)`\cr
     #' If `TRUE` appends the list to current definition (default).
     #' If `FALSE` drop all other parameter definitions.
     load_list = function(...,
@@ -226,9 +226,9 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param templ_file
     #' Path/to/.refer template file.
-    #' @param requirements (`character()`)\cr
+    #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    #' @param append (`logical(1)`)\cr
+    #' @param append `logical(1)`\cr
     #' If `TRUE` append to previous definitions (default).
     #' If `FALSE` drop previous definitions.
     load_template = function(templ_file,
@@ -276,7 +276,7 @@ HousepiParameter <- R6::R6Class(
     #' @description
     #' List containing current parameter definitions.
     #'
-    #' @return (`list()`)
+    #' @return `list()`)
     as_list = function() {
       output <- list()
       for (r in seq_len(dim(self$defs)[1])) {
@@ -302,11 +302,11 @@ HousepiParameter <- R6::R6Class(
     #' @description
     #' Assert parameter definitions match the requirement list.
     #'
-    #' @param requirements (`character()`)\cr
+    #' @param requirements `character()`\cr
     #' Vector containing required parameters.
     #'
     #' @return
-    #' (`logical(1)`)
+    #' `logical(1)`)
     assert = function(requirements) {
       # logical state for complete definitions
       is_def_complete <- TRUE

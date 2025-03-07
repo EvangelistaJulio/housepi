@@ -66,17 +66,17 @@ HousepiInfecProfile <- R6::R6Class(
     #' @description
     #' Add definition of infectivity profile.
     #'
-    #' @param name (`character(1)`)\cr
+    #' @param name `character(1)`\cr
     #' Name of the infectivity profile.
-    #' @param discrete (`logical(1)`)\cr
+    #' @param discrete `logical(1)`\cr
     #' IF `TRUE` the profile is discrete.
-    #' @param args (named `list()`)\cr
+    #' @param args (named `list()`\cr
     #' Arguments (eventually with types) for the profile.
-    #' @param min (`double(1)` | `character(1)`)\cr
+    #' @param min `double(1)` | `character(1)`\cr
     #' One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`).
-    #' @param max (`double(1)` | `character(1)`)\cr
+    #' @param max `double(1)` | `character(1)`\cr
     #' One between:
     #' - Scalar value;
     #' - Parameter name (followed by `@P`).

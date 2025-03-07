@@ -54,8 +54,8 @@ public:
 	const std::string &house_id() const;
 	size_t index() const;
 	ushort size() const;
-	ushort n_infectious() const;
-	ushort n_susceptible() const;
+	ushort n_infec_status() const;
+	ushort n_healthy_status() const;
 	ushort n_missing_status() const;
 	const std::vector<indiv> &infectious_list() const;
 	const std::vector<indiv> &susceptible_list() const;

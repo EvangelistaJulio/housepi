@@ -59,7 +59,7 @@ public:
     std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
 
     rnd_gen &get_prng();
-    void set_prng_seed(int seed);
+    void set_prng_seed();
 
     rnd_gen &(MCMC::Impl::*_func_prng_)();
     rnd_gen &_prng_unique_thread_() { return prng; }
@@ -155,15 +155,20 @@ public:
     //==========================//
 
     //----- Household Data - Attributes -----//
+    str_vec data_headers = {};
     size_t n_individuals = 0;
     size_t n_households = 0;
     std::vector<Household> house_vector = {};
-    str_vec data_headers = {};
-    std::map<std::string, size_t> _report_data_ = {};
-    std::map<std::string, std::string> _report_pathtofile_ = {};
 
-    void update_report_data();
-    size_t report_data(const std::string &key) const;
+    //----- Data - Reports -----//
+    std::map<std::string, ulong> _report_indiv_ = {};
+    std::map<std::string, ulong> _report_house_ = {};
+    std::map<std::string, std::pair<ushort,ulong>> _report_hh_size_ = {};
+    
+    void fill_report_data();
+    ulong get_report_indiv(const std::string &key) const;
+    ulong get_report_house(const std::string &key) const;
+    std::pair<ushort,ulong> get_report_hh_size(const std::string &key) const;
 
     //=====================//
     //===== AUGMENTED =====//
@@ -219,24 +224,27 @@ public:
 
     void fix_param_to_be_inferred_list(const std::string &par_name);
 
-#ifdef _HOUSEPI_RCPP
-    //========================//
-    //===== Rcpp IMPORTS =====//
-    //========================//
+    //===========================//
+    //===== IMPORTS/EXPORTS =====//
+    //===========================//
 
+    std::map<std::string, std::string> _report_pathtofile_ = {};
+
+#ifdef _HOUSEPI_RCPP
+
+    //----- Rcpp IMPORTS -----//
     void import_setup(const Rcpp::List &input);
     void import_infectivity_profile(const Rcpp::List &input);
     void import_parameter(const Rcpp::DataFrame &input);
     void import_augmented(const Rcpp::DataFrame &input);
     void import_dataset(const Rcpp::DataFrame &input);
 
-    //========================//
-    //===== Rcpp EXPORTS =====//
-    //========================//
-
+    //----- Rcpp EXPORTS -----//
     Rcpp::List export_setup() const;
     Rcpp::DataFrame export_parameter() const;
     Rcpp::DataFrame export_dataset() const;
+	Rcpp::DataFrame export_data_report() const;
+	Rcpp::DataFrame export_house_size_report() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_matrix() const;
     Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
@@ -244,20 +252,14 @@ public:
                                          int n_bins) const;
 
 #else
-    //================//
-    //===== READ =====//
-    //================//
-
+    //----- READ -----//
     void read_setup(const std::string &pathtofile);
     void read_infec_profile(const std::string &pathtofile);
     void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
     void read_data(const std::string &pathtofile);
 
-    //================//
-    //===== SHOW =====//
-    //================//
-
+    //----- SHOW -----//
     void show_summary() const;
     void show_setup() const;
     void show_all_params() const;

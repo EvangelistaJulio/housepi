@@ -1,5 +1,5 @@
 /*
- * mcmc_R_import_export.cpp
+ * mcmc_import_export.cpp
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
@@ -160,7 +160,6 @@ Rcpp::List MCMC::Impl::export_setup() const
                         _["id_trace"] = setup_id_trace,
                         _["progress"] = setup_is_progbar,
                         _["inv_temper"] = setup_inv_T);
-
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -234,12 +233,11 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
     str_vec &vec = reduc_data_headers;
     const std::unordered_set<augmID> &y = augm_list_full;
     auto new_end = std::remove_if(vec.begin(), vec.end(),
-                       [&y](const dataID &elem)
-                       {
-                           return y.find(elem) != y.end();
-                       });
+                                  [&y](const dataID &elem)
+                                  {
+                                      return y.find(elem) != y.end();
+                                  });
     vec.erase(new_end, vec.end());
-    //
 
     for (size_t s = 0; s < reduc_data_headers.size() + augm_list_full.size(); ++s)
         df_dbl.emplace_back(n_individuals);
@@ -271,6 +269,73 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
 
     for (const augmID &a : augm_list_full)
         output.push_back(df_dbl[c++], a);
+
+    return output;
+}
+
+/* Export current data configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::Impl::export_data_report() const
+{
+    using namespace Rcpp;
+
+    size_t n_rows = _report_indiv_.size() + _report_house_.size();
+    CharacterVector type(n_rows), comment(n_rows);
+    IntegerVector counts(n_rows);
+    NumericVector pct(n_rows);
+
+    std::fill(type.begin(), type.begin() + _report_indiv_.size(), "individual");
+    std::fill(type.begin() + _report_indiv_.size(), type.begin() + n_rows, "household");
+
+    size_t k = 0;
+    for (const auto &pair : _report_indiv_)
+    {
+        comment[k] = pair.first;
+        counts[k] = pair.second;
+        pct[k] = 100. * static_cast<double>(pair.second) / n_individuals;
+        ++k;
+    }
+    for (const auto &pair : _report_house_)
+    {
+        comment[k] = pair.first;
+        counts[k] = pair.second;
+        pct[k] = 100. * static_cast<double>(pair.second) / n_households;
+        ++k;
+    }
+
+    DataFrame output = DataFrame::create(
+        _["type"] = type,
+        _["comment"] = comment,
+        _["counts"] = counts,
+        _["pct"] = pct);
+
+    return output;
+}
+
+/* Export current data configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::Impl::export_house_size_report() const
+{
+    using namespace Rcpp;
+
+    size_t n_rows = _report_hh_size_.size();
+    CharacterVector comment(n_rows);
+    IntegerVector value(n_rows), counts(n_rows);
+    NumericVector pct(n_rows);
+
+    size_t k = 0;
+    for (const auto &pair : _report_hh_size_)
+    {
+        comment[k] = pair.first;
+        value[k] = pair.second.first;
+        counts[k] = pair.second.second;
+        pct[k] = 100. * static_cast<double>(pair.second.second) / n_individuals;
+        ++k;
+    }
+
+    DataFrame output = DataFrame::create(
+        _["comment"] = comment,
+        _["value"] = value,
+        _["counts"] = counts,
+        _["pct"] = pct);
 
     return output;
 }
@@ -345,7 +410,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
     if ((setup_n_chains == 0) || (is_power_post()))
         tools::error(
             "No traces to export were found.");
-            
+
     // Create a NumericMatrix with n_house columns
     ulong sample_size = setup_n_chains * setup_c_sample_size;
     NumericMatrix output(sample_size, n_households);
@@ -360,21 +425,21 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 
     //----- associate column names -----//
     colnames(output) = headers;
-    
+
     //----- associate row names -----//
     IntegerVector sweep(setup_c_sample_size * setup_n_chains);
     for (size_t c = 0; c < setup_n_chains; ++c)
         for (size_t k = 0; k < setup_c_sample_size; k++)
             sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
     rownames(output) = CharacterVector(wrap(sweep));
-    
+
     return output;
 }
 
 /* Export a showcase of the selected infectivity profile. */
 Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
-                                                 const Rcpp::List &xlim,
-                                                 int n_bins) const
+                                                       const Rcpp::List &xlim,
+                                                       int n_bins) const
 {
     using namespace Rcpp;
 
@@ -433,11 +498,13 @@ Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
 Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
 Rcpp::DataFrame MCMC::export_parameter() const { return pImpl->export_parameter(); }
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
+Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_report(); }
+Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_matrix() const { return pImpl->export_household_loglike_matrix(); }
 Rcpp::DataFrame MCMC::export_infectivity_profile(const Rcpp::List &opts,
-                                           const Rcpp::List &xlim,
-                                           int n_bins)
+                                                 const Rcpp::List &xlim,
+                                                 int n_bins)
 {
     init_infec_profile();
     return pImpl->export_infectivity_profile(opts, xlim, n_bins);
@@ -558,7 +625,13 @@ void MCMC::Impl::read_data(const std::string &pathtofile)
 /* Auxiliary function to call percentuage. */
 inline const std::string _aux_percent_(int num, int den)
 {
-    return "(" + tools::percentage(static_cast<double>(num) / den, 1) + ")";
+    return " (" + tools::percentage(static_cast<double>(num) / den, 1) + ")";
+}
+
+/* Auxiliary function to call percentuage. */
+inline const std::string _trail_percent_(int num, int den)
+{
+    return std::to_string(num) + _aux_percent_(num, den);
 }
 
 /* Print the report of the database and of the model group rates. */
@@ -567,32 +640,25 @@ void MCMC::Impl::show_summary() const
     std::ostringstream oss;
 
     oss << "n. of individuals: " << n_individuals
-        << "\n    * n. of cases: " << _report_data_.at("n.cases")
-        << " " << _aux_percent_(_report_data_.at("n.cases"), n_individuals);
+        << "\n    * n. of cases: "
+        << _trail_percent_(get_report_indiv("infected"), n_individuals)
+        << "\n    * n. of missing status : "
+        << _trail_percent_(get_report_indiv("missing"), n_individuals);
 
-    if (_report_data_.at("n.miss.stat") > 0)
-        oss << "\n    * n. of missing status : " << _report_data_.at("n.miss.stat")
-            << " " << _aux_percent_(_report_data_.at("n.miss.stat"), n_individuals);
+    oss << "\nn. of households: " << n_households
+        << "\n    * with no cases: "
+        << _trail_percent_(get_report_house("no cases"), n_households)
+        << "\n    * with at least 1 case: "
+        << _trail_percent_(get_report_house("at least 1 case"), n_households)
+        << "\n    * with at least 2 cases: "
+        << _trail_percent_(get_report_house("at least 2 cases"), n_households);
 
-    oss << "\nn. of households: " << n_households;
-
-    if (_report_data_.at("no.HH.case") > 0)
-        oss << "\n    * with no cases: " << _report_data_.at("no.HH.case")
-            << " " << _aux_percent_(_report_data_.at("no.HH.case"), n_households);
-
-    oss << "\n    * with at least 1 case: " << _report_data_.at("lst.1.case")
-        << " " << _aux_percent_(_report_data_.at("lst.1.case"), n_households);
-
-    if (_report_data_.at("lst.1.case") > 0)
-        oss << "\n    * with at least 2 cases: " << _report_data_.at("lst.2.case")
-            << " " << _aux_percent_(_report_data_.at("lst.2.case"), n_households);
-
-    oss << "\nmax n. house cases: " << _report_data_.at("max.n.HH.cases")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.cases"), n_households)
-        << "\nmin n. house members: " << _report_data_.at("min.HH.size")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.min.size"), n_households)
-        << "\nmax n. house members: " << _report_data_.at("max.HH.size")
-        << " " << _aux_percent_(_report_data_.at("n.HH.with.max.size"), n_households);
+    oss << "\nmax n. house cases: " << get_report_hh_size("max cases").first
+        << _aux_percent_(get_report_hh_size("max cases").second, n_households)
+        << "\nmin n. house members: " << get_report_hh_size("min size").first
+        << _aux_percent_(get_report_hh_size("min size").second, n_households)
+        << "\nmax n. house members: " << get_report_hh_size("max size").first
+        << _aux_percent_(get_report_hh_size("max size").second, n_households);
 
     tools::print_stdout(oss.str() + "\n");
 }

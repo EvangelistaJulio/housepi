@@ -296,7 +296,7 @@ void Model::simulate_single_house(Household &house)
 	//=============================================================//
 
 	// onset of secondary cases following the first case
-	for (; (t < tf) && (house.n_susceptible() > 0); t += Dt)
+	for (; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
 		for (indiv i = 0; i < house.size(); ++i)
 		{
 			if (house.status(i) == HEALTHY_STATUS)
