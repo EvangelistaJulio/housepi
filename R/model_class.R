@@ -29,6 +29,47 @@ HouseholdModel <- R6::R6Class(
     .infec_profile = NULL,
 
     # @description
+    # Assert that dataset headers match implementation file.
+    #
+    # @param refer_file `character()`\cr
+    # Path/to/.refer source file.
+    # @param data_headers `character()`\cr
+    # Vector with the dataset headers.
+    #
+    # @return `logical(1)`\cr
+    .assert_data = function(refer_file, data_headers) {
+      # logical state for complete definitions
+      is_def_complete <- TRUE
+
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # from : .data(, "string" or augm(, 'string'
+        '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+      # retrieve required data headers from regular expressions
+      require_set <- template_find_requirement(refer_file, regular_expr)
+
+      if (length(require_set) == 0) {
+        # if requirement set is NULL it means nothing can be said
+        is_def_complete <- NA
+
+      } else {
+        # find missing data headers
+        missing_set <- template_find_missing(require_set,
+                                             data_headers)
+        if (length(missing_set) > 0) {
+          is_def_complete <- FALSE
+          warning_h(
+            "Missing data headers(s):",
+            character_to_string_list(missing_set)
+          )
+        }
+      }
+
+      return(is_def_complete)
+    },
+
+    # @description
     # Assert if parameter definitions match the implementation script.
     #
     # @return `logical(1)`)
@@ -73,47 +114,6 @@ HouseholdModel <- R6::R6Class(
         requirements <- private$.group_rate$require(refer_file)
         return(private$.group_rate$assert(requirements))
       }
-    },
-
-    # @description
-    # Assert that dataset headers match implementation file.
-    #
-    # @param refer_file `character()`\cr
-    # Path/to/.refer source file.
-    # @param data_headers `character()`\cr
-    # Vector with the dataset headers.
-    #
-    # @return `logical(1)`\cr
-    .assert_data = function(refer_file, data_headers) {
-      # logical state for complete definitions
-      is_def_complete <- TRUE
-
-      # vector of regular expression to use for assertion
-      regular_expr <- c(
-        # from : .data(, "string" or augm(, 'string'
-        '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      )
-      # retrieve required data headers from regular expressions
-      require_set <- template_find_requirement(refer_file, regular_expr)
-
-      if (length(require_set) == 0) {
-        # if requirement set is NULL it means nothing can be said
-        is_def_complete <- NA
-
-      } else {
-        # find missing data headers
-        missing_set <- template_find_missing(require_set,
-                                             data_headers)
-        if (length(missing_set) > 0) {
-          is_def_complete <- FALSE
-          warning_h(
-            "Missing data headers(s):",
-            character_to_string_list(missing_set)
-          )
-        }
-      }
-
-      return(is_def_complete)
     },
 
     ############################################################################
@@ -315,6 +315,20 @@ HouseholdModel <- R6::R6Class(
       stop_h("'dataset' is read only.")
     },
 
+    #' @field summary `data.frame`\cr
+    #' A summary of statuses in the dataset.
+    summary = function(value) {
+      if (missing(value)) return(private$.model$summary)
+      stop_h("'summary' is read only.")
+    },
+
+    #' @field summary_house_size `data.frame`\cr
+    #' A summary of house sizes in the dataset.
+    summary_house_size = function(value) {
+      if (missing(value)) return(private$.model$summary_house_size)
+      stop_h("'summary_house_size' is read only.")
+    },
+
     #' @field setup `list()`\cr
     #' Last setup used by the build process.
     setup = function(value) {
@@ -480,6 +494,15 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     #' @description
+    #' Show formatted dataset summary.
+    #'
+    #' @return
+    #' `flextable`
+    show_summary = function() {
+      return(private$.model$show_summary())
+    },
+
+    #' @description
     #' Add a new parameter definition.
     #'
     #' @param name `character(1)`\cr
@@ -492,7 +515,7 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` the parameter is discrete.
     #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
-    #' @param args (named `list()`\cr
+    #' @param args named `list()`\cr
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
@@ -727,7 +750,7 @@ HouseholdModel <- R6::R6Class(
     #' @param name `character(1)`\cr
     #' Name of the infectivity profile.
     #' @param discrete `logical(1)`\cr
-    #' IF `TRUE` the profile is discrete.
+    #' If `TRUE` the profile is discrete.
     #' @param args (named `list()`\cr
     #' Arguments (eventually with types) for the profile.
     #' @param min `double(1)` | `character(1)`\cr
@@ -834,7 +857,7 @@ HouseholdModel <- R6::R6Class(
     },
 
     #' @description
-    #' Run the simulation.
+    #' Run the simulation and return data.frame with simulated dataset.
     #'
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset.
@@ -845,25 +868,26 @@ HouseholdModel <- R6::R6Class(
     #' If `NA` uses the internal clock (default).
     #' @param progress `logical(1)`\cr
     #' If `FALSE` suppress the simulation progress bar.
+    #'
+    #' @return `data.frame`\cr
     simulate = function(dataset = NULL,
                         n_threads = 1,
                         seed = NA,
                         progress = FALSE) {
       # FIXME:
       # if simulations depend on dataset status and augmented variables
-      # run 2 simulations with dataset = NULL will crash simulations                     
+      # run 2 simulations with dataset = NULL will crash simulations
 
       # internal build function
       private$.build(dataset = dataset, n_threads = n_threads,
                      seed = seed, progress = progress)
 
-      # call simulate method from internal Rcpp object
-      private$.model$simulate()
-      invisible(self)
+      # call method from internal Rcpp object
+      return(private$.model$simulate())
     },
 
     #' @description
-    #' After `$infer` has been run, use the sample to perform simulations.
+    #' Use posterior sample after `$infer` has been run to perform simulations.
     #' Extract the expected number of household cases per size
     #' and the credible interval.
     #'
@@ -872,8 +896,9 @@ HouseholdModel <- R6::R6Class(
     #' Value between 0 and 1 (default is 0.95).
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
+    #'
     #' @return
-    #' `ExpectedCases`)
+    #' `ExpectedCases`\cr
     #' An instance of class
     #' [ExpectedCases][housepi::ExpectedCases]
     #' containing method to compare observed and expected cases.
@@ -892,7 +917,7 @@ HouseholdModel <- R6::R6Class(
     #' @param n_threads `integer(1)`\cr
     #' Number of threads for the parallelization of the loglikelihood.
     #'
-    #' @return `double(1)`\cr
+    #' @return `double(1)`
     loglikelihood = function(dataset = NULL,
                              n_threads = 1) {
       # internal build function
@@ -966,8 +991,9 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Use loo package to compute the leave-one-out cross-validation.
     #'
-    #' @param ... arguments passed to [loo][loo::loo].
-    #' For arguments and further details type ?loo::loo.
+    #' @param ...
+    #' Arguments passed to [loo][loo::loo].
+    #' For further details type ?loo::loo.
     loo = function(...) {
       return(loo::loo(private$.model$household_loglike_matrix, ...))
     },
@@ -975,8 +1001,9 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Use loo package to compute the widely applicable information criterion.
     #'
-    #' @param ... arguments passed to [waic][loo::waic].
-    #' For arguments and further details type ?loo::waic.
+    #' @param ...
+    #' Arguments passed to [waic][loo::waic].
+    #' For further details type ?loo::waic.
     waic = function(...) {
       return(loo::waic(private$.model$household_loglike_matrix, ...))
     }

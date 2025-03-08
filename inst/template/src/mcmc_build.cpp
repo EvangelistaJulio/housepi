@@ -971,7 +971,7 @@ double MCMC::Impl::compute_augm_model_loglike(const Household &house) const
     double hh_loglike = 0.;
 
     // Contribution of model associated to augmented variables
-    for (const indiv &i : house.infectious_list())
+    for (const indiv &i : house.infected_status_list())
         (this->*_func_augm_model_by_definition_)(house, i, hh_loglike);
 
     return hh_loglike;
@@ -1265,9 +1265,9 @@ ulong MCMC::Impl::get_report_house(const std::string &key) const
 }
 
 /* Return a value from household sizes report. */
-std::pair<ushort,ulong> MCMC::Impl::get_report_hh_size(const std::string &key) const
+std::pair<ushort, ulong> MCMC::Impl::get_report_hh_size(const std::string &key) const
 {
-    std::pair<ushort,ulong> output = {0,0};
+    std::pair<ushort, ulong> output = {0, 0};
     if (_report_hh_size_.count(key))
         output = _report_hh_size_.at(key);
 

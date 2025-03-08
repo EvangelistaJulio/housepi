@@ -47,7 +47,7 @@ public:
 	ulong n_houses() const;
 	ulong get_report_indiv(const std::string &key) const;
 	ulong get_report_house(const std::string &key) const;
-	std::pair<ushort,ulong> get_report_hh_size(const std::string &key) const;
+	std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
 
 	//----- Group & Contact Rates -----//
 	void build_all_rates();
@@ -74,12 +74,12 @@ public:
 	//===============================//
 	//===== AUGMENTED VARIABLES =====//
 	//===============================//
-	
+
 	bool is_augm_any() const;
 	bool is_augm_sample() const;
 	bool is_augm_model() const;
 	bool is_augm_generic() const;
-	
+
 	void init_augmented_variables();
 	void assign_all_augm(Household &house, indiv i);
 	void clear_all_augm(Household &house, indiv i);
@@ -131,9 +131,12 @@ public:
 
 	virtual void init_model_for_simulation();
 	virtual void simulate_single_house(Household &house);
-	void simulate();
+	const std::vector<Household> aux_simulate();
 
 #ifdef _HOUSEPI_RCPP
+
+	Rcpp::DataFrame simulate();
+
 	//========================//
 	//===== Rcpp IMPORTS =====//
 	//========================//
@@ -179,7 +182,8 @@ public:
 
 	//----- C++ Print -----//
 	void print_infer_state(const std::string &output_filename = NULL_STRING) const;
-	void print_augm_variables(const std::string &output_filename = NULL_STRING) const;
+	void print_dataset(const std::vector<Household> &hh_vec,
+					   const std::string &output_filename = NULL_STRING) const;
 #endif
 
 private:

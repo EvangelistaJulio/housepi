@@ -20,7 +20,7 @@ size_t MCMC::n_houses() const { return pImpl->n_households; }
 
 ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_report_indiv(key); }
 ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
-std::pair<ushort,ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
+std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
 
 //===== RAND NUMBER GENERATOR =====//
 double MCMC::uniform() { return pImpl->uniform(); }
@@ -48,7 +48,7 @@ void MCMC::init_extra_dependecies()
 {
     if (pImpl->house_vector[0].is_any_extra())
         for (Household &house : pImpl->house_vector)
-            for (const indiv &i : house.infectious_list())
+            for (const indiv &i : house.infected_status_list())
                 update_extra_dependecies(house, i);
 }
 
@@ -223,7 +223,7 @@ void MCMC::set_rate_per_contact(Household &house)
     try
     {
         // loop over all couples
-        for (indiv k = 0; k < house.size(); ++k) // from
+        for (indiv k = 0; k < house.size(); ++k)     // from
             for (indiv i = 0; i < house.size(); ++i) // to
                 // note : from 'k' --> to 'i'
                 if (k != i)
@@ -264,8 +264,6 @@ void MCMC::set_rate_per_contact(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  MCMC : methods (general)  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -392,7 +390,6 @@ void MCMC::init_augmented_variables()
 ////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 /* Move augmented variables of infectious members inside household.
 The move is performed one member at a time, one augmented variable at a time.
 */
@@ -401,7 +398,7 @@ double MCMC::move_augm_single_house(Household &house)
     double delta_global_loglike = 0.0;
 
     // Loop over infectious residents of the househould
-    for (const indiv &i : house.infectious_list())
+    for (const indiv &i : house.infected_status_list())
         (this->*_func_move_augm_indiv_)(house, i, delta_global_loglike);
 
     return delta_global_loglike;
@@ -765,4 +762,3 @@ void MCMC::init_model_for_simulation() {}
 
 /* Model specific simulation for a single household. */
 void MCMC::simulate_single_house(Household &house) { UNUSED(house); }
-

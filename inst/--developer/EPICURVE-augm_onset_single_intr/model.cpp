@@ -201,7 +201,7 @@ void Model::augm_var_store_dependecies(int h, int i)
 	//=====Infectious Members=====//
 	//============================//
 
-	for (int k : house_vector[h].infectious_list)
+	for (int k : house_vector[h].infected_status_list)
 	{
 		t_infec_k = get_infec_time(h, k);
 
@@ -260,7 +260,7 @@ void Model::initialize_model()
 
 		// find maximum study period within the household
 		double end_followup = 0;
-		for (int i : house_vector[h].infectious_list)
+		for (int i : house_vector[h].infected_status_list)
 		{
 			end_followup = std::max(end_followup, house_vector[h].members[i].data("study_period"));
 		}
@@ -365,7 +365,7 @@ double Model::force_of_infec(int h, int i, std::vector<matrix> &profiles)
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (int k : house_vector[h].infectious_list)
+	for (int k : house_vector[h].infected_status_list)
 	{
 		if (k != i)
 		{
@@ -401,7 +401,7 @@ double Model::compute_single_house_loglike(int h)
 	}
 
 	// Contribution of symptomatic members
-	for (int i : house_vector[h].infectious_list)
+	for (int i : house_vector[h].infected_status_list)
 	{
 		// Contribution of model associated to augmented variables
 		for (std::string augmID : augm_with_model_set)
@@ -447,7 +447,7 @@ void Model::simulate_single_house(int h)
 	const double tf = house_vector[h].data("end_followup");
 
 	//-----set all secondary cases to healthy-----//
-	std::vector<int> store_old_list = house_vector[h].infectious_list;
+	std::vector<int> store_old_list = house_vector[h].infected_status_list;
 	for (int i : store_old_list)
 	{
 		if (i != house_vector[h].first_case)

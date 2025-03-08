@@ -5,119 +5,6 @@
  */
 
 #include "variable.h"
-#include "distribution.h"
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Proposer : class  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Base class for Metropolis proposers. */
-class Proposer
-{
-public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
-    Proposer() {};
-    Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = NULL_DOUBLE,
-             double rule_start_value = NULL_DOUBLE,
-             const std::vector<ushort> &args_to_adapt = {},
-             bool is_discrete = false);
-    virtual ~Proposer() {};
-
-    //==================//
-    //===== GETTER =====//
-    //==================//
-
-    const std::string show_name() const { return this->name; }
-    double get_arg(ushort argID) const { return (_distr_ptr_->get_arg)(argID); }
-    double get_from_value() const { return from_value; }
-    bool is_rule_start_from_zero() const { return _is_start_from_zero_; }
-    double propose(rnd_gen &prng, double start = 0.) { return (this->*_func_propose_)(prng, start); }
-    double logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
-    double rand(rnd_gen &prng) { return (_distr_ptr_->rand)(prng); }
-
-    //==================//
-    //===== SETTER =====//
-    //==================//
-
-    virtual void user_reset() {};
-    void set_rule_start_value(double x) { from_value = x; }
-
-    //======================//
-    //===== ADAPTATION =====//
-    //======================//
-
-    double get_accept_rate() const { return accept_rate; }
-    void update_accept_rate(bool is_accepted)
-    {
-        accept_rate = (double)(accept_rate * n_proposed_moves + is_accepted) / (n_proposed_moves + 1);
-        ++n_proposed_moves;
-    }
-    void reset_accept_rate()
-    {
-        accept_rate = 0.;
-        n_proposed_moves = 0;
-    };
-
-    // increase spread if acceptation rate is high and viceversa
-    void adapt(double ratio)
-    {
-        double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
-        // loop over all arguments to adapt
-        for (ushort c = 0; c < n_args_to_adapt; ++c)
-        {
-            ushort arg_id = _args_to_adapt_[c];
-            (_distr_ptr_->set_arg)(arg_id,
-                                   (_distr_ptr_->get_arg)(arg_id)*factor);
-        }
-    }
-
-    //================//
-    //===== SHOW =====//
-    //================//
-
-    const std::string show_arg_names() const { return _distr_ptr_->show_arg_names(); }
-    const std::string show_arg_values() const { return _distr_ptr_->show_arg_values(); }
-    const std::string show_scale() const
-    {
-        if (n_args_to_adapt == 0)
-            return NULL_STRING;
-        else
-            return std::to_string(std::fabs((_distr_ptr_->get_arg)(_args_to_adapt_[0])));
-    }
-
-protected:
-    std::string name = NULL_STRING;
-    std::shared_ptr<Distribution> _distr_ptr_;
-
-    double _user_rule_scale_ = 1.;     // scale of the Metropolis rule
-    bool _is_start_from_zero_ = false; // wheter to move from given value
-    double from_value = NULL_DOUBLE;   // given value where to start from
-
-    double accept_rate = 0.;    // acceptance rate
-    ulong n_proposed_moves = 0; // number of proposed moves
-
-    ushort n_args_to_adapt = 0;        // how many arguments to adapt
-    ushort *_args_to_adapt_ = nullptr; // which arguments should be adapted
-
-    //===== propose : functional methods =====//
-    double (Proposer::*_func_propose_)(rnd_gen &, double) = &Proposer::_propose_undefined_;
-    double _propose_undefined_(rnd_gen &prng, double start);
-    double _propose_sum_to_previous_(rnd_gen &prng, double start);
-    double _propose_times_previous_(rnd_gen &prng, double start);
-    double _propose_draw_rand_(rnd_gen &prng, double start);
-
-    //===== logratio : functional methods =====//
-    double (Proposer::*_func_logratio_)(double, double) const = &Proposer::_logratio_undefined_;
-    double _logratio_undefined_(double xold, double xnew) const;
-    double _logratio_pdf_(double xold, double xnew) const;
-    double _logratio_sum_to_zero_(double xold, double xnew) const;
-    double _logratio_times_zero_(double xold, double xnew) const;
-    double _logratio_symm_(double xold, double xnew) const;
-    double _logratio_lognorm_symm_(double xold, double xnew) const;
-};
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -160,6 +47,68 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     for (ushort c = 0; c < n_args_to_adapt; ++c)
         _args_to_adapt_[c] = args_to_adapt.at(c);
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Base Proposer - getter  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const std::string Proposer::show_name() const { return this->name; }
+double Proposer::get_arg(ushort argID) const { return (_distr_ptr_->get_arg)(argID); }
+double Proposer::get_from_value() const { return from_value; }
+bool Proposer::is_rule_start_from_zero() const { return _is_start_from_zero_; }
+double Proposer::propose(rnd_gen &prng, double start) { return (this->*_func_propose_)(prng, start); }
+double Proposer::logratio(double xold, double xnew) const { return (this->*_func_logratio_)(xold, xnew); }
+double Proposer::rand(rnd_gen &prng) { return (_distr_ptr_->rand)(prng); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Base Proposer - setter  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Proposer::user_reset() {};
+void Proposer::set_rule_start_value(double x) { from_value = x; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Base Proposer - adaptation  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+double Proposer::get_accept_rate() const { return accept_rate; }
+void Proposer::update_accept_rate(bool is_accepted)
+{
+    accept_rate = (double)(accept_rate * n_proposed_moves + is_accepted) / (n_proposed_moves + 1);
+    ++n_proposed_moves;
+}
+void Proposer::reset_accept_rate()
+{
+    accept_rate = 0.;
+    n_proposed_moves = 0;
+};
+
+/* Increase spread if acceptation rate is high and viceversa */
+void Proposer::adapt(double ratio)
+{
+    double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
+    // loop over all arguments to adapt
+    for (ushort c = 0; c < n_args_to_adapt; ++c)
+    {
+        ushort arg_id = _args_to_adapt_[c];
+        (_distr_ptr_->set_arg)(arg_id,
+                               (_distr_ptr_->get_arg)(arg_id)*factor);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Base Show - adaptation  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const std::string Proposer::show_arg_names() const { return _distr_ptr_->show_arg_names(); }
+const std::string Proposer::show_arg_values() const { return _distr_ptr_->show_arg_values(); }
+const std::string Proposer::show_scale() const
+{
+    if (n_args_to_adapt == 0)
+        return NULL_STRING;
+    else
+        return std::to_string(std::fabs((_distr_ptr_->get_arg)(_args_to_adapt_[0])));
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Base Proposer - functional  ///////////////////////////////////
@@ -370,135 +319,62 @@ std::shared_ptr<Proposer> proposer_switchboard(const std::string &rule_name = NU
             "Unknown proposer rule \"" + rule_name + "\"." + tools::find_closest(rule_name, options));
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-class Variable::Impl
-{
-public:
-    std::shared_ptr<Distribution> _distr_ptr_; // prior/model distribution of the variable
-    std::shared_ptr<Proposer> _prop_ptr_;      // Monte Carlo proposer
-
-    std::string name = NULL_STRING; // name of the variable
-    double value = NULL_DOUBLE;     // value of the variable
-    double buffer = NULL_DOUBLE;    // buffer of the variable
-
-    double _user_value_ = NULL_DOUBLE; // initial user defined value
-    bool _is_discrete_ = false;        // wheter discrete or not
-    bool _is_constant_ = true;         // wheter constant or not
-
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
-
-    Impl() : _distr_ptr_(std::make_shared<Distribution>()),
-             _prop_ptr_(std::make_shared<Proposer>()) {}
-    ~Impl() = default;
-
-    //===============================//
-    //===== METROPOLIS-HASTINGS =====//
-    //===============================//
-
-    void set_value(double x);
-    void restore_value();
-
-    double get_move_logratio() const;
-    bool valid_move() const;
-
-    //----- distr_ptr : prior/model methods -----//
-    void rand(rnd_gen &prng);
-
-    double distr_logpdf() const;
-    double distr_logratio() const;
-
-    //----- prop_ptr : propose methods -----//
-    void propose(rnd_gen &prng);
-    double propose_logratio() const;
-
-    //----- prop_ptr : adaptive methods -----//
-    double get_accept_rate() const;
-    void update_accept_rate(bool is_accepted);
-    void reset_accept_rate();
-    void adapt_rule(double ratio);
-
-    //===== Valid move : functional methods =====//
-    bool (Impl::*_func_valid_move_)() const = &Impl::_valid_move_default_;
-    bool _valid_move_default_() const;
-    bool _valid_move_gibbs_() const;
-
-    //===== Move logratio : functional methods =====//
-    double (Impl::*_func_move_logratio_)() const = &Impl::_move_logratio_default_;
-    double _move_logratio_default_() const;
-    double _move_logratio_gibbs_() const;
-
-    //===== Propose : functional methods =====//
-    double (Impl::*_func_propose_)(rnd_gen &) = &Impl::_propose_error_;
-    double _propose_error_(rnd_gen &prng);
-    double _propose_gibbs_sample_(rnd_gen &prng);
-    double _propose_from_previous_(rnd_gen &prng);
-    double _propose_from_zero_(rnd_gen &prng);
-};
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Variable::Impl - functional  ////////////////////////////////
+///////////////////////////////  Variable - functional  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //===== Valid move : functional methods =====//
-bool Variable::Impl::_valid_move_default_() const { return _distr_ptr_->valid(value); }
-bool Variable::Impl::_valid_move_gibbs_() const { return true; }
+bool Variable::_valid_move_default_() const { return _distr_ptr_->valid(value); }
+bool Variable::_valid_move_gibbs_() const { return true; }
 
 //===== Move logratio : functional methods =====//
-double Variable::Impl::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
-double Variable::Impl::_move_logratio_gibbs_() const { return 0.; }
+double Variable::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
+double Variable::_move_logratio_gibbs_() const { return 0.; }
 
 //===== Propose : functional methods =====//
-double Variable::Impl::_propose_error_(rnd_gen &prng)
+double Variable::_propose_error_(rnd_gen &prng)
 {
     UNUSED(prng);
     throw std::invalid_argument(
         "Call to proposer of constant variable \"" + name + "\".");
     return 0.;
 }
-double Variable::Impl::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }
-double Variable::Impl::_propose_from_previous_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, value); }
-double Variable::Impl::_propose_from_zero_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, _prop_ptr_->get_from_value()); }
+double Variable::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }
+double Variable::_propose_from_previous_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, value); }
+double Variable::_propose_from_zero_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, _prop_ptr_->get_from_value()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Variable::Impl - METROPOLIS-HASTINGS  ///////////////////////////
+///////////////////////////  Variable - METROPOLIS-HASTINGS  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Store the buffer and change value. */
-void Variable::Impl::set_value(double x)
+void Variable::set_value(double x)
 {
     buffer = value;
     value = x;
 }
 
 /* Restore buffered value. */
-void Variable::Impl::restore_value() { value = buffer; }
+void Variable::restore_value() { value = buffer; }
 
-double Variable::Impl::get_move_logratio() const { return (this->*_func_move_logratio_)(); }
-bool Variable::Impl::valid_move() const { return (this->*_func_valid_move_)(); }
+double Variable::get_move_logratio() const { return (this->*_func_move_logratio_)(); }
+bool Variable::valid_move() const { return (this->*_func_valid_move_)(); }
 
 //----- distr_ptr : prior/model methods -----//
-void Variable::Impl::rand(rnd_gen &prng) { set_value(_distr_ptr_->rand(prng)); }
+void Variable::rand(rnd_gen &prng) { set_value(_distr_ptr_->rand(prng)); }
 
-double Variable::Impl::distr_logpdf() const { return _distr_ptr_->logpdf(value); }
-double Variable::Impl::distr_logratio() const { return _distr_ptr_->logratio(buffer, value); }
+double Variable::distr_logpdf() const { return _distr_ptr_->logpdf(value); }
+double Variable::distr_logratio() const { return _distr_ptr_->logratio(buffer, value); }
 
 //----- prop_ptr : propose methods -----//
-void Variable::Impl::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
-double Variable::Impl::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
+void Variable::propose(rnd_gen &prng) { set_value((this->*_func_propose_)(prng)); }
+double Variable::propose_logratio() const { return (_prop_ptr_->logratio)(buffer, value); }
 
 //----- prop_ptr : adaptive methods -----//
-double Variable::Impl::get_accept_rate() const { return _prop_ptr_->get_accept_rate(); }
-void Variable::Impl::update_accept_rate(bool is_accepted) { _prop_ptr_->update_accept_rate(is_accepted); }
-void Variable::Impl::reset_accept_rate() { _prop_ptr_->reset_accept_rate(); }
-void Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
+double Variable::get_accept_rate() const { return _prop_ptr_->get_accept_rate(); }
+void Variable::update_accept_rate(bool is_accepted) { _prop_ptr_->update_accept_rate(is_accepted); }
+void Variable::reset_accept_rate() { _prop_ptr_->reset_accept_rate(); }
+void Variable::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -513,24 +389,23 @@ void Variable::Impl::adapt_rule(double ratio) { (_prop_ptr_->adapt)(ratio); }
 
 Variable::Variable(const std::string &name,
                    double value,
-                   bool is_discrete) : pImpl(std::make_unique<Impl>())
+                   bool is_discrete) : _distr_ptr_(std::make_shared<Distribution>()),
+                                       _prop_ptr_(std::make_shared<Proposer>())
 {
     init(name, value, is_discrete);
 }
-Variable::Variable(Variable &&other) noexcept = default;
-Variable &Variable::operator=(Variable &&other) noexcept = default;
 Variable::~Variable() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Variable - GETTER  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Variable::get_value() const { return pImpl->value; }
-const double *Variable::get_pointer() const { return &pImpl->value; }
-bool Variable::is_constant() const { return pImpl->_is_constant_; }
-bool Variable::is_discrete() const { return pImpl->_distr_ptr_->is_discrete(); }
-bool Variable::is_from_zero() const { return (pImpl->_prop_ptr_->is_rule_start_from_zero)(); }
-double Variable::get_from_value() const { return (pImpl->_prop_ptr_->get_from_value)(); }
+double Variable::get_value() const { return value; }
+const double *Variable::get_pointer() const { return &value; }
+bool Variable::is_constant() const { return _is_constant_; }
+bool Variable::is_discrete() const { return _distr_ptr_->is_discrete(); }
+bool Variable::is_from_zero() const { return (_prop_ptr_->is_rule_start_from_zero)(); }
+double Variable::get_from_value() const { return (_prop_ptr_->get_from_value)(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Variable - SETTER  /////////////////////////////////////////
@@ -539,55 +414,55 @@ double Variable::get_from_value() const { return (pImpl->_prop_ptr_->get_from_va
 /* Restore user defined variable initialization. */
 void Variable::init(const std::string &name, double value, bool is_discrete)
 {
-    pImpl->name = name;
-    pImpl->_user_value_ = value;
-    pImpl->value = value;
-    pImpl->_is_discrete_ = is_discrete;
+    this->name = name;
+    this->_user_value_ = value;
+    this->value = value;
+    this->_is_discrete_ = is_discrete;
 }
 
 /* Restore user defined variable initialization. */
 void Variable::user_reset()
 {
-    pImpl->value = pImpl->_user_value_;
-    pImpl->_prop_ptr_->user_reset();
+    this->value = _user_value_;
+    this->_prop_ptr_->user_reset();
 }
 
 /* Assign distribution with constant arguments. */
 void Variable::assign_distribution(const std::string &distr_name)
 {
-    pImpl->_distr_ptr_ = distribution_switchboard(distr_name);
+    _distr_ptr_ = distribution_switchboard(distr_name);
 }
 
 void Variable::assign_distr_scalar_arg(const std::string &arg_name, double x)
 {
-    pImpl->_distr_ptr_->assign_scalar_arg(arg_name, x);
+    _distr_ptr_->assign_scalar_arg(arg_name, x);
 }
 void Variable::assign_distr_pointer_arg(const std::string &arg_name, const double *y)
 {
-    pImpl->_distr_ptr_->assign_pointer_arg(arg_name, y);
+    _distr_ptr_->assign_pointer_arg(arg_name, y);
 }
 
 void Variable::assign_distr_scalar_range_min(double x)
 {
-    pImpl->_distr_ptr_->assign_scalar_range_min(x);
+    _distr_ptr_->assign_scalar_range_min(x);
 }
 void Variable::assign_distr_pointer_range_min(const double *y)
 {
-    pImpl->_distr_ptr_->assign_pointer_range_min(y);
+    _distr_ptr_->assign_pointer_range_min(y);
 }
 
 void Variable::assign_distr_scalar_range_max(double x)
 {
-    pImpl->_distr_ptr_->assign_scalar_range_max(x);
+    _distr_ptr_->assign_scalar_range_max(x);
 }
 void Variable::assign_distr_pointer_range_max(const double *y)
 {
-    pImpl->_distr_ptr_->assign_pointer_range_max(y);
+    _distr_ptr_->assign_pointer_range_max(y);
 }
 
 void Variable::init_distr_reshaping()
 {
-    pImpl->_distr_ptr_->init_reshaping(pImpl->_is_discrete_);
+    _distr_ptr_->init_reshaping(_is_discrete_);
 }
 
 /* Assign proposer. */
@@ -598,90 +473,61 @@ void Variable::assign_proposer(const std::string &rule_name,
     if (tools::is_na(rule_name))
     {
         // if no rule is defined constant variable
-        pImpl->_is_constant_ = true;
-        pImpl->_func_propose_ = &Impl::_propose_error_;
-        pImpl->_prop_ptr_ = proposer_switchboard();
+        _is_constant_ = true;
+        _func_propose_ = &Variable::_propose_error_;
+        _prop_ptr_ = proposer_switchboard();
     }
     else
     {
         // variable to sample
-        pImpl->_is_constant_ = false;
+        _is_constant_ = false;
 
         // define proposer rule with functional programming
         if (rule_name == "gibbs")
         {
             //----- Gibbs proposer rule -----//
             // assign the pointer to the proposer
-            pImpl->_prop_ptr_ = std::make_shared<Gibbs_Proposer>(pImpl->_distr_ptr_);
+            _prop_ptr_ = std::make_shared<Gibbs_Proposer>(_distr_ptr_);
 
             // sampler
-            pImpl->_func_propose_ = &Impl::_propose_gibbs_sample_;
+            _func_propose_ = &Variable::_propose_gibbs_sample_;
             // logratio
-            pImpl->_func_move_logratio_ = &Impl::_move_logratio_gibbs_;
+            _func_move_logratio_ = &Variable::_move_logratio_gibbs_;
             // validation
-            pImpl->_func_valid_move_ = &Impl::_valid_move_gibbs_;
+            _func_valid_move_ = &Variable::_valid_move_gibbs_;
         }
         else
         {
             //----- Other proposer rules -----//
             // value from which to start proposal
-            if ((!tools::is_na(rule_from)) && (!pImpl->_distr_ptr_->valid(rule_from)))
+            if ((!tools::is_na(rule_from)) && (!_distr_ptr_->valid(rule_from)))
                 tools::warning(
                     "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + show_min() + ", max:" + show_max() + "}.");
 
             // assign the pointer to the proposer
-            pImpl->_prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, is_discrete());
+            _prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, is_discrete());
             // sampler
             if (is_from_zero())
-                pImpl->_func_propose_ = &Impl::_propose_from_zero_;
+                _func_propose_ = &Variable::_propose_from_zero_;
             else
-                pImpl->_func_propose_ = &Impl::_propose_from_previous_;
+                _func_propose_ = &Variable::_propose_from_previous_;
         }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Variable - METROPOLIS-HASTINGS  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Store the buffer and change value. */
-void Variable::set_value(double x) { pImpl->set_value(x); }
-
-/* Restore buffered value. */
-void Variable::restore_value() { pImpl->restore_value(); }
-
-double Variable::get_move_logratio() const { return pImpl->get_move_logratio(); }
-bool Variable::valid_move() const { return pImpl->valid_move(); }
-
-//----- distr_ptr : prior/model methods -----//
-void Variable::rand(rnd_gen &prng) { pImpl->rand(prng); }
-
-double Variable::distr_logpdf() const { return pImpl->distr_logpdf(); }
-double Variable::distr_logratio() const { return pImpl->distr_logratio(); }
-
-//----- prop_ptr : propose methods -----//
-void Variable::propose(rnd_gen &prng) { pImpl->propose(prng); }
-double Variable::propose_logratio() const { return pImpl->propose_logratio(); }
-
-//----- prop_ptr : adaptive methods -----//
-double Variable::get_accept_rate() const { return pImpl->get_accept_rate(); }
-void Variable::update_accept_rate(bool is_accepted) { pImpl->update_accept_rate(is_accepted); }
-void Variable::reset_accept_rate() { pImpl->reset_accept_rate(); }
-void Variable::adapt_rule(double ratio) { pImpl->adapt_rule(ratio); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Variable - SHOW  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string Variable::show_name() const { return pImpl->name; }
-const std::string Variable::show_distr_name() const { return pImpl->_distr_ptr_->show_name(); }
-const std::string Variable::show_distr_arg_names() const { return pImpl->_distr_ptr_->show_arg_names(); }
-const std::string Variable::show_distr_arg_values() const { return pImpl->_distr_ptr_->show_arg_values(); }
+const std::string Variable::show_name() const { return name; }
+const std::string Variable::show_distr_name() const { return _distr_ptr_->show_name(); }
+const std::string Variable::show_distr_arg_names() const { return _distr_ptr_->show_arg_names(); }
+const std::string Variable::show_distr_arg_values() const { return _distr_ptr_->show_arg_values(); }
 
-const std::string Variable::show_prop_name() const { return pImpl->_prop_ptr_->show_name(); }
-const std::string Variable::show_prop_arg_names() const { return pImpl->_prop_ptr_->show_arg_names(); }
-const std::string Variable::show_prop_arg_values() const { return pImpl->_prop_ptr_->show_arg_values(); }
-const std::string Variable::show_prop_scale() const { return pImpl->_prop_ptr_->show_scale(); }
+const std::string Variable::show_prop_name() const { return _prop_ptr_->show_name(); }
+const std::string Variable::show_prop_arg_names() const { return _prop_ptr_->show_arg_names(); }
+const std::string Variable::show_prop_arg_values() const { return _prop_ptr_->show_arg_values(); }
+const std::string Variable::show_prop_scale() const { return _prop_ptr_->show_scale(); }
 
-const std::string Variable::show_min() const { return pImpl->_distr_ptr_->show_min(); }
-const std::string Variable::show_max() const { return pImpl->_distr_ptr_->show_max(); }
+const std::string Variable::show_min() const { return _distr_ptr_->show_min(); }
+const std::string Variable::show_max() const { return _distr_ptr_->show_max(); }

@@ -214,11 +214,11 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Monte_Carlo_Build : exports to Rcpp //////////////////////////////////////
+//////////////////////////////  Monte_Carlo_Build : dataset exports  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::export_dataset() const
+/* Export a given household vector to R DataFrame. */
+Rcpp::DataFrame MCMC::Impl::_aux_export_dataset_(const std::vector<Household> &hhvec) const
 {
     using namespace Rcpp;
 
@@ -243,7 +243,7 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
         df_dbl.emplace_back(n_individuals);
 
     size_t r = 0, c = 0;
-    for (const Household &house : house_vector)
+    for (const Household &house : hhvec)
         for (indiv i = 0; i < house.size(); ++i)
         {
             df_index[r] = house.id(i);
@@ -272,6 +272,16 @@ Rcpp::DataFrame MCMC::Impl::export_dataset() const
 
     return output;
 }
+
+/* Export current data configurations to R DataFrame. */
+Rcpp::DataFrame MCMC::Impl::export_dataset() const
+{
+    return _aux_export_dataset_(house_vector);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Monte_Carlo_Build : report exports  ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
 Rcpp::DataFrame MCMC::Impl::export_data_report() const
@@ -339,6 +349,10 @@ Rcpp::DataFrame MCMC::Impl::export_house_size_report() const
 
     return output;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Monte_Carlo_Build : traces exports  ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export MCMC traces of parameter posterior samples. */
 Rcpp::NumericMatrix MCMC::Impl::export_traces() const
@@ -436,6 +450,10 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
     return output;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  Monte_Carlo_Build : infectivity profile export ////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Export a showcase of the selected infectivity profile. */
 Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
                                                        const Rcpp::List &xlim,
@@ -490,6 +508,12 @@ Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+/* Perform simulation and return simulated dataset. */
+Rcpp::DataFrame MCMC::simulate()
+{
+    return pImpl->_aux_export_dataset_(aux_simulate());
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
@@ -900,7 +924,8 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
+void MCMC::Impl::print_dataset(const std::vector<Household> &hh_vec,
+                               const std::string &pathtofile) const
 {
     if (!tools::is_na(pathtofile))
     {
@@ -924,7 +949,7 @@ void MCMC::Impl::print_augm_variables(const std::string &pathtofile) const
             augm_ofstream << std::endl;
 
             //===== Print data and augmented variables =====//
-            for (const Household &house : house_vector)
+            for (const Household &house : hh_vec)
                 for (indiv i = 0; i < house.size(); ++i)
                 {
                     augm_ofstream << house.id(i)
@@ -981,6 +1006,7 @@ void MCMC::show_summary() const { pImpl->show_summary(); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::print_infer_state(const std::string &pathtofile) const { pImpl->print_infer_state(pathtofile); }
-void MCMC::print_augm_variables(const std::string &pathtofile) const { pImpl->print_augm_variables(pathtofile); }
+void MCMC::print_dataset(const std::vector<Household> &hh_vec,
+                         const std::string &pathtofile) const { pImpl->print_dataset(hh_vec, pathtofile); }
 
 #endif

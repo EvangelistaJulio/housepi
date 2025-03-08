@@ -18,6 +18,7 @@
 #include <Rcpp.h>
 #endif
 
+#include "tools.h"
 #include "distribution.h"
 #include "variable.h"
 #include "household.h"
@@ -163,12 +164,12 @@ public:
     //----- Data - Reports -----//
     std::map<std::string, ulong> _report_indiv_ = {};
     std::map<std::string, ulong> _report_house_ = {};
-    std::map<std::string, std::pair<ushort,ulong>> _report_hh_size_ = {};
-    
+    std::map<std::string, std::pair<ushort, ulong>> _report_hh_size_ = {};
+
     void fill_report_data();
     ulong get_report_indiv(const std::string &key) const;
     ulong get_report_house(const std::string &key) const;
-    std::pair<ushort,ulong> get_report_hh_size(const std::string &key) const;
+    std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
 
     //=====================//
     //===== AUGMENTED =====//
@@ -242,14 +243,17 @@ public:
     //----- Rcpp EXPORTS -----//
     Rcpp::List export_setup() const;
     Rcpp::DataFrame export_parameter() const;
+
+    Rcpp::DataFrame _aux_export_dataset_(const std::vector<Household> &hhvec) const;
     Rcpp::DataFrame export_dataset() const;
-	Rcpp::DataFrame export_data_report() const;
-	Rcpp::DataFrame export_house_size_report() const;
+    Rcpp::DataFrame export_data_report() const;
+    Rcpp::DataFrame export_house_size_report() const;
+
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_matrix() const;
     Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
-                                         const Rcpp::List &xlim,
-                                         int n_bins) const;
+                                               const Rcpp::List &xlim,
+                                               int n_bins) const;
 
 #else
     //----- READ -----//
@@ -268,7 +272,8 @@ public:
 
     //----- Cpp Prints -----//
     void print_infer_state(const std::string &pathtofile) const;
-    void print_augm_variables(const std::string &pathtofile) const;
+    void print_dataset(const std::vector<Household> &hhvec,
+                       const std::string &pathtofile) const;
 #endif
 
     //=================//

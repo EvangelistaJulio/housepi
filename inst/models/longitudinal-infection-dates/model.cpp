@@ -81,7 +81,7 @@ void Model::init_model_for_inference()
 	{
 		Household &house = get_household(H);
 		indiv i0 = house.size();
-		for (indiv k : house.infectious_list())
+		for (indiv k : house.infected_status_list())
 			if (i0 == house.size())
 				i0 = k;
 			else if (house.data(k, "infec_date") < house.data(i0, "infec_date"))
@@ -113,7 +113,7 @@ double Model::_houseROI_(Household &house, indiv i, const matrix<double> &profil
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (indiv k : house.infectious_list())
+	for (indiv k : house.infected_status_list())
 		if (k != i)
 			output += house.group_rate(k, "infectivity") * profiles[k][i];
 
@@ -129,7 +129,7 @@ double Model::ROI_inst(Household &house, indiv i) const
 	auto &inst_mtx = house.extra_double_matrix("inst");
 	const int t_infec_i = house.data(i, "infec_date");
 
-	for (indiv k : house.infectious_list())
+	for (indiv k : house.infected_status_list())
 		if (k != i)
 		{
 			double gentime = t_infec_i - house.data(k, "infec_date");
@@ -179,7 +179,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	const int t_infec_i = house.data(i, "infec_date");
 
 	//----- Update Lookup Tables for infectious -----//
-	for (indiv k : house.infectious_list())
+	for (indiv k : house.infected_status_list())
 		if (k != i)
 		{
 			double gentime = house.data(k, "infec_date") - t_infec_i;
@@ -202,7 +202,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	//===============================//
 
 	const int exposure = time_end_followup(house) - t_infec_i;
-	for (indiv k : house.susceptible_list())
+	for (indiv k : house.healthy_status_list())
 		cumul_mtx[i][k] = infec_profile_cumul(exposure);
 }
 
@@ -226,7 +226,7 @@ double Model::compute_house_loglike(Household &house) const
 	//===== Susceptible Members =====//
 	//===============================//
 
-	for (indiv i : house.susceptible_list())
+	for (indiv i : house.healthy_status_list())
 		loglike_house -= ROI_cumul_suscept(house, i);
 
 	//==============================//
@@ -234,7 +234,7 @@ double Model::compute_house_loglike(Household &house) const
 	//==============================//
 
 	// FIXME : double check loglikelihood
-	for (indiv i : house.infectious_list())
+	for (indiv i : house.infected_status_list())
 		// Contribution of secondary cases
 		if (i != house.extra_integer_vector("intro-case")[0])
 			loglike_house += std::log(1. - std::exp(-ROI_inst(house, i))) - ROI_cumul_infec(house, i);

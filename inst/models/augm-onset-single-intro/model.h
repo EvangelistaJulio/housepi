@@ -30,6 +30,8 @@ public:
 	double ROI_cumul_suscept(Household &house, indiv i) const;
 	double time_end_followup(Household &house) const;
 
+	void update_extra_for_simulation(Household &house, indiv i);
+
 	//===== Override General Methods =====//
 	void init_infec_profile() override final;
 	void init_model_for_inference() override final;

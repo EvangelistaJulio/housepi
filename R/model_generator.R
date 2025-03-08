@@ -210,6 +210,30 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'dataset' is read only.")
     },
 
+    #' @field summary `data.frame`\cr
+    #' A summary of statuses in the dataset.
+    summary = function(value) {
+      if (missing(value)) {
+        if (is.null(private$.rcpp)) {
+          stop_h("Impossible to export dataset before model build.")
+        }
+        return(private$.rcpp$export_data_report())
+      }
+      stop_h("'summary' is read only.")
+    },
+
+    #' @field summary_house_size `data.frame`\cr
+    #' A summary of house sizes in the dataset.
+    summary_house_size = function(value) {
+      if (missing(value)) {
+        if (is.null(private$.rcpp)) {
+          stop_h("Impossible to export dataset before model build.")
+        }
+        return(private$.rcpp$export_house_size_report())
+      }
+      stop_h("'summary_house_size' is read only.")
+    },
+
     #' @field setup `list()`\cr
     #' Last setup used by the build process.
     setup = function(value) {
@@ -453,6 +477,38 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
     ############################################################################
+    
+    #' @description
+    #' Show formatted dataset summary.
+    #'
+    #' @return
+    #' `flextable`
+    show_summary = function() {
+      if (requireNamespace("flextable", quietly = FALSE)) {
+
+        combined <- self$summary
+        combined$pct <- sapply(combined$pct,
+                               function(x) sprintf("%.1f%%", x))
+
+        ft <- flextable::flextable(combined)
+        ft <- flextable::separate_header(ft)
+        ft <- flextable::theme_vanilla(ft)
+        ft <- flextable::align(ft, align = "left", part = "all")
+        ft <- flextable::merge_v(ft, j = ~ type)
+        ft <- flextable::bold(ft, j = ~ type, bold = TRUE)
+        ft <- flextable::autofit(ft, add_w = 0, add_h=0)
+        ft <- flextable::labelizor(
+          ft, part = "all",
+          labels = c(type = "", comment = "", pct = "[%]")
+        )
+        ft <- flextable::colformat_num(ft, big.mark = "")
+        return(ft)
+      }
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
 
     #' @description
     #' Wrapper of the Rcpp import_dataset method.
@@ -581,9 +637,11 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Wrapper of the Rcpp infer method.
+    #' 
+    #' @return 
+    #' `data.frame`
     simulate = function() {
-      private$.rcpp$simulate()
-      invisible(self)
+      return(private$.rcpp$simulate())
     },
 
     #' @description

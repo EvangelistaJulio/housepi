@@ -336,14 +336,11 @@ ExpectedCases <- R6::R6Class(
         hmc$load_param_list(from = new_param_defs, append = FALSE)
 
         # run simulation
-        hmc$simulate(seed = rng_seeds[r], 
-                     progress = FALSE, n_threads = 1)
-        # FIXME:
-        # if simulations depend on dataset status and augmented variables
-        # run 2 simulations with dataset = NULL will crash simulations  
+        dataset <- hmc$simulate(seed = rng_seeds[r], 
+                                progress = FALSE, n_threads = 1)
 
         # retrieve and return results
-        return(retrieve_cases_by_size(hmc$dataset))
+        return(retrieve_cases_by_size(dataset))
       }
 
       if (isTRUE(progress)) {
@@ -413,7 +410,7 @@ ExpectedCases <- R6::R6Class(
     #' @return
     #' `ggplot` object)
     plot_sar = function() {
-      if (requireNamespace("ggplot2", quietly = TRUE)) {
+      if (requireNamespace("ggplot2", quietly = FALSE)) {
         col_dict <- c("Expected" = "coral", "Observed" = "black")
         g <- ggplot2::ggplot(self$sar, ggplot2::aes(x = house_size)) +
           # expected SAR
@@ -444,7 +441,7 @@ ExpectedCases <- R6::R6Class(
     #' It expects three double values (mean, CRI lower and CRI upper).
     #'
     #' @return
-    #' `flextable` | `data.frame`)
+    #' `flextable` | `data.frame`
     show_cases_table = function(show_chisq = FALSE,
                                 cri_format = "%.0f [%.0f, %.0f]") {
       # format counts to character
@@ -489,6 +486,7 @@ ExpectedCases <- R6::R6Class(
         }
       )
 
+      # FIXME: I shall have an active for the non flextable
       if (requireNamespace("flextable", quietly = TRUE)) {
         ft <- flextable::flextable(combined)
         ft <- flextable::separate_header(ft)
@@ -503,6 +501,7 @@ ExpectedCases <- R6::R6Class(
                      cases = "Number of cases")
         )
         ft <- flextable::autofit(ft, add_w = 0, add_h=0)
+        ft <- flextable::colformat_num(ft, big.mark = "")
 
         if (isTRUE(show_chisq)) {
           x <- self$chisq_test()

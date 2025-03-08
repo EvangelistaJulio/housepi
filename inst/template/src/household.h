@@ -11,7 +11,71 @@
 #include <string>
 #include <vector>
 
-#include "tools.h"
+#include "variable.h"
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Individual : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Class for individual household study member. */
+class Individual
+{
+public:
+	//=======================//
+	//===== CONSTRUCTOR =====//
+	//=======================//
+
+	Individual(const std::string &id = NULL_STRING,
+			   int status = MISSING_STATUS,
+			   const dataIDmap<double> &data = {});
+	~Individual();
+
+	//=============================//
+	//===== PUBLIC ATTRIBUTES =====//
+	//=============================//
+
+	std::string id = NULL_STRING; // user id
+	int status = MISSING_STATUS;  // status of the individual
+
+	//================//
+	//===== DATA =====//
+	//================//
+
+	// NOTE: I am forced to store numerical variables
+	dataIDmap<double> data = {}; // database associated
+
+	//===============================//
+	//===== AUGMENTED VARIABLES =====//
+	//===============================//
+
+	augmIDmap<Variable> augm_map = {}; // augmented variables
+
+	//=======================//
+	//===== GROUP RATES =====//
+	//=======================//
+
+	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
+
+	struct GroupRate
+	{
+		std::string name = "";
+		ushort n_rates = 0;
+		const double **pointers = {};
+
+		GroupRate(const std::string &name = NULL_STRING,
+				  const std::vector<const double *> &pointers = {});
+		~GroupRate();
+		double get() const;
+	};
+	rateIDmap<GroupRate> rate_map; // group rates associated
+};
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -33,8 +97,6 @@ public:
 
 	Household(const std::string &house_id = NULL_STRING,
 			  size_t index = SIZE_MAX);
-	Household(Household &&other) noexcept;			  // Move constructor
-	Household &operator=(Household &&other) noexcept; // Move assignment
 	~Household();
 
 	//==================//
@@ -57,8 +119,8 @@ public:
 	ushort n_infec_status() const;
 	ushort n_healthy_status() const;
 	ushort n_missing_status() const;
-	const std::vector<indiv> &infectious_list() const;
-	const std::vector<indiv> &susceptible_list() const;
+	const std::vector<indiv> &infected_status_list() const;
+	const std::vector<indiv> &healthy_status_list() const;
 	const std::vector<indiv> &missing_status_list() const;
 
 	//======================//
@@ -164,9 +226,28 @@ public:
 	const dbl_vec &get_dgn_loglike() const;
 
 private:
-	//===== Pointer to Implementation =====//
-	class Impl;
-	std::unique_ptr<Impl> pImpl;
+	std::string _house_id = NULL_STRING; // user id
+	size_t _index = -1;					// index of household
+	ushort house_size = 0;				// number of house members
+
+	std::vector<Individual> members = {}; //
+
+	double house_loglike = NULL_DOUBLE; // current loglikelihood value
+	double buffer = NULL_DOUBLE;		// buffer loglikelihood value
+
+	dbl_vec dgn_loglike = {}; // diagnostics
+
+	// contact rate pointers
+	matrix<const double *> contact_rates;
+
+	ushort _n_infec_status = 0;
+	ushort _n_susceptible = 0;
+	ushort _n_missing_status = 0;
+
+	// wheter members correspond to a given status or not
+	std::vector<indiv> _infectious_list = {};
+	std::vector<indiv> _susceptible_list = {};
+	std::vector<indiv> _missing_status_list = {};
 
 	//===== EXTRA ATTRIBUTES =====//
 

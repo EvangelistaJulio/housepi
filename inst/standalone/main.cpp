@@ -50,7 +50,6 @@ int main(int argc, char *argv[])
     std::string augm_file = NULL_STRING;
     std::string setup_file = NULL_STRING;
     std::string output_file = NULL_STRING;
-    std::string save_augm_file = NULL_STRING;
 
     //=====Test if some commands were supplied=====//
     if (argc < 2)
@@ -110,9 +109,6 @@ int main(int argc, char *argv[])
         else if (carg == std::string("-o") || carg == std::string("--output"))
             output_file = argv[++carg_i];
 
-        else if (carg == std::string("--save-augm"))
-            save_augm_file = argv[++carg_i];
-
         else
             tools::error("Unrecognized option `" + carg + "`.");
 
@@ -157,7 +153,13 @@ int main(int argc, char *argv[])
     //===== EXECUTION =====//
     //=====================//
 
-    if (is_infer)
+    if (is_evaluate)
+    { //===== Evaluate Loglikelihood =====//
+        tools::print_decorator("Loglikelihood", NULL_STRING, C_DECOR, verbose);
+        tools::print_stdout(std::to_string(user_model->evaluate()) + "\n");
+    }
+
+    else if (is_infer)
     { //===== Inference =====//
         tools::print_decorator("Inference", NULL_STRING, C_DECOR, verbose);
         user_model->infer();
@@ -175,14 +177,6 @@ int main(int argc, char *argv[])
                                    C_DECOR, verbose);
             user_model->print_infer_state(output_file);
         }
-
-        if (save_augm_file != NULL_STRING)
-        {
-            tools::print_decorator("Inference::augmented dataframe",
-                                   "# save: " + save_augm_file,
-                                   C_DECOR, verbose);
-            user_model->print_augm_variables(save_augm_file);
-        }
     }
 
     else if (is_simulate)
@@ -192,31 +186,11 @@ int main(int argc, char *argv[])
             tools::print_decorator("Simulation",
                                    "# save: " + output_file,
                                    C_DECOR, verbose);
-            user_model->simulate();
-            user_model->print_augm_variables(output_file);
-
-            if (verbose)
-            {
-                tools::print_decorator("Simulation::summary");
-                user_model->show_summary();
-            }
+            user_model->print_dataset(user_model->aux_simulate(),
+                                      output_file);
         }
         else
             tools::error("Missing output file for simulation.");
-    }
-
-    else if (is_evaluate)
-    { //===== Evaluate Loglikelihood =====//
-        tools::print_decorator("Loglikelihood", NULL_STRING, C_DECOR, verbose);
-        tools::print_stdout(std::to_string(user_model->evaluate()) + "\n");
-
-        if (save_augm_file != NULL_STRING)
-        {
-            tools::print_decorator("Loglikelihood::augmented dataframe",
-                            "# save: " + save_augm_file,
-                            C_DECOR, verbose);
-            user_model->print_augm_variables(save_augm_file);
-        }
     }
 
     else if (is_marginal)
@@ -224,8 +198,8 @@ int main(int argc, char *argv[])
         tools::print_decorator("Marginal Loglikelihood", NULL_STRING, C_DECOR, verbose);
         tools::print_stdout(
             std::to_string(
-                user_model->estimate_evidence("adaptive", num_rungs)
-            ) + "\n");
+                user_model->estimate_evidence("adaptive", num_rungs)) +
+            "\n");
     }
 
     return EXIT_SUCCESS;

@@ -174,7 +174,7 @@ Similarly can be done with the method `$loo()` for the LOO-CV (leave-one-out cro
 # Simulation
 
 In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households.
-We call the method `$simulate()`  after having provided parameter definitions (analogous to the inference case)
+We call the method `$simulate()` after having provided parameter definitions (analogous to the inference case)
 
 ```{r}
 # generate a new model object to use for simulation
@@ -187,14 +187,7 @@ hhsimul$add_param(name = "beta", value = results["beta", "mean"])
 
 # build new model using the same demographic structure of dataset
 # override status of the dataset according to simulation
-hhsimul$simulate(dataset = survey, seed = 5923)
-```
-
-The simulations overwrite internally the input dataset. To return the simulated dataset, which corresponds to the current loaded dataset, we use the field `$dataset`
-
-```{r}
-# export current dataset as a data.frame
-simulated <- hhsimul$dataset
+simulated <- hhsimul$simulate(dataset = survey, seed = 5923)
 ```
 
 ## Expected Cases by Size

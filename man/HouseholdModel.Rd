@@ -23,6 +23,12 @@ Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
 Dataset with individual level information of current dataset.
 If the case, it also return the associated augmented variables.}
 
+\item{\code{summary}}{\code{data.frame}\cr
+A summary of statuses in the dataset.}
+
+\item{\code{summary_house_size}}{\code{data.frame}\cr
+A summary of house sizes in the dataset.}
+
 \item{\code{setup}}{\code{list()}\cr
 Last setup used by the build process.}
 
@@ -56,6 +62,7 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-drop_augm_defs}{\code{HouseholdModel$drop_augm_defs()}}
 \item \href{#method-HouseholdModel-drop_group_rate_defs}{\code{HouseholdModel$drop_group_rate_defs()}}
 \item \href{#method-HouseholdModel-drop_all}{\code{HouseholdModel$drop_all()}}
+\item \href{#method-HouseholdModel-show_summary}{\code{HouseholdModel$show_summary()}}
 \item \href{#method-HouseholdModel-add_param}{\code{HouseholdModel$add_param()}}
 \item \href{#method-HouseholdModel-load_param_list}{\code{HouseholdModel$load_param_list()}}
 \item \href{#method-HouseholdModel-load_param_template}{\code{HouseholdModel$load_param_template()}}
@@ -176,6 +183,19 @@ Drop all current definitions.
 
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-show_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-show_summary}{}}}
+\subsection{Method \code{show_summary()}}{
+Show formatted dataset summary.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$show_summary()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+\code{flextable}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-add_param"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-add_param}{}}}
 \subsection{Method \code{add_param()}}{
@@ -213,7 +233,7 @@ If \code{TRUE} the parameter is discrete.}
 \item{\code{prior}}{\code{character(1)}\cr
 Name of the prior distribution.}
 
-\item{\code{args}}{(named \code{list()}\cr
+\item{\code{args}}{named \code{list()}\cr
 Arguments for the prior distribution.}
 
 \item{\code{rule}}{\code{character(1)}\cr
@@ -490,7 +510,7 @@ Add definition of infectivity profile.
 Name of the infectivity profile.}
 
 \item{\code{discrete}}{\code{logical(1)}\cr
-IF \code{TRUE} the profile is discrete.}
+If \code{TRUE} the profile is discrete.}
 
 \item{\code{args}}{(named \code{list()}\cr
 Arguments (eventually with types) for the profile.}
@@ -618,7 +638,7 @@ If \code{FALSE} suppress the inference progress bar.}
 \if{html}{\out{<a id="method-HouseholdModel-simulate"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-simulate}{}}}
 \subsection{Method \code{simulate()}}{
-Run the simulation.
+Run the simulation and return data.frame with simulated dataset.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$simulate(
   dataset = NULL,
@@ -646,12 +666,15 @@ If \code{FALSE} suppress the simulation progress bar.}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+\code{data.frame}\cr
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-expec_cases_by_size"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-expec_cases_by_size}{}}}
 \subsection{Method \code{expec_cases_by_size()}}{
-After \verb{$infer} has been run, use the sample to perform simulations.
+Use posterior sample after \verb{$infer} has been run to perform simulations.
 Extract the expected number of household cases per size
 and the credible interval.
 \subsection{Usage}{
@@ -671,7 +694,7 @@ Progress of simulations. Default is inherited from the model.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{ExpectedCases})
+\code{ExpectedCases}\cr
 An instance of class
 \link[=ExpectedCases]{ExpectedCases}
 containing method to compare observed and expected cases.
@@ -698,7 +721,7 @@ Number of threads for the parallelization of the loglikelihood.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{double(1)}\cr
+\code{double(1)}
 }
 }
 \if{html}{\out{<hr>}}
@@ -784,8 +807,8 @@ Use loo package to compute the leave-one-out cross-validation.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{arguments passed to \link[loo:loo]{loo}.
-For arguments and further details type ?loo::loo.}
+\item{\code{...}}{Arguments passed to \link[loo:loo]{loo}.
+For further details type ?loo::loo.}
 }
 \if{html}{\out{</div>}}
 }
@@ -802,8 +825,8 @@ Use loo package to compute the widely applicable information criterion.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{arguments passed to \link[loo:waic]{waic}.
-For arguments and further details type ?loo::waic.}
+\item{\code{...}}{Arguments passed to \link[loo:waic]{waic}.
+For further details type ?loo::waic.}
 }
 \if{html}{\out{</div>}}
 }

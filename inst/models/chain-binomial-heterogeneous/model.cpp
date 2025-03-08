@@ -95,9 +95,9 @@ void Model::fill_house_escape_matrix(Household &house) const
 	auto &order = house.extra_integer_vector("order");
 
 	indiv m = 0;
-	for (indiv i : house.infectious_list())
+	for (indiv i : house.infected_status_list())
 		order[m++] = i;
-	for (indiv s : house.susceptible_list())
+	for (indiv s : house.healthy_status_list())
 		order[m++] = s;
 
 	//----- Assign values to LUT matrix -----//
@@ -190,7 +190,7 @@ void Model::simulate_single_house(Household &house)
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		// note : loop over 'house.susceptible_list()' is not allowed because of 'change_status'
+		// note : loop over 'house.healthy_status_list()' is not allowed because of 'change_status'
 		for (indiv i = 0; i < house.size(); ++i)
 			if (house.status(i) == HEALTHY_STATUS)
 			{

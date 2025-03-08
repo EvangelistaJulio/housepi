@@ -107,9 +107,9 @@ double Model::_houseROI_(Household &house, indiv i, const matrix<double> &profil
 	double output = 0.0;
 
 	// Risk of infection from other household members (k)
-	for (indiv k : house.infectious_list())
-		if (k != i)
-			output += house.contact_rate(k, i) * house.group_rate(k, "infectivity") * profiles[k][i];
+	for (indiv k : house.infected_status_list())
+		if (profiles[k][i] != 0)
+			output += profiles[k][i] * house.contact_rate(k, i) * house.group_rate(k, "infectivity");
 
 	output *= house.group_rate(i, "susceptibility") * transmission_rate(house);
 
@@ -166,11 +166,11 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	double new_t0 = t_infec_i;
 	indiv i0 = i;
 
-	//----- Update Lookup Tables for infectious -----//
+	// update Lookup Tables for infectious
 	double incub_k, t_infec_k;
-	
+
 	// note: setting lut to 0 this is necessary because _houseROI_ is brute
-	for (indiv k : house.infectious_list())
+	for (indiv k : house.infected_status_list())
 		if (k != i)
 		{
 			incub_k = house.augm(k, "incub_period");
@@ -180,14 +180,14 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 			if (gentime > 0)
 			{ //----- `i` : infector, `k` : infectee -----//
 				inst_mtx[i][k] = infec_profile_inst(gentime, {incub_i, incub_k});
-				cumul_mtx[i][k] = infec_profile_cumul(gentime, {incub_i, incub_k});				
+				cumul_mtx[i][k] = infec_profile_cumul(gentime, {incub_i, incub_k});
 				inst_mtx[k][i] = 0.0;
 				cumul_mtx[k][i] = 0.0;
 			}
 			else
 			{ //----- `k` : infector, `i` : infectee -----//
 				inst_mtx[i][k] = 0.0;
-				inst_mtx[i][k] = 0.0;
+				cumul_mtx[i][k] = 0.0;
 				inst_mtx[k][i] = infec_profile_inst(-gentime, {incub_k, incub_i});
 				cumul_mtx[k][i] = infec_profile_cumul(-gentime, {incub_k, incub_i});
 
@@ -208,12 +208,45 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	//===============================//
 
 	double exposure = time_end_followup(house) - t_infec_i;
-	for (indiv k : house.susceptible_list())
+	for (indiv k : house.healthy_status_list())
 	{
 		incub_k = house.augm(k, "incub_period");
 		cumul_mtx[i][k] = infec_profile_cumul(exposure, {incub_i, incub_k});
 		cumul_mtx[k][i] = 0.0;
 	}
+}
+
+/* Store only instantaneous profile (for simulation). */
+void Model::update_extra_for_simulation(Household &house, indiv i)
+{
+	auto &inst_mtx = house.extra_double_matrix("inst");
+
+	const double onset_i = house.augm(i, "onset_date");
+	const double incub_i = house.augm(i, "incub_period");
+	const double t_infec_i = onset_i - incub_i;
+
+	//----- Update Lookup Tables for infectious -----//
+	double incub_k, t_infec_k;
+
+	// note: setting lut to 0 this is necessary because _houseROI_ is brute
+	for (indiv k : house.infected_status_list())
+		if (k != i)
+		{
+			incub_k = house.augm(k, "incub_period");
+			t_infec_k = house.augm(k, "onset_date") - incub_k;
+			double gentime = t_infec_k - t_infec_i;
+
+			if (gentime > 0)
+			{ //----- `i` : infector, `k` : infectee -----//
+				inst_mtx[i][k] = infec_profile_inst(gentime, {incub_i, incub_k});
+				inst_mtx[k][i] = 0.0;
+			}
+			else
+			{ //----- `k` : infector, `i` : infectee -----//
+				inst_mtx[i][k] = 0.0;
+				inst_mtx[k][i] = infec_profile_inst(-gentime, {incub_k, incub_i});
+			}
+		}
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -236,14 +269,14 @@ double Model::compute_house_loglike(Household &house) const
 	//===== Susceptible Members =====//
 	//===============================//
 
-	for (indiv i : house.susceptible_list())
+	for (indiv i : house.healthy_status_list())
 		loglike_house -= ROI_cumul_suscept(house, i);
 
 	//==============================//
 	//===== Infectious Members =====//
 	//==============================//
 
-	for (indiv i : house.infectious_list())
+	for (indiv i : house.infected_status_list())
 		// Contribution of secondary cases
 		if (i != house.extra_integer_vector("intro-case")[0])
 			loglike_house += log(ROI_inst(house, i)) - ROI_cumul_infec(house, i);
@@ -287,7 +320,6 @@ void Model::simulate_single_house(Household &house)
 	indiv i0 = uniform() * house.size();
 	house.change_status(i0, INFECTED_STATUS);
 	house.extra_integer_vector("intro-case")[0] = i0;
-
 	double t = house.augm(i0, "onset_date");
 	double tf = time_end_followup(house);
 
@@ -298,21 +330,19 @@ void Model::simulate_single_house(Household &house)
 	// onset of secondary cases following the first case
 	for (; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
 		for (indiv i = 0; i < house.size(); ++i)
-		{
 			if (house.status(i) == HEALTHY_STATUS)
 			{
 				// set new status for computations
 				house.change_status(i, INFECTED_STATUS);
 				house.set_augm_value(i, "onset_date", t);
-				update_extra_dependecies(house, i);
+				update_extra_for_simulation(house, i);
 
 				// restore status id escaped infection
 				if (uniform() < exp(-ROI_inst(house, i) * Dt))
 					house.change_status(i, HEALTHY_STATUS);
 			}
-		}
 
 	// format all augmented variables of susceptibles
-	for (indiv i : house.susceptible_list())
+	for (indiv i : house.healthy_status_list())
 		clear_all_augm(house, i);
 }

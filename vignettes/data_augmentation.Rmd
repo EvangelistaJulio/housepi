@@ -120,7 +120,7 @@ bayesplot::mcmc_trace(hhmodel$traces)
 
 ## Other Proposer Rules for the Augmented Variables
 ```{r, include=FALSE}
-bayesplot::color_scheme_set(scheme = "red")
+bayesplot::color_scheme_set(scheme = "purple")
 ```
 
 ```{r}

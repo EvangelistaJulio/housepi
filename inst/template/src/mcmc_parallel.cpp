@@ -184,7 +184,7 @@ void MCMC::update_extra_global_loglike()
 
             // buffer all extra dependencies
             house.buffer_all_extra();
-            for (const indiv &i : house.infectious_list())
+            for (const indiv &i : house.infected_status_list())
                 update_extra_dependecies(house, i);
 
             // update house loglikelihood
@@ -248,8 +248,12 @@ void MCMC::move_all_augm()
 //-----------------------------------------------------------------------------------------------//
 
 /* Perform simulation. */
-void MCMC::simulate()
+const std::vector<Household> MCMC::aux_simulate()
 {
+    // FIXME : memory usage is suboptimal:
+    // at a given moment 3 memory copies of dataset-like objects
+    std::vector<Household> hhvec = {};
+
     try
     {
         std::atomic<bool> has_error(false);
@@ -270,6 +274,8 @@ void MCMC::simulate()
         //===== Simulation =====//
         //======================//
 
+        hhvec = pImpl->house_vector; // make a copy
+
 #ifdef _OPENMP
         ulong thin_n_house = n_houses() / pImpl->setup_n_threads;
         progress::Bar progressbar(thin_n_house, "simulate", pImpl->setup_is_progbar);
@@ -282,14 +288,14 @@ void MCMC::simulate()
 
             try
             {
-                simulate_single_house(get_household(H));
+                simulate_single_house(hhvec.at(H));
             }
             catch (const std::exception &e)
             {
 #pragma omp critical
                 {
                     if (!has_error.exchange(true))
-                        _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
+                        _error_message_ = "During simulation for household " + hhvec.at(H).house_id() + " : " + e.what();
                 }
             }
 
@@ -306,11 +312,11 @@ void MCMC::simulate()
 
             try
             {
-                simulate_single_house(get_household(H));
+                simulate_single_house(hhvec.at(H));
             }
             catch (const std::exception &e)
             {
-                _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
+                _error_message_ = "During simulation for household " + hhvec.at(H).house_id() + " : " + e.what();
             }
             progressbar.update(H);
         }
@@ -320,10 +326,11 @@ void MCMC::simulate()
             tools::error(_error_message_);
 
         progressbar.finalize();
-        pImpl->fill_report_data();
     }
     catch (std::exception &e)
     {
         tools::error(e.what());
     }
+
+    return hhvec;
 }
