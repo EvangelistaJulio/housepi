@@ -131,7 +131,7 @@ public:
 
 	virtual void init_model_for_simulation();
 	virtual void simulate_single_house(Household &house);
-	const std::vector<Household> aux_simulate();
+	void aux_simulate();
 
 #ifdef _HOUSEPI_RCPP
 

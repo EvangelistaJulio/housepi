@@ -74,16 +74,34 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 | healthy/seronegative  | $0$                        |
 | missing               | ${\leq -1}$ or ${\rm NA}$  |
 
-The package comes with a few synthetic dataset to be used for testing, e.
-g.
+
+### Import a Dataset
+
+The `housepi` package comes with a few synthetic dataset to be used for testing.
 
 ```{r}
+# load a household survey we can use to do testing
 data("survey", package = "housepi")
+
+# import dataset
+hhmodel$import_dataset(survey)
+```
+
+Note that all methods for inference and simulation integrate dataset importation. The advantage of preliminary importation is the use of descriptive methods to check on the dataset, e. g. 
+
+```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# show a summary of the dataset as a `flextable`
+hhmodel$show_summary()
+```
+
+At any moment we can export the dataset from our model object with the field `$dataset`:
+
+```{r, eval=FALSE}
+hhmodel$dataset
 ```
 
 ```{r, echo=FALSE}
-aux_ <- survey[c("id", "house_id", "status")]
-knitr::kable(head(aux_))
+knitr::kable(head(hhmodel$dataset))
 ```
 
 ## Parameter Definitions

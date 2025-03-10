@@ -479,16 +479,20 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     
     #' @description
-    #' Show formatted dataset summary.
-    #'
+    #' Show formatted summary of loaded dataset.
+    #' 
+    #' @param pct_format `character(1)`\cr
+    #' Formatting string for the percentage passed to `sprintf`.
+    #' It expects 1 double value (fraction).
+    #' 
     #' @return
     #' `flextable`
-    show_summary = function() {
+    show_summary = function(pct_format = "%.1f%%") {
       if (requireNamespace("flextable", quietly = FALSE)) {
 
         combined <- self$summary
         combined$pct <- sapply(combined$pct,
-                               function(x) sprintf("%.1f%%", x))
+                               function(x) sprintf(pct_format, x))
 
         ft <- flextable::flextable(combined)
         ft <- flextable::separate_header(ft)
@@ -500,6 +504,35 @@ HousepiGenerator <- R6::R6Class(
         ft <- flextable::labelizor(
           ft, part = "all",
           labels = c(type = "", comment = "", pct = "[%]")
+        )
+        ft <- flextable::colformat_num(ft, big.mark = "")
+        return(ft)
+      }
+    },
+
+    #' @description
+    #' Show formatted summary of housheold sizes.
+    #' 
+    #' @param pct_format `character(1)`\cr
+    #' Formatting string for the percentage passed to `sprintf`.
+    #' It expects 1 double value (fraction).
+    #' 
+    #' @return
+    #' `flextable`
+    show_house_size_summary = function(pct_format = "%.1f%%") {
+      if (requireNamespace("flextable", quietly = FALSE)) {
+        combined <- self$summary_house_size
+        combined$pct <- sapply(combined$pct,
+                               function(x) sprintf(pct_format, x))
+        ft <- flextable::flextable(combined)
+        ft <- flextable::separate_header(ft)
+        ft <- flextable::theme_vanilla(ft)
+        ft <- flextable::align(ft, align = "left", part = "all")
+        ft <- flextable::bold(ft, j = ~ comment + value, bold = TRUE)
+        ft <- flextable::autofit(ft, add_w = 0, add_h=0)
+        ft <- flextable::labelizor(
+          ft, part = "all",
+          labels = c(comment = "", value = "n.", pct = "[%]")
         )
         ft <- flextable::colformat_num(ft, big.mark = "")
         return(ft)
@@ -650,7 +683,7 @@ HousepiGenerator <- R6::R6Class(
     #' @param scheme `character(1)`\cr
     #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
     #' Other available scheme is "power-fractions".
-    #' @param n_rungs `integer`\cr
+    #' @param n_rungs `integer(1)`\cr
     #' Number of rungs in the thermodynamic ladder.
     estimate_evidence = function(scheme = "adaptive",
                                  n_rungs = 40) {
@@ -669,9 +702,9 @@ HousepiGenerator <- R6::R6Class(
 #' Re-compiles all required objects of the housepi library.
 #' Passed to .onLoad in file zzz.R
 #'
-#' @param pkgname
+#' @param pkgname `character(1)`\cr
 #' Name of the package.
-#' @param force
+#' @param force `logical(1)`\cr
 #' Force compilation even if it already exists.
 #'
 #' @noRd

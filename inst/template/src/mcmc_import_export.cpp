@@ -48,6 +48,7 @@ void rdataframe_to_map(const Rcpp::DataFrame &df,
     }
 }
 
+/* Format C++ string into Rcpp string. */
 Rcpp::String stoRString(const std::string &x)
 {
     return (tools::is_na(x)) ? NA_STRING : Rcpp::String(x);
@@ -133,7 +134,16 @@ void MCMC::Impl::import_augmented(const Rcpp::DataFrame &input)
 void MCMC::Impl::import_dataset(const Rcpp::DataFrame &data)
 {
     dict_str_vec datatable = {};
-    rdataframe_to_map(data, datatable);
+
+    try
+    {
+        rdataframe_to_map(data, datatable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While reading dataset: " + std::string(e.what()));
+    }
     build_data(datatable);
     if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
         _report_pathtofile_.erase("data");
@@ -206,31 +216,37 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
         V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
     }
 
-    return DataFrame::create(_["name"] = wrap(V_names), _["value"] = V_value,
-                             _["constant"] = V_constant, _["discrete"] = V_discrete,
-                             _["prior"] = V_prior, _["arg_name"] = V_arg_name, _["arg_value"] = V_arg_value,
-                             _["rule"] = V_rule, _["rule_scale"] = V_rule_scale,
-                             _["min"] = V_min, _["max"] = V_max);
+    return DataFrame::create(_["name"] = std::move(wrap(V_names)),
+                             _["value"] = std::move(V_value),
+                             _["constant"] = std::move(V_constant),
+                             _["discrete"] = std::move(V_discrete),
+                             _["prior"] = std::move(V_prior),
+                             _["arg_name"] = std::move(V_arg_name),
+                             _["arg_value"] = std::move(V_arg_value),
+                             _["rule"] = std::move(V_rule),
+                             _["rule_scale"] = std::move(V_rule_scale),
+                             _["min"] = std::move(V_min),
+                             _["max"] = std::move(V_max));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Monte_Carlo_Build : dataset exports  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export a given household vector to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::_aux_export_dataset_(const std::vector<Household> &hhvec) const
+/* Initialize data.frame entries. */
+void MCMC::Impl::_aux_export_dataset_init_()
 {
     using namespace Rcpp;
 
-    CharacterVector df_index(n_individuals);
-    CharacterVector df_house_index(n_individuals);
-    IntegerVector df_status(n_individuals);
-    std::vector<NumericVector> df_dbl;
+    _aux_row = 0;
+    _aux_data_headers = data_headers;
+    _aux_df_index = CharacterVector(n_individuals);
+    _aux_df_house_index = CharacterVector(n_individuals);
+    _aux_df_status = IntegerVector(n_individuals);
 
-    str_vec reduc_data_headers = data_headers;
-
+    // UPDATE: why augm_list_full is a set
     // remove data columns if they have same name than augmented
-    str_vec &vec = reduc_data_headers;
+    str_vec &vec = _aux_data_headers;
     const std::unordered_set<augmID> &y = augm_list_full;
     auto new_end = std::remove_if(vec.begin(), vec.end(),
                                   [&y](const dataID &elem)
@@ -239,44 +255,59 @@ Rcpp::DataFrame MCMC::Impl::_aux_export_dataset_(const std::vector<Household> &h
                                   });
     vec.erase(new_end, vec.end());
 
-    for (size_t s = 0; s < reduc_data_headers.size() + augm_list_full.size(); ++s)
-        df_dbl.emplace_back(n_individuals);
+    // other data and augmetned variable columns
+    for (size_t s = 0; s < _aux_data_headers.size() + augm_list_full.size(); ++s)
+        _aux_df_dbl.emplace_back(n_individuals);
+}
 
-    size_t r = 0, c = 0;
-    for (const Household &house : hhvec)
-        for (indiv i = 0; i < house.size(); ++i)
-        {
-            df_index[r] = house.id(i);
-            df_house_index[r] = house.house_id();
-            df_status[r] = house.status(i);
+/* Export a given household vector to R DataFrame. */
+void MCMC::Impl::_aux_export_dataset_update_(const Household &house)
+{
+    for (indiv i = 0; i < house.size(); ++i)
+    {
+        _aux_df_index[_aux_row] = house.id(i);
+        _aux_df_house_index[_aux_row] = house.house_id();
+        _aux_df_status[_aux_row] = house.status(i);
 
-            c = 0;
-            for (const dataID &d : reduc_data_headers)
-                df_dbl[c++][r] = house.data(i, d);
+        size_t c = 0;
+        for (const dataID &d : _aux_data_headers)
+            _aux_df_dbl[c++][_aux_row] = house.data(i, d);
 
-            for (const augmID &a : augm_list_full)
-                df_dbl[c++][r] = house.augm(i, a);
+        for (const augmID &a : augm_list_full)
+            _aux_df_dbl[c++][_aux_row] = house.augm(i, a);
 
-            ++r;
-        }
+        ++_aux_row;
+    }
+}
 
-    DataFrame output = DataFrame::create(_["id"] = df_index,
-                                         _["house_id"] = df_house_index,
-                                         _["status"] = df_status);
-    c = 0;
-    for (const dataID &d : reduc_data_headers)
-        output.push_back(df_dbl[c++], d);
+/* Export a given household vector to R DataFrame. */
+Rcpp::DataFrame MCMC::Impl::_aux_export_dataset_finalize_()
+{
+    using namespace Rcpp;
+
+    DataFrame output = DataFrame::create(
+        _["id"] = std::move(_aux_df_index),
+        _["house_id"] = std::move(_aux_df_house_index),
+        _["status"] = std::move(_aux_df_status));
+
+    size_t c = 0;
+    for (const dataID &d : _aux_data_headers)
+        output.push_back(std::move(_aux_df_dbl[c++]), d);
 
     for (const augmID &a : augm_list_full)
-        output.push_back(df_dbl[c++], a);
+        output.push_back(std::move(_aux_df_dbl[c++]), a);
 
     return output;
 }
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::export_dataset() const
+Rcpp::DataFrame MCMC::Impl::export_dataset()
 {
-    return _aux_export_dataset_(house_vector);
+    _aux_export_dataset_init_();
+    for (const Household &house : house_vector)
+        _aux_export_dataset_update_(house);
+
+    return _aux_export_dataset_finalize_();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,12 +324,10 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
     IntegerVector counts(n_rows);
     NumericVector pct(n_rows);
 
-    std::fill(type.begin(), type.begin() + _report_indiv_.size(), "individual");
-    std::fill(type.begin() + _report_indiv_.size(), type.begin() + n_rows, "household");
-
     size_t k = 0;
     for (const auto &pair : _report_indiv_)
     {
+        type[k] = "individual";
         comment[k] = pair.first;
         counts[k] = pair.second;
         pct[k] = 100. * static_cast<double>(pair.second) / n_individuals;
@@ -306,19 +335,17 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
     }
     for (const auto &pair : _report_house_)
     {
+        type[k] = "household";
         comment[k] = pair.first;
         counts[k] = pair.second;
         pct[k] = 100. * static_cast<double>(pair.second) / n_households;
         ++k;
     }
 
-    DataFrame output = DataFrame::create(
-        _["type"] = type,
-        _["comment"] = comment,
-        _["counts"] = counts,
-        _["pct"] = pct);
-
-    return output;
+    return DataFrame::create(_["type"] = std::move(type),
+                             _["comment"] = std::move(comment),
+                             _["counts"] = std::move(counts),
+                             _["pct"] = std::move(pct));
 }
 
 /* Export current data configurations to R DataFrame. */
@@ -341,13 +368,10 @@ Rcpp::DataFrame MCMC::Impl::export_house_size_report() const
         ++k;
     }
 
-    DataFrame output = DataFrame::create(
-        _["comment"] = comment,
-        _["value"] = value,
-        _["counts"] = counts,
-        _["pct"] = pct);
-
-    return output;
+    return DataFrame::create(_["comment"] = std::move(comment),
+                             _["value"] = std::move(value),
+                             _["counts"] = std::move(counts),
+                             _["pct"] = std::move(pct));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -497,9 +521,9 @@ Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
         ++c;
     }
 
-    return DataFrame::create(_["generation_time"] = t,
-                             _["instantaneous"] = inst,
-                             _["cumulative"] = cumu);
+    return DataFrame::create(_["generation_time"] = std::move(t),
+                             _["instantaneous"] = std::move(inst),
+                             _["cumulative"] = std::move(cumu));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -512,7 +536,9 @@ Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
 /* Perform simulation and return simulated dataset. */
 Rcpp::DataFrame MCMC::simulate()
 {
-    return pImpl->_aux_export_dataset_(aux_simulate());
+    pImpl->_aux_export_dataset_init_();
+    aux_simulate();
+    return pImpl->_aux_export_dataset_finalize_();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -148,7 +148,7 @@ Whether to show footer with Chi-squared test.}
 
 \item{\code{cri_format}}{\code{character(1)}\cr
 Formatting string for the credible interval passed to \code{sprintf}.
-It expects three double values (mean, CRI lower and CRI upper).}
+It expects 3 double values (mean, CRI lower and CRI upper).}
 }
 \if{html}{\out{</div>}}
 }

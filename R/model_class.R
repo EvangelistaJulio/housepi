@@ -36,7 +36,8 @@ HouseholdModel <- R6::R6Class(
     # @param data_headers `character()`\cr
     # Vector with the dataset headers.
     #
-    # @return `logical(1)`\cr
+    # @return
+    # `logical(1)`
     .assert_data = function(refer_file, data_headers) {
       # logical state for complete definitions
       is_def_complete <- TRUE
@@ -72,7 +73,8 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if parameter definitions match the implementation script.
     #
-    # @return `logical(1)`)
+    # @return
+    # `logical(1)`
     .assert_param = function() {
       # extract requirements from reference file
       # note is.null(c()) -> TRUE
@@ -91,7 +93,8 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if augmented definitions match the model implementation script.
     #
-    # @return `logical(1)`)
+    # @return
+    # `logical(1)`
     .assert_augm = function() {
       if (private$.model$is_blank) {
         return(TRUE)
@@ -105,7 +108,8 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert group rate definitions from the model implementation script.
     #
-    # @return `logical(1)`\cr
+    # @return
+    # `logical(1)`
     .assert_group_rate = function() {
       if (private$.model$is_blank) {
         return(TRUE)
@@ -126,90 +130,69 @@ HouseholdModel <- R6::R6Class(
     # @param dataset `data.frame`\cr
     # The dataset from which to extract group rates.
     .build_group_rate = function(dataset) {
-      # proceed only if group rate definitions are new and complete
-      if (isFALSE(
-        private$.group_rate$cpp_assert(dataset, private$.model$reference)
-      )) {
-        # NOTE: at the moment I just cache group rate changes
-        # search for the cache file
-        source_file <- file.path(private$.model$cache_dir,
-                                 "src", "model.cpp")
-        # deal with the case cache has been deleted
-        if (!file.exists(source_file)) {
-          # check if it's a template
-          model_choice <- private$.model$path
-          if (file.exists(file.path(model_choice, "model.cpp"))) {
-            # re-assign model object forcing copy of source to cache
-            private$.model <- HousepiGenerator$new(model_choice,
-                                                   force = TRUE)
-            # assign new cache file
-            source_file <- file.path(private$.model$cache_dir,
-                                     "src", "model.cpp")
-          } else {
-            stop_h("Impossible to find reference file.")
+
+      # proceed only if a dataset is provided
+      if (length(dataset) > 1) {
+
+        # proceed only if group rate definitions are new and complete
+        is_updated <- private$.group_rate$cpp_assert(dataset,
+                                                     private$.model$reference)
+        if (isFALSE(is_updated)) {
+          # NOTE: at the moment I just cache group rate changes
+          # search for the cache file
+          source_file <- file.path(private$.model$cache_dir,
+                                  "src", "model.cpp")
+          # deal with the case cache has been deleted
+          if (!file.exists(source_file)) {
+            # check if it's a template
+            model_choice <- private$.model$path
+            if (file.exists(file.path(model_choice, "model.cpp"))) {
+              # re-assign model object forcing copy of source to cache
+              private$.model <- HousepiGenerator$new(model_choice,
+                                                    force = TRUE)
+              # assign new cache file
+              source_file <- file.path(private$.model$cache_dir,
+                                      "src", "model.cpp")
+            } else {
+              stop_h("Impossible to find reference file.")
+            }
           }
+
+          # write the cpp script and save new reference
+          private$.group_rate$cpp_write(dataset, source_file)
+          private$.model$save_reference()
         }
 
-        # write the cpp script and save new reference
-        private$.group_rate$cpp_write(dataset, source_file)
-        private$.model$save_reference()
-      }
-
-      # append new parameter definitions
-      new_defs <- list()
-      for (rate_id in names(private$.group_rate$logic_table)) {
-        for (par_id in private$.group_rate$logic_table[[rate_id]]$.param_name) {
-          if (par_id != "REFERENCE") {
-            new_defs[[par_id]] <- private$.group_rate$param_defs[[rate_id]]
+        # append new parameter definitions
+        new_defs <- list()
+        for (rate_id in names(private$.group_rate$logic_table)) {
+          for (par_id in private$.group_rate$logic_table[[rate_id]]$.param_name) {
+            if (par_id != "REFERENCE") {
+              new_defs[[par_id]] <- private$.group_rate$param_defs[[rate_id]]
+            }
           }
         }
-      }
-      if (length(new_defs) > 0) {
-        self$load_param_list(from = new_defs, append = TRUE)
+        if (length(new_defs) > 0) {
+          self$load_param_list(from = new_defs, append = TRUE)
+        }
       }
 
       invisible(self)
     },
 
     # @description
-    # Associate dataset and parameters for a minimal build.
+    # Imoprt dataset and parameters for a minimal build.
+    #
     # @param dataset `data.frame`\cr
     # A data.frame containing the dataset.
     .pre_build = function(dataset = NULL) {
-      if (private$.model$is_blank) {
-        # blank dataset
-        # note: no assert definitions in such case
-        id_trace <- 1
-        dataset <- data.frame(id = c(id_trace),
-                              house_id = c("HH_1"),
-                              status = c(1))
-
-      } else if (length(dataset) > 0) {
-        # check that dataset type is correct
-        if (!is.data.frame(dataset)) {
-          stop_h(
-            "Unsupported type for dataset.",
-            "Dataset should be a data.frame."
-          )
-        }
-
-        # deal with group rates
-        private$.build_group_rate(dataset)
-
-        # assert dataset headers
-        if (isFALSE(private$.assert_data(private$.model$reference,
-                                         colnames(dataset)))) {
-          stop_h("Incomplete dataset headers.")
-        }
-      }
+      # import dataset
+      self$import_dataset(dataset)
 
       # assert parameter definitions
       if (isFALSE(private$.assert_param())) {
         stop_h("Incomplete parameter definitions.")
       }
-
-      # model generation
-      private$.model$generate()
 
       # parameters
       private$.model$import_parameter(self$param_defs)
@@ -218,9 +201,6 @@ HouseholdModel <- R6::R6Class(
       if (length(private$.infec_profile$defs) > 0) {
         private$.model$import_infectivity_profile(private$.infec_profile$defs)
       }
-
-      # dataset
-      private$.model$import_dataset(dataset)
 
       invisible(self)
     },
@@ -494,13 +474,80 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Show formatted dataset summary.
+    #' Import a new dataset.
     #'
+    #' @param dataset `data.frame`\cr
+    #' A data.frame containing the dataset with individual information by row.
+    import_dataset = function(dataset = NULL) {
+
+      if (private$.model$is_blank) {
+        if (length(dataset) > 0) {
+          # UPDATE: actually it could be nice to allow for this
+          warning_h(
+            "Impossible to provide a dataset with blank model.",
+            "Falling back to default dataset."
+          )
+        }
+        # blank dataset (id_trace <- 1)
+        dataset <- data.frame(id = c(1),
+                              house_id = c("HH_1"),
+                              status = c(1))
+
+      } else if (length(dataset) > 0) {
+        # check that dataset type is correct
+        if (!is.data.frame(dataset)) {
+          stop_h(
+            "Unsupported type for dataset.",
+            "Dataset should be a data.frame."
+          )
+        }
+
+        # assert dataset headers
+        if (isFALSE(private$.assert_data(private$.model$reference,
+                                         colnames(dataset)))) {
+          stop_h("Incomplete dataset headers.")
+        }
+      }
+      
+      # deal with group rates
+      private$.build_group_rate(dataset)
+
+      # model generation
+      private$.model$generate()
+
+      # dataset
+      private$.model$import_dataset(dataset)
+    },
+
+    #' @description
+    #' Show formatted summary of loaded dataset.
+    #' 
+    #' @param pct_format `character(1)`\cr
+    #' Formatting string for the percentage passed to `sprintf`.
+    #' It expects 1 double value (fraction).
+    #' 
     #' @return
     #' `flextable`
-    show_summary = function() {
-      return(private$.model$show_summary())
+    show_summary = function(pct_format = "%.1f%%") {
+      return(private$.model$show_summary(pct_format))
     },
+
+    #' @description
+    #' Show formatted summary of housheold sizes.
+    #' 
+    #' @param pct_format `character(1)`\cr
+    #' Formatting string for the percentage passed to `sprintf`.
+    #' It expects 1 double value (fraction).
+    #' 
+    #' @return
+    #' `flextable`
+    show_house_size_summary = function(pct_format = "%.1f%%") {
+      return(private$.model$show_house_size_summary(pct_format))
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
 
     #' @description
     #' Add a new parameter definition.
@@ -548,7 +595,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Parameter names with respective list of definitions.
-    #' @param from (named `list()`\cr
+    #' @param from named `list()`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends the list to current definition (default).
@@ -563,7 +610,7 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Load parameter definitions from model template.
     #'
-    #' @param append
+    #' @param append `logical(1)`\cr
     #' If `TRUE` append only missing definitions (default).
     #' Else drop all previous definitions.
     load_param_template = function(append = TRUE) {
@@ -604,7 +651,7 @@ HouseholdModel <- R6::R6Class(
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param model `character(1)`\cr
     #' Name of the model distribution.
-    #' @param args (named `list()`\cr
+    #' @param args named `list()`\cr
     #' Arguments for the model distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
@@ -651,7 +698,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Augmented variable names with respective list of definitions.
-    #' @param from (named `list()`\cr
+    #' @param from named `list()`\cr
     #' Named list of augmented variable definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends the list to current definition (default).
@@ -701,7 +748,7 @@ HouseholdModel <- R6::R6Class(
     #' Corresponding dataset column have to be categorical.
     #' @param prefix `character(1)`\cr
     #' Prefix to parameter names associated to the group rate.
-    #' @param reference (named `list()`\cr
+    #' @param reference named `list()`\cr
     #' Choose reference group providing corresponding features.
     #' Default is the group with the largest sample size.
     #' @param independent `logical(1)`\cr
@@ -710,7 +757,7 @@ HouseholdModel <- R6::R6Class(
     #' Name of the prior distribution.
     #' Default associated parameter definitions
     #' have prior "lnorm" and `args = list(meanlog = 0, sdlog = 3)`.
-    #' @param args (named `list()`\cr
+    #' @param args named `list()`\cr
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
@@ -751,7 +798,7 @@ HouseholdModel <- R6::R6Class(
     #' Name of the infectivity profile.
     #' @param discrete `logical(1)`\cr
     #' If `TRUE` the profile is discrete.
-    #' @param args (named `list()`\cr
+    #' @param args named `list()`\cr
     #' Arguments (eventually with types) for the profile.
     #' @param min `double(1)` | `character(1)`\cr
     #' One between:
@@ -783,7 +830,7 @@ HouseholdModel <- R6::R6Class(
     #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return
-    #' `data.frame`\cr
+    #' `data.frame`
     export_infectivity_profile = function(opts = list(),
                                           xlim = double(),
                                           n_bins = 2000) {
@@ -857,30 +904,23 @@ HouseholdModel <- R6::R6Class(
     },
 
     #' @description
-    #' Run the simulation and return data.frame with simulated dataset.
+    #' Run simulation and return data.frame with simulated dataset.
     #'
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset.
-    #' @param n_threads `integer(1)`\cr
-    #' Number of threads for the parallelization of the loglikelihood.
     #' @param seed `integer(1)`\cr
     #' Seed of the random number generator.
     #' If `NA` uses the internal clock (default).
     #' @param progress `logical(1)`\cr
     #' If `FALSE` suppress the simulation progress bar.
     #'
-    #' @return `data.frame`\cr
+    #' @return
+    #' `data.frame`
     simulate = function(dataset = NULL,
-                        n_threads = 1,
                         seed = NA,
                         progress = FALSE) {
-      # FIXME:
-      # if simulations depend on dataset status and augmented variables
-      # run 2 simulations with dataset = NULL will crash simulations
-
       # internal build function
-      private$.build(dataset = dataset, n_threads = n_threads,
-                     seed = seed, progress = progress)
+      private$.build(dataset = dataset, seed = seed, progress = progress)
 
       # call method from internal Rcpp object
       return(private$.model$simulate())
@@ -917,7 +957,8 @@ HouseholdModel <- R6::R6Class(
     #' @param n_threads `integer(1)`\cr
     #' Number of threads for the parallelization of the loglikelihood.
     #'
-    #' @return `double(1)`
+    #' @return
+    #' `double(1)`
     loglikelihood = function(dataset = NULL,
                              n_threads = 1) {
       # internal build function
@@ -934,7 +975,7 @@ HouseholdModel <- R6::R6Class(
     #' @param scheme `character(1)`\cr
     #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
     #' Other available scheme is "power-fractions".
-    #' @param n_rungs `integer`\cr
+    #' @param n_rungs `integer(1)`\cr
     #' Number of rungs in the thermodynamic ladder.
     #' @param sample_size `integer(1)`\cr
     #' Sample size of a single chain according to posterior distribution.
@@ -955,8 +996,8 @@ HouseholdModel <- R6::R6Class(
     #' If `NA` uses the internal clock (default).
     #' @param progress `logical(1)`\cr
     #' If `FALSE` suppress the simulation progress bar.
-    #' @return `double(1)`\cr
-    #' The value of the model evidence.
+    #' @return
+    #' `double(1)`
     #'
     #' @references
     #' Friel N, Hurn M, Wyse J.

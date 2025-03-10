@@ -248,7 +248,7 @@ void MCMC::move_all_augm()
 //-----------------------------------------------------------------------------------------------//
 
 /* Perform simulation. */
-const std::vector<Household> MCMC::aux_simulate()
+void MCMC::aux_simulate()
 {
     // FIXME : memory usage is suboptimal:
     // at a given moment 3 memory copies of dataset-like objects
@@ -262,9 +262,13 @@ const std::vector<Household> MCMC::aux_simulate()
         //===== Initialization =====//
         //==========================//
 
-        pImpl->assert_proper_dataset();        // check if dataset is empty
-        pImpl->setup_n_chains = 0;             // use 0 chains as a state variable
-        pImpl->setup_rand_init_params = false; // disable random initialization
+        pImpl->assert_proper_dataset(); // check if dataset is empty
+        pImpl->setup_n_chains = 0;      // use 0 chains as a state variable
+
+        pImpl->setup_n_threads = 1; // impose no parallelization
+        pImpl->set_n_threads();
+
+        pImpl->setup_rand_init_params = false; // disable random parameter initialization
         pImpl->init_parameters();              // check no undefined parameters
         init_infec_profile();                  // initialize user infectivity profile
         init_augmented_variables();            // initialize augmented dependencies
@@ -274,35 +278,6 @@ const std::vector<Household> MCMC::aux_simulate()
         //===== Simulation =====//
         //======================//
 
-        hhvec = pImpl->house_vector; // make a copy
-
-#ifdef _OPENMP
-        ulong thin_n_house = n_houses() / pImpl->setup_n_threads;
-        progress::Bar progressbar(thin_n_house, "simulate", pImpl->setup_is_progbar);
-
-#pragma omp parallel for default(shared)
-        for (size_t H = 0; H < n_houses(); ++H)
-        {
-            if (has_error.load(std::memory_order_relaxed))
-                continue;
-
-            try
-            {
-                simulate_single_house(hhvec.at(H));
-            }
-            catch (const std::exception &e)
-            {
-#pragma omp critical
-                {
-                    if (!has_error.exchange(true))
-                        _error_message_ = "During simulation for household " + hhvec.at(H).house_id() + " : " + e.what();
-                }
-            }
-
-            if (omp_get_thread_num() == 0)
-                progressbar.update(H);
-        }
-#else
         progress::Bar progressbar(n_houses(), "simulate", pImpl->setup_is_progbar);
 
         for (size_t H = 0; H < n_houses(); ++H)
@@ -312,18 +287,20 @@ const std::vector<Household> MCMC::aux_simulate()
 
             try
             {
-                simulate_single_house(hhvec.at(H));
+                Household house_copy = get_household(H);
+                simulate_single_house(house_copy);
+                pImpl->_aux_export_dataset_update_(house_copy);
             }
             catch (const std::exception &e)
             {
-                _error_message_ = "During simulation for household " + hhvec.at(H).house_id() + " : " + e.what();
+                if (!has_error.exchange(true))
+                    _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
             }
             progressbar.update(H);
         }
-#endif
 
         if (!_error_message_.empty())
-            tools::error(_error_message_);
+            throw std::runtime_error(_error_message_);
 
         progressbar.finalize();
     }
@@ -331,6 +308,4 @@ const std::vector<Household> MCMC::aux_simulate()
     {
         tools::error(e.what());
     }
-
-    return hhvec;
 }

@@ -334,13 +334,10 @@ ExpectedCases <- R6::R6Class(
         # associate parameters from posterior sample
         new_param_defs <- c(as.list(traces[r, ]), constants)
         hmc$load_param_list(from = new_param_defs, append = FALSE)
-
-        # run simulation
-        dataset <- hmc$simulate(seed = rng_seeds[r], 
-                                progress = FALSE, n_threads = 1)
-
-        # retrieve and return results
-        return(retrieve_cases_by_size(dataset))
+        # run simulation and extract cases by size
+        return(retrieve_cases_by_size(
+          hmc$simulate(seed = rng_seeds[r], progress = FALSE)
+        ))
       }
 
       if (isTRUE(progress)) {
@@ -438,7 +435,7 @@ ExpectedCases <- R6::R6Class(
     #' Whether to show footer with Chi-squared test.
     #' @param cri_format `character(1)`\cr
     #' Formatting string for the credible interval passed to `sprintf`.
-    #' It expects three double values (mean, CRI lower and CRI upper).
+    #' It expects 3 double values (mean, CRI lower and CRI upper).
     #'
     #' @return
     #' `flextable` | `data.frame`

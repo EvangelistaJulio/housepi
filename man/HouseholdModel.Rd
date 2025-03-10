@@ -62,7 +62,9 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-drop_augm_defs}{\code{HouseholdModel$drop_augm_defs()}}
 \item \href{#method-HouseholdModel-drop_group_rate_defs}{\code{HouseholdModel$drop_group_rate_defs()}}
 \item \href{#method-HouseholdModel-drop_all}{\code{HouseholdModel$drop_all()}}
+\item \href{#method-HouseholdModel-import_dataset}{\code{HouseholdModel$import_dataset()}}
 \item \href{#method-HouseholdModel-show_summary}{\code{HouseholdModel$show_summary()}}
+\item \href{#method-HouseholdModel-show_house_size_summary}{\code{HouseholdModel$show_house_size_summary()}}
 \item \href{#method-HouseholdModel-add_param}{\code{HouseholdModel$add_param()}}
 \item \href{#method-HouseholdModel-load_param_list}{\code{HouseholdModel$load_param_list()}}
 \item \href{#method-HouseholdModel-load_param_template}{\code{HouseholdModel$load_param_template()}}
@@ -183,14 +185,63 @@ Drop all current definitions.
 
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-import_dataset"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-import_dataset}{}}}
+\subsection{Method \code{import_dataset()}}{
+Import a new dataset.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_dataset(dataset = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{dataset}}{\code{data.frame}\cr
+A data.frame containing the dataset with individual information by row.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-show_summary"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-show_summary}{}}}
 \subsection{Method \code{show_summary()}}{
-Show formatted dataset summary.
+Show formatted summary of loaded dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$show_summary()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$show_summary(pct_format = "\%.1f\%\%")}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{pct_format}}{\code{character(1)}\cr
+Formatting string for the percentage passed to \code{sprintf}.
+It expects 1 double value (fraction).}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{flextable}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-show_house_size_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-show_house_size_summary}{}}}
+\subsection{Method \code{show_house_size_summary()}}{
+Show formatted summary of housheold sizes.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$show_house_size_summary(pct_format = "\%.1f\%\%")}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{pct_format}}{\code{character(1)}\cr
+Formatting string for the percentage passed to \code{sprintf}.
+It expects 1 double value (fraction).}
+}
+\if{html}{\out{</div>}}
+}
 \subsection{Returns}{
 \code{flextable}
 }
@@ -266,7 +317,7 @@ Associate parameters from a list.
 \describe{
 \item{\code{...}}{Parameter names with respective list of definitions.}
 
-\item{\code{from}}{(named \code{list()}\cr
+\item{\code{from}}{named \code{list()}\cr
 Named list of parameter definitions.}
 
 \item{\code{append}}{\code{logical(1)}\cr
@@ -288,7 +339,8 @@ Load parameter definitions from model template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
+\item{\code{append}}{\code{logical(1)}\cr
+If \code{TRUE} append only missing definitions (default).
 Else drop all previous definitions.}
 }
 \if{html}{\out{</div>}}
@@ -344,7 +396,7 @@ IF \code{TRUE} the augmenter variable is discrete.}
 \item{\code{model}}{\code{character(1)}\cr
 Name of the model distribution.}
 
-\item{\code{args}}{(named \code{list()}\cr
+\item{\code{args}}{named \code{list()}\cr
 Arguments for the model distribution.}
 
 \item{\code{rule}}{\code{character(1)}\cr
@@ -393,7 +445,7 @@ Associate augmented variables from a list.
 \describe{
 \item{\code{...}}{Augmented variable names with respective list of definitions.}
 
-\item{\code{from}}{(named \code{list()}\cr
+\item{\code{from}}{named \code{list()}\cr
 Named list of augmented variable definitions.}
 
 \item{\code{append}}{\code{logical(1)}\cr
@@ -457,7 +509,7 @@ Corresponding dataset column have to be categorical.}
 \item{\code{prefix}}{\code{character(1)}\cr
 Prefix to parameter names associated to the group rate.}
 
-\item{\code{reference}}{(named \code{list()}\cr
+\item{\code{reference}}{named \code{list()}\cr
 Choose reference group providing corresponding features.
 Default is the group with the largest sample size.}
 
@@ -469,7 +521,7 @@ Name of the prior distribution.
 Default associated parameter definitions
 have prior "lnorm" and \code{args = list(meanlog = 0, sdlog = 3)}.}
 
-\item{\code{args}}{(named \code{list()}\cr
+\item{\code{args}}{named \code{list()}\cr
 Arguments for the prior distribution.}
 
 \item{\code{rule}}{\code{character(1)}\cr
@@ -512,7 +564,7 @@ Name of the infectivity profile.}
 \item{\code{discrete}}{\code{logical(1)}\cr
 If \code{TRUE} the profile is discrete.}
 
-\item{\code{args}}{(named \code{list()}\cr
+\item{\code{args}}{named \code{list()}\cr
 Arguments (eventually with types) for the profile.}
 
 \item{\code{min}}{\code{double(1)} | \code{character(1)}\cr
@@ -561,7 +613,7 @@ Number of bins for continuous profile (ignored if discrete).}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{data.frame}\cr
+\code{data.frame}
 }
 }
 \if{html}{\out{<hr>}}
@@ -638,14 +690,9 @@ If \code{FALSE} suppress the inference progress bar.}
 \if{html}{\out{<a id="method-HouseholdModel-simulate"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-simulate}{}}}
 \subsection{Method \code{simulate()}}{
-Run the simulation and return data.frame with simulated dataset.
+Run simulation and return data.frame with simulated dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$simulate(
-  dataset = NULL,
-  n_threads = 1,
-  seed = NA,
-  progress = FALSE
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$simulate(dataset = NULL, seed = NA, progress = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -653,9 +700,6 @@ Run the simulation and return data.frame with simulated dataset.
 \describe{
 \item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset.}
-
-\item{\code{n_threads}}{\code{integer(1)}\cr
-Number of threads for the parallelization of the loglikelihood.}
 
 \item{\code{seed}}{\code{integer(1)}\cr
 Seed of the random number generator.
@@ -667,7 +711,7 @@ If \code{FALSE} suppress the simulation progress bar.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{data.frame}\cr
+\code{data.frame}
 }
 }
 \if{html}{\out{<hr>}}
@@ -757,7 +801,7 @@ A data.frame containing the dataset.}
 If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
 Other available scheme is "power-fractions".}
 
-\item{\code{n_rungs}}{\code{integer}\cr
+\item{\code{n_rungs}}{\code{integer(1)}\cr
 Number of rungs in the thermodynamic ladder.}
 
 \item{\code{sample_size}}{\code{integer(1)}\cr
@@ -791,8 +835,7 @@ If \code{FALSE} suppress the simulation progress bar.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{double(1)}\cr
-The value of the model evidence.
+\code{double(1)}
 }
 }
 \if{html}{\out{<hr>}}

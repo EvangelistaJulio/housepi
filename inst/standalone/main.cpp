@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
     else if (is_simulate)
     { //===== Simulation Study =====//
         if (output_file != NULL_STRING)
-        {
+        {   
             tools::print_decorator("Simulation",
                                    "# save: " + output_file,
                                    C_DECOR, verbose);
