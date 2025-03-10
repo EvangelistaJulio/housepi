@@ -278,7 +278,7 @@ void MCMC::aux_simulate()
         //===== Simulation =====//
         //======================//
 
-        progress::Bar progressbar(n_houses(), "simulate", pImpl->setup_is_progbar);
+        progress::Bar progressbar(n_houses(), "simulate", pImpl->setup_progress);
 
         for (size_t H = 0; H < n_houses(); ++H)
         {
@@ -289,7 +289,12 @@ void MCMC::aux_simulate()
             {
                 Household house_copy = get_household(H);
                 simulate_single_house(house_copy);
+                
+#ifdef _HOUSEPI_RCPP
                 pImpl->_aux_export_dataset_update_(house_copy);
+#else
+                pImpl->_aux_print_dataset_update_(house_copy);
+#endif
             }
             catch (const std::exception &e)
             {

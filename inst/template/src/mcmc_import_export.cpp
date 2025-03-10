@@ -24,7 +24,7 @@ void rlist_to_map(const Rcpp::List &list,
     CharacterVector keys = list.names();
 
     output.clear();
-    for (int i = 0; i < list.size(); ++i)
+    for (R_xlen_t i = 0; i < list.size(); ++i)
     {
         RObject element = list[i];
         output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
@@ -40,7 +40,7 @@ void rdataframe_to_map(const Rcpp::DataFrame &df,
     CharacterVector keys = df.names();
 
     output.clear();
-    for (size_t i = 0; i < df.size(); ++i)
+    for (R_xlen_t i = 0; i < df.size(); ++i)
     {
         CharacterVector col_str = as<CharacterVector>(df[i]);
         str_vec col_data(col_str.begin(), col_str.end());
@@ -168,7 +168,7 @@ Rcpp::List MCMC::Impl::export_setup() const
                         _["seed"] = setup_seed,
                         _["n_threads"] = setup_n_threads,
                         _["id_trace"] = setup_id_trace,
-                        _["progress"] = setup_is_progbar,
+                        _["progress"] = setup_progress,
                         _["inv_temper"] = setup_inv_T);
 }
 
@@ -738,7 +738,7 @@ void MCMC::Impl::show_setup() const
         << "\nn_burnin" << C_DELIM << setup_n_burnin
         << "\nthin" << C_DELIM << setup_thin
         << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
-        << "\nprogress" << C_DELIM << tools::truth(setup_is_progbar)
+        << "\nprogress" << C_DELIM << tools::truth(setup_progress)
         << "\nid_trace" << C_DELIM << setup_id_trace
         << "\ninv_temper" << C_DELIM << setup_inv_T
         << "\n";
@@ -950,57 +950,67 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::print_dataset(const std::vector<Household> &hh_vec,
-                               const std::string &pathtofile) const
+void MCMC::Impl::_aux_print_dataset_init_(const std::string &pathtofile)
 {
     if (!tools::is_na(pathtofile))
     {
-        std::ofstream augm_ofstream;
-        augm_ofstream.open(pathtofile.c_str());
-
-        if (augm_ofstream.is_open())
+        aux_data_ofstream.open(pathtofile.c_str());
+        if (aux_data_ofstream.is_open())
         {
-            //===== Print column headers =====//
-            // default headers
-            augm_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
+            // print default data headers
+            aux_data_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
 
-            // data headers
+            // print other data headers
             for (const dataID &d : data_headers)
-                augm_ofstream << C_DELIM << d;
+                aux_data_ofstream << C_DELIM << d;
 
-            // augmented variables headers
+            // print augmented variables headers
             for (const augmID &a : augm_list_full)
-                augm_ofstream << C_DELIM << a;
+                aux_data_ofstream << C_DELIM << a;
 
-            augm_ofstream << std::endl;
-
-            //===== Print data and augmented variables =====//
-            for (const Household &house : hh_vec)
-                for (indiv i = 0; i < house.size(); ++i)
-                {
-                    augm_ofstream << house.id(i)
-                                  << C_DELIM << house.house_id()
-                                  << C_DELIM << house.status(i);
-                    for (const dataID &d : data_headers)
-                        augm_ofstream << C_DELIM << house.data(i, d);
-
-                    for (const augmID &a : augm_list_full)
-                        if (house.status(i) == INFECTED_STATUS)
-                            augm_ofstream << C_DELIM << house.augm(i, a);
-                        else
-                            augm_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
-
-                    augm_ofstream << std::endl;
-                }
-
-            augm_ofstream.close();
+            aux_data_ofstream << std::endl;
         }
         else
-        {
             throw std::runtime_error(
                 "Unable to open file: " + pathtofile);
+    }
+}
+
+/* Print all augmented variables of each individual */
+void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
+{
+    if (aux_data_ofstream.is_open())
+    {
+        for (indiv i = 0; i < house.size(); ++i)
+        {
+            aux_data_ofstream << house.id(i)
+                              << C_DELIM << house.house_id()
+                              << C_DELIM << house.status(i);
+            for (const dataID &d : data_headers)
+                aux_data_ofstream << C_DELIM << house.data(i, d);
+
+            for (const augmID &a : augm_list_full)
+                if (house.status(i) == INFECTED_STATUS)
+                    aux_data_ofstream << C_DELIM << house.augm(i, a);
+                else
+                    aux_data_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
+
+            aux_data_ofstream << std::endl;
         }
     }
+    else
+        throw std::runtime_error(
+            "Output file closed unexpectedly.");
+}
+
+/* Print all augmented variables of each individual */
+void MCMC::Impl::_aux_print_dataset_finalize_()
+{                
+    if (aux_data_ofstream.is_open())
+        aux_data_ofstream.close();
+    else
+        throw std::runtime_error(
+            "Output file closed unexpectedly.");
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -1032,7 +1042,12 @@ void MCMC::show_summary() const { pImpl->show_summary(); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::print_infer_state(const std::string &pathtofile) const { pImpl->print_infer_state(pathtofile); }
-void MCMC::print_dataset(const std::vector<Household> &hh_vec,
-                         const std::string &pathtofile) const { pImpl->print_dataset(hh_vec, pathtofile); }
+
+void MCMC::print_simulated_dataset(const std::string &pathtofile)
+{
+    pImpl->_aux_print_dataset_init_(pathtofile);
+    aux_simulate();
+    return pImpl->_aux_print_dataset_finalize_();
+}
 
 #endif

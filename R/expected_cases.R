@@ -114,7 +114,7 @@ retrieve_sar_from_casesbysize <- function(cases_df) {
   cases_df$size <- NULL
   # drop zero size column
   cases_df$`0` <- NULL
-  cases_df <- cases_df[as.integer(row.names(cases_df)) > 1,]
+  cases_df <- cases_df[as.integer(row.names(cases_df)) > 1, ]
 
   # total n. cases (row names stay stored)
   n <- rowSums(cases_df, na.rm = TRUE)
@@ -176,9 +176,10 @@ ExpectedCases <- R6::R6Class(
       mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
 
       # implement max household size mask
-      if (!is.na(private$.max_house_size)) {
-        col_max <- which(colnames(obsdf) == as.character(private$.max_house_size))
-        row_max <- which(rownames(obsdf) == as.character(private$.max_house_size))
+      mhs <- private$.max_house_size
+      if (!is.na(mhs)) {
+        col_max <- which(colnames(obsdf) == as.character(mhs))
+        row_max <- which(rownames(obsdf) == as.character(mhs))
 
         mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
@@ -202,7 +203,7 @@ ExpectedCases <- R6::R6Class(
       sar_list <- lapply(y, retrieve_sar_from_casesbysize)
 
       # compute mean values
-      f_mean <- function(x) { mean(x, na.rm = TRUE) }
+      f_mean <- function(x) mean(x, na.rm = TRUE)
       private$.sar$expected <- frame_apply(f_mean, sar_list)
       private$.case_table$expected <- frame_apply(f_mean, y)
 
@@ -217,14 +218,14 @@ ExpectedCases <- R6::R6Class(
         stats::quantile(x, probs = 0.5 * (1 - private$.cri_level), na.rm = TRUE)
       }
       private$.sar$cri_lower <- frame_apply(f_cri_lower, sar_list)
-      private$.case_table$cri_lower = frame_apply(f_cri_lower, y)
+      private$.case_table$cri_lower <- frame_apply(f_cri_lower, y)
 
       # compute upper credible interval
       f_cri_upper <- function(x) {
         stats::quantile(x, probs = 0.5 * (1 + private$.cri_level), na.rm = TRUE)
       }
       private$.sar$cri_upper <- frame_apply(f_cri_upper, sar_list)
-      private$.case_table$cri_upper = frame_apply(f_cri_upper, y)
+      private$.case_table$cri_upper <- frame_apply(f_cri_upper, y)
 
       invisible(self)
     }
@@ -253,7 +254,7 @@ ExpectedCases <- R6::R6Class(
 
         n <- private$.case_table$observed[row.names(output), ]
         n$size <- NULL
-        n$`0`<- NULL
+        n$`0` <- NULL
         output$counts <- as.vector(rowSums(n, na.rm = TRUE))
 
         return(output)
@@ -285,7 +286,7 @@ ExpectedCases <- R6::R6Class(
                           cri_level = 0.95,
                           progress = NA) {
       # check credible interval
-      if( (cri_level <= 0) || (cri_level >= 1)) {
+      if ((cri_level <= 0) || (cri_level >= 1)) {
         stop_h(
           "Credible interval level must be a value between 0 and 1."
         )
@@ -367,7 +368,7 @@ ExpectedCases <- R6::R6Class(
 
     #' @description
     #' Set maximum household size to consider in result outputs.
-    #' 
+    #'
     #' @param n `integer(1)`\cr
     #' Maximum household size. If `NA`, restore observed maximum.
     set_max_house_size = function(n) {
@@ -386,7 +387,7 @@ ExpectedCases <- R6::R6Class(
     #' Perform Chi-squared test and return list with results.
     #'
     #' @param lower.tail `logical(1)`\cr
-    #' if TRUE (default), probabilities are P[X≤x], otherwise P[X>x].
+    #' if TRUE (default), probabilities are P[X<=x], otherwise P[X>x].
     #'
     #' @return
     #' `list()`)
@@ -422,7 +423,9 @@ ExpectedCases <- R6::R6Class(
             x = house_size + 0.25, y = observed, label = sprintf("[%s]", counts)
           ),
           color = col_dict["Observed"]) +
-          ggplot2::labs(x = "Household Size", y = "Secondary Attack Rate", color = "Distribution") +
+          ggplot2::labs(x = "Household Size",
+                        y = "Secondary Attack Rate",
+                        color = "Distribution") +
           ggplot2::scale_color_manual(values = col_dict)
         return(g)
       }
@@ -497,7 +500,7 @@ ExpectedCases <- R6::R6Class(
                      distr = "Distribution",
                      cases = "Number of cases")
         )
-        ft <- flextable::autofit(ft, add_w = 0, add_h=0)
+        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
         ft <- flextable::colformat_num(ft, big.mark = "")
 
         if (isTRUE(show_chisq)) {

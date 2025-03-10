@@ -342,7 +342,7 @@ HousepiGroupRate <- R6::R6Class(
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
           warning_h(
-            "Missing group rate(s):", 
+            "Missing group rate(s):",
             character_to_string_list(missing_set)
           )
         }
@@ -433,7 +433,7 @@ HousepiGroupRate <- R6::R6Class(
         "/* Generated automatically -> do not edit by hand */",
         "void Model::assign_group_rate_to_individual(Household &house, indiv i)",
         "{",
-        sapply(rate_script, function(x) { paste0(tab_, x) }),
+        sapply(rate_script, function(x) paste0(tab_, x)),
         "}"
       ), collapse = "\n")
 
@@ -481,10 +481,10 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Overwrite script to source code 'model.cpp'.
-    #' 
+    #'
     #' @param dataset
     #' Dataset to be considered.
-    #' 
+    #'
     #' @return `logical(1)`\cr
     #' Whether code requires recompilation or not.
     cpp_write = function(dataset,
@@ -501,7 +501,10 @@ HousepiGroupRate <- R6::R6Class(
       lines <- readLines(refer_file)
 
       # find the start of the method definition
-      start_line <- grep("^void\\s+Model::assign_group_rate_to_individual\\s*\\(", lines)
+      start_line <- grep(
+        "^void\\s+Model::assign_group_rate_to_individual\\s*\\(",
+        lines
+      )
 
       if (length(start_line) == 0) {
         warning_h("Model does not accommodate for group rates.")

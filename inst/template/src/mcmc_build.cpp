@@ -55,7 +55,7 @@ void MCMC::Impl::build_setup()
 
         setup_seed = static_cast<ulong>(time_now); // seed of random number generator
         setup_rand_init_params = true;             // random initialization of parameters
-        setup_is_progbar = true;                   // if to show progressbar
+        setup_progress = true;                     // if to show progressbar
 
         setup_n_chains = 1;    // n. chains
         setup_n_steps = 10000; // n. iterations
@@ -82,7 +82,7 @@ void MCMC::Impl::build_setup()
 
             // Random Initialization of Parameters
             if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
-                setup_is_progbar = tools::stobool(deflist.at("progress"));
+                setup_progress = tools::stobool(deflist.at("progress"));
 
             // N. of Threads
             if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
@@ -739,36 +739,43 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
             // assign augmented variable of the corresponding status or undefined status
             if ((tools::is_na(augm_status)) || (house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
-                //----- Index -----//
+                // index 
                 // |====> UPDATE: to be implemented <===|
                 augmID a = deftable.at("name")[k];
-
-                //----- Name -----//
                 const std::string &name = deftable.at("name")[k];
 
-                //----- is Constant -----//
-                bool is_constant = tools::stobool(deftable.at("constant")[k]);
-
-                //----- Value -----//
+                // initial value
                 double value = type_to_double(deftable.at("value")[k],
                                               deftable.at("value_at")[k],
                                               house, i);
-
-                //----- Model -----//
+                // constant flag
+                bool is_constant = tools::stobool(deftable.at("constant")[k]);
+                // discretization flag
+                bool is_discrete = tools::stobool(deftable.at("discrete")[k]);
+                // model name
                 const std::string &model_name = deftable.at("model")[k];
 
-                //----- is Discrete -----//
-                bool is_discrete = tools::stobool(deftable.at("discrete")[k]);
+                // UPDATE: what if constant = T, discrete = T and value != int?
 
-                if (is_constant)
+                // assign augmented variable
+                house.assign_augm(i, a, name, value,
+                                  is_discrete, model_name);
+                // model arguments
+                assign_augm_type_args(house, i, a,
+                                      tools::parse_list_args(deftable.at("arg_name")[k]),
+                                      tools::parse_list_args(deftable.at("arg_value")[k]),
+                                      tools::parse_list_args(deftable.at("arg_at")[k]));
+                // validity range
+                assign_augm_type_range(house, i, a,
+                                       deftable.at("min")[k],
+                                       deftable.at("min_at")[k],
+                                       deftable.at("max")[k],
+                                       deftable.at("max_at")[k]);
+
+                // non constant definitions
+                if (!is_constant)
                 {
-                    //----- Assign Constant Augmented Variable -----//
-                    house.assign_augm(i, a, name, value,
-                                      is_discrete, model_name);
-                }
-                else
-                {
-                    //----- Proposer Rule -----//
+                    // assign proposer rule
                     const std::string &rule_name = deftable.at("rule")[k];
                     double rule_scale = type_to_double(deftable.at("rule_scale")[k],
                                                        deftable.at("rule_scale_at")[k],
@@ -776,30 +783,14 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                     double rule_from = type_to_double(deftable.at("rule_from")[k],
                                                       deftable.at("rule_from_at")[k],
                                                       house, i);
+                    house.assign_augm_proposer(i, a,
+                                               rule_name, rule_scale, rule_from);
 
-                    //----- Assign Augmented Variable -----//
-                    house.assign_augm(i, a, name, value,
-                                      is_discrete, model_name,
-                                      rule_name, rule_scale, rule_from);
-                }
-
-                //----- Arguments -----//
-                assign_augm_type_args(house, i, a,
-                                      tools::parse_list_args(deftable.at("arg_name")[k]),
-                                      tools::parse_list_args(deftable.at("arg_value")[k]),
-                                      tools::parse_list_args(deftable.at("arg_at")[k]));
-
-                //----- Range -----//
-                assign_augm_type_range(house, i, a,
-                                       deftable.at("min")[k],
-                                       deftable.at("min_at")[k],
-                                       deftable.at("max")[k],
-                                       deftable.at("max_at")[k]);
-
-                // random initialization at assignment
-                if (!is_constant)
+                    // random initialization
+                    // UPDATE: I would like a more general switch for this
                     if (tools::stobool(deftable.at("init_rand")[k]))
                         house.augm_model_rand(i, name, get_prng());
+                }
             }
         }
     }
@@ -1163,7 +1154,8 @@ void MCMC::Impl::build_data(const dict_str_vec &datatable)
 
             //===== Clean up data entries for output files =====//
             // eventually remove standard headers to reorder them at the end
-            for (const std::string &col : {"house_id", "id", "status"})
+            const str_vec def_data_headers = {"house_id", "id", "status"};
+            for (const std::string &col : def_data_headers)
                 data_headers.erase(
                     std::remove(data_headers.begin(), data_headers.end(), col),
                     data_headers.end());

@@ -451,7 +451,7 @@ HousepiAugmented <- R6::R6Class(
       } else {
         # find missing augmented variables
         missing_set <- template_find_missing(requirements,
-                                            self$defs[["name"]])
+                                             self$defs[["name"]])
 
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE

@@ -97,7 +97,7 @@ public:
 
     ulong setup_seed;             // random generator seed
     bool setup_rand_init_params;  // random initialization of parameters
-    bool setup_is_progbar = true; // if to show progressbar
+    bool setup_progress = true; // if to show progressbar
 
     ulong setup_n_chains; // n. chains
     ulong setup_n_steps;  // n. iterations
@@ -281,9 +281,12 @@ public:
     void show_results() const;
 
     //----- Cpp Prints -----//
+    std::ofstream aux_data_ofstream;
+    void _aux_print_dataset_init_(const std::string &pathtofile);
+    void _aux_print_dataset_update_(const Household &house);
+    void _aux_print_dataset_finalize_();
+    
     void print_infer_state(const std::string &pathtofile) const;
-    void print_dataset(const std::vector<Household> &hhvec,
-                       const std::string &pathtofile) const;
 #endif
 
     //=================//

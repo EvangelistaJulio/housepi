@@ -16,7 +16,7 @@ MCMC::~MCMC() = default;
 
 //===== DATA =====//
 Household &MCMC::get_household(size_t H) const { return pImpl->house_vector.at(H); }
-size_t MCMC::n_houses() const { return pImpl->n_households; }
+ulong MCMC::n_houses() const { return pImpl->n_households; }
 
 ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_report_indiv(key); }
 ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
@@ -572,7 +572,7 @@ void MCMC::infer()
 
         // start progress bar and chrono
         progress::Bar progressbar(pImpl->setup_c_n_sweeps * pImpl->setup_n_chains,
-                                  pImpl->fmt_progtxt(), pImpl->setup_is_progbar);
+                                  pImpl->fmt_progtxt(), pImpl->setup_progress);
 
         run_monte_carlo(progressbar); // run Monte Carlo
         progressbar.finalize();       // close progress bar
@@ -637,7 +637,7 @@ double MCMC::estimate_evidence(const std::string &scheme, int n_rungs)
 
         // start progress bar and chrono
         progress::Bar progressbar(rung_sweeps * (pImpl->_n_rungs_ + 1),
-                                  pImpl->fmt_progtxt(), pImpl->setup_is_progbar);
+                                  pImpl->fmt_progtxt(), pImpl->setup_progress);
 
         //==================================//
         //===== INVERSE TEMPEREATURE 0 =====//

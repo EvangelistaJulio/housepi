@@ -149,10 +149,7 @@ public:
 					 const std::string &name = NULL_STRING,
 					 double value = std::numeric_limits<double>::quiet_NaN(),
 					 bool is_discrete = false,
-					 const std::string &model_name = NULL_STRING,
-					 const std::string &rule_name = NULL_STRING,
-					 double rule_scale = NULL_DOUBLE,
-					 double rule_from = NULL_DOUBLE);
+					 const std::string &model_name = NULL_STRING);
 
 	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
 									  const std::string &arg_name,
@@ -171,6 +168,12 @@ public:
 	void assign_augm_model_pointer_range_max(indiv i, const augmID &a,
 											 const double *ptr_to_arg_value);
 	void init_augm_model_reshaping(indiv i, const augmID &a);
+
+	void assign_augm_proposer(indiv i,
+							  const augmID &a = NULL_STRING,
+							  const std::string &rule_name = NULL_STRING,
+							  double rule_scale = NULL_DOUBLE,
+							  double rule_from = NULL_DOUBLE);
 
 	void set_augm_value(indiv i, const augmID &a, double x);
 	void augm_model_rand(indiv i, const augmID &a, rnd_gen &prng);
@@ -227,8 +230,8 @@ public:
 
 private:
 	std::string _house_id = NULL_STRING; // user id
-	size_t _index = -1;					// index of household
-	ushort house_size = 0;				// number of house members
+	size_t _index = -1;					 // index of household
+	ushort house_size = 0;				 // number of house members
 
 	std::vector<Individual> members = {}; //
 

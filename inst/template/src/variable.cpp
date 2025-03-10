@@ -506,6 +506,7 @@ void Variable::assign_proposer(const std::string &rule_name,
 
             // assign the pointer to the proposer
             _prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, is_discrete());
+
             // sampler
             if (is_from_zero())
                 _func_propose_ = &Variable::_propose_from_zero_;

@@ -182,8 +182,7 @@ public:
 
 	//----- C++ Print -----//
 	void print_infer_state(const std::string &output_filename = NULL_STRING) const;
-	void print_dataset(const std::vector<Household> &hh_vec,
-					   const std::string &output_filename = NULL_STRING) const;
+	void print_simulated_dataset(const std::string &output_filename = NULL_STRING);
 #endif
 
 private:

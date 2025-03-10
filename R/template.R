@@ -6,7 +6,7 @@
 
 #' @description
 #' Show list of all available template nmodel names.
-#' 
+#'
 #' @noRd
 show_model_names <- function() {
 
@@ -228,6 +228,6 @@ template_find_unused <- function(required_set,
 #'
 #' @noRd
 character_to_string_list <- function(mylist) {
-  return(paste0(paste(lapply(mylist, function(x) { paste0("\"", x, "\"") }),
-                collapse = ", "), "."))
+  return(paste0(paste(lapply(mylist, function(x) paste0("\"", x, "\"")),
+                      collapse = ", "), "."))
 }

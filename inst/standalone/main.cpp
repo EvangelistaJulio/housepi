@@ -182,12 +182,11 @@ int main(int argc, char *argv[])
     else if (is_simulate)
     { //===== Simulation Study =====//
         if (output_file != NULL_STRING)
-        {   
+        {
             tools::print_decorator("Simulation",
                                    "# save: " + output_file,
                                    C_DECOR, verbose);
-            user_model->print_dataset(user_model->aux_simulate(),
-                                      output_file);
+            user_model->print_simulated_dataset(output_file);
         }
         else
             tools::error("Missing output file for simulation.");

@@ -477,16 +477,15 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
     ############################################################################
-    
+
     #' @description
     #' Show formatted summary of loaded dataset.
-    #' 
+    #'
     #' @param pct_format `character(1)`\cr
     #' Formatting string for the percentage passed to `sprintf`.
     #' It expects 1 double value (fraction).
-    #' 
-    #' @return
-    #' `flextable`
+    #'
+    #' @return `flextable`
     show_summary = function(pct_format = "%.1f%%") {
       if (requireNamespace("flextable", quietly = FALSE)) {
 
@@ -500,7 +499,7 @@ HousepiGenerator <- R6::R6Class(
         ft <- flextable::align(ft, align = "left", part = "all")
         ft <- flextable::merge_v(ft, j = ~ type)
         ft <- flextable::bold(ft, j = ~ type, bold = TRUE)
-        ft <- flextable::autofit(ft, add_w = 0, add_h=0)
+        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
         ft <- flextable::labelizor(
           ft, part = "all",
           labels = c(type = "", comment = "", pct = "[%]")
@@ -512,13 +511,12 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Show formatted summary of housheold sizes.
-    #' 
+    #'
     #' @param pct_format `character(1)`\cr
     #' Formatting string for the percentage passed to `sprintf`.
     #' It expects 1 double value (fraction).
-    #' 
-    #' @return
-    #' `flextable`
+    #'
+    #' @return `flextable`
     show_house_size_summary = function(pct_format = "%.1f%%") {
       if (requireNamespace("flextable", quietly = FALSE)) {
         combined <- self$summary_house_size
@@ -529,7 +527,7 @@ HousepiGenerator <- R6::R6Class(
         ft <- flextable::theme_vanilla(ft)
         ft <- flextable::align(ft, align = "left", part = "all")
         ft <- flextable::bold(ft, j = ~ comment + value, bold = TRUE)
-        ft <- flextable::autofit(ft, add_w = 0, add_h=0)
+        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
         ft <- flextable::labelizor(
           ft, part = "all",
           labels = c(comment = "", value = "n.", pct = "[%]")
@@ -623,8 +621,7 @@ HousepiGenerator <- R6::R6Class(
     #' @param n_bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
     #'
-    #' @return
-    #' `data.frame`\cr
+    #' @return `data.frame`
     export_infectivity_profile = function(opts = list(),
                                           xlim = double(),
                                           n_bins = 2000) {
@@ -670,9 +667,8 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Wrapper of the Rcpp infer method.
-    #' 
-    #' @return 
-    #' `data.frame`
+    #'
+    #' @return `data.frame`
     simulate = function() {
       return(private$.rcpp$simulate())
     },

@@ -121,8 +121,8 @@ Household::~Household() = default;
 
 /* Link an individual to the household. */
 void Household::assign_individual(const std::string &id,
-										int status,
-										const dataIDmap<double> &data)
+								  int status,
+								  const dataIDmap<double> &data)
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
@@ -244,9 +244,9 @@ ushort Household::n_missing_status() const { return _n_missing_status; }
 double Household::get_loglike() const { return house_loglike; }
 double Household::get_delta_loglike() const { return house_loglike - buffer; }
 
-const std::vector<indiv> & Household::infected_status_list() const { return _infectious_list; }
-const std::vector<indiv> & Household::healthy_status_list() const { return _susceptible_list; }
-const std::vector<indiv> & Household::missing_status_list() const { return _missing_status_list; }
+const std::vector<indiv> &Household::infected_status_list() const { return _infectious_list; }
+const std::vector<indiv> &Household::healthy_status_list() const { return _susceptible_list; }
+const std::vector<indiv> &Household::missing_status_list() const { return _missing_status_list; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
@@ -262,15 +262,13 @@ void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double 
 	members[i].assign_all_group_rates(x);
 }
 
-/* Assign definitions for the augmented variables. */
+/* Assign definitions for the augmented variable model. */
 void Household::assign_augm(indiv i, const augmID &a, const std::string &name, double value,
-							bool is_discrete, const std::string &model_name,
-							const std::string &rule_name, double rule_scale, double rule_from)
+							bool is_discrete, const std::string &model_name)
 {
 	Variable &this_augm = members[i].augm_map.at(a);
 	this_augm.init(name, value, is_discrete);
 	this_augm.assign_distribution(model_name);
-	this_augm.assign_proposer(rule_name, rule_scale, rule_from);
 }
 
 /* Assign scalar argument for augmented variable model. */
@@ -323,6 +321,18 @@ void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng)
 	members[i].augm_map.at(a).rand(prng);
 }
 
+/* Assign definitions for the augmented variable proposer. */
+void Household::assign_augm_proposer(indiv i, const augmID &a, const std::string &rule_name,
+									 double rule_scale, double rule_from)
+{
+	Variable &this_augm = members[i].augm_map.at(a);
+	this_augm.assign_proposer(rule_name, rule_scale, rule_from);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Household : augmented moves  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* True if the propose augm move is valid. */
 bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 {
@@ -347,8 +357,6 @@ void Household::restore_augm_value(indiv i, const augmID &a)
 
 /* Assign empty augmented variable. */
 void Household::clear_augm(indiv i, const augmID &a) { members[i].augm_map[a] = Variable(); }
-
-//===== DIAGNOSTICS =====//
 
 /* Update the values for the Bayesian diagnostics. */
 void Household::init_diagnostics(ulong sample_size)

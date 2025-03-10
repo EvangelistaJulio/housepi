@@ -36,8 +36,7 @@ HouseholdModel <- R6::R6Class(
     # @param data_headers `character()`\cr
     # Vector with the dataset headers.
     #
-    # @return
-    # `logical(1)`
+    # @return `logical(1)`
     .assert_data = function(refer_file, data_headers) {
       # logical state for complete definitions
       is_def_complete <- TRUE
@@ -73,8 +72,7 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if parameter definitions match the implementation script.
     #
-    # @return
-    # `logical(1)`
+    # @return `logical(1)`
     .assert_param = function() {
       # extract requirements from reference file
       # note is.null(c()) -> TRUE
@@ -93,8 +91,7 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if augmented definitions match the model implementation script.
     #
-    # @return
-    # `logical(1)`
+    # @return `logical(1)`
     .assert_augm = function() {
       if (private$.model$is_blank) {
         return(TRUE)
@@ -108,8 +105,7 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert group rate definitions from the model implementation script.
     #
-    # @return
-    # `logical(1)`
+    # @return `logical(1)`
     .assert_group_rate = function() {
       if (private$.model$is_blank) {
         return(TRUE)
@@ -141,7 +137,7 @@ HouseholdModel <- R6::R6Class(
           # NOTE: at the moment I just cache group rate changes
           # search for the cache file
           source_file <- file.path(private$.model$cache_dir,
-                                  "src", "model.cpp")
+                                   "src", "model.cpp")
           # deal with the case cache has been deleted
           if (!file.exists(source_file)) {
             # check if it's a template
@@ -149,10 +145,10 @@ HouseholdModel <- R6::R6Class(
             if (file.exists(file.path(model_choice, "model.cpp"))) {
               # re-assign model object forcing copy of source to cache
               private$.model <- HousepiGenerator$new(model_choice,
-                                                    force = TRUE)
+                                                     force = TRUE)
               # assign new cache file
               source_file <- file.path(private$.model$cache_dir,
-                                      "src", "model.cpp")
+                                       "src", "model.cpp")
             } else {
               stop_h("Impossible to find reference file.")
             }
@@ -508,7 +504,7 @@ HouseholdModel <- R6::R6Class(
           stop_h("Incomplete dataset headers.")
         }
       }
-      
+
       # deal with group rates
       private$.build_group_rate(dataset)
 
@@ -521,11 +517,11 @@ HouseholdModel <- R6::R6Class(
 
     #' @description
     #' Show formatted summary of loaded dataset.
-    #' 
+    #'
     #' @param pct_format `character(1)`\cr
     #' Formatting string for the percentage passed to `sprintf`.
     #' It expects 1 double value (fraction).
-    #' 
+    #'
     #' @return
     #' `flextable`
     show_summary = function(pct_format = "%.1f%%") {
@@ -534,11 +530,11 @@ HouseholdModel <- R6::R6Class(
 
     #' @description
     #' Show formatted summary of housheold sizes.
-    #' 
+    #'
     #' @param pct_format `character(1)`\cr
     #' Formatting string for the percentage passed to `sprintf`.
     #' It expects 1 double value (fraction).
-    #' 
+    #'
     #' @return
     #' `flextable`
     show_house_size_summary = function(pct_format = "%.1f%%") {
@@ -920,7 +916,8 @@ HouseholdModel <- R6::R6Class(
                         seed = NA,
                         progress = FALSE) {
       # internal build function
-      private$.build(dataset = dataset, seed = seed, progress = progress)
+      private$.build(dataset = dataset, seed = seed, progress = progress,
+                     rand_init = FALSE)
 
       # call method from internal Rcpp object
       return(private$.model$simulate())
@@ -962,7 +959,8 @@ HouseholdModel <- R6::R6Class(
     loglikelihood = function(dataset = NULL,
                              n_threads = 1) {
       # internal build function
-      private$.build(dataset = dataset, n_threads = n_threads)
+      private$.build(dataset = dataset, n_threads = n_threads,
+                     rand_init = FALSE)
       return(private$.model$evaluate())
     },
 

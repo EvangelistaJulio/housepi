@@ -187,11 +187,7 @@ double Distribution::_discr_center_logratio_(double xold, double xnew, const dbl
     return std::log((raw_cdf(dnew + .5, opts) - raw_cdf(dnew - .5, opts)) / (raw_cdf(dold + .5, opts) - raw_cdf(dold - .5, opts)));
 }
 
-double Distribution::_discr_center_rand_(rnd_gen &prng)
-{
-    // UPDATE : lround to avoid casting like round(-0.1) -> -0.0
-    return static_cast<double>(std::lround(_default_rand_(prng)));
-}
+double Distribution::_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(_default_rand_(prng))); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Base Distribution : discretized LEFT  ////////////////////////////
@@ -372,26 +368,8 @@ double Distribution::_shift_min_discr_left_(double x, const dbl_vec &opts) const
 /* Default reshaping initialization. */
 void Distribution::init_reshaping(bool discrete)
 {
-    UNUSED(discrete);
-}
-/* Center discretization reshaping. */
-void Distribution::init_discr_center_reshaping(bool discrete)
-{
-    init_functional_range(false, false);
-
-    ushort discr_case = D_DISCR_TYPE_NONE;
-    if (discrete)
-        switch (which_valid_case())
-        {
-        case 1: //----- lower range truncation -----//
-            discr_case = D_DISCR_TYPE_LEFT;
-            break;
-        case 3: //----- both sides truncation -----//
-            discr_case = D_DISCR_TYPE_LEFT;
-            break;
-        default:
-            discr_case = D_DISCR_TYPE_CNTR;
-        }
+    // Note: this is necessary to have dynamic state variables.
+    ushort discr_case = (discrete) ? D_DISCR_TYPE_DFND : D_DISCR_TYPE_NONE;
     init_functional_discretization(discr_case);
     init_functional_truncation(discr_case);
 }
@@ -548,7 +526,6 @@ void Distribution::init_functional_truncation(ushort discr_type)
         _func_trunc_ = &Distribution::_trunc_dummy_;
         _func_logtrunc_ = &Distribution::_logtrunc_dummy_;
         _func_shift_ = &Distribution::_shift_dummy_;
-        _func_rand_ = &Distribution::_trunc_rand_;
         break;
     }
 }
@@ -624,7 +601,14 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override final
     {
-        init_discr_center_reshaping(discrete);
+        ushort discr_case = D_DISCR_TYPE_NONE;
+
+        init_functional_range(false, false);
+
+        if (discrete)
+            discr_case = D_DISCR_TYPE_CNTR;
+        init_functional_discretization(discr_case);
+        init_functional_truncation(discr_case);
     }
 
 protected:
@@ -681,7 +665,23 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override final
     {
-        init_discr_center_reshaping(discrete);
+        init_functional_range(false, false);
+
+        ushort discr_case = D_DISCR_TYPE_NONE;
+        if (discrete)
+            switch (which_valid_case())
+            {
+            case 1: //----- lower range truncation -----//
+                discr_case = D_DISCR_TYPE_LEFT;
+                break;
+            case 3: //----- both sides truncation -----//
+                discr_case = D_DISCR_TYPE_LEFT;
+                break;
+            default:
+                discr_case = D_DISCR_TYPE_CNTR;
+            }
+        init_functional_discretization(discr_case);
+        init_functional_truncation(discr_case);
     }
 
 protected:
