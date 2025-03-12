@@ -108,7 +108,7 @@ We run a simulation with the method `simulate`.
 
 ```{r}
 data("survey", package = "housepi")
-simulated <- hhmodel$simulate(survey, seed = 3731)
+simulated <- hhmodel$simulate(survey, seed = 3413)
 ```
 
 In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
@@ -160,13 +160,28 @@ hhclone$load_augm_list(
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
 hhclone$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
-              n_chains = 3, n_adapt = 2000, seed = 3413, progress = FALSE)
+              n_chains = 3, n_adapt = 2000, seed = 3731, progress = FALSE)
 ```
 
 ```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the traces of all chains 
 bayesplot::mcmc_trace(hhclone$traces)
 ```
+
+We can perform R-hat diagnostics extracting the values of $\hat{R}$
+
+```{r, include=FALSE}
+bayesplot::color_scheme_set(scheme = "orange")
+```
+
+```{r, fig.width=6, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# compute Rhat values associate to inferred parameters
+rhat <- hhclone$rhat()
+# use bayesplot to showcase Rhat statistics
+bayesplot::mcmc_rhat(rhat) + bayesplot::yaxis_text(hjust = 1)
+```
+
+Finally we wrap all together to compare to parameters used for simulation.
 
 ```{r}
 # collect the results
@@ -185,7 +200,7 @@ knitr::kable(check, digits = 4)
 
 ### Model Comparison
 
-We can estimate the model evidence (or marginal loglikelihood) with the method of the power posteriors:
+We can estimate the model "evidence" (also known as "marginal loglikelihood") with the method of the power posteriors:
 
 ```{r, eval=FALSE}
 # return the estimate of the model evidence

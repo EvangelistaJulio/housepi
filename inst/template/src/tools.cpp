@@ -679,13 +679,13 @@ namespace progress
         /* Initialize progress bar. */
         void initialize(const string &text)
         {
-            set_text(text);
-
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
             if (verbose)
             {
+                set_text(text);
+
                 std::ostringstream oss;
                 oss << text << " |" << string(barwidth, ' ') << "| "
                     << tools::percentage(0., 0) << " 0s<?";

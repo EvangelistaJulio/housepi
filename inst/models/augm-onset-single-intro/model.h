@@ -24,13 +24,10 @@ class Model : public MCMC
 public:
 	//===== Model dependent methods =====//
 	double transmission_rate(Household &house) const;
-	double _houseROI_(Household &house, indiv i, const matrix<double> &profiles) const;
-	double ROI_inst(Household &house, indiv i) const;
-	double ROI_cumul_infec(Household &house, indiv i) const;
-	double ROI_cumul_suscept(Household &house, indiv i) const;
-	double time_end_followup(Household &house) const;
-
-	void update_extra_for_simulation(Household &house, indiv i);
+	
+	double loglike_healthy(Household &house) const;
+	double loglike_infectious(Household &house) const;
+	double ROI_inst_for_simulation(Household &house, indiv i, double t_infec_i) const;
 
 	//===== Override General Methods =====//
 	void init_infec_profile() override final;

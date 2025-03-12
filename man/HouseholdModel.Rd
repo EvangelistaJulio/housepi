@@ -79,6 +79,7 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
 \item \href{#method-HouseholdModel-loglikelihood}{\code{HouseholdModel$loglikelihood()}}
 \item \href{#method-HouseholdModel-evidence}{\code{HouseholdModel$evidence()}}
+\item \href{#method-HouseholdModel-rhat}{\code{HouseholdModel$rhat()}}
 \item \href{#method-HouseholdModel-loo}{\code{HouseholdModel$loo()}}
 \item \href{#method-HouseholdModel-waic}{\code{HouseholdModel$waic()}}
 \item \href{#method-HouseholdModel-clone}{\code{HouseholdModel$clone()}}
@@ -839,10 +840,26 @@ If \code{FALSE} suppress the simulation progress bar.}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-rhat"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-rhat}{}}}
+\subsection{Method \code{rhat()}}{
+Use rstan package to compute R-hat convergence diagnostic.
+For further details type ?rstan::Rhat.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$rhat()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+named \code{vector()}
+Value of the Rhat for each parameter.
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-loo"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-loo}{}}}
 \subsection{Method \code{loo()}}{
 Use loo package to compute the leave-one-out cross-validation.
+For further details type ?loo::loo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$loo(...)}\if{html}{\out{</div>}}
 }
@@ -850,10 +867,13 @@ Use loo package to compute the leave-one-out cross-validation.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Arguments passed to \link[loo:loo]{loo}.
-For further details type ?loo::loo.}
+\item{\code{...}}{Arguments passed to \link[loo:loo]{loo}.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+smtg
+FIXME
 }
 }
 \if{html}{\out{<hr>}}
@@ -861,6 +881,7 @@ For further details type ?loo::loo.}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-waic}{}}}
 \subsection{Method \code{waic()}}{
 Use loo package to compute the widely applicable information criterion.
+For further details type ?loo::waic.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$waic(...)}\if{html}{\out{</div>}}
 }
@@ -868,10 +889,13 @@ Use loo package to compute the widely applicable information criterion.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Arguments passed to \link[loo:waic]{waic}.
-For further details type ?loo::waic.}
+\item{\code{...}}{Arguments passed to \link[loo:waic]{waic}.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+smtg
+FIXME
 }
 }
 \if{html}{\out{<hr>}}

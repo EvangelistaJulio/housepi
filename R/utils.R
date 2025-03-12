@@ -94,6 +94,12 @@ source_files <- function(path) {
   return(file.path(path, paste0("model.", c("cpp", "h"))))
 }
 
+# say if source files have been modified after dll
+untracked_changes <- function(model_choice, dll) {
+  last_modified <- file.info(source_files(model_choice))$ctime
+  return (any(last_modified > file.info(dll)$ctime)) 
+}
+
 # Verify source files exist
 assert_source_files <- function(path) {
   for (file_name in source_files(path)) {

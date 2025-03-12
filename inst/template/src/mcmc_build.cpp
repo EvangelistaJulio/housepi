@@ -1231,15 +1231,12 @@ void MCMC::Impl::fill_report_data()
 /* Return a value from individaul data report. */
 ulong MCMC::Impl::get_report_indiv(const std::string &key) const
 {
-    size_t output = 0;
     if (_report_indiv_.count(key))
-        output = _report_indiv_.at(key);
-
+        return _report_indiv_.at(key);
     else
         throw std::invalid_argument(
             "Unknown individual report entry \"" + key + "\".");
-
-    return output;
+    return 0.;
 }
 
 /* Return a value from household data report. */

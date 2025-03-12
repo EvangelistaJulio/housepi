@@ -107,7 +107,7 @@ Perform Chi-squared test and return list with results.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{lower.tail}}{\code{logical(1)}\cr
-if TRUE (default), probabilities are P\link{X≤x}, otherwise P\link{X>x}.}
+if TRUE (default), probabilities are P\link{X<=x}, otherwise P\link{X>x}.}
 }
 \if{html}{\out{</div>}}
 }

@@ -908,6 +908,79 @@ protected:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////  Reparametrized Gamma Distribution : class  /////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Reparametrized Gamma Distribution derived class. */
+class ReparamGamma_Distribution : public Distribution
+{
+public:
+    //===== CONSTRUCTOR =====//
+    ReparamGamma_Distribution() : distr_gen(1., 1.)
+    {
+        init_defaults("reparam_gamma", {"mean", "sd"}, {1., 1.},
+                      0., NULL_DOUBLE, false, false);
+    }
+    ~ReparamGamma_Distribution() = default;
+
+    //==== SETTER =====//
+    void init_reshaping(bool discrete) override final
+    {
+        init_min_zero_reshaping(discrete, false);
+    }
+
+protected:
+    std::gamma_distribution<double> distr_gen;
+
+    //==== SETTER =====//
+    void update_args() override final
+    {
+        const double m = get_arg(0);
+        const double s = get_arg(1);
+        const double s2 = s * s;
+        distr_gen.param(std::gamma_distribution<double>::param_type((m * m) / s2, s2 / m));
+    }
+
+    //==== GETTER =====//
+    double raw_pdf(double x, const dbl_vec &opts) const override final
+    {
+        UNUSED(opts);
+        const double m = get_arg(0);
+        const double s = get_arg(1);
+        const double s2 = s * s;
+        return numr::gamma::pdf(x, (m * m) / s2, s2 / m);
+    }
+    double raw_cdf(double x, const dbl_vec &opts) const override final
+    {
+        UNUSED(opts);
+        const double m = get_arg(0);
+        const double s = get_arg(1);
+        const double s2 = s * s;
+        return numr::gamma::cdf(x, (m * m) / s2, s2 / m);
+    }
+    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    {
+        UNUSED(opts);
+        const double m = get_arg(0);
+        const double s = get_arg(1);
+        const double s2 = s * s;
+        return numr::gamma::logpdf(x, (m * m) / s2, s2 / m);
+    }
+    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    {
+        UNUSED(opts);
+        const double m = get_arg(0);
+        const double s = get_arg(1);
+        const double s2 = s * s;
+        return numr::gamma::logratio(xold, xnew, (m * m) / s2, s2 / m);
+    }
+    double raw_rand(rnd_gen &prng) override final
+    {
+        return distr_gen(prng);
+    }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Rayleigh Distribution : class  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1351,7 +1424,8 @@ protected:
 std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
 {
     const str_vec &options = {"unif", "norm", "lnorm",
-                              "beta", "gamma", "rayleigh", "weibull", "exp",
+                              "beta", "gamma", "reparam_gamma", 
+                              "rayleigh", "weibull", "exp",
                               "pois", "binom", "nbinom", "geom"};
 
     if (tools::is_na(name))
@@ -1371,6 +1445,9 @@ std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
 
     else if (name == "gamma")
         return std::make_shared<Gamma_Distribution>();
+
+    else if (name == "reparam_gamma")
+        return std::make_shared<ReparamGamma_Distribution>();
 
     else if (name == "rayleigh")
         return std::make_shared<Rayleigh_Distribution>();

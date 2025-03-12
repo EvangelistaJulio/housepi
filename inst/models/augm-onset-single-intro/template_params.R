@@ -8,9 +8,9 @@ list(
     rule = "lnorm", rule_scale = 1
   ),
   gamma = list(
-    value = 0.85, prior = "unif", args = list(min = 0, max = 4),
+    value = 0.9, prior = "unif", args = list(min = 0, max = 4),
     rule = "norm", rule_scale = 1
   ),
   size_ref = list(value = 4),
-  study_period = list(value = 50)
+  study_period = list(value = 45)
 )

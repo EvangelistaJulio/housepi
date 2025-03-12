@@ -241,19 +241,7 @@ public:
     void import_dataset(const Rcpp::DataFrame &input);
 
     //----- Rcpp EXPORTS -----//
-
-    size_t _aux_row = 0;
-    str_vec _aux_data_headers = {};
-    Rcpp::CharacterVector _aux_df_index = {};
-    Rcpp::CharacterVector _aux_df_house_index = {};
-    Rcpp::IntegerVector _aux_df_status = {};
-    std::vector<Rcpp::NumericVector> _aux_df_dbl = {};
-
-    void _aux_export_dataset_init_();
-    void _aux_export_dataset_update_(const Household &house);
-    Rcpp::DataFrame _aux_export_dataset_finalize_();
     Rcpp::DataFrame export_dataset();
-
     Rcpp::DataFrame export_data_report() const;
     Rcpp::DataFrame export_house_size_report() const;
 

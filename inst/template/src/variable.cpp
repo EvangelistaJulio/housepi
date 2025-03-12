@@ -507,6 +507,11 @@ void Variable::assign_proposer(const std::string &rule_name,
             // assign the pointer to the proposer
             _prop_ptr_ = proposer_switchboard(rule_name, rule_scale, rule_from, is_discrete());
 
+            // raise a warning if "lnorm" rule when varaible can be negative
+            if ((_distr_ptr_->get_min() < 0) && (rule_name == "lnorm"))
+                tools::warning(
+                    "Lognormal proposer rule for non-positive variable \"" + name + "\" .");
+
             // sampler
             if (is_from_zero())
                 _func_propose_ = &Variable::_propose_from_zero_;

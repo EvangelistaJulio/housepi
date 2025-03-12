@@ -107,8 +107,7 @@ double Individual::GroupRate::get() const
 ////////////////////////////////////  Household : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Household::Household(const std::string &house_id,
-					 size_t H)
+Household::Household(const std::string &house_id, size_t H)
 {
 	_house_id = house_id;
 	_index = H;
@@ -127,18 +126,18 @@ void Household::assign_individual(const std::string &id,
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
 	{
-		++_n_infec_status;
-		_infectious_list.push_back(house_size);
+		++_n_infec_;
+		_infec_list_.push_back(house_size);
 	}
 	else if (status == HEALTHY_STATUS)
 	{
-		++_n_susceptible;
-		_susceptible_list.push_back(house_size);
+		++_n_healthy_;
+		_healthy_list_.push_back(house_size);
 	}
 	else
 	{
-		++_n_missing_status;
-		_missing_status_list.push_back(house_size);
+		++_n_missing_;
+		_missing_list_.push_back(house_size);
 	}
 
 	//----- emplace new individual -----//
@@ -160,18 +159,18 @@ bool Household::change_status(indiv i, int new_status)
 	{
 		if (old_status >= INFECTED_STATUS)
 		{
-			--_n_infec_status;
-			_infectious_list.erase(std::find(_infectious_list.begin(), _infectious_list.end(), i));
+			--_n_infec_;
+			_infec_list_.erase(std::find(_infec_list_.begin(), _infec_list_.end(), i));
 		}
 		else if (old_status == HEALTHY_STATUS)
 		{
-			--_n_susceptible;
-			_susceptible_list.erase(std::find(_susceptible_list.begin(), _susceptible_list.end(), i));
+			--_n_healthy_;
+			_healthy_list_.erase(std::find(_healthy_list_.begin(), _healthy_list_.end(), i));
 		}
 		else if (old_status == MISSING_STATUS)
 		{
-			--_n_missing_status;
-			_missing_status_list.erase(std::find(_missing_status_list.begin(), _missing_status_list.end(), i));
+			--_n_missing_;
+			_missing_list_.erase(std::find(_missing_list_.begin(), _missing_list_.end(), i));
 		}
 		else
 			throw std::runtime_error(
@@ -179,18 +178,18 @@ bool Household::change_status(indiv i, int new_status)
 
 		if (new_status >= INFECTED_STATUS)
 		{
-			++_n_infec_status;
-			_infectious_list.push_back(i);
+			++_n_infec_;
+			_infec_list_.push_back(i);
 		}
 		else if (new_status == HEALTHY_STATUS)
 		{
-			++_n_susceptible;
-			_susceptible_list.push_back(i);
+			++_n_healthy_;
+			_healthy_list_.push_back(i);
 		}
 		else if (new_status == MISSING_STATUS)
 		{
-			++_n_missing_status;
-			_missing_status_list.push_back(i);
+			++_n_missing_;
+			_missing_list_.push_back(i);
 		}
 		else
 			throw std::runtime_error(
@@ -237,16 +236,16 @@ double Household::augm_model_logratio(indiv i, const augmID &a) const { return m
 double Household::augm_propose_logratio(indiv i, const augmID &a) const { return members[i].augm_map.at(a).propose_logratio(); }
 double Household::augm_move_logratio(indiv i, const augmID &a) const { return members[i].augm_map.at(a).get_move_logratio(); }
 
-ushort Household::n_infec_status() const { return _n_infec_status; }
-ushort Household::n_healthy_status() const { return _n_susceptible; }
-ushort Household::n_missing_status() const { return _n_missing_status; }
+ushort Household::n_infec_status() const { return _n_infec_; }
+ushort Household::n_healthy_status() const { return _n_healthy_; }
+ushort Household::n_missing_status() const { return _n_missing_; }
 
 double Household::get_loglike() const { return house_loglike; }
 double Household::get_delta_loglike() const { return house_loglike - buffer; }
 
-const std::vector<indiv> &Household::infected_status_list() const { return _infectious_list; }
-const std::vector<indiv> &Household::healthy_status_list() const { return _susceptible_list; }
-const std::vector<indiv> &Household::missing_status_list() const { return _missing_status_list; }
+const std::vector<indiv> &Household::infected_status_list() const { return _infec_list_; }
+const std::vector<indiv> &Household::healthy_status_list() const { return _healthy_list_; }
+const std::vector<indiv> &Household::missing_status_list() const { return _missing_list_; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////

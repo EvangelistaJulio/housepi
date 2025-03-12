@@ -23,7 +23,6 @@
 #define _HOUSEPI_RCPP
 #endif
 
-
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif

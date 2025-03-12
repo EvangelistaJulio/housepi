@@ -31,9 +31,14 @@ show_model_names <- function() {
 #' @param path `character(1)`\cr
 #' Where to copy the template scripts.
 #' If `NA`, show template model description in RStudio Help window.
+#' @param replace `logical(1)`\cr
+#' If `TRUE`, replaces previous content of the path.
+#' Default is `FALSE`.
 #'
 #' @export
-template_household_model <- function(name = NA, path = NA) {
+template_household_model <- function(name = NA,
+                                     path = NA,
+                                     replace = FALSE) {
 
   if (is.na(name)) {
     #===== Asking for model names =====#
@@ -57,7 +62,7 @@ template_household_model <- function(name = NA, path = NA) {
         # FIXME: this doesn't work outside of Rstudio
         rstudioapi::previewRd(info_file)
 
-      } else if (any(file.exists(source_files(path)))) {
+      } else if (any(file.exists(source_files(path))) & isFALSE(replace)) {
         #===== Asking for copying template to folder with model =====#
         warning_h(
           "A model already in the specified folder.",
@@ -144,7 +149,7 @@ template_find_requirement <- function(refer_file,
   } else {
     warning_h(
       sprintf("Impossible to find reference file \"%s\".", refer_file),
-      "Try to generate a new model object with 'force = TRUE'."
+      "Try to generate a new model object."
     )
 
     required_set <- NULL

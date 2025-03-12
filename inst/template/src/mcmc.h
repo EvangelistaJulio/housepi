@@ -43,7 +43,7 @@ public:
 	//===== DATA =====//
 	//================//
 
-	Household &get_household(size_t H) const;
+	Household &get_household(ulong H) const;
 	ulong n_houses() const;
 	ulong get_report_indiv(const std::string &key) const;
 	ulong get_report_house(const std::string &key) const;
@@ -131,7 +131,7 @@ public:
 
 	virtual void init_model_for_simulation();
 	virtual void simulate_single_house(Household &house);
-	void aux_simulate();
+
 
 #ifdef _HOUSEPI_RCPP
 
@@ -168,6 +168,7 @@ public:
 	//================//
 
 	void read_setup(const std::string &pathtofile = NULL_STRING);
+	void read_infec_profile(const std::string &pathtofile = NULL_STRING);
 	void read_params(const std::string &pathtofile = NULL_STRING);
 	void read_data(const std::string &pathtofile = NULL_STRING);
 	void read_augm(const std::string &pathtofile = NULL_STRING);
@@ -213,6 +214,9 @@ private:
 	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &) = &MCMC::_move_augm_indiv_generic_;
 	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);
 	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
+
+	//----- Simulation -----//
+	void _aux_init_simulate_();
 };
 
 #endif // HOUSEPI__MCMC__H

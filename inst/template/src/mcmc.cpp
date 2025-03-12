@@ -15,8 +15,8 @@ MCMC::MCMC() : pImpl(std::make_unique<Impl>()) {}
 MCMC::~MCMC() = default;
 
 //===== DATA =====//
-Household &MCMC::get_household(size_t H) const { return pImpl->house_vector.at(H); }
-ulong MCMC::n_houses() const { return pImpl->n_households; }
+Household &MCMC::get_household(ulong H) const { return pImpl->house_vector.at(H); }
+ulong MCMC::n_houses() const { return static_cast<ulong>(pImpl->n_households); }
 
 ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_report_indiv(key); }
 ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
@@ -55,19 +55,19 @@ void MCMC::init_extra_dependecies()
 /* Extra integer vectors for all households. */
 void MCMC::allocate_extra_house_integer_vector(const extraID &e)
 {
-    for (size_t H = 0; H < n_houses(); ++H)
+    for (ulong H = 0; H < n_houses(); ++H)
         pImpl->house_vector[H].allocate_extra_integer_vector(e);
 }
 /* Extra double vectors for all households. */
 void MCMC::allocate_extra_house_double_vector(const extraID &e)
 {
-    for (size_t H = 0; H < n_houses(); ++H)
+    for (ulong H = 0; H < n_houses(); ++H)
         pImpl->house_vector[H].allocate_extra_double_vector(e);
 }
 /* Extra double square matrix for all households. */
 void MCMC::allocate_extra_house_double_matrix(const extraID &e)
 {
-    for (size_t H = 0; H < n_houses(); ++H)
+    for (ulong H = 0; H < n_houses(); ++H)
         pImpl->house_vector[H].allocate_extra_double_matrix(e);
 }
 
@@ -762,3 +762,159 @@ void MCMC::init_model_for_simulation() {}
 
 /* Model specific simulation for a single household. */
 void MCMC::simulate_single_house(Household &house) { UNUSED(house); }
+
+/* Auxiliary method to initialize simulations. */
+void MCMC::_aux_init_simulate_()
+{
+    pImpl->assert_proper_dataset(); // check if dataset is empty
+    pImpl->setup_n_chains = 0;      // use 0 chains as a state variable
+
+    pImpl->setup_n_threads = 1; // impose no parallelization
+    pImpl->set_n_threads();
+
+    pImpl->setup_rand_init_params = false; // disable random parameter initialization
+    pImpl->init_parameters();              // check no undefined parameters
+    init_infec_profile();                  // initialize user infectivity profile
+    init_augmented_variables();            // initialize augmented dependencies
+    init_model_for_simulation();           // initialize model for simulation
+}
+
+#ifdef _HOUSEPI_RCPP
+/* Perform simulation and return simulated dataset. */
+Rcpp::DataFrame MCMC::simulate()
+{
+    using namespace Rcpp;
+
+    try
+    {
+        size_t n_cols = pImpl->n_individuals;
+        size_t row = 0;
+        str_vec _aux_data_headers = pImpl->data_headers;
+        Rcpp::CharacterVector df_index = CharacterVector(n_cols);
+        Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
+        Rcpp::IntegerVector df_status = IntegerVector(n_cols);
+        std::vector<Rcpp::NumericVector> df_dbl = {};
+
+        // UPDATE: why augm_list_full is still a set?
+        // remove data columns if they have same name than augmented
+        str_vec &v = _aux_data_headers;
+        const std::unordered_set<augmID> &y = pImpl->augm_list_full;
+        auto new_end = std::remove_if(v.begin(), v.end(),
+                                      [&y](const dataID &elem)
+                                      {
+                                          return y.find(elem) != y.end();
+                                      });
+        v.erase(new_end, v.end());
+
+        // other data and augmented variable columns
+        for (size_t s = 0; s < _aux_data_headers.size() + pImpl->augm_list_full.size(); ++s)
+            df_dbl.emplace_back(n_cols);
+
+        //----- initialization -----//
+        _aux_init_simulate_();
+        progress::Bar progressbar(n_houses(), "simulate",
+                                  pImpl->setup_progress);
+
+        //----- run simulation -----//
+        for (ulong H = 0; H < n_houses(); ++H)
+        {
+            try
+            {
+                // deep copy of the household
+                Household house = get_household(H);
+                // inplace simlation
+                simulate_single_house(house);
+
+                // store simulation
+                for (indiv i = 0; i < house.size(); ++i)
+                {
+                    df_index[row] = house.id(i);
+                    df_house_index[row] = house.house_id();
+                    df_status[row] = house.status(i);
+
+                    size_t col = 0;
+                    for (const dataID &d : _aux_data_headers)
+                        df_dbl[col++][row] = house.data(i, d);
+
+                    for (const augmID &a : pImpl->augm_list_full)
+                        df_dbl[col++][row] = house.augm(i, a);
+
+                    ++row;
+                }
+            }
+            catch (const std::exception &e)
+            {
+                _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
+                throw std::runtime_error(_error_message_);
+            }
+            progressbar.update(H);
+        }
+        progressbar.finalize();
+
+        // assign vectors to dataframe
+        DataFrame output = DataFrame::create(
+            _["id"] = std::move(df_index),
+            _["house_id"] = std::move(df_house_index),
+            _["status"] = std::move(df_status));
+
+        size_t col = 0;
+        for (const dataID &d : _aux_data_headers)
+            output.push_back(std::move(df_dbl[col++]), d);
+
+        for (const augmID &a : pImpl->augm_list_full)
+            output.push_back(std::move(df_dbl[col++]), a);
+
+        return output;
+    }
+    catch (std::exception &e)
+    {
+        tools::error(e.what());
+    }
+
+    return DataFrame::create();
+}
+
+#else
+
+/* Print the simulated dataset to the provided file. */
+void MCMC::print_simulated_dataset(const std::string &pathtofile)
+{
+    pImpl->_aux_print_dataset_init_(pathtofile);
+
+    try
+    {
+        //----- initialization -----//
+        _aux_init_simulate_();
+        progress::Bar progressbar(n_houses(), "simulate",
+                                  pImpl->setup_progress);
+
+        //----- run simulation -----//
+        for (ulong H = 0; H < n_houses(); ++H)
+        {
+            try
+            {
+                // deep copy of the household
+                Household house = get_household(H);
+                // inplace simlation
+                simulate_single_house(house);
+                // print the simulated dataset
+                pImpl->_aux_print_dataset_update_(house);
+            }
+            catch (const std::exception &e)
+            {
+                _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
+                throw std::runtime_error(_error_message_);
+            }
+            progressbar.update(H);
+        }
+        progressbar.finalize();
+
+        // finalize output
+        pImpl->_aux_print_dataset_finalize_();
+    }
+    catch (std::exception &e)
+    {
+        tools::error(e.what());
+    }
+}
+#endif

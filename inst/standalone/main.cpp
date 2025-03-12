@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
     std::string data_file = NULL_STRING;
     std::string augm_file = NULL_STRING;
     std::string setup_file = NULL_STRING;
+    std::string infec_prof_file = NULL_STRING;
     std::string output_file = NULL_STRING;
 
     //=====Test if some commands were supplied=====//
@@ -96,6 +97,9 @@ int main(int argc, char *argv[])
 
         else if (carg == std::string("-s") || carg == std::string("--setup"))
             setup_file = argv[++carg_i];
+            
+        else if (carg == std::string("-i") || carg == std::string("--infprof"))
+            infec_prof_file = argv[++carg_i];
 
         else if (carg == std::string("-p") || carg == std::string("--params"))
             params_file = argv[++carg_i];
@@ -140,10 +144,13 @@ int main(int argc, char *argv[])
     // 3) Load Parameters
     user_model->read_params(params_file);
 
-    // 4) Load Group & Contact Rates
+    // 4) Load Setup
+    user_model->read_infec_profile(infec_prof_file);
+
+    // 5) Load Group & Contact Rates
     user_model->build_all_rates();
 
-    // 5) Load Augmented Variables
+    // 6) Load Augmented Variables
     user_model->read_augm(augm_file);
 
     if (verbose)

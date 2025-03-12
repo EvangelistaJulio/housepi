@@ -193,27 +193,27 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
     NumericVector V_rule_scale(n_rows);
 
     // fill datafrane columns
-    for (size_t c = 0; c < n_rows; ++c)
+    for (size_t r = 0; r < n_rows; ++r)
     {
-        parID p = V_names[c];
-        V_value[c] = get_param(p);
-        V_constant[c] = param_map.at(p).is_constant();
-        V_discrete[c] = param_map.at(p).is_discrete();
+        parID p = V_names[r];
+        V_value[r] = get_param(p);
+        V_constant[r] = param_map.at(p).is_constant();
+        V_discrete[r] = param_map.at(p).is_discrete();
 
-        V_prior[c] = stoRString(param_map.at(p).show_distr_name());
-        V_arg_name[c] = stoRString(param_map.at(p).show_distr_arg_names());
-        V_arg_value[c] = stoRString(param_map.at(p).show_distr_arg_values());
+        V_prior[r] = stoRString(param_map.at(p).show_distr_name());
+        V_arg_name[r] = stoRString(param_map.at(p).show_distr_arg_names());
+        V_arg_value[r] = stoRString(param_map.at(p).show_distr_arg_values());
 
-        V_rule[c] = stoRString(param_map.at(p).show_prop_name());
+        V_rule[r] = stoRString(param_map.at(p).show_prop_name());
 
         const std::string rule_scal = param_map.at(p).show_prop_scale();
-        V_rule_scale[c] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
+        V_rule_scale[r] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
 
         const std::string min_val = param_map.at(p).show_min();
-        V_min[c] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
+        V_min[r] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
 
         const std::string max_val = param_map.at(p).show_max();
-        V_max[c] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
+        V_max[r] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
     }
 
     return DataFrame::create(_["name"] = std::move(wrap(V_names)),
@@ -233,81 +233,47 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
 //////////////////////////////  Monte_Carlo_Build : dataset exports  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize data.frame entries. */
-void MCMC::Impl::_aux_export_dataset_init_()
-{
-    using namespace Rcpp;
-
-    _aux_row = 0;
-    _aux_data_headers = data_headers;
-    _aux_df_index = CharacterVector(n_individuals);
-    _aux_df_house_index = CharacterVector(n_individuals);
-    _aux_df_status = IntegerVector(n_individuals);
-
-    // UPDATE: why augm_list_full is a set
-    // remove data columns if they have same name than augmented
-    str_vec &vec = _aux_data_headers;
-    const std::unordered_set<augmID> &y = augm_list_full;
-    auto new_end = std::remove_if(vec.begin(), vec.end(),
-                                  [&y](const dataID &elem)
-                                  {
-                                      return y.find(elem) != y.end();
-                                  });
-    vec.erase(new_end, vec.end());
-
-    // other data and augmetned variable columns
-    for (size_t s = 0; s < _aux_data_headers.size() + augm_list_full.size(); ++s)
-        _aux_df_dbl.emplace_back(n_individuals);
-}
-
-/* Export a given household vector to R DataFrame. */
-void MCMC::Impl::_aux_export_dataset_update_(const Household &house)
-{
-    for (indiv i = 0; i < house.size(); ++i)
-    {
-        _aux_df_index[_aux_row] = house.id(i);
-        _aux_df_house_index[_aux_row] = house.house_id();
-        _aux_df_status[_aux_row] = house.status(i);
-
-        size_t c = 0;
-        for (const dataID &d : _aux_data_headers)
-            _aux_df_dbl[c++][_aux_row] = house.data(i, d);
-
-        for (const augmID &a : augm_list_full)
-            _aux_df_dbl[c++][_aux_row] = house.augm(i, a);
-
-        ++_aux_row;
-    }
-}
-
-/* Export a given household vector to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::_aux_export_dataset_finalize_()
-{
-    using namespace Rcpp;
-
-    DataFrame output = DataFrame::create(
-        _["id"] = std::move(_aux_df_index),
-        _["house_id"] = std::move(_aux_df_house_index),
-        _["status"] = std::move(_aux_df_status));
-
-    size_t c = 0;
-    for (const dataID &d : _aux_data_headers)
-        output.push_back(std::move(_aux_df_dbl[c++]), d);
-
-    for (const augmID &a : augm_list_full)
-        output.push_back(std::move(_aux_df_dbl[c++]), a);
-
-    return output;
-}
-
 /* Export current data configurations to R DataFrame. */
 Rcpp::DataFrame MCMC::Impl::export_dataset()
 {
-    _aux_export_dataset_init_();
-    for (const Household &house : house_vector)
-        _aux_export_dataset_update_(house);
+    using namespace Rcpp;
 
-    return _aux_export_dataset_finalize_();
+    size_t n_cols = n_individuals;
+    size_t row = 0;
+    Rcpp::CharacterVector df_index = CharacterVector(n_cols);
+    Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
+    Rcpp::IntegerVector df_status = IntegerVector(n_cols);
+    std::vector<Rcpp::NumericVector> df_dbl = {};
+
+    // other data and augmetned variable columns
+    for (size_t s = 0; s < data_headers.size(); ++s)
+        df_dbl.emplace_back(n_cols);
+
+    for (const Household &house : house_vector)
+        for (indiv i = 0; i < house.size(); ++i)
+        {
+            df_index[row] = house.id(i);
+            df_house_index[row] = house.house_id();
+            df_status[row] = house.status(i);
+
+            size_t col = 0;
+            for (const dataID &d : data_headers)
+                df_dbl[col++][row] = house.data(i, d);
+
+            ++row;
+        }
+
+    // assign vectors to dataframe
+    DataFrame output = DataFrame::create(
+        _["id"] = df_index,
+        _["house_id"] = df_house_index,
+        _["status"] = df_status);
+
+    size_t col = 0;
+    for (const dataID &d : data_headers)
+        output.push_back(df_dbl[col++], d);
+
+    return output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -383,7 +349,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 {
     using namespace Rcpp;
 
-    if ((setup_n_chains == 0) || (is_power_post()))
+    if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
         tools::error(
             "No traces to export were found.");
 
@@ -445,7 +411,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 {
     using namespace Rcpp;
 
-    if ((setup_n_chains == 0) || (is_power_post()))
+    if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
         tools::error(
             "No traces to export were found.");
 
@@ -533,14 +499,6 @@ Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Perform simulation and return simulated dataset. */
-Rcpp::DataFrame MCMC::simulate()
-{
-    pImpl->_aux_export_dataset_init_();
-    aux_simulate();
-    return pImpl->_aux_export_dataset_finalize_();
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -585,56 +543,56 @@ void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); 
 #include <iostream>
 
 /* Read Setup file and produce a definition list. */
-void MCMC::Impl::read_setup(const std::string &pathtofile)
+void MCMC::Impl::read_setup(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(pathtofile, _setup_deflist_);
+        tools::read_csv_list(f, _setup_deflist_);
     }
     catch (const std::exception &e)
     {
         tools::error("While reading setup definitions: " + std::string(e.what()));
     }
     build_setup();
-    _report_pathtofile_["setup"] = pathtofile;
+    _report_pathtofile_["setup"] = f;
 }
 
 /* Read Setup file and produce a definition list. */
-void MCMC::Impl::read_infec_profile(const std::string &pathtofile)
+void MCMC::Impl::read_infec_profile(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(pathtofile, _infec_profile_deflist_);
+        tools::read_csv_list(f, _infec_profile_deflist_);
     }
     catch (const std::exception &e)
     {
         tools::error("While reading infectivity profile definitions: " + std::string(e.what()));
     }
     build_infec_profile();
-    _report_pathtofile_["infec_profile"] = pathtofile;
+    _report_pathtofile_["infec_profile"] = f;
 }
 
 /* Read parameter definitions and run assignment. */
-void MCMC::Impl::read_params(const std::string &pathtofile)
+void MCMC::Impl::read_params(const std::string &f)
 {
     try
     {
-        tools::read_csv_table(pathtofile, _param_deftable_);
+        tools::read_csv_table(f, _param_deftable_);
     }
     catch (const std::exception &e)
     {
         tools::error("While reading parameter definitions: " + std::string(e.what()));
     }
     build_params();
-    _report_pathtofile_["params"] = pathtofile;
+    _report_pathtofile_["params"] = f;
 }
 
 /* Read Model Augmented Variable file. */
-void MCMC::Impl::read_augm(const std::string &pathtofile)
+void MCMC::Impl::read_augm(const std::string &f)
 {
     try
     {
-        tools::read_csv_table(pathtofile, _augm_deftable_);
+        tools::read_csv_table(f, _augm_deftable_);
     }
     catch (const std::exception &e)
     {
@@ -642,23 +600,23 @@ void MCMC::Impl::read_augm(const std::string &pathtofile)
             "While reading augmented definitions: " + std::string(e.what()));
     }
     build_augm();
-    _report_pathtofile_["augm"] = pathtofile;
+    _report_pathtofile_["augm"] = f;
 }
 
 /* Read data file and then run assignment. */
-void MCMC::Impl::read_data(const std::string &pathtofile)
+void MCMC::Impl::read_data(const std::string &f)
 {
     dict_str_vec datatable = {};
     try
     {
-        tools::read_csv_table(pathtofile, datatable);
+        tools::read_csv_table(f, datatable);
     }
     catch (const std::exception &e)
     {
         tools::error("While reading dataset: " + std::string(e.what()));
     }
     build_data(datatable);
-    _report_pathtofile_["data"] = pathtofile;
+    _report_pathtofile_["data"] = f;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -950,30 +908,27 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::_aux_print_dataset_init_(const std::string &pathtofile)
+void MCMC::Impl::_aux_print_dataset_init_(const std::string &f)
 {
-    if (!tools::is_na(pathtofile))
+    aux_data_ofstream.open(f.c_str());
+    if (aux_data_ofstream.is_open())
     {
-        aux_data_ofstream.open(pathtofile.c_str());
-        if (aux_data_ofstream.is_open())
-        {
-            // print default data headers
-            aux_data_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
+        // print default data headers
+        aux_data_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
 
-            // print other data headers
-            for (const dataID &d : data_headers)
-                aux_data_ofstream << C_DELIM << d;
+        // print other data headers
+        for (const dataID &d : data_headers)
+            aux_data_ofstream << C_DELIM << d;
 
-            // print augmented variables headers
-            for (const augmID &a : augm_list_full)
-                aux_data_ofstream << C_DELIM << a;
+        // print augmented variables headers
+        for (const augmID &a : augm_list_full)
+            aux_data_ofstream << C_DELIM << a;
 
-            aux_data_ofstream << std::endl;
-        }
-        else
-            throw std::runtime_error(
-                "Unable to open file: " + pathtofile);
+        aux_data_ofstream << std::endl;
     }
+    else
+        throw std::runtime_error(
+            "Unable to open file: " + f);
 }
 
 /* Print all augmented variables of each individual */
@@ -1005,7 +960,7 @@ void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
 
 /* Print all augmented variables of each individual */
 void MCMC::Impl::_aux_print_dataset_finalize_()
-{                
+{
     if (aux_data_ofstream.is_open())
         aux_data_ofstream.close();
     else
@@ -1024,30 +979,19 @@ void MCMC::Impl::_aux_print_dataset_finalize_()
 //////////////////////////////////////////  MCMC : read  //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::read_setup(const std::string &pathtofile) { pImpl->read_setup(pathtofile); }
-void MCMC::read_params(const std::string &pathtofile) { pImpl->read_params(pathtofile); }
-void MCMC::read_augm(const std::string &pathtofile) { pImpl->read_augm(pathtofile); }
-void MCMC::read_data(const std::string &pathtofile) { pImpl->read_data(pathtofile); }
+void MCMC::read_setup(const std::string &f) { pImpl->read_setup(f); }
+void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }
+void MCMC::read_params(const std::string &f) { pImpl->read_params(f); }
+void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
+void MCMC::read_data(const std::string &f) { pImpl->read_data(f); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////  MCMC : show  //////////////////////////////////////////
+/////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::show_full_build() const { pImpl->show_full_build(); }
 void MCMC::show_results() const { pImpl->show_results(); }
 void MCMC::show_summary() const { pImpl->show_summary(); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  MCMC : C++ Print  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::print_infer_state(const std::string &pathtofile) const { pImpl->print_infer_state(pathtofile); }
-
-void MCMC::print_simulated_dataset(const std::string &pathtofile)
-{
-    pImpl->_aux_print_dataset_init_(pathtofile);
-    aux_simulate();
-    return pImpl->_aux_print_dataset_finalize_();
-}
+void MCMC::print_infer_state(const std::string &f) const { pImpl->print_infer_state(f); }
 
 #endif

@@ -18,7 +18,6 @@ Imports:
     R6,
     stringr, 
     withr,
-    loo, 
     cli
 RcppModules: user_model_module
 Roxygen: list(markdown = TRUE, r6 = TRUE)
@@ -30,6 +29,8 @@ Suggests:
     flextable,
     bayesplot,
     coda,
+    loo, 
+    rstan, 
     lattice,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr

@@ -487,7 +487,7 @@ ExpectedCases <- R6::R6Class(
       )
 
       # FIXME: I shall have an active for the non flextable
-      if (requireNamespace("flextable", quietly = TRUE)) {
+      if (requireNamespace("flextable", quietly = FALSE)) {
         ft <- flextable::flextable(combined)
         ft <- flextable::separate_header(ft)
         ft <- flextable::theme_vanilla(ft)

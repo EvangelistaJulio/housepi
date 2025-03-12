@@ -1028,23 +1028,48 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     #' @description
+    #' Use rstan package to compute R-hat convergence diagnostic.
+    #' For further details type ?rstan::Rhat.
+    #' 
+    #' @return named `vector()`
+    #' Value of the Rhat for each parameter.
+    rhat = function() {
+      if (requireNamespace("rstan", quietly = FALSE)) {
+        trs <- self$traces_no_loglike
+        array_mcmc <- simplify2array(lapply(trs, as.matrix))
+        if (is.list(trs)) return(apply(array_mcmc, 2, rstan::Rhat))
+        else return(apply(array_mcmc, 3, rstan::Rhat))
+      }
+    },
+
+    #' @description
     #' Use loo package to compute the leave-one-out cross-validation.
+    #' For further details type ?loo::loo.
     #'
     #' @param ...
     #' Arguments passed to [loo][loo::loo].
-    #' For further details type ?loo::loo.
+    #' 
+    #' @return smtg
+    #' FIXME
     loo = function(...) {
-      return(loo::loo(private$.model$household_loglike_matrix, ...))
+      if (requireNamespace("loo", quietly = FALSE)) {
+        return(loo::loo(private$.model$household_loglike_matrix, ...))
+      }
     },
 
     #' @description
     #' Use loo package to compute the widely applicable information criterion.
+    #' For further details type ?loo::waic.
     #'
     #' @param ...
     #' Arguments passed to [waic][loo::waic].
-    #' For further details type ?loo::waic.
+    #' 
+    #' @return smtg
+    #' FIXME
     waic = function(...) {
-      return(loo::waic(private$.model$household_loglike_matrix, ...))
+      if (requireNamespace("loo", quietly = FALSE)) {
+        return(loo::waic(private$.model$household_loglike_matrix, ...))
+      }
     }
   )
 )

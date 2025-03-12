@@ -243,14 +243,14 @@ private:
 	// contact rate pointers
 	matrix<const double *> contact_rates;
 
-	ushort _n_infec_status = 0;
-	ushort _n_susceptible = 0;
-	ushort _n_missing_status = 0;
+	ushort _n_infec_ = 0;
+	ushort _n_healthy_ = 0;
+	ushort _n_missing_ = 0;
 
 	// wheter members correspond to a given status or not
-	std::vector<indiv> _infectious_list = {};
-	std::vector<indiv> _susceptible_list = {};
-	std::vector<indiv> _missing_status_list = {};
+	std::vector<indiv> _infec_list_ = {};
+	std::vector<indiv> _healthy_list_ = {};
+	std::vector<indiv> _missing_list_ = {};
 
 	//===== EXTRA ATTRIBUTES =====//
 
