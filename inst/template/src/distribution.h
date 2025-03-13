@@ -43,9 +43,8 @@ public:
 	double rand(rnd_gen &prng);
 
 	//===== SHOW =====//
-    const std::map<double, dbl_vec> showcase(const dbl_vec &opts = {},
-											 const dbl_vec &xlim = {-20., 20.},
-											 int n_bins = 2000) const;
+    const std::vector<dbl_vec> showcase(const dbl_vec &opts = {},
+										int n_bins = 2000) const;
 
 protected:
 	//===== SETTER =====//

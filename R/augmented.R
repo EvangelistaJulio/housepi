@@ -15,6 +15,34 @@ HousepiAugmented <- R6::R6Class(
 
   ############################################################################
   ############################################################################
+  ################################# PRIVATE ##################################
+  ############################################################################
+  ############################################################################
+
+  private = list(
+    # from : augmented variable model argument definitions
+    .find_def_require = function(key) { 
+      required_set <- c()
+      if (length(self$defs) > 0) {
+        x <- self$defs[c("arg_value", "arg_at")]
+        for (i in seq_along(x)) {
+          r <- unlist(x[i, ])
+          if (!any(is.na(r))) {
+            arg2par <- data.frame(
+              vals = strsplit(r[1], "/")[[1]],
+              keys = strsplit(r[2], "/")[[1]]
+            )
+            required_set <- c(required_set,
+                              arg2par[arg2par$keys == key]$vals)
+          }
+        }
+      }
+      return(unique(required_set))
+    }
+  ),
+
+  ############################################################################
+  ############################################################################
   ################################## ACTIVE ##################################
   ############################################################################
   ############################################################################
@@ -24,25 +52,18 @@ HousepiAugmented <- R6::R6Class(
     #' Find parameters required by augmented variable definitions.
     param_require = function(value) {
       if (missing(value)) {
-        # from : augmented variable model argument definitions
-        required_param_set <- c()
-        if (length(self$defs) > 0) {
-          x <- self$defs[c("arg_value", "arg_at")]
-          for (i in seq_along(x)) {
-            r <- unlist(x[i, ])
-            if (!any(is.na(r))) {
-              arg2par <- data.frame(
-                vals = strsplit(r[1], "/")[[1]],
-                keys = strsplit(r[2], "/")[[1]]
-              )
-              required_param_set <- c(required_param_set,
-                                      arg2par[arg2par$keys == "P"]$vals)
-            }
-          }
-        }
-        return(required_param_set)
+        return(private$.find_def_require("P"))
       }
       stop_h("'param_require' is read only.")
+    },
+
+    #' @description
+    #' Find data required by augmented variable definitions.
+    data_require = function(value) {
+      if (missing(value)) {
+        return(private$.find_def_require("D"))
+      }
+      stop_h("'data_require' is read only.")
     }
   ),
 

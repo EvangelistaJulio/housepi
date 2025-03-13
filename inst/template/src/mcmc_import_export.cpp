@@ -74,7 +74,8 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While importing setup definitions: " + std::string(e.what()));
+        tools::error(
+            "While importing setup definitions: " + std::string(e.what()));
     }
     build_setup();
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
@@ -90,7 +91,8 @@ void MCMC::Impl::import_infectivity_profile(const Rcpp::List &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While importing infectivity profile definitions: " + std::string(e.what()));
+        tools::error(
+            "While importing infectivity profile definitions: " + std::string(e.what()));
     }
     build_infec_profile();
     if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
@@ -106,7 +108,8 @@ void MCMC::Impl::import_parameter(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading parameter definitions: " + std::string(e.what()));
+        tools::error(
+            "While reading parameter definitions: " + std::string(e.what()));
     }
     build_params();
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
@@ -177,56 +180,64 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
 {
     using namespace Rcpp;
 
-    std::vector<parID> V_names = param_standard_infer_list + param_extra_infer_list + param_const_list;
-
-    size_t n_rows = V_names.size();
-
-    // check if not empty
-    if (V_names.empty())
-        tools::error("No parameters to be exported.");
-
-    // pre-allocate memory
-    NumericVector V_value(n_rows), V_min(n_rows), V_max(n_rows);
-    LogicalVector V_constant(n_rows), V_discrete(n_rows);
-    CharacterVector V_prior(n_rows), V_arg_name(n_rows), V_arg_value(n_rows);
-    CharacterVector V_rule(n_rows);
-    NumericVector V_rule_scale(n_rows);
-
-    // fill datafrane columns
-    for (size_t r = 0; r < n_rows; ++r)
+    try
     {
-        parID p = V_names[r];
-        V_value[r] = get_param(p);
-        V_constant[r] = param_map.at(p).is_constant();
-        V_discrete[r] = param_map.at(p).is_discrete();
+        std::vector<parID> V_names = param_standard_infer_list + param_extra_infer_list + param_const_list;
 
-        V_prior[r] = stoRString(param_map.at(p).show_distr_name());
-        V_arg_name[r] = stoRString(param_map.at(p).show_distr_arg_names());
-        V_arg_value[r] = stoRString(param_map.at(p).show_distr_arg_values());
+        // check if not empty
+        if (V_names.empty())
+            throw std::length_error("No parameters to be exported.");
 
-        V_rule[r] = stoRString(param_map.at(p).show_prop_name());
+        // pre-allocate memory
+        size_t n_rows = V_names.size();
+        NumericVector V_value(n_rows), V_min(n_rows), V_max(n_rows);
+        LogicalVector V_constant(n_rows), V_discrete(n_rows);
+        CharacterVector V_prior(n_rows), V_arg_name(n_rows), V_arg_value(n_rows);
+        CharacterVector V_rule(n_rows);
+        NumericVector V_rule_scale(n_rows);
 
-        const std::string rule_scal = param_map.at(p).show_prop_scale();
-        V_rule_scale[r] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
+        // fill datafrane columns
+        for (size_t r = 0; r < n_rows; ++r)
+        {
+            parID p = V_names[r];
+            V_value[r] = get_param(p);
+            V_constant[r] = param_map.at(p).is_constant();
+            V_discrete[r] = param_map.at(p).is_discrete();
 
-        const std::string min_val = param_map.at(p).show_min();
-        V_min[r] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
+            V_prior[r] = stoRString(param_map.at(p).show_distr_name());
+            V_arg_name[r] = stoRString(param_map.at(p).show_distr_arg_names());
+            V_arg_value[r] = stoRString(param_map.at(p).show_distr_arg_values());
 
-        const std::string max_val = param_map.at(p).show_max();
-        V_max[r] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
+            V_rule[r] = stoRString(param_map.at(p).show_prop_name());
+
+            const std::string rule_scal = param_map.at(p).show_prop_scale();
+            V_rule_scale[r] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
+
+            const std::string min_val = param_map.at(p).show_min();
+            V_min[r] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
+
+            const std::string max_val = param_map.at(p).show_max();
+            V_max[r] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
+        }
+
+        return DataFrame::create(_["name"] = std::move(wrap(V_names)),
+                                 _["value"] = std::move(V_value),
+                                 _["constant"] = std::move(V_constant),
+                                 _["discrete"] = std::move(V_discrete),
+                                 _["prior"] = std::move(V_prior),
+                                 _["arg_name"] = std::move(V_arg_name),
+                                 _["arg_value"] = std::move(V_arg_value),
+                                 _["rule"] = std::move(V_rule),
+                                 _["rule_scale"] = std::move(V_rule_scale),
+                                 _["min"] = std::move(V_min),
+                                 _["max"] = std::move(V_max));
     }
-
-    return DataFrame::create(_["name"] = std::move(wrap(V_names)),
-                             _["value"] = std::move(V_value),
-                             _["constant"] = std::move(V_constant),
-                             _["discrete"] = std::move(V_discrete),
-                             _["prior"] = std::move(V_prior),
-                             _["arg_name"] = std::move(V_arg_name),
-                             _["arg_value"] = std::move(V_arg_value),
-                             _["rule"] = std::move(V_rule),
-                             _["rule_scale"] = std::move(V_rule_scale),
-                             _["min"] = std::move(V_min),
-                             _["max"] = std::move(V_max));
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While exporting infectivity profile: " + std::string(e.what()));
+    }
+    return DataFrame();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -238,42 +249,51 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
 {
     using namespace Rcpp;
 
-    size_t n_cols = n_individuals;
-    size_t row = 0;
-    Rcpp::CharacterVector df_index = CharacterVector(n_cols);
-    Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
-    Rcpp::IntegerVector df_status = IntegerVector(n_cols);
-    std::vector<Rcpp::NumericVector> df_dbl = {};
+    try
+    {
+        size_t n_cols = n_individuals;
+        size_t row = 0;
+        Rcpp::CharacterVector df_index = CharacterVector(n_cols);
+        Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
+        Rcpp::IntegerVector df_status = IntegerVector(n_cols);
+        std::vector<Rcpp::NumericVector> df_dbl = {};
 
-    // other data and augmetned variable columns
-    for (size_t s = 0; s < data_headers.size(); ++s)
-        df_dbl.emplace_back(n_cols);
+        // other data and augmetned variable columns
+        for (size_t s = 0; s < data_headers.size(); ++s)
+            df_dbl.emplace_back(n_cols);
 
-    for (const Household &house : house_vector)
-        for (indiv i = 0; i < house.size(); ++i)
-        {
-            df_index[row] = house.id(i);
-            df_house_index[row] = house.house_id();
-            df_status[row] = house.status(i);
+        for (const Household &house : house_vector)
+            for (indiv i = 0; i < house.size(); ++i)
+            {
+                df_index[row] = house.id(i);
+                df_house_index[row] = house.house_id();
+                df_status[row] = house.status(i);
 
-            size_t col = 0;
-            for (const dataID &d : data_headers)
-                df_dbl[col++][row] = house.data(i, d);
+                size_t col = 0;
+                for (const dataID &d : data_headers)
+                    df_dbl[col++][row] = house.data(i, d);
 
-            ++row;
-        }
+                ++row;
+            }
 
-    // assign vectors to dataframe
-    DataFrame output = DataFrame::create(
-        _["id"] = df_index,
-        _["house_id"] = df_house_index,
-        _["status"] = df_status);
+        // assign vectors to dataframe
+        DataFrame output = DataFrame::create(
+            _["id"] = df_index,
+            _["house_id"] = df_house_index,
+            _["status"] = df_status);
 
-    size_t col = 0;
-    for (const dataID &d : data_headers)
-        output.push_back(df_dbl[col++], d);
+        size_t col = 0;
+        for (const dataID &d : data_headers)
+            output.push_back(df_dbl[col++], d);
 
-    return output;
+        return output;
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While exporting dataset: " + std::string(e.what()));
+    }
+    return DataFrame();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -285,33 +305,42 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
 {
     using namespace Rcpp;
 
-    size_t n_rows = _report_indiv_.size() + _report_house_.size();
-    CharacterVector type(n_rows), comment(n_rows);
-    IntegerVector counts(n_rows);
-    NumericVector pct(n_rows);
-
-    size_t k = 0;
-    for (const auto &pair : _report_indiv_)
+    try
     {
-        type[k] = "individual";
-        comment[k] = pair.first;
-        counts[k] = pair.second;
-        pct[k] = 100. * static_cast<double>(pair.second) / n_individuals;
-        ++k;
-    }
-    for (const auto &pair : _report_house_)
-    {
-        type[k] = "household";
-        comment[k] = pair.first;
-        counts[k] = pair.second;
-        pct[k] = 100. * static_cast<double>(pair.second) / n_households;
-        ++k;
-    }
+        size_t n_rows = _report_indiv_.size() + _report_house_.size();
+        CharacterVector type(n_rows), comment(n_rows);
+        IntegerVector counts(n_rows);
+        NumericVector pct(n_rows);
 
-    return DataFrame::create(_["type"] = std::move(type),
-                             _["comment"] = std::move(comment),
-                             _["counts"] = std::move(counts),
-                             _["pct"] = std::move(pct));
+        size_t k = 0;
+        for (const auto &pair : _report_indiv_)
+        {
+            type[k] = "individual";
+            comment[k] = pair.first;
+            counts[k] = pair.second;
+            pct[k] = 100. * static_cast<double>(pair.second) / n_individuals;
+            ++k;
+        }
+        for (const auto &pair : _report_house_)
+        {
+            type[k] = "household";
+            comment[k] = pair.first;
+            counts[k] = pair.second;
+            pct[k] = 100. * static_cast<double>(pair.second) / n_households;
+            ++k;
+        }
+
+        return DataFrame::create(_["type"] = std::move(type),
+                                 _["comment"] = std::move(comment),
+                                 _["counts"] = std::move(counts),
+                                 _["pct"] = std::move(pct));
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While exporting dataset report: " + std::string(e.what()));
+    }
+    return DataFrame();
 }
 
 /* Export current data configurations to R DataFrame. */
@@ -319,25 +348,34 @@ Rcpp::DataFrame MCMC::Impl::export_house_size_report() const
 {
     using namespace Rcpp;
 
-    size_t n_rows = _report_hh_size_.size();
-    CharacterVector comment(n_rows);
-    IntegerVector value(n_rows), counts(n_rows);
-    NumericVector pct(n_rows);
-
-    size_t k = 0;
-    for (const auto &pair : _report_hh_size_)
+    try
     {
-        comment[k] = pair.first;
-        value[k] = pair.second.first;
-        counts[k] = pair.second.second;
-        pct[k] = 100. * static_cast<double>(pair.second.second) / n_individuals;
-        ++k;
-    }
+        size_t n_rows = _report_hh_size_.size();
+        CharacterVector comment(n_rows);
+        IntegerVector value(n_rows), counts(n_rows);
+        NumericVector pct(n_rows);
 
-    return DataFrame::create(_["comment"] = std::move(comment),
-                             _["value"] = std::move(value),
-                             _["counts"] = std::move(counts),
-                             _["pct"] = std::move(pct));
+        size_t k = 0;
+        for (const auto &pair : _report_hh_size_)
+        {
+            comment[k] = pair.first;
+            value[k] = pair.second.first;
+            counts[k] = pair.second.second;
+            pct[k] = 100. * static_cast<double>(pair.second.second) / n_individuals;
+            ++k;
+        }
+
+        return DataFrame::create(_["comment"] = std::move(comment),
+                                 _["value"] = std::move(value),
+                                 _["counts"] = std::move(counts),
+                                 _["pct"] = std::move(pct));
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While exporting household size report: " + std::string(e.what()));
+    }
+    return DataFrame();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,61 +387,70 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 {
     using namespace Rcpp;
 
-    if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
-        tools::error(
-            "No traces to export were found.");
-
-    //----- Collect the column names -----//
-    str_vec headers = {"loglikelihood"};
-    headers += param_standard_infer_list + param_extra_infer_list;
-
-    // augmented variable of id trace
-    if (!dgn_augm_value.empty())
-        for (const augmID &a : augm_infer_list)
-            headers += {a + "_id_" + setup_id_trace};
-
-    // multiple chains
-    if (setup_n_chains > 1)
-        headers += {"CHAIN__"};
-
-    //----- NumericMatrix with traces -----//
-    NumericMatrix output(setup_n_chains * setup_c_sample_size,
-                         headers.size());
-    size_t col = 0;
-
-    // loglikelihood
-    output(_, col++) = NumericVector(wrap(dgn_glob_loglike));
-
-    // parameters
-    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
-        output(_, col++) = NumericVector(wrap(dgn_param_value.at(p)));
-
-    // augmented variables
-    if (!dgn_augm_value.empty())
-        for (const augmID &a : augm_infer_list)
-            output(_, col++) = NumericVector(wrap(dgn_augm_value.at(a)));
-
-    // retrieve chain identities
-    if (setup_n_chains > 1)
+    try
     {
-        IntegerVector df_chain(setup_c_sample_size * setup_n_chains);
+        if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
+            throw std::length_error(
+                "No traces to export were found.");
+
+        //----- Collect the column names -----//
+        str_vec headers = {"loglikelihood"};
+        headers += param_standard_infer_list + param_extra_infer_list;
+
+        // augmented variable of id trace
+        if (!dgn_augm_value.empty())
+            for (const augmID &a : augm_infer_list)
+                headers += {a + "_id_" + setup_id_trace};
+
+        // multiple chains
+        if (setup_n_chains > 1)
+            headers += {"CHAIN__"};
+
+        //----- NumericMatrix with traces -----//
+        NumericMatrix output(setup_n_chains * setup_c_sample_size,
+                             headers.size());
+        size_t col = 0;
+
+        // loglikelihood
+        output(_, col++) = NumericVector(wrap(dgn_glob_loglike));
+
+        // parameters
+        for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+            output(_, col++) = NumericVector(wrap(dgn_param_value.at(p)));
+
+        // augmented variables
+        if (!dgn_augm_value.empty())
+            for (const augmID &a : augm_infer_list)
+                output(_, col++) = NumericVector(wrap(dgn_augm_value.at(a)));
+
+        // retrieve chain identities
+        if (setup_n_chains > 1)
+        {
+            IntegerVector df_chain(setup_c_sample_size * setup_n_chains);
+            for (size_t c = 0; c < setup_n_chains; ++c)
+                std::fill(df_chain.begin() + c * setup_c_sample_size,
+                          df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
+            output(_, col++) = df_chain;
+        }
+
+        //----- associate column names -----//
+        colnames(output) = CharacterVector(wrap(headers));
+
+        //----- associate row names -----//
+        IntegerVector sweep(setup_c_sample_size * setup_n_chains);
         for (size_t c = 0; c < setup_n_chains; ++c)
-            std::fill(df_chain.begin() + c * setup_c_sample_size,
-                      df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
-        output(_, col++) = df_chain;
+            for (size_t k = 0; k < setup_c_sample_size; k++)
+                sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
+        rownames(output) = CharacterVector(wrap(sweep));
+
+        return output;
     }
-
-    //----- associate column names -----//
-    colnames(output) = CharacterVector(wrap(headers));
-
-    //----- associate row names -----//
-    IntegerVector sweep(setup_c_sample_size * setup_n_chains);
-    for (size_t c = 0; c < setup_n_chains; ++c)
-        for (size_t k = 0; k < setup_c_sample_size; k++)
-            sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
-    rownames(output) = CharacterVector(wrap(sweep));
-
-    return output;
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While exporting infectivity profile: " + std::string(e.what()));
+    }
+    return NumericMatrix();
 }
 
 /* Export all sampled values of the loglikelihood for all household. */
@@ -411,33 +458,42 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 {
     using namespace Rcpp;
 
-    if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
-        tools::error(
-            "No traces to export were found.");
-
-    // Create a NumericMatrix with n_house columns
-    ulong sample_size = setup_n_chains * setup_c_sample_size;
-    NumericMatrix output(sample_size, n_households);
-    CharacterVector headers(n_households);
-
-    // Assign each NumericVector to a column of the matrix
-    for (size_t H = 0; H < n_households; ++H)
+    try
     {
-        output(_, H) = NumericVector(wrap(house_vector[H].get_dgn_loglike()));
-        headers[H] = house_vector[H].house_id();
+        if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
+            tools::error(
+                "No traces to export were found.");
+
+        // Create a NumericMatrix with n_house columns
+        ulong sample_size = setup_n_chains * setup_c_sample_size;
+        NumericMatrix output(sample_size, n_households);
+        CharacterVector headers(n_households);
+
+        // Assign each NumericVector to a column of the matrix
+        for (size_t H = 0; H < n_households; ++H)
+        {
+            output(_, H) = NumericVector(wrap(house_vector[H].get_dgn_loglike()));
+            headers[H] = house_vector[H].house_id();
+        }
+
+        //----- associate column names -----//
+        colnames(output) = headers;
+
+        //----- associate row names -----//
+        IntegerVector sweep(setup_c_sample_size * setup_n_chains);
+        for (size_t c = 0; c < setup_n_chains; ++c)
+            for (size_t k = 0; k < setup_c_sample_size; k++)
+                sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
+        rownames(output) = CharacterVector(wrap(sweep));
+
+        return output;
     }
-
-    //----- associate column names -----//
-    colnames(output) = headers;
-
-    //----- associate row names -----//
-    IntegerVector sweep(setup_c_sample_size * setup_n_chains);
-    for (size_t c = 0; c < setup_n_chains; ++c)
-        for (size_t k = 0; k < setup_c_sample_size; k++)
-            sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
-    rownames(output) = CharacterVector(wrap(sweep));
-
-    return output;
+    catch (const std::exception &e)
+    {
+        tools::error(
+            "While exporting household loglikelihood matrix: " + std::string(e.what()));
+    }
+    return NumericMatrix();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -446,50 +502,34 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 
 /* Export a showcase of the selected infectivity profile. */
 Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
-                                                       const Rcpp::List &xlim,
                                                        int n_bins) const
 {
     using namespace Rcpp;
 
-    // check the call makes sense
-    if (_infec_profile_ == nullptr)
-        tools::print_stderr("No infectivity profile to export.");
-
-    // load options
-    dbl_vec opts_ = {};
-    for (int k = 0; k < opts.size(); ++k)
-        opts_.push_back(opts.at(k));
-
-    // load x limits
-    dbl_vec xlim_ = {-20., 20.};
-    if (xlim.size() > 0)
+    try
     {
-        std::map<std::string, std::string> load_user_xlim = {};
-        rlist_to_map(xlim, load_user_xlim);
-        if (load_user_xlim.count("min"))
-            if (!tools::is_na(load_user_xlim.at("min")))
-                xlim_[0] = tools::stod(load_user_xlim.at("min"));
-        if (load_user_xlim.count("max"))
-            if (!tools::is_na(load_user_xlim.at("max")))
-                xlim_[1] = tools::stod(load_user_xlim.at("max"));
+        // check the call makes sense
+        if (_infec_profile_ == nullptr)
+            throw std::length_error("No infectivity profile to export.");
+
+        // load options
+        dbl_vec opts_ = {};
+        for (int k = 0; k < opts.size(); ++k)
+            opts_.push_back(opts.at(k));
+
+        // produce a showcase of the distribution profile
+        std::vector<dbl_vec> values = _infec_profile_->showcase(opts_, n_bins);
+
+        return DataFrame::create(_["generation_time"] = wrap(values[0]),
+                                 _["instantaneous"] = wrap(values[1]),
+                                 _["cumulative"] = wrap(values[2]));
     }
-
-    // produce a showcase of the distribution profile
-    std::map<double, dbl_vec> values = _infec_profile_->showcase(opts_, xlim_, n_bins);
-    size_t c = 0, n = values.size();
-    NumericVector t(n), inst(n), cumu(n);
-
-    for (const auto &pair : values)
+    catch (const std::exception &e)
     {
-        t[c] = pair.first;
-        inst[c] = pair.second[0];
-        cumu[c] = pair.second[1];
-        ++c;
+        tools::error(
+            "While exporting infectivity profile: " + std::string(e.what()));
     }
-
-    return DataFrame::create(_["generation_time"] = std::move(t),
-                             _["instantaneous"] = std::move(inst),
-                             _["cumulative"] = std::move(cumu));
+    return DataFrame();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -511,11 +551,10 @@ Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_ho
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_matrix() const { return pImpl->export_household_loglike_matrix(); }
 Rcpp::DataFrame MCMC::export_infectivity_profile(const Rcpp::List &opts,
-                                                 const Rcpp::List &xlim,
                                                  int n_bins)
 {
     init_infec_profile();
-    return pImpl->export_infectivity_profile(opts, xlim, n_bins);
+    return pImpl->export_infectivity_profile(opts, n_bins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -551,7 +590,8 @@ void MCMC::Impl::read_setup(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading setup definitions: " + std::string(e.what()));
+        tools::error(
+            "While reading setup definitions: " + std::string(e.what()));
     }
     build_setup();
     _report_pathtofile_["setup"] = f;
@@ -566,7 +606,8 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading infectivity profile definitions: " + std::string(e.what()));
+        tools::error(
+            "While reading infectivity profile definitions: " + std::string(e.what()));
     }
     build_infec_profile();
     _report_pathtofile_["infec_profile"] = f;
@@ -581,7 +622,8 @@ void MCMC::Impl::read_params(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading parameter definitions: " + std::string(e.what()));
+        tools::error(
+            "While reading parameter definitions: " + std::string(e.what()));
     }
     build_params();
     _report_pathtofile_["params"] = f;
@@ -613,7 +655,8 @@ void MCMC::Impl::read_data(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading dataset: " + std::string(e.what()));
+        tools::error(
+            "While reading dataset: " + std::string(e.what()));
     }
     build_data(datatable);
     _report_pathtofile_["data"] = f;

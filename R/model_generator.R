@@ -662,41 +662,16 @@ HousepiGenerator <- R6::R6Class(
     #'
     #' @param opts `double()`\cr
     #' Additional values for the computation.
-    #' @param xlim `double(2)`\cr
-    #' Customize the left and/or right limits for the x axis.
-    #' To keep the default value of one limit, set it to `NA`.
     #' @param n_bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return `data.frame`
     export_infectivity_profile = function(opts = list(),
-                                          xlim = double(),
-                                          n_bins = 2000) {
+                                          n_bins = 2500) {
       # load options
-      opts_ <- as.list(as.numeric(opts))
-
-      # load x-limits
-      xlim_ <- list()
-      xlim <- unlist(xlim)
-      if (length(xlim) == 2) {
-        if (!all(is.na(xlim))) {
-          # check
-          if (!any(is.na(xlim))) {
-            if (xlim[[1]] == xlim[[2]]) {
-              stop_h("Left x limit larger than right limit.")
-            } else if (xlim[[1]] > xlim[[2]]) {
-              stop_h("Left x limit equal to right limit.")
-            }
-          }
-          xlim_ <- lapply(xlim, as.character)
-          names(xlim_) <- c("min", "max")
-        }
-
-      } else if (length(xlim) > 0) {
-        stop_h("Provide exactly 2 limits for the x axis.")
-      }
-
-      return(private$.rcpp$export_infectivity_profile(opts_, xlim_, n_bins))
+      opts <- as.list(as.numeric(opts))
+      n_bins <- as.integer(n_bins)
+      return(private$.rcpp$export_infectivity_profile(opts, n_bins))
     },
 
     #' @description

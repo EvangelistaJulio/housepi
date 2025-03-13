@@ -47,15 +47,16 @@ HouseholdModel <- R6::R6Class(
         '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required data headers from regular expressions
-      require_set <- template_find_requirement(refer_file, regular_expr)
+      requirements <- c(template_find_requirement(refer_file, regular_expr),
+                        private$.augm$data_require)
 
-      if (length(require_set) == 0) {
+      if (length(requirements) == 0) {
         # if requirement set is NULL it means nothing can be said
         is_def_complete <- NA
 
       } else {
         # find missing data headers
-        missing_set <- template_find_missing(require_set,
+        missing_set <- template_find_missing(requirements,
                                              data_headers)
         if (length(missing_set) > 0) {
           is_def_complete <- FALSE
@@ -819,22 +820,17 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param opts `double()`\cr
     #' Additional values for the computation.
-    #' @param xlim `double(2)`\cr
-    #' Customize the left and/or right limits for the x axis.
-    #' To keep the default value of one limit, set it to `NA`.
     #' @param n_bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return
-    #' `data.frame`
+    #' `list()`
     export_infectivity_profile = function(opts = list(),
-                                          xlim = double(),
-                                          n_bins = 2000) {
+                                          n_bins = 2500) {
       # internal build function
-      private$.pre_build() # UPDATE: this overwrites last outcome...
+      private$.pre_build(NULL) # UPDATE: this overwrites last outcome...
 
       return(private$.model$export_infectivity_profile(opts = opts,
-                                                       xlim = xlim,
                                                        n_bins = n_bins))
     },
 

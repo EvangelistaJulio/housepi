@@ -159,7 +159,6 @@ public:
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_household_loglike_matrix() const;
 	Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
-											   const Rcpp::List &xlim,
 											   int n_bins);
 
 #else

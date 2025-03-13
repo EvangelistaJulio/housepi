@@ -535,30 +535,33 @@ void Distribution::init_functional_truncation(ushort discr_type)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return values to showcase the profile of the distribution. */
-const std::map<double, dbl_vec> Distribution::showcase(const dbl_vec &opts,
-                                                       const dbl_vec &xlim,
-                                                       int n_bins) const
+const std::vector<dbl_vec> Distribution::showcase(const dbl_vec &opts,
+                                                  int n_bins) const
 {
     if (n_bins < 1)
         throw std::invalid_argument("Number of bins should be greater than 0.");
+
+    const double ytol = 1.e-8;
 
     // pick extremes for the showcase
     double lower = get_min();
     double upper = get_max();
 
-    // adjust lower bound and limit
-    if (tools::is_na(lower))
-        lower = xlim[0];
-    else
-        lower = (xlim[0] < lower) ? lower : xlim[0];
-
-    // adjust upper bound and limit
     if (tools::is_na(upper))
-        upper = (xlim[1] > lower) ? xlim[1] : lower + 20.;
-    else
-        upper = (xlim[1] > upper) ? upper : xlim[1];
+    {
+        upper = 10. + (tools::is_na(lower) ? 0 : lower);
+        while (1. - cdf(upper, opts) > ytol)
+            upper += 3.;
+    }
 
-    // adjust binning width
+    if (tools::is_na(lower))
+    {
+        lower = -10.;
+        while (cdf(lower, opts) > ytol)
+            lower -= 3.;
+    }
+
+    // compute binning width
     double delta_x = is_discrete() ? 1. : ((upper - lower) / n_bins);
 
     // adjust extremes if interval is open
@@ -567,12 +570,23 @@ const std::map<double, dbl_vec> Distribution::showcase(const dbl_vec &opts,
     if (!valid(upper))
         upper -= delta_x;
 
-    // compute values to showcase
-    std::map<double, dbl_vec> output = {};
-    for (double x = lower; x <= upper; x += delta_x)
-        output.emplace(x, std::vector<double>({pdf(x, opts), cdf(x, opts)}));
+    // re-compute binning width
+    delta_x = is_discrete() ? 1. : ((upper - lower) / n_bins);
 
-    return output;
+    size_t N = (upper - lower) / delta_x;
+    dbl_vec gentime(N + 1);
+    dbl_vec inst(N + 1);
+    dbl_vec cumul(N + 1);
+
+    for (size_t i = 0; i <= N; ++i)
+    {
+        double x = lower + i * delta_x;
+        gentime[i] = x;
+        inst[i] = pdf(x, opts);
+        cumul[i] = cdf(x, opts);
+    }
+
+    return {gentime, inst, cumul};
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -1424,7 +1438,7 @@ protected:
 std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
 {
     const str_vec &options = {"unif", "norm", "lnorm",
-                              "beta", "gamma", "reparam_gamma", 
+                              "beta", "gamma", "reparam_gamma",
                               "rayleigh", "weibull", "exp",
                               "pois", "binom", "nbinom", "geom"};
 
