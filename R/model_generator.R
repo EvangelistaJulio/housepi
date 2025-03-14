@@ -74,26 +74,27 @@ HousepiGenerator <- R6::R6Class(
     # @param model_choice
     # The path to source code.
     .search_for_cached_dll = function(model_choice) {
-      # look for dynamic library name
-      cache_dll_files <- list.files(self$cache_dir,
-                                    pattern = dll_file_ext(),
-                                    full.names = TRUE)
+      if (isTRUE(force)) {
+        private$.need_compile <- TRUE
+      } else {
+        # look for dynamic library name
+        cache_dll_files <- list.files(self$cache_dir,
+                                      pattern = dll_file_ext(),
+                                      full.names = TRUE)
 
-      if (length(cache_dll_files) == 1) {
-        # remove previous cached file
-        if (isTRUE(force)) {
-          private$.need_compile <- TRUE
-  
-        } else {
+        if (length(cache_dll_files) == 1) {
           # check if it needs recompile
+          # FIXME: #UPDATE: can look for the correct one in the list...
           private$.need_compile <- untracked_changes(
             model_choice, cache_dll_files[1]
           )
+          if (isFALSE(private$.need_compile)) {
+            private$.dll <- cache_dll_files[1]
+          }
+        } else {
+          # no dll cached or multiple dlls
+          private$.need_compile <- TRUE
         }
-
-      } else {
-        # no dll cached
-        private$.need_compile <- TRUE
       }
 
       invisible(self)
@@ -378,17 +379,17 @@ HousepiGenerator <- R6::R6Class(
     #' - path/to/folder with implementation;
     #' - path/to/folder with previously compiled model;
     #' - "blank" template name.
+    #' @param as_template `logical(1)`\cr
+    #' If `TRUE` store the dynamic library as a local template.
+    #' If `FALSE` recompile the model at every new session.
     #' @param force `logical(1)`\cr
     #' If `TRUE` compile even if a cached model already exists.
     #' @param quiet_pkgbuild `logical(1)`\cr
     #' If `TRUE` hide `pkgbuild` compilation commands.
-    #' @param as_template `logical(1)`\cr
-    #' If `TRUE` store the dynamic library as a local template.
-    #' If `FALSE` recompile the model at every new session.
     initialize = function(model_choice,
+                          as_template = FALSE,
                           force = FALSE,
-                          quiet_pkgbuild = TRUE,
-                          as_template = FALSE) {
+                          quiet_pkgbuild = TRUE) {
       # assign quiet_pkgbuild field
       private$.quiet_pkgbuild <- isTRUE(quiet_pkgbuild)
 
@@ -430,17 +431,16 @@ HousepiGenerator <- R6::R6Class(
         if (file.exists(private$.dll)) {
           if (isTRUE(force) | untracked_changes(model_choice, private$.dll)) {
             private$.need_compile <- TRUE
-            unlink(private$.dll)
           }
         }
 
         # temporary directory where to store source code
-        if (!file.exists(private$.dll)) {
+        if (isFALSE(file.exists(private$.dll)) | isTRUE(private$.need_compile)) {
           self$cache_dir <- file.path(tempdir(), template_name(private$.name))
 
-          if (!dir.exists(self$cache_dir)) {
-            if (!dir.create(self$cache_dir, recursive = TRUE,
-                            showWarnings = FALSE)) {
+          if (isFALSE(dir.exists(self$cache_dir))) {
+            if (isFALSE(dir.create(self$cache_dir, recursive = TRUE,
+                                   showWarnings = FALSE))) {
               stop_h(
                 "Impossibile to create a cache directory for compilation.",
                 "Check your user permissions."
@@ -449,9 +449,20 @@ HousepiGenerator <- R6::R6Class(
           }
 
           if (isTRUE(as_template)) {
-            private$.need_compile <- TRUE
+            if (file.exists(private$.dll)) {
+              private$.need_compile <- FALSE            
+              unlink(private$.dll)
+              warning_h(
+                "Impossible to replace existing template in current session.",
+                "To re-compile your model restart R.",
+                "Warning raised because model changed or 'force = TRUE'."
+              )
+            } else {
+              private$.need_compile <- TRUE
+            }
+
           } else {
-            # search cached dll and check if to be recompilede 
+            # search cached dll and check if to be recompiled 
             private$.search_for_cached_dll(model_choice)
           }
         }
@@ -744,9 +755,9 @@ re_compile_library <- function(pkgname,
   for (m in list.files(models_dir, full.names = TRUE)) {
     if ((!file.exists(template_dll_file(m))) || isTRUE(force)) {
       HousepiGenerator$new(m,
+                           as_template = TRUE,
                            force = force,
-                           quiet_pkgbuild = FALSE,
-                           as_template = TRUE)$generate()
+                           quiet_pkgbuild = FALSE)$generate()
     }
   }
 }

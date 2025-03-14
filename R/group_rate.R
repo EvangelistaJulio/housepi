@@ -4,11 +4,6 @@
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
-# formatting options
-tab_ <- "\t"
-tab_2_ <- strrep(tab_, 2)
-reference_ <- "REFERENCE"
-
 #' @title
 #' Group rate logic table
 #' @description
@@ -124,7 +119,7 @@ associate_param_names <- function(logic_table,
       paste0(prefix, paste(paste0(names(logic_table), row), collapse = "_"))
     }
   )
-  logic_table$.param_name[idx_refer] <- reference_
+  logic_table$.param_name[idx_refer] <- "REFERENCE"
 
   return(logic_table)
 }
@@ -135,7 +130,7 @@ associate_param_names <- function(logic_table,
 #' @param r
 #' row of the group rate
 #' @param is_ref
-#' if `TRUE` the if clause is "reference_"
+#' if `TRUE` the if clause is "REFERENCE"
 #'
 #' @noRd
 cpp_ifclause_line <- function(r, is_ref = FALSE) {
@@ -151,8 +146,8 @@ cpp_ifclause_line <- function(r, is_ref = FALSE) {
   # wrap all together
   c(sprintf("%sif ((%s))", ifelse(is_ref, "", "else "), condition),
     sprintf("%semplace_group_rate(r, %s);",
-            tab_,
-            ifelse(is_ref, reference_, sprintf("\"%s\"", r[[".param_name"]])))
+            "\t",
+            ifelse(is_ref, "REFERENCE", sprintf("\"%s\"", r[[".param_name"]])))
   )
 }
 
@@ -405,7 +400,7 @@ HousepiGroupRate <- R6::R6Class(
                                               prefix,
                                               this_def[["reference"]])
           # mask reference case
-          mask_refer <- this_table$.param_name == reference_
+          mask_refer <- this_table$.param_name == "REFERENCE"
           script <- c(
             script,
             # start with reference case
@@ -414,7 +409,7 @@ HousepiGroupRate <- R6::R6Class(
             apply(this_table[!mask_refer, ], 1, cpp_ifclause_line),
             # close with missing case
             "else",
-            sprintf("%semplace_group_rate(r, MISSING_RATE);", tab_)
+            sprintf("%semplace_group_rate(r, MISSING_RATE);", "\t")
           )
         }
 
@@ -433,7 +428,7 @@ HousepiGroupRate <- R6::R6Class(
         "/* Generated automatically -> do not edit by hand */",
         "void Model::assign_group_rate_to_individual(Household &house, indiv i)",
         "{",
-        sapply(rate_script, function(x) paste0(tab_, x)),
+        sapply(rate_script, function(x) paste0("\t", x)),
         "}"
       ), collapse = "\n")
 

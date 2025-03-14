@@ -391,9 +391,9 @@ HouseholdModel <- R6::R6Class(
 
       # assign model definitions
       private$.model <- HousepiGenerator$new(model = model,
+                                             as_template = as_template,
                                              force = force,
-                                             quiet_pkgbuild = quiet_pkgbuild,
-                                             as_template = as_template)
+                                             quiet_pkgbuild = quiet_pkgbuild)
       # initial generation
       private$.model$generate()
 
