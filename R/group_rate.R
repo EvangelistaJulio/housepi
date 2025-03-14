@@ -265,7 +265,7 @@ HousepiGroupRate <- R6::R6Class(
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
-    #' @param rule_scale `double(1)`\cr
+    #' @param scale `double(1)`\cr
     #' Scale parameter for the proposal rule.
     #' Changed automatically during inference if `n_adpat`>0.
     #' @param min `double(1)`\cr
@@ -284,10 +284,10 @@ HousepiGroupRate <- R6::R6Class(
                    independent = TRUE,
                    prior = "lnorm",
                    args = list(meanlog = 0, sdlog = 1),
-                   rule = "lnorm",
-                   rule_scale = 1,
                    min = NA,
-                   max = 10) {
+                   max = 10,
+                   rule = "lnorm",
+                   scale = 1) {
 
       # UPDATE: controls are missing
       if (is.na(name)) {
@@ -314,7 +314,7 @@ HousepiGroupRate <- R6::R6Class(
         prior = prior,
         args = args,
         rule = rule,
-        rule_scale = rule_scale,
+        scale = scale,
         min = min,
         max = max
       )

@@ -147,6 +147,56 @@ void MCMC::Impl::build_setup()
     }
 }
 
+/* Set the number of threads for parrell computations (default is 1). */
+void MCMC::Impl::set_n_threads()
+{
+    if (setup_n_threads == 0)
+        throw std::invalid_argument("N. of threads must be greater than 0.");
+
+#ifdef _OPENMP
+    unsigned int max_threads = omp_get_max_threads();
+    if (setup_n_threads > max_threads)
+    {
+        tools::warning(
+            "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
+        setup_n_threads = max_threads;
+    }
+
+    // declare the global number of omp threads
+    omp_set_num_threads(setup_n_threads);
+
+#else
+    if (setup_n_threads != 1)
+        tools::warning("Parallelization with OpenMP not supported.");
+
+    setup_n_threads = 1;
+#endif
+}
+
+/* Assign seed for random generators. */
+void MCMC::Impl::set_prng_seed()
+{
+    // seed for the unique thread rand num generator
+    prng.seed(setup_seed);
+    _func_prng_ = &Impl::_prng_unique_thread_;
+
+#ifdef _OPENMP
+    // seeds for the case of parallelization
+    if (setup_n_threads > 1)
+    {
+        // create different generators for different parallel threads
+        // note: they are used only to parallelize data augmentantion
+        _func_prng_ = &Impl::_prng_parallel_threads_;
+
+        std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
+
+        prng_parallel.reserve(setup_n_threads);
+        for (unsigned n = 0; n < setup_n_threads; ++n)
+            prng_parallel[n].seed(seed_generator(prng));
+    }
+#endif
+}
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -236,8 +286,8 @@ void MCMC::Impl::build_params()
 
                     // load rule scale
                     double rule_scale = 1.;
-                    if (!tools::is_na(deftable.at("rule_scale")[k]))
-                        rule_scale = tools::stod(deftable.at("rule_scale")[k]);
+                    if (!tools::is_na(deftable.at("scale")[k]))
+                        rule_scale = tools::stod(deftable.at("scale")[k]);
 
                     //----- Create a new Parameter Variable -----//
                     param_map.emplace(p, Variable(name, value, is_discrete));
@@ -777,11 +827,11 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                 {
                     // assign proposer rule
                     const std::string &rule_name = deftable.at("rule")[k];
-                    double rule_scale = type_to_double(deftable.at("rule_scale")[k],
-                                                       deftable.at("rule_scale_at")[k],
+                    double rule_scale = type_to_double(deftable.at("scale")[k],
+                                                       deftable.at("scale_at")[k],
                                                        house, i);
-                    double rule_from = type_to_double(deftable.at("rule_from")[k],
-                                                      deftable.at("rule_from_at")[k],
+                    double rule_from = type_to_double(deftable.at("from")[k],
+                                                      deftable.at("from_at")[k],
                                                       house, i);
                     house.assign_augm_proposer(i, a,
                                                rule_name, rule_scale, rule_from);

@@ -534,7 +534,7 @@ HousepiGenerator <- R6::R6Class(
     #'
     #' @return `flextable`
     show_summary = function(pct_format = "%.1f%%") {
-      if (requireNamespace("flextable", quietly = FALSE)) {
+      if (require_suggested_library("flextable")) {
 
         combined <- self$summary
         combined$pct <- sapply(combined$pct,
@@ -551,7 +551,8 @@ HousepiGenerator <- R6::R6Class(
           ft, part = "all",
           labels = c(type = "", comment = "", pct = "[%]")
         )
-        ft <- flextable::colformat_num(ft, big.mark = "")
+        ft <- flextable::colformat_num(ft, big.mark = "",
+                                       na_str = "", nan_str = "")
         return(ft)
       }
     },
@@ -565,7 +566,7 @@ HousepiGenerator <- R6::R6Class(
     #'
     #' @return `flextable`
     show_house_size_summary = function(pct_format = "%.1f%%") {
-      if (requireNamespace("flextable", quietly = FALSE)) {
+      if (require_suggested_library("flextable")) {
         combined <- self$summary_house_size
         combined$pct <- sapply(combined$pct,
                                function(x) sprintf(pct_format, x))
@@ -671,7 +672,13 @@ HousepiGenerator <- R6::R6Class(
       # load options
       opts <- as.list(as.numeric(opts))
       n_bins <- as.integer(n_bins)
-      return(private$.rcpp$export_infectivity_profile(opts, n_bins))
+
+      # reformat dataframe
+      output <- private$.rcpp$export_infectivity_profile(opts, n_bins)
+      output$profile <- as.data.frame(output[c("gentime", "inst", "cumul")])
+      output[c("gentime", "inst", "cumul")] <- NULL
+
+      return(output)
     },
 
     #' @description

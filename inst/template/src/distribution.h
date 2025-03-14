@@ -21,6 +21,11 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+#define D_DISCR_TYPE_NONE 0 // none
+#define D_DISCR_TYPE_LEFT 1 // left
+#define D_DISCR_TYPE_CNTR 2 // center
+#define D_DISCR_TYPE_DFND 3 // defined
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,8 +48,9 @@ public:
 	double rand(rnd_gen &prng);
 
 	//===== SHOW =====//
-    const std::vector<dbl_vec> showcase(const dbl_vec &opts = {},
-										int n_bins = 2000) const;
+	const std::vector<dbl_vec> showcase(const dbl_vec &opts = {},
+										int n_bins = 2000,
+										double ytol = 1.e-5) const;
 
 protected:
 	//===== SETTER =====//
@@ -107,11 +113,21 @@ private:
 	double (Distribution::*_func_shift_)(double, const dbl_vec &opts) const = &Distribution::_shift_dummy_;
 
 	//----- Functional methods for the truncation and/or discretization -----//
+
+	// default case
 	double _trunc_dummy_(double x, const dbl_vec &opts) const;
+
+	// continuos case
 	double _trunc_min_(double x, const dbl_vec &opts) const;
 	double _trunc_max_(double x, const dbl_vec &opts) const;
 	double _trunc_both_sides_(double x, const dbl_vec &opts) const;
 	double _trunc_rand_(rnd_gen &prng);
+
+	// case of discrete defined
+	double _trunc_min_discr_defined_(double x, const dbl_vec &opts) const;
+	double _trunc_max_discr_defined_(double x, const dbl_vec &opts) const;
+	double _trunc_both_sides_discr_defined_(double x, const dbl_vec &opts) const;
+	// note : _trunx_rand_discr_defined == _trunc_rand_
 
 	// case of center discretization
 	double _trunc_min_discr_center_(double x, const dbl_vec &opts) const;
@@ -125,11 +141,20 @@ private:
 	double _trunc_both_sides_discr_left_(double x, const dbl_vec &opts) const;
 	double _trunc_rand_discr_left_(rnd_gen &prng);
 
-	//----- Functional methods for the (log) truncation -----//
+	//----- Functional methods for the log-truncation -----//
+
+	// default case
 	double _logtrunc_dummy_(double x, const dbl_vec &opts) const;
+
+	// continuos case
 	double _logtrunc_min_(double x, const dbl_vec &opts) const;
 	double _logtrunc_max_(double x, const dbl_vec &opts) const;
 	double _logtrunc_both_sides_(double x, const dbl_vec &opts) const;
+
+	// case of discrete defined
+	double _logtrunc_min_discr_defined_(double x, const dbl_vec &opts) const;
+	double _logtrunc_max_discr_defined_(double x, const dbl_vec &opts) const;
+	double _logtrunc_both_sides_discr_defined_(double x, const dbl_vec &opts) const;
 
 	// case of center discretization
 	double _logtrunc_min_discr_center_(double x, const dbl_vec &opts) const;
@@ -144,8 +169,14 @@ private:
 	//----- Functional methods to shift cumulative -----//
 	double _shift_dummy_(double x, const dbl_vec &opts) const;
 	double _shift_min_(double x, const dbl_vec &opts) const;
+	double _shift_min_discr_defined_(double x, const dbl_vec &opts) const;
 	double _shift_min_discr_center_(double x, const dbl_vec &opts) const;
 	double _shift_min_discr_left_(double x, const dbl_vec &opts) const;
+
+	//===== DEVELOPER CHECK =====//
+	double __developer_check_pdf_norm__(const dbl_vec &opts = {},
+										int n_bins = 5000,
+										double ytol = 1.e-8) const;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

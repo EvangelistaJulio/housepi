@@ -157,6 +157,8 @@ HousepiAugmented <- R6::R6Class(
     #' - Scalar value;
     #' - Parameter name (followed by `@P`);
     #' - Data name (followed by `@D`).
+    #' @param init_rand `character(1)`\cr
+    #' If `TRUE` draw initial vale from model distribution.
     #' @param constant `logical(1)`\cr
     #' If `FALSE` the augmented variable is treated as a constant.
     #' @param discrete `logical(1)`\cr
@@ -165,13 +167,6 @@ HousepiAugmented <- R6::R6Class(
     #' Name of the model distribution.
     #' @param args (named `list()`\cr
     #' Arguments for the model distribution.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param rule_scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' @param rule_from `double(1)` | `character(1)`\cr
-    #' Advanced options for non random walk moves.
-    #' `FIXME: missing`
     #' @param min `double(1)` | `character(1)`\cr
     #' Minimum value. One between:
     #' - Scalar value;
@@ -182,23 +177,27 @@ HousepiAugmented <- R6::R6Class(
     #' - Scalar value;
     #' - Parameter name (followed by `@P`);
     #' - Data name (followed by `@D`).
-    #' @param init_rand `character(1)`\cr
-    #' If `TRUE` draw initial vale from model distribution.
-    #'
+    #' @param rule `character(1)`\cr
+    #' Name of the inference proposal rule.
+    #' @param scale `double(1)`\cr
+    #' Scale parameter for the proposal rule.
+    #' @param from `double(1)` | `character(1)`\cr
+    #' Advanced options for non random walk moves.
+    #' `FIXME: missing`
     #' @noRd
     add = function(name = NA,
                    status = NA,
                    value = NA,
+                   init_rand = FALSE,
                    constant = NA,
                    discrete = FALSE,
                    model = NA,
                    args = list(),
-                   rule = NA,
-                   rule_scale = NA,
-                   rule_from = NA,
                    min = NA,
                    max = NA,
-                   init_rand = FALSE) {
+                   rule = NA,
+                   scale = NA,
+                   from = NA) {
       #----- name -----#
       if (is.na(name)) {
         stop_h("Incomplete definition: missing name.")
@@ -242,14 +241,14 @@ HousepiAugmented <- R6::R6Class(
       } else {
         if (is.na(value)) {
           if (is.na(model)) {
-            if (is.na(rule_from)) {
+            if (is.na(from)) {
               stop_h(
                 "Incomplete definition: missing value.",
                 "Alternative: provide a model and set 'init_rand = TRUE'."
               )
             } else {
-              value_ <- str_split_(rule_from)$var
-              value_at_ <- str_split_(rule_from)$typ
+              value_ <- str_split_(from)$var
+              value_at_ <- str_split_(from)$typ
             }
           } else {
             init_rand <- TRUE
@@ -273,10 +272,10 @@ HousepiAugmented <- R6::R6Class(
       }
 
       #----- rule -----#
-      rule_scale_ <- NA
-      rule_scale_at_ <- NA
-      rule_from_ <- NA
-      rule_from_at_ <- NA
+      scale_ <- NA
+      scale_at_ <- NA
+      from_ <- NA
+      from_at_ <- NA
 
       if (isFALSE(constant)) {
         if (is.na(rule)) {
@@ -286,15 +285,15 @@ HousepiAugmented <- R6::R6Class(
             rule <- "gibbs"
           }
         } else if (rule != "gibbs") {
-          if (is.na(rule_scale)) {
-            rule_scale_ <- 1
-            rule_scale_at_ <- "S"
+          if (is.na(scale)) {
+            scale_ <- 1
+            scale_at_ <- "S"
           } else {
-            rule_scale_ <- str_split_(rule_scale)$var
-            rule_scale_at_ <- str_split_(rule_scale)$typ
+            scale_ <- str_split_(scale)$var
+            scale_at_ <- str_split_(scale)$typ
           }
-          rule_from_ <- str_split_(rule_from)$var
-          rule_from_at_ <- str_split_(rule_from)$typ
+          from_ <- str_split_(from)$var
+          from_at_ <- str_split_(from)$typ
         }
       }
 
@@ -322,22 +321,22 @@ HousepiAugmented <- R6::R6Class(
           status = status,
           value = value_,
           value_at = value_at_,
+          init_rand = init_rand,
           constant = isTRUE(constant),
           discrete = isTRUE(discrete),
           model = model,
           arg_name = arg_name_,
           arg_value = arg_value_,
           arg_at = arg_at_,
-          rule = rule,
-          rule_scale = rule_scale_,
-          rule_scale_at = rule_scale_at_,
-          rule_from = rule_from_,
-          rule_from_at = rule_from_at_,
           min = min_,
           min_at = min_at_,
           max = max_,
           max_at = max_at_,
-          init_rand = init_rand,
+          rule = rule,
+          scale = scale_,
+          scale_at = scale_at_,
+          from = from_,
+          from_at = from_at_,
           stringsAsFactors = FALSE
         )
       )

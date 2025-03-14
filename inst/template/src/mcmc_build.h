@@ -95,9 +95,9 @@ public:
                                         "n_burnin", "rand_init", "n_threads",
                                         "inv_temper", "id_trace", "progress"};
 
-    ulong setup_seed;             // random generator seed
-    bool setup_rand_init_params;  // random initialization of parameters
-    bool setup_progress = true; // if to show progressbar
+    ulong setup_seed;            // random generator seed
+    bool setup_rand_init_params; // random initialization of parameters
+    bool setup_progress = true;  // if to show progressbar
 
     ulong setup_n_chains; // n. chains
     ulong setup_n_steps;  // n. iterations
@@ -125,8 +125,8 @@ public:
     const str_vec param_file_headers = {"name", "value",
                                         "constant", "discrete",
                                         "prior", "arg_name", "arg_value",
-                                        "rule", "rule_scale",
-                                        "min", "max"};
+                                        "min", "max",
+                                        "rule", "scale"};
     std::vector<parID> param_const_list = {};
     std::vector<parID> param_standard_infer_list = {};
     std::vector<parID> param_extra_infer_list = {};
@@ -180,10 +180,10 @@ public:
                                        "value", "value_at",
                                        "constant", "discrete", "init_rand",
                                        "model", "arg_name", "arg_value", "arg_at",
-                                       "rule", "rule_scale", "rule_scale_at",
-                                       "rule_from", "rule_from_at",
                                        "min", "min_at",
-                                       "max", "max_at"};
+                                       "max", "max_at",
+                                       "rule", "scale", "scale_at",
+                                       "from", "from_at"};
     std::unordered_set<augmID> augm_list_full = {};
     std::unordered_set<augmID> augm_list_model = {};
     std::unordered_set<augmID> augm_infer_list = {};
@@ -217,7 +217,8 @@ public:
     void assign_infec_profile_args(const str_vec &keys,
                                    const str_vec &vals,
                                    const str_vec &typs);
-    void assign_infec_profile_min(const std::string &min_value,
+    void assign_infec_profile_min(bool is_discrete,
+                                  const std::string &min_value,
                                   const std::string &min_at);
     void assign_infec_profile_max(const std::string &max_value,
                                   const std::string &max_at);
@@ -249,8 +250,8 @@ public:
     Rcpp::DataFrame export_parameter() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_household_loglike_matrix() const;
-    Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
-                                               int n_bins) const;
+    Rcpp::List export_infectivity_profile(const Rcpp::List &opts,
+                                          int n_bins) const;
 
 #else
     //----- READ -----//
@@ -272,7 +273,7 @@ public:
     void _aux_print_dataset_init_(const std::string &pathtofile);
     void _aux_print_dataset_update_(const Household &house);
     void _aux_print_dataset_finalize_();
-    
+
     void print_infer_state(const std::string &pathtofile) const;
 #endif
 

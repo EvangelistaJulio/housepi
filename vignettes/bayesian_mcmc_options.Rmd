@@ -41,8 +41,8 @@ available_distrs <- c("unif", "norm", "lnorm", "gamma",
                       "weibull", "rayleigh","beta", "exp")
 
 # add a parameter definition for each available distribution
-for (distr_name in available_distrs) {
-  blank_model$add_param(name = distr_name, prior = distr_name)
+for (distr in available_distrs) {
+  blank_model$add_param(name = distr, prior = distr)
 }
 ```
 
@@ -56,7 +56,7 @@ blank_model$infer(progress = FALSE)
 
 The warning just reminds us that we are using a dummy model.
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # density plot of the traces (w\o loglikelihood)
 bayesplot::mcmc_dens(blank_model$traces_no_loglike)
 ```
@@ -76,7 +76,7 @@ blank_model$load_param_list(
 blank_model$infer(progress = FALSE)
 ```
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 bayesplot::mcmc_dens(blank_model$traces_no_loglike)
 ```
 
@@ -92,15 +92,15 @@ Here's the full list of available discrete distributions present in `housepi`:
 # discrete distributions in housepi
 discrete_distrs <- c("pois", "binom", "nbinom", "geom")
 blank_model$drop_all()
-for (distr_name in discrete_distrs) {
-  blank_model$add_param(name = distr_name, prior = distr_name)
+for (distr in discrete_distrs) {
+  blank_model$add_param(name = distr, prior = distr)
 }
 
 # perform the sampling 
 blank_model$infer(progress = FALSE)
 ```
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the histograms
 bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
 ```
@@ -114,15 +114,15 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 blank_model$drop_all()
 
 # add a parameter definition for each available distribution
-for (distr_name in available_distrs[available_distrs != "beta"]) {
-  blank_model$add_param(name = distr_name, prior = distr_name, discrete = TRUE)
+for (distr in available_distrs[available_distrs != "beta"]) {
+  blank_model$add_param(name = distr, prior = distr, discrete = TRUE)
 }
 
 # perform the sampling 
 blank_model$infer(progress = FALSE)
 ``` 
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the histograms
 bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
 ```
@@ -140,22 +140,22 @@ blank_model$drop_all()
 available_proposer_rules <- c("gibbs", "unif", "norm", "lnorm")
 
 # add a parameter definition for each available proposer rule
-for (rule_name in available_proposer_rules) {
-  blank_model$add_param(name = paste("rule", rule_name), prior = "norm", 
-                        min = 0, rule = rule_name, rule_scale = 0.1)
+for (rule in available_proposer_rules) {
+  blank_model$add_param(name = paste("rule", rule), prior = "norm", 
+                        min = 0, rule = rule, scale = 0.1)
 }
 
 blank_model$infer(progress = FALSE, n_steps = 100)
 ```
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 bayesplot::mcmc_trace(blank_model$traces_no_loglike)
 ```
 Note that the proposer rule "lnorm" does not fit the case of negative values.
 
 ### Role of Finite Adaptation
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 
 blank_model$infer(progress = FALSE, n_steps = 100, n_adapt = 1000)
 

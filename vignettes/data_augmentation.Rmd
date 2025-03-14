@@ -58,9 +58,20 @@ hhmodel$load_param_list(
 
 ## Build Augmented Variables
 
-Similarly to parameter definitions, for augmented variables we provide a DataFrame or a file with the models and proposer rules needed for the Bayesian Monte Carlo.
-However, augmented variable definitions are more delicate, since they can depend on the dataset or on model parameters.
-We state which value should be imported from the dataset by formatting the string with the value header: "*header_name*`@D`".
+Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
+In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
+
+We can link an argument value to its origin with the character "\@", e.
+g.
+"column\@D" will link to the value at individual row and "column".
+More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and `from` can be linked to external values in the following ways
+
+| Origin    | Link Examples       |
+|-----------|---------------------|
+| Scalar    | 17, "17", "17\@S"   |
+| Parameter | "alpha", "alpha\@P" |
+| Dataset   | "onset_date\@D"     |
+
 Here we associate to each individual an exposure and an onset time.
 
 ```{r}
@@ -71,8 +82,8 @@ hhmodel$add_augm(
   model = "unif",
   args = c(min = "exposure_min@D",  # move within the range 'exposure_min'
            max = "exposure_max@D"), # and 'exposure_max'
-  rule = "norm",    # normal distribution for the mcmc proposer 
-  rule_scale = 0.25 # with scale 0.25 (i. e. standard deviation)
+  rule = "norm", # normal distribution for the mcmc proposer 
+  scale = 0.25   # with scale 0.25 (i. e. standard deviation)
 )
 
 # add 'onset' time definition
@@ -83,20 +94,20 @@ hhmodel$add_augm(
   args = c(min = "onset_min@D",
            max = "onset_max@D"),
   rule = "norm", 
-  rule_scale = 0.25
+  scale = 0.25
 )
 ```
 
-We can inspect our current augmented variable definitions by calling the field `$augm_defs`: 
+We can inspect our current augmented variable definitions by calling the field `$augm_defs`:
 
 ```{r}
 augm_defs <- hhmodel$augm_defs
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(augm_defs[1:10],
+knitr::kable(augm_defs[1:9],
              caption = "Augmented variable definitions 1/2.")
-knitr::kable(augm_defs[11:(dim(augm_defs)[2])],
+knitr::kable(augm_defs[10:(dim(augm_defs)[2])],
              caption = "Augmented variable definitions 2/2.")
   
 ```
@@ -104,31 +115,38 @@ knitr::kable(augm_defs[11:(dim(augm_defs)[2])],
 ### Extract Augmented Variable Traces
 
 We could run the inference and extract the results as usual.
-However, sometimes we might be interested in extracting also to check if augmented variables evolve as expected. We can do so by providing the `id` of  individual augmented variables we want to store in the setup arguments of $infer()$ method:
+However, sometimes we might be interested in extracting also to check if augmented variables evolve as expected.
+We can do so by providing the `id` of individual augmented variables we want to store, in the setup arguments of `$infer()` method:
 
 ```{r}
 hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, thin = 8,
-              n_chains = 4, n_adapt = 2000, seed = 4349, id_trace = 7)
+              n_chains = 4, n_adapt = 2000, seed = 4349, progress = FALSE, 
+              id_trace = 7) # augmented variables trace for individual id 7
 ```
 
-Note: The warning tells us that our dataset has no demographic structure: 
-it will be interpreted as single individuals living in separate households.
+Note: The warning tells us that our dataset has no demographic structure: it will be interpreted as single individuals living in separate households.
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 bayesplot::mcmc_trace(hhmodel$traces)
 ```
 
 ## Other Proposer Rules for the Augmented Variables
+
 ```{r, include=FALSE}
 bayesplot::color_scheme_set(scheme = "purple")
 ```
+
+When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
+In the following examples we show the differences between move choices that can be performed.
+As shown in the vignette [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testing with the "blank" model.
+We always recommend a visual assesment before choosing a new move.
 
 ```{r}
 # use default "blank" model to show some tests
 hhmodel <- housepi::HouseholdModel$new("blank")
 ```
 
-```{r, fig.width=6, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # with model (default Gibbs rule)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "move_with_model", model = "norm")
@@ -141,6 +159,6 @@ bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 2)$traces)
 
 # independent normal moves from value 87 (without model)
 hhmodel$drop_all()
-hhmodel$add_augm(name = "independent_moves", rule_from = 87, rule = "norm")
+hhmodel$add_augm(name = "independent_moves", rule = "norm", from = 87)
 bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 3)$traces)
 ```

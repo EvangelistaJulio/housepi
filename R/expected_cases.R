@@ -408,7 +408,7 @@ ExpectedCases <- R6::R6Class(
     #' @return
     #' `ggplot` object)
     plot_sar = function() {
-      if (requireNamespace("ggplot2", quietly = FALSE)) {
+      if (require_suggested_library("ggplot2")) {
         col_dict <- c("Expected" = "coral", "Observed" = "black")
         g <- ggplot2::ggplot(self$sar, ggplot2::aes(x = house_size)) +
           # expected SAR
@@ -441,7 +441,7 @@ ExpectedCases <- R6::R6Class(
     #' It expects 3 double values (mean, CRI lower and CRI upper).
     #'
     #' @return
-    #' `flextable` | `data.frame`
+    #' `flextable`
     show_cases_table = function(show_chisq = FALSE,
                                 cri_format = "%.0f [%.0f, %.0f]") {
       # format counts to character
@@ -487,7 +487,7 @@ ExpectedCases <- R6::R6Class(
       )
 
       # FIXME: I shall have an active for the non flextable
-      if (requireNamespace("flextable", quietly = FALSE)) {
+      if (require_suggested_library("flextable")) {
         ft <- flextable::flextable(combined)
         ft <- flextable::separate_header(ft)
         ft <- flextable::theme_vanilla(ft)
@@ -501,7 +501,8 @@ ExpectedCases <- R6::R6Class(
                      cases = "Number of cases")
         )
         ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
-        ft <- flextable::colformat_num(ft, big.mark = "")
+        ft <- flextable::colformat_num(ft, big.mark = "",
+                                       na_str = "", nan_str = "")
 
         if (isTRUE(show_chisq)) {
           x <- self$chisq_test()
@@ -512,8 +513,6 @@ ExpectedCases <- R6::R6Class(
 
         return(ft)
 
-      } else {
-        return(combined)
       }
     }
   )

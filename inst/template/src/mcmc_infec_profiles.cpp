@@ -282,12 +282,12 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign minimum of infectivity profile. */
-void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
+void MCMC::Impl::assign_infec_profile_min(bool is_discrete,
+										  const std::string &min_value,
 										  const std::string &min_at)
 {
 	if (tools::is_na(min_value) && tools::is_na(min_at))
-		// impose minimum equal to 0.
-		_infec_profile_->assign_scalar_range_min(0.);
+		_infec_profile_->assign_scalar_range_min((is_discrete) ? 1 : 0);
 
 	else if (!tools::is_na(min_value) && tools::is_na(min_at))
 		throw std::invalid_argument(
@@ -315,10 +315,16 @@ void MCMC::Impl::assign_infec_profile_min(const std::string &min_value,
 		throw std::invalid_argument(
 			"Unsopported type \"" + min_at + "\" found while loading \"" + min_value + "\" for pointer value.");
 
-	// check minimum is correct
-	if (_infec_profile_->get_min() < 0.)
+	// check infectivity profile minimum is correct
+	if (is_discrete)
+	{
+		if (_infec_profile_->get_min() < 1.)
+			throw std::invalid_argument(
+				"Minimum of discrete infectivity profile must be >= 1.");
+	}
+	else if (_infec_profile_->get_min() < 0.)
 		throw std::invalid_argument(
-			"Minimum of infectivity profile must be greater than 0");
+			"Minimum of continuos infectivity profile must be >= 0.");
 }
 
 /* Assign maximum of infectivity profile. */
@@ -368,12 +374,22 @@ void MCMC::Impl::build_infec_profile()
 			// check entries
 			str_vec headers = tools::headers_from_deflist(deflist);
 			tools::check_for_unused_entries(headers, infec_profile_file_headers);
+			bool is_discrete = true;
 
 			//----- Name -----//
 			if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
 				switchboard_infec_profile(deflist.at("name"));
 			else
 				throw std::invalid_argument("missing name.");
+
+			//----- Discrete -----//
+			if (!_infec_profile_->is_discrete()) // defined continuos
+			{
+				if (deflist.count("discrete"))
+					is_discrete = tools::stobool(deflist.at("discrete"));
+				else
+					throw std::invalid_argument("not a valid discrete.");
+			}
 
 			//----- Arguments -----//
 			if ((deflist.count("arg_name")) && (deflist.count("arg_value")) && (deflist.count("arg_at")))
@@ -385,7 +401,7 @@ void MCMC::Impl::build_infec_profile()
 
 			//----- Range minimum -----//
 			if ((deflist.count("min")) && (deflist.count("min_at")))
-				assign_infec_profile_min(deflist.at("min"), deflist.at("min_at"));
+				assign_infec_profile_min(is_discrete, deflist.at("min"), deflist.at("min_at"));
 			else
 				throw std::invalid_argument("not a valid minimum.");
 

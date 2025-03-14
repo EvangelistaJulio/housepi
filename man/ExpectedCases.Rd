@@ -153,7 +153,7 @@ It expects 3 double values (mean, CRI lower and CRI upper).}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{flextable} | \code{data.frame}
+\code{flextable}
 }
 }
 \if{html}{\out{<hr>}}

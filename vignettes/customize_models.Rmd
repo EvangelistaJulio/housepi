@@ -51,7 +51,7 @@ hhmodel$infer(dataset, n_steps = 10000, n_adapt = 1000,
               n_burnin = 1000, thin = 10, progress = FALSE)
 ```
 
-```{r, fig.width=6, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 bayesplot::mcmc_trace(hhmodel$traces)
 ```
 

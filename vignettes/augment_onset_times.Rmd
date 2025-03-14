@@ -56,25 +56,46 @@ Certain infectivity profiles will then conditioned on individual augmented varia
 | from onset to transmission | $\tau_{\rm infector}$ | \-                    |
 | serial                     | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ |
 
+Each model requiring an infectivity profile has a default profile integrated. 
+However, we can provide a custom one and inspect it with the following methods:
+
 ```{r}
-inf_prof <- hhmodel$export_infectivity_profile(opts = c(3))
+# we associate the infectivity profiel from Ferretti et al. (2020)
+hhmodel$add_infectivity_profile(name = "ferretti20")
+
+# we extract the profile and other general information
+# note: profile is defined from onset to transmission
+# we provide as an option the incubation period of the infector
+infec <- hhmodel$export_infectivity_profile(opts = c(3))
 ```
 
-```{r, fig.width=6, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# plot instantaneous and cumulative profile with ggplot
+```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# plot instantaneous and cumulative profile with ggplot2
 library(ggplot2)
 
-coeff <- max(inf_prof$cumulative) / max(inf_prof$instantaneous)
-ggplot(inf_prof, aes(x = generation_time)) +
+# format title with information from the export
+title <- sprintf("Infectivity Profile %s [mean=%.1f, sd=%.1f]",
+                 stringr::str_to_title(infec$name),
+                 infec$mean, sqrt(infec$var))
+
+# coefficient to rescale cumulative
+coeff <- max(infec$profile$cumul) / max(infec$profile$inst)
+
+ggplot(infec$profile, aes(x = gentime)) +
+  # plot cumulative profile
   theme(axis.ticks.y.right = element_line(color = "coral"),
         axis.text.y.right = element_text(color = "coral"),
         axis.title.y.right = element_text(color = "coral")) +
-  geom_line(aes(y = cumulative / coeff), color = "coral") +
-  geom_line(aes(y = instantaneous)) +
+  geom_line(aes(y = cumul / coeff), color = "coral") +
+  # plot instantaneous
+  geom_line(aes(y = inst)) +
+  # apply rescaling
   scale_y_continuous(name = "Instantaneous",
                      sec.axis = sec_axis(~. * coeff, name = "Cumulative")) +
-  labs(x = "Generation Time", title = "Infectivity Profile")
+  labs(x = "Generation Time", title = title)
 ```
+
+For more details on how to customize an infectivity profile, check the vignette [Customize Models](customize_models.html).
 
 ## Simulate an Outbreak
 
@@ -144,15 +165,15 @@ hhclone$load_augm_list(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
-    rule = "norm", rule_scale = 0.25,
-    rule_from = "onset_date@D"
+    rule = "norm", scale = 0.25,
+    from = "onset_date@D"
   ),
   # add 'incub_period' definition
   incub_period = list(
+    init_rand = TRUE,
     model = "gamma",
     args = c(shape = "inc_shape", scale = "inc_scale"),
-    rule = "gibbs", max = 14,
-    init_rand = TRUE
+    max = 14, rule = "gibbs"
   ),
   append = FALSE # we drop previous definitions
 )
@@ -163,18 +184,14 @@ hhclone$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
               n_chains = 3, n_adapt = 2000, seed = 3731, progress = FALSE)
 ```
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the traces of all chains 
 bayesplot::mcmc_trace(hhclone$traces)
 ```
 
 We can perform R-hat diagnostics extracting the values of $\hat{R}$
 
-```{r, include=FALSE}
-bayesplot::color_scheme_set(scheme = "orange")
-```
-
-```{r, fig.width=6, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # compute Rhat values associate to inferred parameters
 rhat <- hhclone$rhat()
 # use bayesplot to showcase Rhat statistics

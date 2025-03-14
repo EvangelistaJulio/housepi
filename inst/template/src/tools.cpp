@@ -140,7 +140,7 @@ namespace tools
         {
 #ifdef _HOUSEPI_RCPP
             // Rcpp::warning(txt);
-            Rf_warningcall(R_NilValue, txt.c_str());
+            Rf_warningcall(R_NilValue, "%s", txt.c_str());
 #else
             std::cerr << "\nWarning: " + txt << std::endl;
 #endif

@@ -261,7 +261,7 @@ Add a new parameter definition.
   prior = NA,
   args = list(),
   rule = NA,
-  rule_scale = NA,
+  scale = NA,
   min = NA,
   max = NA
 )}\if{html}{\out{</div>}}
@@ -291,7 +291,7 @@ Arguments for the prior distribution.}
 \item{\code{rule}}{\code{character(1)}\cr
 Name of the inference proposal rule.}
 
-\item{\code{rule_scale}}{\code{double(1)}\cr
+\item{\code{scale}}{\code{double(1)}\cr
 Scale parameter for the proposal rule.
 Changed automatically during inference if \code{n_adpat}>0.}
 
@@ -357,16 +357,16 @@ Add a new augmented variable definition.
   name = NA,
   status = NA,
   value = NA,
+  init_rand = FALSE,
   constant = NA,
   discrete = FALSE,
   model = NA,
   args = list(),
-  rule = NA,
-  rule_scale = NA,
-  rule_from = NA,
   min = NA,
   max = NA,
-  init_rand = FALSE
+  rule = NA,
+  scale = NA,
+  from = NA
 )}\if{html}{\out{</div>}}
 }
 
@@ -388,6 +388,9 @@ One between:
 \item Data name (followed by \verb{@D}).
 }}
 
+\item{\code{init_rand}}{\code{character(1)}\cr
+If \code{TRUE} draw initial vale from model distribution.}
+
 \item{\code{constant}}{\code{logical(1)}\cr
 If \code{FALSE} the augmented variable is treated as a constant.}
 
@@ -399,16 +402,6 @@ Name of the model distribution.}
 
 \item{\code{args}}{named \code{list()}\cr
 Arguments for the model distribution.}
-
-\item{\code{rule}}{\code{character(1)}\cr
-Name of the inference proposal rule.}
-
-\item{\code{rule_scale}}{\code{double(1)}\cr
-Scale parameter for the proposal rule.}
-
-\item{\code{rule_from}}{\code{double(1)} | \code{character(1)}\cr
-Advanced options for non random walk moves.
-\code{FIXME: missing}}
 
 \item{\code{min}}{\code{double(1)} | \code{character(1)}\cr
 Minimum value. One between:
@@ -426,8 +419,15 @@ Maxmimum tvalue. One between:
 \item Data name (followed by \verb{@D}).
 }}
 
-\item{\code{init_rand}}{\code{character(1)}\cr
-If \code{TRUE} draw initial vale from model distribution.}
+\item{\code{rule}}{\code{character(1)}\cr
+Name of the inference proposal rule.}
+
+\item{\code{scale}}{\code{double(1)}\cr
+Scale parameter for the proposal rule.}
+
+\item{\code{from}}{\code{double(1)} | \code{character(1)}\cr
+Advanced options for non random walk moves.
+\code{FIXME: missing}}
 }
 \if{html}{\out{</div>}}
 }
@@ -491,7 +491,7 @@ Reference value has unitary rate and can be specified
   prior = "lnorm",
   args = list(meanlog = 0, sdlog = 3),
   rule = "lnorm",
-  rule_scale = 1,
+  scale = 1,
   min = NA,
   max = 10
 )}\if{html}{\out{</div>}}
@@ -528,7 +528,7 @@ Arguments for the prior distribution.}
 \item{\code{rule}}{\code{character(1)}\cr
 Name of the inference proposal rule.}
 
-\item{\code{rule_scale}}{\code{double(1)}\cr
+\item{\code{scale}}{\code{double(1)}\cr
 Scale parameter for the proposal rule.
 Changed automatically during inference if \code{n_adpat} > 0.}
 
@@ -591,11 +591,7 @@ One between:
 \subsection{Method \code{export_infectivity_profile()}}{
 Export instantaneous and cumulative values of the infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$export_infectivity_profile(
-  opts = list(),
-  xlim = double(),
-  n_bins = 2000
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$export_infectivity_profile(opts = list(), n_bins = 2500)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -604,17 +600,13 @@ Export instantaneous and cumulative values of the infectivity profile.
 \item{\code{opts}}{\code{double()}\cr
 Additional values for the computation.}
 
-\item{\code{xlim}}{\code{double(2)}\cr
-Customize the left and/or right limits for the x axis.
-To keep the default value of one limit, set it to \code{NA}.}
-
 \item{\code{n_bins}}{\code{integer(1)}\cr
 Number of bins for continuous profile (ignored if discrete).}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{data.frame}
+\code{list()}
 }
 }
 \if{html}{\out{<hr>}}

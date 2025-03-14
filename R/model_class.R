@@ -412,6 +412,7 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
+      # FIXME I should find an alternative
       if (requireNamespace("rstudioapi", quietly = TRUE)) {
         templ_info_file <- file.path(private$.model$path, "template_info.Rd")
         if (!file.exists((templ_info_file))) {
@@ -563,7 +564,7 @@ HouseholdModel <- R6::R6Class(
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
-    #' @param rule_scale `double(1)`\cr
+    #' @param scale `double(1)`\cr
     #' Scale parameter for the proposal rule.
     #' Changed automatically during inference if `n_adpat`>0.
     #' @param min `double(1)`\cr
@@ -577,12 +578,12 @@ HouseholdModel <- R6::R6Class(
                          prior = NA,
                          args = list(),
                          rule = NA,
-                         rule_scale = NA,
+                         scale = NA,
                          min = NA,
                          max = NA) {
       private$.param$add(name = name, value = value, constant = constant,
                          discrete = discrete, prior = prior, args = args,
-                         rule = rule, rule_scale = rule_scale,
+                         rule = rule, scale = scale,
                          min = min, max = max)
       invisible(self)
     },
@@ -642,6 +643,8 @@ HouseholdModel <- R6::R6Class(
     #' - Scalar value;
     #' - Parameter name (optionally followed by `@P`);
     #' - Data name (followed by `@D`).
+    #' @param init_rand `character(1)`\cr
+    #' If `TRUE` draw initial vale from model distribution.
     #' @param constant `logical(1)`\cr
     #' If `FALSE` the augmented variable is treated as a constant.
     #' @param discrete `logical(1)`\cr
@@ -650,13 +653,6 @@ HouseholdModel <- R6::R6Class(
     #' Name of the model distribution.
     #' @param args named `list()`\cr
     #' Arguments for the model distribution.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param rule_scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' @param rule_from `double(1)` | `character(1)`\cr
-    #' Advanced options for non random walk moves.
-    #' `FIXME: missing`
     #' @param min `double(1)` | `character(1)`\cr
     #' Minimum value. One between:
     #' - Scalar value;
@@ -667,26 +663,32 @@ HouseholdModel <- R6::R6Class(
     #' - Scalar value;
     #' - Parameter name (optionally followed by `@P`);
     #' - Data name (followed by `@D`).
-    #' @param init_rand `character(1)`\cr
-    #' If `TRUE` draw initial vale from model distribution.
+    #' @param rule `character(1)`\cr
+    #' Name of the inference proposal rule.
+    #' @param scale `double(1)`\cr
+    #' Scale parameter for the proposal rule.
+    #' @param from `double(1)` | `character(1)`\cr
+    #' Advanced options for non random walk moves.
+    #' `FIXME: missing`
     add_augm = function(name = NA,
                         status = NA,
                         value = NA,
+                        init_rand = FALSE,
                         constant = NA,
                         discrete = FALSE,
                         model = NA,
                         args = list(),
-                        rule = NA,
-                        rule_scale = NA,
-                        rule_from = NA,
                         min = NA,
                         max = NA,
-                        init_rand = FALSE) {
+                        rule = NA,
+                        scale = NA,
+                        from = NA) {
       private$.augm$add(name = name, status = status,
-                        value = value, constant = constant, discrete = discrete,
-                        model = model, args = args, rule = rule,
-                        rule_scale = rule_scale, rule_from = rule_from,
-                        min = min, max = max, init_rand = init_rand)
+                        value = value, init_rand = init_rand, 
+                        constant = constant, discrete = discrete,
+                        model = model, args = args,
+                        min = min, max = max, 
+                        rule = rule, scale = scale, from = from)
       invisible(self)
     },
 
@@ -756,15 +758,15 @@ HouseholdModel <- R6::R6Class(
     #' have prior "lnorm" and `args = list(meanlog = 0, sdlog = 3)`.
     #' @param args named `list()`\cr
     #' Arguments for the prior distribution.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param rule_scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' Changed automatically during inference if `n_adpat` > 0.
     #' @param min `double(1)`\cr
     #' Value of the minimum.
     #' @param max `double(1)`\cr
     #' Value of the maximum.
+    #' @param rule `character(1)`\cr
+    #' Name of the inference proposal rule.
+    #' @param scale `double(1)`\cr
+    #' Scale parameter for the proposal rule.
+    #' Changed automatically during inference if `n_adpat` > 0.
     #'
     #' @references
     #' Cauchemez, et al. (2009)
@@ -778,13 +780,14 @@ HouseholdModel <- R6::R6Class(
                               prior = "lnorm",
                               args = list(meanlog = 0, sdlog = 3),
                               rule = "lnorm",
-                              rule_scale = 1,
+                              scale = 1,
                               min = NA,
                               max = 10) {
       private$.group_rate$add(name = name, by = by, prefix = prefix,
                               reference = reference, independent = independent,
-                              prior = prior, args = args, rule = rule,
-                              rule_scale = rule_scale, min = min, max = max)
+                              prior = prior, args = args, 
+                              min = min, max = max, 
+                              rule = rule, scale = scale)
       invisible(self)
     },
 
@@ -828,7 +831,7 @@ HouseholdModel <- R6::R6Class(
     export_infectivity_profile = function(opts = list(),
                                           n_bins = 2500) {
       # internal build function
-      private$.pre_build(NULL) # UPDATE: this overwrites last outcome...
+      private$.pre_build() 
 
       return(private$.model$export_infectivity_profile(opts = opts,
                                                        n_bins = n_bins))
@@ -1030,7 +1033,7 @@ HouseholdModel <- R6::R6Class(
     #' @return named `vector()`
     #' Value of the Rhat for each parameter.
     rhat = function() {
-      if (requireNamespace("rstan", quietly = FALSE)) {
+      if (require_suggested_library("rstan")) {
         trs <- self$traces_no_loglike
         array_mcmc <- simplify2array(lapply(trs, as.matrix))
         if (is.list(trs)) return(apply(array_mcmc, 2, rstan::Rhat))
@@ -1048,7 +1051,7 @@ HouseholdModel <- R6::R6Class(
     #' @return smtg
     #' FIXME
     loo = function(...) {
-      if (requireNamespace("loo", quietly = FALSE)) {
+      if (require_suggested_library("loo")) {
         return(loo::loo(private$.model$household_loglike_matrix, ...))
       }
     },
@@ -1063,7 +1066,7 @@ HouseholdModel <- R6::R6Class(
     #' @return smtg
     #' FIXME
     waic = function(...) {
-      if (requireNamespace("loo", quietly = FALSE)) {
+      if (require_suggested_library("loo")) {
         return(loo::waic(private$.model$household_loglike_matrix, ...))
       }
     }

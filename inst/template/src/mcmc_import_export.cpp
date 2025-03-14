@@ -210,8 +210,8 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
 
             V_rule[r] = stoRString(param_map.at(p).show_prop_name());
 
-            const std::string rule_scal = param_map.at(p).show_prop_scale();
-            V_rule_scale[r] = tools::is_na(rule_scal) ? NA_REAL : tools::stod(rule_scal);
+            const std::string rule_scale = param_map.at(p).show_prop_scale();
+            V_rule_scale[r] = tools::is_na(rule_scale) ? NA_REAL : tools::stod(rule_scale);
 
             const std::string min_val = param_map.at(p).show_min();
             V_min[r] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
@@ -227,15 +227,15 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
                                  _["prior"] = std::move(V_prior),
                                  _["arg_name"] = std::move(V_arg_name),
                                  _["arg_value"] = std::move(V_arg_value),
-                                 _["rule"] = std::move(V_rule),
-                                 _["rule_scale"] = std::move(V_rule_scale),
                                  _["min"] = std::move(V_min),
-                                 _["max"] = std::move(V_max));
+                                 _["max"] = std::move(V_max),
+                                 _["rule"] = std::move(V_rule),
+                                 _["scale"] = std::move(V_rule_scale));
     }
     catch (const std::exception &e)
     {
         tools::error(
-            "While exporting infectivity profile: " + std::string(e.what()));
+            "While exporting parameter definitions: " + std::string(e.what()));
     }
     return DataFrame();
 }
@@ -448,7 +448,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
     catch (const std::exception &e)
     {
         tools::error(
-            "While exporting infectivity profile: " + std::string(e.what()));
+            "While exporting MCMC traces: " + std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -501,8 +501,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export a showcase of the selected infectivity profile. */
-Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
-                                                       int n_bins) const
+Rcpp::List MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts, int n_bins) const
 {
     using namespace Rcpp;
 
@@ -520,16 +519,44 @@ Rcpp::DataFrame MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts,
         // produce a showcase of the distribution profile
         std::vector<dbl_vec> values = _infec_profile_->showcase(opts_, n_bins);
 
-        return DataFrame::create(_["generation_time"] = wrap(values[0]),
-                                 _["instantaneous"] = wrap(values[1]),
-                                 _["cumulative"] = wrap(values[2]));
+        // compute mean and variance
+        const dbl_vec &x = values[0];
+        const dbl_vec &prob = values[1];
+        const size_t N = x.size();
+        const double Dx = x[1] - x[0];
+
+        double m = x[0] * prob[0] + x[N - 1] * prob[N - 1];
+        double m2 = x[0] * x[0] * prob[0] + x[N - 1] * x[N - 1] * prob[N - 1];
+        // integration wiht trapezoidal rule for continuos case
+        if (!_infec_profile_->is_discrete())
+        {
+            m *= 0.5;
+            m2 *= 0.5;
+        }
+        for (size_t i = 1; i < N - 1; ++i)
+        {
+            m += x[i] * prob[i];
+            m2 += x[i] * x[i] * prob[i];
+        }
+
+        m *= Dx;
+        m2 *= Dx;
+
+        return List::create(
+            _["name"] = _infec_profile_->show_name(),
+            _["discrete"] = _infec_profile_->is_discrete(),
+            _["mean"] = m,
+            _["var"] = m2 - m * m,
+            _["gentime"] = wrap(values[0]),
+            _["inst"] = wrap(values[1]),
+            _["cumul"] = wrap(values[2]));
     }
     catch (const std::exception &e)
     {
         tools::error(
             "While exporting infectivity profile: " + std::string(e.what()));
     }
-    return DataFrame();
+    return List();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -550,8 +577,7 @@ Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_rep
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_household_loglike_matrix() const { return pImpl->export_household_loglike_matrix(); }
-Rcpp::DataFrame MCMC::export_infectivity_profile(const Rcpp::List &opts,
-                                                 int n_bins)
+Rcpp::List MCMC::export_infectivity_profile(const Rcpp::List &opts, int n_bins)
 {
     init_infec_profile();
     return pImpl->export_infectivity_profile(opts, n_bins);

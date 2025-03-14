@@ -6,49 +6,38 @@ hhmodel <- HouseholdModel$new("augm-onset-single-intro")
 # parameter definitions
 hhmodel$load_param_template()
 
-# CHECKED: this works
-#output <- hhmodel$export_infectivity_profile(c(3))
-
-# CHECKED: this works
-# hhmodel$add_infectivity_profile(name = "reparam_gamma")
-# output <- hhmodel$export_infectivity_profile()
-
-# FIXME: this combination breaks R
-hhmodel$add_infectivity_profile(name = "reparam_gamma", discrete = TRUE)
-output <- hhmodel$export_infectivity_profile()
-
-
-# FIXME: this is not normalised
-# hhmodel$add_infectivity_profile(name = "pois", min = 2,
-#                                 args = c(lambda = 4))
-# FIXME: this breaks R
-#hhmodel$add_infectivity_profile(name = "nbinom", min =2)
+hhmodel$add_infectivity_profile(name = "ferretti20")
+output <- hhmodel$export_infectivity_profile(c(3))
 
 #############################
 # DRAFT for a show function #
 #############################
 
+df <- as.data.frame(output[c("gentime", "inst", "cumul")])
+title <- sprintf("%s [mean=%.1f, sd=%.1f]",
+                 stringr::str_to_title(output$name),
+                 output$mean, sqrt(output$var))
+
 if (output$discrete) {
   # FLAG
-  print(paste0("norm:", sum(output$profile$inst)))
+  print(paste0("norm:", sum(df$inst)))
   # FLAG-END
 
-  ggplot(output$profile, aes(x = gentime)) +
+  ggplot(df, aes(x = gentime)) +
     geom_bar(aes(y = inst), stat = "identity", fill = "coral") +
-    labs(title = sprintf("%s [mean=%.1f, sd=%.1f]",
-                         output$name, output$mean, sqrt(output$var)),
+    labs(title = title,
          x = "Generation Delay",
          y = "Daily Infectivity Profile")
 
 } else {
   # FLAG
-  dx <- output$profile$gentime[2] - output$profile$gentime[1]
-  f <- output$profile$inst
-  print(paste0("norm:", dx * (sum(f[2:(length(f)-1)]) + 0.5 * (f[1] + f[length(f)]))))
+  Dx <- df$gentime[2] - df$gentime[1]
+  f <- df$inst
+  print(paste0("norm:", Dx * (sum(f[2:(length(f)-1)]) + 0.5 * (f[1] + f[length(f)]))))
   # FLAG-END
 
-  coeff <- max(output$profile$cumul) / max(output$profile$inst)
-  ggplot(output$profile, aes(x = gentime)) +
+  coeff <- max(df$cumul) / max(df$inst)
+  ggplot(df, aes(x = gentime)) +
     theme(axis.ticks.y.right = element_line(color = "coral"),
           axis.text.y.right = element_text(color = "coral"),
           axis.title.y.right = element_text(color = "coral")) +
@@ -56,7 +45,6 @@ if (output$discrete) {
     geom_line(aes(y = inst)) +
     scale_y_continuous(name = "Instantaneous",
                        sec.axis = sec_axis(~. * coeff, name = "Cumulative")) +
-    labs(x = "Generation Time", title = "Infectivity Profile")
+    labs(x = "Generation Time", title = title)
 }
-
 

@@ -18,6 +18,19 @@ internal_setup_error <- function() {
   )
 }
 
+# check if suggested library is installed
+require_suggested_library <- function(libname) {
+  if (requireNamespace(libname, quietly = TRUE)) {
+    return(TRUE)
+  } else {
+    stop_h(
+      sprintf("Attempt to call missing library \"%s\".", libname),
+      sprintf("Install it running: install.packages(\"%s\")", libname)
+    )
+    return(FALSE)
+  }
+}
+
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
   if (from != to) {
@@ -159,7 +172,7 @@ template_dll_file <- function(path) {
 #'
 #' @noRd
 coerce_traces_to_coda <- function(trs) {
-  if (requireNamespace("coda", quietly = TRUE)) {
+  if (require_suggested_library("flextable")) {
     if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
       return(trs)
 
@@ -182,11 +195,6 @@ coerce_traces_to_coda <- function(trs) {
       })
       return(coda::as.mcmc.list(df_list))
     }
-  } else {
-    stop.h(
-      "Impossible to coerce to coda object.",
-      "Package 'coda' not installed."
-    )
   }
 }
 

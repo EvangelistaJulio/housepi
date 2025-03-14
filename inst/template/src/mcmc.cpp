@@ -4,6 +4,7 @@
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
+#include <atomic>
 #include "mcmc_build.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -262,15 +263,89 @@ void MCMC::set_rate_per_contact(Household &house)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : methods (general)  ////////////////////////////////////
+//////////////////////////////  MCMC : update global loglikelihood  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/* Compute new loglikelihood, store old value in buffer. Same for households. */
+void MCMC::update_global_loglike(const bool extra_depen)
+{
+    double new_ll = 0.0;
+    std::atomic<bool> has_error(false);
+
+#pragma omp parallel for reduction(+ : new_ll)
+    for (ulong H = 0; H < n_houses(); ++H)
+    {
+        if (has_error.load(std::memory_order_relaxed))
+            continue;
+
+        try
+        {
+            Household &house = get_household(H);
+
+            // buffer all extra dependencies
+            if (extra_depen)
+            {
+                house.buffer_all_extra();
+                for (const indiv &i : house.infected_status_list())
+                    update_extra_dependecies(house, i);
+            }
+
+            // update house loglikelihood
+            house.set_loglike(compute_house_loglike(house));
+            new_ll += house.get_loglike();
+            if (is_augm_model())
+                new_ll += compute_augm_model_loglike(house);
+        }
+        catch (const std::exception &e)
+        {
+#pragma omp critical
+            {
+                if (!has_error.exchange(true))
+                    _error_message_ = "While computing likelihood for household " + get_household(H).house_id() + ": " + e.what();
+            }
+        }
+    }
+    if (!_error_message_.empty())
+        tools::error(_error_message_);
+
+    pImpl->set_global_loglike(new_ll);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  MCMC : move all augmented variables  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Move augmented variables from all households. */
+void MCMC::move_all_augm()
+{
+    double delta_ll = 0.;
+    std::atomic<bool> has_error(false);
+
+#pragma omp parallel for reduction(+ : delta_ll)
+    for (ulong H = 0; H < n_houses(); ++H)
+    {
+        if (has_error.load(std::memory_order_relaxed))
+            continue;
+
+        try
+        {
+            delta_ll += move_augm_single_house(get_household(H));
+        }
+        catch (const std::exception &e)
+        {
+#pragma omp critical
+            {
+                if (!has_error.exchange(true))
+                    _error_message_ = "While moving augmented variables in household " + get_household(H).house_id() + ": " + e.what();
+            }
+        }
+    }
+
+    if (!_error_message_.empty())
+        tools::error(_error_message_);
+
+    pImpl->increment_global_loglike(delta_ll);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : parameter move  ////////////////////////////////////
@@ -283,7 +358,7 @@ bool MCMC::move_independent_param(const parID &p)
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (pImpl->propose_valid_param_move(p))
     {
-        update_simple_global_loglike();
+        update_global_loglike();
 
         if (pImpl->accept_valid_param_move(p))
             is_accepted = true;
@@ -302,7 +377,7 @@ bool MCMC::move_extra_depen_param(const parID &p)
     // proceed only if the new value is consistent, otherwise automatically execute refuse_move(parID)
     if (pImpl->propose_valid_param_move(p))
     {
-        update_extra_global_loglike();
+        update_global_loglike(true); // buffer extra dependecies
 
         if (pImpl->accept_valid_param_move(p))
             is_accepted = true;
@@ -467,7 +542,7 @@ double MCMC::evaluate()
         init_model_for_inference();            // initialize model for inference
         init_augmented_variables();            // initialize augmented dependencies
         init_extra_dependecies();              // initialize extra dependencies
-        update_simple_global_loglike();        // initialize global loglikelihood
+        update_global_loglike();        // initialize global loglikelihood
     }
     catch (const std::exception &e)
     {
@@ -507,7 +582,7 @@ void MCMC::run_monte_carlo(progress::Bar &progressbar, ulong sweep)
         pImpl->init_parameters();       // initialize parameter inference
         init_augmented_variables();     // initialize augmented dependencies
         init_extra_dependecies();       // initialize extra dependencies
-        update_simple_global_loglike(); // initialize global loglikelihood
+        update_global_loglike(); // initialize global loglikelihood
 
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//

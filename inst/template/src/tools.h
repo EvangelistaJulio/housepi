@@ -18,10 +18,11 @@
 #include <vector>
 #include <map>
 
-/* DEVELOPER: flag used to predispose to different wrappers*/
+/* DEVELOPER: flag used to predispose to different wrappers
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
+*/
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>

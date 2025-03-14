@@ -89,7 +89,7 @@ hhmodel$import_dataset(survey)
 
 Note that all methods for inference and simulation integrate dataset importation. The advantage of preliminary importation is the use of descriptive methods to check on the dataset, e. g. 
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # show a summary of the dataset as a `flextable`
 hhmodel$show_summary()
 ```
@@ -144,7 +144,8 @@ hhmodel$infer(
   n_adapt = 500,    # finite adaptation steps before sampling
   n_chains = 4,     # number of independent chains 
   seed = 6043,      # internal random number generator seed
-  n_threads = 1     # number of threads
+  n_threads = 1,    # number of threads
+  progress = FALSE  # flag to deactivate progress bar
 ) 
 ```
 
@@ -168,7 +169,7 @@ traces <- hhmodel$traces
 
 We can use the function `mcmc_trace()` from [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) to plot the traces:
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # visualize the traces of the first chain
 bayesplot::mcmc_trace(traces, facet_args = list(ncol = 1))
 ```
@@ -179,8 +180,7 @@ This will return a `mcmc` object (or a `mcmc.list`).
 ## Model Comparison
 
 To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class, e.
-g.
-for WAIC:
+g. for WAIC:
 
 ```{r}
 # widely applicable information criterion WAIC calling loo::waic
@@ -241,7 +241,7 @@ The $p$-value tells us that there is no significant difference between the distr
 
 We can have a quick look at secondary attack rates of observed vs expected cases using the method `$plot_sar()`. This returns a ggplot2 object which can be further customize:
 
-```{r, fig.width=6, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot expected and observed SAR
 expec$plot_sar()
 ```

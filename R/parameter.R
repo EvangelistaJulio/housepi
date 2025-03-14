@@ -79,7 +79,7 @@ HousepiParameter <- R6::R6Class(
                    prior = NA,
                    args = list(),
                    rule = NA,
-                   rule_scale = NA,
+                   scale = NA,
                    min = NA,
                    max = NA) {
       if (is.na(name)) {
@@ -117,7 +117,7 @@ HousepiParameter <- R6::R6Class(
             arg_name = NA,
             arg_value = NA,
             rule = NA,
-            rule_scale = NA,
+            scale = NA,
             min = NA,
             max = NA,
             stringsAsFactors = FALSE
@@ -144,7 +144,7 @@ HousepiParameter <- R6::R6Class(
         if (is.na(rule)) {
           # default proposer rule
           rule <- "gibbs"
-          rule_scale <- NA
+          scale <- NA
         }
 
         # append parameter to be inferred
@@ -158,10 +158,10 @@ HousepiParameter <- R6::R6Class(
             prior = prior,
             arg_name = arg_name_,
             arg_value = arg_value_,
-            rule = rule,
-            rule_scale = rule_scale,
             min = min,
             max = max,
+            rule = rule,
+            scale = scale,
             stringsAsFactors = FALSE
           )
         )

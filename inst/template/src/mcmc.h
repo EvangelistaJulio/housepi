@@ -110,8 +110,7 @@ public:
 	//====================================//
 
 	virtual double compute_house_loglike(Household &house) const;
-	void update_simple_global_loglike();
-	void update_extra_global_loglike();
+	void update_global_loglike(const bool extra_depen = false);
 	double evaluate();
 
 	//=================//
@@ -158,7 +157,7 @@ public:
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_household_loglike_matrix() const;
-	Rcpp::DataFrame export_infectivity_profile(const Rcpp::List &opts,
+	Rcpp::List export_infectivity_profile(const Rcpp::List &opts,
 											   int n_bins);
 
 #else
