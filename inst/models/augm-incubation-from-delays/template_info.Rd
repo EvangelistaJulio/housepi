@@ -7,7 +7,7 @@ MISSING DESCRIPTION
 }
 \section{Likelihood}{
 \itemize{
-\item Incubation period: \eqn{{\tau}_{i}\sim {\rm gamma}({\theta},{k})}
+\item Incubation period: \eqn{{\tau}_{i}\sim {\rm Gamma}[{\theta},{k}]}{tau_i ~ Gamma[theta, k]}
 }
 \if{html}{\out{<hr>}}
 }

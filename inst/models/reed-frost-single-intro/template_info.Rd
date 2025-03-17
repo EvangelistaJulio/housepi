@@ -13,7 +13,8 @@ Missing data and asymptomatic status are not modeled.
 }
 \section{Likelihood}{
 \itemize{
-\item Person-to-person transmission probability: \eqn{1 - \exp(-{\beta})}
+\item Person-to-person transmission probability:
+\eqn{1 - \exp(-{\beta})}{1 - exp(-beta)}
 }
 \if{html}{\out{<hr>}}
 }

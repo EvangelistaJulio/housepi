@@ -5,10 +5,10 @@
 #
 
 stop_h <- function(...) {
-  base::stop(paste(..., collapse = " "), call. = FALSE)
+  base::stop(paste(list(...), collapse = "\n"), call. = FALSE)
 }
 warning_h <- function(...) {
-  base::warning(paste(..., collapse = " "), call. = FALSE)
+  base::warning(paste(list(...), collapse = "\n"), call. = FALSE)
 }
 
 internal_setup_error <- function() {
@@ -107,10 +107,21 @@ source_files <- function(path) {
   return(file.path(path, paste0("model.", c("cpp", "h"))))
 }
 
-# say if source files have been modified after dll
+# return time of creation truncated
+trunc_ctime <- function(path) {
+  return(max(trunc(file.info(path)$ctime)))
+}
+
+# say if source files modified after dll or new installation
 untracked_changes <- function(model_choice, dll) {
-  last_modified <- file.info(source_files(model_choice))$ctime
-  return (any(last_modified > file.info(dll)$ctime)) 
+  last_mod <- trunc_ctime(source_files(model_choice))
+
+  # last changed should be older than installation time
+  housepi_dir <- file.path(system.file(package = "housepi"), "template")
+  check_src_files <- list.files(housepi_dir, full.names = TRUE)
+  install_time <- trunc_ctime(check_src_files)
+
+  return((last_mod > trunc_ctime(dll)) | (install_time > last_mod))
 }
 
 # Verify source files exist

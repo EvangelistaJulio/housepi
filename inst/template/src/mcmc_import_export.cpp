@@ -251,29 +251,32 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
 
     try
     {
-        size_t n_cols = n_individuals;
-        size_t row = 0;
-        Rcpp::CharacterVector df_index = CharacterVector(n_cols);
-        Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
-        Rcpp::IntegerVector df_status = IntegerVector(n_cols);
+        if (n_individuals == 0)
+            throw std::length_error("No dataset to export.");
+
+        size_t n_rows = n_individuals;
+        size_t r = 0;
+        Rcpp::CharacterVector df_index = CharacterVector(n_rows);
+        Rcpp::CharacterVector df_house_index = CharacterVector(n_rows);
+        Rcpp::IntegerVector df_status = IntegerVector(n_rows);
         std::vector<Rcpp::NumericVector> df_dbl = {};
 
         // other data and augmetned variable columns
         for (size_t s = 0; s < data_headers.size(); ++s)
-            df_dbl.emplace_back(n_cols);
+            df_dbl.emplace_back(n_rows);
 
         for (const Household &house : house_vector)
             for (indiv i = 0; i < house.size(); ++i)
             {
-                df_index[row] = house.id(i);
-                df_house_index[row] = house.house_id();
-                df_status[row] = house.status(i);
+                df_index[r] = house.id(i);
+                df_house_index[r] = house.house_id();
+                df_status[r] = house.status(i);
 
                 size_t col = 0;
                 for (const dataID &d : data_headers)
-                    df_dbl[col++][row] = house.data(i, d);
+                    df_dbl[col++][r] = house.data(i, d);
 
-                ++row;
+                ++r;
             }
 
         // assign vectors to dataframe
@@ -307,6 +310,10 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
 
     try
     {
+        if (n_individuals == 0)
+            throw std::length_error(
+                "No report available for empty dataset.");
+
         size_t n_rows = _report_indiv_.size() + _report_house_.size();
         CharacterVector type(n_rows), comment(n_rows);
         IntegerVector counts(n_rows);

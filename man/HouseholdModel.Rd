@@ -864,8 +864,8 @@ For further details type ?loo::loo.
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-smtg
-FIXME
+names \code{list()}\cr
+Output of S3 method loo(matrix).
 }
 }
 \if{html}{\out{<hr>}}
@@ -886,8 +886,8 @@ For further details type ?loo::waic.
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-smtg
-FIXME
+names \code{list()}\cr
+Output of S3 method waic(matrix).
 }
 }
 \if{html}{\out{<hr>}}

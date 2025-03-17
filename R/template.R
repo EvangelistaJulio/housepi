@@ -58,15 +58,13 @@ template_household_model <- function(name = NA,
             "No template info were foun for the chosen model."
           )
         }
-
-        # FIXME: this doesn't work outside of Rstudio
         rstudioapi::previewRd(info_file)
 
       } else if (any(file.exists(source_files(path))) & isFALSE(replace)) {
         #===== Asking for copying template to folder with model =====#
         warning_h(
-          "A model already in the specified folder.",
-          "Remove its content before creating a new one."
+          "A model already exists in the specified folder.",
+          "Remove its content before creating a new model."
         )
 
       } else {

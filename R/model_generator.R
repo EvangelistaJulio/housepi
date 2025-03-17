@@ -4,11 +4,11 @@
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 
-#' @title Housepi Generator R6 Class
-#' @description
-#' Help with generating Rcpp model object.
-#'
-#' @noRd
+# @title Housepi Generator R6 Class
+# @description
+# Help with generating Rcpp model object.
+#
+# @noRd
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
   cloneable = TRUE,
@@ -22,19 +22,132 @@ HousepiGenerator <- R6::R6Class(
   private = list(
     .name = NA,
     .dll = NA,
+    .cache_dir = NA,
     .quiet_pkgbuild = TRUE,
     .need_compile = FALSE,
     .rcpp = NULL,
 
     # @description
+    # Initialize a new custom model.
+    #
+    # @param source_dir `character(1)`\cr
+    # The path to source code.
+    # @param as_template `logical(1)`\cr
+    # If `TRUE` store the dynamic library as a local template.
+    # If `FALSE` recompile the model at every new session.
+    # @param force `logical(1)`\cr
+    # If `TRUE` compile even if a cached model already exists.
+    .new_custom_model = function(source_dir,
+                                 as_template,
+                                 force) {
+      # asses if model choice requires recompilation
+      if (file.exists(private$.dll)) {
+        # force template re-compilation or check for changes
+        if (force | untracked_changes(source_dir, private$.dll)) {
+          private$.need_compile <- TRUE
+        } else {
+          private$.need_compile <- FALSE
+        }
+      } else {
+        private$.need_compile <- TRUE
+      }
+
+      # temporary directory where to store source code
+      if (private$.need_compile) {
+        private$.cache_dir <- file.path(tempdir(), template_name(private$.name))
+
+        if (!dir.exists(private$.cache_dir)) {
+          if (!dir.create(private$.cache_dir, recursive = TRUE,
+                          showWarnings = FALSE)) {
+            stop_h(
+              "Impossibile to create a cache directory for compilation.",
+              "Check your user permissions."
+            )
+          }
+        }
+
+        if (as_template) {
+          if (file.exists(private$.dll)) {
+            # check if dll is loaded
+            namespace <- template_name(private$.name)
+            dll_info <- base::getLoadedDLLs()[[namespace]]
+
+            if (is.null(dll_info) | (!dll_info[["dynamicLookup"]])) {
+              # safely remove previous template dll
+              unlink(private$.dll)
+
+            } else {
+              private$.need_compile <- FALSE    
+              warning_h(
+                "Impossible to replace existing template in current session.",
+                "Start a new R session to re-compile your model as a template.",
+                "Warning raised because model changed or 'force = TRUE'."
+              )
+            }
+          }
+
+        } else {
+          if (force) {
+             private$.need_compile <- TRUE
+          } else {
+            # search cached dll and check if to be recompiled 
+            private$.search_for_cached_dll(source_dir)
+          }
+        }
+      }
+
+      # asses if still to be compiled after further checks
+      if (private$.need_compile) {
+        # change dll name if not as template
+        if (!as_template) {
+          private$.dll <- file.path(private$.cache_dir,
+                                    dll_file_ext(random_name(source_dir)))
+        }
+        # organize cache directory to perform compilation
+        private$.copy_source_code(source_dir)
+      }
+    },
+
+    # @description
+    # Check for previous cached dll files and tell if to be recompiled.
+    #
+    # @param source_dir
+    # The path to source code.
+    .search_for_cached_dll = function(source_dir) {
+      # look for dynamic library name
+      cache_dll_files <- list.files(private$.cache_dir,
+                                    pattern = dll_file_ext(),
+                                    full.names = TRUE)
+
+      if (length(cache_dll_files) == 1) {
+        # check if it needs recompile
+        # FIXME: #UPDATE: can look for the correct one in the list...
+        private$.need_compile <- untracked_changes(
+          source_dir, cache_dll_files[1]
+        )
+        if (!private$.need_compile) {
+          private$.dll <- cache_dll_files[1]
+        }
+      } else {
+        # no dll cached or multiple dlls
+        private$.need_compile <- TRUE
+      }
+
+      invisible(self)
+    },
+
+    # @description
     # Create temporary folder and copy source code there.
+    #
+    # @param source_dir
+    # The path to source code.
     .copy_source_code = function(source_dir) {
 
       # source directory must contain source files
       assert_source_files(source_dir)
 
       # clean all previous file in the cache
-      unlink(list.files(self$cache_dir, full.names = TRUE),
+      unlink(list.files(private$.cache_dir, full.names = TRUE),
              recursive = TRUE)
 
       # 'housepi' template package directory
@@ -42,17 +155,17 @@ HousepiGenerator <- R6::R6Class(
 
       # copy folders from template
       for (fldr in file.path(housepi_dir, c("src", "R"))) {
-        overwrite(fldr, self$cache_dir, recursive = TRUE)
+        overwrite(fldr, private$.cache_dir, recursive = TRUE)
       }
 
       # copy single package files
       for (f in file.path(housepi_dir, c("NAMESPACE", "DESCRIPTION"))) {
-        overwrite(f, file.path(self$cache_dir, basename(f)))
+        overwrite(f, file.path(private$.cache_dir, basename(f)))
       }
 
       # copy model specific source files in the new folder
       for (f in source_files(source_dir)) {
-        overwrite(f, file.path(self$cache_dir, "src", basename(f)))
+        overwrite(f, file.path(private$.cache_dir, "src", basename(f)))
       }
 
       # copy helper files in the output directory
@@ -64,38 +177,6 @@ HousepiGenerator <- R6::R6Class(
 
       # Create a reference script
       self$save_reference()
-
-      invisible(self)
-    },
-
-    # @description
-    # Check for previous cached dll files and tell if to be recompiled.
-    #
-    # @param model_choice
-    # The path to source code.
-    .search_for_cached_dll = function(model_choice) {
-      if (isTRUE(force)) {
-        private$.need_compile <- TRUE
-      } else {
-        # look for dynamic library name
-        cache_dll_files <- list.files(self$cache_dir,
-                                      pattern = dll_file_ext(),
-                                      full.names = TRUE)
-
-        if (length(cache_dll_files) == 1) {
-          # check if it needs recompile
-          # FIXME: #UPDATE: can look for the correct one in the list...
-          private$.need_compile <- untracked_changes(
-            model_choice, cache_dll_files[1]
-          )
-          if (isFALSE(private$.need_compile)) {
-            private$.dll <- cache_dll_files[1]
-          }
-        } else {
-          # no dll cached or multiple dlls
-          private$.need_compile <- TRUE
-        }
-      }
 
       invisible(self)
     },
@@ -120,7 +201,7 @@ HousepiGenerator <- R6::R6Class(
     # To avoid recompiling immutable files I just touch them.
     .compile = function() {
       # source folder within cache directory
-      cache_dir_src <- file.path(self$cache_dir, "src")
+      cache_dir_src <- file.path(private$.cache_dir, "src")
 
       # remove object file
       unlink(file.path(cache_dir_src, "model.o"))
@@ -134,7 +215,7 @@ HousepiGenerator <- R6::R6Class(
       Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
 
       # compile the dynamic library
-      pkgbuild::compile_dll(self$cache_dir,
+      pkgbuild::compile_dll(private$.cache_dir,
                             quiet = private$.quiet_pkgbuild,
                             debug = FALSE)
       private$.need_compile <- FALSE
@@ -175,18 +256,26 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   active = list(
-
-    #' @field path `character(1)`\cr
-    #' Model name.
+    # @field model_name `character(1)`\cr
+    # Model name.
     model_name = function(value) {
       if (missing(value)) {
         return(private$.name)
       }
       stop_h("'model_name' is read only.")
     },
+    
+    # @field cache_dir `character(1)`\cr
+    # Cache directory where the compilation is stored.
+    cache_dir = function(value) {
+      if (missing(value)) {
+        return(private$.cache_dir)
+      }
+      stop_h("'cache_dir' is read only.")
+    },
 
-    #' @field path `logical(1)`\cr
-    #' Wheter model is blank.
+    # @field is_blank `logical(1)`\cr
+    # Wheter model is blank.
     is_blank = function(value) {
       if (missing(value)) {
         return(private$.name == "blank")
@@ -194,8 +283,8 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'is_blank' is read only.")
     },
 
-    #' @field path `character(1)`\cr
-    #' Envirnoment path.
+    # @field path `character(1)`\cr
+    # Envirnoment path.
     path = function(value) {
       if (missing(value)) {
         # reference script
@@ -212,8 +301,8 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'path' is read only.")
     },
 
-    #' @field reference `character(1)`\cr
-    #' Reference script.
+    # @field reference `character(1)`\cr
+    # Reference script.
     reference = function(value) {
       if (missing(value)) {
         # reference script
@@ -228,136 +317,6 @@ HousepiGenerator <- R6::R6Class(
         return(output)
       }
       stop_h("'reference' is read only.")
-    },
-
-    #' @field dataset `data.frame`\cr
-    #' Dataset with individual level information of current dataset.
-    #' If the case, it also return the associated augmented variables.
-    dataset = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export dataset before model build.")
-        }
-        return(private$.rcpp$export_dataset())
-      }
-      stop_h("'dataset' is read only.")
-    },
-
-    #' @field summary `data.frame`\cr
-    #' A summary of statuses in the dataset.
-    summary = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export dataset before model build.")
-        }
-        return(private$.rcpp$export_data_report())
-      }
-      stop_h("'summary' is read only.")
-    },
-
-    #' @field summary_house_size `data.frame`\cr
-    #' A summary of house sizes in the dataset.
-    summary_house_size = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export dataset before model build.")
-        }
-        return(private$.rcpp$export_house_size_report())
-      }
-      stop_h("'summary_house_size' is read only.")
-    },
-
-    #' @field setup `list()`\cr
-    #' Last setup used by the build process.
-    setup = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export setup before model build.")
-        }
-        return(private$.rcpp$export_setup())
-      }
-      stop_h("'setup' is read only.")
-    },
-
-    #' @field `matrix()` | `list()` of `matrix()`)
-    #' Export the traces of last inference call.
-    traces = function(value) {
-      if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export traces before inference.")
-
-        } else {
-          # load traces from last inference
-          df <- private$.rcpp$export_traces()
-
-          if (dim(df)[1] == 0) {
-            # note: this should never be possible...
-            stop_h("Traces are empty.")
-
-          } else if ("CHAIN__" %in% colnames(df)) {
-            df_list <- lapply(
-              split(seq_len(nrow(df)), df[, "CHAIN__"]),
-              function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
-            )
-            return(df_list)
-
-          } else {
-            return(df)
-          }
-        }
-      }
-      stop_h("'traces' is read only.")
-    },
-
-    #' @field `matrix()` | `list()` of `matrix()`)
-    #' Export the traces of last inference call without loglikelihood.
-    traces_no_loglike = function(value) {
-      if (missing(value)) {
-        trs <- self$traces
-        if (is.list(trs)) {
-          return(lapply(trs, function(x) {
-            x <- x[, colnames(x) != "loglikelihood", drop = FALSE]
-          }))
-        } else {
-          return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
-        }
-      }
-      stop_h("'traces_no_loglike' is read only.")
-    },
-
-    #' @field traces_as_coda `coda::mcmc` | `coda::mcmc.list`\cr
-    #' Traces of last inference as a `coda` object.
-    traces_as_coda = function(value) {
-      if (missing(value)) return(coerce_traces_to_coda(self$traces))
-      stop_h("'traces_as_coda' is read only.")
-    },
-
-    #' @field traces_results `data.frame`\cr
-    #' Results extracted from the traces of last inference.
-    traces_results = function(value) {
-      if (missing(value)) {
-        return(retrieve_traces_results(self$traces_no_loglike))
-      }
-      stop_h("'traces_results' is read only.")
-    },
-
-    #' @field reference `matrix()`\cr
-    #' Household loglikelihood traces.
-    household_loglike_matrix = function(value) {
-      if (missing(value)) {
-        # check model has been built
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export household traces before inference.")
-        }
-        # extract household loglikelihood traces
-        df <- private$.rcpp$export_household_loglike_matrix()
-        # check
-        if (dim(df)[1] == 0) {
-          stop_h("Household traces are empty.")
-        }
-        return(df)
-      }
-      stop_h("'household_loglike_traces' is read only.")
     }
   ),
 
@@ -368,24 +327,22 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   public = list(
-    cache_dir = NA,
-
-    #' @description
-    #' Initialize model generator defining name of dynamic library.
-    #'
-    #' @param model_choice `character(1)`\cr
-    #' One between:
-    #' - template name;
-    #' - path/to/folder with implementation;
-    #' - path/to/folder with previously compiled model;
-    #' - "blank" template name.
-    #' @param as_template `logical(1)`\cr
-    #' If `TRUE` store the dynamic library as a local template.
-    #' If `FALSE` recompile the model at every new session.
-    #' @param force `logical(1)`\cr
-    #' If `TRUE` compile even if a cached model already exists.
-    #' @param quiet_pkgbuild `logical(1)`\cr
-    #' If `TRUE` hide `pkgbuild` compilation commands.
+    # @description
+    # Initialize model generator defining name of dynamic library.
+    #
+    # @param model_choice `character(1)`\cr
+    # One between:
+    # - "blank" template name;
+    # - template name;
+    # - path/to/folder with implementation;
+    # - path/to/folder with previously compiled model.
+    # @param as_template `logical(1)`\cr
+    # If `TRUE` store the dynamic library as a local template.
+    # If `FALSE` recompile the model at every new session.
+    # @param force `logical(1)`\cr
+    # If `TRUE` compile even if a cached model already exists.
+    # @param quiet_pkgbuild `logical(1)`\cr
+    # If `TRUE` hide `pkgbuild` compilation commands.
     initialize = function(model_choice,
                           as_template = FALSE,
                           force = FALSE,
@@ -393,99 +350,38 @@ HousepiGenerator <- R6::R6Class(
       # assign quiet_pkgbuild field
       private$.quiet_pkgbuild <- isTRUE(quiet_pkgbuild)
 
-      if (model_choice == ".") {
-        # prohibit current directory
-        stop_h(
-          "Invalid folder name \".\" for housepi model.",
-          "Move your implementation in a different folder."
-        )
-
-      } else if (isTRUE(model_choice == "blank")) {
-        #========================================#
+      if (model_choice == "blank") {
         #===== Blank Model (Developer Mode) =====#
-        #========================================#
-
-        private$.name <- "blank"
+        private$.name <- model_choice
         private$.dll <- file.path(system.file(package = "housepi"),
                                   "template", "src",
                                   dll_file_ext("housepienvironment"))
 
       } else if (model_choice %in% list.files(template_models_dir())) {
-        #=====================================#
         #===== Plain Template Model Name =====#
-        #=====================================#
-
         private$.name <- model_choice
-        model_choice <- file.path(template_models_dir(), model_choice)
-        private$.dll <- template_dll_file(model_choice)
+        source_dir <- file.path(template_models_dir(), model_choice)
+        private$.dll <- template_dll_file(source_dir)
+
+      } else if (model_choice %in% list(".")) {
+        # prohibit current directory
+        stop_h(
+          sprintf("Invalid folder name \"%s\" for housepi model.",
+                  model_choice),
+          "Move your implementation in a different folder."
+        )
 
       } else if (dir.exists(model_choice)) {
-        #===========================================#
         #===== Model Path Contains Source Code =====#
-        #===========================================#
-
         private$.name <- basename(model_choice)
         private$.dll <- template_dll_file(model_choice)
-
-        # force template re-compilation or check for changes
-        if (file.exists(private$.dll)) {
-          if (isTRUE(force) | untracked_changes(model_choice, private$.dll)) {
-            private$.need_compile <- TRUE
-          }
-        }
-
-        # temporary directory where to store source code
-        if (isFALSE(file.exists(private$.dll)) | isTRUE(private$.need_compile)) {
-          self$cache_dir <- file.path(tempdir(), template_name(private$.name))
-
-          if (isFALSE(dir.exists(self$cache_dir))) {
-            if (isFALSE(dir.create(self$cache_dir, recursive = TRUE,
-                                   showWarnings = FALSE))) {
-              stop_h(
-                "Impossibile to create a cache directory for compilation.",
-                "Check your user permissions."
-              )
-            }
-          }
-
-          if (isTRUE(as_template)) {
-            if (file.exists(private$.dll)) {
-              private$.need_compile <- FALSE            
-              unlink(private$.dll)
-              warning_h(
-                "Impossible to replace existing template in current session.",
-                "To re-compile your model restart R.",
-                "Warning raised because model changed or 'force = TRUE'."
-              )
-            } else {
-              private$.need_compile <- TRUE
-            }
-
-          } else {
-            # search cached dll and check if to be recompiled 
-            private$.search_for_cached_dll(model_choice)
-          }
-        }
-
-        # asses if to be compiled
-        if (isTRUE(private$.need_compile)) {
-          # change dll name if not as template
-          if (isFALSE(as_template)) {
-            private$.dll <- file.path(self$cache_dir,
-                                      dll_file_ext(random_name(model_choice)))
-          }
-          # organize cache directory to perform compilation
-          private$.copy_source_code(model_choice)
-        }
+        private$.new_custom_model(model_choice, as_template, force)
 
       } else {
-        #=================#
-        #===== ERROR =====#
-        #=================#
-
+        #===== Error =====#
         stop_h(
           sprintf("\"%s\" is not a folder nor a template name.", model_choice),
-          "Run function 'template_household_model' to see available templates."
+          "To see available templates, run function 'template_household_model'."
         )
       }
 
@@ -496,268 +392,33 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Name of model dynamic library. Extract name of the dynamic library.
-    #'
-    #' @param verbose `logical(1)`\cr
-    #' If `TRUE` show message about generation.
-    generate = function(verbose = TRUE) {
-      if (isTRUE(private$.need_compile)) {
-        if (isTRUE(verbose)) {
-          cli::cli_alert_info("Compiling {.pkg {private$.name}}")
-        }
+    # @description
+    # Name of model dynamic library. Extract name of the dynamic library.
+    generate = function() {
+      if (private$.need_compile) {
         # compile model
+        cli::cli_alert_info("Compiling {.pkg {private$.name}}")
         private$.compile()
         private$.rcpp <- private$.new_rcpp_model()
 
       } else if (is.null(private$.rcpp)) {
-        if (isTRUE(verbose)) {
-          cli::cli_alert_info("Loading {.pkg {private$.name}}")
-        }
         # load if not already generated
+        cli::cli_alert_info("Loading {.pkg {private$.name}}")
         private$.rcpp <- private$.new_rcpp_model()
       }
 
       invisible(self)
     },
 
-    #' @description
-    #' Genera reference script.
+    # @description
+    # Save reference script.
     save_reference = function() {
       # reference script
       refer_file <- file.path(dirname(private$.dll), ".refer")
-      overwrite(file.path(self$cache_dir, "src", "model.cpp"),
+      overwrite(file.path(private$.cache_dir, "src", "model.cpp"),
                 refer_file)
 
       invisible(self)
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Show formatted summary of loaded dataset.
-    #'
-    #' @param pct_format `character(1)`\cr
-    #' Formatting string for the percentage passed to `sprintf`.
-    #' It expects 1 double value (fraction).
-    #'
-    #' @return `flextable`
-    show_summary = function(pct_format = "%.1f%%") {
-      if (require_suggested_library("flextable")) {
-
-        combined <- self$summary
-        combined$pct <- sapply(combined$pct,
-                               function(x) sprintf(pct_format, x))
-
-        ft <- flextable::flextable(combined)
-        ft <- flextable::separate_header(ft)
-        ft <- flextable::theme_vanilla(ft)
-        ft <- flextable::align(ft, align = "left", part = "all")
-        ft <- flextable::merge_v(ft, j = ~ type)
-        ft <- flextable::bold(ft, j = ~ type, bold = TRUE)
-        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
-        ft <- flextable::labelizor(
-          ft, part = "all",
-          labels = c(type = "", comment = "", pct = "[%]")
-        )
-        ft <- flextable::colformat_num(ft, big.mark = "",
-                                       na_str = "", nan_str = "")
-        return(ft)
-      }
-    },
-
-    #' @description
-    #' Show formatted summary of housheold sizes.
-    #'
-    #' @param pct_format `character(1)`\cr
-    #' Formatting string for the percentage passed to `sprintf`.
-    #' It expects 1 double value (fraction).
-    #'
-    #' @return `flextable`
-    show_house_size_summary = function(pct_format = "%.1f%%") {
-      if (require_suggested_library("flextable")) {
-        combined <- self$summary_house_size
-        combined$pct <- sapply(combined$pct,
-                               function(x) sprintf(pct_format, x))
-        ft <- flextable::flextable(combined)
-        ft <- flextable::separate_header(ft)
-        ft <- flextable::theme_vanilla(ft)
-        ft <- flextable::align(ft, align = "left", part = "all")
-        ft <- flextable::bold(ft, j = ~ comment + value, bold = TRUE)
-        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
-        ft <- flextable::labelizor(
-          ft, part = "all",
-          labels = c(comment = "", value = "n.", pct = "[%]")
-        )
-        ft <- flextable::colformat_num(ft, big.mark = "")
-        return(ft)
-      }
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Wrapper of the Rcpp import_dataset method.
-    #'
-    #' @param dataset `data.frame`\cr
-    #' Dataset with rowise individual information.
-    import_dataset = function(dataset) {
-      private$.rcpp$import_dataset(
-        data.frame(lapply(dataset, as.character))
-      )
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp import_setup method.
-    #'
-    #' @param setup_list `list()`\cr
-    #' Setup definitions.
-    import_setup = function(setup_list) {
-      # change scientific notation locally
-      withr::local_options(list(scipen = 500))
-      private$.rcpp$import_setup(
-        lapply(setup_list, as.character)
-      )
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp import_parameter method.
-    #'
-    #' @param defs `data.frame`\cr
-    #' Formatted parameter definitions.
-    import_parameter = function(defs) {
-      private$.rcpp$import_parameter(
-        data.frame(lapply(defs, as.character))
-      )
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp import_augmented method.
-    #'
-    #' @param defs `data.frame`\cr
-    #' Formatted augmented variable definitions.
-    import_augmented = function(defs) {
-      private$.rcpp$import_augmented(
-        data.frame(lapply(defs, as.character))
-      )
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp import_infec_profile method.
-    #'
-    #' @param defs `list()`\cr
-    #' Infectivity profile definitions.
-    import_infectivity_profile = function(defs) {
-      private$.rcpp$import_infectivity_profile(
-        lapply(defs, as.character)
-      )
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp build_all_rates method.
-    build_all_rates = function() {
-      private$.rcpp$build_all_rates()
-      invisible(self)
-    },
-
-    #' @description
-    #' Export instantaneous and cumulative values of the infectivity profile.
-    #'
-    #' @param opts `double()`\cr
-    #' Additional values for the computation.
-    #' @param n_bins `integer(1)`\cr
-    #' Number of bins for continuous profile (ignored if discrete).
-    #'
-    #' @return `data.frame`
-    export_infectivity_profile = function(opts = list(),
-                                          n_bins = 2500) {
-      # load options
-      opts <- as.list(as.numeric(opts))
-      n_bins <- as.integer(n_bins)
-
-      # reformat dataframe
-      output <- private$.rcpp$export_infectivity_profile(opts, n_bins)
-      output$profile <- as.data.frame(output[c("gentime", "inst", "cumul")])
-      output[c("gentime", "inst", "cumul")] <- NULL
-
-      return(output)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp evaluate method.
-    evaluate = function() {
-      return(private$.rcpp$evaluate())
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp infer method.
-    infer = function() {
-      private$.rcpp$infer()
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp infer method.
-    #'
-    #' @return `data.frame`
-    simulate = function() {
-      return(private$.rcpp$simulate())
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp estimate_evidence method.
-    #'
-    #' @param scheme `character(1)`\cr
-    #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
-    #' Other available scheme is "power-fractions".
-    #' @param n_rungs `integer(1)`\cr
-    #' Number of rungs in the thermodynamic ladder.
-    estimate_evidence = function(scheme = "adaptive",
-                                 n_rungs = 40) {
-      return(private$.rcpp$estimate_evidence(scheme, n_rungs))
     }
   )
 )
-
-############################################################################
-############################################################################
-############################################################################
-############################################################################
-############################################################################
-
-#' @description
-#' Re-compiles all required objects of the housepi library.
-#' Passed to .onLoad in file zzz.R
-#'
-#' @param pkgname `character(1)`\cr
-#' Name of the package.
-#' @param force `logical(1)`\cr
-#' Force compilation even if it already exists.
-#'
-#' @noRd
-re_compile_library <- function(pkgname,
-                               force = FALSE) {
-  # compile the core
-  housepi_models_dir <- file.path(system.file(package = pkgname), "template")
-  pkgbuild::compile_dll(housepi_models_dir, debug = FALSE)
-
-  # compile each model
-  models_dir <- file.path(system.file(package = pkgname), "models")
-  for (m in list.files(models_dir, full.names = TRUE)) {
-    if ((!file.exists(template_dll_file(m))) || isTRUE(force)) {
-      HousepiGenerator$new(m,
-                           as_template = TRUE,
-                           force = force,
-                           quiet_pkgbuild = FALSE)$generate()
-    }
-  }
-}

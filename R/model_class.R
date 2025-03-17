@@ -145,8 +145,8 @@ HouseholdModel <- R6::R6Class(
             model_choice <- private$.model$path
             if (file.exists(file.path(model_choice, "model.cpp"))) {
               # re-assign model object forcing copy of source to cache
-              private$.model <- HousepiGenerator$new(model_choice,
-                                                     force = TRUE)
+              private$.model <- HousepiWrapper$new(model_choice,
+                                                   force = TRUE)
               # assign new cache file
               source_file <- file.path(private$.model$cache_dir,
                                        "src", "model.cpp")
@@ -390,7 +390,7 @@ HouseholdModel <- R6::R6Class(
       }
 
       # assign model definitions
-      private$.model <- HousepiGenerator$new(model = model,
+      private$.model <- HousepiWrapper$new(model = model,
                                              as_template = as_template,
                                              force = force,
                                              quiet_pkgbuild = quiet_pkgbuild)
@@ -412,7 +412,6 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      # FIXME I should find an alternative
       if (requireNamespace("rstudioapi", quietly = TRUE)) {
         templ_info_file <- file.path(private$.model$path, "template_info.Rd")
         if (!file.exists((templ_info_file))) {
@@ -422,10 +421,15 @@ HouseholdModel <- R6::R6Class(
           )
         }
         rstudioapi::previewRd(templ_info_file)
+
+      } else if (interactive()){
+        # print as plain text in the console
+        txt <- capture.output(tools::Rd2txt(rd_file))
+        cat(txt, sep = "\n")
+
       } else {
         warning_h(
-          "Help method not yet supported outside of R studio.",
-          "Sorry for the inconvenience."
+          "Help method not supported in non-interactive mode."
         )
       }
 
@@ -1048,8 +1052,8 @@ HouseholdModel <- R6::R6Class(
     #' @param ...
     #' Arguments passed to [loo][loo::loo].
     #' 
-    #' @return smtg
-    #' FIXME
+    #' @return names `list()`\cr
+    #' Output of S3 method loo(matrix).
     loo = function(...) {
       if (require_suggested_library("loo")) {
         return(loo::loo(private$.model$household_loglike_matrix, ...))
@@ -1063,8 +1067,8 @@ HouseholdModel <- R6::R6Class(
     #' @param ...
     #' Arguments passed to [waic][loo::waic].
     #' 
-    #' @return smtg
-    #' FIXME
+    #' @return names `list()`\cr
+    #' Output of S3 method waic(matrix).
     waic = function(...) {
       if (require_suggested_library("loo")) {
         return(loo::waic(private$.model$household_loglike_matrix, ...))

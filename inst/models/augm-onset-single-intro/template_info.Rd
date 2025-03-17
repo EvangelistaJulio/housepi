@@ -10,20 +10,22 @@ Missing data and asymptomatic status are not modeled.
 \itemize{
 \item Force of infection: \deqn{
 {\lambda}_{i}(t) = {\mu}^{(\rm sus)}_{i} {\beta} n^{-{\gamma}} \sum_{k\,:\,t_{k}<t_{i}} {\mu}^{(\rm inf)}_{k} f_{k}(t) \, {\mu}^{(\rm con)}_{k{\to}i}
+}{
+lambda_i(t) = mu_sus_i * beta * n^(-gamma) sum_{k: t_k < t_i} mu_inf_k f_k(t) mu_con_ki
 }
-\item Time of infection: \eqn{t_{i}} = \code{onset_date} - \code{incub_period}
-\item Infectivity profile: \eqn{f_{k}}
-\item `Susceptibility` \eqn{{\mu}^{(\rm sus)}}: 
+\item Time of infection: \eqn{t_{i}}{t_i} = \code{onset_date} - \code{incub_period}
+\item Infectivity profile: \eqn{f_{k}}{f_k}
+\item `Susceptibility` \eqn{{\mu}^{(\rm sus)}}{mu_sus}: 
 \tabular{rrr}{
                             |\tab \strong{FALSE}   |\tab \strong{TRUE}      \cr
         \strong{vaccinated} |\tab \emph{reference} |\tab \code{sus_vacc}
 }
-\item `Infectivity` \eqn{{\mu}^{(\rm inf)}}: 
+\item `Infectivity` \eqn{{\mu}^{(\rm inf)}}{mu_inf}: 
 \tabular{rrr}{
                             |\tab \strong{FALSE}   |\tab \strong{TRUE}       \cr
         \strong{vaccinated} |\tab \emph{reference} |\tab \code{inf_vacc} 
 }
-\item `Contact` \eqn{{\mu}^{(\rm con)}}: 
+\item `Contact` \eqn{{\mu}^{(\rm con)}}{mu_con}: 
 \tabular{rrr}{
         \strong{from \\ to} |\tab \strong{adult}               |\tab \strong{child}          \cr
         \strong{adult}      |\tab \emph{reference}             |\tab \code{cont_adult_child} \cr
