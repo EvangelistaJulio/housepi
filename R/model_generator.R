@@ -72,7 +72,7 @@ HousepiGenerator <- R6::R6Class(
             namespace <- template_name(private$.name)
             dll_info <- base::getLoadedDLLs()[[namespace]]
 
-            if (is.null(dll_info) | (!dll_info[["dynamicLookup"]])) {
+            if (is.null(dll_info) | isFALSE(dll_info[["dynamicLookup"]])) {
               # safely remove previous template dll
               unlink(private$.dll)
 

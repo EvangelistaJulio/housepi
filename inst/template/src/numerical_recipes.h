@@ -221,7 +221,7 @@ namespace numr
                 if (std::fabs(del - 1.) < EPSILON)
                     return h;
             }
-            
+
             throw std::overflow_error("Overflow in ibeta function.");
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -541,6 +541,5 @@ namespace numr
         }
     }
 } // NUMR NAMESPACE
-
 
 #endif // HOUSEPI__NUMERICAL_RECIPES__H

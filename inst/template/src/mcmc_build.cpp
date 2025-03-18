@@ -154,11 +154,12 @@ void MCMC::Impl::set_n_threads()
         throw std::invalid_argument("N. of threads must be greater than 0.");
 
 #ifdef _OPENMP
-    unsigned int max_threads = omp_get_max_threads();
+    unsigned int max_threads = omp_get_num_procs();
+
     if (setup_n_threads > max_threads)
     {
         tools::warning(
-            "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
+            "N. of threads reduced to " + std::to_string(max_threads) + " available processors.");
         setup_n_threads = max_threads;
     }
 
@@ -789,7 +790,7 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
             // assign augmented variable of the corresponding status or undefined status
             if ((tools::is_na(augm_status)) || (house.status(i) == tools::stoi(augm_status, "augmented status")))
             {
-                // index 
+                // index
                 // |====> UPDATE: to be implemented <===|
                 augmID a = deftable.at("name")[k];
                 const std::string &name = deftable.at("name")[k];

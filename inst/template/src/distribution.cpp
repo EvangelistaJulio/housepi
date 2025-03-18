@@ -350,7 +350,7 @@ public:
     //===== CONSTRUCTOR =====//
     ReparamGamma_Distribution() : distr_gen(1., 1.)
     {
-        init_defaults("reparam_gamma", {"mean", "sd"}, {1., 1.},
+        init_defaults("reparam_gamma", {"mean", "var"}, {1., 1.},
                       0., NULL_DOUBLE, false, false);
     }
     ~ReparamGamma_Distribution() = default;
@@ -368,9 +368,8 @@ protected:
     void update_args() override final
     {
         const double m = get_arg(0);
-        const double s = get_arg(1);
-        const double s2 = s * s;
-        distr_gen.param(std::gamma_distribution<double>::param_type((m * m) / s2, s2 / m));
+        const double v = get_arg(1);
+        distr_gen.param(std::gamma_distribution<double>::param_type((m * m) / v, v / m));
     }
 
     //==== GETTER =====//
@@ -378,33 +377,29 @@ protected:
     {
         UNUSED(opts);
         const double m = get_arg(0);
-        const double s = get_arg(1);
-        const double s2 = s * s;
-        return numr::gamma::pdf(x, (m * m) / s2, s2 / m);
+        const double v = get_arg(1);
+        return numr::gamma::pdf(x, (m * m) / v, v / m);
     }
     double raw_cdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         const double m = get_arg(0);
-        const double s = get_arg(1);
-        const double s2 = s * s;
-        return numr::gamma::cdf(x, (m * m) / s2, s2 / m);
+        const double v = get_arg(1);
+        return numr::gamma::cdf(x, (m * m) / v, v / m);
     }
     double raw_logpdf(double x, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         const double m = get_arg(0);
-        const double s = get_arg(1);
-        const double s2 = s * s;
-        return numr::gamma::logpdf(x, (m * m) / s2, s2 / m);
+        const double v = get_arg(1);
+        return numr::gamma::logpdf(x, (m * m) / v, v / m);
     }
     double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
     {
         UNUSED(opts);
         const double m = get_arg(0);
-        const double s = get_arg(1);
-        const double s2 = s * s;
-        return numr::gamma::logratio(xold, xnew, (m * m) / s2, s2 / m);
+        const double v = get_arg(1);
+        return numr::gamma::logratio(xold, xnew, (m * m) / v, v / m);
     }
     double raw_rand(rnd_gen &prng) override final
     {

@@ -213,6 +213,9 @@ void Household::assign_contact_rate(indiv from, indiv to, const double *x)
 
 void Household::set_loglike(double x)
 {
+	if (std::isnan(x)) 
+		throw std::runtime_error("Set a NaN value as household loglikelihood.");
+
 	buffer = house_loglike;
 	house_loglike = x;
 }

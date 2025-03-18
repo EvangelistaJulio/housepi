@@ -542,7 +542,7 @@ double MCMC::evaluate()
         init_model_for_inference();            // initialize model for inference
         init_augmented_variables();            // initialize augmented dependencies
         init_extra_dependecies();              // initialize extra dependencies
-        update_global_loglike();        // initialize global loglikelihood
+        update_global_loglike();               // initialize global loglikelihood
     }
     catch (const std::exception &e)
     {
@@ -579,10 +579,10 @@ void MCMC::run_monte_carlo(progress::Bar &progressbar, ulong sweep)
         // update progressbar text
         progressbar.set_text(pImpl->fmt_progtxt());
 
-        pImpl->init_parameters();       // initialize parameter inference
-        init_augmented_variables();     // initialize augmented dependencies
-        init_extra_dependecies();       // initialize extra dependencies
-        update_global_loglike(); // initialize global loglikelihood
+        pImpl->init_parameters();   // initialize parameter inference
+        init_augmented_variables(); // initialize augmented dependencies
+        init_extra_dependecies();   // initialize extra dependencies
+        update_global_loglike();    // initialize global loglikelihood
 
         //=========================================//
         //======== (Finite) Adaptative MCMC =======//

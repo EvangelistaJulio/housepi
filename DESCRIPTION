@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.5.5
+Version: 0.5.6
 Author:
     person("Francesco", "Camaglia", role = c("aut", "cre"), email = "francesco.camaglia@pasteur.fr")
 Maintainer: <francesco.camaglia@pasteur.fr>

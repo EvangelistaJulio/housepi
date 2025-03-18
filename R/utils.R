@@ -121,7 +121,7 @@ untracked_changes <- function(model_choice, dll) {
   check_src_files <- list.files(housepi_dir, full.names = TRUE)
   install_time <- trunc_ctime(check_src_files)
 
-  return((last_mod > trunc_ctime(dll)) | (install_time > last_mod))
+  return(any(trunc_ctime(dll) < c(last_mod, install_time)))
 }
 
 # Verify source files exist

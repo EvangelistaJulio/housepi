@@ -134,6 +134,47 @@ retrieve_sar_from_casesbysize <- function(cases_df) {
   return(output)
 }
 
+#' @title
+#' Combined Observed and Expected cases tables.
+#' @description
+#' Function to combine cases table.
+#'
+#' @param obsdf `data.frame`\cr
+#' Observed cases table.
+#' @param expdf `data.frame`\cr
+#' Expected cases table.
+#' 
+#' @return `data.frame`\cr
+#'
+#' @noRd
+combine_obs_exp <- function(obsdf, expdf) {
+  # 1. curate observed dataframe
+  obsdf$distr <- "Observed"
+  rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
+  
+  # 2. curate expected dataframe
+  expdf$size <- obsdf$size
+  expdf$distr <- "Expected"
+  rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
+  
+  # 3. combine by row bind 
+  combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
+  # reset row names
+  rownames(combined) <- NULL
+  # reorder columns
+  y <- colnames(combined)
+  aux <- c("size", "distr")
+  combined <- combined[, c(aux, y[!(y %in% aux)])]
+  
+  # format columns to extract labels with labelizor
+  colnames(combined)[3:ncol(combined)] <- sapply(
+    colnames(combined)[3:ncol(combined)], function(x) {
+      return(paste("cases", x, sep = "_"))
+    }
+  )
+  return(combined)
+}
+
 ############################################################################
 ############################################################################
 ############################################################################
@@ -239,7 +280,7 @@ ExpectedCases <- R6::R6Class(
 
   active = list(
     #' @field sar `data.frame`\cr
-    #' Observed and expected cases by household size.
+    #' Observed and expected secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     sar = function(value) {
       if (missing(value)) {
@@ -260,6 +301,26 @@ ExpectedCases <- R6::R6Class(
         return(output)
       }
       stop_h("'sar' is read only.")
+    },
+
+    #' @field cases_table `data.frame`\cr
+    #' Observed and expected cases by household size.
+    #' If a maximum house size is set, larger sizes are not returned.
+    cases_table = function(value) {
+      if (missing(value)) {
+        # filter according to max_house_size
+        cases <- private$.filtered_tables()
+
+        # empty frame as a placeholder for Credible Interval
+        na_df <- cases$observed
+        na_df[] <- lapply(na_df, function(col) if (is.numeric(col)) NA else col)
+        na_df$size <- cases$observed$size
+
+        return(list(expected = combine_obs_exp(cases$observed, cases$expected),
+                    cri_lower = combine_obs_exp(na_df, cases$cri_lower),
+                    cri_upper = combine_obs_exp(na_df, cases$cri_upper)))      
+      }
+      stop_h("'cases_table' is read only.")
     }
   ),
 
@@ -444,6 +505,8 @@ ExpectedCases <- R6::R6Class(
     #' `flextable`
     show_cases_table = function(show_chisq = FALSE,
                                 cri_format = "%.0f [%.0f, %.0f]") {
+      # FIXME: I shall re-format the output from cases-table
+
       # format counts to character
       format_obs <- function(x) {
         as.character(as.integer(x, na.rm = TRUE), na.rm = TRUE)
@@ -486,7 +549,6 @@ ExpectedCases <- R6::R6Class(
         }
       )
 
-      # FIXME: I shall have an active for the non flextable
       if (require_suggested_library("flextable")) {
         ft <- flextable::flextable(combined)
         ft <- flextable::separate_header(ft)
@@ -512,7 +574,6 @@ ExpectedCases <- R6::R6Class(
         }
 
         return(ft)
-
       }
     }
   )

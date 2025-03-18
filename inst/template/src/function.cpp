@@ -67,7 +67,6 @@ void Argument::_set_arg_pointer_(double x)
 Function::Function() {};
 Function::~Function() = default;
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,13 +79,29 @@ inline ushort Function::find(const std::string &arg_name) const
             return c;
     return n_args;
 }
+
+/* Assert argument exists at assignment. */
+ushort Function::assert_arg(const std::string &arg_name) const
+{
+    ushort i = this->find(arg_name);
+    if (i == n_args)
+    {
+        str_vec options = {};
+        for (ushort c = 0; c < n_args; ++c)
+            options.push_back(arguments[c].name);
+        throw std::invalid_argument(
+            "Unknown argument \"" + arg_name + "\" for \"" + name + "\"." + tools::find_closest(arg_name, options));
+    }
+    return i;
+}
+
 double Function::get_arg(ushort i) const { return arguments[i].get(); }
 double Function::get_min() const { return range_min.get(); }
 double Function::get_max() const { return range_max.get(); }
 const double *Function::get_ptr_to_arg(ushort i) const { return arguments[i].get_ptr(); }
 const double *Function::get_ptr_to_min() const { return range_min.get_ptr(); }
 const double *Function::get_ptr_to_max() const { return range_max.get_ptr(); }
-bool Function::valid(double x) const  { return (this->*_func_valid_range_)(x); }
+bool Function::valid(double x) const { return (this->*_func_valid_range_)(x); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Function : set range  ////////////////////////////////////
@@ -185,7 +200,6 @@ const std::string Function::show_range() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Base Function : Arguments  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -196,31 +210,16 @@ void Function::set_arg(ushort i, double x) { arguments[i].set(x); }
 /* Assignment of non default POINTER arguments. */
 void Function::assign_scalar_arg(const std::string &arg_name, double x)
 {
-    ushort i = this->find(arg_name);
-    if (i == n_args)
-    {
-        str_vec options = {};
-        for (ushort c = 0; c < n_args; ++c)
-            options.push_back(arguments[c].name);
-        throw std::invalid_argument(
-            "Unknown argument \"" + arg_name + "\" for \"" + name + "\"." + tools::find_closest(arg_name, options));
-    }
-    else
-    {
-        arguments[i].set(x);
-        arguments[i].restore_internal_ptr();
-    }
+    ushort i = this->assert_arg(arg_name);
+    arguments[i].set(x);
+    arguments[i].restore_internal_ptr();
 }
 
 /* Assignment of non default POINTER arguments. */
 void Function::assign_pointer_arg(const std::string &arg_name, const double *y)
 {
-    ushort i = this->find(arg_name);
-    if (i == n_args)
-        throw std::invalid_argument(
-            "Unknown argument \"" + arg_name + "\" for \"" + name + "\".");
-    else
-        arguments[i].assign_ptr(y);
+    ushort i = this->assert_arg(arg_name);
+    arguments[i].assign_ptr(y);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
