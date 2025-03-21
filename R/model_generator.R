@@ -77,7 +77,7 @@ HousepiGenerator <- R6::R6Class(
               unlink(private$.dll)
 
             } else {
-              private$.need_compile <- FALSE    
+              private$.need_compile <- FALSE
               warning_h(
                 "Impossible to replace existing template in current session.",
                 "Start a new R session to re-compile your model as a template.",
@@ -88,9 +88,9 @@ HousepiGenerator <- R6::R6Class(
 
         } else {
           if (force) {
-             private$.need_compile <- TRUE
+            private$.need_compile <- TRUE
           } else {
-            # search cached dll and check if to be recompiled 
+            # search cached dll and check if to be recompiled
             private$.search_for_cached_dll(source_dir)
           }
         }
@@ -264,7 +264,7 @@ HousepiGenerator <- R6::R6Class(
       }
       stop_h("'model_name' is read only.")
     },
-    
+
     # @field cache_dir `character(1)`\cr
     # Cache directory where the compilation is stored.
     cache_dir = function(value) {

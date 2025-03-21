@@ -196,7 +196,7 @@ HouseholdModel <- R6::R6Class(
 
       # infectivity profile
       if (length(private$.infec_profile$defs) > 0) {
-        private$.model$import_infectivity_profile(private$.infec_profile$defs)
+        private$.model$import_infec_profile(private$.infec_profile$defs)
       }
 
       invisible(self)
@@ -391,9 +391,9 @@ HouseholdModel <- R6::R6Class(
 
       # assign model definitions
       private$.model <- HousepiWrapper$new(model = model,
-                                             as_template = as_template,
-                                             force = force,
-                                             quiet_pkgbuild = quiet_pkgbuild)
+                                           as_template = as_template,
+                                           force = force,
+                                           quiet_pkgbuild = quiet_pkgbuild)
       # initial generation
       private$.model$generate()
 
@@ -422,7 +422,7 @@ HouseholdModel <- R6::R6Class(
         }
         rstudioapi::previewRd(templ_info_file)
 
-      } else if (interactive()){
+      } else if (interactive()) {
         # print as plain text in the console
         txt <- capture.output(tools::Rd2txt(rd_file))
         cat(txt, sep = "\n")
@@ -688,10 +688,10 @@ HouseholdModel <- R6::R6Class(
                         scale = NA,
                         from = NA) {
       private$.augm$add(name = name, status = status,
-                        value = value, init_rand = init_rand, 
+                        value = value, init_rand = init_rand,
                         constant = constant, discrete = discrete,
                         model = model, args = args,
-                        min = min, max = max, 
+                        min = min, max = max,
                         rule = rule, scale = scale, from = from)
       invisible(self)
     },
@@ -789,8 +789,8 @@ HouseholdModel <- R6::R6Class(
                               max = 10) {
       private$.group_rate$add(name = name, by = by, prefix = prefix,
                               reference = reference, independent = independent,
-                              prior = prior, args = args, 
-                              min = min, max = max, 
+                              prior = prior, args = args,
+                              min = min, max = max,
                               rule = rule, scale = scale)
       invisible(self)
     },
@@ -812,11 +812,11 @@ HouseholdModel <- R6::R6Class(
     #' One between:
     #' - Scalar value;
     #' - Parameter name (optionally followed by `@P`).
-    add_infectivity_profile = function(name,
-                                       discrete = FALSE,
-                                       args = list(),
-                                       min = NA,
-                                       max = NA) {
+    add_infec_profile = function(name,
+                                 discrete = FALSE,
+                                 args = list(),
+                                 min = NA,
+                                 max = NA) {
       private$.infec_profile$add(name = name, discrete = discrete,
                                  args = args, min = min, max = max)
       invisible(self)
@@ -832,13 +832,13 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @return
     #' `list()`
-    export_infectivity_profile = function(opts = list(),
-                                          n_bins = 2500) {
+    export_infec_profile = function(opts = list(),
+                                    n_bins = 2500) {
       # internal build function
-      private$.pre_build() 
+      private$.pre_build()
 
-      return(private$.model$export_infectivity_profile(opts = opts,
-                                                       n_bins = n_bins))
+      return(private$.model$export_infec_profile(opts = opts,
+                                                 n_bins = n_bins))
     },
 
     ############################################################################
@@ -997,7 +997,7 @@ HouseholdModel <- R6::R6Class(
     #' If `NA` uses the internal clock (default).
     #' @param progress `logical(1)`\cr
     #' If `FALSE` suppress the simulation progress bar.
-    #' 
+    #'
     #' @return
     #' `double(1)`
     #'
@@ -1034,7 +1034,7 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Use rstan package to compute R-hat convergence diagnostic.
     #' For further details type ?rstan::Rhat.
-    #' 
+    #'
     #' @return named `vector()`
     #' Value of the Rhat for each parameter.
     rhat = function() {
@@ -1052,12 +1052,12 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Arguments passed to [loo][loo::loo].
-    #' 
+    #'
     #' @return names `list()`\cr
     #' Output of S3 method loo(matrix).
     loo = function(...) {
       if (require_suggested_library("loo")) {
-        return(loo::loo(private$.model$household_loglike_matrix, ...))
+        return(loo::loo(private$.model$house_loglike_mtx, ...))
       }
     },
 
@@ -1067,12 +1067,12 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Arguments passed to [waic][loo::waic].
-    #' 
+    #'
     #' @return names `list()`\cr
     #' Output of S3 method waic(matrix).
     waic = function(...) {
       if (require_suggested_library("loo")) {
-        return(loo::waic(private$.model$household_loglike_matrix, ...))
+        return(loo::waic(private$.model$house_loglike_mtx, ...))
       }
     }
   )

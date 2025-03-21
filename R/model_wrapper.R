@@ -132,14 +132,14 @@ HousepiWrapper <- R6::R6Class(
 
     # @field reference `matrix()`\cr
     # Household loglikelihood traces.
-    household_loglike_matrix = function(value) {
+    house_loglike_mtx = function(value) {
       if (missing(value)) {
         # check model has been built
         if (is.null(private$.rcpp)) {
           stop_h("Impossible to export household traces before inference.")
         }
         # extract household loglikelihood traces
-        df <- private$.rcpp$export_household_loglike_matrix()
+        df <- private$.rcpp$export_house_loglike_mtx()
         # check
         if (dim(df)[1] == 0) {
           stop_h("Household traces are empty.")
@@ -276,8 +276,8 @@ HousepiWrapper <- R6::R6Class(
     #
     # @param defs `list()`\cr
     # Infectivity profile definitions.
-    import_infectivity_profile = function(defs) {
-      private$.rcpp$import_infectivity_profile(
+    import_infec_profile = function(defs) {
+      private$.rcpp$import_infec_profile(
         lapply(defs, as.character)
       )
       invisible(self)
@@ -291,7 +291,7 @@ HousepiWrapper <- R6::R6Class(
     },
 
     # @description
-    # Export instantaneous and cumulative values of the infectivity profile.
+    # Instantaneous and cumulative values of the infectivity profile.
     #
     # @param opts `double()`\cr
     # Additional values for the computation.
@@ -299,14 +299,14 @@ HousepiWrapper <- R6::R6Class(
     # Number of bins for continuous profile (ignored if discrete).
     #
     # @return `data.frame`
-    export_infectivity_profile = function(opts = list(),
-                                          n_bins = 2500) {
+    export_infec_profile = function(opts = list(),
+                                    n_bins = 2500) {
       # load options
       opts <- as.list(as.numeric(opts))
       n_bins <- as.integer(n_bins)
 
       # reformat dataframe
-      output <- private$.rcpp$export_infectivity_profile(opts, n_bins)
+      output <- private$.rcpp$export_infec_profile(opts, n_bins)
       mask <- c("gentime", "inst", "cumul")
       output$profile <- as.data.frame(output[mask])
       output[mask] <- NULL

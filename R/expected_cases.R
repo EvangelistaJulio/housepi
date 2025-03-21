@@ -447,19 +447,19 @@ ExpectedCases <- R6::R6Class(
     #' @description
     #' Perform Chi-squared test and return list with results.
     #'
-    #' @param lower.tail `logical(1)`\cr
+    #' @param lower_tail `logical(1)`\cr
     #' if TRUE (default), probabilities are P[X<=x], otherwise P[X>x].
     #'
     #' @return
     #' `list()`)
-    chisq_test = function(lower.tail = FALSE) {
+    chisq_test = function(lower_tail = FALSE) {
       x <- private$.filtered_tables()
       res <- (x$observed - x$expected)^2 / x$expected
       chisq_value <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
       return(list(
         chisq_value = chisq_value, ddof = ddof,
-        p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = lower.tail)
+        p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = lower_tail)
       ))
     },
 

@@ -18,7 +18,7 @@
 //'   \item Parameter: n_rungs
 //' }
 //' @filed import_setup Import setup from R List.
-//' @filed import_infectivity_profile Import infectivity profile definition from R List.
+//' @filed import_infec_profile Import infectivity profile definition from R List.
 //' @filed import_parameter Import parameter definitions from R Data.Frame.
 //' @filed import_dataset Import data definitions from R Data.Frame.
 //' @filed import_augmented Import augmented variable definitions from R Data.Frame.
@@ -29,9 +29,8 @@
 //' @field export_data_report Return a DataFrame with a report of the current database.
 //' @field export_house_size_report Return a DataFrame with a report of household sizes.
 //' @field export_traces Return a DataFrame with MCMC traces.
-//' @field export_household_loglikelihoods Return a NumericMatrix with household loglikelihood traces.
-//' @field export_infectivity_profile Return a DataFrame values of the infectivity profile.
-//' @field export_household_loglikelihoods Return matrix with loglikelihood values.
+//' @field export_house_loglike_mtx Return a NumericMatrix with household loglikelihood traces.
+//' @field export_infec_profile Return a DataFrame values of the infectivity profile.
 //' @field show_full_build Show all build messages.
 //' @field show_summary Show a summary of the current database.
 
@@ -49,7 +48,7 @@ RCPP_MODULE(housepi_model_core)
       .method("evaluate", &MCMC::evaluate)
       .method("estimate_evidence", &MCMC::estimate_evidence)
       .method("import_setup", &MCMC::import_setup)
-      .method("import_infectivity_profile", &MCMC::import_infectivity_profile)
+      .method("import_infec_profile", &MCMC::import_infec_profile)
       .method("import_parameter", &MCMC::import_parameter)
       .method("import_dataset", &MCMC::import_dataset)
       .method("import_augmented", &MCMC::import_augmented)
@@ -60,8 +59,8 @@ RCPP_MODULE(housepi_model_core)
       .method("export_data_report", &MCMC::export_data_report)
       .method("export_house_size_report", &MCMC::export_house_size_report)
       .method("export_traces", &MCMC::export_traces)
-      .method("export_household_loglike_matrix", &MCMC::export_household_loglike_matrix)
-      .method("export_infectivity_profile", &MCMC::export_infectivity_profile);
+      .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
+      .method("export_infec_profile", &MCMC::export_infec_profile);
 
   class_<Model>("ModelHousepi")
       .constructor()

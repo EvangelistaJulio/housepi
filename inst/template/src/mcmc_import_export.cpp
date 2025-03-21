@@ -83,7 +83,7 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 }
 
 /* Import infectivity profile from R list and run build. */
-void MCMC::Impl::import_infectivity_profile(const Rcpp::List &input)
+void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
     try
     {
@@ -461,7 +461,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 }
 
 /* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
+Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 {
     using namespace Rcpp;
 
@@ -508,7 +508,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_household_loglike_matrix() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export a showcase of the selected infectivity profile. */
-Rcpp::List MCMC::Impl::export_infectivity_profile(const Rcpp::List &opts, int n_bins) const
+Rcpp::List MCMC::Impl::export_infec_profile(const Rcpp::List &opts, int n_bins) const
 {
     using namespace Rcpp;
 
@@ -583,11 +583,11 @@ Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
 Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_report(); }
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
-Rcpp::NumericMatrix MCMC::export_household_loglike_matrix() const { return pImpl->export_household_loglike_matrix(); }
-Rcpp::List MCMC::export_infectivity_profile(const Rcpp::List &opts, int n_bins)
+Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
+Rcpp::List MCMC::export_infec_profile(const Rcpp::List &opts, int n_bins)
 {
     init_infec_profile();
-    return pImpl->export_infectivity_profile(opts, n_bins);
+    return pImpl->export_infec_profile(opts, n_bins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -595,7 +595,7 @@ Rcpp::List MCMC::export_infectivity_profile(const Rcpp::List &opts, int n_bins)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
-void MCMC::import_infectivity_profile(const Rcpp::List &x) { pImpl->import_infectivity_profile(x); }
+void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
 void MCMC::import_parameter(const Rcpp::DataFrame &x) { pImpl->import_parameter(x); }
 void MCMC::import_augmented(const Rcpp::DataFrame &x) { pImpl->import_augmented(x); }
 void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
@@ -876,12 +876,11 @@ void MCMC::Impl::show_results() const
     for (const parID &p : param_standard_infer_list + param_extra_infer_list)
     {
         const Variable &this_param = param_map.at(p);
-        double avg = 0, var = 0;
-        tools::compute_stats(dgn_param_value.at(p), avg, var);
+        const std::pair<double, double> stats = tools::compute_stats(dgn_param_value.at(p));
 
         oss << p
-            << C_DELIM << avg
-            << C_DELIM << std::sqrt(var)
+            << C_DELIM << stats.first
+            << C_DELIM << std::sqrt(stats.second)
             << C_DELIM << tools::truth(this_param.is_constant())
             << C_DELIM << tools::truth(this_param.is_discrete())
             << C_DELIM << this_param.show_distr_name()

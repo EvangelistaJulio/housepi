@@ -141,7 +141,7 @@ public:
 	//========================//
 
 	void import_setup(const Rcpp::List &setup);
-	void import_infectivity_profile(const Rcpp::List &setup);
+	void import_infec_profile(const Rcpp::List &setup);
 	void import_parameter(const Rcpp::DataFrame &params);
 	void import_dataset(const Rcpp::DataFrame &data);
 	void import_augmented(const Rcpp::DataFrame &augm);
@@ -156,9 +156,9 @@ public:
 	Rcpp::DataFrame export_data_report() const;
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
-	Rcpp::NumericMatrix export_household_loglike_matrix() const;
-	Rcpp::List export_infectivity_profile(const Rcpp::List &opts,
-										  int n_bins);
+	Rcpp::NumericMatrix export_house_loglike_mtx() const;
+	Rcpp::List export_infec_profile(const Rcpp::List &opts,
+									int n_bins);
 
 #else
 

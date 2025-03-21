@@ -226,7 +226,7 @@ coerce_traces_to_coda <- function(trs) {
 #' @noRd
 retrieve_traces_results <- function(trs,
                                     cri_level = 0.95) {
-  if( (cri_level <= 0) || (cri_level >= 1)) {
+  if ((cri_level <= 0) || (cri_level >= 1)) {
     stop_h(
       "Credible interval level must be a value between 0 and 1."
     )

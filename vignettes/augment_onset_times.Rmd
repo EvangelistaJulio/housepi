@@ -44,11 +44,10 @@ knitr::kable(param_defs)
 
 ## Infectivity Profile
 
-When model comes shipped with a default infectivity profile, we can export its values for different generation times with the method `export_infectivity_profile()`\$.
+In `housepi` we follow the convention for infectivity profiles to be function of the generation time.
+Generation time is defined as the time from infection to transmission.
 
-In `housepi` the convention is for an infectivity profile to be a function of the generation time (i. e. time from infection to transmission).
-
-Certain infectivity profiles will then conditioned on individual augmented variables, as incubation periods $\tau$ as follows.
+Certain profiles will then be conditioned on individual incubation period $\tau$ as follows.
 
 | Time                       | Infector Condition    | Infectee Condition    |
 |----------------------------|-----------------------|-----------------------|
@@ -56,17 +55,17 @@ Certain infectivity profiles will then conditioned on individual augmented varia
 | from onset to transmission | $\tau_{\rm infector}$ | \-                    |
 | serial                     | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ |
 
-Each model requiring an infectivity profile has a default profile integrated. 
-However, we can provide a custom one and inspect it with the following methods:
+We can provide a custom infectivity proifle with the method `$add_infec_profile()`.
+At any momement, we can export current profile as a data.frame with the method `export_infec_profile()`:
 
 ```{r}
-# we associate the infectivity profiel from Ferretti et al. (2020)
-hhmodel$add_infectivity_profile(name = "ferretti20")
+# we associate the infectivity profile from Ferretti et al. (2020)
+hhmodel$add_infec_profile(name = "ferretti20")
 
 # we extract the profile and other general information
 # note: profile is defined from onset to transmission
 # we provide as an option the incubation period of the infector
-infec <- hhmodel$export_infectivity_profile(opts = c(3))
+infec <- hhmodel$export_infec_profile(opts = c(3))
 ```
 
 ```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
@@ -95,7 +94,8 @@ ggplot(infec$profile, aes(x = gentime)) +
   labs(x = "Generation Time", title = title)
 ```
 
-For more details on how to customize an infectivity profile, check the vignette [Customize Models](customize_models.html).
+Bear in mind that each model requiring an infectivity profile has a default profile.
+For more details on how to customize infectivity profiles, check the vignette [Customize Models](customize_models.html).
 
 ## Simulate an Outbreak
 

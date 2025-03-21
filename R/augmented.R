@@ -21,7 +21,7 @@ HousepiAugmented <- R6::R6Class(
 
   private = list(
     # from : augmented variable model argument definitions
-    .find_def_require = function(key) { 
+    .find_def_require = function(key) {
       required_set <- c()
       if (length(self$defs) > 0) {
         x <- self$defs[c("arg_value", "arg_at")]
