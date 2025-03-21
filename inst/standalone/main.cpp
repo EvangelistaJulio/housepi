@@ -202,10 +202,7 @@ int main(int argc, char *argv[])
     else if (is_marginal)
     { //===== Power Posteriors =====//
         tools::print_decorator("Marginal Loglikelihood", NULL_STRING, C_DECOR, verbose);
-        tools::print_stdout(
-            std::to_string(
-                user_model->estimate_evidence("adaptive", num_rungs)) +
-            "\n");
+        user_model->print_evidence("adaptive", num_rungs);
     }
 
     return EXIT_SUCCESS;

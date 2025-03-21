@@ -445,14 +445,14 @@ namespace tools
         ----
         https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
     */
-    void compute_stats(const dbl_vec &data, double &avg, double &var)
+    const std::pair<double, double> compute_stats(const dbl_vec &data)
     {
         size_t i = 0;
         size_t N = data.size();
         double x, delta, delta2;
         double sqr_diff = 0.;
 
-        avg = 0.;
+        double avg = 0.;
         while (i < N)
         {
             x = data[i++];
@@ -461,7 +461,8 @@ namespace tools
             delta2 = x - avg;
             sqr_diff += delta * delta2;
         }
-        var = sqr_diff / (N - 1.);
+
+        return {avg, sqr_diff / (N - 1.)};
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -601,14 +602,13 @@ namespace tools
 namespace progress
 {
     using namespace std::chrono;
-    using std::string;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Format elapsed time in seconds. */
-    const string fmt_time(std::chrono::seconds scs)
+    const std::string fmt_time(std::chrono::seconds scs)
     {
         std::ostringstream oss;
 
@@ -624,14 +624,11 @@ namespace progress
         // show large time scales only if relevant
         if (dys.count() > 0)
             oss << dys.count() << "d"
-                << std::setfill('0') << std::setw(2) << hrs.count() << "h"
-                << std::setfill('0') << std::setw(2) << mns.count() << "m"
-                << std::setfill('0') << std::setw(2) << scs.count() << "s";
+                << std::setfill('0') << std::setw(2) << hrs.count() << "h";
 
         else if (hrs.count() > 0)
             oss << hrs.count() << "h"
-                << std::setfill('0') << std::setw(2) << mns.count() << "m"
-                << std::setfill('0') << std::setw(2) << scs.count() << "s";
+                << std::setfill('0') << std::setw(2) << mns.count() << "m";
 
         else if (mns.count() > 0)
             oss << mns.count() << "m"
@@ -653,19 +650,22 @@ namespace progress
     class Bar::Impl
     {
     public:
-        ulong total = 0;                  // total number of iterations
-        string text = "";                 // current text to show
-        const string symbol = u8"\u25A0"; // bar decorator
-        unsigned barwidth = 30;           // bar total size
-        bool verbose = true;              // wheter to show bar
+        const std::string symbol = u8"\u25A0"; // bar decorator
+        unsigned barwidth = 30;                // bar total size
+        bool verbose = true;                   // wheter to show bar
+
+        ulong state = 0;       // current iteration
+        ulong total = 0;       // total number of iterations
+        std::string text = ""; // current text to show
 
         steady_clock::time_point start;
         steady_clock::time_point lastprint;
-        const int64_t thintime = 0;
+        int64_t thintime = 0;
 
         Impl()
         {
 #ifdef _HOUSEPI_RCPP
+            // use cli console width
             Rcpp::Environment cli = Rcpp::Environment::namespace_env("cli");
             Rcpp::Function console_width = cli["console_width"];
             barwidth = Rcpp::as<unsigned>(console_width()) / 2;
@@ -676,8 +676,21 @@ namespace progress
         /* Set description text of progress bar. */
         void set_text(const std::string &text) { this->text = text; }
 
+        /* Adapt thinning time. */
+        void adapt_thintime(int64_t elapsed)
+        {
+            if (elapsed < 60)
+                thintime = 0; // every second
+            else if (elapsed < 300)
+                thintime = 4; // every 5 seconds
+            else if (elapsed < 600)
+                thintime = 9; // every 10 seconds
+            else
+                thintime = 59; // every minute
+        };
+
         /* Initialize progress bar. */
-        void initialize(const string &text)
+        void initialize(const std::string &text)
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
@@ -687,8 +700,8 @@ namespace progress
                 set_text(text);
 
                 std::ostringstream oss;
-                oss << text << " |" << string(barwidth, ' ') << "| "
-                    << tools::percentage(0., 0) << " 0s<?";
+                oss << text << " |" << std::string(barwidth, ' ') << "| "
+                    << tools::percentage(0., 0); // << " 0s<?";
                 display(oss.str());
 
                 start = steady_clock::now();
@@ -697,7 +710,7 @@ namespace progress
         }
 
         /* Update progress bar given the progress state. */
-        void update(ulong state)
+        void update()
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
@@ -706,27 +719,29 @@ namespace progress
             {
                 const double progress = static_cast<double>(state) / total;
                 steady_clock::time_point now = steady_clock::now();
+                seconds elapsed = duration_cast<seconds>(now - start);
+                seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
 
                 if (duration_cast<seconds>(now - lastprint).count() > thintime)
                 {
-
-                    seconds elapsed = duration_cast<seconds>(now - start);
-                    seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
-
+                    const unsigned where = progress * barwidth;
                     std::ostringstream oss;
-                    unsigned where = progress * barwidth;
                     oss << "\r" << text << " |";
                     for (unsigned u = 0; u < where; ++u)
                         oss << symbol;
-                    oss << string(barwidth - where, ' ') << "| "
+                    oss << std::string(barwidth - where, ' ') << "| "
                         << tools::percentage(progress, 0) << " "
                         << fmt_time(elapsed) << "<" << fmt_time(missing)
-                        << string(10, ' ');
+                        << std::string(10, ' ');
                     display(oss.str());
 
                     lastprint = steady_clock::now();
                 }
+
+                adapt_thintime(missing.count());
             }
+
+            ++state;
         }
 
         /*  Finalize the progress bar. */
@@ -744,7 +759,7 @@ namespace progress
                 for (unsigned u = 0; u < barwidth; u++)
                     oss << symbol;
                 oss << "| " << fmt_time(elapsed)
-                    << string(25, ' ') << "\n";
+                    << std::string(25, ' ') << "\n";
                 display(oss.str());
             }
         }
@@ -774,7 +789,7 @@ namespace progress
 
     //===== SETTER =====//
     void Bar::set_text(const std::string &text) { pImpl->set_text(text); }
-    void Bar::update(ulong state) { pImpl->update(state); }
+    void Bar::update() { pImpl->update(); }
     void Bar::finalize() { pImpl->finalize(); }
 
 } // PROGRESS NAMESPACE

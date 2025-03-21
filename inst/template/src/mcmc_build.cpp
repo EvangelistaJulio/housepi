@@ -35,16 +35,6 @@ rnd_gen &MCMC::Impl::get_prng() { return (this->*_func_prng_)(); }
 /* Draw a random variable uniformly distributed. */
 double MCMC::Impl::uniform() { return _uniform_distr_(get_prng()); }
 
-/* Set inverse temperature and its relative functional methods. */
-void MCMC::Impl::set_inver_temper(double inv_T)
-{
-    if ((inv_T < 0.) || (inv_T > 1.))
-        throw std::range_error(
-            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
-    else
-        setup_inv_T = inv_T;
-}
-
 /* Assign setup. */
 void MCMC::Impl::build_setup()
 {
@@ -122,7 +112,7 @@ void MCMC::Impl::build_setup()
 
             // Inverse Temperature
             if (deflist.count("inv_temper") && (!tools::is_na(deflist.at("inv_temper"))))
-                set_inver_temper(tools::stod(deflist.at("inv_temper"), "inverse temperature"));
+                setup_inv_T = tools::stod(deflist.at("inv_temper"), "inverse temperature");
 
             // Individual ID for Augmented Trace
             if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
@@ -136,9 +126,9 @@ void MCMC::Impl::build_setup()
         set_prng_seed();
 
         // reset internal states
-        _chain_ = 1;   // current chain
-        _rung_ = 0;    // current thermodynamic rung
-        _n_rungs_ = 0; // number of rungs
+        _chain_ = 1;       // current chain
+        _rung_ = 0;        // current thermodynamic rung
+        setup_n_rungs = 0; // number of rungs
     }
     catch (const std::exception &e)
     {
@@ -896,21 +886,7 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::restore_standard_param_value(const parID &p)
-{
-    // restore buffer value of parameter
-    param_map.at(p).restore_value();
-
-    // restore buffer value of global loglike
-    global_loglike = buffer;
-
-    // restore buffered loglikelihood in households
-    for (Household &house : house_vector)
-        house.restore_loglike();
-}
-
-/* Restore buffered parameter and its extra dependecies. */
-void MCMC::Impl::restore_extra_param_value(const parID &p)
+void MCMC::Impl::restore_parameter(const parID &p, bool extra_depen)
 {
     // restore buffer value of parameter
     param_map.at(p).restore_value();
@@ -922,7 +898,8 @@ void MCMC::Impl::restore_extra_param_value(const parID &p)
     for (Household &house : house_vector)
     {
         house.restore_loglike();
-        house.restore_all_extra();
+        if (extra_depen)
+            house.restore_all_extra();
     }
 }
 
@@ -938,13 +915,9 @@ bool MCMC::Impl::accept_valid_param_move(const parID &p)
     return uniform() < exp(setup_inv_T * (global_loglike - buffer) + param_map.at(p).get_move_logratio());
 }
 
-/* Extract average and variance from vector of global loglike values. */
-void MCMC::Impl::dgn_glob_ll_stats(double &avg, double &var) const { tools::compute_stats(dgn_glob_loglike, avg, var); }
-
 double MCMC::Impl::get_global_loglike() const { return global_loglike; };
-
 void MCMC::Impl::increment_global_loglike(double delta) { global_loglike += delta; };
-
+const std::pair<double, double> MCMC::Impl::dgn_glob_ll_stats() const { return tools::compute_stats(dgn_glob_loglike); }
 void MCMC::Impl::set_global_loglike(double new_ll)
 {
     buffer = global_loglike;
@@ -1049,6 +1022,10 @@ void MCMC::Impl::assert_proper_dataset()
 /* Assert setup definitions are ok to proceed with mcmc sampling. */
 void MCMC::Impl::assert_proper_mcmc_setup()
 {
+    if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
+        throw std::range_error(
+            "Inverse temperature " + std::to_string(setup_inv_T) + " out of range [0, 1].");
+
     if ((setup_n_chains > 1) && (setup_rand_init_params == false))
     {
         tools::warning(
@@ -1099,13 +1076,13 @@ void MCMC::Impl::assert_proper_mcmc_setup()
 }
 
 /* Tell if it's the case of power posteriors. */
-bool MCMC::Impl::is_power_post() const { return _n_rungs_ > 0; }
+bool MCMC::Impl::is_power_post() const { return setup_n_rungs > 0; }
 
 /* The text to print in the Markov chian progress bar. */
 const std::string MCMC::Impl::fmt_progtxt()
 {
     if (is_power_post())
-        return "power post " + std::to_string(_rung_) + "/" + std::to_string(_n_rungs_);
+        return "power post " + std::to_string(_rung_) + "/" + std::to_string(setup_n_rungs);
     else if (setup_n_chains > 1)
         return "sample " + std::to_string(_chain_) + "/" + std::to_string(setup_n_chains);
     else

@@ -254,7 +254,7 @@ namespace tools
     const str_vec headers_from_deftable(const dict_str_vec &deftable);
 
     // Welford online algorithm for mean and variance
-    void compute_stats(const dbl_vec &data, double &avg, double &var);
+    const std::pair<double, double> compute_stats(const dbl_vec &data);
 
     // check for unused entries from a vector of options and throw exception
     void check_for_missing_entries(const str_vec &entries, const str_vec &options);
@@ -279,12 +279,14 @@ namespace progress
     {
     public:
         //===== CONSTRUCTOR =====//
-        Bar(ulong total, const std::string &text = "", bool verbose = true);
+        Bar(ulong total,
+            const std::string &text = "",
+            bool verbose = true);
         ~Bar();
 
         //===== SETTER =====//
         void set_text(const std::string &text);
-        void update(ulong state);
+        void update();
         void finalize();
 
     private:

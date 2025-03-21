@@ -997,6 +997,7 @@ HouseholdModel <- R6::R6Class(
     #' If `NA` uses the internal clock (default).
     #' @param progress `logical(1)`\cr
     #' If `FALSE` suppress the simulation progress bar.
+    #' 
     #' @return
     #' `double(1)`
     #'
@@ -1022,7 +1023,7 @@ HouseholdModel <- R6::R6Class(
                      n_chains = n_chains, n_threads = n_threads,
                      rand_init = TRUE, seed = seed, progress = progress)
       # evaluate marginal from the internal Rcpp object
-      return(private$.model$evaluate_marginal(scheme = scheme,
+      return(private$.model$estimate_evidence(scheme = scheme,
                                               n_rungs = n_rungs))
     },
 

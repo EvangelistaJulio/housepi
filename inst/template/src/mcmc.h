@@ -89,7 +89,6 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
-	void init_extra_dependecies();
 	virtual void update_extra_dependecies(Household &house, indiv i);
 
 	void allocate_extra_house_integer_vector(const extraID &e);
@@ -110,7 +109,7 @@ public:
 	//====================================//
 
 	virtual double compute_house_loglike(Household &house) const;
-	void update_global_loglike(const bool extra_depen = false);
+	void update_global_loglike(const bool extra_depen);
 	double evaluate();
 
 	//=================//
@@ -121,8 +120,8 @@ public:
 	void infer();
 
 	//----- Marginal Loglikelihood (Power Posteriors) -----//
-	double estimate_evidence(const std::string &scheme,
-							 int n_rungs);
+	const std::vector<dbl_vec> power_posteriors(const std::string &scheme,
+												ulong n_rungs);
 
 	//====================//
 	//===== SIMULATE =====//
@@ -131,10 +130,11 @@ public:
 	virtual void init_model_for_simulation();
 	virtual void simulate_single_house(Household &house);
 
-
 #ifdef _HOUSEPI_RCPP
 
 	Rcpp::DataFrame simulate();
+	Rcpp::List estimate_evidence(const std::string &scheme,
+								 ulong n_rungs);
 
 	//========================//
 	//===== Rcpp IMPORTS =====//
@@ -158,9 +158,12 @@ public:
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_household_loglike_matrix() const;
 	Rcpp::List export_infectivity_profile(const Rcpp::List &opts,
-											   int n_bins);
+										  int n_bins);
 
 #else
+
+	void print_evidence(const std::string &scheme, ulong n_rungs);
+
 	//================//
 	//===== READ =====//
 	//================//
@@ -197,11 +200,10 @@ private:
 	parID _pair_contact_rate_ = {};
 
 	//----- Monte Carlo -----//
-	void run_monte_carlo(progress::Bar &progbar, ulong sweep = 0);
+	void run_monte_carlo(progress::Bar &progbar);
 	void move_all();
 	void move_all_and_adapt_parameters(ulong step);
-	bool move_independent_param(const parID &p);
-	bool move_extra_depen_param(const parID &p);
+	bool move_single_parameter(const parID &p, bool extra_depen);
 
 	//----- Metropolis : augmented moves -----//
 	double move_augm_single_house(Household &house);

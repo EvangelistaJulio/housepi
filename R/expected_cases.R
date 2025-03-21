@@ -143,7 +143,7 @@ retrieve_sar_from_casesbysize <- function(cases_df) {
 #' Observed cases table.
 #' @param expdf `data.frame`\cr
 #' Expected cases table.
-#' 
+#'
 #' @return `data.frame`\cr
 #'
 #' @noRd
@@ -151,13 +151,13 @@ combine_obs_exp <- function(obsdf, expdf) {
   # 1. curate observed dataframe
   obsdf$distr <- "Observed"
   rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
-  
+
   # 2. curate expected dataframe
   expdf$size <- obsdf$size
   expdf$distr <- "Expected"
   rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
-  
-  # 3. combine by row bind 
+
+  # 3. combine by row bind
   combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
   # reset row names
   rownames(combined) <- NULL
@@ -165,7 +165,7 @@ combine_obs_exp <- function(obsdf, expdf) {
   y <- colnames(combined)
   aux <- c("size", "distr")
   combined <- combined[, c(aux, y[!(y %in% aux)])]
-  
+
   # format columns to extract labels with labelizor
   colnames(combined)[3:ncol(combined)] <- sapply(
     colnames(combined)[3:ncol(combined)], function(x) {
@@ -318,7 +318,7 @@ ExpectedCases <- R6::R6Class(
 
         return(list(expected = combine_obs_exp(cases$observed, cases$expected),
                     cri_lower = combine_obs_exp(na_df, cases$cri_lower),
-                    cri_upper = combine_obs_exp(na_df, cases$cri_upper)))      
+                    cri_upper = combine_obs_exp(na_df, cases$cri_upper)))
       }
       stop_h("'cases_table' is read only.")
     }
@@ -505,49 +505,24 @@ ExpectedCases <- R6::R6Class(
     #' `flextable`
     show_cases_table = function(show_chisq = FALSE,
                                 cri_format = "%.0f [%.0f, %.0f]") {
-      # FIXME: I shall re-format the output from cases-table
+      # load cases-table
+      cases_df <- self$cases_table
+      combined <- cases_df$expected
 
-      # format counts to character
-      format_obs <- function(x) {
-        as.character(as.integer(x, na.rm = TRUE), na.rm = TRUE)
-      }
+      # select expected cases
+      mask_exp <- cases_df$expected$distr == "Expected"
+      mask_cols <- setdiff(names(cases_df$expected), c("size", "distr"))
       # format `mean` with its `lower` and `upper` values
       format_exp <- function(mean, lower, upper) {
         return(ifelse(is.na(mean) | is.na(lower) | is.na(upper),
                       NA, sprintf(cri_format, mean, lower, upper)))
       }
-
-      # filter according to max_house_size
-      cases <- private$.filtered_tables()
-
-      # curate observed dataframe
-      obsdf <- as.data.frame(apply(cases$observed, 2, format_obs))
-      obsdf$distr <- "Observed"
-      rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
-
-      # curate expected dataframe
-      expdf <- as.data.frame(
-        mapply(format_exp, cases$expected, cases$cri_lower, cases$cri_upper)
-      )
-      expdf$size <- obsdf$size
-      expdf$distr <- "Expected"
-      rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
-
-      # combine data frames
-      combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
-      # reset row names
-      rownames(combined) <- NULL
-      # reorder columns
-      y <- colnames(combined)
-      aux <- c("size", "distr")
-      combined <- combined[, c(aux, y[!(y %in% aux)])]
-
-      # format to extract labels with labelizor
-      colnames(combined)[3:ncol(combined)] <- sapply(
-        colnames(combined)[3:ncol(combined)], function(x) {
-          return(paste("cases", x, sep = "_"))
-        }
-      )
+      combined[mask_exp, mask_cols] <- as.data.frame(mapply(
+        format_exp,
+        cases_df$expected[mask_exp, mask_cols],
+        cases_df$cri_lower[mask_exp, mask_cols],
+        cases_df$cri_upper[mask_exp, mask_cols]
+      ))
 
       if (require_suggested_library("flextable")) {
         ft <- flextable::flextable(combined)

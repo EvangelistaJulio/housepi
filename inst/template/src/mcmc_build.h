@@ -83,7 +83,7 @@ public:
 
     void set_global_loglike(double new_ll);
     void increment_global_loglike(double delta);
-    void dgn_glob_ll_stats(double &avg, double &var) const;
+    const std::pair<double, double> dgn_glob_ll_stats() const;
 
     //=================//
     //===== SETUP =====//
@@ -113,9 +113,7 @@ public:
     ulong setup_c_sample_size; // single chain sample size
     ulong setup_c_n_sweeps;    // single chain n. of sweeps
 
-    //----- Setup - Setter -----//
-    void set_n_threads();
-    void set_inver_temper(double inv_T);
+    void set_n_threads(); 
 
     //=====================//
     //===== PARAMETER =====//
@@ -148,8 +146,7 @@ public:
     void update_param_accept_rate(const parID &p, bool is_accepted);
     void adapt_param_rule(const parID &p, double ratio);
 
-    void restore_standard_param_value(const parID &p);
-    void restore_extra_param_value(const parID &p);
+    void restore_parameter(const parID &p, bool extra_depen);
 
     //==========================//
     //===== HOUSEHOLD DATA =====//
@@ -317,7 +314,7 @@ public:
 
     ulong _chain_ = 1;   // current chain
     ulong _rung_ = 0;    // current thermodynamic rung
-    ulong _n_rungs_ = 0; // number of rungs
+    ulong setup_n_rungs = 0; // number of rungs
 
     bool is_power_post() const;
     const std::string fmt_progtxt();

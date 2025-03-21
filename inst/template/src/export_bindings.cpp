@@ -14,9 +14,8 @@
 //' @field simulate Load a simulated database.
 //' @field evaluate Evaluate the loglikelihood according to the current state.
 //' @field estimate_evidence Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
+//'   \item Parameter: scheme
 //'   \item Parameter: n_rungs
-//'   \item Parameter: progbar - show the progress bar
-//'   \item Parameter: power_fractions - if true uses power fractions scheme instead of adaptive scheme
 //' }
 //' @filed import_setup Import setup from R List.
 //' @filed import_infectivity_profile Import infectivity profile definition from R List.

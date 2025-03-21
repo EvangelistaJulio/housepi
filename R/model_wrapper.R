@@ -307,8 +307,9 @@ HousepiWrapper <- R6::R6Class(
 
       # reformat dataframe
       output <- private$.rcpp$export_infectivity_profile(opts, n_bins)
-      output$profile <- as.data.frame(output[c("gentime", "inst", "cumul")])
-      output[c("gentime", "inst", "cumul")] <- NULL
+      mask <- c("gentime", "inst", "cumul")
+      output$profile <- as.data.frame(output[mask])
+      output[mask] <- NULL
 
       return(output)
     },
@@ -344,7 +345,17 @@ HousepiWrapper <- R6::R6Class(
     # Number of rungs in the thermodynamic ladder.
     estimate_evidence = function(scheme = "adaptive",
                                  n_rungs = 40) {
-      return(private$.rcpp$estimate_evidence(scheme, n_rungs))
+      # load options
+      scheme <- as.character(scheme)
+      n_rungs <- as.integer(n_rungs)
+
+      # reformat dataframe
+      output <- private$.rcpp$estimate_evidence(scheme, n_rungs)
+      mask <- c("inv_temper", "mean_loglike", "var_loglike")
+      output$detail <- as.data.frame(output[mask])
+      output[mask] <- NULL
+
+      return(output)
     }
   )
 )
