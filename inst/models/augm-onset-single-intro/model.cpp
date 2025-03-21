@@ -66,14 +66,14 @@ void Model::init_infec_profile()
 {
 	// default infectivity profile: Ferretti et al (2020)
 	// otherwise user defined
-	assign_default_infec_profile("ferretti20");
+	assign_template_infec_profile({{"name", "ferretti20"}});
 }
 
 /* Initialize parameters and augmented variables. */
 void Model::init_model_for_inference()
 {
 	// integer for index of introduction case
-	allocate_extra_house_integer_vector("intro-case");
+	allocate_extra_house_integer_vector("intro_case");
 
 	// matrices for the instantaneous and cumulative infectivity profiles
 	allocate_extra_house_double_matrix("inst");
@@ -89,7 +89,7 @@ void Model::init_model_for_simulation()
 /* Cumulative Risk of Infection for susceptible individual i. */
 double Model::loglike_healthy(Household &house) const
 {
-	const indiv i0 = house.extra_integer_vector("intro-case")[0];
+	const indiv i0 = house.extra_integer_vector("intro_case")[0];
 	const double a_cumul = param("alpha") * (param("study_period") + house.augm(i0, "incub_period"));
 	const double b = transmission_rate(house);
 
@@ -100,14 +100,13 @@ double Model::loglike_healthy(Household &house) const
 
 	for (indiv i : house.healthy_status_list())
 	{
-		double roi_cumul = 0;
+		double roi_cumul_i = 0;
 		for (indiv k : house.infected_status_list())
-			roi_cumul += cumul_mtx[k][i] * house.contact_rate(k, i) * house.group_rate(k, "infectivity");
-		roi_cumul *= house.group_rate(i, "susceptibility") * b;
-		roi_cumul += a_cumul;
-
-		output -= roi_cumul;
-	}
+			roi_cumul_i += cumul_mtx[k][i] * house.contact_rate(k, i) * house.group_rate(k, "infectivity");
+		roi_cumul_i *= house.group_rate(i, "susceptibility") * b;
+		output -= roi_cumul_i;
+	}		
+	output -= a_cumul * house.n_healthy_status();
 
 	return output;
 }
@@ -116,7 +115,7 @@ double Model::loglike_healthy(Household &house) const
 double Model::loglike_infectious(Household &house) const
 {
 	double output = 0.;
-	const indiv i0 = house.extra_integer_vector("intro-case")[0];
+	const indiv i0 = house.extra_integer_vector("intro_case")[0];
 	double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
 
 	const auto &inst_mtx = house.extra_double_matrix("inst");
@@ -130,23 +129,23 @@ double Model::loglike_infectious(Household &house) const
 		{
 			// Risk of infection from other household members `k`
 			double b_i = b * house.group_rate(i, "susceptibility");
-			double roi_inst = 0.;
-			double roi_cumul = 0.;
+			double roi_inst_i = 0.;
+			double roi_cumul_i = 0.;
 			for (indiv k : house.infected_status_list())
 				if (cumul_mtx[k][i] != 0)
 				{
 					double mu_ki = house.contact_rate(k, i) * house.group_rate(k, "infectivity");
-					roi_inst += inst_mtx[k][i] * mu_ki;
-					roi_cumul += cumul_mtx[k][i] * mu_ki;
+					roi_inst_i += inst_mtx[k][i] * mu_ki;
+					roi_cumul_i += cumul_mtx[k][i] * mu_ki;
 				}
-			roi_inst *= b_i;
-			roi_cumul *= b_i;
+			roi_inst_i *= b_i;
+			roi_cumul_i *= b_i;
 
 			// Risk of infection from community
-			roi_inst += a;
-			roi_cumul += a * (house.augm(i, "onset_date") - house.augm(i, "incub_period") - t_intro);
+			roi_inst_i += a;
+			roi_cumul_i += a * (house.augm(i, "onset_date") - house.augm(i, "incub_period") - t_intro);
 
-			output += log(roi_inst) - roi_cumul;
+			output += log(roi_inst_i) - roi_cumul_i;
 		}
 
 	return output;
@@ -211,7 +210,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 		}
 
 	// store intro case
-	house.extra_integer_vector("intro-case")[0] = i0;
+	house.extra_integer_vector("intro_case")[0] = i0;
 
 	//===============================//
 	//===== Susceptible Members =====//
@@ -299,7 +298,7 @@ void Model::simulate_single_house(Household &house)
 	// pick a random introduction and change it's status
 	indiv i0 = uniform() * house.size();
 	house.change_status(i0, INFECTED_STATUS);
-	house.extra_integer_vector("intro-case")[0] = i0;
+	house.extra_integer_vector("intro_case")[0] = i0;
 
 	// first infection occuring at time t = 0
 	double tf = param("study_period") + house.augm(i0, "incub_period");

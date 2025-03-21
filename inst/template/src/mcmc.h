@@ -100,7 +100,7 @@ public:
 	//===============================//
 
 	virtual void init_infec_profile();
-	void assign_default_infec_profile(const std::string &default_name);
+	void assign_template_infec_profile(std::map<std::string, std::string> x);
 	double infec_profile_inst(double gener_time, const dbl_vec &opts = {}) const;
 	double infec_profile_cumul(double gener_time, const dbl_vec &opts = {}) const;
 

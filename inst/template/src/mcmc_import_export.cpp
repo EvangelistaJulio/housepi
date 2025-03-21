@@ -87,14 +87,14 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
     try
     {
-        rlist_to_map(input, _infec_profile_deflist_);
+        rlist_to_map(input, _infec_.deflist);
     }
     catch (const std::exception &e)
     {
         tools::error(
             "While importing infectivity profile definitions: " + std::string(e.what()));
     }
-    build_infec_profile();
+    _infec_.build();
     if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
         _report_pathtofile_.erase("infec_profile");
 }
@@ -515,7 +515,7 @@ Rcpp::List MCMC::Impl::export_infec_profile(const Rcpp::List &opts, int n_bins) 
     try
     {
         // check the call makes sense
-        if (_infec_profile_ == nullptr)
+        if (_infec_.profile == nullptr)
             throw std::length_error("No infectivity profile to export.");
 
         // load options
@@ -524,7 +524,7 @@ Rcpp::List MCMC::Impl::export_infec_profile(const Rcpp::List &opts, int n_bins) 
             opts_.push_back(opts.at(k));
 
         // produce a showcase of the distribution profile
-        std::vector<dbl_vec> values = _infec_profile_->showcase(opts_, n_bins);
+        std::vector<dbl_vec> values = _infec_.profile->showcase(opts_, n_bins);
 
         // compute mean and variance
         const dbl_vec &x = values[0];
@@ -535,7 +535,7 @@ Rcpp::List MCMC::Impl::export_infec_profile(const Rcpp::List &opts, int n_bins) 
         double m = x[0] * prob[0] + x[N - 1] * prob[N - 1];
         double m2 = x[0] * x[0] * prob[0] + x[N - 1] * x[N - 1] * prob[N - 1];
         // integration wiht trapezoidal rule for continuos case
-        if (!_infec_profile_->is_discrete())
+        if (!_infec_.profile->is_discrete())
         {
             m *= 0.5;
             m2 *= 0.5;
@@ -550,8 +550,8 @@ Rcpp::List MCMC::Impl::export_infec_profile(const Rcpp::List &opts, int n_bins) 
         m2 *= Dx;
 
         return List::create(
-            _["name"] = _infec_profile_->show_name(),
-            _["discrete"] = _infec_profile_->is_discrete(),
+            _["name"] = _infec_.profile->show_name(),
+            _["discrete"] = _infec_.profile->is_discrete(),
             _["mean"] = m,
             _["var"] = m2 - m * m,
             _["gentime"] = wrap(values[0]),
@@ -635,14 +635,14 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(f, _infec_profile_deflist_);
+        tools::read_csv_list(f, _infec_.deflist);
     }
     catch (const std::exception &e)
     {
         tools::error(
             "While reading infectivity profile definitions: " + std::string(e.what()));
     }
-    build_infec_profile();
+    _infec_.build();
     _report_pathtofile_["infec_profile"] = f;
 }
 

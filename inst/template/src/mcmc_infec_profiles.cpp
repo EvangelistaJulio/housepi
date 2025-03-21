@@ -171,18 +171,18 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign the infectivity profile. */
-void MCMC::Impl::switchboard_infec_profile(const std::string &name)
+void MCMC::Impl::InfecProfile::assign_profile(const std::string &name)
 {
 	const str_vec options = {"ferretti20"};
 
 	if (name == "ferretti20")
-		_infec_profile_ = std::make_shared<InfecProfile_Ferretti20>();
+		profile = std::make_shared<InfecProfile_Ferretti20>();
 
 	else
 	{
 		try
 		{
-			_infec_profile_ = distribution_switchboard(name);
+			profile = distribution_switchboard(name);
 		}
 		catch (std::exception &e)
 		{
@@ -231,7 +231,7 @@ void MCMC::Impl::fix_param_to_be_inferred_list(const std::string &par_name)
 }
 
 /* Assign arguments to infectivity profile. */
-void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
+void MCMC::Impl::InfecProfile::assign_args(const str_vec &keys,
 										   const str_vec &vals,
 										   const str_vec &typs)
 {
@@ -260,16 +260,16 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 
 		else if (type == TYPE_PARAM)
 		{
-			if (!param_map.at(value).is_constant())
+			if (!pImpl.param_map.at(value).is_constant())
 			{
-				_infec_profile_->assign_pointer_arg(key, get_param_pointer(value));
-				fix_param_to_be_inferred_list(value);
+				profile->assign_pointer_arg(key, pImpl.get_param_pointer(value));
+				pImpl.fix_param_to_be_inferred_list(value);
 			}
 			else
-				_infec_profile_->assign_scalar_arg(key, get_param(value));
+				profile->assign_scalar_arg(key, pImpl.get_param(value));
 		}
 		else if (type == TYPE_SCALAR)
-			_infec_profile_->assign_scalar_arg(key, tools::stod(value, "argument with scalar type"));
+			profile->assign_scalar_arg(key, tools::stod(value, "argument with scalar type"));
 
 		else
 			throw std::invalid_argument(
@@ -282,12 +282,12 @@ void MCMC::Impl::assign_infec_profile_args(const str_vec &keys,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign minimum of infectivity profile. */
-void MCMC::Impl::assign_infec_profile_min(bool is_discrete,
+void MCMC::Impl::InfecProfile::assign_min(bool is_discrete,
 										  const std::string &min_value,
 										  const std::string &min_at)
 {
 	if (tools::is_na(min_value) && tools::is_na(min_at))
-		_infec_profile_->assign_scalar_range_min((is_discrete) ? 1 : 0);
+		profile->assign_scalar_range_min((is_discrete) ? 1 : 0);
 
 	else if (!tools::is_na(min_value) && tools::is_na(min_at))
 		throw std::invalid_argument(
@@ -299,17 +299,17 @@ void MCMC::Impl::assign_infec_profile_min(bool is_discrete,
 
 	else if (min_value == TYPE_PARAM)
 	{
-		if (!param_map.at(min_value).is_constant())
+		if (!pImpl.param_map.at(min_value).is_constant())
 		{
-			_infec_profile_->assign_pointer_range_min(get_param_pointer(min_value));
-			fix_param_to_be_inferred_list(min_value);
+			profile->assign_pointer_range_min(pImpl.get_param_pointer(min_value));
+			pImpl.fix_param_to_be_inferred_list(min_value);
 		}
 		else
-			_infec_profile_->assign_scalar_range_min(get_param(min_value));
+			profile->assign_scalar_range_min(pImpl.get_param(min_value));
 	}
 
 	else if (min_at == TYPE_SCALAR)
-		_infec_profile_->assign_scalar_range_min(tools::stod(min_value, "scalar type argument"));
+		profile->assign_scalar_range_min(tools::stod(min_value, "scalar type argument"));
 
 	else
 		throw std::invalid_argument(
@@ -318,17 +318,17 @@ void MCMC::Impl::assign_infec_profile_min(bool is_discrete,
 	// check infectivity profile minimum is correct
 	if (is_discrete)
 	{
-		if (_infec_profile_->get_min() < 1.)
+		if (profile->get_min() < 1.)
 			throw std::invalid_argument(
 				"Minimum of discrete infectivity profile must be >= 1.");
 	}
-	else if (_infec_profile_->get_min() < 0.)
+	else if (profile->get_min() < 0.)
 		throw std::invalid_argument(
 			"Minimum of continuos infectivity profile must be >= 0.");
 }
 
 /* Assign maximum of infectivity profile. */
-void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
+void MCMC::Impl::InfecProfile::assign_max(const std::string &max_value,
 										  const std::string &max_at)
 {
 	if (tools::is_na(max_value) && tools::is_na(max_at))
@@ -344,46 +344,60 @@ void MCMC::Impl::assign_infec_profile_max(const std::string &max_value,
 
 	else if (max_at == TYPE_PARAM)
 	{
-		if (!param_map.at(max_value).is_constant())
+		if (!pImpl.param_map.at(max_value).is_constant())
 		{
-			_infec_profile_->assign_pointer_range_max(get_param_pointer(max_value));
-			fix_param_to_be_inferred_list(max_value);
+			profile->assign_pointer_range_max(pImpl.get_param_pointer(max_value));
+			pImpl.fix_param_to_be_inferred_list(max_value);
 		}
 		else
-			_infec_profile_->assign_scalar_range_max(get_param(max_value));
+			profile->assign_scalar_range_max(pImpl.get_param(max_value));
 	}
 
 	else if (max_at == TYPE_SCALAR)
-		_infec_profile_->assign_scalar_range_max(tools::stod(max_value, "argument with scalar type"));
+		profile->assign_scalar_range_max(tools::stod(max_value, "argument with scalar type"));
 
 	else
 		throw std::invalid_argument(
 			"Unsopported type \"" + max_at + "\" found while loading \"" + max_value + "\" for pointer value.");
 }
 
+/* Function to assign a template to infectivity profile. */
+void MCMC::Impl::InfecProfile::assign_template(std::map<std::string, std::string> &x)
+{
+	if (deflist.empty())
+	{
+		if (!x.count("name"))
+			throw std::invalid_argument("Missing name for infectivity profile template.");
+
+		for (const std::string &key : headers)
+			if (!x.count(key))
+				x.emplace(key, NULL_STRING); 
+
+		deflist = x;
+		build();
+	}
+}
+
 /* Build infectivity profile distribution . */
-void MCMC::Impl::build_infec_profile()
+void MCMC::Impl::InfecProfile::build()
 {
 	try
 	{
-		// reference to infectivity profile definition list
-		std::map<std::string, std::string> &deflist = _infec_profile_deflist_;
-
 		if (!deflist.empty())
 		{
 			// check entries
-			str_vec headers = tools::headers_from_deflist(deflist);
-			tools::check_for_unused_entries(headers, infec_profile_file_headers);
+			tools::check_for_unused_entries(tools::headers_from_deflist(deflist),
+											headers);
 			bool is_discrete = true;
 
 			//----- Name -----//
 			if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
-				switchboard_infec_profile(deflist.at("name"));
+				assign_profile(deflist.at("name"));
 			else
 				throw std::invalid_argument("missing name.");
 
 			//----- Discrete -----//
-			if (!_infec_profile_->is_discrete()) // defined continuos
+			if (!profile->is_discrete()) // defined continuos
 			{
 				if (deflist.count("discrete"))
 					is_discrete = tools::stobool(deflist.at("discrete"));
@@ -393,27 +407,27 @@ void MCMC::Impl::build_infec_profile()
 
 			//----- Arguments -----//
 			if ((deflist.count("arg_name")) && (deflist.count("arg_value")) && (deflist.count("arg_at")))
-				assign_infec_profile_args(tools::parse_list_args(deflist.at("arg_name")),
-										  tools::parse_list_args(deflist.at("arg_value")),
-										  tools::parse_list_args(deflist.at("arg_at")));
+				assign_args(tools::parse_list_args(deflist.at("arg_name")),
+							tools::parse_list_args(deflist.at("arg_value")),
+							tools::parse_list_args(deflist.at("arg_at")));
 			else
 				throw std::invalid_argument("not a valid list of arguments.");
 
 			//----- Range minimum -----//
 			if ((deflist.count("min")) && (deflist.count("min_at")))
-				assign_infec_profile_min(is_discrete, deflist.at("min"), deflist.at("min_at"));
+				assign_min(is_discrete, deflist.at("min"), deflist.at("min_at"));
 			else
 				throw std::invalid_argument("not a valid minimum.");
 
 			//----- Range maximum -----//
 			if ((deflist.count("max")) && (deflist.count("max_at")))
-				assign_infec_profile_max(deflist.at("max"), deflist.at("max_at"));
+				assign_max(deflist.at("max"), deflist.at("max_at"));
 			else
 				throw std::invalid_argument("not a valid maximum.");
 
 			//----- Reshaping -----//
 			if (deflist.count("discrete"))
-				_infec_profile_->init_reshaping(tools::stobool(deflist.at("discrete")));
+				profile->init_reshaping(tools::stobool(deflist.at("discrete")));
 			else
 				throw std::invalid_argument("not a valid discrete.");
 		}
@@ -423,6 +437,36 @@ void MCMC::Impl::build_infec_profile()
 		tools::error(
 			"While building infectivity profile definition: " + std::string(e.what()));
 	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign default infectivity profile during user model initialization. */
+void MCMC::assign_template_infec_profile(std::map<std::string, std::string> x)
+{
+	pImpl->_infec_.assign_template(x);
+}
+
+/* Value of the instantaneous infectivity profile. */
+double MCMC::Impl::infec_profile_inst(double gener_time, const dbl_vec &opts) const
+{
+	if (gener_time < 0)
+		std::overflow_error(
+			"Negative generation time passed infectivity profile.");
+
+	return _infec_.profile->pdf(gener_time, opts);
+}
+
+/* Value of the cumulative infectivity profile. */
+double MCMC::Impl::infec_profile_cumul(double gener_time, const dbl_vec &opts) const
+{
+	if (gener_time < 0)
+		std::overflow_error(
+			"Negative generation time passed infectivity profile.");
+
+	return _infec_.profile->cdf(gener_time, opts);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -439,29 +483,11 @@ void MCMC::Impl::build_infec_profile()
 /* Virtual method for user initialization of infectivity profile. */
 void MCMC::init_infec_profile() {};
 
-/* Assign default infectivity profile during user model initialization. */
-void MCMC::assign_default_infec_profile(const std::string &default_name)
-{
-	if (pImpl->_infec_profile_deflist_.empty())
-		pImpl->switchboard_infec_profile(default_name);
-}
-
-/* Value of the instantaneous infectivity profile. */
 double MCMC::infec_profile_inst(double gener_time, const dbl_vec &opts) const
 {
-	if (gener_time < 0)
-		std::overflow_error(
-			"Negative generation time passed infectivity profile.");
-
-	return pImpl->_infec_profile_->pdf(gener_time, opts);
+	return pImpl->infec_profile_inst(gener_time, opts);
 }
-
-/* Value of the cumulative infectivity profile. */
 double MCMC::infec_profile_cumul(double gener_time, const dbl_vec &opts) const
 {
-	if (gener_time < 0)
-		std::overflow_error(
-			"Negative generation time passed infectivity profile.");
-
-	return pImpl->_infec_profile_->cdf(gener_time, opts);
+	return pImpl->infec_profile_cumul(gener_time, opts);
 }

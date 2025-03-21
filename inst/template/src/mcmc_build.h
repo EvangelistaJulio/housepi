@@ -48,8 +48,7 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Impl() : _uniform_distr_(0., 1.),
-             _infec_profile_(std::make_unique<Distribution>()) {}
+    Impl() : _uniform_distr_(0., 1.), _infec_(*this) {}
     ~Impl() = default;
 
     //===================================//
@@ -201,27 +200,42 @@ public:
     //===== INFECTIVITY PROFILE =====//
     //===============================//
 
-    //----- Infectivity Profile - Attributes -----//
-    const str_vec infec_profile_file_headers = {"name", "discrete",
-                                                "arg_name", "arg_value", "arg_at",
-                                                "min", "min_at",
-                                                "max", "max_at"};
-
-    std::shared_ptr<Distribution> _infec_profile_ = nullptr;
-
-    //----- Infectivity Profile - Setter -----//
-    void switchboard_infec_profile(const std::string &name);
-    void assign_infec_profile_args(const str_vec &keys,
-                                   const str_vec &vals,
-                                   const str_vec &typs);
-    void assign_infec_profile_min(bool is_discrete,
-                                  const std::string &min_value,
-                                  const std::string &min_at);
-    void assign_infec_profile_max(const std::string &max_value,
-                                  const std::string &max_at);
-    void build_infec_profile();
-
     void fix_param_to_be_inferred_list(const std::string &par_name);
+
+    class InfecProfile
+    {
+    public:
+        std::shared_ptr<Distribution> profile = nullptr;
+        std::map<std::string, std::string> deflist = {};
+
+        InfecProfile(MCMC::Impl &ptr) : profile(std::make_unique<Distribution>()),
+                                        pImpl(ptr) {}
+        ~InfecProfile() = default;
+
+        void build();
+        void assign_template(std::map<std::string, std::string> &x);
+
+    private:
+        MCMC::Impl &pImpl;
+        const str_vec headers = {"name", "discrete",
+                                 "arg_name", "arg_value", "arg_at",
+                                 "min", "min_at",
+                                 "max", "max_at"};
+
+        void assign_profile(const std::string &name);
+        void assign_args(const str_vec &keys,
+                         const str_vec &vals,
+                         const str_vec &typs);
+        void assign_min(bool is_discrete,
+                        const std::string &min_value,
+                        const std::string &min_at);
+        void assign_max(const std::string &max_value,
+                        const std::string &max_at);
+    };
+
+    InfecProfile _infec_;
+    double infec_profile_inst(double t, const dbl_vec &opts) const;
+    double infec_profile_cumul(double t, const dbl_vec &opts) const;
 
     //===========================//
     //===== IMPORTS/EXPORTS =====//
@@ -285,7 +299,6 @@ public:
 
     //----- build : auxiliary attributes -----//
     std::map<std::string, std::string> _setup_deflist_ = {};
-    std::map<std::string, std::string> _infec_profile_deflist_ = {};
     dict_str_vec _param_deftable_ = {};
     dict_str_vec _augm_deftable_ = {};
 
