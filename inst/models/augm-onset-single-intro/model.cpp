@@ -22,7 +22,7 @@
 /* [CHANGE-ME] Time of infection */
 double Model::transmission_rate(Household &house) const
 {
-	return param("beta") * pow(param("size_ref") / house.size(), param("gamma"));
+	return param("beta") * std::pow(param("size_ref") / house.size(), param("gamma"));
 }
 
 //------------------------------------------- /\ ------------------------------------------------//
@@ -64,9 +64,12 @@ void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv
 /* Initialize infectivity profile. */
 void Model::init_infec_profile()
 {
-	// default infectivity profile: Ferretti et al (2020)
+	// default infectivity profile: gamma
 	// otherwise user defined
-	assign_template_infec_profile({{"name", "ferretti20"}});
+	assign_template_infec_profile({{"name", "reparam_gamma"},
+								   {"arg_name", "mean/var"},
+								   {"arg_value", "2/1"},
+								   {"arg_at", "S/S"}});
 }
 
 /* Initialize parameters and augmented variables. */
@@ -105,7 +108,7 @@ double Model::loglike_healthy(Household &house) const
 			roi_cumul_i += cumul_mtx[k][i] * house.contact_rate(k, i) * house.group_rate(k, "infectivity");
 		roi_cumul_i *= house.group_rate(i, "susceptibility") * b;
 		output -= roi_cumul_i;
-	}		
+	}
 	output -= a_cumul * house.n_healthy_status();
 
 	return output;
@@ -188,14 +191,12 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 			double t_infec_k = house.augm(k, "onset_date") - incub_k;
 			double gentime = t_infec_k - t_infec_i;
 
-			if (gentime == 0)
-				;
-			else if (gentime > 0)
+			if (gentime > 0)
 			{ //----- `i` : infector, `k` : infectee -----//
 				inst_mtx[i][k] = infec_profile_inst(gentime, {incub_i});
 				cumul_mtx[i][k] = infec_profile_cumul(gentime, {incub_i});
 			}
-			else
+			else if (gentime < 0)
 			{ //----- `k` : infector, `i` : infectee -----//
 				inst_mtx[k][i] = infec_profile_inst(-gentime, {incub_k});
 				cumul_mtx[k][i] = infec_profile_cumul(-gentime, {incub_k});
@@ -207,6 +208,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 					i0 = k;
 				}
 			}
+			// case gentime == 0 is skipped
 		}
 
 	// store intro case
@@ -253,11 +255,12 @@ double Model::compute_house_loglike(Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Instantaneous Risk of Infection for individual i (for simulation). */
-double Model::ROI_inst_for_simulation(Household &house, indiv i, double t_infec_i) const
+double Model::roi_inst_simulation(const std::vector<indiv> &infectors,
+								  Household &house, indiv i, double t_infec_i) const
 {
 	double hh_roi_inst = 0.;
 
-	for (indiv k : house.infected_status_list())
+	for (indiv k : infectors)
 	{
 		// `k` : infector, `i` : infectee
 		double incub_k = house.augm(k, "incub_period");
@@ -277,57 +280,55 @@ double Model::ROI_inst_for_simulation(Household &house, indiv i, double t_infec_
 /* Poisson point process to simulate outbreak in a single household. */
 void Model::simulate_single_house(Household &house)
 {
-	double Dt = 0.05;
+	const double Dt = 0.05;
 
 	//=================================================//
 	//===== GENERATION 0 : by single introduction =====//
 	//=================================================//
 
-	//----- Preload incubation periods -----//
-	// note: incub_period are initialized according to definitions
-	// - set infectious to susceptible w/o dropping augm variables;
-	// - add augmented variables to all others (also missing);
+	// pick single introduction
+	indiv i0;
+	if (house.n_infec_status() > 0)
+		// amongst pre-existing infected in data
+		i0 = house.infected_status_list().at(uniform() * house.n_infec_status());
+	else
+		// amongst all members
+		i0 = uniform() * house.size();
+
+	// set all to healthy except from introduction
+	// assign augmented variables to all
 	for (indiv i = 0; i < house.size(); ++i)
 	{
-		if (house.status(i) != INFECTED_STATUS)
-			assign_all_augm(house, i);
-
-		house.change_status(i, HEALTHY_STATUS);
+		house.change_status(i, (i == i0) ? INFECTED_STATUS : HEALTHY_STATUS);
+		assign_all_augm(house, i);
 	}
-
-	// pick a random introduction and change it's status
-	indiv i0 = uniform() * house.size();
-	house.change_status(i0, INFECTED_STATUS);
-	house.extra_integer_vector("intro_case")[0] = i0;
-
-	// first infection occuring at time t = 0
-	double tf = param("study_period") + house.augm(i0, "incub_period");
-	house.set_augm_value(i0, "onset_date", house.augm(i0, "incub_period"));
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	// onset of secondary cases following the first case
-	std::vector<indiv> new_gen_list = {};
-	for (double t = 0; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
-	{
-		for (indiv i : house.healthy_status_list())
-		{
-			double t_infec_i = t + Dt * uniform();
-			if (uniform() >= exp(-ROI_inst_for_simulation(house, i, t_infec_i) * Dt))
-			{
-				house.set_augm_value(i, "onset_date",
-									 t_infec_i + house.augm(i, "incub_period"));
-				new_gen_list.push_back(i);
-			}
-		}
+	// first infection occuring at time t = 0
+	const double t0 = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
+	const double tf = house.augm(i0, "onset_date") + param("study_period");
 
-		// change household internal lists
-		for (indiv i : new_gen_list)
-			house.change_status(i, INFECTED_STATUS);
-		new_gen_list.clear();
+	// infection of secondary cases following the first case
+	for (double t = t0 + Dt; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
+	{
+		// store a copy of the vector of infected individuals
+		const std::vector<indiv> infectors = house.infected_status_list();
+
+		for (indiv i : house.healthy_status_list())
+			if (uniform() >= exp(-roi_inst_simulation(infectors, house, i, t) * Dt))
+			{
+				house.set_augm_value(i, "onset_date", t + house.augm(i, "incub_period"));
+				house.change_status(i, INFECTED_STATUS);
+			}
 	}
+
+	// format infected with unseen onset as healthy
+	for (indiv i : house.infected_status_list())
+		if (house.augm(i, "onset_date") >= tf)
+			house.change_status(i, HEALTHY_STATUS);
 
 	// format all augmented variables of susceptibles
 	for (indiv i : house.healthy_status_list())

@@ -367,6 +367,12 @@ ExpectedCases <- R6::R6Class(
       # number of repetitions
       n_rep <- dim(traces)[1]
 
+      # extract constant parameters
+      aux <- house_model$param_defs
+      tmp <- aux[aux$constant, c("name", "value")]
+      constants <- as.list(tmp$value)
+      names(constants) <- as.list(tmp$name)
+
       # deep clone model before proceeding
       # FIXME/UPDATE/NOTE: deep clone is not cloning traces e. g.!
       hmc <- house_model$clone(deep = TRUE)
@@ -384,12 +390,6 @@ ExpectedCases <- R6::R6Class(
         hmc$setup$seed,
         rng_seeds <- sample(1:max(1e8, n_rep), n_rep, replace = FALSE)
       )
-
-      # extract constant parameters
-      aux <- hmc$param_defs
-      tmp <- aux[aux$constant, c("name", "value")]
-      constants <- as.list(tmp$value)
-      names(constants) <- as.list(tmp$name)
 
       # define loop function working by row index
       loop_func <- function(r) {
@@ -461,95 +461,6 @@ ExpectedCases <- R6::R6Class(
         chisq_value = chisq_value, ddof = ddof,
         p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = lower_tail)
       ))
-    },
-
-    #' @description
-    #' Plot observed vs expected secondary attack rates.
-    #'
-    #' @return
-    #' `ggplot` object)
-    plot_sar = function() {
-      if (require_suggested_library("ggplot2")) {
-        col_dict <- c("Expected" = "coral", "Observed" = "black")
-        g <- ggplot2::ggplot(self$sar, ggplot2::aes(x = house_size)) +
-          # expected SAR
-          ggplot2::geom_point(ggplot2::aes(y = expected, color = "Expected")) +
-          ggplot2::geom_errorbar(ggplot2::aes(
-            y = expected, ymin = cri_lower, ymax = cri_upper, color = "Expected"
-          ), width = 0.2) +
-          # observed SAR
-          ggplot2::geom_point(ggplot2::aes(y = observed, color = "Observed")) +
-          # text with observed counts
-          ggplot2::geom_text(ggplot2::aes(
-            x = house_size + 0.25, y = observed, label = sprintf("[%s]", counts)
-          ),
-          color = col_dict["Observed"]) +
-          ggplot2::labs(x = "Household Size",
-                        y = "Secondary Attack Rate",
-                        color = "Distribution") +
-          ggplot2::scale_color_manual(values = col_dict)
-        return(g)
-      }
-    },
-
-    #' @description
-    #' Return a `flextable` combining observed and expected cases by size.
-    #'
-    #' @param show_chisq `\logical(1)`\cr
-    #' Whether to show footer with Chi-squared test.
-    #' @param cri_format `character(1)`\cr
-    #' Formatting string for the credible interval passed to `sprintf`.
-    #' It expects 3 double values (mean, CRI lower and CRI upper).
-    #'
-    #' @return
-    #' `flextable`
-    show_cases_table = function(show_chisq = FALSE,
-                                cri_format = "%.0f [%.0f, %.0f]") {
-      # load cases-table
-      cases_df <- self$cases_table
-      combined <- cases_df$expected
-
-      # select expected cases
-      mask_exp <- cases_df$expected$distr == "Expected"
-      mask_cols <- setdiff(names(cases_df$expected), c("size", "distr"))
-      # format `mean` with its `lower` and `upper` values
-      format_exp <- function(mean, lower, upper) {
-        return(ifelse(is.na(mean) | is.na(lower) | is.na(upper),
-                      NA, sprintf(cri_format, mean, lower, upper)))
-      }
-      combined[mask_exp, mask_cols] <- as.data.frame(mapply(
-        format_exp,
-        cases_df$expected[mask_exp, mask_cols],
-        cases_df$cri_lower[mask_exp, mask_cols],
-        cases_df$cri_upper[mask_exp, mask_cols]
-      ))
-
-      if (require_suggested_library("flextable")) {
-        ft <- flextable::flextable(combined)
-        ft <- flextable::separate_header(ft)
-        ft <- flextable::theme_vanilla(ft)
-        ft <- flextable::align(ft, align = "center", part = "all")
-        ft <- flextable::bold(ft, j = ~ size, bold = TRUE)
-        ft <- flextable::merge_v(ft, j = ~ size)
-        ft <- flextable::labelizor(
-          ft, part = "all",
-          labels = c(size = "Size",
-                     distr = "Distribution",
-                     cases = "Number of cases")
-        )
-        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
-        ft <- flextable::colformat_num(ft, big.mark = "",
-                                       na_str = "", nan_str = "")
-
-        if (isTRUE(show_chisq)) {
-          x <- self$chisq_test()
-          footer <- sprintf("X-squared = %.1f, df = %.0f, p-value = %f",
-                            x$chisq_value, x$ddof, x$p_value)
-          ft <- flextable::add_footer_lines(ft, footer)
-        }
-
-        return(ft)
-      }
     }
   )
 )

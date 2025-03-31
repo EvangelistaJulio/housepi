@@ -24,10 +24,11 @@ class Model : public MCMC
 public:
 	//===== Model dependent methods =====//
 	double transmission_rate(Household &house) const;
-	
+
 	double loglike_healthy(Household &house) const;
 	double loglike_infectious(Household &house) const;
-	double ROI_inst_for_simulation(Household &house, indiv i, double t_infec_i) const;
+	double roi_inst_simulation(const std::vector<indiv> &infectors,
+								   Household &house, indiv i, double t_infec_i) const;
 
 	//===== Override General Methods =====//
 	void init_infec_profile() override final;

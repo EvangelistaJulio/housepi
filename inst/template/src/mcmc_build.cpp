@@ -20,7 +20,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Get the parameter value. */
-double MCMC::Impl::get_param(const parID &p) const { return param_map.at(p).get_value(); }
+double MCMC::Impl::get_param(const parID &p) const { return param_map.at(p).get(); }
 
 /* Get pointer to the parameter. */
 const double *MCMC::Impl::get_param_pointer(const parID &p) const { return param_map.at(p).get_pointer(); }
@@ -334,7 +334,7 @@ void MCMC::Impl::init_parameters()
             else
                 param_map.at(p).rand(prng);
         }
-        else if (tools::is_na(param_map.at(p).get_value()))
+        else if (tools::is_na(param_map.at(p).get()))
             throw std::invalid_argument(
                 "Value of parameter \"" + p + "\" is undefined with no random initialization.");
     }
@@ -358,39 +358,32 @@ double MCMC::Impl::type_to_double(const std::string &value,
 {
     double output = NULL_DOUBLE;
 
-    try
+    if (!(tools::is_na(value) && tools::is_na(type)))
     {
-        if (!(tools::is_na(value) && tools::is_na(type)))
-        {
-            if (!tools::is_na(value) && tools::is_na(type))
-                output = tools::stod(value, "argument without type");
+        if (!tools::is_na(value) && tools::is_na(type))
+            output = tools::stod(value, "argument without type");
 
-            else if (tools::is_na(value) && !tools::is_na(type))
-                tools::warning(
-                    "Ignoring value type without a paired value.");
+        else if (tools::is_na(value) && !tools::is_na(type))
+            tools::warning(
+                "Ignoring value type without a paired value.");
 
-            else if (tools::stoupper(type) == TYPE_SCALAR)
-                output = tools::stod(value, "argument with scalar type");
+        else if (tools::stoupper(type) == TYPE_SCALAR)
+            output = tools::stod(value, "argument with scalar type");
 
-            else if (tools::stoupper(type) == TYPE_DATA)
-                output = house.data(i, value);
+        else if (tools::stoupper(type) == TYPE_DATA)
+            output = house.data(i, value);
 
-            else if (tools::stoupper(type) == TYPE_PARAM)
-                // UPDATE: here it won't be straightforward to drop maps
-                if (param_map.at(value).is_constant())
-                    output = get_param(value);
-                else
-                    throw std::invalid_argument(
-                        "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
-
+        else if (tools::stoupper(type) == TYPE_PARAM)
+            // UPDATE: here it won't be straightforward to drop maps
+            if (param_map.at(value).is_constant())
+                output = get_param(value);
             else
                 throw std::invalid_argument(
-                    "Unknown variable type specifier \"" + type + "\".");
-        }
-    }
-    catch (const std::exception &e)
-    {
-        tools::error(e.what());
+                    "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
+
+        else
+            throw std::invalid_argument(
+                "Unknown variable type specifier \"" + type + "\".");
     }
 
     return output;
@@ -789,6 +782,7 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                 double value = type_to_double(deftable.at("value")[k],
                                               deftable.at("value_at")[k],
                                               house, i);
+
                 // constant flag
                 bool is_constant = tools::stobool(deftable.at("constant")[k]);
                 // discretization flag
@@ -796,16 +790,18 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                 // model name
                 const std::string &model_name = deftable.at("model")[k];
 
-                // UPDATE: what if constant = T, discrete = T and value != int?
+                // FIXME: what if constant = T, discrete = T and value != int?
 
                 // assign augmented variable
                 house.assign_augm(i, a, name, value,
                                   is_discrete, model_name);
+
                 // model arguments
                 assign_augm_type_args(house, i, a,
                                       tools::parse_list_args(deftable.at("arg_name")[k]),
                                       tools::parse_list_args(deftable.at("arg_value")[k]),
                                       tools::parse_list_args(deftable.at("arg_at")[k]));
+
                 // validity range
                 assign_augm_type_range(house, i, a,
                                        deftable.at("min")[k],
@@ -901,6 +897,10 @@ void MCMC::Impl::restore_parameter(const parID &p, bool extra_depen)
         if (extra_depen)
             house.restore_all_extra();
     }
+
+    // FIXME
+    if (extra_depen)
+        restore_infec_profile();
 }
 
 /* Update the acceptance rate of the paramter. */

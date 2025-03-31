@@ -205,22 +205,38 @@ public:
     class InfecProfile
     {
     public:
-        std::shared_ptr<Distribution> profile = nullptr;
         std::map<std::string, std::string> deflist = {};
+        std::shared_ptr<Distribution> profile = nullptr;
 
+        //===== CONSTRUCTOR =====//
         InfecProfile(MCMC::Impl &ptr) : profile(std::make_unique<Distribution>()),
                                         pImpl(ptr) {}
         ~InfecProfile() = default;
 
+        //===== SETTER =====//
         void build();
+        void init_lookup();
+        void restore_lookup();
+        void update_lookup();
         void assign_template(std::map<std::string, std::string> &x);
 
+        //===== GETTER =====//
+        bool is_lookup() const;
+        double inst(double t, const dbl_vec &opts) const;
+        double cumul(double t, const dbl_vec &opts) const;
+
+        void assert_valid_time(double t) const;
+
     private:
-        MCMC::Impl &pImpl;
+        MCMC::Impl &pImpl; // pointer to external class
         const str_vec headers = {"name", "discrete",
                                  "arg_name", "arg_value", "arg_at",
                                  "min", "min_at",
                                  "max", "max_at"};
+        dbl_vec lookup_inst = {};
+        dbl_vec lookup_cumul = {};
+        dbl_vec lookup_buffer_inst = {};
+        dbl_vec lookup_buffer_cumul = {};
 
         void assign_profile(const std::string &name);
         void assign_args(const str_vec &keys,
@@ -231,11 +247,21 @@ public:
                         const std::string &min_at);
         void assign_max(const std::string &max_value,
                         const std::string &max_at);
-    };
 
+	//===== Functional methods for getter methods =====//
+    double (InfecProfile::*_func_inst_)(double, const dbl_vec &) const = &InfecProfile::_default_inst_;
+    double (InfecProfile::*_func_cumul_)(double, const dbl_vec &) const = &InfecProfile::_default_cumul_;
+
+    double _default_inst_(double t, const dbl_vec &opts) const;
+    double _default_cumul_(double t, const dbl_vec &opts) const;
+    double _lookup_inst_(double t, const dbl_vec &opts) const;
+    double _lookup_cumul_(double t, const dbl_vec &opts) const;
+
+    };
     InfecProfile _infec_;
-    double infec_profile_inst(double t, const dbl_vec &opts) const;
-    double infec_profile_cumul(double t, const dbl_vec &opts) const;
+
+    void update_infec_profile();
+    void restore_infec_profile();
 
     //===========================//
     //===== IMPORTS/EXPORTS =====//

@@ -277,6 +277,9 @@ void MCMC::update_global_loglike(const bool extra_depen)
             // buffer all extra dependencies
             if (extra_depen)
             {
+                // FIXME
+                pImpl->update_infec_profile();
+
                 house.buffer_all_extra();
                 for (const indiv &i : house.infected_status_list())
                     update_extra_dependecies(house, i);
@@ -519,13 +522,15 @@ double MCMC::evaluate()
         init_model_for_inference();            // initialize model for inference
         init_augmented_variables();            // initialize augmented dependencies
         update_global_loglike(true);           // initialize extra + global loglikelihood
+
+        return pImpl->get_global_loglike();
     }
     catch (const std::exception &e)
     {
         tools::error(e.what());
     }
 
-    return pImpl->get_global_loglike();
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -747,10 +752,10 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
         //==================================//
 
         //----- Inverse Temperatures (0, 1] -----//
-        for (rung = 1; rung < n_rungs; ++rung)
+        for (rung = 1; rung <= n_rungs; ++rung)
         {
             // inverse tempearture = (rung / #rungs)^5
-            t = std::pow(static_cast<double>(rung) / (n_rungs - 1), 5);
+            t = std::pow(static_cast<double>(rung) / n_rungs, 5);
             run_monte_carlo(progressbar);
             stats = pImpl->dgn_glob_ll_stats();
 
@@ -802,7 +807,6 @@ void MCMC::_aux_init_simulate_()
     pImpl->setup_rand_init_params = false; // disable random parameter initialization
     pImpl->init_parameters();              // check no undefined parameters
     init_infec_profile();                  // initialize user infectivity profile
-    init_augmented_variables();            // initialize augmented dependencies
     init_model_for_simulation();           // initialize model for simulation
 }
 

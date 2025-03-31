@@ -30,7 +30,7 @@ Individual::Individual(const std::string &id,
 	// associate the new status
 	this->status = (status < MISSING_STATUS) ? MISSING_STATUS : status;
 	// associate the new data
-	this->data = data;
+	this->data_map = data;
 }
 
 /* Individual deconstructor. */
@@ -54,6 +54,10 @@ void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs
 			this->rate_map[r] = GroupRate(r, vec_par_ptr);
 	}
 }
+
+double Individual::data(const dataID &d) const { return data_map.at(d); }
+double Individual::group_rate(const rateID &r) const { return rate_map.at(r).get(); }
+double Individual::augm(const augmID &a) const { return augm_map.at(a).get(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -213,7 +217,7 @@ void Household::assign_contact_rate(indiv from, indiv to, const double *x)
 
 void Household::set_loglike(double x)
 {
-	if (std::isnan(x)) 
+	if (std::isnan(x))
 		throw std::runtime_error("Set a NaN value as household loglikelihood.");
 
 	buffer = house_loglike;
@@ -230,9 +234,9 @@ ushort Household::size() const { return house_size; }
 int Household::status(indiv i) const { return members[i].status; }
 double Household::contact_rate(indiv from, indiv to) const { return *contact_rates[from][to]; }
 
-double Household::data(indiv i, const dataID &d) const { return members[i].data.at(d); }
-double Household::group_rate(indiv i, const rateID &r) const { return members[i].rate_map.at(r).get(); }
-double Household::augm(indiv i, const augmID &a) const { return members[i].augm_map.at(a).get_value(); }
+double Household::data(indiv i, const dataID &d) const { return members[i].data(d); }
+double Household::group_rate(indiv i, const rateID &r) const { return members[i].group_rate(r); }
+double Household::augm(indiv i, const augmID &a) const { return members[i].augm(a); }
 
 double Household::augm_model_logpdf(indiv i, const augmID &a) const { return members[i].augm_map.at(a).distr_logpdf(); }
 double Household::augm_model_logratio(indiv i, const augmID &a) const { return members[i].augm_map.at(a).distr_logratio(); }
@@ -253,11 +257,6 @@ const std::vector<indiv> &Household::missing_status_list() const { return _missi
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Household::set_data_value(indiv i, const dataID &d, double x)
-{
-	members[i].data[d] = x;
-}
 
 void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x)
 {

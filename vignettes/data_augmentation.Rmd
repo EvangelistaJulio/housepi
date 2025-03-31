@@ -37,10 +37,8 @@ dataset <- housepi::delays
 dataset$exposure_max <- dataset$exposure_max + 0.999
 dataset$onset_max <- dataset$onset_max + 0.999
 dataset$status <- 1
-```
 
-```{r, echo=FALSE}
-knitr::kable(head(dataset))
+head(dataset)
 ```
 
 We generate the model as showed in the [Walkthrough](walkthrough.html):

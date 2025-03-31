@@ -799,7 +799,7 @@ void MCMC::Impl::show_all_params() const
     {
         const Variable &aux = param_map.at(p);
         oss << aux.show_name()
-            << C_DELIM << tools::natod(aux.get_value())
+            << C_DELIM << tools::natod(aux.get())
             << C_DELIM << tools::truth(aux.is_constant())
             << C_DELIM << tools::truth(aux.is_discrete())
             << C_DELIM << aux.show_distr_name()

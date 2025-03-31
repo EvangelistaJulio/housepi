@@ -26,9 +26,9 @@ simulate_delay_data <- function(x) {
   # onset interval
   t2_min <- as.integer(t2)
   t2_max <- t2_min + 1.
-  
+
   # reporting errors on the interval of t2
-  if(runif(1) > proba_exact_duration2){
+  if (runif(1) > proba_exact_duration2){
     if (runif(1) < 0.5) { 
       t2_min <- t2_min - 1.
     } else {

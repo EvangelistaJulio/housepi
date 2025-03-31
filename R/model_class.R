@@ -289,7 +289,7 @@ HouseholdModel <- R6::R6Class(
     #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
       if (missing(value)) return(private$.model$dataset)
-      stop_h("'dataset' is read only.")
+      else self$import_dataset(value)
     },
 
     #' @field summary `data.frame`\cr
@@ -317,14 +317,21 @@ HouseholdModel <- R6::R6Class(
     #' Parameter formatted definitions.
     param_defs = function(value) {
       if (missing(value)) return(private$.param$defs)
-      stop_h("'param_defs' is read only.")
+      else self$load_param_list(from = value, append = FALSE)
     },
 
     #' @field augm_defs `data.frame`\cr
     #' Augmented variable formatted definitions.
     augm_defs = function(value) {
       if (missing(value)) return(private$.augm$defs)
-      stop_h("'augm_defs' is read only.")
+      else self$load_augm_list(from = value, append = FALSE)
+    },
+
+    #' @field reference `matrix()`\cr
+    #' Traces of household loglikelihoods.
+    house_loglike_mtx = function(value) {
+      if (missing(value)) return(private$.model$house_loglike_mtx)
+      stop_h("'house_loglike_mtx' is read only.")
     },
 
     #' @field traces `matrix()` | `list()` of `matrix()`\cr
@@ -339,13 +346,6 @@ HouseholdModel <- R6::R6Class(
     traces_no_loglike = function(value) {
       if (missing(value)) return(private$.model$traces_no_loglike)
       stop_h("'traces_no_loglike' is read only.")
-    },
-
-    #' @field traces_as_coda `coda::mcmc` | `coda::mcmc.list`\cr
-    #' Traces of last inference as a `coda` object.
-    traces_as_coda = function(value) {
-      if (missing(value)) return(private$.model$traces_as_coda)
-      stop_h("'traces_as_coda' is read only.")
     },
 
     #' @field traces_results `data.frame`\cr
@@ -521,32 +521,6 @@ HouseholdModel <- R6::R6Class(
       private$.model$import_dataset(dataset)
     },
 
-    #' @description
-    #' Show formatted summary of loaded dataset.
-    #'
-    #' @param pct_format `character(1)`\cr
-    #' Formatting string for the percentage passed to `sprintf`.
-    #' It expects 1 double value (fraction).
-    #'
-    #' @return
-    #' `flextable`
-    show_summary = function(pct_format = "%.1f%%") {
-      return(private$.model$show_summary(pct_format))
-    },
-
-    #' @description
-    #' Show formatted summary of housheold sizes.
-    #'
-    #' @param pct_format `character(1)`\cr
-    #' Formatting string for the percentage passed to `sprintf`.
-    #' It expects 1 double value (fraction).
-    #'
-    #' @return
-    #' `flextable`
-    show_house_size_summary = function(pct_format = "%.1f%%") {
-      return(private$.model$show_house_size_summary(pct_format))
-    },
-
     ############################################################################
     ############################################################################
     ############################################################################
@@ -600,11 +574,11 @@ HouseholdModel <- R6::R6Class(
     #' @param from named `list()`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
-    #' If `TRUE` appends the list to current definition (default).
-    #' If `FALSE` drop all other parameter definitions.
+    #' If `TRUE` appends to current augmented variable definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
     load_param_list = function(...,
                                from = NA,
-                               append = TRUE) {
+                               append = FALSE) {
       private$.param$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -613,9 +587,9 @@ HouseholdModel <- R6::R6Class(
     #' Load parameter definitions from model template.
     #'
     #' @param append `logical(1)`\cr
-    #' If `TRUE` append only missing definitions (default).
-    #' Else drop all previous definitions.
-    load_param_template = function(append = TRUE) {
+    #' If `TRUE` append missing parameter definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
+    load_param_template = function(append = FALSE) {
       if (private$.model$is_blank) {
         warning_h("No template parameters available for blank model.")
 
@@ -704,11 +678,11 @@ HouseholdModel <- R6::R6Class(
     #' @param from named `list()`\cr
     #' Named list of augmented variable definitions.
     #' @param append `logical(1)`\cr
-    #' If `TRUE` appends the list to current definition (default).
-    #' Else drop all other augmented variable definitions.
+    #' If `TRUE` appends to current augmented variable definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
     load_augm_list = function(...,
                               from = NA,
-                              append = TRUE) {
+                              append = FALSE) {
       private$.augm$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -717,9 +691,9 @@ HouseholdModel <- R6::R6Class(
     #' Load augmented variables from template definitions.
     #'
     #' @param append
-    #' If `TRUE` append only missing definitions (default).
-    #' Else drop all previous definitions.
-    load_augm_template = function(append = TRUE) {
+    #' If `TRUE` append missing augmented variable definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
+    load_augm_template = function(append = FALSE) {
       if (private$.model$is_blank) {
         warning_h("No template augmented variables available for blank model.")
 
@@ -911,7 +885,8 @@ HouseholdModel <- R6::R6Class(
     #' Seed of the random number generator.
     #' If `NA` uses the internal clock (default).
     #' @param progress `logical(1)`\cr
-    #' If `FALSE` suppress the simulation progress bar.
+    #' If `TRUE` show the simulation progress bar.
+    #' Default is `FALSE`.
     #'
     #' @return
     #' `data.frame`
@@ -974,8 +949,8 @@ HouseholdModel <- R6::R6Class(
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset.
     #' @param scheme `character(1)`\cr
-    #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
-    #' Other available scheme is "power-fractions".
+    #' Default scheme is "power-fractions" with inverse temperatures (r / n_rungs)^5.
+    #' If "adaptive" uses adaptive scheme for thermodynamic ladder.
     #' @param n_rungs `integer(1)`\cr
     #' Number of rungs in the thermodynamic ladder.
     #' @param sample_size `integer(1)`\cr
@@ -1006,10 +981,10 @@ HouseholdModel <- R6::R6Class(
     #' Improving power posterior estimation of statistical evidence.
     #' Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
     evidence = function(dataset = NULL,
-                        scheme = "adaptive",
+                        scheme = "power-fractions",
                         n_rungs = 40,
                         sample_size = NA,
-                        n_steps = 1000,
+                        n_steps = 10000,
                         n_burnin = 0,
                         thin = 1,
                         n_adapt = 0,
@@ -1025,55 +1000,6 @@ HouseholdModel <- R6::R6Class(
       # evaluate marginal from the internal Rcpp object
       return(private$.model$estimate_evidence(scheme = scheme,
                                               n_rungs = n_rungs))
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Use rstan package to compute R-hat convergence diagnostic.
-    #' For further details type ?rstan::Rhat.
-    #'
-    #' @return named `vector()`
-    #' Value of the Rhat for each parameter.
-    rhat = function() {
-      if (require_suggested_library("rstan")) {
-        trs <- self$traces_no_loglike
-        array_mcmc <- simplify2array(lapply(trs, as.matrix))
-        if (is.list(trs)) return(apply(array_mcmc, 2, rstan::Rhat))
-        else return(apply(array_mcmc, 3, rstan::Rhat))
-      }
-    },
-
-    #' @description
-    #' Use loo package to compute the leave-one-out cross-validation.
-    #' For further details type ?loo::loo.
-    #'
-    #' @param ...
-    #' Arguments passed to [loo][loo::loo].
-    #'
-    #' @return names `list()`\cr
-    #' Output of S3 method loo(matrix).
-    loo = function(...) {
-      if (require_suggested_library("loo")) {
-        return(loo::loo(private$.model$house_loglike_mtx, ...))
-      }
-    },
-
-    #' @description
-    #' Use loo package to compute the widely applicable information criterion.
-    #' For further details type ?loo::waic.
-    #'
-    #' @param ...
-    #' Arguments passed to [waic][loo::waic].
-    #'
-    #' @return names `list()`\cr
-    #' Output of S3 method waic(matrix).
-    waic = function(...) {
-      if (require_suggested_library("loo")) {
-        return(loo::waic(private$.model$house_loglike_mtx, ...))
-      }
     }
   )
 )

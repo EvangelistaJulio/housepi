@@ -48,10 +48,10 @@ public:
     const std::string show_name() const;
     double get_arg(ushort argID) const;
     double get_from_value() const;
-    bool is_rule_start_from_zero() const;
     double propose(rnd_gen &prng, double start = 0.);
     double logratio(double xold, double xnew) const;
     double rand(rnd_gen &prng);
+    bool is_rule_start_from_zero() const;
 
     //==================//
     //===== SETTER =====//
@@ -122,7 +122,7 @@ public:
 	~Variable();
 
 	//===== GETTER =====//
-	double get_value() const;
+	double get() const;
 	const double *get_pointer() const;
 	double get_from_value() const;
 	bool is_constant() const;

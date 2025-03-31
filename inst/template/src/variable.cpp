@@ -400,7 +400,7 @@ Variable::~Variable() = default;
 /////////////////////////////////////  Variable - GETTER  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Variable::get_value() const { return value; }
+double Variable::get() const { return value; }
 const double *Variable::get_pointer() const { return &value; }
 bool Variable::is_constant() const { return _is_constant_; }
 bool Variable::is_discrete() const { return _distr_ptr_->is_discrete(); }

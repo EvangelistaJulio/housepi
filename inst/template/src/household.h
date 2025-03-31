@@ -28,41 +28,7 @@
 class Individual
 {
 public:
-	//=======================//
-	//===== CONSTRUCTOR =====//
-	//=======================//
-
-	Individual(const std::string &id = NULL_STRING,
-			   int status = MISSING_STATUS,
-			   const dataIDmap<double> &data = {});
-	~Individual();
-
-	//=============================//
-	//===== PUBLIC ATTRIBUTES =====//
-	//=============================//
-
-	std::string id = NULL_STRING; // user id
-	int status = MISSING_STATUS;  // status of the individual
-
-	//================//
-	//===== DATA =====//
-	//================//
-
-	// NOTE: I am forced to store numerical variables
-	dataIDmap<double> data = {}; // database associated
-
-	//===============================//
-	//===== AUGMENTED VARIABLES =====//
-	//===============================//
-
-	augmIDmap<Variable> augm_map = {}; // augmented variables
-
-	//=======================//
-	//===== GROUP RATES =====//
-	//=======================//
-
-	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
-
+	// individual group rate nested class
 	struct GroupRate
 	{
 		std::string name = "";
@@ -74,7 +40,37 @@ public:
 		~GroupRate();
 		double get() const;
 	};
-	rateIDmap<GroupRate> rate_map; // group rates associated
+
+	std::string id = NULL_STRING; // user id
+	int status = MISSING_STATUS;  // status of the individual
+
+	// NOTE: I am forced to store numerical variables
+	dataIDmap<double> data_map = {};	   // database associated
+	augmIDmap<Variable> augm_map = {}; // augmented variables
+	rateIDmap<GroupRate> rate_map;	   // group rates associated
+
+	//=======================//
+	//===== CONSTRUCTOR =====//
+	//=======================//
+
+	Individual(const std::string &id = NULL_STRING,
+			   int status = MISSING_STATUS,
+			   const dataIDmap<double> &data = {});
+	~Individual();
+
+	//==================//
+	//===== SETTER =====//
+	//==================//
+
+	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
+
+	//==================//
+	//===== GETTER =====//
+	//==================//
+
+	double data(const dataID &d) const;
+	double group_rate(const rateID &r) const;
+	double augm(const augmID &a) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -129,14 +125,12 @@ public:
 
 	//----- Individual : Setter -----//
 	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
-	void set_data_value(indiv i, const dataID &d, double x);
 
 	//----- Individual : Getter -----//
 	const std::string &id(indiv i) const;
 	int status(indiv i) const;
 	double data(indiv i, const dataID &d) const;
 	double group_rate(indiv i, const rateID &r) const;
-
 	double contact_rate(indiv from, indiv to) const;
 
 	//=====================//
@@ -233,24 +227,23 @@ private:
 	size_t _index = -1;					 // index of household
 	ushort house_size = 0;				 // number of house members
 
-	std::vector<Individual> members = {}; //
+	std::vector<Individual> members = {}; // members
 
-	double house_loglike = NULL_DOUBLE; // current loglikelihood value
-	double buffer = NULL_DOUBLE;		// buffer loglikelihood value
-
-	dbl_vec dgn_loglike = {}; // diagnostics
-
-	// contact rate pointers
-	matrix<const double *> contact_rates;
-
-	ushort _n_infec_ = 0;
-	ushort _n_healthy_ = 0;
-	ushort _n_missing_ = 0;
+	ushort _n_infec_ = 0;	// n. members with infected status
+	ushort _n_healthy_ = 0; // n. memebers healthy status
+	ushort _n_missing_ = 0; // n. members missing status
 
 	// wheter members correspond to a given status or not
 	std::vector<indiv> _infec_list_ = {};
 	std::vector<indiv> _healthy_list_ = {};
 	std::vector<indiv> _missing_list_ = {};
+
+	double house_loglike = NULL_DOUBLE; // current loglikelihood value
+	double buffer = NULL_DOUBLE;		// buffer loglikelihood value
+	dbl_vec dgn_loglike = {};			// diagnostics
+
+	// contact rate pointers
+	matrix<const double *> contact_rates;
 
 	//===== EXTRA ATTRIBUTES =====//
 

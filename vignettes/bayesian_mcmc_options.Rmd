@@ -70,8 +70,7 @@ blank_model$load_param_list(
   default = list(prior = "norm"),
   below = list(prior = "norm", min = -1),
   above = list(prior = "norm", max = 1),
-  both = list(prior = "norm", min = -1, max = 1), 
-  append = FALSE
+  both = list(prior = "norm", min = -1, max = 1)
 )
 blank_model$infer(progress = FALSE)
 ```

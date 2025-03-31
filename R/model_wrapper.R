@@ -114,13 +114,6 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'traces_no_loglike' is read only.")
     },
 
-    # @field traces_as_coda `coda::mcmc` | `coda::mcmc.list`\cr
-    # Traces of last inference as a `coda` object.
-    traces_as_coda = function(value) {
-      if (missing(value)) return(coerce_traces_to_coda(self$traces))
-      stop_h("'traces_as_coda' is read only.")
-    },
-
     # @field traces_results `data.frame`\cr
     # Results extracted from the traces of last inference.
     traces_results = function(value) {
@@ -157,70 +150,6 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   public = list(
-    # @description
-    # Show formatted summary of loaded dataset.
-    #
-    # @param pct_format `character(1)`\cr
-    # Formatting string for the percentage passed to `sprintf`.
-    # It expects 1 double value (fraction).
-    #
-    # @return `flextable`
-    show_summary = function(pct_format = "%.1f%%") {
-      if (require_suggested_library("flextable")) {
-
-        combined <- self$summary
-        combined$pct <- sapply(combined$pct,
-                               function(x) sprintf(pct_format, x))
-
-        ft <- flextable::flextable(combined)
-        ft <- flextable::separate_header(ft)
-        ft <- flextable::theme_vanilla(ft)
-        ft <- flextable::align(ft, align = "left", part = "all")
-        ft <- flextable::merge_v(ft, j = ~ type)
-        ft <- flextable::bold(ft, j = ~ type, bold = TRUE)
-        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
-        ft <- flextable::labelizor(
-          ft, part = "all",
-          labels = c(type = "", comment = "", pct = "[%]")
-        )
-        ft <- flextable::colformat_num(ft, big.mark = "",
-                                       na_str = "", nan_str = "")
-        return(ft)
-      }
-    },
-
-    # @description
-    # Show formatted summary of housheold sizes.
-    #
-    # @param pct_format `character(1)`\cr
-    # Formatting string for the percentage passed to `sprintf`.
-    # It expects 1 double value (fraction).
-    #
-    # @return `flextable`
-    show_house_size_summary = function(pct_format = "%.1f%%") {
-      if (require_suggested_library("flextable")) {
-        combined <- self$summary_house_size
-        combined$pct <- sapply(combined$pct,
-                               function(x) sprintf(pct_format, x))
-        ft <- flextable::flextable(combined)
-        ft <- flextable::separate_header(ft)
-        ft <- flextable::theme_vanilla(ft)
-        ft <- flextable::align(ft, align = "left", part = "all")
-        ft <- flextable::bold(ft, j = ~ comment + value, bold = TRUE)
-        ft <- flextable::autofit(ft, add_w = 0, add_h = 0)
-        ft <- flextable::labelizor(
-          ft, part = "all",
-          labels = c(comment = "", value = "n.", pct = "[%]")
-        )
-        ft <- flextable::colformat_num(ft, big.mark = "")
-        return(ft)
-      }
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
     # @description
     # Wrapper of the Rcpp import_dataset method.
     #

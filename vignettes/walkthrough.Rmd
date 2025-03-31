@@ -87,22 +87,27 @@ data("survey", package = "housepi")
 hhmodel$import_dataset(survey)
 ```
 
-Note that all methods for inference and simulation integrate dataset importation. The advantage of preliminary importation is the use of descriptive methods to check on the dataset, e. g. 
+Note that all methods for inference and simulation integrate dataset importation. 
+We can extract some summary information about the current dataset with the field `$summary`:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+
+combined <- hhmodel$summary
+
 # show a summary of the dataset as a `flextable`
-hhmodel$show_summary()
-```
+library(flextable)
 
-At any moment we can export the dataset from our model object with the field `$dataset`:
-
-```{r, eval=FALSE}
-hhmodel$dataset
+flextable(combined) |>
+  theme_vanilla() |>
+  set_formatter(pct = function(x) round(x, 1)) |>
+  merge_v(j = ~ type) |>
+  bold(j = ~ type, bold = TRUE) |>
+  autofit() |>
+  labelizor(labels = c(type = "", comment = "", pct = "[%]")) 
 ```
+To learn more about `flextable` objects and how to export or format them, see [flextable](https://cloud.r-project.org/web/packages/flextable/).
 
-```{r, echo=FALSE}
-knitr::kable(head(hhmodel$dataset))
-```
+At any moment we can export the dataset from our model object with the field `$dataset`.
 
 ## Parameter Definitions
 
@@ -145,7 +150,7 @@ hhmodel$infer(
   n_chains = 4,     # number of independent chains 
   seed = 6043,      # internal random number generator seed
   n_threads = 1,    # number of threads
-  progress = FALSE  # flag to deactivate progress bar
+  progress = FALSE  # flag to silence progress bar
 ) 
 ```
 
@@ -154,40 +159,31 @@ hhmodel$infer(
 ```{r}
 # store summary of the posterior estimates
 results <- hhmodel$traces_results
+results
 ```
 
-```{r, echo=FALSE}
-knitr::kable(results, digits = 3, caption = "Inference results.")
-```
-
-For advanced analysis on the inference, we can extract the posterior traces directly from the field `$traces`:
-
-```{r}
-# export traces using an R6 field
-traces <- hhmodel$traces
-```
-
+For diagnosticis analysis on the inference, we can extract the posterior traces directly from the field `$traces`.
 We can use the function `mcmc_trace()` from [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) to plot the traces:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# export traces using an R6 field
+traces <- hhmodel$traces
+
 # visualize the traces of the first chain
 bayesplot::mcmc_trace(traces, facet_args = list(ncol = 1))
 ```
 
-For those more accustomed withe the package [coda](https://cran.r-project.org/web/packages/coda/), a field `$traces_as_coda` is also implemented.
-This will return a `mcmc` object (or a `mcmc.list`).
-
 ## Model Comparison
 
-To perform model comparison, we can use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) implemented as methods of the model class, e.
-g. for WAIC:
+To perform model comparison, one options os to use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) in combination with the field `$house_loglike_mtx`.
+E.~g.~for WAIC:
 
 ```{r}
 # widely applicable information criterion WAIC calling loo::waic
-hhmodel$waic()
+loo::waic(hhmodel$house_loglike_mtx)
 ```
 
-Similarly can be done with the method `$loo()` for the LOO-CV (leave-one-out cross-validation).
+Similarly can be done with for the LOO-CV (leave-one-out cross-validation) with the function `loo::loo()`.
 
 # Simulation
 
@@ -220,16 +216,42 @@ expec <- hhmodel$expec_cases_by_size(progress = FALSE)
 To show both observed and expected cases by size, we use the method `$show_cases_table()` from our output object:
 
 ```{r}
-# return a 'flextable' object
-expec$show_cases_table()
-```
-To learn more about `flextable` objects and how to export or format them, see [flextable](https://cloud.r-project.org/web/packages/flextable/).
+# return a data.frame with observed and expected cases
+cases_df <- expec$cases_table
 
-Finally, we can also perform a Chi-Squared test on the distribution:
+# format expected cases
+combined <- cases_df$expected
+mask_exp <- cases_df$expected$distr == "Expected"
+mask_cols <- setdiff(names(cases_df$expected), c("size", "distr"))
+
+# format mean with its lower and upper credibile interval bounds
+combined[mask_exp, mask_cols] <- mapply(
+  function(m, low, up) {
+    ifelse(is.na(m) | is.na(low) | is.na(up), NA,
+           sprintf("%.0f [%.0f, %.0f]", m, low, up))
+  },
+  cases_df$expected[mask_exp, mask_cols],
+  cases_df$cri_lower[mask_exp, mask_cols],
+  cases_df$cri_upper[mask_exp, mask_cols]
+)
+
+flextable(combined) |>
+  separate_header() |>
+  theme_vanilla() |>
+  bold(j = ~ size, bold = TRUE) |>
+  merge_v(j = ~ size) |>
+  align(align="center", , part = "all") |>
+  autofit() |>
+  labelizor(labels = c(size = "Size",
+                       distr = "Distribution",
+                       cases = "Number of cases")) 
+```
+
+We can perform a Chi-Squared test on the distribution, restricting to a maximum household size like follows:
 
 ```{r}
 # from the rest of analysis consider sizes up to 5
-# to restore just use methof $drop_max_house_size
+# to restore just use method $drop_max_house_size
 expec$set_max_house_size(5)
 
 # perform a Chi-Squared test
@@ -239,11 +261,25 @@ The $p$-value tells us that there is no significant difference between the distr
 
 ## Secondary Attack rate
 
-We can have a quick look at secondary attack rates of observed vs expected cases using the method `$plot_sar()`. This returns a ggplot2 object which can be further customize:
+We can have a quick look at secondary attack rates of observed vs expected cases using the fields `$sar`:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot expected and observed SAR
-expec$plot_sar()
-```
+library(ggplot2)
 
-To obtain the raw data.frame used for the plot, call the field `$sar`.
+col_dict <- c("Expected" = "coral", "Observed" = "black")
+ggplot(expec$sar, aes(x = house_size)) +
+  # expected SAR
+  geom_point(aes(y = expected, color = "Expected")) +
+  geom_errorbar(aes(y = expected, ymin = cri_lower, ymax = cri_upper,
+                    color = "Expected"), 
+                width = 0.2) +
+  # observed SAR
+  geom_point(aes(y = observed, color = "Observed")) +
+  # text with observed counts
+  geom_text(aes(x = house_size + 0.2, y = observed,
+                label = sprintf("[%s]", counts)),
+  color = col_dict["Observed"]) +
+  labs(x = "Size", y = "SAR", color = "Distribution") +
+  scale_color_manual(values = col_dict)
+```

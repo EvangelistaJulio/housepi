@@ -183,7 +183,7 @@ template_dll_file <- function(path) {
 #'
 #' @noRd
 coerce_traces_to_coda <- function(trs) {
-  if (require_suggested_library("flextable")) {
+  if (require_suggested_library("coda")) {
     if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
       return(trs)
 

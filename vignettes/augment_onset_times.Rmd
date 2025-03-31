@@ -21,25 +21,19 @@ bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
-For a more realistic example, we use the template model "ex-augm-onset-single-intro", where surveys are conditioned on single introduction and follow the times of onset.
+In this vignette, we use the template model "ex-augm-onset-single-intro" where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
-
-```{r}
-hhmodel <- housepi::HouseholdModel$new("augm-onset-single-intro")
-```
-
 This time we load the parameter definitions directly from the model template.
 
 ```{r}
-# use example parameters associated to the templated model
-hhmodel$load_param_template()
+hhsimul <- housepi::HouseholdModel$new("augm-onset-single-intro")
 
-# export the data.frame with formatted parameter definitions
-param_defs <- hhmodel$param_defs
-```
+# use example parameters associated to the template model
+hhsimul$load_param_template()
 
-```{r, echo=FALSE}
-knitr::kable(param_defs)
+# store formatted parameter definitions used for simulations
+simul_param_defs <- hhsimul$param_defs
+simul_param_defs
 ```
 
 ## Infectivity Profile
@@ -58,39 +52,36 @@ Certain profiles will then be conditioned on individual incubation period $\tau$
 We can provide a custom infectivity proifle with the method `$add_infec_profile()`.
 At any momement, we can export current profile as a data.frame with the method `export_infec_profile()`:
 
-```{r}
-# we associate the infectivity profile from Ferretti et al. (2020)
-hhmodel$add_infec_profile(name = "ferretti20")
+```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# we associate a gamma for infectivity profile
+hhsimul$add_infec_profile(name = "gamma", 
+                          args = c(shape = 2.2, scale = 1.3))
 
 # we extract the profile and other general information
-# note: profile is defined from onset to transmission
-# we provide as an option the incubation period of the infector
-infec <- hhmodel$export_infec_profile(opts = c(3))
-```
+infec <- hhsimul$export_infec_profile()
 
-```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot instantaneous and cumulative profile with ggplot2
 library(ggplot2)
 
 # format title with information from the export
-title <- sprintf("Infectivity Profile %s [mean=%.1f, sd=%.1f]",
+title <- sprintf("Infectivity Profile: %s [mean=%.1f, sd=%.1f]",
                  stringr::str_to_title(infec$name),
                  infec$mean, sqrt(infec$var))
 
 # coefficient to rescale cumulative
-coeff <- max(infec$profile$cumul) / max(infec$profile$inst)
+rescale <- max(infec$profile$cumul) / max(infec$profile$inst)
 
 ggplot(infec$profile, aes(x = gentime)) +
   # plot cumulative profile
   theme(axis.ticks.y.right = element_line(color = "coral"),
         axis.text.y.right = element_text(color = "coral"),
         axis.title.y.right = element_text(color = "coral")) +
-  geom_line(aes(y = cumul / coeff), color = "coral") +
+  geom_line(aes(y = cumul / rescale), color = "coral") +
   # plot instantaneous
   geom_line(aes(y = inst)) +
   # apply rescaling
   scale_y_continuous(name = "Instantaneous",
-                     sec.axis = sec_axis(~. * coeff, name = "Cumulative")) +
+                     sec.axis = sec_axis(~. * rescale, name = "Cumulative")) +
   labs(x = "Generation Time", title = title)
 ```
 
@@ -99,11 +90,13 @@ For more details on how to customize infectivity profiles, check the vignette [C
 
 ## Simulate an Outbreak
 
-We propose the following definitions for the augmented variable
+We propose the following definitions for the augmented variable.
+
+We run a simulation with the method `simulate`.
 
 ```{r}
 # associate defininitions from a list
-hhmodel$load_augm_list(
+hhsimul$load_augm_list(
   # add augmented variable definition 'onset_date'
   onset_date = list(
     init_rand = TRUE,
@@ -122,46 +115,42 @@ hhmodel$load_augm_list(
 )
 
 # append incubation period distribution parameters as constants
-hhmodel$load_param_list(inc_shape = 2, inc_scale = 1.1)
-```
+hhsimul$load_param_list(inc_shape = 2, inc_scale = 1.1, append = TRUE)
 
-We run a simulation with the method `simulate`.
-
-```{r}
+# simulate using the data structure from the survey
 data("survey", package = "housepi")
-simulated <- hhmodel$simulate(survey, seed = 3413)
-```
+survey$status <- NA
+simulated <- hhsimul$simulate(survey, seed = 3413)
 
-In addition to the final status, the simulation associates the values of the augmented variables: the incubation period and the onset time.
-Note that this simulation, as for all other templated models, do not simulate a sampling process.
+# in addition to final status, we associated  augmented variables
+# incubation period onset time
+head(simulated)
 
-```{r}
 # remove incubation period from simulated dataset
-dataset <- subset(simulated, select = -c(incub_period))
+simulated$incub_period <- NULL
 
-# change all onsets after 9 PM to next day
-is_infec <- dataset$status == 1
-dataset[is_infec, "onset_date"] <- sapply(
-  dataset[is_infec, "onset_date"],
-  function(x) if ((x %% 1) > 0.875) ceiling(x) else floor(x)
+# assume onsets after 6 PM are reported to next day 
+is_infec <- simulated$status == 1
+simulated[is_infec, "onset_date"] <- sapply(
+  simulated[is_infec, "onset_date"],
+  # simulation onset date > 18/24 
+  function(x) floor(ifelse((x %% 1) > 0.75, x + 1, x))
 )
-```
 
-```{r, echo=FALSE}
-knitr::kable(head(dataset))
+head(simulated)
 ```
 
 ## Validate the Simulation
 
 We can check that inference returns the parameters used for the simulation.
 
-```{r}
-hhclone <- hhmodel$clone(deep = TRUE)
-```
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 
-```{r}
-# load definitions from list and drop previous definitions 
-hhclone$load_augm_list(
+# make a deep clone of simulation object to re-use previous definitions
+hhmodel <- hhsimul$clone(deep = FALSE)
+
+# load definitions from list (automatically drop previous definitions)
+hhmodel$load_augm_list(
   # add 'onset_date' definition
   onset_date = list(
     value = "onset_date@D",
@@ -174,45 +163,56 @@ hhclone$load_augm_list(
     model = "gamma",
     args = c(shape = "inc_shape", scale = "inc_scale"),
     max = 14, rule = "gibbs"
-  ),
-  append = FALSE # we drop previous definitions
+  )
 )
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hhclone$infer(dataset = dataset, n_steps = 10000, n_burnin = 1000, thin = 10,
-              n_chains = 3, n_adapt = 2000, seed = 3731, progress = FALSE)
-```
+hhmodel$infer(simulated, n_chains = 3, 
+              n_adapt = 2000, n_steps = 10000, 
+              n_burnin = 1000, thin = 10,
+              seed = 3731, progress = FALSE)
 
-```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# plot the traces of all chains 
-bayesplot::mcmc_trace(hhclone$traces)
-```
+# se bayesplot to plot the traces 
+library(bayesplot)
+mcmc_trace(hhmodel$traces)
 
-We can perform R-hat diagnostics extracting the values of $\hat{R}$
+# extract the traces without loglikelihood
+trs <- hhmodel$traces_no_loglike
 
-```{r, fig.width=5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # compute Rhat values associate to inferred parameters
-rhat <- hhclone$rhat()
+array_mcmc <- simplify2array(lapply(trs, as.matrix))
+rhat <- apply(array_mcmc, ifelse(is.list(trs), 2, 3), rstan::Rhat)
+      
 # use bayesplot to showcase Rhat statistics
-bayesplot::mcmc_rhat(rhat) + bayesplot::yaxis_text(hjust = 1)
+mcmc_rhat(rhat) + 
+  yaxis_text(hjust = 1)
 ```
+
+Here we performed R-hat diagnostics computing the values of $\hat{R}$ with [rstan](https://cran.r-project.org/web/packages/rstan/).
 
 Finally we wrap all together to compare to parameters used for simulation.
 
 ```{r}
 # collect the results
-results <- hhclone$traces_results
+results <- hhmodel$traces_results
 
 # compare results to parameter values used for inference
-imask <- param_defs$constant == FALSE
-inames <- param_defs[imask, ]$name
+imask <- simul_param_defs$constant == FALSE
+inames <- simul_param_defs[imask, ]$name
 
-check <- cbind(expec = param_defs[imask, ]$value, results)
-```
-
-```{r, echo=FALSE}
-knitr::kable(check, digits = 4)
+library(dplyr)
+library(flextable)
+cbind(Simulated = simul_param_defs[imask, ]$value, results) |>
+  tibble::rownames_to_column("Parameter") |>
+  mutate(Inferred = sprintf("%0.4f [%0.4f, %0.4f]", 
+                            mean, cri2.5, cri97.5)) |>
+  select(-mean, -sd, -cri2.5, -cri97.5) |>
+  flextable() |>
+  separate_header() |>
+  theme_vanilla() |>
+  bold(j = ~ Parameter, bold = TRUE) |>
+  autofit()
 ```
 
 ### Model Comparison
@@ -221,5 +221,12 @@ We can estimate the model "evidence" (also known as "marginal loglikelihood") wi
 
 ```{r, eval=FALSE}
 # return the estimate of the model evidence
-hhclone$evidence(n_rungs = 30)
+evidence <- hhmodel$evidence(n_rungs = 30, n_burnin = 500, n_steps = 5000)
+
+ggplot(evidence$detail, aes(x = inv_temper, y = mean_loglike)) + 
+  geom_line() + 
+  geom_point() +
+  labs(x = "Inverse Temperature", y = "Mean Loglikelihood")
+
+evidence$estimate
 ```

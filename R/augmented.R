@@ -351,11 +351,11 @@ HousepiAugmented <- R6::R6Class(
     #' @param from (named `list()`\cr
     #' Named list of augmented variable definitions.
     #' @param append `logical(1)`\cr
-    #' If `TRUE` appends the list to current definition (default).
-    #' If `FALSE` drop all other augmented variable definitions.
+    #' If `TRUE` appends to current augmented variable definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
     load_list = function(...,
                          from = NULL,
-                         append = TRUE) {
+                         append = FALSE) {
       definitions <- list(...)
 
       if (length(definitions) == 0) {
@@ -405,11 +405,11 @@ HousepiAugmented <- R6::R6Class(
     #' @param requirements `character()`\cr
     #' Vector containing required parameters.
     #' @param append `logical(1)`\cr
-    #' If `TRUE` append to previous definitions (default).
-    #' If `FALSE` drop previous definitions.
+    #' If `TRUE` append missing augmented variable definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
     load_template = function(templ_file,
                              requirements = NULL,
-                             append = TRUE) {
+                             append = FALSE) {
       # check if template file exists
       if (file.exists((templ_file))) {
         # template augmented variable definitions
