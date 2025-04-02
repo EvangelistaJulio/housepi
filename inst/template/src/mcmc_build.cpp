@@ -168,7 +168,7 @@ void MCMC::Impl::set_n_threads()
 void MCMC::Impl::set_prng_seed()
 {
     // seed for the unique thread rand num generator
-    prng.seed(setup_seed);
+    _prng_.seed(setup_seed);
     _func_prng_ = &Impl::_prng_unique_thread_;
 
 #ifdef _OPENMP
@@ -181,9 +181,9 @@ void MCMC::Impl::set_prng_seed()
 
         std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
-        prng_parallel.reserve(setup_n_threads);
+        _prng_parallel_.reserve(setup_n_threads);
         for (unsigned n = 0; n < setup_n_threads; ++n)
-            prng_parallel[n].seed(seed_generator(prng));
+            _prng_parallel_[n].seed(seed_generator(_prng_));
     }
 #endif
 }
@@ -332,7 +332,7 @@ void MCMC::Impl::init_parameters()
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-                param_map.at(p).rand(prng);
+                param_map.at(p).rand(_prng_);
         }
         else if (tools::is_na(param_map.at(p).get()))
             throw std::invalid_argument(
@@ -869,7 +869,7 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
     bool output = true;
 
     // set new value of the parameter and store the old to buffer
-    param_map.at(p).propose(prng);
+    param_map.at(p).propose(_prng_);
 
     // restore buffer if not valid move
     if (!param_map.at(p).valid_move())

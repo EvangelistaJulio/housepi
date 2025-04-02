@@ -55,16 +55,16 @@ public:
     //===== RANDOM NUMBER GENERATOR =====//
     //===================================//
 
-    rnd_gen prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
-    std::vector<rnd_gen> prng_parallel = {}; // parallel generators (for multi-threading)
+    rnd_gen _prng_;                            // Mersenne Twister 19937 generator (32 or 64 bit)
+    std::vector<rnd_gen> _prng_parallel_ = {}; // parallel generators (for multi-threading)
 
     rnd_gen &get_prng();
     void set_prng_seed();
 
     rnd_gen &(MCMC::Impl::*_func_prng_)();
-    rnd_gen &_prng_unique_thread_() { return prng; }
+    rnd_gen &_prng_unique_thread_() { return _prng_; }
 #ifdef _OPENMP
-    rnd_gen &_prng_parallel_threads_() { return prng_parallel[omp_get_thread_num()]; }
+    rnd_gen &_prng_parallel_threads_() { return _prng_parallel_[omp_get_thread_num()]; }
 #endif
 
     //----- uniform sampler -----//
@@ -225,14 +225,14 @@ public:
         double inst(double t, const dbl_vec &opts) const;
         double cumul(double t, const dbl_vec &opts) const;
 
-        void assert_valid_time(double t) const;
-
     private:
         MCMC::Impl &pImpl; // pointer to external class
         const str_vec headers = {"name", "discrete",
                                  "arg_name", "arg_value", "arg_at",
                                  "min", "min_at",
                                  "max", "max_at"};
+        // lookup table
+        size_t size_lut = 0;
         dbl_vec lookup_inst = {};
         dbl_vec lookup_cumul = {};
         dbl_vec lookup_buffer_inst = {};
@@ -248,15 +248,14 @@ public:
         void assign_max(const std::string &max_value,
                         const std::string &max_at);
 
-	//===== Functional methods for getter methods =====//
-    double (InfecProfile::*_func_inst_)(double, const dbl_vec &) const = &InfecProfile::_default_inst_;
-    double (InfecProfile::*_func_cumul_)(double, const dbl_vec &) const = &InfecProfile::_default_cumul_;
+        //===== Functional methods for getter methods =====//
+        double (InfecProfile::*_func_inst_)(double, const dbl_vec &) const = &InfecProfile::_default_inst_;
+        double (InfecProfile::*_func_cumul_)(double, const dbl_vec &) const = &InfecProfile::_default_cumul_;
 
-    double _default_inst_(double t, const dbl_vec &opts) const;
-    double _default_cumul_(double t, const dbl_vec &opts) const;
-    double _lookup_inst_(double t, const dbl_vec &opts) const;
-    double _lookup_cumul_(double t, const dbl_vec &opts) const;
-
+        double _default_inst_(double t, const dbl_vec &opts) const;
+        double _default_cumul_(double t, const dbl_vec &opts) const;
+        double _lookup_inst_(double t, const dbl_vec &opts) const;
+        double _lookup_cumul_(double t, const dbl_vec &opts) const;
     };
     InfecProfile _infec_;
 
@@ -287,8 +286,8 @@ public:
     Rcpp::DataFrame export_parameter() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_house_loglike_mtx() const;
-    Rcpp::List export_infec_profile(const Rcpp::List &opts,
-                                    int n_bins) const;
+    Rcpp::List showcase_infec_profile(const Rcpp::List &opts,
+                                      int n_bins) const;
 
 #else
     //----- READ -----//

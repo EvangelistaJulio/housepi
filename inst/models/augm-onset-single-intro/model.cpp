@@ -119,7 +119,7 @@ double Model::loglike_infectious(Household &house) const
 {
 	double output = 0.;
 	const indiv i0 = house.extra_integer_vector("intro_case")[0];
-	double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
+	const double t_intro = house.augm(i0, "onset_date") - house.augm(i0, "incub_period");
 
 	const auto &inst_mtx = house.extra_double_matrix("inst");
 	const auto &cumul_mtx = house.extra_double_matrix("cumul");

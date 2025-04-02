@@ -157,8 +157,7 @@ public:
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_house_loglike_mtx() const;
-	Rcpp::List export_infec_profile(const Rcpp::List &opts,
-									int n_bins);
+	Rcpp::List showcase_infec_profile(const Rcpp::List &opts, int n_bins);
 
 #else
 

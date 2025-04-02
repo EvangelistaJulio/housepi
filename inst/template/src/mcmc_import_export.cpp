@@ -508,7 +508,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export a showcase of the selected infectivity profile. */
-Rcpp::List MCMC::Impl::export_infec_profile(const Rcpp::List &opts, int n_bins) const
+Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins) const
 {
     using namespace Rcpp;
 
@@ -584,10 +584,11 @@ Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_rep
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
-Rcpp::List MCMC::export_infec_profile(const Rcpp::List &opts, int n_bins)
+
+Rcpp::List MCMC::showcase_infec_profile(const Rcpp::List &opts, int n_bins)
 {
     init_infec_profile();
-    return pImpl->export_infec_profile(opts, n_bins);
+    return pImpl->showcase_infec_profile(opts, n_bins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -886,10 +887,10 @@ void MCMC::Impl::show_results() const
             << C_DELIM << this_param.show_distr_name()
             << C_DELIM << this_param.show_distr_arg_names()
             << C_DELIM << this_param.show_distr_arg_values()
-            << C_DELIM << this_param.show_prop_name()
-            << C_DELIM << this_param.show_prop_scale()
             << C_DELIM << tools::natod(this_param.show_min())
             << C_DELIM << tools::natod(this_param.show_max())
+            << C_DELIM << this_param.show_prop_name()
+            << C_DELIM << this_param.show_prop_scale()
             << "\n";
     }
 

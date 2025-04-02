@@ -14,6 +14,8 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+constexpr int MAX_SIZE_INFEC_LUT = 60;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// InfecProfile_Ferretti20 : class ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -401,21 +403,22 @@ void MCMC::Impl::InfecProfile::init_lookup()
 			is_suitable = false;
 		}
 
-		// FLAG
-		tools::print_stderr(
-			"is_suitable " + tools::truth(is_suitable) + "\n");
-		// FLAG-END
-
 		if (is_suitable)
 		{
-			size_t n = 30;
-			if (!tools::is_na(profile->get_max()))
-				n = profile->get_max();
+			if (tools::is_na(profile->get_max()))
+			{
+				tools::warning(
+					"Discrete infectivity profile introduced maximum " + std::to_string(MAX_SIZE_INFEC_LUT) + ".");
+				profile->assign_scalar_range_max(MAX_SIZE_INFEC_LUT);
+				profile->init_reshaping(profile->is_discrete());
+			}
+			size_lut = profile->get_max() + 1;
 
-			lookup_inst.reserve(n);
-			lookup_cumul.reserve(n);
-			lookup_buffer_inst.reserve(n);
-			lookup_buffer_cumul.reserve(n);
+			lookup_inst.resize(size_lut);
+			lookup_cumul.resize(size_lut);
+			lookup_buffer_inst.resize(size_lut);
+			lookup_buffer_cumul.resize(size_lut);
+
 			update_lookup();
 
 			_func_inst_ = &InfecProfile::_lookup_inst_;
@@ -424,10 +427,11 @@ void MCMC::Impl::InfecProfile::init_lookup()
 	}
 }
 
+/* Restore buffered lookup table. */
 void MCMC::Impl::InfecProfile::restore_lookup()
 {
-	lookup_buffer_inst.swap(lookup_inst);
-	lookup_buffer_cumul.swap(lookup_cumul);
+	lookup_inst.swap(lookup_buffer_inst);
+	lookup_cumul.swap(lookup_buffer_cumul);
 }
 
 /* Store values of the infectivity profile. */
@@ -439,7 +443,7 @@ void MCMC::Impl::InfecProfile::update_lookup()
 	lookup_inst[0] = 0.;
 	lookup_cumul[0] = 0.;
 
-	for (size_t i = 1; i < lookup_inst.size(); ++i)
+	for (size_t i = 1; i < size_lut; ++i)
 	{
 		double x = _default_inst_(i, {});
 		lookup_inst[i] = x;
@@ -518,28 +522,24 @@ void MCMC::Impl::InfecProfile::build()
 /* Check if a lookup table exists. */
 bool MCMC::Impl::InfecProfile::is_lookup() const { return !lookup_inst.empty(); }
 
-/* Assert that generation time is valid. */
-void MCMC::Impl::InfecProfile::assert_valid_time(double t) const
-{
-	if (!profile->valid(t))
-		std::overflow_error(
-			"Invalid generation time passed to infectivity profile.");
-}
-
+/* Default method for instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::_default_inst_(double t, const dbl_vec &opts) const
 {
 	return profile->pdf(t, opts);
 }
+/* Default method for cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::_default_cumul_(double t, const dbl_vec &opts) const
 {
 	return profile->cdf(t, opts);
 }
 
+/* Lookup method for discrete instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::_lookup_inst_(double t, const dbl_vec &opts) const
 {
 	UNUSED(opts);
 	return lookup_inst.at(static_cast<unsigned>(t));
 }
+/* Lookup method for discrete cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::_lookup_cumul_(double t, const dbl_vec &opts) const
 {
 	UNUSED(opts);
@@ -549,13 +549,19 @@ double MCMC::Impl::InfecProfile::_lookup_cumul_(double t, const dbl_vec &opts) c
 /* Value of the instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::inst(double t, const dbl_vec &opts) const
 {
-	assert_valid_time(t);
+	if (!profile->valid(t))
+		throw std::out_of_range(
+			"Invalid generation time " + std::to_string(t) + " for instantaneous infectivity profile with range " + profile->show_range() + ".");
+
 	return (this->*_func_inst_)(t, opts);
 }
 /* Value of the cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::cumul(double t, const dbl_vec &opts) const
 {
-	assert_valid_time(t);
+	if (!profile->valid(t))
+		throw std::out_of_range(
+			"Invalid exposure time " + std::to_string(t) + " for cumulative infectivity profile with range " + profile->show_range() + ".");
+
 	return (this->*_func_cumul_)(t, opts);
 }
 

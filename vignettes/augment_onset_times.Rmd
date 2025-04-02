@@ -50,7 +50,7 @@ Certain profiles will then be conditioned on individual incubation period $\tau$
 | serial                     | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ |
 
 We can provide a custom infectivity proifle with the method `$add_infec_profile()`.
-At any momement, we can export current profile as a data.frame with the method `export_infec_profile()`:
+At any moment, we can showcase the loaded profile as follows:
 
 ```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # we associate a gamma for infectivity profile
@@ -144,8 +144,7 @@ head(simulated)
 
 We can check that inference returns the parameters used for the simulation.
 
-```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-
+```{r}
 # make a deep clone of simulation object to re-use previous definitions
 hhmodel <- hhsimul$clone(deep = FALSE)
 
@@ -172,11 +171,15 @@ hhmodel$infer(simulated, n_chains = 3,
               n_adapt = 2000, n_steps = 10000, 
               n_burnin = 1000, thin = 10,
               seed = 3731, progress = FALSE)
+```
 
-# se bayesplot to plot the traces 
+```{r, message = FALSE, warning = FALSE, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# use bayesplot to plot the traces 
 library(bayesplot)
 mcmc_trace(hhmodel$traces)
+```
 
+```{r, fig.width=5, fig.height=2.5, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # extract the traces without loglikelihood
 trs <- hhmodel$traces_no_loglike
 
@@ -200,7 +203,8 @@ results <- hhmodel$traces_results
 # compare results to parameter values used for inference
 imask <- simul_param_defs$constant == FALSE
 inames <- simul_param_defs[imask, ]$name
-
+```
+```{r, message = FALSE, warning = FALSE,}
 library(dplyr)
 library(flextable)
 cbind(Simulated = simul_param_defs[imask, ]$value, results) |>

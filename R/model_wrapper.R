@@ -220,7 +220,7 @@ HousepiWrapper <- R6::R6Class(
     },
 
     # @description
-    # Instantaneous and cumulative values of the infectivity profile.
+    # Showcase instantaneous and cumulative values of infectivity profile.
     #
     # @param opts `double()`\cr
     # Additional values for the computation.
@@ -228,14 +228,14 @@ HousepiWrapper <- R6::R6Class(
     # Number of bins for continuous profile (ignored if discrete).
     #
     # @return `data.frame`
-    export_infec_profile = function(opts = list(),
-                                    n_bins = 2500) {
+    showcase_infec_profile = function(opts = list(),
+                                      n_bins = 2000) {
       # load options
       opts <- as.list(as.numeric(opts))
       n_bins <- as.integer(n_bins)
 
       # reformat dataframe
-      output <- private$.rcpp$export_infec_profile(opts, n_bins)
+      output <- private$.rcpp$showcase_infec_profile(opts, n_bins)
       mask <- c("gentime", "inst", "cumul")
       output$profile <- as.data.frame(output[mask])
       output[mask] <- NULL

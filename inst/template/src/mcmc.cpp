@@ -264,6 +264,10 @@ void MCMC::update_global_loglike(const bool extra_depen)
     double new_ll = 0.0;
     std::atomic<bool> has_error(false);
 
+    // buffer infectivity profile if lookup tables are active
+    if (extra_depen)
+        pImpl->update_infec_profile(); 
+
 #pragma omp parallel for reduction(+ : new_ll)
     for (ulong H = 0; H < n_houses(); ++H)
     {
@@ -274,12 +278,9 @@ void MCMC::update_global_loglike(const bool extra_depen)
         {
             Household &house = get_household(H);
 
-            // buffer all extra dependencies
+            // buffer all household extra dependencies
             if (extra_depen)
             {
-                // FIXME
-                pImpl->update_infec_profile();
-
                 house.buffer_all_extra();
                 for (const indiv &i : house.infected_status_list())
                     update_extra_dependecies(house, i);

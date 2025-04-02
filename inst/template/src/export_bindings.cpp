@@ -30,7 +30,7 @@
 //' @field export_house_size_report Return a DataFrame with a report of household sizes.
 //' @field export_traces Return a DataFrame with MCMC traces.
 //' @field export_house_loglike_mtx Return a NumericMatrix with household loglikelihood traces.
-//' @field export_infec_profile Return a DataFrame values of the infectivity profile.
+//' @field showcase_infec_profile Return a List with a showcase of the infectivity profile.
 //' @field show_full_build Show all build messages.
 //' @field show_summary Show a summary of the current database.
 
@@ -60,7 +60,7 @@ RCPP_MODULE(housepi_model_core)
       .method("export_house_size_report", &MCMC::export_house_size_report)
       .method("export_traces", &MCMC::export_traces)
       .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
-      .method("export_infec_profile", &MCMC::export_infec_profile);
+      .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
 
   class_<Model>("ModelHousepi")
       .constructor()

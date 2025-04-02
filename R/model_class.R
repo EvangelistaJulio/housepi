@@ -327,6 +327,13 @@ HouseholdModel <- R6::R6Class(
       else self$load_augm_list(from = value, append = FALSE)
     },
 
+    #' @field infec_profile_defs `list`\cr
+    #' Infectivity profile definition list.
+    infec_profile_defs = function(value) {
+      if (missing(value)) return(private$.infec_profile$defs)
+      else do.call(self$add_infec_profile, value)
+    },
+
     #' @field reference `matrix()`\cr
     #' Traces of household loglikelihoods.
     house_loglike_mtx = function(value) {
@@ -797,7 +804,7 @@ HouseholdModel <- R6::R6Class(
     },
 
     #' @description
-    #' Export instantaneous and cumulative values of the infectivity profile.
+    #' Showcase instantaneous and cumulative values of infectivity profile.
     #'
     #' @param opts `double()`\cr
     #' Additional values for the computation.
@@ -806,13 +813,13 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @return
     #' `list()`
-    export_infec_profile = function(opts = list(),
-                                    n_bins = 2500) {
+    showcase_infec_profile = function(opts = list(),
+                                      n_bins = 2000) {
       # internal build function
       private$.pre_build()
 
-      return(private$.model$export_infec_profile(opts = opts,
-                                                 n_bins = n_bins))
+      return(private$.model$showcase_infec_profile(opts = opts,
+                                                   n_bins = n_bins))
     },
 
     ############################################################################
@@ -929,16 +936,17 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset.
-    #' @param n_threads `integer(1)`\cr
-    #' Number of threads for the parallelization of the loglikelihood.
+    #' @param seed `integer(1)`\cr
+    #' Seed of the random number generator.
+    #' If `NA` uses the internal clock (default).
     #'
     #' @return
     #' `double(1)`
     loglikelihood = function(dataset = NULL,
-                             n_threads = 1) {
+                             seed = NA) {
       # internal build function
-      private$.build(dataset = dataset, n_threads = n_threads,
-                     rand_init = FALSE)
+      private$.build(dataset = dataset,
+                     seed = seed, rand_init = FALSE)
       return(private$.model$evaluate())
     },
 

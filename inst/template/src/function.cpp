@@ -162,7 +162,7 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
 const std::string Function::show_min() const { return range_min.show(); }
 const std::string Function::show_max() const { return range_max.show(); }
 
-/* Return formatted maximum range. */
+/* Return formatted range. */
 const std::string Function::show_range() const
 {
     if (_func_valid_range_ == &Function::_valid_range_always_)

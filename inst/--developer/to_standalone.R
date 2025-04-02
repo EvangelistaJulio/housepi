@@ -2,8 +2,7 @@
 
 standalone_path <- "../household-epidemics/inst/standalone/"
 
-developer_export_to_standalone <- function(hhmodel,
-                                           outpath = standalone_path) {
+developer_export_to_standalone <- function(hhmodel, standalone_path) {
   write.csv(hhmodel$dataset,
             file.path(outpath, "data.tmp"),
             quote = FALSE, row.names = FALSE)
@@ -15,5 +14,8 @@ developer_export_to_standalone <- function(hhmodel,
             quote = FALSE, row.names = FALSE)
   write.table(t(as.data.frame(hhmodel$setup)),
               file.path(outpath, "setup.tmp"),
+              row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
+  write.table(t(as.data.frame(hhmodel$infec_profile_defs)),
+              file.path(outpath, "infec.tmp"),
               row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
 }

@@ -651,7 +651,7 @@ namespace progress
     {
     public:
         const std::string symbol = u8"\u25A0"; // bar decorator
-        unsigned barwidth = 30;                // bar total size
+        unsigned barwidth = 40;                // bar total size
         bool verbose = true;                   // wheter to show bar
 
         ulong state = 0;       // current iteration
@@ -665,29 +665,14 @@ namespace progress
         Impl()
         {
 #ifdef _HOUSEPI_RCPP
-            // use cli console width
-            Rcpp::Environment cli = Rcpp::Environment::namespace_env("cli");
-            Rcpp::Function console_width = cli["console_width"];
-            barwidth = Rcpp::as<unsigned>(console_width()) / 2;
+            // change barwidth according to console width
+            barwidth = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
 #endif
         };
         ~Impl() {};
 
         /* Set description text of progress bar. */
         void set_text(const std::string &text) { this->text = text; }
-
-        /* Adapt thinning time. */
-        void adapt_thintime(int64_t elapsed)
-        {
-            if (elapsed < 60)
-                thintime = 0; // every second
-            else if (elapsed < 300)
-                thintime = 4; // every 5 seconds
-            else if (elapsed < 600)
-                thintime = 9; // every 10 seconds
-            else
-                thintime = 59; // every minute
-        };
 
         /* Initialize progress bar. */
         void initialize(const std::string &text)
@@ -701,7 +686,7 @@ namespace progress
 
                 std::ostringstream oss;
                 oss << text << " |" << std::string(barwidth, ' ') << "| "
-                    << tools::percentage(0., 0); // << " 0s<?";
+                    << tools::percentage(0., 0);
                 display(oss.str());
 
                 start = steady_clock::now();
@@ -737,8 +722,6 @@ namespace progress
 
                     lastprint = steady_clock::now();
                 }
-
-                adapt_thintime(missing.count());
             }
 
             ++state;
