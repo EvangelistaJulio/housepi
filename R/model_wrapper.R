@@ -151,6 +151,46 @@ HousepiWrapper <- R6::R6Class(
 
   public = list(
     # @description
+    # Find dataset headers required by the model.
+    #
+    # @param refer_file
+    # Path/to/.refer source file.
+    require_dataset = function() {
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # from : .data(, "string" or augm(, 'string'
+        '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+      )
+
+      # retrieve required data headers from regular expressions
+      refer_file <- self$reference
+      return(template_find_requirement(refer_file, regular_expr))
+    },
+
+    # @description
+    # Assert if dataset headers match implementation file.
+    #
+    # @param data_headers `character()`\cr
+    # Vector with the dataset headers.
+    # @param requirements `character()`\cr
+    # Vector containing required parameters.
+    assert_data = function(data_headers,
+                           requirements) {
+      # find missing data headers
+      missing_set <- template_find_missing(requirements,
+                                           data_headers)
+      if (length(missing_set) > 0) {
+        stop_h(
+          sprintf("Missing dataset header%s for:",
+                  ifelse(length(missing_set) > 1, "s", "")),
+          character_to_string_list(missing_set)
+        )
+      }
+
+      invisible(self)
+    },
+
+    # @description
     # Wrapper of the Rcpp import_dataset method.
     #
     # @param dataset `data.frame`\cr

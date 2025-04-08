@@ -304,48 +304,39 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    #'
-    #' @return
-    #' `logical(1)`)
+    #' @param drop_unused `logical()`\cr
+    #' If `TRUE` drops unused parameters. Default is `FALSE`.
     assert = function(requirements) {
-      # logical state for complete definitions
-      is_def_complete <- TRUE
+      defined <- self$defs[["name"]]
+      # unique and ordered set of parameters
+      requirements <- unique(requirements[order(requirements)])
+      defined <- unique(defined[order(defined)])
 
-      if (length(requirements) == 0) {
-        # if requirement set is NULL it means nothing can be said
-        is_def_complete <- NA
-
-      } else {
-        # unique and ordered set of parameters
-        requirements <- unique(requirements[order(requirements)])
-
-        # find missing parameters
-        missing_set <- template_find_missing(requirements,
-                                             self$defs[["name"]])
-        if (length(missing_set) > 0) {
-          is_def_complete <- FALSE
-          warning_h(
-            "Missing parameter(s):",
-            character_to_string_list(missing_set)
-          )
-        }
-
-        # point out parameters that are not used
-        unused_set <- template_find_unused(requirements,
-                                           self$defs[["name"]])
-        # drop unused parameters
-        if (length(unused_set) > 0) {
-          warning_h(
-            "Dropping not used parameter(s):",
-            character_to_string_list(unused_set)
-          )
-          for (name in unused_set) {
-            self$remove(name)
-          }
+      # point out parameters that are not used
+      unused_set <- template_find_unused(requirements, defined)
+      # drop unused parameters
+      if (length(unused_set) > 0) {
+        warning_h(
+          sprintf("Dropping unused parameter definition%s for:",
+                  ifelse(length(unused_set) > 1, "s", "")),
+          character_to_string_list(unused_set)
+        )
+        for (name in unused_set) {
+          self$remove(name)
         }
       }
 
-      return(is_def_complete)
+      # find missing parameters
+      missing_set <- template_find_missing(requirements, defined)
+      if (length(missing_set) > 0) {
+        stop_h(
+          sprintf("Missing parameter definition%s for:",
+                  ifelse(length(missing_set) > 1, "s", "")),
+          character_to_string_list(missing_set)
+        )
+      }
+
+      invisible(self)
     }
   )
 )

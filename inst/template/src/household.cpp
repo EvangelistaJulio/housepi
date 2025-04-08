@@ -399,12 +399,12 @@ void Household::restore_all_extra()
 
 //----- Extra integer vector -----//
 void Household::allocate_extra_integer_vector(const extraID &e) { extra_int_vec[e] = int_vec(size(), 0); }
-int_vec &Household::extra_integer_vector(const extraID &e) { return extra_int_vec[e]; }
+int_vec &Household::extra_integer_vector(const extraID &e) { return extra_int_vec.at(e); }
 
 //----- Extra double vector -----//
 void Household::allocate_extra_double_vector(const extraID &e) { extra_dbl_vec[e] = dbl_vec(size(), 0.); }
-dbl_vec &Household::extra_double_vector(const extraID &e) { return extra_dbl_vec[e]; }
+dbl_vec &Household::extra_double_vector(const extraID &e) { return extra_dbl_vec.at(e); }
 
 //----- Extra double matrix -----//
 void Household::allocate_extra_double_matrix(const extraID &e) { extra_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-matrix<double> &Household::extra_double_matrix(const extraID &e) { return extra_dbl_mtx[e]; }
+matrix<double> &Household::extra_double_matrix(const extraID &e) { return extra_dbl_mtx.at(e); }

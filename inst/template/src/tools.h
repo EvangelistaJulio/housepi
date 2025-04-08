@@ -211,9 +211,11 @@ namespace tools
 
     // print warnings to stderr
     void warning(const std::string &txt);
+    void warning(const std::vector<std::string> &txt);
 
     // print error message to stderr
     void error(const std::string &txt);
+    void error(const std::vector<std::string> &txt);
 
     // convert to upper\lower case
     const std::string stolower(const std::string s);

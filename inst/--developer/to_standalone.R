@@ -1,8 +1,8 @@
 
+# path to standalone
+outpath <- "../household-epidemics/inst/standalone/"
 
-standalone_path <- "../household-epidemics/inst/standalone/"
-
-developer_export_to_standalone <- function(hhmodel, standalone_path) {
+developer_export_to_standalone <- function(hhmodel, outpath) {
   write.csv(hhmodel$dataset,
             file.path(outpath, "data.tmp"),
             quote = FALSE, row.names = FALSE)

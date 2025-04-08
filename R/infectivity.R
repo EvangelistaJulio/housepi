@@ -29,7 +29,7 @@ HousepiInfecProfile <- R6::R6Class(
   active = list(
     #' @description
     #' Find parameters required by infectivity profile variable definition.
-    param_require = function(value) {
+    param_required = function(value) {
       if (missing(value)) {
         required_param_set <- c()
         if (is.list(self$defs) && (length(self$defs) > 0)) {
@@ -44,7 +44,7 @@ HousepiInfecProfile <- R6::R6Class(
         }
         return(required_param_set)
       }
-      stop_h("'param_require' is read only.")
+      stop_h("'param_required' is read only.")
     }
   ),
 

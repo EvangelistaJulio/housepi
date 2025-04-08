@@ -21,7 +21,7 @@ HousepiAugmented <- R6::R6Class(
 
   private = list(
     # from : augmented variable model argument definitions
-    .find_def_require = function(key) {
+    .find_def_required = function(key) {
       required_set <- c()
       if (length(self$defs) > 0) {
         x <- self$defs[c("arg_value", "arg_at")]
@@ -50,20 +50,20 @@ HousepiAugmented <- R6::R6Class(
   active = list(
     #' @description
     #' Find parameters required by augmented variable definitions.
-    param_require = function(value) {
+    param_required = function(value) {
       if (missing(value)) {
-        return(private$.find_def_require("P"))
+        return(private$.find_def_required("P"))
       }
-      stop_h("'param_require' is read only.")
+      stop_h("'param_required' is read only.")
     },
 
     #' @description
     #' Find data required by augmented variable definitions.
-    data_require = function(value) {
+    data_required = function(value) {
       if (missing(value)) {
-        return(private$.find_def_require("D"))
+        return(private$.find_def_required("D"))
       }
-      stop_h("'data_require' is read only.")
+      stop_h("'data_required' is read only.")
     }
   ),
 
@@ -458,47 +458,37 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    #'
-    #' @return `logical(1)`\cr
     assert = function(requirements) {
-      # logical state for complete definitions
-      is_def_complete <- TRUE
+      defined <- self$defs[["name"]]
+      # unique and ordered set of parameters
+      requirements <- unique(requirements[order(requirements)])
+      defined <- unique(defined[order(defined)])
 
-      if (length(requirements) == 0) {
-        # if requirement set is NULL it means nothing can be said
-        is_def_complete <- NA
-
-      } else {
-        # find missing augmented variables
-        missing_set <- template_find_missing(requirements,
-                                             self$defs[["name"]])
-
-        if (length(missing_set) > 0) {
-          is_def_complete <- FALSE
-          warning_h(
-            "Missing augmented variable(s):",
-            character_to_string_list(missing_set)
-          )
-        }
-
-        # point out augmented variables that are not used
-        unused_set <- template_find_unused(requirements,
-                                           self$defs[["name"]])
-
-        # drop unused augmented variables
-        if (length(unused_set) > 0) {
-          warning_h(
-            "Dropping not used augmented variable(s):",
-            character_to_string_list(unused_set)
-          )
-
-          for (name in unused_set) {
-            self$remove(name)
-          }
+      # point out augmented variables that are not used
+      unused_set <- template_find_unused(requirements, defined)
+      # drop unused augmented variables
+      if (length(unused_set) > 0) {
+        warning_h(
+          sprintf("Dropping unused augmented variable definition%s for:",
+                  ifelse(length(unused_set) > 1, "s", "")),
+          character_to_string_list(unused_set)
+        )
+        for (name in unused_set) {
+          self$remove(name)
         }
       }
 
-      return(is_def_complete)
+      # find missing augmented variables
+      missing_set <- template_find_missing(requirements, defined)
+      if (length(missing_set) > 0) {
+        stop_h(
+          sprintf("Missing augmented variable definition%s for:",
+                  ifelse(length(missing_set) > 1, "s", "")),
+          character_to_string_list(missing_set)
+        )
+      }
+
+      invisible(self)
     }
   )
 )

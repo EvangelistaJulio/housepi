@@ -28,6 +28,84 @@ HousepiGenerator <- R6::R6Class(
     .rcpp = NULL,
 
     # @description
+    # Assert source files exist.
+    #
+    # @param source_dir `character(1)`\cr
+    # The path to source code
+    .assert_source_files = function(source_dir) {
+      for (file_name in source_files(source_dir)) {
+        if (!file.exists(file_name)) {
+          stop_h(
+            sprintf("File \"%s\" was not found.", file_name),
+            "Check your model directory."
+          )
+        }
+      }
+      invisible(self)
+    },
+
+    # @description
+    # Assert extra allocations in source code match calls.
+    #
+    # @param source_dir `character(1)`\cr
+    # The path to source code
+    .assert_extra = function(source_dir) {
+      # use source file as a reference
+      refer_file <- file.path(source_dir, "model.cpp")
+
+      # dictionary of allocate\call functions
+      checks <- list(
+        "allocate_extra_house_integer_vector" = ".extra_integer_vector",
+        "allocate_extra_house_double_vector" = ".extra_double_vector",
+        "allocate_extra_house_double_matrix" = ".extra_double_matrix"
+      )
+
+      missing_set <- c()
+      unused_set <- c()
+      for (i in seq_along(checks)) {
+        # regular expression
+        reg <- '%s\\s*\\(\\s*["\'](.*?)["\']'
+        # .extra_<type>("string")
+        reg_called <- sprintf(reg, checks[[i]])
+        # allocate_extra_house_<type>("string")
+        reg_allocated <- sprintf(reg, names(checks)[[i]])
+
+        # set of extra variables
+        requirements <- template_find_requirement(refer_file, reg_called)
+        defined <- template_find_requirement(refer_file, reg_allocated)
+        # unique and ordered set of extra variables
+        requirements <- unique(requirements[order(requirements)])
+        defined <- unique(defined[order(defined)])
+
+        # point out extra variables
+        unused_set <- c(unused_set,
+                        template_find_unused(requirements, defined))
+        # find missing extra variables
+        missing_set <- c(missing_set,
+                         template_find_missing(requirements, defined))
+      }
+
+      # warn for unused extra variables
+      if (length(unused_set) > 0) {
+        warning_h(
+          sprintf("Allocated extra variable%s not used in the model:",
+                  ifelse(length(unused_set) > 1, "s", "")),
+          character_to_string_list(unused_set)
+        )
+      }
+      # error for not allocated extra variables
+      if (length(missing_set) > 0) {
+        stop_h(
+          sprintf("Missing allocation for extra variable%s in the model:",
+                  ifelse(length(missing_set) > 1, "s", "")),
+          character_to_string_list(missing_set)
+        )
+      }
+
+      invisible(self)
+    },
+
+    # @description
     # Initialize a new custom model.
     #
     # @param source_dir `character(1)`\cr
@@ -103,7 +181,10 @@ HousepiGenerator <- R6::R6Class(
           private$.dll <- file.path(private$.cache_dir,
                                     dll_file_ext(random_name(source_dir)))
         }
+        # source directory must contain source files
+        private$.assert_source_files(source_dir)
         # organize cache directory to perform compilation
+        private$.assert_extra(source_dir)
         private$.copy_source_code(source_dir)
       }
     },
@@ -143,9 +224,6 @@ HousepiGenerator <- R6::R6Class(
     # The path to source code.
     .copy_source_code = function(source_dir) {
 
-      # source directory must contain source files
-      assert_source_files(source_dir)
-
       # clean all previous file in the cache
       unlink(list.files(private$.cache_dir, full.names = TRUE),
              recursive = TRUE)
@@ -182,20 +260,6 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Return new instance of Rcpp Model.
-    .new_rcpp_model = function() {
-
-      # load dynamic library
-      dyn.load(private$.dll)
-
-      # expose internally the module
-      package <- tools::file_path_sans_ext(basename(private$.dll))
-      m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
-
-      return(m$ModelHousepi$new())
-    },
-
-    # @description
     # Compile and load the source files inside cached directory.
     # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
     # To avoid recompiling immutable files I just touch them.
@@ -211,7 +275,7 @@ HousepiGenerator <- R6::R6Class(
       for (f in list.files(file.path(cache_dir_src), full.names = TRUE)) {
         Sys.setFileTime(f, touch_time)
       }
-      # touch as if more recent the source model file
+      # touch as source model file was more recent
       Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
 
       # compile the dynamic library
@@ -225,6 +289,20 @@ HousepiGenerator <- R6::R6Class(
       overwrite(from_file, private$.dll)
 
       invisible(self)
+    },
+
+    # @description
+    # Return new instance of Rcpp Model.
+    .new_rcpp_model = function() {
+
+      # load dynamic library
+      dyn.load(private$.dll)
+
+      # expose internally the module
+      package <- tools::file_path_sans_ext(basename(private$.dll))
+      m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
+
+      return(m$ModelHousepi$new())
     },
 
     # @description
@@ -346,7 +424,7 @@ HousepiGenerator <- R6::R6Class(
     initialize = function(model_choice,
                           as_template = FALSE,
                           force = FALSE,
-                          quiet_pkgbuild = TRUE) {
+                          quiet_pkgbuild = FALSE) {
       # assign quiet_pkgbuild field
       private$.quiet_pkgbuild <- isTRUE(quiet_pkgbuild)
 
@@ -357,14 +435,8 @@ HousepiGenerator <- R6::R6Class(
                                   "template", "src",
                                   dll_file_ext("housepienvironment"))
 
-      } else if (model_choice %in% list.files(template_models_dir())) {
-        #===== Plain Template Model Name =====#
-        private$.name <- model_choice
-        source_dir <- file.path(template_models_dir(), model_choice)
-        private$.dll <- template_dll_file(source_dir)
-
       } else if (model_choice %in% list(".")) {
-        # prohibit current directory
+        # prohibit directories
         stop_h(
           sprintf("Invalid folder name \"%s\" for housepi model.",
                   model_choice),
@@ -376,6 +448,12 @@ HousepiGenerator <- R6::R6Class(
         private$.name <- basename(model_choice)
         private$.dll <- template_dll_file(model_choice)
         private$.new_custom_model(model_choice, as_template, force)
+
+      } else if (model_choice %in% list.files(template_models_dir())) {
+        #===== Plain Template Model Name =====#
+        private$.name <- model_choice
+        source_dir <- file.path(template_models_dir(), model_choice)
+        private$.dll <- template_dll_file(source_dir)
 
       } else {
         #===== Error =====#

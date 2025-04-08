@@ -38,14 +38,17 @@ Parameter formatted definitions.}
 \item{\code{augm_defs}}{\code{data.frame}\cr
 Augmented variable formatted definitions.}
 
+\item{\code{infec_profile_defs}}{\code{list}\cr
+Infectivity profile definition list.}
+
+\item{\code{house_loglike_mtx}}{\code{matrix()}\cr
+Traces of household loglikelihoods.}
+
 \item{\code{traces}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
 Traces of last inference.}
 
 \item{\code{traces_no_loglike}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
 Traces of last inference without loglikelihood.}
-
-\item{\code{traces_as_coda}}{\code{coda::mcmc} | \code{coda::mcmc.list}\cr
-Traces of last inference as a \code{coda} object.}
 
 \item{\code{traces_results}}{\code{data.frame}\cr
 Results extracted from the traces of last inference.}
@@ -63,8 +66,6 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-drop_group_rate_defs}{\code{HouseholdModel$drop_group_rate_defs()}}
 \item \href{#method-HouseholdModel-drop_all}{\code{HouseholdModel$drop_all()}}
 \item \href{#method-HouseholdModel-import_dataset}{\code{HouseholdModel$import_dataset()}}
-\item \href{#method-HouseholdModel-show_summary}{\code{HouseholdModel$show_summary()}}
-\item \href{#method-HouseholdModel-show_house_size_summary}{\code{HouseholdModel$show_house_size_summary()}}
 \item \href{#method-HouseholdModel-add_param}{\code{HouseholdModel$add_param()}}
 \item \href{#method-HouseholdModel-load_param_list}{\code{HouseholdModel$load_param_list()}}
 \item \href{#method-HouseholdModel-load_param_template}{\code{HouseholdModel$load_param_template()}}
@@ -72,16 +73,13 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-load_augm_list}{\code{HouseholdModel$load_augm_list()}}
 \item \href{#method-HouseholdModel-load_augm_template}{\code{HouseholdModel$load_augm_template()}}
 \item \href{#method-HouseholdModel-add_group_rate}{\code{HouseholdModel$add_group_rate()}}
-\item \href{#method-HouseholdModel-add_infectivity_profile}{\code{HouseholdModel$add_infectivity_profile()}}
-\item \href{#method-HouseholdModel-export_infectivity_profile}{\code{HouseholdModel$export_infectivity_profile()}}
+\item \href{#method-HouseholdModel-add_infec_profile}{\code{HouseholdModel$add_infec_profile()}}
+\item \href{#method-HouseholdModel-showcase_infec_profile}{\code{HouseholdModel$showcase_infec_profile()}}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
 \item \href{#method-HouseholdModel-simulate}{\code{HouseholdModel$simulate()}}
 \item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
 \item \href{#method-HouseholdModel-loglikelihood}{\code{HouseholdModel$loglikelihood()}}
 \item \href{#method-HouseholdModel-evidence}{\code{HouseholdModel$evidence()}}
-\item \href{#method-HouseholdModel-rhat}{\code{HouseholdModel$rhat()}}
-\item \href{#method-HouseholdModel-loo}{\code{HouseholdModel$loo()}}
-\item \href{#method-HouseholdModel-waic}{\code{HouseholdModel$waic()}}
 \item \href{#method-HouseholdModel-clone}{\code{HouseholdModel$clone()}}
 }
 }
@@ -95,7 +93,7 @@ New instance of class
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$new(
   model = NA,
   force = FALSE,
-  quiet_pkgbuild = TRUE,
+  quiet_pkgbuild = FALSE,
   as_template = FALSE
 )}\if{html}{\out{</div>}}
 }
@@ -204,50 +202,6 @@ A data.frame containing the dataset with individual information by row.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-show_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-show_summary}{}}}
-\subsection{Method \code{show_summary()}}{
-Show formatted summary of loaded dataset.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$show_summary(pct_format = "\%.1f\%\%")}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{pct_format}}{\code{character(1)}\cr
-Formatting string for the percentage passed to \code{sprintf}.
-It expects 1 double value (fraction).}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{flextable}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-show_house_size_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-show_house_size_summary}{}}}
-\subsection{Method \code{show_house_size_summary()}}{
-Show formatted summary of housheold sizes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$show_house_size_summary(pct_format = "\%.1f\%\%")}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{pct_format}}{\code{character(1)}\cr
-Formatting string for the percentage passed to \code{sprintf}.
-It expects 1 double value (fraction).}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{flextable}
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-add_param"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-add_param}{}}}
 \subsection{Method \code{add_param()}}{
@@ -310,7 +264,7 @@ Value of the maximum.}
 \subsection{Method \code{load_param_list()}}{
 Associate parameters from a list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_param_list(..., from = NA, append = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_param_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -322,8 +276,8 @@ Associate parameters from a list.
 Named list of parameter definitions.}
 
 \item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends the list to current definition (default).
-If \code{FALSE} drop all other parameter definitions.}
+If \code{TRUE} appends to current augmented variable definitions.
+If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -334,15 +288,15 @@ If \code{FALSE} drop all other parameter definitions.}
 \subsection{Method \code{load_param_template()}}{
 Load parameter definitions from model template.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_param_template(append = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_param_template(append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} append only missing definitions (default).
-Else drop all previous definitions.}
+If \code{TRUE} append missing parameter definitions.
+If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -438,7 +392,7 @@ Advanced options for non random walk moves.
 \subsection{Method \code{load_augm_list()}}{
 Associate augmented variables from a list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_augm_list(..., from = NA, append = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_augm_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -450,8 +404,8 @@ Associate augmented variables from a list.
 Named list of augmented variable definitions.}
 
 \item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends the list to current definition (default).
-Else drop all other augmented variable definitions.}
+If \code{TRUE} appends to current augmented variable definitions.
+If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -462,14 +416,14 @@ Else drop all other augmented variable definitions.}
 \subsection{Method \code{load_augm_template()}}{
 Load augmented variables from template definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_augm_template(append = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_augm_template(append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{If \code{TRUE} append only missing definitions (default).
-Else drop all previous definitions.}
+\item{\code{append}}{If \code{TRUE} append missing augmented variable definitions.
+If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -542,12 +496,12 @@ Value of the maximum.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-add_infectivity_profile"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-add_infectivity_profile}{}}}
-\subsection{Method \code{add_infectivity_profile()}}{
+\if{html}{\out{<a id="method-HouseholdModel-add_infec_profile"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-add_infec_profile}{}}}
+\subsection{Method \code{add_infec_profile()}}{
 Add definition of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_infectivity_profile(
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_infec_profile(
   name,
   discrete = FALSE,
   args = list(),
@@ -586,12 +540,12 @@ One between:
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-export_infectivity_profile"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-export_infectivity_profile}{}}}
-\subsection{Method \code{export_infectivity_profile()}}{
-Export instantaneous and cumulative values of the infectivity profile.
+\if{html}{\out{<a id="method-HouseholdModel-showcase_infec_profile"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-showcase_infec_profile}{}}}
+\subsection{Method \code{showcase_infec_profile()}}{
+Showcase instantaneous and cumulative values of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$export_infectivity_profile(opts = list(), n_bins = 2500)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(opts = list(), n_bins = 2000)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -699,7 +653,8 @@ Seed of the random number generator.
 If \code{NA} uses the internal clock (default).}
 
 \item{\code{progress}}{\code{logical(1)}\cr
-If \code{FALSE} suppress the simulation progress bar.}
+If \code{TRUE} show the simulation progress bar.
+Default is \code{FALSE}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -743,7 +698,7 @@ containing method to compare observed and expected cases.
 \subsection{Method \code{loglikelihood()}}{
 Evaluate the loglikelihood for the given parameters.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$loglikelihood(dataset = NULL, n_threads = 1)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$loglikelihood(dataset = NULL, seed = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -752,8 +707,9 @@ Evaluate the loglikelihood for the given parameters.
 \item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset.}
 
-\item{\code{n_threads}}{\code{integer(1)}\cr
-Number of threads for the parallelization of the loglikelihood.}
+\item{\code{seed}}{\code{integer(1)}\cr
+Seed of the random number generator.
+If \code{NA} uses the internal clock (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -770,10 +726,10 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$evidence(
   dataset = NULL,
-  scheme = "adaptive",
+  scheme = "power-fractions",
   n_rungs = 40,
   sample_size = NA,
-  n_steps = 1000,
+  n_steps = 10000,
   n_burnin = 0,
   thin = 1,
   n_adapt = 0,
@@ -791,8 +747,8 @@ It uses the method of power posteriors with different available schemes.
 A data.frame containing the dataset.}
 
 \item{\code{scheme}}{\code{character(1)}\cr
-If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
-Other available scheme is "power-fractions".}
+Default scheme is "power-fractions" with inverse temperatures (r / n_rungs)^5.
+If "adaptive" uses adaptive scheme for thermodynamic ladder.}
 
 \item{\code{n_rungs}}{\code{integer(1)}\cr
 Number of rungs in the thermodynamic ladder.}
@@ -829,65 +785,6 @@ If \code{FALSE} suppress the simulation progress bar.}
 }
 \subsection{Returns}{
 \code{double(1)}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-rhat"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-rhat}{}}}
-\subsection{Method \code{rhat()}}{
-Use rstan package to compute R-hat convergence diagnostic.
-For further details type ?rstan::Rhat.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$rhat()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-named \code{vector()}
-Value of the Rhat for each parameter.
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-loo"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-loo}{}}}
-\subsection{Method \code{loo()}}{
-Use loo package to compute the leave-one-out cross-validation.
-For further details type ?loo::loo.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$loo(...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Arguments passed to \link[loo:loo]{loo}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-names \code{list()}\cr
-Output of S3 method loo(matrix).
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-waic"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-waic}{}}}
-\subsection{Method \code{waic()}}{
-Use loo package to compute the widely applicable information criterion.
-For further details type ?loo::waic.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$waic(...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Arguments passed to \link[loo:waic]{waic}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-names \code{list()}\cr
-Output of S3 method waic(matrix).
 }
 }
 \if{html}{\out{<hr>}}

@@ -74,8 +74,8 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While importing setup definitions: " + std::string(e.what()));
+        tools::error({"While importing setup definitions:",
+                      std::string(e.what())});
     }
     build_setup();
     if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
@@ -91,8 +91,8 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While importing infectivity profile definitions: " + std::string(e.what()));
+        tools::error({"While importing infectivity profile definitions:",
+                      std::string(e.what())});
     }
     _infec_.build();
     if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
@@ -108,8 +108,8 @@ void MCMC::Impl::import_parameter(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading parameter definitions: " + std::string(e.what()));
+        tools::error({"While reading parameter definitions:",
+                      std::string(e.what())});
     }
     build_params();
     if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
@@ -125,8 +125,8 @@ void MCMC::Impl::import_augmented(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading augmented definitions: " + std::string(e.what()));
+        tools::error({"While reading augmented definitions:",
+                      std::string(e.what())});
     }
     build_augm();
     if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
@@ -144,8 +144,8 @@ void MCMC::Impl::import_dataset(const Rcpp::DataFrame &data)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading dataset: " + std::string(e.what()));
+        tools::error({"While reading dataset:",
+                      std::string(e.what())});
     }
     build_data(datatable);
     if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
@@ -234,8 +234,8 @@ Rcpp::DataFrame MCMC::Impl::export_parameter() const
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting parameter definitions: " + std::string(e.what()));
+        tools::error({"While exporting parameter definitions:",
+                      std::string(e.what())});
     }
     return DataFrame();
 }
@@ -293,8 +293,8 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting dataset: " + std::string(e.what()));
+        tools::error({"While exporting dataset:",
+                      std::string(e.what())});
     }
     return DataFrame();
 }
@@ -344,8 +344,8 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting dataset report: " + std::string(e.what()));
+        tools::error({"While exporting dataset report:",
+                      std::string(e.what())});
     }
     return DataFrame();
 }
@@ -379,8 +379,8 @@ Rcpp::DataFrame MCMC::Impl::export_house_size_report() const
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting household size report: " + std::string(e.what()));
+        tools::error({"While exporting household size report:",
+                      std::string(e.what())});
     }
     return DataFrame();
 }
@@ -454,8 +454,8 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting MCMC traces: " + std::string(e.what()));
+        tools::error({"While exporting MCMC traces:",
+                      std::string(e.what())});
     }
     return NumericMatrix();
 }
@@ -468,8 +468,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
     try
     {
         if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
-            tools::error(
-                "No traces to export were found.");
+            tools::error("No traces to export were found.");
 
         // Create a NumericMatrix with n_house columns
         ulong sample_size = setup_n_chains * setup_c_sample_size;
@@ -497,8 +496,8 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting household loglikelihood matrix: " + std::string(e.what()));
+        tools::error({"While exporting household loglikelihood matrix:",
+                      std::string(e.what())});
     }
     return NumericMatrix();
 }
@@ -560,8 +559,8 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While exporting infectivity profile: " + std::string(e.what()));
+        tools::error({"While exporting infectivity profile:",
+                      std::string(e.what())});
     }
     return List();
 }
@@ -624,8 +623,8 @@ void MCMC::Impl::read_setup(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading setup definitions: " + std::string(e.what()));
+        tools::error({"While reading setup definitions:",
+                      std::string(e.what())});
     }
     build_setup();
     _report_pathtofile_["setup"] = f;
@@ -640,8 +639,8 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading infectivity profile definitions: " + std::string(e.what()));
+        tools::error({"While reading infectivity profile definitions:",
+                      std::string(e.what())});
     }
     _infec_.build();
     _report_pathtofile_["infec_profile"] = f;
@@ -656,8 +655,8 @@ void MCMC::Impl::read_params(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading parameter definitions: " + std::string(e.what()));
+        tools::error({"While reading parameter definitions:",
+                      std::string(e.what())});
     }
     build_params();
     _report_pathtofile_["params"] = f;
@@ -672,8 +671,8 @@ void MCMC::Impl::read_augm(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading augmented definitions: " + std::string(e.what()));
+        tools::error({"While reading augmented definitions:",
+                      std::string(e.what())});
     }
     build_augm();
     _report_pathtofile_["augm"] = f;
@@ -689,8 +688,8 @@ void MCMC::Impl::read_data(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While reading dataset: " + std::string(e.what()));
+        tools::error({"While reading dataset:",
+                      std::string(e.what())});
     }
     build_data(datatable);
     _report_pathtofile_["data"] = f;

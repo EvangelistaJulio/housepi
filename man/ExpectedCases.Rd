@@ -11,6 +11,10 @@ Output object from expected cases by size.
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
 \item{\code{sar}}{\code{data.frame}\cr
+Observed and expected secondary attack rates by household size.
+If a maximum house size is set, larger sizes are not returned.}
+
+\item{\code{cases_table}}{\code{data.frame}\cr
 Observed and expected cases by household size.
 If a maximum house size is set, larger sizes are not returned.}
 }
@@ -24,8 +28,6 @@ If a maximum house size is set, larger sizes are not returned.}
 \item \href{#method-ExpectedCases-set_max_house_size}{\code{ExpectedCases$set_max_house_size()}}
 \item \href{#method-ExpectedCases-drop_max_house_size}{\code{ExpectedCases$drop_max_house_size()}}
 \item \href{#method-ExpectedCases-chisq_test}{\code{ExpectedCases$chisq_test()}}
-\item \href{#method-ExpectedCases-plot_sar}{\code{ExpectedCases$plot_sar()}}
-\item \href{#method-ExpectedCases-show_cases_table}{\code{ExpectedCases$show_cases_table()}}
 \item \href{#method-ExpectedCases-clone}{\code{ExpectedCases$clone()}}
 }
 }
@@ -100,60 +102,19 @@ Restore maximum household size to observed maximum.
 \subsection{Method \code{chisq_test()}}{
 Perform Chi-squared test and return list with results.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ExpectedCases$chisq_test(lower.tail = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ExpectedCases$chisq_test(lower_tail = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{lower.tail}}{\code{logical(1)}\cr
+\item{\code{lower_tail}}{\code{logical(1)}\cr
 if TRUE (default), probabilities are P\link{X<=x}, otherwise P\link{X>x}.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
 \code{list()})
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ExpectedCases-plot_sar"></a>}}
-\if{latex}{\out{\hypertarget{method-ExpectedCases-plot_sar}{}}}
-\subsection{Method \code{plot_sar()}}{
-Plot observed vs expected secondary attack rates.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ExpectedCases$plot_sar()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-\code{ggplot} object)
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ExpectedCases-show_cases_table"></a>}}
-\if{latex}{\out{\hypertarget{method-ExpectedCases-show_cases_table}{}}}
-\subsection{Method \code{show_cases_table()}}{
-Return a \code{flextable} combining observed and expected cases by size.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ExpectedCases$show_cases_table(
-  show_chisq = FALSE,
-  cri_format = "\%.0f [\%.0f, \%.0f]"
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{show_chisq}}{\verb{\\logical(1)}\cr
-Whether to show footer with Chi-squared test.}
-
-\item{\code{cri_format}}{\code{character(1)}\cr
-Formatting string for the credible interval passed to \code{sprintf}.
-It expects 3 double values (mean, CRI lower and CRI upper).}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{flextable}
 }
 }
 \if{html}{\out{<hr>}}

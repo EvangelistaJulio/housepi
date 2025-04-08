@@ -192,7 +192,7 @@ private:
 	std::unique_ptr<Impl> pImpl;
 
 	//----- Error ----//
-	std::string _error_message_ = "";
+	std::vector<std::string> _error_message_ = {};
 
 	//----- Group & Contact Rateas -----//
 	rateIDmapvec<parID> _individual_group_rates_ = {};

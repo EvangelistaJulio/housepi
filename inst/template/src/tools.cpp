@@ -133,7 +133,7 @@ namespace tools
     //////////////////////////////////////  Warning Functions  //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Raise a warning. */
+    /* Display a single-line warning message. */
     void warning(const std::string &txt)
     {
         if (_issued_warnings_.find(txt) == _issued_warnings_.end())
@@ -148,21 +148,38 @@ namespace tools
         }
     }
 
+    /* Display a multi-line warning message. */
+    void warning(const std::vector<std::string> &txt_vec)
+    {
+        std::string merged = txt_vec[0];
+        for (size_t i = 1; i < txt_vec.size(); ++i)
+            merged += "\n" + txt_vec[i];
+        warning(merged);
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Error Functions  ////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Display an error message. */
+    /* Display a single-line error message. */
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
-        // Rcpp::stop(txt);
-        throw Rcpp::exception(txt.c_str(), false);
+        throw Rcpp::exception(txt.c_str(), false); // Rcpp::stop(txt);
 #else
         std::cerr << "\nError: " + txt + "\nExit...\n"
                   << std::endl;
         std::exit(EXIT_FAILURE);
 #endif
+    }
+
+    /* Display a multin-line error message. */
+    void error(const std::vector<std::string> &txt_vec)
+    {
+        std::string merged = txt_vec[0];
+        for (size_t i = 1; i < txt_vec.size(); ++i)
+            merged += "\n" + txt_vec[i];
+        error(merged);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

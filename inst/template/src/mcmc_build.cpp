@@ -16,6 +16,18 @@
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC::Impl : constructor  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+MCMC::Impl::Impl() : _uniform_distr_(0., 1.), _infec_(*this)
+{
+    // seed of random number generator
+    auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
+    setup_seed = static_cast<ulong>(time_now);
+}
+MCMC::Impl::~Impl() = default;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC::Impl : methods (getter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -40,27 +52,6 @@ void MCMC::Impl::build_setup()
 {
     try
     {
-        //===== DEFAULT SETUP VALUES =====//
-        auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-
-        setup_seed = static_cast<ulong>(time_now); // seed of random number generator
-        setup_rand_init_params = true;             // random initialization of parameters
-        setup_progress = true;                     // if to show progressbar
-
-        setup_n_chains = 1;    // n. chains
-        setup_n_steps = 10000; // n. iterations
-        setup_n_adapt = 0;     // n. (finite) adaptive steps
-        setup_thin = 1;        // n. thinning iterations
-        setup_n_burnin = 0;    // n. burnin iterations
-
-        setup_c_sample_size = 0; // single chain sample size
-        setup_c_n_sweeps = 0;    // single chain n. of sweeps
-
-        setup_inv_T = 1.0;   // inverse temperature
-        setup_n_threads = 1; // number of OMP threads
-
-        setup_id_trace = NULL_STRING; // augmented trace to save
-
         // reference to definition list
         const dict_str_str &deflist = _setup_deflist_;
 
@@ -132,8 +123,8 @@ void MCMC::Impl::build_setup()
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While building setup definitions: " + std::string(e.what()));
+        tools::error({"While building setup definitions:",
+                      std::string(e.what())});
     }
 }
 
@@ -313,8 +304,8 @@ void MCMC::Impl::build_params()
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While building parameter definitions: " + std::string(e.what()));
+        tools::error({"While building parameter definitions:",
+                      std::string(e.what())});
     }
 }
 
@@ -733,8 +724,8 @@ void MCMC::Impl::build_augm()
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While building augmented variable definitions: " + std::string(e.what()));
+        tools::error({"While building augmented variable definitions:",
+                      std::string(e.what())});
     }
 }
 
@@ -833,8 +824,8 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While initializing augmented variables: " + std::string(e.what()));
+        tools::error({"While initializing augmented variables:",
+                      std::string(e.what())});
     }
 }
 
@@ -1191,8 +1182,8 @@ void MCMC::Impl::build_data(const dict_str_vec &datatable)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While initializing dataset: " + std::string(e.what()));
+        tools::error({"While initializing dataset:",
+                      std::string(e.what())});
     }
 }
 

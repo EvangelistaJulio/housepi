@@ -21,7 +21,7 @@
 void Model::init_model_for_inference()
 {
 	tools::warning(
-		"Computing the likelihood with \"blank\" model.");
+		"Computing loglikelihood with \"blank\" model.");
 }
 
 /* Raise error when "blank" model. */

@@ -124,8 +124,8 @@ void MCMC::build_all_rates()
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While building group and contact rates: " + std::string(e.what()));
+        tools::error({"While building group and contact rates:",
+                      std::string(e.what())});
     }
 }
 
@@ -266,7 +266,7 @@ void MCMC::update_global_loglike(const bool extra_depen)
 
     // buffer infectivity profile if lookup tables are active
     if (extra_depen)
-        pImpl->update_infec_profile(); 
+        pImpl->update_infec_profile();
 
 #pragma omp parallel for reduction(+ : new_ll)
     for (ulong H = 0; H < n_houses(); ++H)
@@ -297,7 +297,8 @@ void MCMC::update_global_loglike(const bool extra_depen)
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    _error_message_ = "While computing likelihood for household " + get_household(H).house_id() + ": " + e.what();
+                    _error_message_ = {"While computing loglikelihood for house " + get_household(H).house_id() + ":",
+                                       std::string(e.what())};
             }
         }
     }
@@ -332,7 +333,8 @@ void MCMC::move_all_augm()
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    _error_message_ = "While moving augmented variables in household " + get_household(H).house_id() + ": " + e.what();
+                    _error_message_ = {"While moving augmented variables in house " + get_household(H).house_id() + ":",
+                                       std::string(e.what())};
             }
         }
     }
@@ -875,8 +877,8 @@ Rcpp::DataFrame MCMC::simulate()
             }
             catch (const std::exception &e)
             {
-                _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
-                throw std::runtime_error(_error_message_);
+                tools::error({"While simulating house " + get_household(H).house_id() + " :",
+                              e.what()});
             }
 
         // close progress bar
@@ -935,8 +937,8 @@ Rcpp::List MCMC::estimate_evidence(const std::string &scheme,
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While estimating evidence with power posteriors: " + std::string(e.what()));
+        tools::error({"While estimating evidence with power posteriors:",
+                      std::string(e.what())});
     }
     return List();
 }
@@ -965,8 +967,8 @@ void MCMC::print_simulated_dataset(const std::string &pathtofile)
             }
             catch (const std::exception &e)
             {
-                _error_message_ = "During simulation for household " + get_household(H).house_id() + " : " + e.what();
-                throw std::runtime_error(_error_message_);
+                tools::error({"While simulating house " + get_household(H).house_id() + " :",
+                              e.what()});
             }
 
         // close progress bar
@@ -1009,8 +1011,8 @@ void MCMC::print_evidence(const std::string &scheme, ulong n_rungs)
     }
     catch (const std::exception &e)
     {
-        tools::error(
-            "While estimating evidence with power posteriors: " + std::string(e.what()));
+        tools::error({"While estimating evidence with power posteriors:",
+                      std::string(e.what())});
     }
 }
 

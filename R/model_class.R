@@ -1,5 +1,5 @@
 #
-# model_class.R
+# sample.R
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
@@ -29,54 +29,26 @@ HouseholdModel <- R6::R6Class(
     .infec_profile = NULL,
 
     # @description
-    # Assert that dataset headers match implementation file.
-    #
-    # @param refer_file `character()`\cr
-    # Path/to/.refer source file.
+    # Assert if dataset headers match implementation file.
     # @param data_headers `character()`\cr
     # Vector with the dataset headers.
-    #
-    # @return `logical(1)`
-    .assert_data = function(refer_file, data_headers) {
-      # logical state for complete definitions
-      is_def_complete <- TRUE
-
-      # vector of regular expression to use for assertion
-      regular_expr <- c(
-        # from : .data(, "string" or augm(, 'string'
-        '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      )
-      # retrieve required data headers from regular expressions
-      requirements <- c(template_find_requirement(refer_file, regular_expr),
-                        private$.augm$data_require)
-
-      if (length(requirements) == 0) {
-        # if requirement set is NULL it means nothing can be said
-        is_def_complete <- NA
-
+    .assert_data = function(data_headers) {
+      if (private$.model$is_blank) {
+        requirements <- c()
       } else {
-        # find missing data headers
-        missing_set <- template_find_missing(requirements,
-                                             data_headers)
-        if (length(missing_set) > 0) {
-          is_def_complete <- FALSE
-          warning_h(
-            "Missing data headers(s):",
-            character_to_string_list(missing_set)
-          )
-        }
+        requirements <- private$.model$require_dataset()
       }
-
-      return(is_def_complete)
+      requirements <- c(requirements,
+                        private$.augm$data_required)
+      private$.model$assert_data(data_headers,
+                                 requirements)
+      invisible(self)
     },
 
     # @description
     # Assert if parameter definitions match the implementation script.
-    #
-    # @return `logical(1)`
     .assert_param = function() {
       # extract requirements from reference file
-      # note is.null(c()) -> TRUE
       if (private$.model$is_blank) {
         requirements <- c()
       } else {
@@ -84,37 +56,32 @@ HouseholdModel <- R6::R6Class(
         requirements <- private$.param$require(refer_file)
       }
       requirements <- c(requirements,
-                        private$.augm$param_require,
-                        private$.infec_profile$param_require)
-      return(private$.param$assert(requirements))
+                        private$.augm$param_required,
+                        private$.infec_profile$param_required)
+      private$.param$assert(requirements)
+      invisible(self)
     },
 
     # @description
     # Assert if augmented definitions match the model implementation script.
-    #
-    # @return `logical(1)`
     .assert_augm = function() {
-      if (private$.model$is_blank) {
-        return(TRUE)
-      } else {
+      if (!private$.model$is_blank) {
         refer_file <- private$.model$reference
         requirements <- private$.augm$require(refer_file)
-        return(private$.augm$assert(requirements))
+        private$.augm$assert(requirements)
       }
+      invisible(self)
     },
 
     # @description
     # Assert group rate definitions from the model implementation script.
-    #
-    # @return `logical(1)`
     .assert_group_rate = function() {
-      if (private$.model$is_blank) {
-        return(TRUE)
-      } else {
+      if (!private$.model$is_blank) {
         refer_file <- private$.model$reference
         requirements <- private$.group_rate$require(refer_file)
-        return(private$.group_rate$assert(requirements))
+        private$.group_rate$assert(requirements)
       }
+      invisible(self)
     },
 
     ############################################################################
@@ -178,7 +145,7 @@ HouseholdModel <- R6::R6Class(
     },
 
     # @description
-    # Imoprt dataset and parameters for a minimal build.
+    # Import dataset and parameters for a minimal build.
     #
     # @param dataset `data.frame`\cr
     # A data.frame containing the dataset.
@@ -187,9 +154,7 @@ HouseholdModel <- R6::R6Class(
       self$import_dataset(dataset)
 
       # assert parameter definitions
-      if (isFALSE(private$.assert_param())) {
-        stop_h("Incomplete parameter definitions.")
-      }
+      private$.assert_param()
 
       # parameters
       private$.model$import_parameter(self$param_defs)
@@ -250,9 +215,7 @@ HouseholdModel <- R6::R6Class(
       private$.pre_build(dataset)
 
       # assert augmented variable definitions
-      if (isFALSE(private$.assert_augm())) {
-        stop_h("Incomplete augmented variable definitions.")
-      }
+      private$.assert_augm()
 
       # 3) setup
       if (private$.model$is_blank) id_trace <- 1
@@ -334,7 +297,7 @@ HouseholdModel <- R6::R6Class(
       else do.call(self$add_infec_profile, value)
     },
 
-    #' @field reference `matrix()`\cr
+    #' @field house_loglike_mtx `matrix()`\cr
     #' Traces of household loglikelihoods.
     house_loglike_mtx = function(value) {
       if (missing(value)) return(private$.model$house_loglike_mtx)
@@ -389,7 +352,7 @@ HouseholdModel <- R6::R6Class(
     #' IF `FALSE` recompile the model at every new session.
     initialize = function(model = NA,
                           force = FALSE,
-                          quiet_pkgbuild = TRUE,
+                          quiet_pkgbuild = FALSE,
                           as_template = FALSE) {
       if (is.na(model)) {
         model <- "blank"
@@ -512,10 +475,7 @@ HouseholdModel <- R6::R6Class(
         }
 
         # assert dataset headers
-        if (isFALSE(private$.assert_data(private$.model$reference,
-                                         colnames(dataset)))) {
-          stop_h("Incomplete dataset headers.")
-        }
+        private$.assert_data(colnames(dataset))
       }
 
       # deal with group rates

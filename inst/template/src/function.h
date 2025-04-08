@@ -75,6 +75,8 @@ public:
     const double *get_ptr_to_arg(ushort i) const;
     const double *get_ptr_to_min() const;
     const double *get_ptr_to_max() const;
+    bool below(double x) const;
+    bool above(double x) const;
     bool valid(double x) const;
     ushort which_valid_case() const;
 
@@ -122,26 +124,44 @@ private:
     // note: for the moment range extremes can't be one open and other close
 
     //---- alternative valid range methods -----//
-    bool (Function::*_func_valid_range_)(double) const = &Function::_valid_range_always_;
-    bool _valid_range_always_(double x) const
+    bool (Function::*_func_below_)(double) const = &Function::_below_never_;
+    bool (Function::*_func_above_)(double) const = &Function::_above_never_;
+    bool (Function::*_func_valid_)(double) const = &Function::_valid_always_;    
+    
+    //----- range : none ------//
+    bool _below_never_(double x) const
+    {
+        UNUSED(x);
+        return false;
+    }
+    bool _above_never_(double x) const
+    {
+        UNUSED(x);
+        return false;
+    }
+    bool _valid_always_(double x) const
     {
         UNUSED(x);
         return true;
     }
 
     //----- range : minimum -----//
-    bool _valid_range_open_min_(double x) const { return (x > range_min.get()); }
-    bool _valid_range_close_min_(double x) const { return (x >= range_min.get()); }
+    bool _below_open_min_(double x) const { return (x <= range_min.get()); }
+    bool _below_close_min_(double x) const { return (x < range_min.get()); }
+    bool _valid_open_min_(double x) const { return (x > range_min.get()); }
+    bool _valid_close_min_(double x) const { return (x >= range_min.get()); }
 
     //----- range : maximum -----//
-    bool _valid_range_open_max_(double x) const { return (x < range_max.get()); }
-    bool _valid_range_close_max_(double x) const { return (x <= range_max.get()); }
+    bool _above_open_max_(double x) const { return (x >= range_max.get()); }
+    bool _above_close_max_(double x) const { return (x > range_max.get()); }
+    bool _valid_open_max_(double x) const { return (x < range_max.get()); }
+    bool _valid_close_max_(double x) const { return (x <= range_max.get()); }
 
     //----- range : both -----//
-    bool _valid_range_both_open_(double x) const { return (x > range_min.get()) && (x < range_max.get()); }
-    bool _valid_range_open_min_close_max_(double x) const { return (x > range_min.get()) && (x <= range_max.get()); }
-    bool _valid_range_close_min_open_max_(double x) const { return (x >= range_min.get()) && (x < range_max.get()); }
-    bool _valid_range_both_close_(double x) const { return (x >= range_min.get()) && (x <= range_max.get()); }
+    bool _valid_both_open_(double x) const { return (x > range_min.get()) && (x < range_max.get()); }
+    bool _valid_open_min_close_max_(double x) const { return (x > range_min.get()) && (x <= range_max.get()); }
+    bool _valid_close_min_open_max_(double x) const { return (x >= range_min.get()) && (x < range_max.get()); }
+    bool _valid_both_close_(double x) const { return (x >= range_min.get()) && (x <= range_max.get()); }
 };
 
 #endif // HOUSEPI__FUNCTION__H

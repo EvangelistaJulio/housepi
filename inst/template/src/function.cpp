@@ -98,10 +98,17 @@ ushort Function::assert_arg(const std::string &arg_name) const
 double Function::get_arg(ushort i) const { return arguments[i].get(); }
 double Function::get_min() const { return range_min.get(); }
 double Function::get_max() const { return range_max.get(); }
+
 const double *Function::get_ptr_to_arg(ushort i) const { return arguments[i].get_ptr(); }
 const double *Function::get_ptr_to_min() const { return range_min.get_ptr(); }
 const double *Function::get_ptr_to_max() const { return range_max.get_ptr(); }
-bool Function::valid(double x) const { return (this->*_func_valid_range_)(x); }
+
+/* Returns TRUE if value x is below range minimum. */
+bool Function::below(double x) const { return (this->*_func_below_)(x); }
+/* Returns TRUE if value x is above range maximum. */
+bool Function::above(double x) const { return (this->*_func_above_)(x); }
+/* Returns TRUE if value x is within range. */
+bool Function::valid(double x) const { return (this->*_func_valid_)(x); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Function : set range  ////////////////////////////////////
@@ -121,40 +128,69 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
     switch (which_valid_case())
     {
     case 0: //----- unbounded -----//
-        _func_valid_range_ = &Function::_valid_range_always_;
+        _func_below_ = &Function::_below_never_;
+        _func_above_ = &Function::_above_never_;
+        _func_valid_ = &Function::_valid_always_;
         break;
 
     case 1: //----- lower bound -----//
+        _func_above_ = &Function::_above_never_;
         if (is_min_open)
-            _func_valid_range_ = &Function::_valid_range_open_min_;
+        {
+            _func_below_ = &Function::_below_open_min_;
+            _func_valid_ = &Function::_valid_open_min_;
+        }
         else
-            _func_valid_range_ = &Function::_valid_range_close_min_;
+        {
+            _func_below_ = &Function::_below_close_min_;
+            _func_valid_ = &Function::_valid_close_min_;
+        }
         break;
 
     case 2: //----- upper bound -----//
+        _func_below_ = &Function::_below_never_;
         if (is_max_open)
-            _func_valid_range_ = &Function::_valid_range_open_max_;
+        {
+            _func_above_ = &Function::_above_open_max_;
+            _func_valid_ = &Function::_valid_open_max_;
+        }
         else
-            _func_valid_range_ = &Function::_valid_range_close_max_;
+        {
+            _func_above_ = &Function::_above_close_max_;
+            _func_valid_ = &Function::_valid_close_max_;
+        }
         break;
 
     case 3: //----- within an interval -----//
-        if ((is_min_open) && (is_max_open))
-            _func_valid_range_ = &Function::_valid_range_both_open_;
-
-        else if ((is_min_open) && (!is_max_open))
-            _func_valid_range_ = &Function::_valid_range_open_min_close_max_;
-
-        else if ((!is_min_open) && (is_max_open))
-            _func_valid_range_ = &Function::_valid_range_close_min_open_max_;
-
-        else
-            _func_valid_range_ = &Function::_valid_range_both_close_;
 
         if (range_min.get() >= range_max.get())
             throw std::invalid_argument(
                 "Inconsistent range " + show_range() + ".");
 
+        if ((is_min_open) && (is_max_open))
+        {
+            _func_below_ = &Function::_below_open_min_;
+            _func_above_ = &Function::_above_open_max_;
+            _func_valid_ = &Function::_valid_both_open_;
+        }
+        else if ((is_min_open) && (!is_max_open))
+        {
+            _func_below_ = &Function::_below_open_min_;
+            _func_above_ = &Function::_above_close_max_;
+            _func_valid_ = &Function::_valid_open_min_close_max_;
+        }
+        else if ((!is_min_open) && (is_max_open))
+        {
+            _func_below_ = &Function::_below_close_min_;
+            _func_above_ = &Function::_above_open_max_;
+            _func_valid_ = &Function::_valid_close_min_open_max_;
+        }
+        else
+        {
+            _func_below_ = &Function::_below_close_min_;
+            _func_above_ = &Function::_above_close_max_;
+            _func_valid_ = &Function::_valid_both_close_;
+        }
         break;
     }
 }
@@ -165,31 +201,31 @@ const std::string Function::show_max() const { return range_max.show(); }
 /* Return formatted range. */
 const std::string Function::show_range() const
 {
-    if (_func_valid_range_ == &Function::_valid_range_always_)
+    if (_func_valid_ == &Function::_valid_always_)
         return "";
 
-    else if (_func_valid_range_ == &Function::_valid_range_open_min_)
+    else if (_func_valid_ == &Function::_valid_open_min_)
         return "(" + show_min() + ", infty)";
 
-    else if (_func_valid_range_ == &Function::_valid_range_close_min_)
+    else if (_func_valid_ == &Function::_valid_close_min_)
         return "[" + show_min() + ", infty)";
 
-    else if (_func_valid_range_ == &Function::_valid_range_open_max_)
+    else if (_func_valid_ == &Function::_valid_open_max_)
         return "(-infty, " + show_max() + ")";
 
-    else if (_func_valid_range_ == &Function::_valid_range_close_max_)
+    else if (_func_valid_ == &Function::_valid_close_max_)
         return "(-infty, " + show_max() + "]";
 
-    else if (_func_valid_range_ == &Function::_valid_range_both_open_)
+    else if (_func_valid_ == &Function::_valid_both_open_)
         return "(" + show_min() + ", " + show_max() + ")";
 
-    else if (_func_valid_range_ == &Function::_valid_range_open_min_close_max_)
+    else if (_func_valid_ == &Function::_valid_open_min_close_max_)
         return "(" + show_min() + ", " + show_max() + "]";
 
-    else if (_func_valid_range_ == &Function::_valid_range_close_min_open_max_)
+    else if (_func_valid_ == &Function::_valid_close_min_open_max_)
         return "[" + show_min() + ", " + show_max() + ")";
 
-    else // (_func_valid_range_ == &Function::_valid_range_both_close_)
+    else // (_func_valid_ == &Function::_valid_both_close_)
         return "[" + show_min() + ", " + show_max() + "]";
 }
 

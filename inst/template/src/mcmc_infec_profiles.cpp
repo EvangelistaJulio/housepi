@@ -175,7 +175,7 @@ protected:
 /* Assign the infectivity profile. */
 void MCMC::Impl::InfecProfile::assign_profile(const std::string &name)
 {
-	const str_vec options = {"ferretti20"};
+	const str_vec options = {"ferretti20", "ashcroft20"};
 
 	if (name == "ferretti20")
 		profile = std::make_shared<InfecProfile_Ferretti20>();
@@ -510,8 +510,8 @@ void MCMC::Impl::InfecProfile::build()
 	}
 	catch (const std::exception &e)
 	{
-		tools::error(
-			"While building infectivity profile definition: " + std::string(e.what()));
+		tools::error({"While building infectivity profile definition:",
+					  std::string(e.what())});
 	}
 }
 
@@ -549,20 +549,35 @@ double MCMC::Impl::InfecProfile::_lookup_cumul_(double t, const dbl_vec &opts) c
 /* Value of the instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::inst(double t, const dbl_vec &opts) const
 {
+	// FLAG
+	if (profile->valid(t))
+		return (this->*_func_inst_)(t, opts);
+	else
+		return 0.;
+	/*
 	if (!profile->valid(t))
 		throw std::out_of_range(
 			"Invalid generation time " + std::to_string(t) + " for instantaneous infectivity profile with range " + profile->show_range() + ".");
-
-	return (this->*_func_inst_)(t, opts);
+	return (this->*_func_inst_)(t, opts);	
+	*/
 }
 /* Value of the cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::cumul(double t, const dbl_vec &opts) const
 {
+	// FLAG
+	if (profile->below(t))
+		return 0.;
+	else if (profile->above(t))
+		return 1.;
+	else
+		return (this->*_func_cumul_)(t, opts);
+
+	/*
 	if (!profile->valid(t))
 		throw std::out_of_range(
 			"Invalid exposure time " + std::to_string(t) + " for cumulative infectivity profile with range " + profile->show_range() + ".");
-
 	return (this->*_func_cumul_)(t, opts);
+	*/
 }
 
 //-----------------------------------------------------------------------------------------------//

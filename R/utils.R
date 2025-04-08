@@ -124,19 +124,6 @@ untracked_changes <- function(model_choice, dll) {
   return(any(trunc_ctime(dll) < c(last_mod, install_time)))
 }
 
-# Verify source files exist
-assert_source_files <- function(path) {
-  for (file_name in source_files(path)) {
-    if (!file.exists(file_name)) {
-      stop_h(
-        sprintf("File \"%s\" was not found.", file_name),
-        "Check your model directory."
-      )
-    }
-  }
-  invisible()
-}
-
 # Optional helper files
 helper_files <- function(path) {
   helper_names <- paste0("template_",

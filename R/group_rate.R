@@ -320,45 +320,35 @@ HousepiGroupRate <- R6::R6Class(
     #'
     #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    #'
-    #' @return `logical(1)`\cr
     assert = function(requirements) {
-      # logical state for complete definitions
-      is_def_complete <- TRUE
 
-      if (length(requirements) == 0) {
-        # if requirement set is NULL it means nothing can be said
-        is_def_complete <- NA
+      defined <- names(self$defs)
 
-      } else {
-        # find missing parameters
-        missing_set <- template_find_missing(requirements,
-                                             names(self$defs))
-        if (length(missing_set) > 0) {
-          is_def_complete <- FALSE
-          warning_h(
-            "Missing group rate(s):",
-            character_to_string_list(missing_set)
-          )
-        }
-
-        # point out parameters that are not used
-        unused_set <- template_find_unused(requirements,
-                                           names(self$defs))
-        # drop unused parameters
-        if (length(unused_set) > 0) {
-          warning_h(
-            "Dropping not used group rate(s):",
-            character_to_string_list(unused_set),
-          )
-
-          for (name in unused_set) {
-            self$remove(name)
-          }
+      # point out parameters that are not used
+      unused_set <- template_find_unused(requirements, defined)
+      # drop unused parameters
+      if (length(unused_set) > 0) {
+        warning_h(
+          sprintf("Dropping unused group rate%s:",
+                  ifelse(length(unused_set) > 1, "s", "")),
+          character_to_string_list(unused_set),
+        )
+        for (name in unused_set) {
+          self$remove(name)
         }
       }
 
-      return(is_def_complete)
+      # find missing parameters
+      missing_set <- template_find_missing(requirements, defined)
+      if (length(missing_set) > 0) {
+        stop_h(
+          sprintf("Missing group rate definition%s for:",
+                  ifelse(length(missing_set) > 1, "s", "")),
+          character_to_string_list(missing_set)
+        )
+      }
+
+      invisible(self)
     },
 
     #' @description

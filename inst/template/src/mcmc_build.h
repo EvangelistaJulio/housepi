@@ -48,8 +48,8 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Impl() : _uniform_distr_(0., 1.), _infec_(*this) {}
-    ~Impl() = default;
+    Impl();
+    ~Impl();
 
     //===================================//
     //===== RANDOM NUMBER GENERATOR =====//
@@ -95,22 +95,22 @@ public:
                                         "inv_temper", "id_trace", "progress"};
 
     ulong setup_seed;            // random generator seed
-    bool setup_rand_init_params; // random initialization of parameters
+    bool setup_rand_init_params = true; // random initialization of parameters
     bool setup_progress = true;  // if to show progressbar
 
-    ulong setup_n_chains; // n. chains
-    ulong setup_n_steps;  // n. iterations
-    ulong setup_n_adapt;  // n. (finite) adaptive steps
-    ulong setup_thin;     // n. thinning iterations
-    ulong setup_n_burnin; // n. burnin iterations
+    ulong setup_n_chains = 1; // n. chains
+    ulong setup_n_steps = 10000;  // n. iterations
+    ulong setup_n_adapt = 0;  // n. (finite) adaptive steps
+    ulong setup_thin = 1;     // n. thinning iterations
+    ulong setup_n_burnin = 0; // n. burnin iterations
 
-    double setup_inv_T;       // inverse temperature
-    unsigned setup_n_threads; // number of OMP threads
+    double setup_inv_T = 1.;       // inverse temperature
+    unsigned setup_n_threads = 1; // number of OMP threads
 
-    std::string setup_id_trace; // augmented trace to save
+    std::string setup_id_trace = NULL_STRING; // augmented trace to save
 
-    ulong setup_c_sample_size; // single chain sample size
-    ulong setup_c_n_sweeps;    // single chain n. of sweeps
+    ulong setup_c_sample_size = 0; // single chain sample size
+    ulong setup_c_n_sweeps = 0;    // single chain n. of sweeps
 
     void set_n_threads();
 
