@@ -1,7 +1,13 @@
-#
-# model_generator.R
+#      __
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# model_wrapper.R
 #
 
 # @title Housepi Wrapper R6 Class
@@ -150,6 +156,10 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   public = list(
+    # @field last_dataset_headers `character()`\cr
+    # Headers of the last dataset imported.
+    last_dataset_headers = NULL,
+
     # @description
     # Find dataset headers required by the model.
     #
@@ -174,8 +184,8 @@ HousepiWrapper <- R6::R6Class(
     # Vector with the dataset headers.
     # @param requirements `character()`\cr
     # Vector containing required parameters.
-    assert_data = function(data_headers,
-                           requirements) {
+    assert = function(data_headers,
+                      requirements) {
       # find missing data headers
       missing_set <- template_find_missing(requirements,
                                            data_headers)
@@ -199,6 +209,9 @@ HousepiWrapper <- R6::R6Class(
       private$.rcpp$import_dataset(
         data.frame(lapply(dataset, as.character))
       )
+      if (length(dataset) > 0) {
+        self$last_dataset_headers <- colnames(dataset)
+      }
       invisible(self)
     },
 

@@ -1,7 +1,14 @@
-/*
- * binomial.h
- *
+/*      __                                 
+ *     / /_  ____  __  __ ____ __  ____  __
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+ *  /_/ /_/\____/\____/____/\___/ ____/_/   
+ *                             /_/       
+ *    
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * 
+ * binomial.h
+ * 
  */
 
 #ifndef HOUSEPI__BINOMIAL__H

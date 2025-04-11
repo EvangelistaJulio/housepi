@@ -12,7 +12,7 @@
 
 #include "model.h"
 
-/* Assign all group rates for each individual. */
+/* Assign all group rates to each individual. */
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	rateID r;

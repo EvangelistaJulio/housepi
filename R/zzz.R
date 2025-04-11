@@ -1,7 +1,13 @@
-#
-# zzz.R
+#      __                                 
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+#  /_/ /_/\____/\____/____/\___/ ____/_/   
+#                             /_/       
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# zzz.R
 #
 
 #' housepi
@@ -30,10 +36,8 @@ compile_template_library <- function(pkgname) {
   for (m in list.files(template_models_dir(), full.names = TRUE)) {
     dll <- template_dll_file(m)
     if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
-      HousepiGenerator$new(m,
-                           as_template = TRUE,
-                           force = FALSE,
-                           quiet_pkgbuild = FALSE)$generate()
+      HousepiGenerator$new(m, as_template = TRUE,
+                           force = FALSE, quiet = FALSE)$generate()
     }
   }
 }

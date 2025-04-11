@@ -1,7 +1,13 @@
-#
-# parameter.R
+#      __                                 
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+#  /_/ /_/\____/\____/____/\___/ ____/_/   
+#                             /_/       
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# parameter.R
 #
 
 #' @title Housepi Parameter R6 Class
@@ -308,18 +314,16 @@ HousepiParameter <- R6::R6Class(
     #' If `TRUE` drops unused parameters. Default is `FALSE`.
     assert = function(requirements) {
       defined <- self$defs[["name"]]
-      # unique and ordered set of parameters
-      requirements <- unique(requirements[order(requirements)])
-      defined <- unique(defined[order(defined)])
 
       # point out parameters that are not used
       unused_set <- template_find_unused(requirements, defined)
       # drop unused parameters
       if (length(unused_set) > 0) {
         warning_h(
-          sprintf("Dropping unused parameter definition%s for:",
-                  ifelse(length(unused_set) > 1, "s", "")),
-          character_to_string_list(unused_set)
+          sprintf("Dropping unused parameter%s %s",
+                  ifelse(length(unused_set) > 1, "s:", ""),
+                  character_to_string_list(unused_set)),
+          find_closest_match(unused_set, requirements)                  
         )
         for (name in unused_set) {
           self$remove(name)

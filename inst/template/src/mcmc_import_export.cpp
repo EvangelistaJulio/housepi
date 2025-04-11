@@ -1,7 +1,14 @@
-/*
+/*      __                                 
+ *     / /_  ____  __  __ ____ __  ____  __
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+ *  /_/ /_/\____/\____/____/\___/ ____/_/   
+ *                             /_/       
+ *    
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * 
  * mcmc_import_export.cpp
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include "mcmc_build.h"

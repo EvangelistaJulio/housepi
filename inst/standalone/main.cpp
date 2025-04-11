@@ -1,7 +1,15 @@
 /*
+ *     __                                 
+ *    / /_  ____  __  __ ____ __  ____  __
+ *   / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+ *  / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+ * /_/ /_/\____/\__,_/____/\___/ .___/_/   
+ *                            /_/       
+ *  
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * 
  * main.cpp
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
 
 #include <string>

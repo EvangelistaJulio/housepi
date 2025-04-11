@@ -1,0 +1,30 @@
+---
+title: "Sample Dataset"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Walkthrough}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r}
+dataset <- housepi::survey
+enc_dict <- list(age = list(x = c(0, 10, 20, 40, 60), type = "bin"),
+                 sex = list(x = c(1, 2), type = "cat"))
+
+# generate an instance of the chain binomial model
+hhsampler <- housepi::HouseholdSampler$new(enc_dict)
+```
+
+```{r}
+hhsampler$compute_household_marginals(dataset)
+
+hhsampler$generate_households(1)
+```
+

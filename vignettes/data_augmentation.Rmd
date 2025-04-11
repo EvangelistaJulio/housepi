@@ -160,3 +160,19 @@ hhmodel$drop_all()
 hhmodel$add_augm(name = "independent_moves", rule = "norm", from = 87)
 bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 3)$traces)
 ```
+
+### A Note on Inverse Temperatures
+
+```{r, include=FALSE}
+bayesplot::color_scheme_set(scheme = "orange")
+```
+
+```{r}
+# with model (default Gibbs rule)
+hhmodel$drop_all()
+hhmodel$add_augm(name = "tempered", model = "norm", rule = "norm")
+```
+
+```{r, fig.width=6.5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 1, inv_temper = 0.01)$traces)
+```

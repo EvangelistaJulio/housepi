@@ -1,7 +1,13 @@
-#
-# sampler_class.R
+#      __
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# sampler_class.R
 #
 
 #' @title
@@ -25,7 +31,7 @@
 #' bic$encode(test)
 #' bic$decode(bic$encode(test))
 #'
-#' @export HouseholdModel
+#' @export IndividualSampler
 #' @docType class
 IndividualSampler <- R6::R6Class(
   classname = "IndividualSampler",
@@ -250,7 +256,7 @@ IndividualSampler <- R6::R6Class(
 #' simulated <- bhhc$generate_households(200)
 #' head(simulated)
 #'
-#' @export HouseholdModel
+#' @export HouseholdSampler
 #' @docType class
 HouseholdSampler <- R6::R6Class(
   classname = "HouseholdSampler",

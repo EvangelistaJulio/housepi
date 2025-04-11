@@ -39,19 +39,19 @@ double Model::person_to_person_risk() const
 //---------------------------------------- CHANGE-ME --------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Assign all group rates for each individual. */
+/* Assign all group rates to each individual. */
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
 	rateID r;
 	UNUSED(house);
 	UNUSED(i);
 
-	//----- infectivity -----//
-	r = "infectivity";
-	emplace_group_rate(r, REFERENCE);
-
 	//----- community_susceptibility -----//
 	r = "community_susceptibility";
+	emplace_group_rate(r, REFERENCE);
+
+	//----- infectivity -----//
+	r = "infectivity";
 	emplace_group_rate(r, REFERENCE);
 
 	//----- susceptibility -----//

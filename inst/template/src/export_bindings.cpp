@@ -1,8 +1,18 @@
-/*
+/*      __                                 
+ *     / /_  ____  __  __ ____ __  ____  __
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+ *  /_/ /_/\____/\__,_/____/\___/ ,___/_/   
+ *                             /_/       
+ *    
+ * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * 
  * export_bindings.cpp
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  */
+
+ #include <Rcpp.h>
+ #include "model.h"
 
 //' @name ModelHousepi
 //' @title Internal housepi model
@@ -33,9 +43,6 @@
 //' @field showcase_infec_profile Return a List with a showcase of the infectivity profile.
 //' @field show_full_build Show all build messages.
 //' @field show_summary Show a summary of the current database.
-
-#include <Rcpp.h>
-#include "model.h"
 
 RCPP_MODULE(housepi_model_core)
 {

@@ -1,7 +1,13 @@
-#
-# sample.R
+#      __
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# model_class.R
 #
 
 #' @title
@@ -32,32 +38,37 @@ HouseholdModel <- R6::R6Class(
     # Assert if dataset headers match implementation file.
     # @param data_headers `character()`\cr
     # Vector with the dataset headers.
-    .assert_data = function(data_headers) {
-      if (private$.model$is_blank) {
-        requirements <- c()
-      } else {
-        requirements <- private$.model$require_dataset()
+    .assert_dataset = function(data_headers) {
+      if (length(data_headers) == 0) {
+        stop_h(
+          "Impossible to proceed. No database was provided."
+        )
       }
-      requirements <- c(requirements,
-                        private$.augm$data_required)
-      private$.model$assert_data(data_headers,
-                                 requirements)
+
+      # dataset requirements by the model
+      requirements <- private$.model$require_dataset()
+
+      # dataset requirements by augmented variable definitions
+      requirements <- c(requirements, private$.augm$data_required)
+
+      # assert dataset definitions are complete
+      private$.model$assert(data_headers, requirements)
       invisible(self)
     },
 
     # @description
     # Assert if parameter definitions match the implementation script.
     .assert_param = function() {
-      # extract requirements from reference file
-      if (private$.model$is_blank) {
-        requirements <- c()
-      } else {
-        refer_file <- private$.model$reference
-        requirements <- private$.param$require(refer_file)
-      }
+      # parameter requirements by the model
+      refer_file <- private$.model$reference
+      requirements <- private$.param$require(refer_file)
+
+      # parameter requirements by augmented variable and infectivity profile
       requirements <- c(requirements,
                         private$.augm$param_required,
                         private$.infec_profile$param_required)
+
+      # assert parameter definitions are complete
       private$.param$assert(requirements)
       invisible(self)
     },
@@ -94,52 +105,63 @@ HouseholdModel <- R6::R6Class(
     # @param dataset `data.frame`\cr
     # The dataset from which to extract group rates.
     .build_group_rate = function(dataset) {
+      is_updated <- TRUE
+      is_previous_data <- FALSE
 
-      # proceed only if a dataset is provided
-      if (length(dataset) > 1) {
-
-        # proceed only if group rate definitions are new and complete
-        is_updated <- private$.group_rate$cpp_assert(dataset,
-                                                     private$.model$reference)
-        if (isFALSE(is_updated)) {
-          # NOTE: at the moment I just cache group rate changes
-          # search for the cache file
-          source_file <- file.path(private$.model$cache_dir,
-                                   "src", "model.cpp")
-          # deal with the case cache has been deleted
-          if (!file.exists(source_file)) {
-            # check if it's a template
-            model_choice <- private$.model$path
-            if (file.exists(file.path(model_choice, "model.cpp"))) {
-              # re-assign model object forcing copy of source to cache
-              private$.model <- HousepiWrapper$new(model_choice,
-                                                   force = TRUE)
-              # assign new cache file
-              source_file <- file.path(private$.model$cache_dir,
-                                       "src", "model.cpp")
-            } else {
-              stop_h("Impossible to find reference file.")
-            }
-          }
-
-          # write the cpp script and save new reference
-          private$.group_rate$cpp_write(dataset, source_file)
-          private$.model$save_reference()
+      # load previously provided dataset
+      # UPDATE: this back&forth of the dataset is not optimized
+      if (length(dataset) == 0) {
+        if (length(private$.model$last_dataset_headers) > 0) {
+          dataset <- self$dataset
+          is_previous_data <- TRUE
         }
+      }
+
+      # a dataset provided now or previously (larger than 1)
+      if (length(dataset) > 1) {
+        is_updated <- private$.group_rate$cpp_assert(
+          dataset, private$.model$reference
+        )
+      }
+
+      # proceed only if group rate definitions have been updated
+      if (isFALSE(is_updated)) {
+        # search for the cache file
+        # NOTE: group rate changes are stored in cache 
+        src_file <- file.path(private$.model$cache_dir, "src", "model.cpp")
+
+        # deal with the template case (cache is not stored)
+        if (!file.exists(src_file)) {
+          # check if it's a template
+          model_choice <- private$.model$path
+
+          if (file.exists(file.path(model_choice, "model.cpp"))) {
+            # re-assign model object forcing copy of source to cache
+            private$.model <- HousepiWrapper$new(
+              model_choice, as_template = FALSE,
+              quiet = private$.model$quiet, force = TRUE)
+
+            # assign new cache file
+            src_file <- file.path(private$.model$cache_dir, "src", "model.cpp")
+
+          } else {
+            stop_h("Impossible to find reference file.")
+          }
+        }
+
+        # write the cpp script and save new reference
+        private$.group_rate$cpp_write(dataset, src_file)
+        private$.model$save_reference()
 
         # append new parameter definitions
-        new_defs <- list()
-        for (rate_id in names(private$.group_rate$logic_table)) {
-          for (par_id in private$.group_rate$logic_table[[rate_id]]$.param_name) {
-            if (par_id != "REFERENCE") {
-              new_defs[[par_id]] <- private$.group_rate$param_defs[[rate_id]]
-            }
-          }
-        }
+        new_defs <- private$.group_rate$param_group_rate_defs
         if (length(new_defs) > 0) {
           self$load_param_list(from = new_defs, append = TRUE)
         }
       }
+
+      private$.model$generate()
+      private$.model$import_dataset(dataset)
 
       invisible(self)
     },
@@ -153,10 +175,8 @@ HouseholdModel <- R6::R6Class(
       # import dataset
       self$import_dataset(dataset)
 
-      # assert parameter definitions
+      # assert parameter definitions before importing
       private$.assert_param()
-
-      # parameters
       private$.model$import_parameter(self$param_defs)
 
       # infectivity profile
@@ -343,29 +363,26 @@ HouseholdModel <- R6::R6Class(
     #' - path/to/folder with implementation;
     #' - path/to/folder with previously compiled model;
     #' - "blank": template name for blank model (default).
+    #' @param quiet `logical(1)`\cr
+    #' If `TRUE` hide `pkgbuild` compilation commands (default).
     #' @param force `logical(1)`\cr
     #' If `TRUE` compile even if a cached model already exists.
-    #' @param quiet_pkgbuild `logical(1)`\cr
-    #' If `TRUE` hide `pkgbuild` compilation commands.
     #' @param as_template `logical(1)`\cr
     #' If `TRUE` store the dynamic library as a local template.
     #' IF `FALSE` recompile the model at every new session.
     initialize = function(model = NA,
+                          quiet = TRUE,
                           force = FALSE,
-                          quiet_pkgbuild = FALSE,
                           as_template = FALSE) {
       if (is.na(model)) {
         model <- "blank"
         warning_h("No model specified. Falling back to \"blank\" model.")
       }
 
-      # assign model definitions
-      private$.model <- HousepiWrapper$new(model = model,
-                                           as_template = as_template,
-                                           force = force,
-                                           quiet_pkgbuild = quiet_pkgbuild)
-      # initial generation
-      private$.model$generate()
+      # generate model
+      private$.model <- HousepiWrapper$new(
+        model = model, as_template = as_template,
+        force = force, quiet = quiet)$generate()
 
       # initialize internal fields
       self$drop_all()
@@ -475,17 +492,24 @@ HouseholdModel <- R6::R6Class(
         }
 
         # assert dataset headers
-        private$.assert_data(colnames(dataset))
+        private$.assert_dataset(colnames(dataset))
+
+      } else {
+        # assert headers of last imported dataset
+        private$.assert_dataset(private$.model$last_dataset_headers)
       }
 
-      # deal with group rates
-      private$.build_group_rate(dataset)
+      if (length(private$.group_rate$defs) > 0) {
+        # special generation dealing with group rates
+        private$.build_group_rate(dataset)
 
-      # model generation
-      private$.model$generate()
+      } else {
+        # default model generation and datast import
+        private$.model$generate()
+        private$.model$import_dataset(dataset)
+      }
 
-      # dataset
-      private$.model$import_dataset(dataset)
+      invisible(self)
     },
 
     ############################################################################
@@ -732,7 +756,7 @@ HouseholdModel <- R6::R6Class(
                               reference = reference, independent = independent,
                               prior = prior, args = args,
                               min = min, max = max,
-                              rule = rule, scale = scale)
+                              rule = rule, scale = scale)                          
       invisible(self)
     },
 

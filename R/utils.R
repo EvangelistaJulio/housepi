@@ -1,14 +1,22 @@
+#      __                                 
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+#  /_/ /_/\____/\____/____/\___/ ____/_/   
+#                             /_/       
+
+# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
 # utils.R
 #
-# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
-#
 
 stop_h <- function(...) {
-  base::stop(paste(list(...), collapse = "\n"), call. = FALSE)
+  base::stop(paste(unlist(list(...)), collapse = "\n"),
+             call. = FALSE)
 }
 warning_h <- function(...) {
-  base::warning(paste(list(...), collapse = "\n"), call. = FALSE)
+  base::warning(paste(unlist(list(...)), collapse = "\n"),
+                call. = FALSE)
 }
 
 internal_setup_error <- function() {
@@ -30,6 +38,63 @@ require_suggested_library <- function(libname) {
     return(FALSE)
   }
 }
+
+#' @description
+#' Collapse a character vector into string of quoted words.
+#'
+#' @param `character()`\cr
+#' Vector of characters.
+#'
+#' @return
+#' String formatted as a list of quoted words.
+#'
+#' @noRd
+character_to_string_list <- function(mylist) {
+  return(paste(lapply(mylist, function(x) paste0("\"", x, "\"")),
+               collapse = ", "))
+}
+
+#' @description
+#' Find the closest match among a list of options.
+#'
+#' @param input `character(1)`\cr
+#' Vector of characters.
+#' @param options `character()`\cr
+#' Vector of options.
+#' @param min_dist `integer(1)`\cr
+#' Threshold for minimal distance.
+#'
+#' @return `character()`\cr
+#' String with helpful comments
+#'
+#' @noRd
+find_closest_match <- function(input,
+                               options,
+                               min_dist = 2) {
+  output <- c()
+
+  if ((length(options) > 0) && (min_dist > 0)) {
+    dists <- utils::adist(input, options)
+    idxs <- apply(dists, 1, min) <= min_dist
+
+    if (any(idxs)) {
+      closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
+      output <- sprintf("Did you mean %s?", 
+                        character_to_string_list(closest))
+    }
+
+    if (!all(idxs)) {
+      output <- c(output,
+        sprintf("Available option%s %s.", 
+              ifelse(length(options) > 1, "s are:", " is"),
+              character_to_string_list(options))
+      )
+    }
+
+    return(output)
+  }
+}
+
 
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {

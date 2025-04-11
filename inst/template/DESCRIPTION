@@ -4,7 +4,7 @@ Title: Household Model Environment
 Version: 0.0.1
 Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
 Maintainer: <francesco.camaglia@pasteur.fr>
-Description: This is the core implementation of the class ModelHousepi with the package housepi. Direct access is deprecated.
+Description: This is the core implementation of the class HouseholdModel of the package housepi. Direct access is deprecated.
 License: GPL-3
 Encoding: UTF-8
 Depends: methods, Rcpp (>= 1.0.0)

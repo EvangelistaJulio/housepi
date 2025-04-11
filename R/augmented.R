@@ -1,7 +1,13 @@
-#
-# model_class.R
+#      __                                 
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+#  /_/ /_/\____/\____/____/\___/ ____/_/   
+#                             /_/       
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# augmented.R
 #
 
 #' @title Housepi Augmented R6 Class
@@ -20,20 +26,28 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   private = list(
-    # from : augmented variable model argument definitions
+    # from : augmented variable definitions
     .find_def_required = function(key) {
+
+      # tuples (value, type) amongst definitions
+      tuple_at_cols <- list(c("value", "value_at"), c("arg_value", "arg_at"),
+                            c("min", "min_at"), c("max", "max_at"),
+                            c("scale", "scale_at"), c("from", "from_at"))
+
       required_set <- c()
       if (length(self$defs) > 0) {
-        x <- self$defs[c("arg_value", "arg_at")]
-        for (i in seq_along(x)) {
-          r <- unlist(x[i, ])
-          if (!any(is.na(r))) {
-            arg2par <- data.frame(
-              vals = strsplit(r[1], "/")[[1]],
-              keys = strsplit(r[2], "/")[[1]]
-            )
-            required_set <- c(required_set,
-                              arg2par[arg2par$keys == key]$vals)
+        for (tuple in tuple_at_cols) {
+          xdef <- self$defs[tuple]
+          for (i in seq_along(xdef)) {
+            rw <- unlist(xdef[i, ])
+            if (!any(is.na(rw))) {
+              arg2par <- data.frame(
+                vals = strsplit(rw[1], "/")[[1]],
+                keys = strsplit(rw[2], "/")[[1]]
+              )
+              required_set <- c(required_set,
+                                arg2par[arg2par$keys == key]$vals)
+            }
           }
         }
       }
@@ -104,17 +118,17 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Remove a given augmented variable
     #'
-    #' @param name `character(1)`\cr
-    #' Name of the augmented variable.
+    #' @param this `character(1)`\cr
+    #' Name of the augmented variable to remove.
     #' @param status `integer(1)`\cr
     #' The associated status of the definition.
     #' Default NA is for all infectious.
     #' @param show_warnings `logical(1)`\cr
     #' Wheter to show warnings or not. Default is `TRUE`.
-    remove = function(name,
+    remove = function(this,
                       status = NA,
                       show_warnings = TRUE) {
-      mask <- (self$defs[["name"]] == name)
+      mask <- (self$defs[["name"]] == this)
       if (any(mask)) {
         if (is.na(status)) {
           # drop previous definition
@@ -135,7 +149,7 @@ HousepiAugmented <- R6::R6Class(
         if (isTRUE(show_warnings)) {
           warning_h(
             sprintf(
-              "Attempt to remove unknown augmented variable \"%s\".", name
+              "Attempt to remove unknown augmented variable \"%s\".", this
             )
           )
         }
@@ -460,18 +474,16 @@ HousepiAugmented <- R6::R6Class(
     #' Vector containing required parameters.
     assert = function(requirements) {
       defined <- self$defs[["name"]]
-      # unique and ordered set of parameters
-      requirements <- unique(requirements[order(requirements)])
-      defined <- unique(defined[order(defined)])
 
       # point out augmented variables that are not used
       unused_set <- template_find_unused(requirements, defined)
       # drop unused augmented variables
       if (length(unused_set) > 0) {
         warning_h(
-          sprintf("Dropping unused augmented variable definition%s for:",
-                  ifelse(length(unused_set) > 1, "s", "")),
-          character_to_string_list(unused_set)
+          sprintf("Dropping unused augmented variable%s %s",
+                  ifelse(length(unused_set) > 1, "s:", ""),
+                  character_to_string_list(unused_set)),
+          find_closest_match(unused_set, requirements)
         )
         for (name in unused_set) {
           self$remove(name)

@@ -1,7 +1,13 @@
-#
-# model_generator.R
+#      __                                 
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+#  /_/ /_/\____/\____/____/\___/ ____/_/   
+#                             /_/       
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# model_generator.R
 #
 
 # @title Housepi Generator R6 Class
@@ -23,7 +29,7 @@ HousepiGenerator <- R6::R6Class(
     .name = NA,
     .dll = NA,
     .cache_dir = NA,
-    .quiet_pkgbuild = TRUE,
+    .quiet = TRUE,
     .need_compile = FALSE,
     .rcpp = NULL,
 
@@ -73,9 +79,6 @@ HousepiGenerator <- R6::R6Class(
         # set of extra variables
         requirements <- template_find_requirement(refer_file, reg_called)
         defined <- template_find_requirement(refer_file, reg_allocated)
-        # unique and ordered set of extra variables
-        requirements <- unique(requirements[order(requirements)])
-        defined <- unique(defined[order(defined)])
 
         # point out extra variables
         unused_set <- c(unused_set,
@@ -88,9 +91,10 @@ HousepiGenerator <- R6::R6Class(
       # warn for unused extra variables
       if (length(unused_set) > 0) {
         warning_h(
-          sprintf("Allocated extra variable%s not used in the model:",
-                  ifelse(length(unused_set) > 1, "s", "")),
-          character_to_string_list(unused_set)
+          sprintf("Allocated extra variable%s not used in the model: %s",
+                  ifelse(length(unused_set) > 1, "s", ""),
+                  character_to_string_list(unused_set)),
+          find_closest_match(unused_set, requirements)    
         )
       }
       # error for not allocated extra variables
@@ -121,7 +125,7 @@ HousepiGenerator <- R6::R6Class(
       # asses if model choice requires recompilation
       if (file.exists(private$.dll)) {
         # force template re-compilation or check for changes
-        if (force | untracked_changes(source_dir, private$.dll)) {
+        if (force || untracked_changes(source_dir, private$.dll)) {
           private$.need_compile <- TRUE
         } else {
           private$.need_compile <- FALSE
@@ -280,7 +284,7 @@ HousepiGenerator <- R6::R6Class(
 
       # compile the dynamic library
       pkgbuild::compile_dll(private$.cache_dir,
-                            quiet = private$.quiet_pkgbuild,
+                            quiet = self$quiet,
                             debug = FALSE)
       private$.need_compile <- FALSE
 
@@ -361,6 +365,15 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'is_blank' is read only.")
     },
 
+    # @field quiet `logical(1)`\cr
+    # Wheter quiet option is on.
+    quiet = function(value) {
+      if (missing(value)) {
+        return(private$.quiet)
+      }
+      stop_h("'quiet' is read only.")
+    },
+
     # @field path `character(1)`\cr
     # Envirnoment path.
     path = function(value) {
@@ -419,14 +432,14 @@ HousepiGenerator <- R6::R6Class(
     # If `FALSE` recompile the model at every new session.
     # @param force `logical(1)`\cr
     # If `TRUE` compile even if a cached model already exists.
-    # @param quiet_pkgbuild `logical(1)`\cr
+    # @param quiet `logical(1)`\cr
     # If `TRUE` hide `pkgbuild` compilation commands.
     initialize = function(model_choice,
                           as_template = FALSE,
                           force = FALSE,
-                          quiet_pkgbuild = FALSE) {
-      # assign quiet_pkgbuild field
-      private$.quiet_pkgbuild <- isTRUE(quiet_pkgbuild)
+                          quiet = TRUE) {
+      # assign quiet field
+      private$.quiet <- isTRUE(quiet)
 
       if (model_choice == "blank") {
         #===== Blank Model (Developer Mode) =====#
@@ -465,6 +478,12 @@ HousepiGenerator <- R6::R6Class(
 
       invisible(self)
     },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    
 
     ############################################################################
     ############################################################################

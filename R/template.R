@@ -1,7 +1,13 @@
-#
-# template.R
+#      __                                 
+#     / /_  ____  __  __ ____ __  ____  __
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
+#  /_/ /_/\____/\____/____/\___/ ____/_/   
+#                             /_/       
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#
+# template.R
 #
 
 #' @description
@@ -142,7 +148,9 @@ template_find_requirement <- function(refer_file,
     }
 
     # re-order alphabetically
-    required_set <- unique(required_set[order(required_set)])
+    if (!is.null(required_set)) {
+      required_set <- unique(required_set[order(required_set)])
+    }
 
   } else {
     warning_h(
@@ -161,7 +169,7 @@ template_find_requirement <- function(refer_file,
 #'
 #' @param required_set `character()`\cr
 #' Vector with necessary definitions.
-#' @param def_set `character()`\cr
+#' @param defined_set `character()`\cr
 #' Vector with current definitions.
 #'
 #' @return
@@ -169,17 +177,21 @@ template_find_requirement <- function(refer_file,
 #'
 #' @noRd
 template_find_missing <- function(required_set,
-                                  def_set) {
+                                  defined_set) {
   if (length(required_set) == 0) {
     missing_set <- NULL
 
-  } else if (length(def_set) == 0) {
+  } else if (length(defined_set) == 0) {
     missing_set <- unlist(required_set)
 
   } else {
+    # unique and ordered set of parameters
+    required_set <- unique(required_set[order(required_set)])
+    defined_set <- unique(defined_set[order(defined_set)])
+
     missing_set <- c()
     for (name in required_set) {
-      if (!(name %in% def_set)) {
+      if (!(name %in% defined_set)) {
         missing_set <- c(missing_set, name)
       }
     }
@@ -201,16 +213,20 @@ template_find_missing <- function(required_set,
 #'
 #' @noRd
 template_find_unused <- function(required_set,
-                                 def_set) {
+                                 defined_set) {
   if (length(required_set) == 0) {
-    unused_set <- unlist(def_set)
+    unused_set <- unlist(defined_set)
 
-  } else if (length(def_set) == 0) {
+  } else if (length(defined_set) == 0) {
     unused_set <- NULL
 
   } else {
+    # unique and ordered set of parameters
+    required_set <- unique(required_set[order(required_set)])
+    defined_set <- unique(defined_set[order(defined_set)])
+    
     unused_set <- c()
-    for (name in def_set) {
+    for (name in defined_set) {
       if (!(name %in% required_set)) {
         unused_set <- c(unused_set, name)
       }
@@ -220,17 +236,4 @@ template_find_unused <- function(required_set,
   return(unused_set)
 }
 
-#' @description
-#' Collapse a character vector into string of quoted words.
-#'
-#' @param `character()`\cr
-#' Vector of characters.
-#'
-#' @return
-#' String formatted as a list of quoted words.
-#'
-#' @noRd
-character_to_string_list <- function(mylist) {
-  return(paste0(paste(lapply(mylist, function(x) paste0("\"", x, "\"")),
-                      collapse = ", "), "."))
-}
+
