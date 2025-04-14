@@ -163,24 +163,24 @@ double Proposer::_logratio_lognorm_symm_(double xold, double xnew) const { retur
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Gibbs_Proposer : class  ////////////////////////////////////
+////////////////////////////////////  Draw_Proposer : class  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Gibbs_Proposer : public Proposer
+class Draw_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Gibbs_Proposer(std::shared_ptr<Distribution> distr)
+    Draw_Proposer(std::shared_ptr<Distribution> distr)
     {
         _distr_ptr_ = distr;
 
-        name = "gibbs";
+        name = "draw";
         // proposer functional method
-        _func_propose_ = &Gibbs_Proposer::_propose_draw_rand_;
+        _func_propose_ = &Draw_Proposer::_propose_draw_rand_;
         // logratio functional method
-        _func_logratio_ = &Gibbs_Proposer::_logratio_pdf_;
+        _func_logratio_ = &Draw_Proposer::_logratio_pdf_;
     }
-    ~Gibbs_Proposer() = default;
+    ~Draw_Proposer() = default;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -307,7 +307,7 @@ std::shared_ptr<Proposer> proposer_switchboard(const std::string &rule_name = NU
                                                double rule_from = NULL_DOUBLE,
                                                bool is_discrete = false)
 {
-    const str_vec options = {"gibbs", "unif", "norm", "lnorm"};
+    const str_vec options = {"draw", "unif", "norm", "lnorm"};
 
     if (tools::is_na(rule_name))
         return std::make_shared<Proposer>(std::make_shared<Distribution>());
@@ -332,11 +332,11 @@ std::shared_ptr<Proposer> proposer_switchboard(const std::string &rule_name = NU
 
 //===== Valid move : functional methods =====//
 bool Variable::_valid_move_default_() const { return _distr_ptr_->valid(value); }
-bool Variable::_valid_move_gibbs_() const { return true; }
+bool Variable::_valid_move_draw_() const { return true; }
 
 //===== Move logratio : functional methods =====//
 double Variable::_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
-double Variable::_move_logratio_gibbs_() const { return 0.; }
+double Variable::_move_logratio_draw_() const { return 0.; }
 
 //===== Propose : functional methods =====//
 double Variable::_propose_error_(rnd_gen &prng)
@@ -346,7 +346,7 @@ double Variable::_propose_error_(rnd_gen &prng)
         "Call to proposer of constant variable \"" + name + "\".");
     return 0.;
 }
-double Variable::_propose_gibbs_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }
+double Variable::_propose_draw_sample_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, 0); }
 double Variable::_propose_from_previous_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, value); }
 double Variable::_propose_from_zero_(rnd_gen &prng) { return (_prop_ptr_->propose)(prng, _prop_ptr_->get_from_value()); }
 
@@ -490,18 +490,18 @@ void Variable::assign_proposer(const std::string &rule_name,
         _is_constant_ = false;
 
         // define proposer rule with functional programming
-        if (rule_name == "gibbs")
+        if (rule_name == "draw")
         {
-            //----- Gibbs proposer rule -----//
+            //----- Draw proposer rule -----//
             // assign the pointer to the proposer
-            _prop_ptr_ = std::make_shared<Gibbs_Proposer>(_distr_ptr_);
+            _prop_ptr_ = std::make_shared<Draw_Proposer>(_distr_ptr_);
 
             // sampler
-            _func_propose_ = &Variable::_propose_gibbs_sample_;
+            _func_propose_ = &Variable::_propose_draw_sample_;
             // logratio
-            _func_move_logratio_ = &Variable::_move_logratio_gibbs_;
+            _func_move_logratio_ = &Variable::_move_logratio_draw_;
             // validation
-            _func_valid_move_ = &Variable::_valid_move_gibbs_;
+            _func_valid_move_ = &Variable::_valid_move_draw_;
         }
         else
         {

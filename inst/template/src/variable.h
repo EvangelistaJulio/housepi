@@ -216,17 +216,17 @@ private:
     //----- Valid move : functional methods -----//
     bool (Variable::*_func_valid_move_)() const = &Variable::_valid_move_default_;
     bool _valid_move_default_() const;
-    bool _valid_move_gibbs_() const;
+    bool _valid_move_draw_() const;
 
     //----- Move logratio : functional methods -----//
     double (Variable::*_func_move_logratio_)() const = &Variable::_move_logratio_default_;
     double _move_logratio_default_() const;
-    double _move_logratio_gibbs_() const;
+    double _move_logratio_draw_() const;
 
     //----- Propose : functional methods -----//
     double (Variable::*_func_propose_)(rnd_gen &) = &Variable::_propose_error_;
     double _propose_error_(rnd_gen &prng);
-    double _propose_gibbs_sample_(rnd_gen &prng);
+    double _propose_draw_sample_(rnd_gen &prng);
     double _propose_from_previous_(rnd_gen &prng);
     double _propose_from_zero_(rnd_gen &prng);
 };

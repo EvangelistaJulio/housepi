@@ -28,9 +28,9 @@ Suggests:
     ggplot2,
     flextable,
     bayesplot,
-    coda,
     loo, 
     rstan, 
+    coda,
     lattice,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr

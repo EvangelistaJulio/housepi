@@ -419,7 +419,7 @@ ExpectedCases <- R6::R6Class(
     #' Override the default printing behavior.
     print = function() {
       cli::cli_alert_info(
-        "Output of method `$expec_cases_by_size` of HouseholdModel."
+        "Output of method `$expec_cases_by_house_size` of HouseholdModel."
       )
       invisible(self)
     },

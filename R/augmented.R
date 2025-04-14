@@ -296,9 +296,9 @@ HousepiAugmented <- R6::R6Class(
           if (is.na(model)) {
             constant <- TRUE
           } else {
-            rule <- "gibbs"
+            rule <- "draw"
           }
-        } else if (rule != "gibbs") {
+        } else if (rule != "draw") {
           if (is.na(scale)) {
             scale_ <- 1
             scale_at_ <- "S"

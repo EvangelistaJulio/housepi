@@ -31,7 +31,7 @@ To perform the sampling we consider the "blank" model, i. e. a data independent 
 blank_model <- housepi::HouseholdModel$new("blank")
 ```
 
-# Continuos Priors
+# Continuous Priors
 
 Here's the full list of available continuous distributions present in `housepi`:
 
@@ -136,7 +136,7 @@ bayesplot::color_scheme_set(scheme = "purple")
 blank_model$drop_all()
 
 # available proposer rules in housepi
-available_proposer_rules <- c("gibbs", "unif", "norm", "lnorm")
+available_proposer_rules <- c("draw", "unif", "norm", "lnorm")
 
 # add a parameter definition for each available proposer rule
 for (rule in available_proposer_rules) {

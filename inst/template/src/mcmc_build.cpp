@@ -269,7 +269,7 @@ void MCMC::Impl::build_params()
                         upper = tools::stod(deftable.at("max")[k], "parameter maximum");
 
                     // load rule name
-                    std::string rule_name = "gibbs";
+                    std::string rule_name = "draw";
                     if (!tools::is_na(deftable.at("rule")[k]))
                         rule_name = deftable.at("rule")[k];
 

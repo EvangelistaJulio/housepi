@@ -213,7 +213,7 @@ We do so by computing the expected numbers of cases per household size according
 
 ```{r}
 # run simulations according to posterior traces to compute expectations
-expec <- hhmodel$expec_cases_by_size(progress = FALSE)
+expec <- hhmodel$expec_cases_by_house_size(progress = FALSE)
 ```
 To show both observed and expected cases by size, we use the method `$show_cases_table()` from our output object:
 

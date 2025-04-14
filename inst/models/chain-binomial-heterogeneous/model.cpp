@@ -46,8 +46,8 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 	UNUSED(house);
 	UNUSED(i);
 
-	//----- community_susceptibility -----//
-	r = "community_susceptibility";
+	//----- community -----//
+	r = "community";
 	emplace_group_rate(r, REFERENCE);
 
 	//----- infectivity -----//
@@ -111,7 +111,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 		double susc_house_c = house.group_rate(idx_c, "susceptibility");
 
 		//----- community -----//
-		commu_escprob[c] = exp(-commu_transm_rate * house.group_rate(idx_c, "community_susceptibility"));
+		commu_escprob[c] = exp(-commu_transm_rate * house.group_rate(idx_c, "community"));
 
 		//----- person-to-person -----//
 		for (indiv r = 0; r < c; ++r)
@@ -171,7 +171,7 @@ void Model::simulate_single_house(Household &house)
 	std::vector<indiv> new_gen_set = {};
 
 	for (indiv i = 0; i < house.size(); ++i)
-		if (uniform() < exp(-commu_transm_rate * house.group_rate(i, "community_susceptibility")))
+		if (uniform() < exp(-commu_transm_rate * house.group_rate(i, "community")))
 			house.change_status(i, HEALTHY_STATUS);
 		else
 		{

@@ -149,7 +149,7 @@ HousepiParameter <- R6::R6Class(
         # mcmc proposer rule
         if (is.na(rule)) {
           # default proposer rule
-          rule <- "gibbs"
+          rule <- "draw"
           scale <- NA
         }
 

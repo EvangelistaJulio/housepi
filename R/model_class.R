@@ -967,7 +967,7 @@ HouseholdModel <- R6::R6Class(
     #' An instance of class
     #' [ExpectedCases][housepi::ExpectedCases]
     #' containing method to compare observed and expected cases.
-    expec_cases_by_size = function(progress = NA) {
+    expec_cases_by_house_size = function(progress = NA) {
       return(ExpectedCases$new(self, progress = progress))
     },
 

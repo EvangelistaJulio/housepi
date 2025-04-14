@@ -10,16 +10,30 @@ By combining ease of use and customizability, housepi supports both off-the-shel
 
 The package is currently under development as a private repository on [gitlab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi).
 
-Prior to installation, test that a working C++ toolchain is present onyour machine:
+Prior to installation, check that devtools is installed and test that a working C++ toolchain is present:
 
 ```{r}
+if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
 pkgbuild::has_build_tools(debug = TRUE)
 ```
 
 To install `housepi`, download the source as a zip file from the webpage to your curernt working directory, then run the following command in your R console:
 
 ```{r}
-install.packages("housepi-main.zip", repos = NULL, type = "source")
+install.packages("housepi-main", repos = NULL, type = "source")
+```
+
+## Vignettes
+
+In order to build locally your vignettes you will need to install the following packages:
+
+```{r}
+# packages required for building vignettes
+vignettes_packages <- c("ggplot2", "flextable", "bayesplot", 
+                        "dplyr", "rstan", "loo")
+for (pkg in vignettes_packages) {
+  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
+}
 ```
 
 ## License
