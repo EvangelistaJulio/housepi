@@ -38,7 +38,7 @@ If a maximum house size is set, larger sizes are not returned.}
 New instance of class
 \link[=ExpectedCases]{ExpectedCases}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ExpectedCases$new(house_model, cri_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ExpectedCases$new(house_model, progress = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -48,9 +48,6 @@ New instance of class
 Object of class
 \link[=HouseholdModel]{HouseholdModel}
 containing all model definitions after having run \verb{$infer}.}
-
-\item{\code{cri_level}}{\code{double(1)}\cr
-Probability for credible interval (default is 0.95).}
 
 \item{\code{progress}}{\code{logical(1)}\cr
 Progress of simulations. Default is inherited from the model.}

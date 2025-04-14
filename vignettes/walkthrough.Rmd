@@ -56,8 +56,10 @@ housepi::template_household_model("chain-binomial")
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
 
+<!--
 Starting from a template we may want to create a custom model adapted to our study project.
-We discuss guidelines on how to do this in the vignette [Customize Models](customize_models.html).
+We will discuss guidelines on how to do this in the vignette [Customize Models](customize_models.html).
+-->
 
 ## Format of the Dataset
 
@@ -150,7 +152,7 @@ hhmodel$infer(
   n_chains = 4,     # number of independent chains 
   seed = 6043,      # internal random number generator seed
   n_threads = 1,    # number of threads
-  progress = FALSE  # flag to silence progress bar
+  progress = FALSE  # flag to silence progress bar (default is TRUE)
 ) 
 ```
 

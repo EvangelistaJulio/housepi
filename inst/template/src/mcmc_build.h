@@ -106,7 +106,7 @@ public:
     bool setup_progress = true;  // if to show progressbar
 
     ulong setup_n_chains = 1; // n. chains
-    ulong setup_n_steps = 10000;  // n. iterations
+    ulong setup_n_steps = 1;  // n. iterations
     ulong setup_n_adapt = 0;  // n. (finite) adaptive steps
     ulong setup_thin = 1;     // n. thinning iterations
     ulong setup_n_burnin = 0; // n. burnin iterations

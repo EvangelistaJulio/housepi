@@ -41,6 +41,12 @@ Augmented variable formatted definitions.}
 \item{\code{infec_profile_defs}}{\code{list}\cr
 Infectivity profile definition list.}
 
+\item{\code{group_rate_defs}}{\code{list}\cr
+List containing current group rate definitions.}
+
+\item{\code{group_rate_tables}}{\code{list}\cr
+List containing table of parameters associated to each group rate.}
+
 \item{\code{house_loglike_mtx}}{\code{matrix()}\cr
 Traces of household loglikelihoods.}
 
@@ -52,6 +58,10 @@ Traces of last inference without loglikelihood.}
 
 \item{\code{traces_results}}{\code{data.frame}\cr
 Results extracted from the traces of last inference.}
+
+\item{\code{cri_level}}{\code{double(1)}\cr
+Level for the credible interval.
+Value between 0 and 1 (default is 0.95).}
 }
 \if{html}{\out{</div>}}
 }
@@ -73,6 +83,7 @@ Results extracted from the traces of last inference.}
 \item \href{#method-HouseholdModel-load_augm_list}{\code{HouseholdModel$load_augm_list()}}
 \item \href{#method-HouseholdModel-load_augm_template}{\code{HouseholdModel$load_augm_template()}}
 \item \href{#method-HouseholdModel-add_group_rate}{\code{HouseholdModel$add_group_rate()}}
+\item \href{#method-HouseholdModel-load_group_rate_list}{\code{HouseholdModel$load_group_rate_list()}}
 \item \href{#method-HouseholdModel-add_infec_profile}{\code{HouseholdModel$add_infec_profile()}}
 \item \href{#method-HouseholdModel-showcase_infec_profile}{\code{HouseholdModel$showcase_infec_profile()}}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
@@ -91,17 +102,19 @@ New instance of class
 \link[=HouseholdModel]{HouseholdModel}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$new(
-  model = NA,
+  model_choice = NA,
+  quiet = TRUE,
   force = FALSE,
-  quiet_pkgbuild = FALSE,
-  as_template = FALSE
+  as_template = FALSE,
+  model_name = NA,
+  cri_level = 0.95
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model}}{\code{character(1)}\cr
+\item{\code{model_choice}}{\code{character(1)}\cr
 One between:
 \itemize{
 \item template name;
@@ -110,15 +123,22 @@ One between:
 \item "blank": template name for blank model (default).
 }}
 
+\item{\code{quiet}}{\code{logical(1)}\cr
+If \code{TRUE} hide \code{pkgbuild} compilation commands (default).}
+
 \item{\code{force}}{\code{logical(1)}\cr
 If \code{TRUE} compile even if a cached model already exists.}
-
-\item{\code{quiet_pkgbuild}}{\code{logical(1)}\cr
-If \code{TRUE} hide \code{pkgbuild} compilation commands.}
 
 \item{\code{as_template}}{\code{logical(1)}\cr
 If \code{TRUE} store the dynamic library as a local template.
 IF \code{FALSE} recompile the model at every new session.}
+
+\item{\code{model_name}}{\code{chracter(1)}\cr
+Custom name of the model (default is inferred from \code{model_choice}).}
+
+\item{\code{cri_level}}{\code{double(1)}\cr
+Level for the credible interval.
+Value between 0 and 1 (default is 0.95).}
 }
 \if{html}{\out{</div>}}
 }
@@ -189,7 +209,7 @@ Drop all current definitions.
 \subsection{Method \code{import_dataset()}}{
 Import a new dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_dataset(dataset = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_dataset(dataset = NULL, .hold = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -197,6 +217,10 @@ Import a new dataset.
 \describe{
 \item{\code{dataset}}{\code{data.frame}\cr
 A data.frame containing the dataset with individual information by row.}
+
+\item{\code{.hold}}{\code{logical(1)}\cr
+If \code{FALSE} does not ultimate model build. Default is \code{TRUE}.
+For internal use.}
 }
 \if{html}{\out{</div>}}
 }
@@ -262,7 +286,8 @@ Value of the maximum.}
 \if{html}{\out{<a id="method-HouseholdModel-load_param_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-load_param_list}{}}}
 \subsection{Method \code{load_param_list()}}{
-Associate parameters from a list.
+Load parameter definitions either as direct arguments
+or from predefined list.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_param_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -270,13 +295,13 @@ Associate parameters from a list.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Parameter names with respective list of definitions.}
+\item{\code{...}}{Named arguments with respective list of definition details.}
 
-\item{\code{from}}{named \code{list()}\cr
+\item{\code{from}}{(named \code{list()}\cr
 Named list of parameter definitions.}
 
 \item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends to current augmented variable definitions.
+If \code{TRUE} appends to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -390,7 +415,8 @@ Advanced options for non random walk moves.
 \if{html}{\out{<a id="method-HouseholdModel-load_augm_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-load_augm_list}{}}}
 \subsection{Method \code{load_augm_list()}}{
-Associate augmented variables from a list.
+Load augmented variable definitions either as direct arguments
+or from predefined list.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_augm_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -398,13 +424,13 @@ Associate augmented variables from a list.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Augmented variable names with respective list of definitions.}
+\item{\code{...}}{Named arguments with respective list of definition details.}
 
-\item{\code{from}}{named \code{list()}\cr
-Named list of augmented variable definitions.}
+\item{\code{from}}{(named \code{list()}\cr
+Named list of parameter definitions.}
 
 \item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends to current augmented variable definitions.
+If \code{TRUE} appends to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -491,6 +517,31 @@ Value of the minimum.}
 
 \item{\code{max}}{\code{double(1)}\cr
 Value of the maximum.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-load_group_rate_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-load_group_rate_list}{}}}
+\subsection{Method \code{load_group_rate_list()}}{
+Load group rate definitions either as direct arguments
+or from predefined list.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$load_group_rate_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Named arguments with respective list of definition details.}
+
+\item{\code{from}}{(named \code{list()}\cr
+Named list of parameter definitions.}
+
+\item{\code{append}}{\code{logical(1)}\cr
+If \code{TRUE} appends to current definitions.
+If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -670,16 +721,12 @@ Use posterior sample after \verb{$infer} has been run to perform simulations.
 Extract the expected number of household cases per size
 and the credible interval.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_size(cri_level = 0.95, progress = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_size(progress = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{cri_level}}{\code{double(1)}\cr
-Level for the credible interval.
-Value between 0 and 1 (default is 0.95).}
-
 \item{\code{progress}}{\code{logical(1)}\cr
 Progress of simulations. Default is inherited from the model.}
 }

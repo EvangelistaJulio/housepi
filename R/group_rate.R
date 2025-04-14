@@ -122,22 +122,20 @@ associate_param_names <- function(this_table,
     idx_refer <- which.max(this_table$.counts)
 
   } else {
-    reference <- as.list(reference)[colmask]
+    # find row 
     idx_refer <- unname(which(
-      apply(this_table, 1, 
-            function(row) all(row == unlist(reference)))
+      apply(this_table[colmask], 1, 
+            function(row) all(row == unlist(reference[colmask])))
     ))
+
     if (length(idx_refer) != 1) {
       stop_h("Provided reference group is not valid.")
     }
   }
 
-  # format prefix and associate paramter names
-  if (is.na(prefix) || !is.character(prefix)) {
-    prefix <- ""
-  } else {
-    prefix <- paste0(prefix, "_")
-  }
+  # format prefix and associate parameter names
+  prefix <- ifelse((!is.na(prefix)) && is.character(prefix), 
+                   paste0(prefix, "_"), "")
 
   # associate parameter names
   this_table$.param.name <- apply(
@@ -219,15 +217,89 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   private = list(
+    .rate_script = NULL,
+
+    #' @description
+    #' Generate a script to be printed within source code model.cpp
+    #'
+    #' @param dataset
+    #' Dataset to be considered.
+    .cpp_implement = function(dataset) {
+
+      # initialize lines of the script
+      rate_script <- c()
+      self$logic_tables <- list()
+
+      for (i in seq_along(self$defs)){
+        rate_id <- names(self$defs[i]) # name of the rate
+        this_def <- self$defs[[i]] # definition of the rate
+        new_logic_table <- list()
+        features <- as.list(this_def[["by"]])
+        if (all(is.na(features))) {
+          this_script <- c(cpp_emplace("REFERENCE", tab = FALSE, quote = FALSE))
+
+        } else {
+          features <- features[!is.na(features)]
+
+          # initialize group rate contribution to script
+          this_script <- c()  
+
+          if (isFALSE(this_def[["independent"]])) {
+            features <- list(features)
+          }
+
+          # default prefix
+          prefix <- as.character(this_def[["prefix"]])
+          if (is.na(prefix)) {
+            prefix <- format_string(tolower(rate_id))
+            prefix <- substring(prefix, 1, 3)
+          }
+
+          for (this_feat in features) {
+            # create logic table with group rates
+            this_table <- group_rate_logic_table(dataset, this_feat)
+            # associate names for parameters
+            this_table <- associate_param_names(
+              this_table, prefix,
+              this_def[["reference"]]
+            )
+
+            # mask reference case
+            mask <- this_table$.param.name == "REFERENCE"
+            # concatenate new lines to the script
+            this_script <- c(
+              this_script,
+              cpp_ifclause_emplace(this_table[mask, ], TRUE), # reference
+              apply(this_table[!mask, ], 1, cpp_ifclause_emplace), # others
+              "else",
+              cpp_emplace("MISSING_RATE", tab = TRUE, quote = FALSE)
+            )
+            new_logic_table[[length(new_logic_table) + 1]] <- this_table
+          }
+        }
+
+        # append the new rate chunk of script
+        rate_script <- c(rate_script,
+                         "",
+                         sprintf("\t//----- %s -----//", rate_id),
+                         sprintf("\tr = \"%s\";", rate_id),
+                         sapply(this_script, function(x) paste0("\t", x)))
+        # store the new rate logic table
+        self$logic_tables[[rate_id]] <- new_logic_table
+      }
+
+      private$.rate_script <- private$.cpp_full_script(rate_script)
+      invisible(self)
+    },
+
     #' @description
     #' construct the C++ if clauses.
     #'
-    #' @param rate_script `list()`\cr
+    #' @param script `list()`\cr
     #' List of cpp script lines.
     #'
-    #' @return
-    #'
-    .cpp_full_script = function(rate_script) {
+    #' @return `character(1)`
+    .cpp_full_script = function(script) {
       return(
         paste(c(
           "void Model::assign_group_rate_to_individual(Household &house, indiv i)",
@@ -235,7 +307,7 @@ HousepiGroupRate <- R6::R6Class(
           ifelse(all(is.na(lapply(self$defs, `[[`, "by"))),
                  "\trateID r;\n\tUNUSED(house);\n\tUNUSED(i);", 
                  "\trateID r;"),
-          rate_script,
+          script,
           "}"
         ), collapse = "\n")
       )
@@ -353,6 +425,8 @@ HousepiGroupRate <- R6::R6Class(
     #' Value of the minimum.
     #' @param max `double(1)`\cr
     #' Value of the maximum.
+    #' @param show_warnings `logical(1)`\cr
+    #' If `TRUE` (default) show warnings about overwriting definitions.
     #'
     #' @references
     #' Cauchemez, et al. (2009)
@@ -364,7 +438,7 @@ HousepiGroupRate <- R6::R6Class(
                    reference = NULL,
                    independent = TRUE,
                    prior = "lnorm",
-                   args = list(meanlog = 0, sdlog = 1),
+                   args = list(meanlog = 0, sdlog = 3),
                    min = NA,
                    max = 10,
                    rule = "lnorm",
@@ -377,9 +451,24 @@ HousepiGroupRate <- R6::R6Class(
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) {
-        warning_h(
-          sprintf("Overwriting existing \"%s\" definition.", name)
-        )
+        warning_h(sprintf("Overwriting existing \"%s\" definition.", name))
+      }
+
+      # load reference
+      if (!is.null(reference)) {
+        if (length(by) != length(reference)) {
+          stop_h(
+            "Arguments 'by' and 'reference' should have the same dimension."
+          )
+        } else if (is.list(reference)) {
+          if (length(setdiff(names(reference), by)) != 0) {
+            stop_h("Unrecognized names in reference list.")
+          }
+
+        } else {
+          reference <- as.list(reference)
+          names(reference) <- by
+        }
       }
 
       # add new definition
@@ -398,6 +487,41 @@ HousepiGroupRate <- R6::R6Class(
       y <- sort(names(self$defs))
       self$defs <- self$defs[y]
       self$param_defs <- self$param_defs[y]
+
+      invisible(self)
+    },
+
+    #' @description
+    #' Load group rate definitions either as direct arguments
+    #' or from predefined list.
+    #'
+    #' @param ...
+    #' Named arguments with respective list of definition details.
+    #' @param from (named `list()`\cr
+    #' Named list of parameter definitions.
+    #' @param append `logical(1)`\cr
+    #' If `TRUE` appends to current definitions.
+    #' If `FALSE` drop all pre-existing definitions (default).
+    load_list = function(...,
+                         from = NULL,
+                         append = FALSE) {
+      definitions <- load_definition_list(..., from = from)
+
+      # remove previos definitions if not append
+      if (isFALSE(append)) self$defs <- NULL
+
+      for (i in seq_along(definitions)){
+        this_def <- as.list(definitions[[i]])
+        def_name <- names(definitions[i])
+        if (length(names(this_def)) == 0) {
+          stop_h(
+            sprintf("Wrong definition for group rate \"%s\"", def_name),
+            "Provide a definition list."
+          )
+        }
+        this_def$name <- def_name
+        do.call(self$add, this_def)
+      }
 
       invisible(self)
     },
@@ -434,77 +558,7 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Generate a script to be printed within source code model.cpp
-    #'
-    #' @param dataset
-    #' Dataset to be considered.
-    cpp_implement = function(dataset) {
-
-      # initialize lines of the script
-      rate_script <- c()
-      self$logic_tables <- list()
-
-      for (i in seq_along(self$defs)){
-        rate_id <- names(self$defs[i]) # name of the rate
-        this_def <- self$defs[[i]] # definition of the rate
-
-        features <- as.list(this_def[["by"]])
-        if (all(is.na(features))) {
-          script <- c(cpp_emplace("REFERENCE", tab = FALSE, quote = FALSE))
-          new_logic_table <- list()
-
-        } else {
-          features <- features[!is.na(features)]
-
-          # initialize group rate contribution to script
-          script <- c()  
-
-          if (isFALSE(this_def[["independent"]])) {
-            features <- list(features)
-          }
-
-          # default prefix
-          prefix <- as.character(this_def[["prefix"]])
-          if (is.na(prefix)) {
-            prefix <- format_string(tolower(rate_id))
-            prefix <- substring(prefix, 1, 3)
-          }
-
-          for (this_feat in features) {
-            # create logic table with group rates
-            this_table <- group_rate_logic_table(dataset, this_feat)
-            # associate names for parameters
-            this_table <- associate_param_names(this_table,
-                                                prefix,
-                                                this_def[["reference"]])
-            # mask reference case
-            mask <- this_table$.param.name == "REFERENCE"
-            # concatenate new lines to the script
-            script <- c(
-              script,
-              cpp_ifclause_emplace(this_table[mask, ], TRUE), # reference
-              apply(this_table[!mask, ], 1, cpp_ifclause_emplace), # others
-              "else",
-              cpp_emplace("MISSING_RATE", tab = TRUE, quote = FALSE)
-            )
-            new_logic_table[[length(new_logic_table) + 1]] <- this_table
-          }
-        }
-
-        # append the new rate chunk of script
-        rate_script <- c(rate_script,
-                         "",
-                         sprintf("\t//----- %s -----//", rate_id),
-                         sprintf("\tr = \"%s\";", rate_id),
-                         sapply(script, function(x) paste0("\t", x)))
-        # store the new rate logic table
-        self$logic_tables[[rate_id]] <- new_logic_table
-      }
-
-      return(private$.cpp_full_script(rate_script))
-    },
-
-    #' @description
+    #' Implement group rate definitions.
     #' Assert if implementated group rates are correct.
     #'
     #' @param dataset
@@ -520,40 +574,39 @@ HousepiGroupRate <- R6::R6Class(
         requirements <- self$require(refer_file)
         self$assert(requirements)
 
-        # produce associated script
-        rate_script <- self$cpp_implement(dataset)
-        # read source file
-        lines <- readLines(refer_file)
-        # check if the definitions are already implemented
-        return(stringr::str_detect(paste(lines, collapse = "\n"),
-                                   stringr::fixed(rate_script)))
-
-        # NOTE I chould also use str_squish as in:
-        # > str_detect(str_squish(big), fixed(str_squish(small)))
-        # but for the moment it tells me when I am not tidy
+        if (length(dataset) > 0) {
+          # produce associated script
+          private$.cpp_implement(dataset) 
+          # read source file
+          lines <- readLines(refer_file)
+          # check if the definitions are already implemented
+          return(stringr::str_detect(
+            paste(lines, collapse = "\n"),
+            stringr::fixed(private$.rate_script)
+          ))
+          # NOTE I chould also use str_squish as in:
+          # > str_detect(str_squish(big), fixed(str_squish(small)))
+          # but for the moment it tells me when I am not tidy
+        }
       }
+
       return(TRUE) # default is TRUE (i.e. no definitions)
     },
 
     #' @description
     #' Overwrite script to source code 'model.cpp'.
     #'
-    #' @param dataset `data.frame`\cr`
-    #' Dataset to be considered.
-    #' @param refer_file `character(1)`\cr
-    #' Reference file.
-    cpp_write = function(dataset,
-                         refer_file) {
+    #' @param src_file `character(1)`\cr
+    #' Source file to modify.
+    cpp_write = function(src_file) {
 
       # check that source file exists
-      if (!file.exists(refer_file)) {
+      if (!file.exists(src_file)) {
         stop_h("Impossible to find reference file.")
       }
 
-      # produce associated script
-      rate_script <- self$cpp_implement(dataset)
       # read source file
-      lines <- readLines(refer_file)
+      lines <- readLines(src_file)
 
       # find the start of the method definition
       start_line <- grep(
@@ -599,12 +652,12 @@ HousepiGroupRate <- R6::R6Class(
         # define the new implementation
         lines <- c(
           lines[1:(start_line - 1)],
-          rate_script,
+          private$.rate_script,
           lines[(end_line + 1):length(lines)]
         )
 
         # replace the source code
-        writeLines(lines, refer_file)
+        writeLines(lines, src_file)
       }
 
       invisible(self)

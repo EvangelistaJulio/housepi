@@ -345,25 +345,16 @@ ExpectedCases <- R6::R6Class(
     #' Object of class
     #' [HouseholdModel][housepi::HouseholdModel]
     #' containing all model definitions after having run `$infer`.
-    #' @param cri_level `double(1)`\cr
-    #' Probability for credible interval (default is 0.95).
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
     initialize = function(house_model,
-                          cri_level = 0.95,
                           progress = NA) {
-      # check credible interval
-      if ((cri_level <= 0) || (cri_level >= 1)) {
-        stop_h(
-          "Credible interval level must be a value between 0 and 1."
-        )
-      }
-      private$.cri_level <- cri_level
-
       # initialize with observed case table
       obs <- retrieve_cases_by_size(house_model$dataset)
       private$.sar <- list(observed = retrieve_sar_from_casesbysize(obs))
       private$.case_table <- list(observed = obs)
+
+      private$.cri_level <- house_model$cri_level
 
       # extract traces without loglikelihood
       traces <- house_model$traces_no_loglike

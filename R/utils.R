@@ -152,6 +152,45 @@ str_join_ <- function(x) {
   return(paste(x, collapse = "/"))
 }
 
+#' @title
+#' Load a List of Definitions
+#' @description
+#' Load definitions either as direct arguments or from predefined list.
+#'
+#' @param ...\cr
+#' Named arguments with respective list of definition details.
+#' @param from (named `list()`\cr
+#' Named list of definitions (alternative to named arguments).
+#'
+#' @return
+#' `list() of list()`
+#'
+#' @noRd
+load_definition_list <- function(..., from = NULL) {
+  definitions <- list(...)
+
+  if (length(definitions) == 0) {
+    if (length(from) == 0) {
+      stop_h("No definitions provided.")
+    } else if (is.list(from)) {
+      definitions <- from
+    } else {
+      stop_h("Argument 'from' should be a list.")
+    }
+  } else if (any(names(definitions) == "")) {
+    stop_h("Found definition without name.")
+  }
+
+  return(definitions)
+}
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+# remove punctuation from string
 format_string <- function(name) {
   return(gsub("[[:punct:]]", "", name))
 }
@@ -160,11 +199,6 @@ format_string <- function(name) {
 rnd_string <- function(size = 8) {
   return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE),
                 collapse = ""))
-}
-
-# Returns the path/to/models folder
-template_models_dir <- function() {
-  return(file.path(system.file(package = "housepi"), "models"))
 }
 
 # Source code files
@@ -290,14 +324,14 @@ retrieve_traces_results <- function(trs,
   cri_lower <- 0.5 - 0.5 * cri_level
   cri_upper <- 0.5 + 0.5 * cri_level
   out <- data.frame(
+    name = NA,
     mean = apply(trs, 2, mean, na.rm = TRUE),
     sd = apply(trs, 2, sd, na.rm = TRUE),
-    low = apply(trs, 2, quantile, probs = cri_lower, na.rm = TRUE),
-    up = apply(trs, 2, quantile, probs = cri_upper, na.rm = TRUE),
+    cri_lower = apply(trs, 2, quantile, probs = cri_lower, na.rm = TRUE),
+    cri_upper = apply(trs, 2, quantile, probs = cri_upper, na.rm = TRUE),
     check.names = FALSE
   )
-  colnames(out)[3] <- sprintf("cri%.1f", cri_lower * 100)
-  colnames(out)[4] <- sprintf("cri%.1f", cri_upper * 100)
+  out$name <- rownames(out)
 
   return(out)
 }

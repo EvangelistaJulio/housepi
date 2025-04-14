@@ -31,9 +31,8 @@ hhsimul <- housepi::HouseholdModel$new("augm-onset-single-intro")
 # use example parameters associated to the template model
 hhsimul$load_param_template()
 
-# store formatted parameter definitions used for simulations
-simul_param_defs <- hhsimul$param_defs
-simul_param_defs
+# inspect parameter definitions used for simulations
+hhsimul$param_defs
 ```
 
 ## Infectivity Profile
@@ -57,8 +56,8 @@ At any moment, we can showcase the loaded profile as follows:
 hhsimul$add_infec_profile(name = "gamma", 
                           args = c(shape = 2.2, scale = 1.3))
 
-# we extract the profile and other general information
-infec <- hhsimul$export_infec_profile()
+# extract profile and other general information
+infec <- hhsimul$showcase_infec_profile()
 
 # plot instantaneous and cumulative profile with ggplot2
 library(ggplot2)
@@ -200,18 +199,20 @@ Finally we wrap all together to compare to parameters used for simulation.
 # collect the results
 results <- hhmodel$traces_results
 
-# compare results to parameter values used for inference
+# compare results to parameter values used for simulation
+simul_param_defs <- hhsimul$param_defs
 imask <- simul_param_defs$constant == FALSE
 inames <- simul_param_defs[imask, ]$name
 ```
+
 ```{r, message = FALSE, warning = FALSE,}
 library(dplyr)
 library(flextable)
 cbind(Simulated = simul_param_defs[imask, ]$value, results) |>
   tibble::rownames_to_column("Parameter") |>
   mutate(Inferred = sprintf("%0.4f [%0.4f, %0.4f]", 
-                            mean, cri2.5, cri97.5)) |>
-  select(-mean, -sd, -cri2.5, -cri97.5) |>
+                            mean, cri_lower, cri_upper)) |>
+  select(-mean, -sd, -cri_lower, -cri_upper) |>
   flextable() |>
   separate_header() |>
   theme_vanilla() |>

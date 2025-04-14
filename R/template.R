@@ -11,6 +11,15 @@
 #
 
 #' @description
+#' Returns the directory to housepi template models.
+#'
+#' @return `character(1)`
+#' @noRd
+template_models_dir <- function() {
+  return(file.path(system.file(package = "housepi"), "models"))
+}
+
+#' @description
 #' Show list of all available template nmodel names.
 #'
 #' @noRd
@@ -209,7 +218,7 @@ template_find_missing <- function(required_set,
 #' Vector with current definitions.
 #'
 #' @return
-#' `character()`)
+#' `character()`
 #'
 #' @noRd
 template_find_unused <- function(required_set,

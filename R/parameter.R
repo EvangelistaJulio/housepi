@@ -177,35 +177,23 @@ HousepiParameter <- R6::R6Class(
     },
 
     #' @description
-    #' Associate parameters from a list. Previous definitions are dropped.
+    #' Load parameter definitions either as direct arguments
+    #' or from predefined list.
     #'
     #' @param ...
-    #' Parameter names with respective list of definitions.
+    #' Named arguments with respective list of definition details.
     #' @param from (named `list()`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current augmented variable definitions.
+    #' If `TRUE` appends to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_list = function(...,
                          from = NULL,
                          append = FALSE) {
-      definitions <- list(...)
+      definitions <- load_definition_list(..., from = from)
 
-      if (length(definitions) == 0) {
-        if (length(from) == 0) {
-          stop_h("No definitions provided.")
-        } else if (is.list(from)) {
-          definitions <- from
-        } else {
-          stop_h("Argument 'from' should be a list.")
-        }
-      } else if (any(names(definitions) == "")) {
-        stop_h("Found definition without name.")
-      }
-
-      if (isFALSE(append)) {
-        self$defs <- NULL
-      }
+      # remove previos definitions if not append
+      if (isFALSE(append)) self$defs <- NULL
 
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
@@ -220,7 +208,7 @@ HousepiParameter <- R6::R6Class(
             )
           }
         }
-        this_def[["name"]] <- def_name
+        this_def$name <- def_name
         do.call(self$add, this_def)
       }
 
@@ -310,8 +298,6 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    #' @param drop_unused `logical()`\cr
-    #' If `TRUE` drops unused parameters. Default is `FALSE`.
     assert = function(requirements) {
       defined <- self$defs[["name"]]
 
@@ -325,9 +311,7 @@ HousepiParameter <- R6::R6Class(
                   character_to_string_list(unused_set)),
           find_closest_match(unused_set, requirements)                  
         )
-        for (name in unused_set) {
-          self$remove(name)
-        }
+        for (name in unused_set) self$remove(name)
       }
 
       # find missing parameters

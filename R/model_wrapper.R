@@ -120,15 +120,6 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'traces_no_loglike' is read only.")
     },
 
-    # @field traces_results `data.frame`\cr
-    # Results extracted from the traces of last inference.
-    traces_results = function(value) {
-      if (missing(value)) {
-        return(retrieve_traces_results(self$traces_no_loglike))
-      }
-      stop_h("'traces_results' is read only.")
-    },
-
     # @field reference `matrix()`\cr
     # Household loglikelihood traces.
     house_loglike_mtx = function(value) {
@@ -156,9 +147,9 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   public = list(
-    # @field last_dataset_headers `character()`\cr
+    # @field last_data_cols `character()`\cr
     # Headers of the last dataset imported.
-    last_dataset_headers = NULL,
+    last_data_cols = NULL,
 
     # @description
     # Find dataset headers required by the model.
@@ -210,7 +201,7 @@ HousepiWrapper <- R6::R6Class(
         data.frame(lapply(dataset, as.character))
       )
       if (length(dataset) > 0) {
-        self$last_dataset_headers <- colnames(dataset)
+        self$last_data_cols <- colnames(dataset)
       }
       invisible(self)
     },

@@ -29,6 +29,7 @@ HousepiGenerator <- R6::R6Class(
     .name = NA,
     .dll = NA,
     .cache_dir = NA,
+    .source_dir = NA,
     .quiet = TRUE,
     .need_compile = FALSE,
     .rcpp = NULL,
@@ -123,16 +124,14 @@ HousepiGenerator <- R6::R6Class(
                                  as_template,
                                  force) {
       # asses if model choice requires recompilation
+      private$.need_compile <- TRUE
+
+      # force re-compilation or check for changes
       if (file.exists(private$.dll)) {
-        # force template re-compilation or check for changes
-        if (force || untracked_changes(source_dir, private$.dll)) {
-          private$.need_compile <- TRUE
-        } else {
+        if (!(force || untracked_changes(source_dir, private$.dll))) {
           private$.need_compile <- FALSE
         }
-      } else {
-        private$.need_compile <- TRUE
-      }
+      } 
 
       # temporary directory where to store source code
       if (private$.need_compile) {
@@ -168,13 +167,11 @@ HousepiGenerator <- R6::R6Class(
             }
           }
 
+        } else if (force) {
+          private$.need_compile <- TRUE
         } else {
-          if (force) {
-            private$.need_compile <- TRUE
-          } else {
-            # search cached dll and check if to be recompiled
-            private$.search_for_cached_dll(source_dir)
-          }
+          # search cached dll and check if to be recompiled
+          private$.need_compile <- private$.search_for_cached_dll(source_dir)
         }
       }
 
@@ -191,6 +188,8 @@ HousepiGenerator <- R6::R6Class(
         private$.assert_extra(source_dir)
         private$.copy_source_code(source_dir)
       }
+
+      invisible(self)
     },
 
     # @description
@@ -198,27 +197,25 @@ HousepiGenerator <- R6::R6Class(
     #
     # @param source_dir
     # The path to source code.
+    #
+    # @return `logical(1)`\cr
+    # Wheter nothing is cached or changes are untracked.
     .search_for_cached_dll = function(source_dir) {
       # look for dynamic library name
       cache_dll_files <- list.files(private$.cache_dir,
                                     pattern = dll_file_ext(),
                                     full.names = TRUE)
-
+      # NOTE: at the moment multiple dlls are treated as an error
       if (length(cache_dll_files) == 1) {
-        # check if it needs recompile
-        # FIXME: #UPDATE: can look for the correct one in the list...
-        private$.need_compile <- untracked_changes(
-          source_dir, cache_dll_files[1]
-        )
-        if (!private$.need_compile) {
+        # if all changes are tracked, dll is the one
+        if (!untracked_changes(source_dir, cache_dll_files[1])) {
           private$.dll <- cache_dll_files[1]
+          return(FALSE)
         }
-      } else {
-        # no dll cached or multiple dlls
-        private$.need_compile <- TRUE
       }
 
-      invisible(self)
+      # no dll cached or multiple dlls require recompilation
+      return(TRUE)
     },
 
     # @description
@@ -270,7 +267,6 @@ HousepiGenerator <- R6::R6Class(
     .compile = function() {
       # source folder within cache directory
       cache_dir_src <- file.path(private$.cache_dir, "src")
-
       # remove object file
       unlink(file.path(cache_dir_src, "model.o"))
 
@@ -286,7 +282,7 @@ HousepiGenerator <- R6::R6Class(
       pkgbuild::compile_dll(private$.cache_dir,
                             quiet = self$quiet,
                             debug = FALSE)
-      private$.need_compile <- FALSE
+      private$.need_compile <- FALSE                            
 
       # copy DLL outside of the source directory
       from_file <- file.path(cache_dir_src, dll_file_ext("housepienvironment"))
@@ -298,10 +294,8 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Return new instance of Rcpp Model.
     .new_rcpp_model = function() {
-
       # load dynamic library
       dyn.load(private$.dll)
-
       # expose internally the module
       package <- tools::file_path_sans_ext(basename(private$.dll))
       m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
@@ -313,8 +307,8 @@ HousepiGenerator <- R6::R6Class(
     # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
     # each field, with the name and value.
     deep_clone = function(name, value) {
+      # make a new instance of rcpp model object
       if (name == ".rcpp") {
-        # make a new instance of rcpp model object
         output <- private$.new_rcpp_model()
         output$import_setup(
           data.frame(lapply(value$export_setup(), as.character))
@@ -323,11 +317,10 @@ HousepiGenerator <- R6::R6Class(
           data.frame(lapply(value$export_dataset(), as.character))
         )
         return(output)
-
-      } else {
-        # for all other fields, just return the value
-        return(value)
       }
+
+      # for all other fields, just return the value
+      return(value)
     }
   ),
 
@@ -341,36 +334,28 @@ HousepiGenerator <- R6::R6Class(
     # @field model_name `character(1)`\cr
     # Model name.
     model_name = function(value) {
-      if (missing(value)) {
-        return(private$.name)
-      }
+      if (missing(value)) return(private$.name)
       stop_h("'model_name' is read only.")
     },
 
     # @field cache_dir `character(1)`\cr
     # Cache directory where the compilation is stored.
     cache_dir = function(value) {
-      if (missing(value)) {
-        return(private$.cache_dir)
-      }
+      if (missing(value)) return(private$.cache_dir)
       stop_h("'cache_dir' is read only.")
     },
 
     # @field is_blank `logical(1)`\cr
     # Wheter model is blank.
     is_blank = function(value) {
-      if (missing(value)) {
-        return(private$.name == "blank")
-      }
+      if (missing(value)) return(private$.name == "blank")
       stop_h("'is_blank' is read only.")
     },
 
     # @field quiet `logical(1)`\cr
     # Wheter quiet option is on.
     quiet = function(value) {
-      if (missing(value)) {
-        return(private$.quiet)
-      }
+      if (missing(value)) return(private$.quiet)
       stop_h("'quiet' is read only.")
     },
 
@@ -392,18 +377,29 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'path' is read only.")
     },
 
+    # @field source_dir `character(1)`\cr
+    # Directory containing the orginal source code.
+    source_dir = function(value) {
+      if (missing(value)) return(private$.source_dir)
+      stop_h("'source_dir' is read only.")
+    },
+
     # @field reference `character(1)`\cr
     # Reference script.
     reference = function(value) {
       if (missing(value)) {
-        # reference script
-        output <- file.path(self$path, ".refer")
-        # check if reference file exists
-        if (!file.exists(output)) {
-          stop_h(
-            sprintf("Impossible to find reference file: \"%s\".", output),
-            "Try to re-generate the model with 'force = TRUE'."
-          )
+        if (self$is_blank) {
+          output <- file.path(self$source_dir, "model.cpp")
+        } else {
+          # reference script
+          output <- file.path(self$path, ".refer")
+          # check if reference file exists
+          if (!file.exists(output)) {
+            stop_h(
+              sprintf("Impossible to find reference file: \"%s\".", output),
+              "Try to re-generate the model with 'force = TRUE'."
+            )
+          }
         }
         return(output)
       }
@@ -434,19 +430,32 @@ HousepiGenerator <- R6::R6Class(
     # If `TRUE` compile even if a cached model already exists.
     # @param quiet `logical(1)`\cr
     # If `TRUE` hide `pkgbuild` compilation commands.
+    # @param model_name `chracter(1)`\cr
+    # Custom name of the model (default is inferred from `model_choice`).
     initialize = function(model_choice,
                           as_template = FALSE,
                           force = FALSE,
-                          quiet = TRUE) {
+                          quiet = TRUE,
+                          model_name = NA) {
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
+                              
+      # check model choice
+      if (is.na(model_choice)) {
+        model_choice <- "blank"
+        warning_h("No model specified. Falling back to \"blank\" model.")
+      }
+
+      # assign name to the model
+      private$.name <- ifelse(is.na(model_name), 
+                              basename(model_choice), model_name)
 
       if (model_choice == "blank") {
         #===== Blank Model (Developer Mode) =====#
-        private$.name <- model_choice
         private$.dll <- file.path(system.file(package = "housepi"),
                                   "template", "src",
                                   dll_file_ext("housepienvironment"))
+        private$.source_dir <- dirname(private$.dll)
 
       } else if (model_choice %in% list(".")) {
         # prohibit directories
@@ -458,15 +467,14 @@ HousepiGenerator <- R6::R6Class(
 
       } else if (dir.exists(model_choice)) {
         #===== Model Path Contains Source Code =====#
-        private$.name <- basename(model_choice)
+        private$.source_dir <- model_choice
         private$.dll <- template_dll_file(model_choice)
         private$.new_custom_model(model_choice, as_template, force)
 
       } else if (model_choice %in% list.files(template_models_dir())) {
         #===== Plain Template Model Name =====#
-        private$.name <- model_choice
-        source_dir <- file.path(template_models_dir(), model_choice)
-        private$.dll <- template_dll_file(source_dir)
+        private$.source_dir <- file.path(template_models_dir(), model_choice)
+        private$.dll <- template_dll_file(private$.source_dir)
 
       } else {
         #===== Error =====#
@@ -478,12 +486,6 @@ HousepiGenerator <- R6::R6Class(
 
       invisible(self)
     },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    
 
     ############################################################################
     ############################################################################
