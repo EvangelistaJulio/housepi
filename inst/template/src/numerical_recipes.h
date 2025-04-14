@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 #ifndef M_1_SQRT_2PI
 #define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2pi) */
