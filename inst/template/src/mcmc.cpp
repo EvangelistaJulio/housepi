@@ -927,7 +927,7 @@ Rcpp::List MCMC::estimate_evidence(const std::string &scheme,
         const dbl_vec &avg_vec = pp[1];
         const dbl_vec &var_vec = pp[2];
 
-        for (int k = 0; k < n_rungs; ++k)
+        for (ulong k = 0; k < n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
