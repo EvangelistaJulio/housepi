@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *  
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- *   
+ *
  * mcmc_build.h
  *
  */
@@ -62,34 +62,9 @@ public:
     //===== RANDOM NUMBER GENERATOR =====//
     //===================================//
 
-    rnd_gen _prng_;                            // Mersenne Twister 19937 generator (32 or 64 bit)
-    std::vector<rnd_gen> _prng_parallel_ = {}; // parallel generators (for multi-threading)
-
     rnd_gen &get_prng();
     void set_prng_seed();
-
-    rnd_gen &(MCMC::Impl::*_func_prng_)();
-    rnd_gen &_prng_unique_thread_() { return _prng_; }
-#ifdef _OPENMP
-    rnd_gen &_prng_parallel_threads_() { return _prng_parallel_[omp_get_thread_num()]; }
-#endif
-
-    //----- uniform sampler -----//
-    std::uniform_real_distribution<double> _uniform_distr_;
     double uniform();
-
-    //=========================//
-    //===== LOGLIKELIHOOD =====//
-    //=========================//
-
-    double buffer = NULL_DOUBLE;
-    double global_loglike = 0.0;
-
-    double get_global_loglike() const;
-
-    void set_global_loglike(double new_ll);
-    void increment_global_loglike(double delta);
-    const std::pair<double, double> dgn_glob_ll_stats() const;
 
     //=================//
     //===== SETUP =====//
@@ -101,17 +76,18 @@ public:
                                         "n_burnin", "rand_init", "n_threads",
                                         "inv_temper", "id_trace", "progress"};
 
-    ulong setup_seed;            // random generator seed
+    ulong setup_seed;                   // random generator seed
     bool setup_rand_init_params = true; // random initialization of parameters
-    bool setup_progress = true;  // if to show progressbar
+    bool setup_progress = true;         // if to show progressbar
 
     ulong setup_n_chains = 1; // n. chains
     ulong setup_n_steps = 1;  // n. iterations
     ulong setup_n_adapt = 0;  // n. (finite) adaptive steps
     ulong setup_thin = 1;     // n. thinning iterations
     ulong setup_n_burnin = 0; // n. burnin iterations
+    ulong setup_n_rungs = 0;  // n. of rungs
 
-    double setup_inv_T = 1.;       // inverse temperature
+    double setup_inv_T = 1.;      // inverse temperature
     unsigned setup_n_threads = 1; // number of OMP threads
 
     std::string setup_id_trace = NULL_STRING; // augmented trace to save
@@ -144,6 +120,7 @@ public:
 
     //----- Parameter - Setter -----//
     void init_parameters();
+    void fix_param_to_be_inferred_list(const std::string &par_name);
 
     //----- Parameter - Metropolis-Hastings -----//
     bool propose_valid_param_move(const parID &p);
@@ -163,6 +140,8 @@ public:
     size_t n_individuals = 0;
     size_t n_households = 0;
     std::vector<Household> house_vector = {};
+    std::vector<size_t> restrict_hh_indexes = {};
+    std::unordered_map<std::string, size_t> _hhid_to_index = {};
 
     //----- Data - Reports -----//
     std::map<std::string, ulong> _report_indiv_ = {};
@@ -207,8 +186,6 @@ public:
     //===== INFECTIVITY PROFILE =====//
     //===============================//
 
-    void fix_param_to_be_inferred_list(const std::string &par_name);
-
     class InfecProfile
     {
     public:
@@ -234,37 +211,37 @@ public:
 
     private:
         MCMC::Impl &pImpl; // pointer to external class
-        const str_vec headers = {"name", "discrete",
+        const str_vec _headers = {"name", "discrete",
                                  "arg_name", "arg_value", "arg_at",
                                  "min", "min_at",
                                  "max", "max_at"};
         // lookup table
-        size_t size_lut = 0;
-        dbl_vec lookup_inst = {};
-        dbl_vec lookup_cumul = {};
-        dbl_vec lookup_buffer_inst = {};
-        dbl_vec lookup_buffer_cumul = {};
+        size_t _size_lut = 0;
+        dbl_vec _lookup_inst = {};
+        dbl_vec _lookup_cumul = {};
+        dbl_vec _lookup_buffer_inst = {};
+        dbl_vec _lookup_buffer_cumul = {};
 
-        void assign_profile(const std::string &name);
-        void assign_args(const str_vec &keys,
+        void _assign_profile(const std::string &name);
+        void _assign_args(const str_vec &keys,
                          const str_vec &vals,
                          const str_vec &typs);
-        void assign_min(bool is_discrete,
+        void _assign_min(bool is_discrete,
                         const std::string &min_value,
                         const std::string &min_at);
-        void assign_max(const std::string &max_value,
+        void _assign_max(const std::string &max_value,
                         const std::string &max_at);
 
         //===== Functional methods for getter methods =====//
-        double (InfecProfile::*_func_inst_)(double, const dbl_vec &) const = &InfecProfile::_default_inst_;
-        double (InfecProfile::*_func_cumul_)(double, const dbl_vec &) const = &InfecProfile::_default_cumul_;
+        double (InfecProfile::*_func_inst)(double, const dbl_vec &) const = &InfecProfile::__default_inst;
+        double (InfecProfile::*_func_cumul)(double, const dbl_vec &) const = &InfecProfile::__default_cumul;
 
-        double _default_inst_(double t, const dbl_vec &opts) const;
-        double _default_cumul_(double t, const dbl_vec &opts) const;
-        double _lookup_inst_(double t, const dbl_vec &opts) const;
-        double _lookup_cumul_(double t, const dbl_vec &opts) const;
+        double __default_inst(double t, const dbl_vec &opts) const;
+        double __default_cumul(double t, const dbl_vec &opts) const;
+        double __lookup_inst(double t, const dbl_vec &opts) const;
+        double __lookup_cumul(double t, const dbl_vec &opts) const;
     };
-    InfecProfile _infec_;
+    InfecProfile _infec_profile;
 
     void update_infec_profile();
     void restore_infec_profile();
@@ -273,16 +250,15 @@ public:
     //===== IMPORTS/EXPORTS =====//
     //===========================//
 
-    std::map<std::string, std::string> _report_pathtofile_ = {};
-
 #ifdef _HOUSEPI_RCPP
 
     //----- Rcpp IMPORTS -----//
     void import_setup(const Rcpp::List &input);
     void import_infec_profile(const Rcpp::List &input);
-    void import_parameter(const Rcpp::DataFrame &input);
-    void import_augmented(const Rcpp::DataFrame &input);
+    void import_param(const Rcpp::DataFrame &input);
+    void import_augm(const Rcpp::DataFrame &input);
     void import_dataset(const Rcpp::DataFrame &input);
+    void import_multiplicity(const Rcpp::DataFrame &input);
 
     //----- Rcpp EXPORTS -----//
     Rcpp::DataFrame export_dataset();
@@ -290,7 +266,7 @@ public:
     Rcpp::DataFrame export_house_size_report() const;
 
     Rcpp::List export_setup() const;
-    Rcpp::DataFrame export_parameter() const;
+    Rcpp::DataFrame export_param() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_house_loglike_mtx() const;
     Rcpp::List showcase_infec_profile(const Rcpp::List &opts,
@@ -298,11 +274,12 @@ public:
 
 #else
     //----- READ -----//
+    void read_dataset(const std::string &pathtofile);
     void read_setup(const std::string &pathtofile);
+    void read_param(const std::string &pathtofile);
     void read_infec_profile(const std::string &pathtofile);
-    void read_params(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
-    void read_data(const std::string &pathtofile);
+    void read_multiplicity(const std::string &pathtofile);
 
     //----- SHOW -----//
     void show_summary() const;
@@ -325,14 +302,10 @@ public:
     //=================//
 
     void build_setup();
-    void build_params();
+    void build_param();
     void build_augm();
-    void build_data(const dict_str_vec &datatable);
-
-    //----- build : auxiliary attributes -----//
-    std::map<std::string, std::string> _setup_deflist_ = {};
-    dict_str_vec _param_deftable_ = {};
-    dict_str_vec _augm_deftable_ = {};
+    void build_dataset(const dict_str_vec &input);
+    void build_multiplicity(const dict_str_vec &input);
 
     //----- build : type-specified variables -----//
     double type_to_double(const std::string &tkn_val,
@@ -348,18 +321,25 @@ public:
                                 const std::string &tkn_max_val,
                                 const std::string &tkn_max_typ);
 
-    //----- build : auxiliary methods -----//
-    const dict_str_vec _build_augm_name_status_check_();
-    void _build_augm_allocate_univocal_defs_(const dict_str_vec &check);
-    void _build_augm_clear_houses_and_set_id_trace_();
+    //=========================//
+    //===== LOGLIKELIHOOD =====//
+    //=========================//
 
-    //======================//
-    //===== METROPOLIS =====//
-    //======================//
+    double full_buffer = NULL_DOUBLE;
+    double full_loglike = 0.0;
 
-    ulong _chain_ = 1;       // current chain
-    ulong _rung_ = 0;        // current thermodynamic rung
-    ulong setup_n_rungs = 0; // number of rungs
+    double get_full_loglike() const;
+
+    void set_full_loglike(double new_ll);
+    void increment_full_loglike(double delta);
+    const std::pair<double, double> smpl_full_loglike_stats() const;
+
+    //===============================//
+    //===== METROPOLIS-HASTINGS =====//
+    //===============================//
+
+    ulong chain = 1; // current chain
+    ulong rung = 0;  // current thermodynamic rung
 
     bool is_power_post() const;
     const std::string fmt_progtxt();
@@ -367,13 +347,13 @@ public:
     void assert_proper_dataset();
     void assert_proper_mcmc_setup();
 
-    //----- Containers for sample values (aka diagnostics) -----//
-    ulong dgn_count = 0;
-    dbl_vec dgn_glob_loglike = {};
-    size_t dgn_H_star = 0; // index of house to follow up
-    indiv dgn_i_star = 0;  // index of individual to follow up
-    parIDmap<dbl_vec> dgn_param_value = {};
-    augmIDmap<dbl_vec> dgn_augm_value = {};
+    //----- Containers for posterior sample values -----//
+    ulong smpl_count = 0;
+    dbl_vec smpl_full_loglike = {};
+    size_t smpl_H_star = 0; // index of house to follow up
+    indiv smpl_i_star = 0;  // index of individual to follow up
+    parIDmap<dbl_vec> smpl_param_value = {};
+    augmIDmap<dbl_vec> smpl_augm_value = {};
 
     void init_move_counts();
     void init_diagnostics();
@@ -382,9 +362,43 @@ public:
     //----- Metropolis - augmented moves -----//
     double compute_augm_model_loglike(const Household &house) const;
 
-    void (Impl::*_func_augm_model_by_definition_)(const Household &, indiv, double &) const = &Impl::_augm_model_generic_;
-    void _augm_model_by_status_(const Household &house, indiv i, double &delta) const;
-    void _augm_model_generic_(const Household &house, indiv i, double &delta) const;
+private:
+    //===================================//
+    //===== RANDOM NUMBER GENERATOR =====//
+    //===================================//
+
+    rnd_gen _prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
+    std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
+
+    rnd_gen &(MCMC::Impl::*_func_get_prng)();
+    rnd_gen &_prng_unique_thread() { return _prng; }
+    #ifdef _OPENMP
+    rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
+    #endif
+
+    //----- uniform sampler -----//
+    std::uniform_real_distribution<double> _uniform_distr;
+
+    //=================//
+    //===== BUILD =====//
+    //=================//
+
+    dict_str_str _setup_deflist = {};
+    dict_str_vec _param_deftable = {};
+    dict_str_vec _augm_deftable = {};
+
+    //----- build : auxiliary methods -----//
+    const dict_str_vec _build_augm_name_status_check();
+    void _build_augm_allocate_univocal_defs(const dict_str_vec &check);
+    void _build_augm_clear_houses_and_set_id_trace();
+
+    //======================//
+    //===== METROPOLIS =====//
+    //======================//
+
+    void (Impl::*_func_augm_model_by_definition)(const Household &, indiv, double &) const = &Impl::__augm_model_generic;
+    void __augm_model_by_status(const Household &house, indiv i, double &delta) const;
+    void __augm_model_generic(const Household &house, indiv i, double &delta) const;
 };
 
 #endif // HOUSEPI__MCMC__BUILD__H

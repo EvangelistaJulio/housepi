@@ -1,9 +1,9 @@
-#      __                                 
+#      __
 #     / /_  ____  __  __ ____ __  ____  __
-#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
-#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
-#  /_/ /_/\____/\____/____/\___/ ____/_/   
-#                             /_/       
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
@@ -79,15 +79,15 @@ find_closest_match <- function(input,
 
     if (any(idxs)) {
       closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- sprintf("Did you mean %s?", 
+      output <- sprintf("Did you mean %s?",
                         character_to_string_list(closest))
     }
 
     if (!all(idxs)) {
       output <- c(output,
-        sprintf("Available option%s %s.", 
-              ifelse(length(options) > 1, "s are:", " is"),
-              character_to_string_list(options))
+        sprintf("Available option%s %s.",
+                ifelse(length(options) > 1, "s are:", " is"),
+                character_to_string_list(options))
       )
     }
 

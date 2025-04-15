@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * household.cpp
  *
  */
@@ -74,21 +74,19 @@ double Individual::augm(const augmID &a) const { return augm_map.at(a).get(); }
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Individual::Group Rate : class  /////////////////////////////////
+/////////////////////////////  Individual::Group Rate : constructor  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//===== CONSTRUCTOR	=====//
 Individual::GroupRate::GroupRate(const std::string &name,
 								 const std::vector<const double *> &pointers)
 {
 	if (!tools::is_na(name))
 	{
-		this->name = name;
-
 		if (pointers.empty())
 			throw std::invalid_argument(
 				"No parameters associated to group rate \"" + name + "\".");
 
+		this->group_rate_name = name;
 		this->n_rates = pointers.size();
 		this->pointers = new const double *[pointers.size()];
 		for (ushort c = 0; c < this->n_rates; ++c)
@@ -97,7 +95,10 @@ Individual::GroupRate::GroupRate(const std::string &name,
 }
 Individual::GroupRate::~GroupRate() = default;
 
-//===== GETTER =====//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Individual::Group Rate : getter  ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 double Individual::GroupRate::get() const
 {
 	double output = 1.0;
@@ -129,6 +130,13 @@ Household::~Household() = default;
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Assign a multiplicity to the household. */
+void Household::set_multiplicity(ulong m, size_t class_idx)
+{
+	_house_multiplicity = m;
+	_multiplicity_class = class_idx;
+}
+
 /* Link an individual to the household. */
 void Household::assign_individual(const std::string &id,
 								  int status,
@@ -137,30 +145,30 @@ void Household::assign_individual(const std::string &id,
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
 	{
-		++_n_infec_;
-		_infec_list_.push_back(house_size);
+		++_n_infec;
+		_infec_list.push_back(_house_size);
 	}
 	else if (status == HEALTHY_STATUS)
 	{
-		++_n_healthy_;
-		_healthy_list_.push_back(house_size);
+		++_n_healthy;
+		_healthy_list.push_back(_house_size);
 	}
 	else
 	{
-		++_n_missing_;
-		_missing_list_.push_back(house_size);
+		++_n_missing;
+		_missing_list.push_back(_house_size);
 	}
 
 	//----- emplace new individual -----//
-	members.emplace_back(id, status, data);
-	++house_size;
+	_members.emplace_back(id, status, data);
+	++_house_size;
 }
 
 /* Change_status of individual i to new status (without controls).
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
 bool Household::change_status(indiv i, int new_status)
 {
-	Individual &this_indiv = members[i];
+	Individual &this_indiv = _members[i];
 	int old_status = this_indiv.status;
 
 	if (new_status == old_status)
@@ -170,18 +178,18 @@ bool Household::change_status(indiv i, int new_status)
 	{
 		if (old_status >= INFECTED_STATUS)
 		{
-			--_n_infec_;
-			_infec_list_.erase(std::find(_infec_list_.begin(), _infec_list_.end(), i));
+			--_n_infec;
+			_infec_list.erase(std::find(_infec_list.begin(), _infec_list.end(), i));
 		}
 		else if (old_status == HEALTHY_STATUS)
 		{
-			--_n_healthy_;
-			_healthy_list_.erase(std::find(_healthy_list_.begin(), _healthy_list_.end(), i));
+			--_n_healthy;
+			_healthy_list.erase(std::find(_healthy_list.begin(), _healthy_list.end(), i));
 		}
 		else if (old_status == MISSING_STATUS)
 		{
-			--_n_missing_;
-			_missing_list_.erase(std::find(_missing_list_.begin(), _missing_list_.end(), i));
+			--_n_missing;
+			_missing_list.erase(std::find(_missing_list.begin(), _missing_list.end(), i));
 		}
 		else
 			throw std::runtime_error(
@@ -189,18 +197,18 @@ bool Household::change_status(indiv i, int new_status)
 
 		if (new_status >= INFECTED_STATUS)
 		{
-			++_n_infec_;
-			_infec_list_.push_back(i);
+			++_n_infec;
+			_infec_list.push_back(i);
 		}
 		else if (new_status == HEALTHY_STATUS)
 		{
-			++_n_healthy_;
-			_healthy_list_.push_back(i);
+			++_n_healthy;
+			_healthy_list.push_back(i);
 		}
 		else if (new_status == MISSING_STATUS)
 		{
-			++_n_missing_;
-			_missing_list_.push_back(i);
+			++_n_missing;
+			_missing_list.push_back(i);
 		}
 		else
 			throw std::runtime_error(
@@ -216,50 +224,78 @@ Allocate memory if it  */
 void Household::assign_contact_rate(indiv from, indiv to, const double *x)
 {
 	// initialize contact rate matrix if necessary
-	if (contact_rates.empty())
-		contact_rates.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
+	if (_contact_rates.empty())
+		_contact_rates.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
 
-	contact_rates[from][to] = x;
+	_contact_rates[from][to] = x;
 }
 
-void Household::set_loglike(double x)
+/* Store the loglikelihood of household observation. */
+void Household::set_obs_loglike(double x)
 {
 	if (std::isnan(x))
-		throw std::runtime_error("Set a NaN value as household loglikelihood.");
+		throw std::runtime_error("Set a NaN value as household observation loglikelihood.");
 
-	buffer = house_loglike;
-	house_loglike = x;
+	_obs_buffer = _obs_loglike;
+	_obs_loglike = x;
 }
-void Household::restore_loglike() { house_loglike = buffer; }
+
+/* Store the loglikelihood of household augmented variables. */
+void Household::set_augm_loglike(double x)
+{
+	if (std::isnan(x))
+		throw std::runtime_error("Set a NaN value as household augmented variables loglikelihood.");
+
+	_augm_buffer = _augm_loglike;
+	_augm_loglike = x;
+}
+
+/* Add a local variation to loglikelihood of household augmented variables. */
+void Household::increment_augm_loglike(double delta)
+{
+	set_augm_loglike(_augm_loglike + delta);
+}
+
+/* Restore previous values of the loglikelihood. */
+void Household::restore_loglike()
+{
+	_obs_loglike = _obs_buffer;
+	_augm_loglike = _augm_buffer;
+}
 
 //===== GETTER =====//
 const std::string &Household::house_id() const { return _house_id; }
-const std::string &Household::id(indiv i) const { return members[i].id; }
+const std::string &Household::id(indiv i) const { return _members[i].id; }
 size_t Household::index() const { return _index; }
-ushort Household::size() const { return house_size; }
+ushort Household::size() const { return _house_size; }
 
-int Household::status(indiv i) const { return members[i].status; }
-double Household::contact_rate(indiv from, indiv to) const { return *contact_rates[from][to]; }
+ulong Household::multiplicity() const { return _house_multiplicity; }
+size_t Household::multiplicity_class_index() const { return _multiplicity_class; }
+bool Household::is_multiplicity_head_class() const { return (_index == _multiplicity_class); }
 
-double Household::data(indiv i, const dataID &d) const { return members[i].data(d); }
-double Household::group_rate(indiv i, const rateID &r) const { return members[i].group_rate(r); }
-double Household::augm(indiv i, const augmID &a) const { return members[i].augm(a); }
+int Household::status(indiv i) const { return _members[i].status; }
+double Household::contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
 
-double Household::augm_model_logpdf(indiv i, const augmID &a) const { return members[i].augm_map.at(a).distr_logpdf(); }
-double Household::augm_model_logratio(indiv i, const augmID &a) const { return members[i].augm_map.at(a).distr_logratio(); }
-double Household::augm_propose_logratio(indiv i, const augmID &a) const { return members[i].augm_map.at(a).propose_logratio(); }
-double Household::augm_move_logratio(indiv i, const augmID &a) const { return members[i].augm_map.at(a).get_move_logratio(); }
+double Household::data(indiv i, const dataID &d) const { return _members[i].data(d); }
+double Household::group_rate(indiv i, const rateID &r) const { return _members[i].group_rate(r); }
+double Household::augm(indiv i, const augmID &a) const { return _members[i].augm(a); }
 
-ushort Household::n_infec_status() const { return _n_infec_; }
-ushort Household::n_healthy_status() const { return _n_healthy_; }
-ushort Household::n_missing_status() const { return _n_missing_; }
+double Household::augm_model_logpdf(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).distr_logpdf(); }
+double Household::augm_model_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).distr_logratio(); }
+double Household::augm_propose_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).propose_logratio(); }
+double Household::augm_move_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_move_logratio(); }
 
-double Household::get_loglike() const { return house_loglike; }
-double Household::get_delta_loglike() const { return house_loglike - buffer; }
+ushort Household::n_infec_status() const { return _n_infec; }
+ushort Household::n_healthy_status() const { return _n_healthy; }
+ushort Household::n_missing_status() const { return _n_missing; }
 
-const std::vector<indiv> &Household::infected_status_list() const { return _infec_list_; }
-const std::vector<indiv> &Household::healthy_status_list() const { return _healthy_list_; }
-const std::vector<indiv> &Household::missing_status_list() const { return _missing_list_; }
+double Household::get_augm_loglike() const { return _augm_loglike; }
+double Household::get_obs_loglike() const { return _obs_loglike; }
+double Household::get_delta_obs_loglike() const { return _obs_loglike - _obs_buffer; }
+
+const std::vector<indiv> &Household::infected_status_list() const { return _infec_list; }
+const std::vector<indiv> &Household::healthy_status_list() const { return _healthy_list; }
+const std::vector<indiv> &Household::missing_status_list() const { return _missing_list; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
@@ -267,14 +303,14 @@ const std::vector<indiv> &Household::missing_status_list() const { return _missi
 
 void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x)
 {
-	members[i].assign_all_group_rates(x);
+	_members[i].assign_all_group_rates(x);
 }
 
 /* Assign definitions for the augmented variable model. */
 void Household::assign_augm(indiv i, const augmID &a, const std::string &name, double value,
 							bool is_discrete, const std::string &model_name)
 {
-	Variable &this_augm = members[i].augm_map.at(a);
+	Variable &this_augm = _members[i].augm_map.at(a);
 	this_augm.init(name, value, is_discrete);
 	this_augm.assign_distribution(model_name);
 }
@@ -282,58 +318,58 @@ void Household::assign_augm(indiv i, const augmID &a, const std::string &name, d
 /* Assign scalar argument for augmented variable model. */
 void Household::assign_augm_model_scalar_arg(indiv i, const augmID &a, const std::string &arg_name, double x)
 {
-	members[i].augm_map.at(a).assign_distr_scalar_arg(arg_name, x);
+	_members[i].augm_map.at(a).assign_distr_scalar_arg(arg_name, x);
 }
 /* Assign pointer to argument for augmented variable model. */
 void Household::assign_augm_model_pointer_arg(indiv i, const augmID &a, const std::string &arg_name, const double *y)
 {
-	members[i].augm_map.at(a).assign_distr_pointer_arg(arg_name, y);
+	_members[i].augm_map.at(a).assign_distr_pointer_arg(arg_name, y);
 }
 
 /* Assign scalar range minimum for augmented variable model. */
 void Household::assign_augm_model_scalar_range_min(indiv i, const augmID &a, double x)
 {
-	members[i].augm_map.at(a).assign_distr_scalar_range_min(x);
+	_members[i].augm_map.at(a).assign_distr_scalar_range_min(x);
 }
 /* Assign pointer range minimum for augmented variable model. */
 void Household::assign_augm_model_pointer_range_min(indiv i, const augmID &a, const double *y)
 {
-	members[i].augm_map.at(a).assign_distr_pointer_range_min(y);
+	_members[i].augm_map.at(a).assign_distr_pointer_range_min(y);
 }
 
 /* Assign scalar range maximum for augmented variable model. */
 void Household::assign_augm_model_scalar_range_max(indiv i, const augmID &a, double x)
 {
-	members[i].augm_map.at(a).assign_distr_scalar_range_max(x);
+	_members[i].augm_map.at(a).assign_distr_scalar_range_max(x);
 }
 /* Assign pointer range maximum for augmented variable model. */
 void Household::assign_augm_model_pointer_range_max(indiv i, const augmID &a, const double *y)
 {
-	members[i].augm_map.at(a).assign_distr_pointer_range_max(y);
+	_members[i].augm_map.at(a).assign_distr_pointer_range_max(y);
 }
 
 void Household::init_augm_model_reshaping(indiv i, const augmID &a)
 {
-	members[i].augm_map.at(a).init_distr_reshaping();
+	_members[i].augm_map.at(a).init_distr_reshaping();
 }
 
 /* Set a value for the augmented variable. */
 void Household::set_augm_value(indiv i, const augmID &a, double x)
 {
-	members[i].augm_map.at(a).set_value(x);
+	_members[i].augm_map.at(a).set_value(x);
 }
 
 /* Draw a value from the augmented variable distribution. */
 void Household::augm_model_rand(indiv i, const augmID &a, rnd_gen &prng)
 {
-	members[i].augm_map.at(a).rand(prng);
+	_members[i].augm_map.at(a).rand(prng);
 }
 
 /* Assign definitions for the augmented variable proposer. */
 void Household::assign_augm_proposer(indiv i, const augmID &a, const std::string &rule_name,
 									 double rule_scale, double rule_from)
 {
-	Variable &this_augm = members[i].augm_map.at(a);
+	Variable &this_augm = _members[i].augm_map.at(a);
 	this_augm.assign_proposer(rule_name, rule_scale, rule_from);
 }
 
@@ -344,7 +380,7 @@ void Household::assign_augm_proposer(indiv i, const augmID &a, const std::string
 /* True if the propose augm move is valid. */
 bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 {
-	Variable &this_augm = members[i].augm_map.at(a);
+	Variable &this_augm = _members[i].augm_map.at(a);
 	this_augm.propose(prng); // propose new value and buffer old
 
 	if (this_augm.valid_move()) // proceed only if valid
@@ -358,26 +394,29 @@ bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 /* Restore buffer valies of augmented variable, extra and loglikelihood. */
 void Household::restore_augm_value(indiv i, const augmID &a)
 {
-	members[i].augm_map.at(a).restore_value();
+	_members[i].augm_map.at(a).restore_value();
 	restore_all_extra();
 	restore_loglike();
 }
 
 /* Assign empty augmented variable. */
-void Household::clear_augm(indiv i, const augmID &a) { members[i].augm_map[a] = Variable(); }
+void Household::clear_augm(indiv i, const augmID &a) { _members[i].augm_map[a] = Variable(); }
 
-/* Update the values for the Bayesian diagnostics. */
+/* Update the values for posterior sampling. */
 void Household::init_diagnostics(ulong sample_size)
 {
-	dgn_loglike.clear();
-	dgn_loglike = dbl_vec(sample_size);
+	_smpl_loglike.clear();
+	_smpl_loglike = dbl_vec(sample_size);
 }
 
-/* Update the values for the Bayesian diagnostics. */
-void Household::update_diagnostics(ulong count) { dgn_loglike[count] = house_loglike; }
+/* Update the values for posterior sampling. */
+void Household::update_diagnostics(ulong count)
+{
+	_smpl_loglike[count] = _obs_loglike + _augm_loglike;
+}
 
-/* Return the loglikelihood sample vector. */
-const dbl_vec &Household::get_dgn_loglike() const { return dgn_loglike; }
+/* Return the loglikelihood sampled vector. */
+const dbl_vec &Household::get_smpl_loglike() const { return _smpl_loglike; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Household : extra attributes  //////////////////////////////////
@@ -385,33 +424,33 @@ const dbl_vec &Household::get_dgn_loglike() const { return dgn_loglike; }
 
 bool Household::is_any_extra()
 {
-	return !(extra_int_vec.empty() && extra_dbl_vec.empty() && extra_dbl_mtx.empty());
+	return !(_extra_int_vec.empty() && _extra_dbl_vec.empty() && _extra_dbl_mtx.empty());
 }
 
 /* Deep copies of extra attributes in the buffer */
 void Household::buffer_all_extra()
 {
-	_buffer_extra_int_vec_ = extra_int_vec;
-	_buffer_extra_dbl_vec_ = extra_dbl_vec;
-	_buffer_extra_dbl_mtx_ = extra_dbl_mtx;
+	_buffer_extra_int_vec = _extra_int_vec;
+	_buffer_extra_dbl_vec = _extra_dbl_vec;
+	_buffer_extra_dbl_mtx = _extra_dbl_mtx;
 }
 
 /* Swap buffer into  extra attributes */
 void Household::restore_all_extra()
 {
-	extra_int_vec.swap(_buffer_extra_int_vec_);
-	extra_dbl_vec.swap(_buffer_extra_dbl_vec_);
-	extra_dbl_mtx.swap(_buffer_extra_dbl_mtx_);
+	_extra_int_vec.swap(_buffer_extra_int_vec);
+	_extra_dbl_vec.swap(_buffer_extra_dbl_vec);
+	_extra_dbl_mtx.swap(_buffer_extra_dbl_mtx);
 }
 
 //----- Extra integer vector -----//
-void Household::allocate_extra_integer_vector(const extraID &e) { extra_int_vec[e] = int_vec(size(), 0); }
-int_vec &Household::extra_integer_vector(const extraID &e) { return extra_int_vec.at(e); }
+void Household::allocate_extra_integer_vector(const extraID &e) { _extra_int_vec[e] = int_vec(size(), 0); }
+int_vec &Household::extra_integer_vector(const extraID &e) { return _extra_int_vec.at(e); }
 
 //----- Extra double vector -----//
-void Household::allocate_extra_double_vector(const extraID &e) { extra_dbl_vec[e] = dbl_vec(size(), 0.); }
-dbl_vec &Household::extra_double_vector(const extraID &e) { return extra_dbl_vec.at(e); }
+void Household::allocate_extra_double_vector(const extraID &e) { _extra_dbl_vec[e] = dbl_vec(size(), 0.); }
+dbl_vec &Household::extra_double_vector(const extraID &e) { return _extra_dbl_vec.at(e); }
 
 //----- Extra double matrix -----//
-void Household::allocate_extra_double_matrix(const extraID &e) { extra_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-matrix<double> &Household::extra_double_matrix(const extraID &e) { return extra_dbl_mtx.at(e); }
+void Household::allocate_extra_double_matrix(const extraID &e) { _extra_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+matrix<double> &Household::extra_double_matrix(const extraID &e) { return _extra_dbl_mtx.at(e); }

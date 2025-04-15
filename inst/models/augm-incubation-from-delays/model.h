@@ -25,7 +25,7 @@ class Model : public MCMC
 public:
 	//===== Override General Methods =====//
 	void init_model_for_inference() override final;
-	double compute_house_loglike(Household &house) const override final;
+	double compute_house_obs_loglike(Household &house) const override final;
 	//void simulate_single_house(Household &house) override final;
 };
 

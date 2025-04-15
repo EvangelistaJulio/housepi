@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *       
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * numerical_recipes.h
  *
  */
@@ -34,7 +34,7 @@
 // namespace containing numerical recipes used to compute distributions
 namespace numr
 {
-    constexpr int MAX_ITER = 1000;
+    constexpr unsigned MAX_ITER = 1000;
     constexpr double EPSILON = 1.e-12;
     constexpr double MIN_DBL = 1.e-30;
 
@@ -122,7 +122,7 @@ namespace numr
         {
             double sum = 1. / shape;
             double term = sum;
-            for (int m = 1; m <= MAX_ITER; ++m)
+            for (unsigned m = 1; m <= MAX_ITER; ++m)
             {
                 term *= z / (shape + m);
                 sum += term;
@@ -144,9 +144,9 @@ namespace numr
             double h = d;
             double delta = 0.;
 
-            for (int m = 1; m <= MAX_ITER; ++m)
+            for (unsigned m = 1; m <= MAX_ITER; ++m)
             {
-                double an = m * (shape - m);
+                double an = (shape - m) * m;
                 b += 2.;
                 d = an * d + b;
                 if (std::fabs(d) < MIN_DBL)
@@ -196,10 +196,10 @@ namespace numr
             d = 1. / d;
 
             double h = d;
-            for (int m = 1; m <= MAX_ITER; ++m)
+            for (unsigned m = 1; m <= MAX_ITER; ++m)
             {
-                int m2 = 2 * m;
-                double aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+                unsigned m2 = 2 * m;
+                double aa = (b - m) * m * x / ((qam + m2) * (a + m2));
 
                 d = 1. + aa * d;
                 if (std::fabs(d) < MIN_DBL)

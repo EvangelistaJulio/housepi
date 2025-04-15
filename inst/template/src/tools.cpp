@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *         
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * tools.cpp
  *
  */
@@ -153,15 +153,6 @@ namespace tools
 #endif
             _issued_warnings_.insert(txt);
         }
-    }
-
-    /* Display a multi-line warning message. */
-    void warning(const std::vector<std::string> &txt_vec)
-    {
-        std::string merged = txt_vec[0];
-        for (size_t i = 1; i < txt_vec.size(); ++i)
-            merged += "\n" + txt_vec[i];
-        warning(merged);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -686,6 +677,10 @@ namespace progress
         steady_clock::time_point lastprint;
         int64_t thintime = 0;
 
+        //=======================//
+        //===== CONSTRUCTOR =====//
+        //=======================//
+
         Impl()
         {
 #ifdef _HOUSEPI_RCPP
@@ -694,6 +689,10 @@ namespace progress
 #endif
         };
         ~Impl() {};
+
+        //==================//
+        //===== SETTER =====//
+        //==================//
 
         /* Set description text of progress bar. */
         void set_text(const std::string &text) { this->text = text; }
@@ -711,7 +710,7 @@ namespace progress
                 std::ostringstream oss;
                 oss << text << " |" << std::string(barwidth, ' ') << "| "
                     << tools::percentage(0., 0);
-                display(oss.str());
+                _display(oss.str());
 
                 start = steady_clock::now();
                 lastprint = start;
@@ -742,7 +741,7 @@ namespace progress
                         << tools::percentage(progress, 0) << " "
                         << fmt_time(elapsed) << "<" << fmt_time(missing)
                         << std::string(10, ' ');
-                    display(oss.str());
+                    _display(oss.str());
 
                     lastprint = steady_clock::now();
                 }
@@ -767,13 +766,13 @@ namespace progress
                     oss << symbol;
                 oss << "| " << fmt_time(elapsed)
                     << std::string(25, ' ') << "\n";
-                display(oss.str());
+                _display(oss.str());
             }
         }
 
     private:
         /* Function to display the progress bar. */
-        void display(const std::string &sms) { tools::print_stdout(sms); }
+        void _display(const std::string &sms) { tools::print_stdout(sms); }
     };
 
     //-----------------------------------------------------------------------------------------------//
@@ -783,10 +782,11 @@ namespace progress
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    //===== CONSTRUCTOR =====//
-    Bar::Bar(ulong total,
-             const std::string &text,
-             bool verbose) : pImpl(std::make_unique<Impl>())
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////  Bar : Constructor  ///////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    Bar::Bar(ulong total, const std::string &text, bool verbose) : pImpl(std::make_unique<Impl>())
     {
         pImpl->total = total;
         pImpl->verbose = verbose;
@@ -794,7 +794,10 @@ namespace progress
     }
     Bar::~Bar() = default;
 
-    //===== SETTER =====//
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////  Bar : Setter  /////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
     void Bar::set_text(const std::string &text) { pImpl->set_text(text); }
     void Bar::update() { pImpl->update(); }
     void Bar::finalize() { pImpl->finalize(); }

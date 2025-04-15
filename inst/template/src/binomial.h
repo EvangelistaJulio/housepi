@@ -1,14 +1,14 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * binomial.h
- * 
+ *
  */
 
 #ifndef HOUSEPI__BINOMIAL__H
@@ -21,7 +21,7 @@ namespace bax
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     using ushort_vec = std::vector<ushort>;
     using gentype = std::vector<ushort>;
 
@@ -32,7 +32,7 @@ namespace bax
     class EscapePattern
     {
     public:
-        EscapePattern(ushort N_star_) : N_star(N_star_) {}
+        EscapePattern(ushort N_star) : _N_star(N_star) {}
         ~EscapePattern() {}
 
         void add_entry(ushort new_entry);
@@ -41,12 +41,12 @@ namespace bax
         const std::string show();
 
     private:
-        const ushort N_star;
-        size_t n_entries = 0;
-        size_t n_patterns = 0;
+        const ushort _N_star;
+        size_t _n_entries = 0;
+        size_t _n_patterns = 0;
 
-        ushort_vec entries = {};
-        std::vector<ulong> pattern_idxs = {};
+        ushort_vec _entries = {};
+        std::vector<ulong> _pattern_idxs = {};
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

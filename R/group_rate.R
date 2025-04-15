@@ -122,9 +122,9 @@ associate_param_names <- function(this_table,
     idx_refer <- which.max(this_table$.counts)
 
   } else {
-    # find row 
+    # find row
     idx_refer <- unname(which(
-      apply(this_table[colmask], 1, 
+      apply(this_table[colmask], 1,
             function(row) all(row == unlist(reference[colmask])))
     ))
 
@@ -134,7 +134,7 @@ associate_param_names <- function(this_table,
   }
 
   # format prefix and associate parameter names
-  prefix <- ifelse((!is.na(prefix)) && is.character(prefix), 
+  prefix <- ifelse((!is.na(prefix)) && is.character(prefix),
                    paste0(prefix, "_"), "")
 
   # associate parameter names
@@ -157,12 +157,12 @@ associate_param_names <- function(this_table,
 #' If `TRUE` prints the tab (default).
 #' @param quote `logical(1)`\cr
 #' If `TRUE` prints the quotes (default).
-#' 
+#'
 #' @return `character(1)`\cr
-#' 
+#'
 #' @noRd
 cpp_emplace <- function(x, tab = TRUE, quote = TRUE) {
-  sprintf("%semplace_group_rate(r, %s);", 
+  sprintf("%semplace_group_rate(r, %s);",
           ifelse(isTRUE(tab), "\t", ""),
           ifelse(isTRUE(quote), sprintf("\"%s\"", x), x))
 }
@@ -242,7 +242,7 @@ HousepiGroupRate <- R6::R6Class(
           features <- features[!is.na(features)]
 
           # initialize group rate contribution to script
-          this_script <- c()  
+          this_script <- c()
 
           if (isFALSE(this_def[["independent"]])) {
             features <- list(features)
@@ -305,7 +305,7 @@ HousepiGroupRate <- R6::R6Class(
           "void Model::assign_group_rate_to_individual(Household &house, indiv i)",
           "{",
           ifelse(all(is.na(lapply(self$defs, `[[`, "by"))),
-                 "\trateID r;\n\tUNUSED(house);\n\tUNUSED(i);", 
+                 "\trateID r;\n\tUNUSED(house);\n\tUNUSED(i);",
                  "\trateID r;"),
           script,
           "}"
@@ -576,7 +576,7 @@ HousepiGroupRate <- R6::R6Class(
 
         if (length(dataset) > 0) {
           # produce associated script
-          private$.cpp_implement(dataset) 
+          private$.cpp_implement(dataset)
           # read source file
           lines <- readLines(refer_file)
           # check if the definitions are already implemented

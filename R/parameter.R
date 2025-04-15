@@ -1,9 +1,9 @@
-#      __                                 
+#      __
 #     / /_  ____  __  __ ____ __  ____  __
-#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
-#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
-#  /_/ /_/\____/\____/____/\___/ ____/_/   
-#                             /_/       
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
@@ -309,7 +309,7 @@ HousepiParameter <- R6::R6Class(
           sprintf("Dropping unused parameter%s %s",
                   ifelse(length(unused_set) > 1, "s:", ""),
                   character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements)                  
+          find_closest_match(unused_set, requirements)
         )
         for (name in unused_set) self$remove(name)
       }

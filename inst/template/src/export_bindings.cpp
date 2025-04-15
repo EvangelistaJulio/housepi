@@ -1,18 +1,18 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * export_bindings.cpp
  *
  */
 
- #include <Rcpp.h>
- #include "model.h"
+#include <Rcpp.h>
+#include "model.h"
 
 //' @name ModelHousepi
 //' @title Internal housepi model
@@ -29,12 +29,13 @@
 //' }
 //' @filed import_setup Import setup from R List.
 //' @filed import_infec_profile Import infectivity profile definition from R List.
-//' @filed import_parameter Import parameter definitions from R Data.Frame.
-//' @filed import_dataset Import data definitions from R Data.Frame.
-//' @filed import_augmented Import augmented variable definitions from R Data.Frame.
+//' @filed import_param Import parameter definitions from R Data.Frame.
+//' @filed import_dataset Import dataset definitions from R Data.Frame.
+//' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
+//' @filed import_augm Import augmented variable definitions from R Data.Frame.
 //' @filed buil_all_rates Assign all contact and group rates.
 //' @field export_setup Return a List with current setup.
-//' @field export_parameter Return a DataFrame with current parameters.
+//' @field export_param Return a DataFrame with current parameters.
 //' @field export_dataset Return a DataFrame with current database.
 //' @field export_data_report Return a DataFrame with a report of the current database.
 //' @field export_house_size_report Return a DataFrame with a report of household sizes.
@@ -46,30 +47,31 @@
 
 RCPP_MODULE(housepi_model_core)
 {
-  using namespace Rcpp;
+    using namespace Rcpp;
 
-  class_<MCMC>("McmcHousepi")
-      .constructor()
-      .method("infer", &MCMC::infer)
-      .method("simulate", &MCMC::simulate)
-      .method("evaluate", &MCMC::evaluate)
-      .method("estimate_evidence", &MCMC::estimate_evidence)
-      .method("import_setup", &MCMC::import_setup)
-      .method("import_infec_profile", &MCMC::import_infec_profile)
-      .method("import_parameter", &MCMC::import_parameter)
-      .method("import_dataset", &MCMC::import_dataset)
-      .method("import_augmented", &MCMC::import_augmented)
-      .method("build_all_rates", &MCMC::build_all_rates)
-      .method("export_setup", &MCMC::export_setup)
-      .method("export_parameter", &MCMC::export_parameter)
-      .method("export_dataset", &MCMC::export_dataset)
-      .method("export_data_report", &MCMC::export_data_report)
-      .method("export_house_size_report", &MCMC::export_house_size_report)
-      .method("export_traces", &MCMC::export_traces)
-      .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
-      .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
+    class_<MCMC>("McmcHousepi")
+        .constructor()
+        .method("infer", &MCMC::infer)
+        .method("simulate", &MCMC::simulate)
+        .method("evaluate", &MCMC::evaluate)
+        .method("estimate_evidence", &MCMC::estimate_evidence)
+        .method("import_setup", &MCMC::import_setup)
+        .method("import_infec_profile", &MCMC::import_infec_profile)
+        .method("import_param", &MCMC::import_param)
+        .method("import_dataset", &MCMC::import_dataset)
+        .method("import_augm", &MCMC::import_augm)
+        .method("import_multiplicity", &MCMC::import_multiplicity)
+        .method("build_all_rates", &MCMC::build_all_rates)
+        .method("export_setup", &MCMC::export_setup)
+        .method("export_param", &MCMC::export_param)
+        .method("export_dataset", &MCMC::export_dataset)
+        .method("export_data_report", &MCMC::export_data_report)
+        .method("export_house_size_report", &MCMC::export_house_size_report)
+        .method("export_traces", &MCMC::export_traces)
+        .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
+        .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
 
-  class_<Model>("ModelHousepi")
-      .constructor()
-      .derives<MCMC>("McmcHousepi");
+    class_<Model>("ModelHousepi")
+        .constructor()
+        .derives<MCMC>("McmcHousepi");
 }

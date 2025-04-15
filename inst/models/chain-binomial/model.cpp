@@ -61,7 +61,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(Household &house) const
+double Model::compute_house_obs_loglike(Household &house) const
 {
 	double log_likelihood = 0.;
 
@@ -113,7 +113,7 @@ double Model::compute_house_loglike(Household &house) const
 		log_likelihood += log(sero_positive_term);
 	}
 
-	return log_likelihood;
+	return log_likelihood * house.multiplicity();
 }
 
 //-----------------------------------------------------------------------------------------------//

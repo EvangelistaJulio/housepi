@@ -229,7 +229,8 @@ IndividualSampler <- R6::R6Class(
         )
       } else {
         # nothing to sample from
-        output <- as.data.frame(matrix(ncol = length(private$.enc_dict), nrow = 0))
+        output <- matrix(ncol = length(private$.enc_dict), nrow = 0)
+        output <- as.data.frame(output)
         colnames(output) <- names(private$.enc_dict)
       }
 

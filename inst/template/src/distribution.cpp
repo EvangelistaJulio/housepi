@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * distribution.cpp
  *
  */
@@ -855,7 +855,7 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary hidden template to return the chosen distribution. */
-std::shared_ptr<Distribution> distribution_switchboard(const std::string &name)
+std::shared_ptr<Distribution> distribution_switch(const std::string &name)
 {
     const str_vec &options = {"unif", "norm", "lnorm",
                               "beta", "gamma", "reparam_gamma",

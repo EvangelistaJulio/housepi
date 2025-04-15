@@ -135,15 +135,18 @@ void Model::fill_house_escape_matrix(Household &house) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_house_loglike(Household &house) const
+double Model::compute_house_obs_loglike(Household &house) const
 {
 	//===== Fill Escape Probabilities =====//
 	fill_house_escape_matrix(house);
 
 	//=====compute the loglikelihood=====//
-	return bax::chain_binomial_heter_loglikelihood(house.n_infec_status(),
-												   house.extra_double_vector("commu-escprob"),
-												   house.extra_double_matrix("p2p-escprob"));
+	const double loglikelihood = bax::chain_binomial_heter_loglikelihood(
+		house.n_infec_status(),
+		house.extra_double_vector("commu-escprob"),
+		house.extra_double_matrix("p2p-escprob")
+	);
+	return loglikelihood * house.multiplicity();
 }
 
 //-----------------------------------------------------------------------------------------------//

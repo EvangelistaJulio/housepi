@@ -35,7 +35,7 @@ std::shared_ptr<Distribution> incub_distr_ptr;
 void Model::init_model_for_inference()
 {
 	// choose the incubation period distribution
-	incub_distr_ptr = distribution_switchboard("gamma");
+	incub_distr_ptr = distribution_switch("gamma");
 
 	// arguments are pointers to the respective parameters
 	incub_distr_ptr->assign_pointer_arg("shape", param_pointer("shape"));
@@ -47,7 +47,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(Household &house) const
+double Model::compute_house_obs_loglike(Household &house) const
 {
 	double incub, output = 0.0;
 

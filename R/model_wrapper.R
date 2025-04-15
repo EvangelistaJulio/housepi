@@ -38,6 +38,23 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'dataset' is read only.")
     },
 
+    # @field data_required `character()`\cr
+    # Dataset headers required by the model.
+    data_required = function(value) {
+      if (missing(value)) {
+        # vector of regular expression to use for assertion
+        regular_expr <- c(
+          # from : .data(, "string" or augm(, 'string'
+          '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        )
+
+        # retrieve required data headers from regular expressions
+        refer_file <- self$reference
+        return(template_find_requirement(refer_file, regular_expr))
+      }
+      stop_h("'data_required' is read only.")
+    },
+
     # @field summary `data.frame`\cr
     # A summary of statuses in the dataset.
     summary = function(value) {
@@ -152,23 +169,6 @@ HousepiWrapper <- R6::R6Class(
     last_data_cols = NULL,
 
     # @description
-    # Find dataset headers required by the model.
-    #
-    # @param refer_file
-    # Path/to/.refer source file.
-    require_dataset = function() {
-      # vector of regular expression to use for assertion
-      regular_expr <- c(
-        # from : .data(, "string" or augm(, 'string'
-        '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      )
-
-      # retrieve required data headers from regular expressions
-      refer_file <- self$reference
-      return(template_find_requirement(refer_file, regular_expr))
-    },
-
-    # @description
     # Assert if dataset headers match implementation file.
     #
     # @param data_headers `character()`\cr
@@ -192,67 +192,65 @@ HousepiWrapper <- R6::R6Class(
     },
 
     # @description
-    # Wrapper of the Rcpp import_dataset method.
+    # Wrapper of Rcpp method to import dataset
     #
     # @param dataset `data.frame`\cr
     # Dataset with rowise individual information.
     import_dataset = function(dataset) {
-      private$.rcpp$import_dataset(
-        data.frame(lapply(dataset, as.character))
-      )
-      if (length(dataset) > 0) {
-        self$last_data_cols <- colnames(dataset)
-      }
+      private$.rcpp$import_dataset(data.frame(lapply(dataset, as.character)))
+      if (length(dataset) > 0) self$last_data_cols <- colnames(dataset)
       invisible(self)
     },
 
     # @description
     # Wrapper of the Rcpp import_setup method.
     #
-    # @param setup_list `list()`\cr
-    # Setup definitions.
-    import_setup = function(setup_list) {
+    # @param defs `list()`\cr
+    # List of setup definitions.
+    import_setup = function(defs) {
       # change scientific notation locally
       withr::local_options(list(scipen = 500))
-      private$.rcpp$import_setup(
-        lapply(setup_list, as.character)
-      )
+      private$.rcpp$import_setup(lapply(defs, as.character))
       invisible(self)
     },
 
     # @description
-    # Wrapper of the Rcpp import_parameter method.
+    # Wrapper of Rcpp method to import parameter definitions.
     #
     # @param defs `data.frame`\cr
     # Formatted parameter definitions.
-    import_parameter = function(defs) {
-      private$.rcpp$import_parameter(
-        data.frame(lapply(defs, as.character))
-      )
+    import_param = function(defs) {
+      private$.rcpp$import_param(data.frame(lapply(defs, as.character)))
       invisible(self)
     },
 
     # @description
-    # Wrapper of the Rcpp import_augmented method.
+    # Wrapper of Rcpp method to import augmented variable definitions.
     #
     # @param defs `data.frame`\cr
     # Formatted augmented variable definitions.
-    import_augmented = function(defs) {
-      private$.rcpp$import_augmented(
-        data.frame(lapply(defs, as.character))
-      )
+    import_augm = function(defs) {
+      private$.rcpp$import_augm(data.frame(lapply(defs, as.character)))
       invisible(self)
     },
 
     # @description
-    # Wrapper of the Rcpp import_infec_profile method.
+    # Wrapper of Rcpp method to import infectivity profile definitions.
     #
     # @param defs `list()`\cr
     # Infectivity profile definitions.
     import_infec_profile = function(defs) {
-      private$.rcpp$import_infec_profile(
-        lapply(defs, as.character)
-      )
+      private$.rcpp$import_infec_profile(lapply(defs, as.character))
+      invisible(self)
+    },
+
+    # @description
+    # Wrapper of Rcpp method to import multiplicity definitions.
+    #
+    # @param defs `data.frame`\cr
+    # Multiplicity definitions.
+    import_multiplicity = function(defs) {
+      private$.rcpp$import_multiplicity(lapply(defs, as.character))
       invisible(self)
     },
 

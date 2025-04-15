@@ -36,8 +36,22 @@ HouseholdModel <- R6::R6Class(
     .cri_level = 0.95,
 
     # @description
-    # Assert if dataset headers match implementation file
-    # and other optional definitions.
+    # Dataset headers required by implementation file and other definitions.
+    #
+    # @return `character()`
+    .require_dataset = function() { 
+      requirements <- c()
+      if (!private$.model$is_blank) {
+        requirements <- private$.model$data_required
+      }
+      return(c(
+        requirements, # by the model
+        private$.augm$data_required # by augmented variable
+      ))
+    },
+
+    # @description
+    # Assert if dataset headers match requirements.
     #
     # @param data_headers `character()`\cr
     # Vector with the dataset headers.
@@ -45,60 +59,65 @@ HouseholdModel <- R6::R6Class(
       if (length(data_headers) == 0) {
         stop_h("Impossible to proceed. No database was provided.")
       }
-
-      requirements <- c()
-      if (!private$.model$is_blank) {
-        requirements <- private$.model$require_dataset()
-      }       
-      private$.model$assert(data_headers, c(
-        requirements, # by the model
-        private$.augm$data_requires # by augmented variable
-      ))
-
+      private$.model$assert(data_headers, private$.require_dataset())
       invisible(self)
     },
 
     # @description
-    # Assert if parameter definitions match the model implementation 
-
-    .assert_param = function() {
-      requirements <- c()
+    # Parameters required by implementation file and other definitions.
+    #
+    # @return `character()`
+    .require_param = function() {
       if (private$.model$is_blank) {
         requirements <- self$param_defs[["name"]]
       } else {
         requirements <- private$.param$require(private$.model$reference)
-      }     
-
-      private$.param$assert(c(
+      }
+      return(c(
         requirements, # by the model
         private$.augm$param_required, # by augmented variable
         private$.infec_profile$param_required # by infectivity profile
       ))
-  
+    },
+
+    # @description
+    # Assert if parameter definitions match requirements
+    .assert_param = function() {
+      private$.param$assert(private$.require_param())
       invisible(self)
     },
 
     # @description
-    # Assert if augmented definitions match the model implementation script.
+    # Augmented variables required by implementation file and other definitions.
+    #
+    # @return `character()`
+    .require_augm = function() {
+      return(private$.augm$require(private$.model$reference))
+    },
+
+    # @description
+    # Assert if augmented definitions match the requirements.
     .assert_augm = function() {
       if (!private$.model$is_blank) {
-        private$.augm$assert(
-          private$.augm$require(private$.model$reference)
-        )
+        private$.augm$assert(private$.require_augm())
       }
-
       invisible(self)
+    },
+
+    # @description
+    # Group rates required by implementation file and other definitions.
+    #
+    # @return `character()`
+    .require_group_rate = function() {
+      return(private$.group_rate$require(private$.model$reference))
     },
 
     # @description
     # Assert group rate definitions from the model implementation script.
     .assert_group_rate = function() {
       if (!private$.model$is_blank) {
-        private$.group_rate$assert(
-          private$.group_rate$require(private$.model$reference)
-        )
+        private$.group_rate$assert(private$.require_group_rate())
       }
-
       invisible(self)
     },
 
@@ -130,7 +149,7 @@ HouseholdModel <- R6::R6Class(
       # proceed only if group rate definitions have been updated
       if (isFALSE(.hold)) {
         if (isFALSE(is_updated)) {
-          # force caching a new model 
+          # force caching a new model
           # UPDATE: can't I change in-place?
 
           # new model name
@@ -143,10 +162,11 @@ HouseholdModel <- R6::R6Class(
           private$.model <- HousepiWrapper$new(
             private$.model$source_dir, as_template = FALSE,
             quiet = private$.model$quiet, force = TRUE,
-            model_name = new_name)
+            model_name = new_name
+          )
 
           # write the cpp script for new group rates in the new cache file
-          private$.group_rate$cpp_write( 
+          private$.group_rate$cpp_write(
             file.path(private$.model$cache_dir, "src", "model.cpp")
           )
           # save the new reference
@@ -368,15 +388,17 @@ HouseholdModel <- R6::R6Class(
 
     #' @field cri_level `double(1)`\cr
     #' Level for the credible interval.
-    #' Value between 0 and 1 (default is 0.95).
+    #' Value between 0.5 and 1 (default is 0.95).
     cri_level = function(value) {
-      if (missing(value)) return(private$.cri_level)
-      else if ((value <= 0) || (value >= 1)) {
+      if (missing(value)) {
+        return(private$.cri_level)
+      } else if ((value <= 0.5) || (value >= 1)) {
         stop_h(
-          "Credible interval level must be a value between 0 and 1."
+          "Credible interval level must be a value between 0.5 and 1."
         )
+      } else {
+        private$.cri_level <- value
       }
-      else private$.cri_level <- value
     }
   ),
 
@@ -800,7 +822,7 @@ HouseholdModel <- R6::R6Class(
                               reference = reference, independent = independent,
                               prior = prior, args = args,
                               min = min, max = max,
-                              rule = rule, scale = scale)                    
+                              rule = rule, scale = scale)
       invisible(self)
     },
 
@@ -818,7 +840,7 @@ HouseholdModel <- R6::R6Class(
     load_group_rate_list = function(...,
                                     from = NA,
                                     append = FALSE) {
-      private$.group_rate$load_list(..., from = from, append = append)       
+      private$.group_rate$load_list(..., from = from, append = append)
       invisible(self)
     },
 
@@ -947,7 +969,7 @@ HouseholdModel <- R6::R6Class(
                         seed = NA,
                         progress = FALSE) {
       # internal build function
-      private$.build_full(dataset = dataset, seed = seed, 
+      private$.build_full(dataset = dataset, seed = seed,
                           progress = progress, rand_init = FALSE)
 
       # call method from internal Rcpp object
@@ -997,7 +1019,8 @@ HouseholdModel <- R6::R6Class(
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset.
     #' @param scheme `character(1)`\cr
-    #' Default scheme is "power-fractions" with inverse temperatures (r / n_rungs)^5.
+    #' Default scheme is "power-fractions" 
+    #' with inverse temperatures (r / n_rungs)^5.
     #' If "adaptive" uses adaptive scheme for thermodynamic ladder.
     #' @param n_rungs `integer(1)`\cr
     #' Number of rungs in the thermodynamic ladder.

@@ -19,3 +19,6 @@ developer_export_to_standalone <- function(hhmodel, outpath) {
               file.path(outpath, "infec.tmp"),
               row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
 }
+
+#developer_export_to_standalone(hhmodel, outpath)
+

@@ -28,15 +28,6 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 	emplace_group_rate(r, REFERENCE);
 }
 
-/* Assign the contact patterns between a couple of individuals. */
-void Model::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
-{
-	UNUSED(house);
-	UNUSED(from);
-	UNUSED(to);
-	emplace_contact_rate(REFERENCE);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  Model : initialization  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +82,7 @@ double Model::loglike_healthy(Household &house) const
 	{
 		double roi_cumul_i = 0;
 		for (indiv k : house.infected_status_list())
-			roi_cumul_i += cumul_mtx[k][i] * house.contact_rate(k, i) * house.group_rate(k, "infectivity");
+			roi_cumul_i += cumul_mtx[k][i] * house.group_rate(k, "infectivity");
 		roi_cumul_i *= house.group_rate(i, "susceptibility") * b;
 		output -= roi_cumul_i;
 	}
@@ -123,9 +114,9 @@ double Model::loglike_infectious(Household &house) const
 			for (indiv k : house.infected_status_list())
 				if (cumul_mtx[k][i] != 0)
 				{
-					double mu_ki = house.contact_rate(k, i) * house.group_rate(k, "infectivity");
-					roi_inst_i += inst_mtx[k][i] * mu_ki;
-					roi_cumul_i += cumul_mtx[k][i] * mu_ki;
+					double mu_k = house.group_rate(k, "infectivity");
+					roi_inst_i += inst_mtx[k][i] * mu_k;
+					roi_cumul_i += cumul_mtx[k][i] * mu_k;
 				}
 			roi_inst_i *= b_i;
 			roi_cumul_i *= b_i;
@@ -224,7 +215,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_loglike(Household &house) const
+double Model::compute_house_obs_loglike(Household &house) const
 {
 	return loglike_healthy(house) + loglike_infectious(house);
 }
@@ -251,8 +242,8 @@ double Model::roi_inst_simulation(const std::vector<indiv> &infectors,
 		// `k` : infector, `i` : infectee
 		double incub_k = house.augm(k, "incub_period");
 		double gentime = t_infec_i - house.augm(k, "onset_date") + incub_k;
-		double mu_ki = house.contact_rate(k, i) * house.group_rate(k, "infectivity");
-		hh_roi_inst += infec_profile_inst(gentime, {incub_k}) * mu_ki;
+		double mu_k = house.group_rate(k, "infectivity");
+		hh_roi_inst += infec_profile_inst(gentime, {incub_k}) * mu_k;
 	}
 	hh_roi_inst *= house.group_rate(i, "susceptibility") * transmission_rate(house);
 

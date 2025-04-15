@@ -1,9 +1,9 @@
-#      __                                 
+#      __
 #     / /_  ____  __  __ ____ __  ____  __
-#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
-#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
-#  /_/ /_/\____/\____/____/\___/ ____/_/   
-#                             /_/       
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
@@ -233,7 +233,7 @@ template_find_unused <- function(required_set,
     # unique and ordered set of parameters
     required_set <- unique(required_set[order(required_set)])
     defined_set <- unique(defined_set[order(defined_set)])
-    
+
     unused_set <- c()
     for (name in defined_set) {
       if (!(name %in% required_set)) {
@@ -244,5 +244,3 @@ template_find_unused <- function(required_set,
 
   return(unused_set)
 }
-
-

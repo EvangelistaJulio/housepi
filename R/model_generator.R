@@ -1,9 +1,9 @@
-#      __                                 
+#      __
 #     / /_  ____  __  __ ____ __  ____  __
-#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
-#   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
-#  /_/ /_/\____/\____/____/\___/ ____/_/   
-#                             /_/       
+#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#  /_/ /_/\____/\____/____/\___/ ____/_/
+#                             /_/
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
@@ -95,7 +95,7 @@ HousepiGenerator <- R6::R6Class(
           sprintf("Allocated extra variable%s not used in the model: %s",
                   ifelse(length(unused_set) > 1, "s", ""),
                   character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements)    
+          find_closest_match(unused_set, requirements)
         )
       }
       # error for not allocated extra variables
@@ -131,7 +131,7 @@ HousepiGenerator <- R6::R6Class(
         if (!(force || untracked_changes(source_dir, private$.dll))) {
           private$.need_compile <- FALSE
         }
-      } 
+      }
 
       # temporary directory where to store source code
       if (private$.need_compile) {
@@ -282,7 +282,7 @@ HousepiGenerator <- R6::R6Class(
       pkgbuild::compile_dll(private$.cache_dir,
                             quiet = self$quiet,
                             debug = FALSE)
-      private$.need_compile <- FALSE                            
+      private$.need_compile <- FALSE
 
       # copy DLL outside of the source directory
       from_file <- file.path(cache_dir_src, dll_file_ext("housepienvironment"))
@@ -439,7 +439,7 @@ HousepiGenerator <- R6::R6Class(
                           model_name = NA) {
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
-                              
+
       # check model choice
       if (is.na(model_choice)) {
         model_choice <- "blank"
@@ -447,7 +447,7 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # assign name to the model
-      private$.name <- ifelse(is.na(model_name), 
+      private$.name <- ifelse(is.na(model_name),
                               basename(model_choice), model_name)
 
       if (model_choice == "blank") {

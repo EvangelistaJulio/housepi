@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *       
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * mcmc.h
  *
  */
@@ -115,7 +115,8 @@ public:
 	//===== EVALUATE (loglikelihood) =====//
 	//====================================//
 
-	virtual double compute_house_loglike(Household &house) const;
+	virtual double compute_house_obs_loglike(Household &house) const;
+	double update_house_loglike(ulong H, const bool is_augm_ll, const bool extra_depen);
 	void update_global_loglike(const bool extra_depen);
 	double evaluate();
 
@@ -149,16 +150,16 @@ public:
 
 	void import_setup(const Rcpp::List &setup);
 	void import_infec_profile(const Rcpp::List &setup);
-	void import_parameter(const Rcpp::DataFrame &params);
+	void import_param(const Rcpp::DataFrame &params);
 	void import_dataset(const Rcpp::DataFrame &data);
-	void import_augmented(const Rcpp::DataFrame &augm);
+	void import_augm(const Rcpp::DataFrame &augm);
 
 	//========================//
 	//===== Rcpp EXPORTS =====//
 	//========================//
 
 	Rcpp::List export_setup() const;
-	Rcpp::DataFrame export_parameter() const;
+	Rcpp::DataFrame export_param() const;
 	Rcpp::DataFrame export_dataset() const;
 	Rcpp::DataFrame export_data_report() const;
 	Rcpp::DataFrame export_house_size_report() const;
@@ -174,11 +175,12 @@ public:
 	//===== READ =====//
 	//================//
 
+	void read_dataset(const std::string &pathtofile = NULL_STRING);
 	void read_setup(const std::string &pathtofile = NULL_STRING);
+	void read_param(const std::string &pathtofile = NULL_STRING);
 	void read_infec_profile(const std::string &pathtofile = NULL_STRING);
-	void read_params(const std::string &pathtofile = NULL_STRING);
-	void read_data(const std::string &pathtofile = NULL_STRING);
 	void read_augm(const std::string &pathtofile = NULL_STRING);
+    void read_multiplicity(const std::string &pathtofile = NULL_STRING);
 
 	//================//
 	//===== SHOW =====//
@@ -199,30 +201,30 @@ private:
 	std::unique_ptr<Impl> pImpl;
 
 	//----- Error ----//
-	std::vector<std::string> _error_message_ = {};
+	std::vector<std::string> _error_message = {};
 
 	//----- Group & Contact Rateas -----//
-	rateIDmapvec<parID> _individual_group_rates_ = {};
-	parID _pair_contact_rate_ = {};
+	rateIDmapvec<parID> _individual_group_rates = {};
+	parID _pair_contact_rate = {};
 
 	//----- Monte Carlo -----//
-	void run_monte_carlo(progress::Bar &progbar);
-	void move_all();
-	void move_all_and_adapt_parameters(ulong step);
-	bool move_single_parameter(const parID &p, bool extra_depen);
+	void _run_monte_carlo(progress::Bar &progbar);
+	void _move_all();
+	void _move_all_and_adapt_parameters(ulong step);
+	bool _move_single_parameter(const parID &p, bool extra_depen);
 
 	//----- Metropolis : augmented moves -----//
-	double move_augm_single_house(Household &house);
-	void metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
+	double _move_augm_single_house(ulong H);
+	void _metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
 
-	void move_all_augm();
+	void _move_all_augm();
 
-	void (MCMC::*_func_move_augm_indiv_)(Household &, indiv, double &) = &MCMC::_move_augm_indiv_generic_;
-	void _move_augm_indiv_generic_(Household &house, indiv i, double &delta);
-	void _move_augm_indiv_by_status_(Household &house, indiv i, double &delta);
+	void (MCMC::*_func_move_augm_indiv)(Household &, indiv, double &) = &MCMC::__move_augm_indiv_generic;
+	void __move_augm_indiv_generic(Household &house, indiv i, double &delta);
+	void __move_augm_indiv_by_status(Household &house, indiv i, double &delta);
 
 	//----- Simulation -----//
-	void _aux_init_simulate_();
+	void _aux_init_simulate();
 };
 
 #endif // HOUSEPI__MCMC__H

@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * distribution.h
  *
  */
@@ -77,121 +77,120 @@ protected:
 	virtual double raw_rand(rnd_gen &prng);
 
 private:
-	double _rejection_sampling_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
+	double _rejection_sampling(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
 
 	//===== Functional methods for public getter methods =====//
-	double (Distribution::*_func_pdf_)(double, const dbl_vec &) const = &Distribution::_default_pdf_;
-	double (Distribution::*_func_cdf_)(double, const dbl_vec &) const = &Distribution::_default_cdf_;
-	double (Distribution::*_func_logpdf_)(double, const dbl_vec &) const = &Distribution::_default_logpdf_;
-	double (Distribution::*_func_logratio_)(double, double, const dbl_vec &) const = &Distribution::_default_logratio_;
-	double (Distribution::*_func_rand_)(rnd_gen &) = &Distribution::_default_rand_;
+	double (Distribution::*_func_pdf)(double, const dbl_vec &) const = &Distribution::__default_pdf;
+	double (Distribution::*_func_cdf)(double, const dbl_vec &) const = &Distribution::__default_cdf;
+	double (Distribution::*_func_logpdf)(double, const dbl_vec &) const = &Distribution::__default_logpdf;
+	double (Distribution::*_func_logratio)(double, double, const dbl_vec &) const = &Distribution::__default_logratio;
+	double (Distribution::*_func_rand)(rnd_gen &) = &Distribution::__default_rand;
 
 	//----- Default functional methods -----//
-	double _default_pdf_(double x, const dbl_vec &opts) const;
-	double _default_cdf_(double x, const dbl_vec &opts) const;
-	double _default_logpdf_(double x, const dbl_vec &opts) const;
-	double _default_logratio_(double xold, double xnew, const dbl_vec &opts) const;
-	double _default_rand_(rnd_gen &prng);
+	double __default_pdf(double x, const dbl_vec &opts) const;
+	double __default_cdf(double x, const dbl_vec &opts) const;
+	double __default_logpdf(double x, const dbl_vec &opts) const;
+	double __default_logratio(double xold, double xnew, const dbl_vec &opts) const;
+	double __default_rand(rnd_gen &prng);
 
 	//----- Functional methods for the discrete defined distributions -----//
-	double _discr_defined_pdf_(double x, const dbl_vec &opts) const;
-	double _discr_defined_cdf_(double x, const dbl_vec &opts) const;
-	double _discr_defined_logpdf_(double x, const dbl_vec &opts) const;
-	double _discr_defined_logratio_(double xold, double xnew, const dbl_vec &opts) const;
-	// note : _discr_defined_rand_ == _default_rand_
+	double __discr_defined_pdf(double x, const dbl_vec &opts) const;
+	double __discr_defined_cdf(double x, const dbl_vec &opts) const;
+	double __discr_defined_logpdf(double x, const dbl_vec &opts) const;
+	double __discr_defined_logratio(double xold, double xnew, const dbl_vec &opts) const;
+	// note : __discr_defined_rand == __default_rand
 
 	//----- Functional methods for the center adjusted discretization -----//
-	double _discr_center_pdf_(double x, const dbl_vec &opts) const;
-	double _discr_center_cdf_(double x, const dbl_vec &opts) const;
-	double _discr_center_logpdf_(double x, const dbl_vec &opts) const;
-	double _discr_center_logratio_(double xold, double xnew, const dbl_vec &opts) const;
-	double _discr_center_rand_(rnd_gen &prng);
+	double __discr_center_pdf(double x, const dbl_vec &opts) const;
+	double __discr_center_cdf(double x, const dbl_vec &opts) const;
+	double __discr_center_logpdf(double x, const dbl_vec &opts) const;
+	double __discr_center_logratio(double xold, double xnew, const dbl_vec &opts) const;
+	double __discr_center_rand(rnd_gen &prng);
 
 	//----- Functional methods for the left adjusted discretization -----//
-	double _discr_left_pdf_(double x, const dbl_vec &opts) const;
-	double _discr_left_cdf_(double x, const dbl_vec &opts) const;
-	double _discr_left_logpdf_(double x, const dbl_vec &opts) const;
-	double _discr_left_logratio_(double xold, double xnew, const dbl_vec &opts) const;
-	double _discr_left_rand_(rnd_gen &prng);
+	double __discr_left_pdf(double x, const dbl_vec &opts) const;
+	double __discr_left_cdf(double x, const dbl_vec &opts) const;
+	double __discr_left_logpdf(double x, const dbl_vec &opts) const;
+	double __discr_left_logratio(double xold, double xnew, const dbl_vec &opts) const;
+	double __discr_left_rand(rnd_gen &prng);
 
 	//===== Functional methods for truncation =====//
-	double (Distribution::*_func_trunc_)(double, const dbl_vec &opts) const = &Distribution::_trunc_dummy_;
-	double (Distribution::*_func_logtrunc_)(double, const dbl_vec &opts) const = &Distribution::_logtrunc_dummy_;
-	double (Distribution::*_func_shift_)(double, const dbl_vec &opts) const = &Distribution::_shift_dummy_;
+	double (Distribution::*_func_trunc)(double, const dbl_vec &opts) const = &Distribution::__trunc_dummy;
+	double (Distribution::*_func_logtrunc)(double, const dbl_vec &opts) const = &Distribution::__logtrunc_dummy;
+	double (Distribution::*_func_shift)(double, const dbl_vec &opts) const = &Distribution::__shift_dummy;
 
 	//----- Functional methods for the truncation and/or discretization -----//
 
 	// default case
-	double _trunc_dummy_(double x, const dbl_vec &opts) const;
+	double __trunc_dummy(double x, const dbl_vec &opts) const;
 
 	// continuos case
-	double _trunc_min_(double x, const dbl_vec &opts) const;
-	double _trunc_max_(double x, const dbl_vec &opts) const;
-	double _trunc_both_sides_(double x, const dbl_vec &opts) const;
-	double _trunc_rand_(rnd_gen &prng);
+	double __trunc_min(double x, const dbl_vec &opts) const;
+	double __trunc_max(double x, const dbl_vec &opts) const;
+	double __trunc_both_sides(double x, const dbl_vec &opts) const;
+	double __trunc_rand(rnd_gen &prng);
 
 	// case of discrete defined
-	double _trunc_min_discr_defined_(double x, const dbl_vec &opts) const;
-	double _trunc_max_discr_defined_(double x, const dbl_vec &opts) const;
-	double _trunc_both_sides_discr_defined_(double x, const dbl_vec &opts) const;
-	// note : _trunx_rand_discr_defined == _trunc_rand_
+	double __trunc_min_discr_defined(double x, const dbl_vec &opts) const;
+	double __trunc_max_discr_defined(double x, const dbl_vec &opts) const;
+	double __trunc_both_sides_discr_defined(double x, const dbl_vec &opts) const;
+	// note : __trunx_rand_discr_defined == __trunc_rand
 
 	// case of center discretization
-	double _trunc_min_discr_center_(double x, const dbl_vec &opts) const;
-	double _trunc_max_discr_center_(double x, const dbl_vec &opts) const;
-	double _trunc_both_sides_discr_center_(double x, const dbl_vec &opts) const;
-	double _trunc_rand_discr_center_(rnd_gen &prng);
+	double __trunc_min_discr_center(double x, const dbl_vec &opts) const;
+	double __trunc_max_discr_center(double x, const dbl_vec &opts) const;
+	double __trunc_both_sides_discr_center(double x, const dbl_vec &opts) const;
+	double __trunc_rand_discr_center(rnd_gen &prng);
 
 	// case of left discretization
-	double _trunc_min_discr_left_(double x, const dbl_vec &opts) const;
-	double _trunc_max_discr_left_(double x, const dbl_vec &opts) const;
-	double _trunc_both_sides_discr_left_(double x, const dbl_vec &opts) const;
-	double _trunc_rand_discr_left_(rnd_gen &prng);
+	double __trunc_min_discr_left(double x, const dbl_vec &opts) const;
+	double __trunc_max_discr_left(double x, const dbl_vec &opts) const;
+	double __trunc_both_sides_discr_left(double x, const dbl_vec &opts) const;
+	double __trunc_rand_discr_left(rnd_gen &prng);
 
 	//----- Functional methods for the log-truncation -----//
 
 	// default case
-	double _logtrunc_dummy_(double x, const dbl_vec &opts) const;
+	double __logtrunc_dummy(double x, const dbl_vec &opts) const;
 
 	// continuos case
-	double _logtrunc_min_(double x, const dbl_vec &opts) const;
-	double _logtrunc_max_(double x, const dbl_vec &opts) const;
-	double _logtrunc_both_sides_(double x, const dbl_vec &opts) const;
+	double __logtrunc_min(double x, const dbl_vec &opts) const;
+	double __logtrunc_max(double x, const dbl_vec &opts) const;
+	double __logtrunc_both_sides(double x, const dbl_vec &opts) const;
 
 	// case of discrete defined
-	double _logtrunc_min_discr_defined_(double x, const dbl_vec &opts) const;
-	double _logtrunc_max_discr_defined_(double x, const dbl_vec &opts) const;
-	double _logtrunc_both_sides_discr_defined_(double x, const dbl_vec &opts) const;
+	double __logtrunc_min_discr_defined(double x, const dbl_vec &opts) const;
+	double __logtrunc_max_discr_defined(double x, const dbl_vec &opts) const;
+	double __logtrunc_both_sides_discr_defined(double x, const dbl_vec &opts) const;
 
 	// case of center discretization
-	double _logtrunc_min_discr_center_(double x, const dbl_vec &opts) const;
-	double _logtrunc_max_discr_center_(double x, const dbl_vec &opts) const;
-	double _logtrunc_both_sides_discr_center_(double x, const dbl_vec &opts) const;
+	double __logtrunc_min_discr_center(double x, const dbl_vec &opts) const;
+	double __logtrunc_max_discr_center(double x, const dbl_vec &opts) const;
+	double __logtrunc_both_sides_discr_center(double x, const dbl_vec &opts) const;
 
 	// case of left discretization
-	double _logtrunc_min_discr_left_(double x, const dbl_vec &opts) const;
-	double _logtrunc_max_discr_left_(double x, const dbl_vec &opts) const;
-	double _logtrunc_both_sides_discr_left_(double x, const dbl_vec &opts) const;
+	double __logtrunc_min_discr_left(double x, const dbl_vec &opts) const;
+	double __logtrunc_max_discr_left(double x, const dbl_vec &opts) const;
+	double __logtrunc_both_sides_discr_left(double x, const dbl_vec &opts) const;
 
 	//----- Functional methods to shift cumulative -----//
-	double _shift_dummy_(double x, const dbl_vec &opts) const;
-	double _shift_min_(double x, const dbl_vec &opts) const;
-	double _shift_min_discr_defined_(double x, const dbl_vec &opts) const;
-	double _shift_min_discr_center_(double x, const dbl_vec &opts) const;
-	double _shift_min_discr_left_(double x, const dbl_vec &opts) const;
+	double __shift_dummy(double x, const dbl_vec &opts) const;
+	double __shift_min(double x, const dbl_vec &opts) const;
+	double __shift_min_discr_defined(double x, const dbl_vec &opts) const;
+	double __shift_min_discr_center(double x, const dbl_vec &opts) const;
+	double __shift_min_discr_left(double x, const dbl_vec &opts) const;
 
 	//===== DEVELOPER CHECK =====//
-	double __developer_check_pdf_norm__(const dbl_vec &opts = {},
-										int n_bins = 5000,
-										double ytol = 1.e-8) const;
+	double __d_e_v__check__pdf__norm(const dbl_vec &opts = {},
+									 int n_bins = 5000,
+									 double ytol = 1.e-8) const;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  distribution switchboard  ///////////////////////////////////
+////////////////////////////////////  distribution switch  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Distribution with default scalar arguments. */
-std::shared_ptr<Distribution> distribution_switchboard(
-	const std::string &name = NULL_STRING);
+std::shared_ptr<Distribution> distribution_switch(const std::string &name = NULL_STRING);
 
 #endif // HOUSEPI__DISTRIBUTION__H

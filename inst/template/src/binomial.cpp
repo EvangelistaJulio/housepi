@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *   
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * binomial.cpp
  *
  */
@@ -52,15 +52,15 @@ namespace bax
 	/* Add a new entry for the escape matrix. */
 	void EscapePattern::add_entry(ushort new_entry)
 	{
-		entries.push_back(new_entry);
-		++n_entries;
+		_entries.push_back(new_entry);
+		++_n_entries;
 	}
 
 	/* Add a new pattern index. */
 	void EscapePattern::add_pattern(ulong new_pattern_idx)
 	{
-		pattern_idxs.push_back(new_pattern_idx);
-		++n_patterns;
+		_pattern_idxs.push_back(new_pattern_idx);
+		++_n_patterns;
 	}
 
 	/* Compute the loglikelihood starting from the current escape pattern.
@@ -69,11 +69,11 @@ namespace bax
 	{
 		double output = 1.;
 
-		for (size_t c = 0; c < n_patterns; ++c)
-			output -= EscapePatterns_LookupTable[N_star][pattern_idxs[c]].likelihood(esc_mtx);
+		for (size_t c = 0; c < _n_patterns; ++c)
+			output -= EscapePatterns_LookupTable[_N_star][_pattern_idxs[c]].likelihood(esc_mtx);
 
-		for (size_t c = 0; c < n_entries; ++c)
-			output *= esc_mtx[entries[c]];
+		for (size_t c = 0; c < _n_entries; ++c)
+			output *= esc_mtx[_entries[c]];
 
 		return output;
 	}
@@ -83,26 +83,26 @@ namespace bax
 	{
 		std::ostringstream oss;
 
-		for (size_t c = 0; c < n_entries; ++c)
+		for (size_t c = 0; c < _n_entries; ++c)
 		{
-			ushort u = entries[c];
-			if (u < N_star)
+			ushort u = _entries[c];
+			if (u < _N_star)
 				oss << "B" << u + 1;
 			else
-				oss << "Q" << u / N_star << "_" << u % N_star + 1;
+				oss << "Q" << u / _N_star << "_" << u % _N_star + 1;
 
-			if (c < n_entries - 1)
+			if (c < _n_entries - 1)
 				oss << "*";
 		}
 
-		if (n_patterns > 0)
+		if (_n_patterns > 0)
 		{
-			if (n_entries > 0)
+			if (_n_entries > 0)
 				oss << "*(";
 			oss << "1";
-			for (size_t c = 0; c < n_patterns; ++c)
-				oss << " - " << EscapePatterns_LookupTable[N_star][pattern_idxs[c]].show();
-			if (n_entries > 0)
+			for (size_t c = 0; c < _n_patterns; ++c)
+				oss << " - " << EscapePatterns_LookupTable[_N_star][_pattern_idxs[c]].show();
+			if (_n_entries > 0)
 				oss << ")";
 		}
 

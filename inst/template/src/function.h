@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * function.h
  *
  */
@@ -33,7 +33,12 @@
 class Argument
 {
 public:
-    std::string name = NULL_STRING;
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+
+    Argument() {};
+    virtual ~Argument() = default;
 
     //==================//
     //===== GETTER =====//
@@ -43,22 +48,25 @@ public:
     const double *get_ptr() const;
     bool is_internal_ptr() const;
     const std::string show() const;
+    const std::string show_name() const;
 
     //==================//
     //===== SETTER =====//
     //==================//
 
     void set(double x);
+    void set_name(const std::string &name);
     void assign_ptr(const double *y);
     void restore_internal_ptr();
 
 private:
-    double value = NULL_DOUBLE;
-    const double *ptr_to_value = &value;
+    std::string _argument_name = NULL_STRING;
+    double _value = NULL_DOUBLE;
+    const double *_ptr_to_value = &_value;
 
-    void (Argument::*_func_set_)(double) = &Argument::_set_arg_default_;
-    void _set_arg_default_(double x);
-    void _set_arg_pointer_(double x);
+    void (Argument::*_func_set_arg)(double) = &Argument::__set_arg_default;
+    void __set_arg_default(double x);
+    void __set_arg_pointer(double x);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,11 +77,17 @@ private:
 class Function
 {
 public:
+    //=======================//
     //===== CONSTRUCTOR =====//
-    Function();
-    virtual ~Function();
+    //=======================//
 
+    Function() {};
+    virtual ~Function() = default;
+
+    //==================//
     //===== GETTER =====//
+    //==================//
+
     ushort find(const std::string &arg_name) const;
     ushort assert_arg(const std::string &arg_name) const;
     double get_arg(ushort i) const;
@@ -117,58 +131,58 @@ protected:
                        bool is_max_open);
 
 private:
-    std::string name = NULL_STRING;
+    std::string _function_name = NULL_STRING;
 
     //===== Arguments =====//
-    Argument *arguments = nullptr;
-    ushort n_args = 0;
+    Argument *_arguments = nullptr;
+    ushort _n_args = 0;
 
     //===== Domain =====//
-    Argument range_min = Argument();
-    Argument range_max = Argument();
+    Argument _range_min = Argument();
+    Argument _range_max = Argument();
 
     //===== VALID =====//
     // note: for the moment range extremes can't be one open and other close
 
     //---- alternative valid range methods -----//
-    bool (Function::*_func_below_)(double) const = &Function::_below_never_;
-    bool (Function::*_func_above_)(double) const = &Function::_above_never_;
-    bool (Function::*_func_valid_)(double) const = &Function::_valid_always_;    
-    
+    bool (Function::*_func_below)(double) const = &Function::__below_never;
+    bool (Function::*_func_above)(double) const = &Function::__above_never;
+    bool (Function::*_func_valid)(double) const = &Function::__valid_always;
+
     //----- range : none ------//
-    bool _below_never_(double x) const
+    bool __below_never(double x) const
     {
         UNUSED(x);
         return false;
     }
-    bool _above_never_(double x) const
+    bool __above_never(double x) const
     {
         UNUSED(x);
         return false;
     }
-    bool _valid_always_(double x) const
+    bool __valid_always(double x) const
     {
         UNUSED(x);
         return true;
     }
 
     //----- range : minimum -----//
-    bool _below_open_min_(double x) const { return (x <= range_min.get()); }
-    bool _below_close_min_(double x) const { return (x < range_min.get()); }
-    bool _valid_open_min_(double x) const { return (x > range_min.get()); }
-    bool _valid_close_min_(double x) const { return (x >= range_min.get()); }
+    bool __below_open_min(double x) const { return (x <= _range_min.get()); }
+    bool __below_close_min(double x) const { return (x < _range_min.get()); }
+    bool __valid_open_min(double x) const { return (x > _range_min.get()); }
+    bool __valid_close_min(double x) const { return (x >= _range_min.get()); }
 
     //----- range : maximum -----//
-    bool _above_open_max_(double x) const { return (x >= range_max.get()); }
-    bool _above_close_max_(double x) const { return (x > range_max.get()); }
-    bool _valid_open_max_(double x) const { return (x < range_max.get()); }
-    bool _valid_close_max_(double x) const { return (x <= range_max.get()); }
+    bool __above_open_max(double x) const { return (x >= _range_max.get()); }
+    bool __above_close_max(double x) const { return (x > _range_max.get()); }
+    bool __valid_open_max(double x) const { return (x < _range_max.get()); }
+    bool __valid_close_max(double x) const { return (x <= _range_max.get()); }
 
     //----- range : both -----//
-    bool _valid_both_open_(double x) const { return (x > range_min.get()) && (x < range_max.get()); }
-    bool _valid_open_min_close_max_(double x) const { return (x > range_min.get()) && (x <= range_max.get()); }
-    bool _valid_close_min_open_max_(double x) const { return (x >= range_min.get()) && (x < range_max.get()); }
-    bool _valid_both_close_(double x) const { return (x >= range_min.get()) && (x <= range_max.get()); }
+    bool __valid_both_open(double x) const { return (x > _range_min.get()) && (x < _range_max.get()); }
+    bool __valid_open_min_close_max(double x) const { return (x > _range_min.get()) && (x <= _range_max.get()); }
+    bool __valid_close_min_open_max(double x) const { return (x >= _range_min.get()) && (x < _range_max.get()); }
+    bool __valid_both_close(double x) const { return (x >= _range_min.get()) && (x <= _range_max.get()); }
 };
 
 #endif // HOUSEPI__FUNCTION__H

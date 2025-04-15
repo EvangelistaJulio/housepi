@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *     
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * household.h
  *
  */
@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "tools.h"
 #include "variable.h"
 
 //-----------------------------------------------------------------------------------------------//
@@ -38,7 +39,7 @@ public:
 	// individual group rate nested class
 	struct GroupRate
 	{
-		std::string name = "";
+		std::string group_rate_name = "";
 		ushort n_rates = 0;
 		const double **pointers = {};
 
@@ -52,7 +53,7 @@ public:
 	int status = MISSING_STATUS;  // status of the individual
 
 	// NOTE: I am forced to store numerical variables
-	dataIDmap<double> data_map = {};	   // database associated
+	dataIDmap<double> data_map = {};   // database associated
 	augmIDmap<Variable> augm_map = {}; // augmented variables
 	rateIDmap<GroupRate> rate_map;	   // group rates associated
 
@@ -106,6 +107,7 @@ public:
 	//===== SETTER =====//
 	//==================//
 
+	void set_multiplicity(ulong m, size_t class_idx);
 	void assign_individual(const std::string &id,
 						   int status,
 						   const dataIDmap<double> &data);
@@ -119,12 +121,18 @@ public:
 	const std::string &house_id() const;
 	size_t index() const;
 	ushort size() const;
+
 	ushort n_infec_status() const;
 	ushort n_healthy_status() const;
 	ushort n_missing_status() const;
+
 	const std::vector<indiv> &infected_status_list() const;
 	const std::vector<indiv> &healthy_status_list() const;
 	const std::vector<indiv> &missing_status_list() const;
+	
+	ulong multiplicity() const;
+	size_t multiplicity_class_index() const;
+	bool is_multiplicity_head_class() const;
 
 	//======================//
 	//===== INDIVIDUAL =====//
@@ -214,12 +222,15 @@ public:
 	//=========================//
 
 	//----- Loglikelihood : Setter -----//
-	void set_loglike(double x);
+	void set_augm_loglike(double x);
+	void set_obs_loglike(double x);
+	void increment_augm_loglike(double x);
 	void restore_loglike();
 
 	//----- Loglikelihood : Getter -----//
-	double get_loglike() const;
-	double get_delta_loglike() const;
+	double get_augm_loglike() const;
+	double get_obs_loglike() const;
+	double get_delta_obs_loglike() const;
 
 	//=======================//
 	//===== DIAGNOSTICS =====//
@@ -227,42 +238,50 @@ public:
 
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics(ulong count);
-	const dbl_vec &get_dgn_loglike() const;
+	const dbl_vec &get_smpl_loglike() const;
 
 private:
-	std::string _house_id = NULL_STRING; // user id
-	size_t _index = -1;					 // index of household
-	ushort house_size = 0;				 // number of house members
+	std::string _house_id = NULL_STRING; // user house id
+	size_t _index = -1;					 // index of house
+	ushort _house_size = 0;				 // n. of house members
+	ulong _house_multiplicity = 1;		 // n. of equivalent houses
+	size_t _multiplicity_class = -1;	 // index of multiplicity class
 
-	std::vector<Individual> members = {}; // members
+	std::vector<Individual> _members = {}; // members
 
-	ushort _n_infec_ = 0;	// n. members with infected status
-	ushort _n_healthy_ = 0; // n. memebers healthy status
-	ushort _n_missing_ = 0; // n. members missing status
+	ushort _n_infec = 0;   // n. members with infected status
+	ushort _n_healthy = 0; // n. memebers healthy status
+	ushort _n_missing = 0; // n. members missing status
 
 	// wheter members correspond to a given status or not
-	std::vector<indiv> _infec_list_ = {};
-	std::vector<indiv> _healthy_list_ = {};
-	std::vector<indiv> _missing_list_ = {};
-
-	double house_loglike = NULL_DOUBLE; // current loglikelihood value
-	double buffer = NULL_DOUBLE;		// buffer loglikelihood value
-	dbl_vec dgn_loglike = {};			// diagnostics
+	std::vector<indiv> _infec_list = {};
+	std::vector<indiv> _healthy_list = {};
+	std::vector<indiv> _missing_list = {};
 
 	// contact rate pointers
-	matrix<const double *> contact_rates;
+	matrix<const double *> _contact_rates;
+
+	//===== LOGLIKELIHOOD =====//
+
+	double _obs_loglike = NULL_DOUBLE;	// current observation loglikelihood
+	double _augm_loglike = NULL_DOUBLE; // current augmented model loglikelihood
+
+	double _obs_buffer = NULL_DOUBLE;  // buffer observation loglikelihood
+	double _augm_buffer = NULL_DOUBLE; // buffer augmented model loglikelihood
+
+	dbl_vec _smpl_loglike = {}; // diagnostics
 
 	//===== EXTRA ATTRIBUTES =====//
 
 	//----- Extra Attributes -----//
-	extraIDmap<int_vec> extra_int_vec = {};
-	extraIDmap<dbl_vec> extra_dbl_vec = {};
-	extraIDmap<matrix<double>> extra_dbl_mtx = {};
+	extraIDmap<int_vec> _extra_int_vec = {};
+	extraIDmap<dbl_vec> _extra_dbl_vec = {};
+	extraIDmap<matrix<double>> _extra_dbl_mtx = {};
 
 	//----- Buffer EXTRA Attributes -----//
-	extraIDmap<int_vec> _buffer_extra_int_vec_ = {};
-	extraIDmap<dbl_vec> _buffer_extra_dbl_vec_ = {};
-	extraIDmap<matrix<double>> _buffer_extra_dbl_mtx_ = {};
+	extraIDmap<int_vec> _buffer_extra_int_vec = {};
+	extraIDmap<dbl_vec> _buffer_extra_dbl_vec = {};
+	extraIDmap<matrix<double>> _buffer_extra_dbl_mtx = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

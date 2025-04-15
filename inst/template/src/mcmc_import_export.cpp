@@ -1,12 +1,12 @@
-/*      __                                 
+/*      __
  *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ / 
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /  
- *  /_/ /_/\____/\____/____/\___/ ____/_/   
- *                             /_/       
- *    
+ *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *  /_/ /_/\____/\____/____/\___/ ____/_/
+ *                             /_/
+ *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
- * 
+ *
  * mcmc_import_export.cpp
  *
  */
@@ -77,7 +77,7 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 {
     try
     {
-        rlist_to_map(input, _setup_deflist_);
+        rlist_to_map(input, _setup_deflist);
     }
     catch (const std::exception &e)
     {
@@ -85,8 +85,6 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
                       std::string(e.what())});
     }
     build_setup();
-    if (_report_pathtofile_.find("setup") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("setup");
 }
 
 /* Import infectivity profile from R list and run build. */
@@ -94,41 +92,37 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
     try
     {
-        rlist_to_map(input, _infec_.deflist);
+        rlist_to_map(input, _infec_profile.deflist);
     }
     catch (const std::exception &e)
     {
         tools::error({"While importing infectivity profile definitions:",
                       std::string(e.what())});
     }
-    _infec_.build();
-    if (_report_pathtofile_.find("infec_profile") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("infec_profile");
+    _infec_profile.build();
 }
 
 /* Import params from R DataFrame and run build. */
-void MCMC::Impl::import_parameter(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_param(const Rcpp::DataFrame &input)
 {
     try
     {
-        rdataframe_to_map(input, _param_deftable_);
+        rdataframe_to_map(input, _param_deftable);
     }
     catch (const std::exception &e)
     {
         tools::error({"While reading parameter definitions:",
                       std::string(e.what())});
     }
-    build_params();
-    if (_report_pathtofile_.find("params") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("params");
+    build_param();
 }
 
 /* Import data from R DataFrame then run build. */
-void MCMC::Impl::import_augmented(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
 {
     try
     {
-        rdataframe_to_map(input, _augm_deftable_);
+        rdataframe_to_map(input, _augm_deftable);
     }
     catch (const std::exception &e)
     {
@@ -136,27 +130,38 @@ void MCMC::Impl::import_augmented(const Rcpp::DataFrame &input)
                       std::string(e.what())});
     }
     build_augm();
-    if (_report_pathtofile_.find("augm") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("augm");
 }
 
 /* Import data from R DataFrame and run build. */
-void MCMC::Impl::import_dataset(const Rcpp::DataFrame &data)
+void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
 {
     dict_str_vec datatable = {};
-
     try
     {
-        rdataframe_to_map(data, datatable);
+        rdataframe_to_map(input, datatable);
     }
     catch (const std::exception &e)
     {
         tools::error({"While reading dataset:",
                       std::string(e.what())});
     }
-    build_data(datatable);
-    if (_report_pathtofile_.find("data") != _report_pathtofile_.end())
-        _report_pathtofile_.erase("data");
+    build_dataset(datatable);
+}
+
+/* Import multiplicity definitions from R DataFrame and run build. */
+void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
+{
+    dict_str_vec multipltable = {};
+    try
+    {
+        rdataframe_to_map(input, multipltable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error({"While reading multiplicity:",
+                      std::string(e.what())});
+    }
+    build_multiplicity(multipltable);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +188,7 @@ Rcpp::List MCMC::Impl::export_setup() const
 }
 
 /* Export current parameter configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::export_parameter() const
+Rcpp::DataFrame MCMC::Impl::export_param() const
 {
     using namespace Rcpp;
 
@@ -403,7 +408,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
     try
     {
-        if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
+        if ((setup_n_chains == 0) || is_power_post() || smpl_full_loglike.empty())
             throw std::length_error(
                 "No traces to export were found.");
 
@@ -412,7 +417,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         headers += param_standard_infer_list + param_extra_infer_list;
 
         // augmented variable of id trace
-        if (!dgn_augm_value.empty())
+        if (!smpl_augm_value.empty())
             for (const augmID &a : augm_infer_list)
                 headers += {a + "_id_" + setup_id_trace};
 
@@ -426,16 +431,16 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         size_t col = 0;
 
         // loglikelihood
-        output(_, col++) = NumericVector(wrap(dgn_glob_loglike));
+        output(_, col++) = NumericVector(wrap(smpl_full_loglike));
 
         // parameters
         for (const parID &p : param_standard_infer_list + param_extra_infer_list)
-            output(_, col++) = NumericVector(wrap(dgn_param_value.at(p)));
+            output(_, col++) = NumericVector(wrap(smpl_param_value.at(p)));
 
         // augmented variables
-        if (!dgn_augm_value.empty())
+        if (!smpl_augm_value.empty())
             for (const augmID &a : augm_infer_list)
-                output(_, col++) = NumericVector(wrap(dgn_augm_value.at(a)));
+                output(_, col++) = NumericVector(wrap(smpl_augm_value.at(a)));
 
         // retrieve chain identities
         if (setup_n_chains > 1)
@@ -474,7 +479,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 
     try
     {
-        if ((setup_n_chains == 0) || is_power_post() || dgn_glob_loglike.empty())
+        if ((setup_n_chains == 0) || is_power_post() || smpl_full_loglike.empty())
             tools::error("No traces to export were found.");
 
         // Create a NumericMatrix with n_house columns
@@ -485,7 +490,8 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
         // Assign each NumericVector to a column of the matrix
         for (size_t H = 0; H < n_households; ++H)
         {
-            output(_, H) = NumericVector(wrap(house_vector[H].get_dgn_loglike()));
+            size_t H0 = house_vector[H].multiplicity_class_index();
+            output(_, H) = NumericVector(wrap(house_vector[H0].get_smpl_loglike()));
             headers[H] = house_vector[H].house_id();
         }
 
@@ -521,7 +527,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
     try
     {
         // check the call makes sense
-        if (_infec_.profile == nullptr)
+        if (_infec_profile.profile == nullptr)
             throw std::length_error("No infectivity profile to export.");
 
         // load options
@@ -530,7 +536,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
             opts_.push_back(opts.at(k));
 
         // produce a showcase of the distribution profile
-        std::vector<dbl_vec> values = _infec_.profile->showcase(opts_, n_bins);
+        std::vector<dbl_vec> values = _infec_profile.profile->showcase(opts_, n_bins);
 
         // compute mean and variance
         const dbl_vec &x = values[0];
@@ -541,7 +547,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
         double m = x[0] * prob[0] + x[N - 1] * prob[N - 1];
         double m2 = x[0] * x[0] * prob[0] + x[N - 1] * x[N - 1] * prob[N - 1];
         // integration wiht trapezoidal rule for continuos case
-        if (!_infec_.profile->is_discrete())
+        if (!_infec_profile.profile->is_discrete())
         {
             m *= 0.5;
             m2 *= 0.5;
@@ -556,8 +562,8 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
         m2 *= Dx;
 
         return List::create(
-            _["name"] = _infec_.profile->show_name(),
-            _["discrete"] = _infec_.profile->is_discrete(),
+            _["name"] = _infec_profile.profile->show_name(),
+            _["discrete"] = _infec_profile.profile->is_discrete(),
             _["mean"] = m,
             _["var"] = m2 - m * m,
             _["gentime"] = wrap(values[0]),
@@ -584,7 +590,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
-Rcpp::DataFrame MCMC::export_parameter() const { return pImpl->export_parameter(); }
+Rcpp::DataFrame MCMC::export_param() const { return pImpl->export_param(); }
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
 Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_report(); }
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
@@ -603,8 +609,8 @@ Rcpp::List MCMC::showcase_infec_profile(const Rcpp::List &opts, int n_bins)
 
 void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
 void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
-void MCMC::import_parameter(const Rcpp::DataFrame &x) { pImpl->import_parameter(x); }
-void MCMC::import_augmented(const Rcpp::DataFrame &x) { pImpl->import_augmented(x); }
+void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
+void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
 
 //-----------------------------------------------------------------------------------------------//
@@ -626,7 +632,7 @@ void MCMC::Impl::read_setup(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(f, _setup_deflist_);
+        tools::read_csv_list(f, _setup_deflist);
     }
     catch (const std::exception &e)
     {
@@ -634,7 +640,6 @@ void MCMC::Impl::read_setup(const std::string &f)
                       std::string(e.what())});
     }
     build_setup();
-    _report_pathtofile_["setup"] = f;
 }
 
 /* Read Setup file and produce a definition list. */
@@ -642,31 +647,29 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(f, _infec_.deflist);
+        tools::read_csv_list(f, _infec_profile.deflist);
     }
     catch (const std::exception &e)
     {
         tools::error({"While reading infectivity profile definitions:",
                       std::string(e.what())});
     }
-    _infec_.build();
-    _report_pathtofile_["infec_profile"] = f;
+    _infec_profile.build();
 }
 
 /* Read parameter definitions and run assignment. */
-void MCMC::Impl::read_params(const std::string &f)
+void MCMC::Impl::read_param(const std::string &f)
 {
     try
     {
-        tools::read_csv_table(f, _param_deftable_);
+        tools::read_csv_table(f, _param_deftable);
     }
     catch (const std::exception &e)
     {
         tools::error({"While reading parameter definitions:",
                       std::string(e.what())});
     }
-    build_params();
-    _report_pathtofile_["params"] = f;
+    build_param();
 }
 
 /* Read Model Augmented Variable file. */
@@ -674,7 +677,7 @@ void MCMC::Impl::read_augm(const std::string &f)
 {
     try
     {
-        tools::read_csv_table(f, _augm_deftable_);
+        tools::read_csv_table(f, _augm_deftable);
     }
     catch (const std::exception &e)
     {
@@ -682,11 +685,10 @@ void MCMC::Impl::read_augm(const std::string &f)
                       std::string(e.what())});
     }
     build_augm();
-    _report_pathtofile_["augm"] = f;
 }
 
-/* Read data file and then run assignment. */
-void MCMC::Impl::read_data(const std::string &f)
+/* Read dataset file and then run assignment. */
+void MCMC::Impl::read_dataset(const std::string &f)
 {
     dict_str_vec datatable = {};
     try
@@ -698,8 +700,23 @@ void MCMC::Impl::read_data(const std::string &f)
         tools::error({"While reading dataset:",
                       std::string(e.what())});
     }
-    build_data(datatable);
-    _report_pathtofile_["data"] = f;
+    build_dataset(datatable);
+}
+
+/* Read multiplicity file and then run assignment. */
+void MCMC::Impl::read_multiplicity(const std::string &f)
+{
+    dict_str_vec datatable = {};
+    try
+    {
+        tools::read_csv_table(f, datatable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error({"While reading multiplicity:",
+                      std::string(e.what())});
+    }
+    build_multiplicity(datatable);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -829,40 +846,20 @@ void MCMC::Impl::show_all_params() const
 void MCMC::Impl::show_full_build() const
 {
     //----- SETUP -----//
-    std::string add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("setup"))
-        if (!tools::is_na(_report_pathtofile_.at("setup")))
-            add_file_info = "# import: " + _report_pathtofile_.at("setup");
-
-    tools::print_decorator("Setup", add_file_info);
+    tools::print_decorator("Setup");
     show_setup();
 
     //----- PARAMETERS -----//
-    add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("params"))
-        if (!tools::is_na(_report_pathtofile_.at("params")))
-            add_file_info = "# import: " + _report_pathtofile_.at("params");
-
-    tools::print_decorator("Parameters", add_file_info);
+    tools::print_decorator("Parameters");
     show_all_params();
 
     //----- DATABASE -----//
-    add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("data"))
-        if (!tools::is_na(_report_pathtofile_.at("data")))
-            add_file_info = "# import: " + _report_pathtofile_.at("data");
-
-    tools::print_decorator("Database", add_file_info);
+    tools::print_decorator("Dataset");
     show_summary();
 
     //----- AUGMENTED -----//
-    add_file_info = NULL_STRING;
-    if (_report_pathtofile_.count("augm"))
-        if (!tools::is_na(_report_pathtofile_.at("augm")))
-            add_file_info = "# import: " + _report_pathtofile_.at("augm");
-
     if (!augm_list_full.empty())
-        tools::print_decorator("Augmented", add_file_info);
+        tools::print_decorator("Augmented"); // ... and then?! FIXME
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -883,7 +880,7 @@ void MCMC::Impl::show_results() const
     for (const parID &p : param_standard_infer_list + param_extra_infer_list)
     {
         const Variable &this_param = param_map.at(p);
-        const std::pair<double, double> stats = tools::compute_stats(dgn_param_value.at(p));
+        const std::pair<double, double> stats = tools::compute_stats(smpl_param_value.at(p));
 
         oss << p
             << C_DELIM << stats.first
@@ -957,18 +954,18 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
                     // print loglikelihood
                     inferstate_ofstream << C_DELIM << std::setprecision(2)
-                                        << std::fixed << dgn_glob_loglike[i];
+                                        << std::fixed << smpl_full_loglike[i];
 
                     // print parameter values
                     for (const parID &p : param_standard_infer_list + param_extra_infer_list)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
-                                            << std::fixed << dgn_param_value.at(p)[i];
+                                            << std::fixed << smpl_param_value.at(p)[i];
 
                     // print selected augmented variables
                     if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
                         for (const augmID &a : augm_infer_list)
                             inferstate_ofstream << C_DELIM << std::setprecision(5)
-                                                << std::fixed << dgn_augm_value.at(a)[i];
+                                                << std::fixed << smpl_augm_value.at(a)[i];
 
                     // print which chain
                     if (setup_n_chains > 1)
@@ -1061,11 +1058,12 @@ void MCMC::Impl::_aux_print_dataset_finalize_()
 //////////////////////////////////////////  MCMC : read  //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void MCMC::read_dataset(const std::string &f) { pImpl->read_dataset(f); }
 void MCMC::read_setup(const std::string &f) { pImpl->read_setup(f); }
+void MCMC::read_param(const std::string &f) { pImpl->read_param(f); }
 void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }
-void MCMC::read_params(const std::string &f) { pImpl->read_params(f); }
 void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
-void MCMC::read_data(const std::string &f) { pImpl->read_data(f); }
+void MCMC::read_multiplicity(const std::string &f) { pImpl->read_multiplicity(f); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////
