@@ -331,11 +331,11 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   active = list(
-    # @field model_name `character(1)`\cr
+    # @field name `character(1)`\cr
     # Model name.
-    model_name = function(value) {
+    name = function(value) {
       if (missing(value)) return(private$.name)
-      stop_h("'model_name' is read only.")
+      stop_h("'name' is read only.")
     },
 
     # @field cache_dir `character(1)`\cr
@@ -417,8 +417,8 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Initialize model generator defining name of dynamic library.
     #
-    # @param model_choice `character(1)`\cr
-    # One between:
+    # @param choice `character(1)`\cr
+    # Choose a model providing one between:
     # - "blank" template name;
     # - template name;
     # - path/to/folder with implementation;
@@ -428,58 +428,53 @@ HousepiGenerator <- R6::R6Class(
     # If `FALSE` recompile the model at every new session.
     # @param force `logical(1)`\cr
     # If `TRUE` compile even if a cached model already exists.
+    # @param name `chracter(1)`\cr
+    # Custom name of the model (default is inferred from `choice`).
     # @param quiet `logical(1)`\cr
     # If `TRUE` hide `pkgbuild` compilation commands.
-    # @param model_name `chracter(1)`\cr
-    # Custom name of the model (default is inferred from `model_choice`).
-    initialize = function(model_choice,
-                          as_template = FALSE,
-                          force = FALSE,
-                          quiet = TRUE,
-                          model_name = NA) {
-      # assign quiet field
-      private$.quiet <- isTRUE(quiet)
-
+    initialize = function(choice, as_template = FALSE, force = FALSE,
+                          name = NA, quiet = TRUE) {
       # check model choice
-      if (is.na(model_choice)) {
-        model_choice <- "blank"
+      if (is.na(choice)) {
+        choice <- "blank"
         warning_h("No model specified. Falling back to \"blank\" model.")
+
+      } else if (choice %in% list(".")) {
+        # prohibit directories
+        stop_h(
+          sprintf("Invalid choice \"%s\" for housepi model.", choice),
+          "Move your implementation in a different folder."
+        )
       }
 
       # assign name to the model
-      private$.name <- ifelse(is.na(model_name),
-                              basename(model_choice), model_name)
+      private$.name <- ifelse(is.na(name), basename(choice), name)
 
-      if (model_choice == "blank") {
-        #===== Blank Model (Developer Mode) =====#
+      # assign quiet field
+      private$.quiet <- isTRUE(quiet)
+
+      if (choice == "blank") {
+        # 1: Blank Model (Developer Mode) 
         private$.dll <- file.path(system.file(package = "housepi"),
                                   "template", "src",
                                   dll_file_ext("housepienvironment"))
         private$.source_dir <- dirname(private$.dll)
 
-      } else if (model_choice %in% list(".")) {
-        # prohibit directories
-        stop_h(
-          sprintf("Invalid folder name \"%s\" for housepi model.",
-                  model_choice),
-          "Move your implementation in a different folder."
-        )
+      } else if (dir.exists(choice)) {
+        # 2: Model Path Contains Source Code
+        private$.source_dir <- choice
+        private$.dll <- template_dll_file(choice)
+        private$.new_custom_model(choice, as_template, force)
 
-      } else if (dir.exists(model_choice)) {
-        #===== Model Path Contains Source Code =====#
-        private$.source_dir <- model_choice
-        private$.dll <- template_dll_file(model_choice)
-        private$.new_custom_model(model_choice, as_template, force)
-
-      } else if (model_choice %in% list.files(template_models_dir())) {
-        #===== Plain Template Model Name =====#
-        private$.source_dir <- file.path(template_models_dir(), model_choice)
+      } else if (choice %in% list.files(template_models_dir())) {
+        # 3: Plain Template Model Name
+        private$.source_dir <- file.path(template_models_dir(), choice)
         private$.dll <- template_dll_file(private$.source_dir)
 
       } else {
-        #===== Error =====#
+        # 4: Error
         stop_h(
-          sprintf("\"%s\" is not a folder nor a template name.", model_choice),
+          sprintf("\"%s\" is not a folder nor a template name.", choice),
           "To see available templates, run function 'template_household_model'."
         )
       }

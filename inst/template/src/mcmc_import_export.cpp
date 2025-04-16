@@ -612,6 +612,7 @@ void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profi
 void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
 void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
+void MCMC::import_multiplicity(const Rcpp::DataFrame &x) { pImpl->import_multiplicity(x); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

@@ -148,11 +148,12 @@ public:
 	//===== Rcpp IMPORTS =====//
 	//========================//
 
-	void import_setup(const Rcpp::List &setup);
-	void import_infec_profile(const Rcpp::List &setup);
-	void import_param(const Rcpp::DataFrame &params);
-	void import_dataset(const Rcpp::DataFrame &data);
-	void import_augm(const Rcpp::DataFrame &augm);
+	void import_setup(const Rcpp::List &input);
+	void import_infec_profile(const Rcpp::List &input);
+	void import_param(const Rcpp::DataFrame &input);
+	void import_dataset(const Rcpp::DataFrame &input);
+	void import_augm(const Rcpp::DataFrame &input);
+    void import_multiplicity(const Rcpp::DataFrame &input);
 
 	//========================//
 	//===== Rcpp EXPORTS =====//

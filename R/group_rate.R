@@ -26,7 +26,7 @@ assert_dataset_features <- function(features,
   # assert that features are present
   missing <- c()
   for (this in features) {
-    if (!(this %in% names(dataset))) {
+    if (!(this %in% data_headers)) {
       missing <- c(missing, this)
     }
   }
@@ -64,7 +64,7 @@ group_rate_logic_table <- function(dataset, by) {
   features <- as.character(by)
 
   # convert features
-  assert_dataset_features(features, colnames(datset))
+  assert_dataset_features(features, colnames(dataset))
 
   # extract unique features and sort by list length
   uni_features <- lapply(features, function(f) sort(unique(dataset[[f]])))

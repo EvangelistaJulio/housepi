@@ -266,18 +266,17 @@ HousepiWrapper <- R6::R6Class(
     #
     # @param opts `double()`\cr
     # Additional values for the computation.
-    # @param n_bins `integer(1)`\cr
+    # @param bins `integer(1)`\cr
     # Number of bins for continuous profile (ignored if discrete).
     #
     # @return `data.frame`
-    showcase_infec_profile = function(opts = list(),
-                                      n_bins = 2000) {
+    showcase_infec_profile = function(opts = list(), bins = 2000) {
       # load options
       opts <- as.list(as.numeric(opts))
-      n_bins <- as.integer(n_bins)
+      bins <- as.integer(bins)
 
       # reformat dataframe
-      output <- private$.rcpp$showcase_infec_profile(opts, n_bins)
+      output <- private$.rcpp$showcase_infec_profile(opts, bins)
       mask <- c("gentime", "inst", "cumul")
       output$profile <- as.data.frame(output[mask])
       output[mask] <- NULL
@@ -307,15 +306,14 @@ HousepiWrapper <- R6::R6Class(
     },
 
     # @description
-    # Wrapper of the Rcpp estimate_evidence method.
+    # Wrapper of the Rcpp method to estimate_evidence.
     #
     # @param scheme `character(1)`\cr
     # If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
     # Other available scheme is "power-fractions".
     # @param n_rungs `integer(1)`\cr
     # Number of rungs in the thermodynamic ladder.
-    estimate_evidence = function(scheme = "adaptive",
-                                 n_rungs = 40) {
+    evidence = function(scheme = "adaptive", n_rungs = 40) {
       # load options
       scheme <- as.character(scheme)
       n_rungs <- as.integer(n_rungs)

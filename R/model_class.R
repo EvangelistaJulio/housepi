@@ -153,7 +153,7 @@ HouseholdModel <- R6::R6Class(
           # UPDATE: can't I change in-place?
 
           # new model name
-          new_name <- private$.model$model_name
+          new_name <- private$.model$name
           gr_label <- "+group+rates"
           if (!stringr::str_detect(new_name, stringr::fixed(gr_label))) {
             new_name <- paste0(new_name, gr_label)
@@ -162,7 +162,7 @@ HouseholdModel <- R6::R6Class(
           private$.model <- HousepiWrapper$new(
             private$.model$source_dir, as_template = FALSE,
             quiet = private$.model$quiet, force = TRUE,
-            model_name = new_name
+            name = new_name
           )
 
           # write the cpp script for new group rates in the new cache file
@@ -234,18 +234,11 @@ HouseholdModel <- R6::R6Class(
     # @param progress `logical(1)`\cr
     # If `TRUE` prints the progress bar.
     .build_full = function(dataset = NULL,
-                           sample_size = NA,
-                           n_steps = 0,
-                           n_burnin = 0,
-                           thin = 1,
-                           n_adapt = 0,
-                           n_chains = 1,
-                           n_threads = 1,
-                           rand_init = TRUE,
-                           id_trace = NA,
-                           inv_temper = 1.0,
-                           seed = NA,
-                           progress = FALSE) {
+                           sample_size = NA, n_steps = 0,
+                           n_burnin = 0, thin = 1, n_adapt = 0,
+                           n_chains = 1, n_threads = 1,
+                           rand_init = TRUE, id_trace = NA, inv_temper = 1.0,
+                           seed = NA, progress = FALSE) {
       # import dataset
       self$import_dataset(dataset, .hold = FALSE)
       # run model pre-build
@@ -285,6 +278,13 @@ HouseholdModel <- R6::R6Class(
   ############################################################################
 
   active = list(
+    # @field name `character(1)`\cr
+    # Model name.
+    name = function(value) {
+      if (missing(value)) return(private$.model$name)
+      stop_h("'name' is read only.")
+    },
+
     #' @field dataset `data.frame`\cr
     #' Dataset with individual level information of current dataset.
     #' If the case, it also return the associated augmented variables.
@@ -413,34 +413,30 @@ HouseholdModel <- R6::R6Class(
     #' New instance of class
     #' [HouseholdModel][housepi::HouseholdModel].
     #'
-    #' @param model_choice `character(1)`\cr
-    #' One between:
+    #' @param choice `character(1)`\cr
+    #' Choose a model providing one between:
     #' - template name;
     #' - path/to/folder with implementation;
     #' - path/to/folder with previously compiled model;
     #' - "blank": template name for blank model (default).
-    #' @param quiet `logical(1)`\cr
-    #' If `TRUE` hide `pkgbuild` compilation commands (default).
-    #' @param force `logical(1)`\cr
-    #' If `TRUE` compile even if a cached model already exists.
     #' @param as_template `logical(1)`\cr
     #' If `TRUE` store the dynamic library as a local template.
     #' IF `FALSE` recompile the model at every new session.
-    #' @param model_name `chracter(1)`\cr
-    #' Custom name of the model (default is inferred from `model_choice`).
+    #' @param force `logical(1)`\cr
+    #' If `TRUE` compile even if a cached model already exists.
+    #' @param name `chracter(1)`\cr
+    #' Custom name of the model (default is inferred from `choice`).
     #' @param cri_level `double(1)`\cr
     #' Level for the credible interval.
     #' Value between 0 and 1 (default is 0.95).
-    initialize = function(model_choice = NA,
-                          quiet = TRUE,
-                          force = FALSE,
-                          as_template = FALSE,
-                          model_name = NA,
-                          cri_level = 0.95) {
+    #' @param quiet `logical(1)`\cr
+    #' If `TRUE` hide `pkgbuild` compilation commands (default).
+    initialize = function(choice = NA, as_template = FALSE, force = FALSE,
+                          name = NA, cri_level = 0.95, quiet = TRUE) {
       # generate model
       private$.model <- HousepiWrapper$new(
-        model_choice = model_choice, as_template = as_template,
-        force = force, quiet = quiet, model_name = model_name
+        choice = choice, as_template = as_template, force = force,
+        name = name, quiet = quiet
       )$generate()
 
       # credible interval level
@@ -455,7 +451,7 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_alert_info("Household model {.pkg {private$.model$model_name}}.")
+      cli::cli_alert_info("Household model {.pkg {self$name}}.")
       invisible(self)
     },
 
@@ -604,16 +600,11 @@ HouseholdModel <- R6::R6Class(
     #' Value of the minimum.
     #' @param max `double(1)`\cr
     #' Value of the maximum.
-    add_param = function(name = NA,
-                         value = NA,
-                         constant = NA,
-                         discrete = FALSE,
-                         prior = NA,
-                         args = list(),
-                         rule = NA,
-                         scale = NA,
-                         min = NA,
-                         max = NA) {
+    add_param = function(name = NA, value = NA,
+                         constant = NA, discrete = FALSE,
+                         prior = NA, args = list(),
+                         rule = NA, scale = NA,
+                         min = NA, max = NA) {
       private$.param$add(name = name, value = value, constant = constant,
                          discrete = discrete, prior = prior, args = args,
                          rule = rule, scale = scale,
@@ -632,9 +623,7 @@ HouseholdModel <- R6::R6Class(
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_param_list = function(...,
-                               from = NA,
-                               append = FALSE) {
+    load_param_list = function(..., from = NA, append = FALSE) {
       private$.param$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -704,19 +693,12 @@ HouseholdModel <- R6::R6Class(
     #' @param from `double(1)` | `character(1)`\cr
     #' Advanced options for non random walk moves.
     #' `FIXME: missing`
-    add_augm = function(name = NA,
-                        status = NA,
-                        value = NA,
-                        init_rand = FALSE,
-                        constant = NA,
-                        discrete = FALSE,
-                        model = NA,
-                        args = list(),
-                        min = NA,
-                        max = NA,
-                        rule = NA,
-                        scale = NA,
-                        from = NA) {
+    add_augm = function(name = NA, status = NA,
+                        value = NA, init_rand = FALSE,
+                        constant = NA, discrete = FALSE,
+                        model = NA, args = list(),
+                        min = NA, max = NA,
+                        rule = NA, scale = NA, from = NA) {
       private$.augm$add(name = name, status = status,
                         value = value, init_rand = init_rand,
                         constant = constant, discrete = discrete,
@@ -737,9 +719,7 @@ HouseholdModel <- R6::R6Class(
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_augm_list = function(...,
-                              from = NA,
-                              append = FALSE) {
+    load_augm_list = function(..., from = NA, append = FALSE) {
       private$.augm$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -807,17 +787,12 @@ HouseholdModel <- R6::R6Class(
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
     #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
-    add_group_rate = function(name,
-                              by,
-                              prefix = NA,
-                              reference = NULL,
-                              independent = TRUE,
+    add_group_rate = function(name, by,
+                              prefix = NA, reference = NULL, independent = TRUE,
                               prior = "lnorm",
                               args = list(meanlog = 0, sdlog = 3),
-                              rule = "lnorm",
-                              scale = 1,
-                              min = NA,
-                              max = 10) {
+                              min = NA, max = 10,
+                              rule = "lnorm", scale = 1) {
       private$.group_rate$add(name = name, by = by, prefix = prefix,
                               reference = reference, independent = independent,
                               prior = prior, args = args,
@@ -837,9 +812,7 @@ HouseholdModel <- R6::R6Class(
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_group_rate_list = function(...,
-                                    from = NA,
-                                    append = FALSE) {
+    load_group_rate_list = function(..., from = NA, append = FALSE) {
       private$.group_rate$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -861,11 +834,8 @@ HouseholdModel <- R6::R6Class(
     #' One between:
     #' - Scalar value;
     #' - Parameter name (optionally followed by `@P`).
-    add_infec_profile = function(name,
-                                 discrete = FALSE,
-                                 args = list(),
-                                 min = NA,
-                                 max = NA) {
+    add_infec_profile = function(name, discrete = FALSE,
+                                 args = list(), min = NA, max = NA) {
       private$.infec_profile$add(name = name, discrete = discrete,
                                  args = args, min = min, max = max)
       invisible(self)
@@ -876,18 +846,15 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param opts `double()`\cr
     #' Additional values for the computation.
-    #' @param n_bins `integer(1)`\cr
+    #' @param bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return
     #' `list()`
-    showcase_infec_profile = function(opts = list(),
-                                      n_bins = 2000) {
+    showcase_infec_profile = function(opts = list(), bins = 2000) {
       # internal build function
       private$.build_minimal()
-
-      return(private$.model$showcase_infec_profile(opts = opts,
-                                                   n_bins = n_bins))
+      return(private$.model$showcase_infec_profile(opts = opts, bins = bins))
     },
 
     ############################################################################
@@ -926,18 +893,11 @@ HouseholdModel <- R6::R6Class(
     #' @param progress `logical(1)`\cr
     #' If `FALSE` suppress the inference progress bar.
     infer = function(dataset = NULL,
-                     sample_size = NA,
-                     n_steps = 10000,
-                     n_burnin = 0,
-                     thin = 1,
-                     n_adapt = 0,
-                     n_chains = 1,
-                     n_threads = 1,
-                     rand_init = TRUE,
-                     id_trace = NA,
-                     inv_temper = 1.0,
-                     seed = NA,
-                     progress = TRUE) {
+                     sample_size = NA, n_steps = 10000,
+                     n_burnin = 0, thin = 1, n_adapt = 0,
+                     n_chains = 1, n_threads = 1,
+                     rand_init = TRUE, id_trace = NA, inv_temper = 1.0,
+                     seed = NA, progress = TRUE) {
       # internal build function
       private$.build_full(dataset = dataset, sample_size = sample_size,
                           n_steps = n_steps, n_burnin = n_burnin, thin = thin,
@@ -965,12 +925,10 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @return
     #' `data.frame`
-    simulate = function(dataset = NULL,
-                        seed = NA,
-                        progress = FALSE) {
+    simulate = function(dataset = NULL, seed = NA, progress = FALSE) {
       # internal build function
-      private$.build_full(dataset = dataset, seed = seed,
-                          progress = progress, rand_init = FALSE)
+      private$.build_full(dataset = dataset, rand_init = FALSE,
+                          seed = seed, progress = progress)
 
       # call method from internal Rcpp object
       return(private$.model$simulate())
@@ -1004,11 +962,9 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @return
     #' `double(1)`
-    loglikelihood = function(dataset = NULL,
-                             seed = NA) {
+    loglikelihood = function(dataset = NULL, seed = NA) {
       # internal build function
-      private$.build_full(dataset = dataset,
-                          seed = seed, rand_init = FALSE)
+      private$.build_full(dataset = dataset, seed = seed, rand_init = FALSE)
       return(private$.model$evaluate())
     },
 
@@ -1052,25 +1008,19 @@ HouseholdModel <- R6::R6Class(
     #' Improving power posterior estimation of statistical evidence.
     #' Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
     evidence = function(dataset = NULL,
-                        scheme = "power-fractions",
-                        n_rungs = 40,
-                        sample_size = NA,
-                        n_steps = 10000,
-                        n_burnin = 0,
-                        thin = 1,
-                        n_adapt = 0,
-                        n_chains = 1,
-                        n_threads = 1,
-                        seed = NA,
-                        progress = TRUE) {
+                        scheme = "power-fractions", n_rungs = 40,
+                        sample_size = NA, n_steps = 10000,
+                        n_burnin = 0, thin = 1, n_adapt = 0,
+                        n_chains = 1, n_threads = 1,
+                        seed = NA, progress = TRUE) {
       # internal build function
       private$.build_full(dataset, sample_size = sample_size, n_steps = n_steps,
                           n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
                           n_chains = n_chains, n_threads = n_threads,
                           rand_init = TRUE, seed = seed, progress = progress)
+
       # evaluate marginal from the internal Rcpp object
-      return(private$.model$estimate_evidence(scheme = scheme,
-                                              n_rungs = n_rungs))
+      return(private$.model$evidence(scheme = scheme, n_rungs = n_rungs))
     }
   )
 )
