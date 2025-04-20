@@ -291,7 +291,7 @@ namespace progress
         //===== CONSTRUCTOR =====//
         Bar(ulong total,
             const std::string &text = "",
-            bool verbose = true);
+            ulong thintime = 1);
         ~Bar();
 
         //===== SETTER =====//

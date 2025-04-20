@@ -681,7 +681,7 @@ namespace progress
 
         steady_clock::time_point start;
         steady_clock::time_point lastprint;
-        int64_t thintime = 0;
+        ulong thintime = 0;
 
         //=======================//
         //===== CONSTRUCTOR =====//
@@ -792,10 +792,11 @@ namespace progress
     ///////////////////////////////////////  Bar : Constructor  ///////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Bar::Bar(ulong total, const std::string &text, bool verbose) : pImpl(std::make_unique<Impl>())
+    Bar::Bar(ulong total, const std::string &text, ulong thintime) : pImpl(std::make_unique<Impl>())
     {
         pImpl->total = total;
-        pImpl->verbose = verbose;
+        pImpl->verbose = thintime > 0;
+        pImpl->thintime = thintime - 1;
         pImpl->initialize(text);
     }
     Bar::~Bar() = default;

@@ -80,7 +80,7 @@ void MCMC::Impl::build_setup()
 
             // Random Initialization of Parameters
             if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
-                setup_progress = tools::stobool(deflist.at("progress"));
+                setup_progress = tools::stoul(deflist.at("progress"));
 
             // N. of Threads
             if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))

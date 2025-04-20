@@ -76,7 +76,6 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 | healthy/seronegative  | $0$                        |
 | missing               | ${\leq -1}$ or ${\rm NA}$  |
 
-
 ### Import a Dataset
 
 The `housepi` package comes with a few synthetic dataset to be used for testing.
@@ -145,14 +144,13 @@ After having provided all necessary definitions, we can perform inference with t
 # run the Monte Carlo specifying setup options
 hhmodel$infer(
   dataset = survey, # import the dataset as a data.frame
-  n_steps = 10000,  # number of mcmc steps (per chain)
-  n_burnin = 500,   # steps to burn
+  n_steps = 20000,  # number of mcmc steps (per chain)
+  n_burnin = 1000,  # steps to burn
   thin = 8,         # delay between sampling steps
-  n_adapt = 500,    # finite adaptation steps before sampling
+  n_adapt = 1000,   # finite adaptation steps before sampling
   n_chains = 4,     # number of independent chains 
   seed = 6043,      # internal random number generator seed
-  n_threads = 1,    # number of threads
-  progress = FALSE  # flag to silence progress bar (default is TRUE)
+  n_threads = 1     # number of threads
 ) 
 ```
 

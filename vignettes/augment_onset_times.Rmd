@@ -169,7 +169,7 @@ hhmodel$load_augm_list(
 hhmodel$infer(simulated, n_chains = 3, 
               n_adapt = 2000, n_steps = 10000, 
               n_burnin = 1000, thin = 10,
-              seed = 3731, progress = FALSE)
+              seed = 3731, progress = 30)
 ```
 
 ```{r, message = FALSE, warning = FALSE, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}

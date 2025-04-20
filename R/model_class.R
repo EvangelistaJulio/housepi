@@ -306,8 +306,8 @@ HouseholdModel <- R6::R6Class(
     # @param seed `integer(1)`\cr
     # Seed of the random number generator.
     # If `NA` uses the internal clock (default).
-    # @param progress `logical(1)`\cr
-    # If `TRUE` prints the progress bar.
+    # @param progress `logical(1) | integer(1)`\cr
+    # If `TRUE` prints the progress bar. 
     .build_full = function(dataset = NULL,
                            sample_size = NA, n_steps = 0,
                            n_burnin = 0, thin = 1, n_adapt = 0,
@@ -337,7 +337,7 @@ HouseholdModel <- R6::R6Class(
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
         n_threads = n_threads, rand_init = rand_init,
         id_trace = id_trace, inv_temper = inv_temper,
-        seed = seed, progress = progress
+        seed = seed, progress = as.integer(progress)
       ))
 
       # build group & contact rates
@@ -944,36 +944,43 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Run Bayesian MCMC inference and store internally the chain traces.
+    #' Run Bayesian Markov Chain Monte Carlo (MCMC) inference
+    #' and store internally the chain traces.
     #'
-    #' @param dataset `data.frame`\cr
-    #' A data.frame containing the dataset.
-    #' @param sample_size `integer(1)`\cr
-    #' Sample size of a single chain according to posterior distribution.
-    #' @param n_steps `integer(1)`\cr
-    #' Number of MCMC steps.
-    #' @param n_burnin `integer(1)`\cr
-    #' Number of steps to discard at the beginning of the sample.
-    #' @param thin `integer(1)`\cr
-    #' Number of steps to discard between each sample.
-    #' @param n_adapt `integer(1)`\cr
-    #' Number of steps with finite adaptation before sampling.
-    #' @param n_chains `integer(1)`\cr
-    #' Number of independent MCMC chains.
-    #' @param n_threads `integer(1)`\cr
-    #' Number of threads for the parallel computations.
-    #' @param rand_init `logical(1)`\cr
-    #' If `TRUE` the initial value of the parameters is drawn from prior.
-    #' @param id_trace `character(1)`\cr
-    #' Individual identifier to show augmented traces. Default is NA.
-    #' @param inv_temper `double(1)`\cr
-    #' Value of the inverse temperature.
-    #' For standard usage this is 1.
-    #' @param seed `integer(1)`\cr
-    #' Seed of the random number generator.
-    #' If `NA` uses the internal clock (default).
-    #' @param progress `logical(1)`\cr
-    #' If `FALSE` suppress the inference progress bar.
+    #' @param dataset `data.frame` \cr
+    #' Input dataset for analysis.
+    #' @param sample_size `integer(1)` \cr
+    #' Number of samples to draw from the posterior distribution in each chain.
+    #' @param n_steps `integer(1)` \cr
+    #' Total number of MCMC steps to perform.
+    #' @param n_burnin `integer(1)` \cr
+    #' Number of initial steps to discard as burn-in period.
+    #' @param thin `integer(1)` \cr
+    #' Thinning interval: number of steps to skip between each saved sample.
+    #' @param n_adapt `integer(1)` \cr
+    #' Number of adaptation steps before starting the main sampling.
+    #' @param n_chains `integer(1)` \cr
+    #' Number of independent MCMC chains to run.
+    #' @param n_threads `integer(1)` \cr
+    #' Number of parallel threads to use for computations.
+    #' @param rand_init `logical(1)` \cr
+    #' Controls random initialization of parameters:
+    #' - If `TRUE` (default), initial values are ndomly drawn from the prior distribution;
+    #' - If `FALSE` initial value definitions are used.
+    #' @param id_trace `character(1)` \cr
+    #' Individual identifier for augmented trace plots. Default is `NA`.
+    #' @param inv_temper `double(1)` \cr
+    #' Inverse temperature parameter. 
+    #' Typically set to 1 for standard MCMC sampling.
+    #' @param seed `integer(1)` \cr
+    #' Seed for the random number generator.
+    #' - If a specific integer is provided, sets the random number generator seed.
+    #' - If `NA` (default), uses the system clock to generate a seed.
+    #' @param progress `logical(1)` or `numeric(1)`\cr
+    #' Controls progress visualization:
+    #' - If `TRUE` (default), prints progress every second;
+    #' - If an integer `n`, prints progress every `n` seconds;
+    #' - If `FALSE` or `0`, suppresses progress display.
     infer = function(dataset = NULL,
                      sample_size = NA, n_steps = 10000,
                      n_burnin = 0, thin = 1, n_adapt = 0,
@@ -997,14 +1004,17 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Run simulation and return data.frame with simulated dataset.
     #'
-    #' @param dataset `data.frame`\cr
-    #' A data.frame containing the dataset.
-    #' @param seed `integer(1)`\cr
-    #' Seed of the random number generator.
-    #' If `NA` uses the internal clock (default).
-    #' @param progress `logical(1)`\cr
-    #' If `TRUE` show the simulation progress bar.
-    #' Default is `FALSE`.
+    #' @param dataset `data.frame` \cr
+    #' Input dataset for simulation.
+    #' @param seed `integer(1)` \cr
+    #' Seed for the random number generator.
+    #' - If a specific integer is provided, sets the random number generator seed.
+    #' - If `NA` (default), uses the system clock to generate a seed.
+    #' @param progress `logical(1)` or `numeric(1)`\cr
+    #' Controls progress visualization:
+    #' - If `TRUE` (default), prints progress every second;
+    #' - If an integer `n`, prints progress every `n` seconds;
+    #' - If `FALSE` or `0`, suppresses progress display.
     #'
     #' @return
     #' `data.frame`
@@ -1022,8 +1032,8 @@ HouseholdModel <- R6::R6Class(
     #' Extract the expected number of household cases per size
     #' and the credible interval.
     #'
-    #' @param progress `logical(1)`\cr
-    #' Progress of simulations. Default is inherited from the model.
+    #' @param progress `logical(1)` or `numeric(1)`\cr
+    #' Controls progress visualization. Default is inherited from the model.
     #'
     #' @return
     #' `ExpectedCases`\cr
@@ -1037,11 +1047,12 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Evaluate the loglikelihood for the given parameters.
     #'
-    #' @param dataset `data.frame`\cr
-    #' A data.frame containing the dataset.
-    #' @param seed `integer(1)`\cr
-    #' Seed of the random number generator.
-    #' If `NA` uses the internal clock (default).
+    #' @param dataset `data.frame` \cr
+    #' Input dataset for simulation.
+    #' @param seed `integer(1)` \cr
+    #' Seed for the random number generator.
+    #' - If a specific integer is provided, sets the random number generator seed.
+    #' - If `NA` (default), uses the system clock to generate a seed.
     #'
     #' @return
     #' `double(1)`
@@ -1056,33 +1067,37 @@ HouseholdModel <- R6::R6Class(
     #' Estimate the model evidence (or marginal likelihood).
     #' It uses the method of power posteriors with different available schemes.
     #'
-    #' @param dataset `data.frame`\cr
-    #' A data.frame containing the dataset.
-    #' @param scheme `character(1)`\cr
-    #' Default scheme is "power-fractions" 
-    #' with inverse temperatures (r / n_rungs)^5.
-    #' If "adaptive" uses adaptive scheme for thermodynamic ladder.
-    #' @param n_rungs `integer(1)`\cr
+    #' @param dataset `data.frame` \cr
+    #' Input dataset for simulation.
+    #' @param scheme `character(1)` \cr
+    #' Scheme used for evidence estimation.
+    #' - If "power-fractions" (default) uses inverse temperatures (r / n_rungs)^5.
+    #' - If "adaptive" uses adaptive thermodynamic ladder.
+    #' @param n_rungs `integer(1)` \cr
     #' Number of rungs in the thermodynamic ladder.
-    #' @param sample_size `integer(1)`\cr
-    #' Sample size of a single chain according to posterior distribution.
-    #' @param n_steps `integer(1)`\cr
-    #' Number of MCMC steps.
-    #' @param n_burnin `integer(1)`\cr
-    #' Number of steps to discard at the beginning of the sample.
-    #' @param thin `integer(1)`\cr
-    #' Number of steps to discard between each sample.
-    #' @param n_adapt `integer(1)`\cr
-    #' Number of steps with finite adptation before sampling.
-    #' @param n_chains `integer(1)`\cr
-    #' Number of independent MCMC chains.
-    #' @param n_threads `integer(1)`\cr
-    #' Number of threads for the parallelization of the loglikelihood.
-    #' @param seed `integer(1)`\cr
-    #' Seed of the random number generator.
-    #' If `NA` uses the internal clock (default).
-    #' @param progress `logical(1)`\cr
-    #' If `FALSE` suppress the simulation progress bar.
+    #' @param sample_size `integer(1)` \cr
+    #' Number of samples to draw from the posterior distribution in each chain.
+    #' @param n_steps `integer(1)` \cr
+    #' Total number of MCMC steps to perform.
+    #' @param n_burnin `integer(1)` \cr
+    #' Number of initial steps to discard as burn-in period.
+    #' @param thin `integer(1)` \cr
+    #' Thinning interval: number of steps to skip between each saved sample.
+    #' @param n_adapt `integer(1)` \cr
+    #' Number of adaptation steps before starting the main sampling.
+    #' @param n_chains `integer(1)` \cr
+    #' Number of independent MCMC chains to run.
+    #' @param n_threads `integer(1)` \cr
+    #' Number of parallel threads to use for computations.
+    #' @param seed `integer(1)` \cr
+    #' Seed for the random number generator.
+    #' - If a specific integer is provided, sets the random number generator seed.
+    #' - If `NA` (default), uses the system clock to generate a seed.
+    #' @param progress `logical(1)` or `numeric(1)`\cr
+    #' Controls progress visualization:
+    #' - If `TRUE` (default), prints progress every second;
+    #' - If an integer `n`, prints progress every `n` seconds;
+    #' - If `FALSE` or `0`, suppresses progress display.
     #'
     #' @return
     #' `double(1)`

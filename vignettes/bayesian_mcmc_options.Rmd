@@ -50,7 +50,7 @@ Here we associated definitions of parameters to infer with default arguments and
  
 ```{r}
 # perform the sampling with the inference command
-# note: since loglikelihood is 0, posterior and prior sampling are equal
+# note: since loglikelihood is 0, posterior is equal to prior
 blank_model$infer(progress = FALSE)
 ```
 

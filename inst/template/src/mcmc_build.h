@@ -78,7 +78,7 @@ public:
 
     std::int32_t setup_seed;            // random generator seed
     bool setup_rand_init_params = true; // random initialization of parameters
-    bool setup_progress = true;         // if to show progressbar
+    ulong setup_progress = 1;           // thinning seconds for progress bar
 
     ulong setup_n_chains = 1; // n. chains
     ulong setup_n_steps = 1;  // n. iterations
