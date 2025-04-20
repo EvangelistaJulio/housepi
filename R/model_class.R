@@ -126,6 +126,82 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     # @description
+    # Enable multiplicity engine.
+    #
+    # @param dataset `data.frame`\cr
+    # A data.frame containing the dataset.
+    .multiplicity_engine = function(dataset = NULL) {
+      # check if model allows for multiplicity
+      refer_file <- private$.model$reference
+      regular_expr <- '.multiplicity\\s*\\(\\s*\\)'
+
+      if (template_assert_expression(refer_file, regular_expr)) {
+
+        # note: this might be a modeler error
+        if (length(private$.require_augm()) > 0) {
+          warning_h(
+            "Model with data augmentation called multiplicity engine."
+          )
+        }
+
+        # if dataset not provided, load previous
+        # UPDATE: this "back & forth" of dataset is not optimal!
+        if ((length(dataset) == 0) && (length(private$.model$last_data_cols) > 0)) {
+          dataset <- self$dataset
+        }
+
+        headers <- c(
+          # dataset headers required by implementation
+          private$.require_dataset(),
+          # dataset headers required by group rates
+          unlist(lapply(
+            private$.group_rate$logic_tables, function(x) unlist(lapply(x, names))
+          ))
+        )
+        # remove logic tables auxiliary column names
+        headers <- setdiff(unique(headers), c(".counts", ".param.name"))
+
+        # list of splitted dataset by house_id
+        split_data <- split(dataset[c("status", headers)], dataset$house_id)
+        # sort individuals in each household by all columns
+        sorted_data <- lapply(split_data, function(x) {
+            x[do.call(order, x), , drop = FALSE]
+        })
+        # create hash strings from sorted rows
+        hashes <- sapply(sorted_data, function(x) {
+          paste(apply(x, 1, paste, collapse = "-"), collapse = "|")
+        })
+        # regroup households by hash
+        hash_groups <- split(names(hashes), hashes)
+
+        # create summary table with class_id and multiplicity
+        multi_hh_table <- data.frame(class_id = sapply(hash_groups, `[`, 1),
+                                    multiplicity = lengths(hash_groups),
+                                    stringsAsFactors = FALSE)
+
+        # use hashes to produce multiplicity table
+        output <- data.frame(house_id = unique(dataset$house_id),
+                            multiplicity = 0,
+                            class_id = NA,
+                            stringsAsFactors = FALSE)
+        rownames(output) <- output$house_id
+        output[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
+
+        for (i in seq_len(nrow(multi_hh_table))) {
+          output[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
+        }
+        # call rcpp method
+        private$.model$import_multiplicity(output)
+      }
+
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
     # Pre-build to deal with group rates.
     #
     # @param dataset `data.frame`\cr
@@ -133,9 +209,8 @@ HouseholdModel <- R6::R6Class(
     # @param .hold `logical(1)`\cr
     # If `FALSE` does not ultimate model build.
     # For internal use.
-    .build_group_rate = function(dataset,
-                                 .hold = TRUE) {
-      # load previously provided dataset
+    .build_group_rate = function(dataset = NULL, .hold = TRUE) {
+      # if dataset not provided, load previous
       # UPDATE: this "back & forth" of dataset is not optimal!
       if ((length(dataset) == 0) && (length(private$.model$last_data_cols) > 0)) {
         dataset <- self$dataset
@@ -192,7 +267,7 @@ HouseholdModel <- R6::R6Class(
     .build_minimal = function() {
       # assert parameter definitions before importing
       private$.assert_param()
-      private$.model$import_parameter(self$param_defs)
+      private$.model$import_param(self$param_defs)
 
       # infectivity profile
       if (length(private$.infec_profile$defs) > 0) {
@@ -248,6 +323,13 @@ HouseholdModel <- R6::R6Class(
 
       # individual id for blank model augmented traces
       if (private$.model$is_blank && is.na(id_trace)) id_trace <- 1
+      # control that seed is 32bit
+      if (isTRUE(abs(seed) > .Machine$integer.max)) {
+        stop_h(
+          "Supplied seed is not supported.",
+          sprintf("Maximum value for a integer in R is %.0f.", .Machine$integer.max)
+        )
+      }
       # import setup
       private$.model$import_setup(list(
         sample_size = ifelse(is.na(sample_size), 0, sample_size),
@@ -264,7 +346,7 @@ HouseholdModel <- R6::R6Class(
 
       # build augmented variables
       if (length(self$augm_defs) > 0) {
-        private$.model$import_augmented(self$augm_defs)
+        private$.model$import_augm(self$augm_defs)
       }
 
       invisible(self)
@@ -905,6 +987,7 @@ HouseholdModel <- R6::R6Class(
                           n_threads = n_threads, rand_init = rand_init,
                           id_trace = id_trace, inv_temper = inv_temper,
                           seed = seed, progress = progress)
+      private$.multiplicity_engine(dataset = dataset)
 
       # infer method from cpp model object
       private$.model$infer()
@@ -965,6 +1048,7 @@ HouseholdModel <- R6::R6Class(
     loglikelihood = function(dataset = NULL, seed = NA) {
       # internal build function
       private$.build_full(dataset = dataset, seed = seed, rand_init = FALSE)
+      private$.multiplicity_engine(dataset = dataset)
       return(private$.model$evaluate())
     },
 
@@ -1018,6 +1102,7 @@ HouseholdModel <- R6::R6Class(
                           n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
                           n_chains = n_chains, n_threads = n_threads,
                           rand_init = TRUE, seed = seed, progress = progress)
+      private$.multiplicity_engine(dataset = dataset)
 
       # evaluate marginal from the internal Rcpp object
       return(private$.model$evidence(scheme = scheme, n_rungs = n_rungs))

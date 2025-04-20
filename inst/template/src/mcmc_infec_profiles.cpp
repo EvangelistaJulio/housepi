@@ -225,8 +225,8 @@ void MCMC::Impl::InfecProfile::_assign_profile(const std::string &name)
 ///////////////////////  MCMC : Impl : assign infectivity profile arguments  ////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Adjust lists of parameters to be inferred */
-void MCMC::Impl::fix_param_to_be_inferred_list(const std::string &par_name)
+/* Adjust lists of parameters to be inferred making parameter as dependent on extra. */
+void MCMC::Impl::make_param_extra_dependent(const std::string &par_name)
 {
 	// remove a parameter from standard if it was defined as such
 	auto it = std::find(param_standard_infer_list.begin(), param_standard_infer_list.end(), par_name);
@@ -272,7 +272,7 @@ void MCMC::Impl::InfecProfile::_assign_args(const str_vec &keys,
 			if (!pImpl.param_map.at(value).is_constant())
 			{
 				profile->assign_pointer_arg(key, pImpl.get_param_pointer(value));
-				pImpl.fix_param_to_be_inferred_list(value);
+				pImpl.make_param_extra_dependent(value);
 			}
 			else
 				profile->assign_scalar_arg(key, pImpl.get_param(value));
@@ -311,7 +311,7 @@ void MCMC::Impl::InfecProfile::_assign_min(bool is_discrete,
 		if (!pImpl.param_map.at(min_value).is_constant())
 		{
 			profile->assign_pointer_range_min(pImpl.get_param_pointer(min_value));
-			pImpl.fix_param_to_be_inferred_list(min_value);
+			pImpl.make_param_extra_dependent(min_value);
 		}
 		else
 			profile->assign_scalar_range_min(pImpl.get_param(min_value));
@@ -356,7 +356,7 @@ void MCMC::Impl::InfecProfile::_assign_max(const std::string &max_value,
 		if (!pImpl.param_map.at(max_value).is_constant())
 		{
 			profile->assign_pointer_range_max(pImpl.get_param_pointer(max_value));
-			pImpl.fix_param_to_be_inferred_list(max_value);
+			pImpl.make_param_extra_dependent(max_value);
 		}
 		else
 			profile->assign_scalar_range_max(pImpl.get_param(max_value));

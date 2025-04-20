@@ -225,6 +225,18 @@ namespace tools
         return _safe_converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
     }
 
+    /* Converter to unsigned long using std::stoul with function pointer casting */
+    unsigned long stoul(const std::string &input, const std::string &errtxt)
+    {
+        return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+    }
+
+    /* Converter to unsigned 32bit integer (for R compatibility). */
+    std::int32_t stoi32(const std::string &input, const std::string &errtxt)
+    {
+        return static_cast<std::int32_t>(stoul(input, errtxt));
+    }
+
     /* Converter to double using std::stod with function pointer casting */
     double stod(const std::string &input, const std::string &errtxt)
     {
@@ -256,12 +268,6 @@ namespace tools
             return NULL_STRING;
         else
             return std::to_string(x);
-    }
-
-    /* Converter to unsigned long using std::stoul with function pointer casting */
-    unsigned long stoul(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
 
     /* Convert std::string to boolean variable. */

@@ -22,15 +22,25 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Default seed of random number generator.  */
+std::int32_t _default_setup_seed() 
+{        
+    auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
+    // ensure time_now is 64bit
+    std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
+    // xor between upper and lower part of time stamp
+    std::uint64_t mixed = time_now ^ (time_now >> 32);
+    // note: constrain to 32bit for compatibility with R (mask sign bit)
+    return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC::Impl : constructor  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 MCMC::Impl::Impl() : _infec_profile(*this), _uniform_distr(0., 1.)
 {
-    // seed of random number generator
-    auto time_now = std::chrono::steady_clock::now().time_since_epoch().count();
-    setup_seed = static_cast<ulong>(time_now);
+    setup_seed = _default_setup_seed();
 }
 MCMC::Impl::~Impl() = default;
 
@@ -78,7 +88,7 @@ void MCMC::Impl::build_setup()
 
             // PRNG Seed
             if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
-                setup_seed = tools::stoul(deflist.at("seed"), "random seed");
+                setup_seed = tools::stoi32(deflist.at("seed"), "random seed");
 
             // N. of Chains
             if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
@@ -894,7 +904,7 @@ void MCMC::Impl::restore_parameter(const parID &p, bool extra_depen)
             house.restore_all_extra();
     }
 
-    // FIXME: not sure why this `FIXME`...
+    // FIXME: this should not be restored if constant for example...
     if (extra_depen)
         restore_infec_profile();
 }
@@ -1132,10 +1142,13 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
             data_headers.clear();
             for (const auto &x : datatable)
                 data_headers.push_back(x.first);
+
             n_individuals = datatable.at(data_headers[0]).size();
             n_households = 0;
+
             house_vector.clear();
             restrict_hh_indexes.clear();
+            _hhid_to_index.clear();
 
             // assess the presence of house IDs
             if (std::find(data_headers.begin(), data_headers.end(), "house_id") == data_headers.end())
@@ -1143,7 +1156,6 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                     "Unknown household structure: missing data column \"house_id\".");
 
             // safe load of households
-            _hhid_to_index.clear();
             for (size_t i = 0; i < n_individuals; ++i)
             {
                 // read individual data
@@ -1188,6 +1200,8 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                 {
                     // map data index to household number
                     _hhid_to_index.emplace(house_id, n_households);
+                    // default choice for restricted indeces
+                    restrict_hh_indexes.push_back(n_households);
                     // create a new empty household
                     house_vector.emplace_back(house_id, n_households++);
                 }
@@ -1334,7 +1348,8 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
                 tools::warning(
                     "Data augmentation is incompatible with multiplicity simplification.");
 
-            // default index choice
+            // default choice for restricted household indexes
+            restrict_hh_indexes.clear();
             restrict_hh_indexes.resize(n_households);
             for (size_t H = 0; H < n_households; ++H)
             {

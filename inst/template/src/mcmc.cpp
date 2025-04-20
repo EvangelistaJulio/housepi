@@ -23,12 +23,16 @@ MCMC::MCMC() : pImpl(std::make_unique<Impl>()) {}
 MCMC::~MCMC() = default;
 
 //===== DATA =====//
-Household &MCMC::get_household(ulong H) const { return pImpl->house_vector.at(H); }
-ulong MCMC::n_houses() const { return static_cast<ulong>(pImpl->n_households); }
+Household &MCMC::get_household(size_t H) const { return pImpl->house_vector.at(H); }
+size_t MCMC::n_houses() const { return pImpl->n_households; }
 
 ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_report_indiv(key); }
 ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
 std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
+
+//===== DATA (RESTRICTED) =====//
+Household &MCMC::_get_restricted_household(size_t R) const { return get_household(pImpl->restrict_hh_indexes[R]); }
+size_t MCMC::_n_restricted_houses() const { return pImpl->restrict_hh_indexes.size(); }
 
 //===== RAND NUMBER GENERATOR =====//
 double MCMC::uniform() { return pImpl->uniform(); }
@@ -51,22 +55,28 @@ double MCMC::compute_augm_model_loglike(const Household &house) const
 
 //===== EXTRA ATTRIBUTES =====//
 
+/* Adjust lists of parameters to be inferred making parameter as dependent on extra. */
+void MCMC::make_param_extra_dependent(const parID &p)
+{
+    pImpl->make_param_extra_dependent(p);
+}
+
 /* Extra integer vectors for all households. */
 void MCMC::allocate_extra_house_integer_vector(const extraID &e)
 {
-    for (ulong H : pImpl->restrict_hh_indexes)
+    for (size_t H : pImpl->restrict_hh_indexes)
         pImpl->house_vector[H].allocate_extra_integer_vector(e);
 }
 /* Extra double vectors for all households. */
 void MCMC::allocate_extra_house_double_vector(const extraID &e)
 {
-    for (ulong H : pImpl->restrict_hh_indexes)
+    for (size_t H : pImpl->restrict_hh_indexes)
         pImpl->house_vector[H].allocate_extra_double_vector(e);
 }
 /* Extra double square matrix for all households. */
 void MCMC::allocate_extra_house_double_matrix(const extraID &e)
 {
-    for (ulong H : pImpl->restrict_hh_indexes)
+    for (size_t H : pImpl->restrict_hh_indexes)
         pImpl->house_vector[H].allocate_extra_double_matrix(e);
 }
 
@@ -265,9 +275,9 @@ void MCMC::set_rate_per_contact(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update and return contribution of given household to full logliklehood. */
-double MCMC::update_house_loglike(ulong H, const bool is_augm_ll, const bool extra_depen)
+double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool extra_depen)
 {
-    Household &house = get_household(H);
+    Household &house = get_household(pImpl->restrict_hh_indexes[r]);
 
     // buffer all household extra dependencies
     if (extra_depen)
@@ -279,13 +289,17 @@ double MCMC::update_house_loglike(ulong H, const bool is_augm_ll, const bool ext
 
     // update household observation loglikelihood
     house.set_obs_loglike(compute_house_obs_loglike(house));
+    double output = house.get_obs_loglike();
 
     // update household augmented loglikelihood
     // NOTE: house multiplicity doesn't work with data augmentation
     if (is_augm_ll) 
+    {
         house.set_augm_loglike(compute_augm_model_loglike(house));
+        output += house.get_augm_loglike();
+    }
 
-    return house.get_obs_loglike() +house.get_obs_loglike();
+    return output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -305,21 +319,21 @@ void MCMC::update_global_loglike(const bool extra_depen)
 
     // FIXME : to be checked in combination with openMP
 #pragma omp parallel for reduction(+ : new_ll)
-    for (ulong H : pImpl->restrict_hh_indexes)
+    for (size_t R = 0; R < _n_restricted_houses(); ++R)
     {
         if (has_error.load(std::memory_order_relaxed))
             continue;
 
         try
         {
-            new_ll += update_house_loglike(H, is_augm_ll, extra_depen);
+            new_ll += update_house_loglike(R, is_augm_ll, extra_depen);
         }
         catch (const std::exception &e)
         {
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    _error_message = {"While computing loglikelihood for house " + get_household(H).house_id() + ":",
+                    _error_message = {"While computing loglikelihood for house " + _get_restricted_household(R).house_id() + ":",
                                        std::string(e.what())};
             }
         }
@@ -341,7 +355,7 @@ void MCMC::_move_all_augm()
     std::atomic<bool> has_error(false);
 
 #pragma omp parallel for reduction(+ : delta_ll)
-    for (ulong H = 0; H < n_houses(); ++H)
+    for (size_t H = 0; H < n_houses(); ++H)
     {
         if (has_error.load(std::memory_order_relaxed))
             continue;
@@ -474,7 +488,7 @@ void MCMC::init_augmented_variables()
 The move is performed one member at a time, one augmented variable at a time.
 */
 // UPDATE: smooth the incrementation by reference by just adding...
-double MCMC::_move_augm_single_house(ulong H)
+double MCMC::_move_augm_single_house(size_t H)
 {
     double delta_global_loglike = 0.0;
     Household &house = get_household(H);
@@ -878,7 +892,7 @@ Rcpp::DataFrame MCMC::simulate()
                                   pImpl->setup_progress);
 
         //----- run simulation -----//
-        for (ulong H = 0; H < n_houses(); ++H, progressbar.update())
+        for (size_t H = 0; H < n_houses(); ++H, progressbar.update())
             try
             {
                 // deep copy of the household
@@ -986,7 +1000,7 @@ void MCMC::print_simulated_dataset(const std::string &pathtofile)
                                   pImpl->setup_progress);
 
         //----- run simulation -----//
-        for (ulong H = 0; H < n_houses(); ++H, progressbar.update())
+        for (size_t H = 0; H < n_houses(); ++H, progressbar.update())
             try
             {
                 Household house = get_household(H);       // deep copy of the household

@@ -347,8 +347,7 @@ ExpectedCases <- R6::R6Class(
     #' containing all model definitions after having run `$infer`.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
-    initialize = function(house_model,
-                          progress = NA) {
+    initialize = function(house_model, progress = NA) {
       # initialize with observed case table
       obs <- retrieve_cases_by_size(house_model$dataset)
       private$.sar <- list(observed = retrieve_sar_from_casesbysize(obs))
@@ -376,16 +375,15 @@ ExpectedCases <- R6::R6Class(
       # cleanup at end
       withr::defer(rm(hmc))
 
-      if (is.na(progress)) {
-        progress <- isTRUE(hmc$setup$progress)
-      } else {
-        progress <- isTRUE(progress)
-      }
+      # if progress not provided, import from model
+      progress <- isTRUE(ifelse(is.na(progress), 
+                                hmc$setup$progress, progress))
 
       # generator seeds
       withr::with_seed(
         hmc$setup$seed,
-        rng_seeds <- sample(1:max(1e8, n_rep), n_rep, replace = FALSE)
+        rng_seeds <- sample(1:max(.Machine$integer.max, n_rep),
+                            n_rep, replace = FALSE)
       )
 
       # define loop function working by row index

@@ -50,8 +50,8 @@ public:
 	//===== DATA =====//
 	//================//
 
-	Household &get_household(ulong H) const;
-	ulong n_houses() const;
+	Household &get_household(size_t H) const;
+	size_t n_houses() const;
 	ulong get_report_indiv(const std::string &key) const;
 	ulong get_report_house(const std::string &key) const;
 	std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
@@ -96,6 +96,7 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
+	void make_param_extra_dependent(const parID &p);
 	virtual void update_extra_dependecies(Household &house, indiv i);
 
 	void allocate_extra_house_integer_vector(const extraID &e);
@@ -116,7 +117,7 @@ public:
 	//====================================//
 
 	virtual double compute_house_obs_loglike(Household &house) const;
-	double update_house_loglike(ulong H, const bool is_augm_ll, const bool extra_depen);
+	double update_house_loglike(size_t r, const bool is_augm_ll, const bool extra_depen);
 	void update_global_loglike(const bool extra_depen);
 	double evaluate();
 
@@ -153,7 +154,7 @@ public:
 	void import_param(const Rcpp::DataFrame &input);
 	void import_dataset(const Rcpp::DataFrame &input);
 	void import_augm(const Rcpp::DataFrame &input);
-    void import_multiplicity(const Rcpp::DataFrame &input);
+	void import_multiplicity(const Rcpp::DataFrame &input);
 
 	//========================//
 	//===== Rcpp EXPORTS =====//
@@ -181,7 +182,7 @@ public:
 	void read_param(const std::string &pathtofile = NULL_STRING);
 	void read_infec_profile(const std::string &pathtofile = NULL_STRING);
 	void read_augm(const std::string &pathtofile = NULL_STRING);
-    void read_multiplicity(const std::string &pathtofile = NULL_STRING);
+	void read_multiplicity(const std::string &pathtofile = NULL_STRING);
 
 	//================//
 	//===== SHOW =====//
@@ -208,6 +209,10 @@ private:
 	rateIDmapvec<parID> _individual_group_rates = {};
 	parID _pair_contact_rate = {};
 
+	//----- Household -----//
+	Household &_get_restricted_household(size_t R) const;
+	size_t _n_restricted_houses() const;
+
 	//----- Monte Carlo -----//
 	void _run_monte_carlo(progress::Bar &progbar);
 	void _move_all();
@@ -215,7 +220,7 @@ private:
 	bool _move_single_parameter(const parID &p, bool extra_depen);
 
 	//----- Metropolis : augmented moves -----//
-	double _move_augm_single_house(ulong H);
+	double _move_augm_single_house(size_t H);
 	void _metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
 
 	void _move_all_augm();

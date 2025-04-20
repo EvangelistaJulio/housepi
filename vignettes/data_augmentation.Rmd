@@ -117,9 +117,10 @@ However, sometimes we might be interested in extracting also to check if augment
 We can do so by providing the `id` of individual augmented variables we want to store, in the setup arguments of `$infer()` method:
 
 ```{r}
+# ask for the traces of augmented variables for individual with id 7
 hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, thin = 8,
               n_chains = 4, n_adapt = 2000, seed = 4349, progress = FALSE, 
-              id_trace = 7) # augmented variables trace for individual id 7
+              id_trace = 7) 
 ```
 
 Note: The warning tells us that our dataset has no demographic structure: it will be interpreted as single individuals living in separate households.

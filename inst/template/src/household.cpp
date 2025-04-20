@@ -123,6 +123,8 @@ Household::Household(const std::string &house_id, size_t H)
 {
 	_house_id = house_id;
 	_index = H;
+	_house_multiplicity = 1;
+	_multiplicity_class = H;
 }
 Household::~Household() = default;
 

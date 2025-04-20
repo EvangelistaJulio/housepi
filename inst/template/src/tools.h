@@ -232,6 +232,7 @@ namespace tools
     bool stobool(const std::string &tkn);
     int stoi(const std::string &input, const std::string &errtxt = "");
     unsigned long stoul(const std::string &input, const std::string &errtxt = "");
+    std::int32_t stoi32(const std::string &input, const std::string &errtxt = "");
     double stod(const std::string &input, const std::string &errtxt = "");
 
     // formatter for the case NA

@@ -76,7 +76,7 @@ public:
                                         "n_burnin", "rand_init", "n_threads",
                                         "inv_temper", "id_trace", "progress"};
 
-    ulong setup_seed;                   // random generator seed
+    std::int32_t setup_seed;            // random generator seed
     bool setup_rand_init_params = true; // random initialization of parameters
     bool setup_progress = true;         // if to show progressbar
 
@@ -120,7 +120,7 @@ public:
 
     //----- Parameter - Setter -----//
     void init_parameters();
-    void fix_param_to_be_inferred_list(const std::string &par_name);
+    void make_param_extra_dependent(const std::string &par_name);
 
     //----- Parameter - Metropolis-Hastings -----//
     bool propose_valid_param_move(const parID &p);
@@ -212,9 +212,9 @@ public:
     private:
         MCMC::Impl &pImpl; // pointer to external class
         const str_vec _headers = {"name", "discrete",
-                                 "arg_name", "arg_value", "arg_at",
-                                 "min", "min_at",
-                                 "max", "max_at"};
+                                  "arg_name", "arg_value", "arg_at",
+                                  "min", "min_at",
+                                  "max", "max_at"};
         // lookup table
         size_t _size_lut = 0;
         dbl_vec _lookup_inst = {};
@@ -224,13 +224,13 @@ public:
 
         void _assign_profile(const std::string &name);
         void _assign_args(const str_vec &keys,
-                         const str_vec &vals,
-                         const str_vec &typs);
+                          const str_vec &vals,
+                          const str_vec &typs);
         void _assign_min(bool is_discrete,
-                        const std::string &min_value,
-                        const std::string &min_at);
+                         const std::string &min_value,
+                         const std::string &min_at);
         void _assign_max(const std::string &max_value,
-                        const std::string &max_at);
+                         const std::string &max_at);
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*_func_inst)(double, const dbl_vec &) const = &InfecProfile::__default_inst;
@@ -372,9 +372,9 @@ private:
 
     rnd_gen &(MCMC::Impl::*_func_get_prng)();
     rnd_gen &_prng_unique_thread() { return _prng; }
-    #ifdef _OPENMP
+#ifdef _OPENMP
     rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
-    #endif
+#endif
 
     //----- uniform sampler -----//
     std::uniform_real_distribution<double> _uniform_distr;

@@ -129,6 +129,31 @@ template_household_model <- function(name = NA,
 ############################################################################
 
 #' @description
+#' Assert if a given string expression is present in 
+#'
+#' @param refer_file `character(1)`\cr
+#' path/to/.refer containing the model source.
+#' @param expr `character(1)`\cr
+#' Expression.
+#'
+#' @return
+#' `logical(1)`
+#'
+#' @noRd
+template_assert_expression <- function(refer_file, expression) {
+  # check if reference file exists
+  if (file.exists(refer_file)) {
+    # read the script and extract parameters
+    script <- readChar(refer_file, file.info(refer_file)$size)
+    
+    # extract all calls in .refer source file
+    matches <- stringr::str_match_all(script, expression)
+    return(length(unlist(matches)) > 0)
+  }
+  return(FALSE)
+}
+
+#' @description
 #' Find the vector of definition names required by the model according.
 #'
 #' @param refer_file `character(1)`\cr
@@ -137,11 +162,10 @@ template_household_model <- function(name = NA,
 #' Vector containing regular expressions.
 #'
 #' @return
-#' `character()`)
+#' `character()`
 #'
 #' @noRd
-template_find_requirement <- function(refer_file,
-                                      regular_expr) {
+template_find_requirement <- function(refer_file, regular_expr) {
 
   # check if reference file exists
   if (file.exists(refer_file)) {

@@ -10,9 +10,11 @@
 # model_wrapper.R
 #
 
-# @title Housepi Wrapper R6 Class
-# @description
-# Help with calling methods from the Rcpp model object.
+#' @title
+#' Housepi Wrapper R6 Class
+#' @description
+#' Help with calling methods from the Rcpp model object.
+#' @noRd
 HousepiWrapper <- R6::R6Class(
   classname = "HousepiWrapper",
   inherit = HousepiGenerator,
@@ -25,9 +27,9 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   active = list(
-    # @field dataset `data.frame`\cr
-    # Dataset with individual level information of current dataset.
-    # If the case, it also return the associated augmented variables.
+    #' @field dataset `data.frame`\cr
+    #' Dataset with individual level information of current dataset.
+    #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) {
@@ -38,8 +40,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'dataset' is read only.")
     },
 
-    # @field data_required `character()`\cr
-    # Dataset headers required by the model.
+    #' @field data_required `character()`\cr
+    #' Dataset headers required by the model.
     data_required = function(value) {
       if (missing(value)) {
         # vector of regular expression to use for assertion
@@ -55,8 +57,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'data_required' is read only.")
     },
 
-    # @field summary `data.frame`\cr
-    # A summary of statuses in the dataset.
+    #' @field summary `data.frame`\cr
+    #' A summary of statuses in the dataset.
     summary = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) {
@@ -67,8 +69,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'summary' is read only.")
     },
 
-    # @field summary_house_size `data.frame`\cr
-    # A summary of house sizes in the dataset.
+    #' @field summary_house_size `data.frame`\cr
+    #' A summary of house sizes in the dataset.
     summary_house_size = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) {
@@ -79,8 +81,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'summary_house_size' is read only.")
     },
 
-    # @field setup `list()`\cr
-    # Last setup used by the build process.
+    #' @field setup `list()`\cr
+    #' Last setup used by the build process.
     setup = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) {
@@ -91,8 +93,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'setup' is read only.")
     },
 
-    # @field `matrix()` | `list()` of `matrix()`)
-    # Export the traces of last inference call.
+    #' @field `matrix()` | `list()` of `matrix()`)
+    #' Export the traces of last inference call.
     traces = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) {
@@ -121,8 +123,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'traces' is read only.")
     },
 
-    # @field `matrix()` | `list()` of `matrix()`)
-    # Export the traces of last inference call without loglikelihood.
+    #' @field `matrix()` | `list()` of `matrix()`)
+    #' Export the traces of last inference call without loglikelihood.
     traces_no_loglike = function(value) {
       if (missing(value)) {
         trs <- self$traces
@@ -137,8 +139,8 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'traces_no_loglike' is read only.")
     },
 
-    # @field reference `matrix()`\cr
-    # Household loglikelihood traces.
+    #' @field reference `matrix()`\cr
+    #' Household loglikelihood traces.
     house_loglike_mtx = function(value) {
       if (missing(value)) {
         # check model has been built
@@ -164,19 +166,18 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   public = list(
-    # @field last_data_cols `character()`\cr
-    # Headers of the last dataset imported.
+    #' @field last_data_cols `character()`\cr
+    #' Headers of the last dataset imported.
     last_data_cols = NULL,
 
-    # @description
-    # Assert if dataset headers match implementation file.
-    #
-    # @param data_headers `character()`\cr
-    # Vector with the dataset headers.
-    # @param requirements `character()`\cr
-    # Vector containing required parameters.
-    assert = function(data_headers,
-                      requirements) {
+    #' @description
+    #' Assert if dataset headers match implementation file.
+    #'
+    #' @param data_headers `character()`\cr
+    #' Vector with the dataset headers.
+    #' @param requirements `character()`\cr
+    #' Vector containing required parameters.
+    assert = function(data_headers, requirements) {
       # find missing data headers
       missing_set <- template_find_missing(requirements,
                                            data_headers)
