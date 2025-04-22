@@ -15,8 +15,12 @@ editor_options:
 
 ```{r}
 dataset <- housepi::survey
+
 enc_dict <- list(age = list(x = c(0, 10, 20, 40, 60), type = "bin"),
                  sex = list(x = c(1, 2), type = "cat"))
+# UPDATE
+enc_dict <- list(age = list(breaks = c(0, 10, 20, 40, 60)),
+                 sex = list(levels = c(1, 2)))
 
 # generate an instance of the chain binomial model
 hhsampler <- housepi::HouseholdSampler$new(enc_dict)

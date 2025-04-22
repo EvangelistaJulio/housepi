@@ -437,7 +437,10 @@ HousepiGenerator <- R6::R6Class(
       # check model choice
       if (is.na(choice)) {
         choice <- "blank"
-        warning_h("No model specified. Falling back to \"blank\" model.")
+        warning_h(
+          "No model specified. Falling back to \"blank\" model.",
+          "To show available templates, run function 'template_household_model'."
+          )
 
       } else if (choice %in% list(".")) {
         # prohibit directories
@@ -475,7 +478,7 @@ HousepiGenerator <- R6::R6Class(
         # 4: Error
         stop_h(
           sprintf("\"%s\" is not a folder nor a template name.", choice),
-          "To see available templates, run function 'template_household_model'."
+          "To show available templates, run function 'template_household_model'."
         )
       }
 

@@ -16,12 +16,13 @@
 #' }
 #' @filed import_setup Import setup from R List.
 #' @filed import_infec_profile Import infectivity profile definition from R List.
-#' @filed import_parameter Import parameter definitions from R Data.Frame.
-#' @filed import_dataset Import data definitions from R Data.Frame.
-#' @filed import_augmented Import augmented variable definitions from R Data.Frame.
+#' @filed import_param Import parameter definitions from R Data.Frame.
+#' @filed import_dataset Import dataset definitions from R Data.Frame.
+#' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
+#' @filed import_augm Import augmented variable definitions from R Data.Frame.
 #' @filed buil_all_rates Assign all contact and group rates.
 #' @field export_setup Return a List with current setup.
-#' @field export_parameter Return a DataFrame with current parameters.
+#' @field export_param Return a DataFrame with current parameters.
 #' @field export_dataset Return a DataFrame with current database.
 #' @field export_data_report Return a DataFrame with a report of the current database.
 #' @field export_house_size_report Return a DataFrame with a report of household sizes.

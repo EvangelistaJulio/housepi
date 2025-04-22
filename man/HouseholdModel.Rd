@@ -19,6 +19,9 @@ Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
+\item{\code{name}}{\code{character(1)}\cr
+Model name.}
+
 \item{\code{dataset}}{\code{data.frame}\cr
 Dataset with individual level information of current dataset.
 If the case, it also return the associated augmented variables.}
@@ -61,7 +64,7 @@ Results extracted from the traces of last inference.}
 
 \item{\code{cri_level}}{\code{double(1)}\cr
 Level for the credible interval.
-Value between 0 and 1 (default is 0.95).}
+Value between 0.5 and 1 (default is 0.95).}
 }
 \if{html}{\out{</div>}}
 }
@@ -88,7 +91,7 @@ Value between 0 and 1 (default is 0.95).}
 \item \href{#method-HouseholdModel-showcase_infec_profile}{\code{HouseholdModel$showcase_infec_profile()}}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
 \item \href{#method-HouseholdModel-simulate}{\code{HouseholdModel$simulate()}}
-\item \href{#method-HouseholdModel-expec_cases_by_size}{\code{HouseholdModel$expec_cases_by_size()}}
+\item \href{#method-HouseholdModel-expec_cases_by_house_size}{\code{HouseholdModel$expec_cases_by_house_size()}}
 \item \href{#method-HouseholdModel-loglikelihood}{\code{HouseholdModel$loglikelihood()}}
 \item \href{#method-HouseholdModel-evidence}{\code{HouseholdModel$evidence()}}
 \item \href{#method-HouseholdModel-clone}{\code{HouseholdModel$clone()}}
@@ -102,20 +105,20 @@ New instance of class
 \link[=HouseholdModel]{HouseholdModel}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$new(
-  model_choice = NA,
-  quiet = TRUE,
-  force = FALSE,
+  choice = NA,
   as_template = FALSE,
-  model_name = NA,
-  cri_level = 0.95
+  force = FALSE,
+  name = NA,
+  cri_level = 0.95,
+  quiet = TRUE
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model_choice}}{\code{character(1)}\cr
-One between:
+\item{\code{choice}}{\code{character(1)}\cr
+Choose a model providing one between:
 \itemize{
 \item template name;
 \item path/to/folder with implementation;
@@ -123,22 +126,22 @@ One between:
 \item "blank": template name for blank model (default).
 }}
 
-\item{\code{quiet}}{\code{logical(1)}\cr
-If \code{TRUE} hide \code{pkgbuild} compilation commands (default).}
-
-\item{\code{force}}{\code{logical(1)}\cr
-If \code{TRUE} compile even if a cached model already exists.}
-
 \item{\code{as_template}}{\code{logical(1)}\cr
 If \code{TRUE} store the dynamic library as a local template.
 IF \code{FALSE} recompile the model at every new session.}
 
-\item{\code{model_name}}{\code{chracter(1)}\cr
-Custom name of the model (default is inferred from \code{model_choice}).}
+\item{\code{force}}{\code{logical(1)}\cr
+If \code{TRUE} compile even if a cached model already exists.}
+
+\item{\code{name}}{\code{chracter(1)}\cr
+Custom name of the model (default is inferred from \code{choice}).}
 
 \item{\code{cri_level}}{\code{double(1)}\cr
 Level for the credible interval.
 Value between 0 and 1 (default is 0.95).}
+
+\item{\code{quiet}}{\code{logical(1)}\cr
+If \code{TRUE} hide \code{pkgbuild} compilation commands (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -470,10 +473,10 @@ Reference value has unitary rate and can be specified
   independent = TRUE,
   prior = "lnorm",
   args = list(meanlog = 0, sdlog = 3),
-  rule = "lnorm",
-  scale = 1,
   min = NA,
-  max = 10
+  max = 10,
+  rule = "lnorm",
+  scale = 1
 )}\if{html}{\out{</div>}}
 }
 
@@ -505,18 +508,18 @@ have prior "lnorm" and \code{args = list(meanlog = 0, sdlog = 3)}.}
 \item{\code{args}}{named \code{list()}\cr
 Arguments for the prior distribution.}
 
+\item{\code{min}}{\code{double(1)}\cr
+Value of the minimum.}
+
+\item{\code{max}}{\code{double(1)}\cr
+Value of the maximum.}
+
 \item{\code{rule}}{\code{character(1)}\cr
 Name of the inference proposal rule.}
 
 \item{\code{scale}}{\code{double(1)}\cr
 Scale parameter for the proposal rule.
 Changed automatically during inference if \code{n_adpat} > 0.}
-
-\item{\code{min}}{\code{double(1)}\cr
-Value of the minimum.}
-
-\item{\code{max}}{\code{double(1)}\cr
-Value of the maximum.}
 }
 \if{html}{\out{</div>}}
 }
@@ -596,7 +599,7 @@ One between:
 \subsection{Method \code{showcase_infec_profile()}}{
 Showcase instantaneous and cumulative values of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(opts = list(), n_bins = 2000)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(opts = list(), bins = 2000)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -605,7 +608,7 @@ Showcase instantaneous and cumulative values of infectivity profile.
 \item{\code{opts}}{\code{double()}\cr
 Additional values for the computation.}
 
-\item{\code{n_bins}}{\code{integer(1)}\cr
+\item{\code{bins}}{\code{integer(1)}\cr
 Number of bins for continuous profile (ignored if discrete).}
 }
 \if{html}{\out{</div>}}
@@ -618,7 +621,8 @@ Number of bins for continuous profile (ignored if discrete).}
 \if{html}{\out{<a id="method-HouseholdModel-infer"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-infer}{}}}
 \subsection{Method \code{infer()}}{
-Run Bayesian MCMC inference and store internally the chain traces.
+Run Bayesian Markov Chain Monte Carlo (MCMC) inference
+and store internally the chain traces.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$infer(
   dataset = NULL,
@@ -640,46 +644,58 @@ Run Bayesian MCMC inference and store internally the chain traces.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-A data.frame containing the dataset.}
+\item{\code{dataset}}{\code{data.frame} \cr
+Input dataset for analysis.}
 
-\item{\code{sample_size}}{\code{integer(1)}\cr
-Sample size of a single chain according to posterior distribution.}
+\item{\code{sample_size}}{\code{integer(1)} \cr
+Number of samples to draw from the posterior distribution in each chain.}
 
-\item{\code{n_steps}}{\code{integer(1)}\cr
-Number of MCMC steps.}
+\item{\code{n_steps}}{\code{integer(1)} \cr
+Total number of MCMC steps to perform.}
 
-\item{\code{n_burnin}}{\code{integer(1)}\cr
-Number of steps to discard at the beginning of the sample.}
+\item{\code{n_burnin}}{\code{integer(1)} \cr
+Number of initial steps to discard as burn-in period.}
 
-\item{\code{thin}}{\code{integer(1)}\cr
-Number of steps to discard between each sample.}
+\item{\code{thin}}{\code{integer(1)} \cr
+Thinning interval: number of steps to skip between each saved sample.}
 
-\item{\code{n_adapt}}{\code{integer(1)}\cr
-Number of steps with finite adaptation before sampling.}
+\item{\code{n_adapt}}{\code{integer(1)} \cr
+Number of adaptation steps before starting the main sampling.}
 
-\item{\code{n_chains}}{\code{integer(1)}\cr
-Number of independent MCMC chains.}
+\item{\code{n_chains}}{\code{integer(1)} \cr
+Number of independent MCMC chains to run.}
 
-\item{\code{n_threads}}{\code{integer(1)}\cr
-Number of threads for the parallel computations.}
+\item{\code{n_threads}}{\code{integer(1)} \cr
+Number of parallel threads to use for computations.}
 
-\item{\code{rand_init}}{\code{logical(1)}\cr
-If \code{TRUE} the initial value of the parameters is drawn from prior.}
+\item{\code{rand_init}}{\code{logical(1)} \cr
+Controls random initialization of parameters:
+\itemize{
+\item If \code{TRUE} (default), initial values are ndomly drawn from the prior distribution;
+\item If \code{FALSE} initial value definitions are used.
+}}
 
-\item{\code{id_trace}}{\code{character(1)}\cr
-Individual identifier to show augmented traces. Default is NA.}
+\item{\code{id_trace}}{\code{character(1)} \cr
+Individual identifier for augmented trace plots. Default is \code{NA}.}
 
-\item{\code{inv_temper}}{\code{double(1)}\cr
-Value of the inverse temperature.
-For standard usage this is 1.}
+\item{\code{inv_temper}}{\code{double(1)} \cr
+Inverse temperature parameter.
+Typically set to 1 for standard MCMC sampling.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
+\item{\code{seed}}{\code{integer(1)} \cr
+Seed for the random number generator.
+\itemize{
+\item If a specific integer is provided, sets the random number generator seed.
+\item If \code{NA} (default), uses the system clock to generate a seed.
+}}
 
-\item{\code{progress}}{\code{logical(1)}\cr
-If \code{FALSE} suppress the inference progress bar.}
+\item{\code{progress}}{\code{logical(1)} or \code{numeric(1)}\cr
+Controls progress visualization:
+\itemize{
+\item If \code{TRUE} (default), prints progress every second;
+\item If an integer \code{n}, prints progress every \code{n} seconds;
+\item If \code{FALSE} or \code{0}, suppresses progress display.
+}}
 }
 \if{html}{\out{</div>}}
 }
@@ -696,16 +712,23 @@ Run simulation and return data.frame with simulated dataset.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-A data.frame containing the dataset.}
+\item{\code{dataset}}{\code{data.frame} \cr
+Input dataset for simulation.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
+\item{\code{seed}}{\code{integer(1)} \cr
+Seed for the random number generator.
+\itemize{
+\item If a specific integer is provided, sets the random number generator seed.
+\item If \code{NA} (default), uses the system clock to generate a seed.
+}}
 
-\item{\code{progress}}{\code{logical(1)}\cr
-If \code{TRUE} show the simulation progress bar.
-Default is \code{FALSE}.}
+\item{\code{progress}}{\code{logical(1)} or \code{numeric(1)}\cr
+Controls progress visualization:
+\itemize{
+\item If \code{TRUE} (default), prints progress every second;
+\item If an integer \code{n}, prints progress every \code{n} seconds;
+\item If \code{FALSE} or \code{0}, suppresses progress display.
+}}
 }
 \if{html}{\out{</div>}}
 }
@@ -714,21 +737,21 @@ Default is \code{FALSE}.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-expec_cases_by_size"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-expec_cases_by_size}{}}}
-\subsection{Method \code{expec_cases_by_size()}}{
+\if{html}{\out{<a id="method-HouseholdModel-expec_cases_by_house_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-expec_cases_by_house_size}{}}}
+\subsection{Method \code{expec_cases_by_house_size()}}{
 Use posterior sample after \verb{$infer} has been run to perform simulations.
 Extract the expected number of household cases per size
 and the credible interval.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_size(progress = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$expec_cases_by_house_size(progress = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{progress}}{\code{logical(1)}\cr
-Progress of simulations. Default is inherited from the model.}
+\item{\code{progress}}{\code{logical(1)} or \code{numeric(1)}\cr
+Controls progress visualization. Default is inherited from the model.}
 }
 \if{html}{\out{</div>}}
 }
@@ -751,12 +774,15 @@ Evaluate the loglikelihood for the given parameters.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-A data.frame containing the dataset.}
+\item{\code{dataset}}{\code{data.frame} \cr
+Input dataset for simulation.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
+\item{\code{seed}}{\code{integer(1)} \cr
+Seed for the random number generator.
+\itemize{
+\item If a specific integer is provided, sets the random number generator seed.
+\item If \code{NA} (default), uses the system clock to generate a seed.
+}}
 }
 \if{html}{\out{</div>}}
 }
@@ -790,43 +816,54 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-A data.frame containing the dataset.}
+\item{\code{dataset}}{\code{data.frame} \cr
+Input dataset for simulation.}
 
-\item{\code{scheme}}{\code{character(1)}\cr
-Default scheme is "power-fractions" with inverse temperatures (r / n_rungs)^5.
-If "adaptive" uses adaptive scheme for thermodynamic ladder.}
+\item{\code{scheme}}{\code{character(1)} \cr
+Scheme used for evidence estimation.
+\itemize{
+\item If "power-fractions" (default) uses inverse temperatures (r / n_rungs)^5.
+\item If "adaptive" uses adaptive thermodynamic ladder.
+}}
 
-\item{\code{n_rungs}}{\code{integer(1)}\cr
+\item{\code{n_rungs}}{\code{integer(1)} \cr
 Number of rungs in the thermodynamic ladder.}
 
-\item{\code{sample_size}}{\code{integer(1)}\cr
-Sample size of a single chain according to posterior distribution.}
+\item{\code{sample_size}}{\code{integer(1)} \cr
+Number of samples to draw from the posterior distribution in each chain.}
 
-\item{\code{n_steps}}{\code{integer(1)}\cr
-Number of MCMC steps.}
+\item{\code{n_steps}}{\code{integer(1)} \cr
+Total number of MCMC steps to perform.}
 
-\item{\code{n_burnin}}{\code{integer(1)}\cr
-Number of steps to discard at the beginning of the sample.}
+\item{\code{n_burnin}}{\code{integer(1)} \cr
+Number of initial steps to discard as burn-in period.}
 
-\item{\code{thin}}{\code{integer(1)}\cr
-Number of steps to discard between each sample.}
+\item{\code{thin}}{\code{integer(1)} \cr
+Thinning interval: number of steps to skip between each saved sample.}
 
-\item{\code{n_adapt}}{\code{integer(1)}\cr
-Number of steps with finite adptation before sampling.}
+\item{\code{n_adapt}}{\code{integer(1)} \cr
+Number of adaptation steps before starting the main sampling.}
 
-\item{\code{n_chains}}{\code{integer(1)}\cr
-Number of independent MCMC chains.}
+\item{\code{n_chains}}{\code{integer(1)} \cr
+Number of independent MCMC chains to run.}
 
-\item{\code{n_threads}}{\code{integer(1)}\cr
-Number of threads for the parallelization of the loglikelihood.}
+\item{\code{n_threads}}{\code{integer(1)} \cr
+Number of parallel threads to use for computations.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed of the random number generator.
-If \code{NA} uses the internal clock (default).}
+\item{\code{seed}}{\code{integer(1)} \cr
+Seed for the random number generator.
+\itemize{
+\item If a specific integer is provided, sets the random number generator seed.
+\item If \code{NA} (default), uses the system clock to generate a seed.
+}}
 
-\item{\code{progress}}{\code{logical(1)}\cr
-If \code{FALSE} suppress the simulation progress bar.}
+\item{\code{progress}}{\code{logical(1)} or \code{numeric(1)}\cr
+Controls progress visualization:
+\itemize{
+\item If \code{TRUE} (default), prints progress every second;
+\item If an integer \code{n}, prints progress every \code{n} seconds;
+\item If \code{FALSE} or \code{0}, suppresses progress display.
+}}
 }
 \if{html}{\out{</div>}}
 }

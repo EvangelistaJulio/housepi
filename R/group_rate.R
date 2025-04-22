@@ -21,8 +21,7 @@
 #' Headers of the dataset.
 #'
 #' @noRd
-assert_dataset_features <- function(features,
-                                    data_headers) {
+assert_dataset_features <- function(features, data_headers) {
   # assert that features are present
   missing <- c()
   for (this in features) {
@@ -140,7 +139,7 @@ associate_param_names <- function(this_table,
   # associate parameter names
   this_table$.param.name <- apply(
     this_table[colmask], 1, function(row) {
-      paste0(prefix, paste(paste0(colmask, row), collapse = "_"))
+      paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
     }
   )
   this_table$.param.name[idx_refer] <- "REFERENCE"
@@ -222,19 +221,22 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Generate a script to be printed within source code model.cpp
     #'
-    #' @param dataset
+    #' @param dataset `data.frame`\cr
     #' Dataset to be considered.
-    .cpp_implement = function(dataset) {
+    #' @param factor_info `list()`\cr
+    #' Levels for each factorized feature.
+    .cpp_implement = function(dataset, factor_info) {
 
       # initialize lines of the script
       rate_script <- c()
       self$logic_tables <- list()
 
-      for (i in seq_along(self$defs)){
+      for (i in seq_along(self$defs)) {
         rate_id <- names(self$defs[i]) # name of the rate
         this_def <- self$defs[[i]] # definition of the rate
+        features <- as.list(this_def[["by"]]) # data features
+  
         new_logic_table <- list()
-        features <- as.list(this_def[["by"]])
         if (all(is.na(features))) {
           this_script <- c(cpp_emplace("REFERENCE", tab = FALSE, quote = FALSE))
 
@@ -256,17 +258,28 @@ HousepiGroupRate <- R6::R6Class(
           }
 
           for (this_feat in features) {
-            # create logic table with group rates
+            # 1. create logic table with group rates
             this_table <- group_rate_logic_table(dataset, this_feat)
             # associate names for parameters
             this_table <- associate_param_names(
-              this_table, prefix,
-              this_def[["reference"]]
+              this_table, prefix, this_def$reference
             )
+            new_logic_table[[length(new_logic_table) + 1]] <- this_table
 
+            # 2. create relative cpp script chunk
+            # factorize according to external factor information
+            for (col in names(factor_info)) {
+              if (col %in% colnames(this_table)) {
+                this_table[[col]] <- factor(
+                  this_table[[col]],
+                  levels = factor_info[[col]],
+                  labels = seq_along(factor_info[[col]])
+                )
+              }
+            }
+            # concatenate new lines to the script
             # mask reference case
             mask <- this_table$.param.name == "REFERENCE"
-            # concatenate new lines to the script
             this_script <- c(
               this_script,
               cpp_ifclause_emplace(this_table[mask, ], TRUE), # reference
@@ -274,7 +287,6 @@ HousepiGroupRate <- R6::R6Class(
               "else",
               cpp_emplace("MISSING_RATE", tab = TRUE, quote = FALSE)
             )
-            new_logic_table[[length(new_logic_table) + 1]] <- this_table
           }
         }
 
@@ -561,22 +573,22 @@ HousepiGroupRate <- R6::R6Class(
     #' Implement group rate definitions.
     #' Assert if implementated group rates are correct.
     #'
-    #' @param dataset
+    #' @param dataset `data.frame`\cr
     #' Dataset to be considered.
-    #' @param refer_file
+    #' @param refer_file `character(1)`\cr
     #' Path/to/model.cpp source code.
+    #' @param factor_info `list()`\cr
+    #' Levels for each factorized feature.
     #'
     #' @return `logical(1)`\cr
     #' `TRUE` if definitions exist and are up to date.
-    cpp_assert = function(dataset,
-                          refer_file) {
+    cpp_assert = function(dataset, refer_file, factor_info) {
       if (length(self$defs) > 0) {
-        requirements <- self$require(refer_file)
-        self$assert(requirements)
+        self$assert(self$require(refer_file))
 
         if (length(dataset) > 0) {
           # produce associated script
-          private$.cpp_implement(dataset)
+          private$.cpp_implement(dataset, factor_info)
           # read source file
           lines <- readLines(refer_file)
           # check if the definitions are already implemented

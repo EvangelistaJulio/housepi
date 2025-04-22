@@ -218,7 +218,7 @@ HouseholdModel <- R6::R6Class(
 
       # assert and implement group rates
       is_updated <- private$.group_rate$cpp_assert(
-        dataset, private$.model$reference
+        dataset, private$.model$reference, private$.model$factor_info
       )
 
       # proceed only if group rate definitions have been updated
@@ -246,13 +246,16 @@ HouseholdModel <- R6::R6Class(
           )
           # save the new reference
           private$.model$save_reference()
-
-          # append new parameter definitions
-          new_defs <- private$.group_rate$param_group_rate_defs
-          if (length(new_defs) > 0) {
-            self$load_param_list(from = new_defs, append = TRUE)
-          }
         }
+      }
+
+      # append parameter definitions if missing
+      new_param_defs <- private$.group_rate$param_group_rate_defs
+      # find missing definitions
+      mask <- setdiff(names(new_param_defs), hhmodel$param_defs$name)
+      new_param_defs <- new_param_defs[mask]
+      if (length(new_param_defs) > 0) {
+        self$load_param_list(from = new_param_defs, append = TRUE)
       }
 
       # perform standard generation and data importation
@@ -360,8 +363,8 @@ HouseholdModel <- R6::R6Class(
   ############################################################################
 
   active = list(
-    # @field name `character(1)`\cr
-    # Model name.
+    #' @field name `character(1)`\cr
+    #' Model name.
     name = function(value) {
       if (missing(value)) return(private$.model$name)
       stop_h("'name' is read only.")
@@ -421,14 +424,13 @@ HouseholdModel <- R6::R6Class(
     #' List containing current group rate definitions.
     group_rate_defs = function(value) {
       if (missing(value)) return(private$.group_rate$defs)
-      else do.call(self$add_group_rate, value)
+      else self$load_group_rate_list(from = value, append = FALSE)
     },
 
     #' @field group_rate_tables `list`\cr
     #' List containing table of parameters associated to each group rate.
     group_rate_tables = function(value) {
       if (missing(value)) {
-        # UPDATE: temporary fix
         private$.build_group_rate(NULL, .hold = TRUE)
         return(private$.group_rate$logic_tables)
       }

@@ -35,7 +35,15 @@ HousepiWrapper <- R6::R6Class(
         if (is.null(private$.rcpp)) {
           stop_h("Impossible to export dataset before model build.")
         }
-        return(private$.rcpp$export_dataset())
+        output <- private$.rcpp$export_dataset()
+        for (col in names(self$factor_info)) {
+          output[[col]] <- factor(
+            output[[col]],
+            levels = seq_along(self$factor_info[[col]]),
+            labels = self$factor_info[[col]]
+          )
+        }
+        return(output)
       }
       stop_h("'dataset' is read only.")
     },
@@ -170,6 +178,10 @@ HousepiWrapper <- R6::R6Class(
     #' Headers of the last dataset imported.
     last_data_cols = NULL,
 
+    #' @field factor_info `list()`\cr
+    #' List of levels of the factors in the dataset.
+    factor_info = NULL,
+
     #' @description
     #' Assert if dataset headers match implementation file.
     #'
@@ -192,22 +204,37 @@ HousepiWrapper <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Wrapper of Rcpp method to import dataset
-    #
-    # @param dataset `data.frame`\cr
-    # Dataset with rowise individual information.
+    #' @description
+    #' Wrapper of Rcpp method to import dataset.
+    #'
+    #' @param dataset `data.frame`\cr
+    #' Dataset with rowise individual information.
     import_dataset = function(dataset) {
-      private$.rcpp$import_dataset(data.frame(lapply(dataset, as.character)))
-      if (length(dataset) > 0) self$last_data_cols <- colnames(dataset)
+      if (length(dataset) > 0) {
+        # convert factors to numeric and store levels
+        self$factor_info <- list()
+        for (col in setdiff(colnames(dataset), c("id", "house_id"))) {
+          this_col <- dataset[[col]]
+          if (is.character(this_col) || is.factor(this_col)) {
+            this_col <- factor(this_col)
+            self$factor_info[[col]] <- levels(this_col)
+            dataset[[col]] <- as.integer(this_col)
+          }
+        }
+        # import data.frame in rcpp # note: it calls
+        private$.rcpp$import_dataset(dataset)
+        # store column names
+        self$last_data_cols <- colnames(dataset)
+      }
+
       invisible(self)
     },
 
-    # @description
-    # Wrapper of the Rcpp import_setup method.
-    #
-    # @param defs `list()`\cr
-    # List of setup definitions.
+    #' @description
+    #' Wrapper of the Rcpp import_setup method.
+    #'
+    #' @param defs `list()`\cr
+    #' List of setup definitions.
     import_setup = function(defs) {
       # change scientific notation locally
       withr::local_options(list(scipen = 500))
@@ -215,62 +242,62 @@ HousepiWrapper <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Wrapper of Rcpp method to import parameter definitions.
-    #
-    # @param defs `data.frame`\cr
-    # Formatted parameter definitions.
+    #' @description
+    #' Wrapper of Rcpp method to import parameter definitions.
+    #'
+    #' @param defs `data.frame`\cr
+    #' Formatted parameter definitions.
     import_param = function(defs) {
       private$.rcpp$import_param(data.frame(lapply(defs, as.character)))
       invisible(self)
     },
 
-    # @description
-    # Wrapper of Rcpp method to import augmented variable definitions.
-    #
-    # @param defs `data.frame`\cr
-    # Formatted augmented variable definitions.
+    #' @description
+    #' Wrapper of Rcpp method to import augmented variable definitions.
+    #'
+    #' @param defs `data.frame`\cr
+    #' Formatted augmented variable definitions.
     import_augm = function(defs) {
       private$.rcpp$import_augm(data.frame(lapply(defs, as.character)))
       invisible(self)
     },
 
-    # @description
-    # Wrapper of Rcpp method to import infectivity profile definitions.
-    #
-    # @param defs `list()`\cr
-    # Infectivity profile definitions.
+    #' @description
+    #' Wrapper of Rcpp method to import infectivity profile definitions.
+    #'
+    #' @param defs `list()`\cr
+    #' Infectivity profile definitions.
     import_infec_profile = function(defs) {
       private$.rcpp$import_infec_profile(lapply(defs, as.character))
       invisible(self)
     },
 
-    # @description
-    # Wrapper of Rcpp method to import multiplicity definitions.
-    #
-    # @param defs `data.frame`\cr
-    # Multiplicity definitions.
+    #' @description
+    #' Wrapper of Rcpp method to import multiplicity definitions.
+    #'
+    #' @param defs `data.frame`\cr
+    #' Multiplicity definitions.
     import_multiplicity = function(defs) {
       private$.rcpp$import_multiplicity(lapply(defs, as.character))
       invisible(self)
     },
 
-    # @description
-    # Wrapper of the Rcpp build_all_rates method.
+    #' @description
+    #' Wrapper of the Rcpp build_all_rates method.
     build_all_rates = function() {
       private$.rcpp$build_all_rates()
       invisible(self)
     },
 
-    # @description
-    # Showcase instantaneous and cumulative values of infectivity profile.
-    #
-    # @param opts `double()`\cr
-    # Additional values for the computation.
-    # @param bins `integer(1)`\cr
-    # Number of bins for continuous profile (ignored if discrete).
-    #
-    # @return `data.frame`
+    #' @description
+    #' Showcase instantaneous and cumulative values of infectivity profile.
+    #'
+    #' @param opts `double()`\cr
+    #' Additional values for the computation.
+    #' @param bins `integer(1)`\cr
+    #' Number of bins for continuous profile (ignored if discrete).
+    #'
+    #' @return `data.frame`
     showcase_infec_profile = function(opts = list(), bins = 2000) {
       # load options
       opts <- as.list(as.numeric(opts))
@@ -285,35 +312,35 @@ HousepiWrapper <- R6::R6Class(
       return(output)
     },
 
-    # @description
-    # Wrapper of the Rcpp evaluate method.
+    #' @description
+    #' Wrapper of the Rcpp evaluate method.
     evaluate = function() {
       return(private$.rcpp$evaluate())
     },
 
-    # @description
-    # Wrapper of the Rcpp infer method.
+    #' @description
+    #' Wrapper of the Rcpp infer method.
     infer = function() {
       private$.rcpp$infer()
       invisible(self)
     },
 
-    # @description
-    # Wrapper of the Rcpp infer method.
-    #
-    # @return `data.frame`
+    #' @description
+    #' Wrapper of the Rcpp infer method.
+    #'
+    #' @return `data.frame`
     simulate = function() {
       return(private$.rcpp$simulate())
     },
 
-    # @description
-    # Wrapper of the Rcpp method to estimate_evidence.
-    #
-    # @param scheme `character(1)`\cr
-    # If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
-    # Other available scheme is "power-fractions".
-    # @param n_rungs `integer(1)`\cr
-    # Number of rungs in the thermodynamic ladder.
+    #' @description
+    #' Wrapper of the Rcpp method to estimate_evidence.
+    #'
+    #' @param scheme `character(1)`\cr
+    #' If "adaptive" uses adaptive scheme for thermodynamic ladder (default).
+    #' Other available scheme is "power-fractions".
+    #' @param n_rungs `integer(1)`\cr
+    #' Number of rungs in the thermodynamic ladder.
     evidence = function(scheme = "adaptive", n_rungs = 40) {
       # load options
       scheme <- as.character(scheme)

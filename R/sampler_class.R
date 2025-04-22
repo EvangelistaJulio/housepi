@@ -109,7 +109,7 @@ IndividualSampler <- R6::R6Class(
             stop_h(
               sprintf("Provide both 'x' and 'type' for feature %s.", col)
             )
-          }
+          } 
         } else {
           stop_h("The encoding dictionary must contains only vectors.")
         }
