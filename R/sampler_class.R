@@ -19,13 +19,10 @@
 #' dataset <- housepi::survey
 #' dataset$sex <- ifelse(dataset$sex == 1, "M", "F")
 #'
-#' # model according to group.classes
-#' enc_dict <- list(
-#'   sex = list(x = c("M", "F"), type = "cat"),
-#'   age = list(x = c(0, 10, 20, 40, 60), type = "bin")
+#' bic <- IndividualSampler$new(
+#'   sex = list(levels = c("M", "F")),
+#'   age = list(breaks = c(0, 10, 20, 40, 60))
 #' )
-#'
-#' bic <- IndividualSampler$new(enc_dict)
 #' test <- dataset[1:5, ]
 #' test
 #' bic$encode(test)
@@ -51,7 +48,7 @@ IndividualSampler <- R6::R6Class(
 
     # @description
     # Check internally that encoding\decoding routine.
-    .internal_check = function() {
+    .check_internally = function() {
       aux <- lapply(private$.enc_dict, function(v) v$x)
       input <- expand.grid(aux)
       colnames(input) <- names(private$.enc_dict)
@@ -73,50 +70,54 @@ IndividualSampler <- R6::R6Class(
     #' New instance of class
     #' [IndividualSampler][housepi::IndividualSampler].
     #'
-    #' @param enc_dict `list() of list()`\cr
-    #' List containing encoding dictionary definitions (FIXME).
-    initialize = function(enc_dict) {
+    #' @param ...
+    #' Named features with respective list of definition details.
+    #' @param from `list() of list()`\cr
+    #' List containing encoding dictionary definitions for each feature.
+    initialize = function(..., from = NULL) {
       # assign encoding dictionary
-      private$.enc_dict <- enc_dict
+      enc_dict <- load_definition_list(..., from = from)
 
       # assign features distributions
       private$.feats_pdf <- data.frame()
       private$.expand_pdf <- data.frame()
 
       # assign number of features
-      private$.num_feats <- lapply(private$.enc_dict, function(x) 0)
+      private$.num_feats <- lapply(enc_dict, function(x) 0)
 
       # loop over all features of encoding dictionary
-      for (col in names(private$.enc_dict)) {
+      private$.enc_dict <- list()
+      for (col in names(enc_dict)) {
         # accept only lists
-        if (is.list(private$.enc_dict[[col]])) {
-          # check if type and vector are provided
-          # UPDATE: find a better name for x maybe
-          if (all(c("x", "type") %in% names(private$.enc_dict[[col]]))) {
-            if (private$.enc_dict[[col]]$type == "bin") {
-              # if bin consider lower than min and larger than max
-              private$.num_feats[[col]] <- length(private$.enc_dict[[col]]$x) + 2
-            } else if (private$.enc_dict[[col]]$type == "cat") {
-              # if cat (i. e. categorical) consider unknown case
-              private$.num_feats[[col]] <- length(private$.enc_dict[[col]]$x) + 1
-            } else {
-              stop_h(
-                sprintf("Unrecognized type '%s' for %s.",
-                        private$.enc_dict[[col]]$type, col)
-              )
-            }
+        if (is.list(enc_dict[[col]])) {
+          if ("breaks" %in% names(enc_dict[[col]])) {
+            # if breaks, consider also lower than min and larger than max
+            x <- enc_dict[[col]]$breaks
+            private$.num_feats[[col]] <- length(x) + 2
+            private$.enc_dict[[col]]$x <- x
+            private$.enc_dict[[col]]$type <- "breaks"
+
+          } else if ("levels" %in% names(enc_dict[[col]])) {
+            # if levels, consider also unknown case
+            x <- enc_dict[[col]]$levels
+            private$.num_feats[[col]] <- length(x) + 1
+            private$.enc_dict[[col]]$x <- x
+            private$.enc_dict[[col]]$type <- "levels"
+
           } else {
             stop_h(
-              sprintf("Provide both 'x' and 'type' for feature %s.", col)
+              sprintf("Incomplete encoding for feature \"%s\"", col),
+              "Provide one between \"breaks\" ans \"levels\"."
             )
-          } 
+          }
+
         } else {
-          stop_h("The encoding dictionary must contains only vectors.")
+          stop_h("The encoding dictionary must contains only lists.")
         }
       }
 
       # internal consistency check
-      if (!private$.internal_check()) {
+      if (!private$.check_internally()) {
         stop_h("Internal inconsistency, check your encoding dictionary.")
       }
     },
@@ -139,10 +140,10 @@ IndividualSampler <- R6::R6Class(
         # load locally the features to be encoded
         df <- dataset[[names(private$.enc_dict)[i]]]
 
-        if (enc$type == "bin") {
+        if (enc$type == "breaks") {
           feats <- findInterval(df, c(-Inf, enc$x, Inf)) - 1
 
-        } else if (enc$type == "cat") {
+        } else if (enc$type == "levels") {
           tmp <- match(df, enc$x)
           feats <- ifelse(is.na(tmp), 0, tmp)
         }
@@ -172,10 +173,10 @@ IndividualSampler <- R6::R6Class(
       for (col in colnames(output)) {
         enc <- private$.enc_dict[[col]]
 
-        if (enc$type == "bin") {
+        if (enc$type == "breaks") {
           output[[col]] <- c(NaN, enc$x, NaN)[1 + feats %% private$.num_feats[[col]]]
 
-        } else if (enc$type == "cat") {
+        } else if (enc$type == "levels") {
           aux_dict <- stats::setNames(enc$x, seq_along(length(enc$x)))
           output[[col]] <- sapply(
             feats %% private$.num_feats[[col]],
@@ -288,11 +289,13 @@ HouseholdSampler <- R6::R6Class(
     #' New instance of class
     #' [HouseholdSampler][housepi::HouseholdSampler].
     #'
-    #' @param enc_dict `list() of list()`\cr
-    #' List containing encoding dictionary definitions (FIXME).
-    initialize = function(enc_dict) {
+    #' @param ...
+    #' Named features with respective list of definition details.
+    #' @param from `list() of list()`\cr
+    #' List containing encoding dictionary definitions for each feature.
+    initialize = function(..., from = NULL) {
       # ininitialize parent class IndividualSampler
-      super$initialize(enc_dict)
+      super$initialize(..., from = from)
 
       # default marginals
       private$.single_prob <- 0.

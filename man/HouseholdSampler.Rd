@@ -46,14 +46,16 @@ head(simulated)
 New instance of class
 \link[=HouseholdSampler]{HouseholdSampler}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$new(enc_dict)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$new(..., from = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{enc_dict}}{\verb{list() of list()}\cr
-List containing encoding dictionary definitions (FIXME).}
+\item{\code{...}}{Named features with respective list of definition details.}
+
+\item{\code{from}}{\verb{list() of list()}\cr
+List containing encoding dictionary definitions for each feature.}
 }
 \if{html}{\out{</div>}}
 }

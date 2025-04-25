@@ -11,13 +11,10 @@ FIXME: missing.
 dataset <- housepi::survey
 dataset$sex <- ifelse(dataset$sex == 1, "M", "F")
 
-# model according to group.classes
-enc_dict <- list(
-  sex = list(x = c("M", "F"), type = "cat"),
-  age = list(x = c(0, 10, 20, 40, 60), type = "bin")
+bic <- IndividualSampler$new(
+  sex = list(levels = c("M", "F")),
+  age = list(breaks = c(0, 10, 20, 40, 60))
 )
-
-bic <- IndividualSampler$new(enc_dict)
 test <- dataset[1:5, ]
 test
 bic$encode(test)
@@ -42,14 +39,16 @@ bic$decode(bic$encode(test))
 New instance of class
 \link[=IndividualSampler]{IndividualSampler}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{IndividualSampler$new(enc_dict)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{IndividualSampler$new(..., from = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{enc_dict}}{\verb{list() of list()}\cr
-List containing encoding dictionary definitions (FIXME).}
+\item{\code{...}}{Named features with respective list of definition details.}
+
+\item{\code{from}}{\verb{list() of list()}\cr
+List containing encoding dictionary definitions for each feature.}
 }
 \if{html}{\out{</div>}}
 }

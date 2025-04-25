@@ -15,20 +15,20 @@ editor_options:
 
 ```{r}
 dataset <- housepi::survey
+dataset$sex <- ifelse(dataset$sex == 1, "M", "F")
 
-enc_dict <- list(age = list(x = c(0, 10, 20, 40, 60), type = "bin"),
-                 sex = list(x = c(1, 2), type = "cat"))
-# UPDATE
-enc_dict <- list(age = list(breaks = c(0, 10, 20, 40, 60)),
-                 sex = list(levels = c(1, 2)))
-
-# generate an instance of the chain binomial model
-hhsampler <- housepi::HouseholdSampler$new(enc_dict)
+hhsampler <- HouseholdSampler$new(
+  age = list(breaks = c(0, 12, 25, 50, 100)),
+  sex = list(levels = c("M", "F"))
+)
 ```
+
+$$
+p_{1}P(\theta) + (1-p_{1})P[n\vert n>1]P({\theta_{1}},{\theta_{2}})\prod_{k=2}^{n}P({\theta_{k}}\vert{\theta_{1}},{\theta_{2}}) 
+$$
 
 ```{r}
 hhsampler$compute_household_marginals(dataset)
 
-hhsampler$generate_households(1)
+hhsampler$generate_households(5)
 ```
-

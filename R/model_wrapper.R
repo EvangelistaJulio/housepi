@@ -215,7 +215,7 @@ HousepiWrapper <- R6::R6Class(
         self$factor_info <- list()
         for (col in setdiff(colnames(dataset), c("id", "house_id"))) {
           this_col <- dataset[[col]]
-          if (is.character(this_col) || is.factor(this_col)) {
+          if (is.character(this_col) || is.factor(this_col) || is.logical(this_col)) {
             this_col <- factor(this_col)
             self$factor_info[[col]] <- levels(this_col)
             dataset[[col]] <- as.integer(this_col)
