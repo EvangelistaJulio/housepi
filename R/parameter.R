@@ -190,6 +190,7 @@ HousepiParameter <- R6::R6Class(
     load_list = function(...,
                          from = NULL,
                          append = FALSE) {
+      # load definition list
       definitions <- load_definition_list(..., from = from)
 
       # remove previos definitions if not append

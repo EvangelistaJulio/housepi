@@ -2,11 +2,14 @@
 % Please edit documentation in R/expected_cases.R
 \name{ExpectedCases}
 \alias{ExpectedCases}
-\title{Housepi Output Expected Cases}
+\title{Housepi Expected Cases}
 \description{
-Output object from expected cases by size.
+Output object of expected cases by size, method of household model.
 }
 \keyword{internal}
+\section{Super class}{
+\code{\link[housepi:HousepiPosteriorExpec]{housepi::HousepiPosteriorExpec}} -> \code{ExpectedCases}
+}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{

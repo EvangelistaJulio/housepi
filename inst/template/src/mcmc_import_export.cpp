@@ -408,9 +408,9 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
     try
     {
-        if ((setup_n_chains == 0) || is_power_post() || smpl_full_loglike.empty())
-            throw std::length_error(
-                "No traces to export were found.");
+        // UPDATE: I shall allow for export even if is_power_post
+        if (is_power_post() || smpl_full_loglike.empty())
+            throw std::length_error("No traces to export were found.");
 
         //----- Collect the column names -----//
         str_vec headers = {"loglikelihood"};

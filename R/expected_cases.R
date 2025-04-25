@@ -27,18 +27,217 @@
 #'
 #' @noRd
 frame_apply <- function(func, frame_list) {
+  elem_n1 <- frame_list[[1]]
+
   # perform element-wise operations
-  output <- matrix(
-    sapply(seq_along(frame_list[[1]]), function(x) {
-      apply(sapply(frame_list, "[[", x), 1, func)
-    }),
-    nrow = nrow(frame_list[[1]]),
-    byrow = FALSE
-  )
-  colnames(output) <- colnames(frame_list[[1]])
-  rownames(output) <- rownames(frame_list[[1]])
-  return(as.data.frame(output))
+  if (is.null(dim(elem_n1))) {
+    # on scalar/vectors
+    output <- sapply(seq_along(elem_n1), function(x) {
+      func(sapply(frame_list, "[[", x))
+    })
+    names(output) <- names(elem_n1)
+    if (is.list(elem_n1)) output <- as.list(output)
+
+  } else {
+    # on matrix/data.frames
+    output <- matrix(
+      sapply(seq_along(elem_n1), function(x) {
+        apply(sapply(frame_list, "[[", x), 1, func)
+      }),
+      nrow = nrow(elem_n1),
+      byrow = FALSE
+    )
+    colnames(output) <- colnames(elem_n1)
+    rownames(output) <- rownames(elem_n1)
+    if (is.data.frame(elem_n1)) output <- as.data.frame(output)
+  }
+
+  return(output)
 }
+
+#' @title
+#' Frame Apply Mran
+#' @description
+#' Compute the mean across different dataframes.
+#'
+#' @param frame_list `list()` | `data.frame`\cr
+#' 
+#' @return `data.frame()`
+#' @noRd
+frame_apply_mean <- function(frame_list) {
+  func <- function(x) mean(x, na.rm = TRUE)
+  frame_apply(func, frame_list)
+}
+
+#' @title
+#' Frame Apply Credible Interval
+#' @description
+#' Compute the credible interval across different dataframes.
+#'
+#' @param frame_list `list()` | `data.frame`\cr
+#' List of data frames, all having the same dimensions.
+#' @param cri_level `numeric(1)`\cr
+#' List of data frames, all having the same dimensions.
+#' @param upper `logical(1)`\cr
+#' If `TRUE`, computes the upper credible interval. Else the lower.
+#' 
+#' @return `data.frame()`
+#' @noRd
+frame_apply_cri <- function(frame_list, cri_level, upper = TRUE) {
+  func <- function(x) {
+    probs = 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
+    stats::quantile(x, probs = probs, na.rm = TRUE)
+  }
+  frame_apply(func, frame_list)
+}
+
+############################################################################
+############################################################################
+############################################################################
+
+#' @title
+#' Housepi Posterior Expectation
+#' @description
+#' Class to extract expecteted measures over simulations sampled from posterior.
+#'
+#' @keywords internal
+HousepiPosteriorExpec <- R6::R6Class(
+  classname = "HousepiPosteriorExpec",
+  cloneable = TRUE,
+
+  ############################################################################
+  ################################## PRIVATE #################################
+  ############################################################################
+
+  private = list(
+    .results = NULL,
+    .simulation_detail = NULL,
+    .cri_level = 0.95,
+
+    .drop_detail = function() {
+      private$.simulation_detail <- NULL
+    }
+  ),
+
+  ############################################################################
+  ################################## ACTIVE ##################################
+  ############################################################################
+
+  active = list(
+    #' @field results `list()`\cr
+    #' Expected values of the measure of the posterior sample.
+    results = function(value) {
+      if (missing(value)) return(private$.results)
+      stop_h("'results' is read only.")
+    }
+  ),
+
+  ############################################################################
+  ################################### PUBLIC #################################
+  ############################################################################
+
+  public = list(
+    #' @description
+    #' New instance of class
+    #' [HousepiPosteriorExpec][housepi::HousepiPosteriorExpec].
+    #'
+    #' @param FUN `closure()`\cr
+    #' Function to extract the desired measure from a dataset.
+    #' @param house_model `HouseholdModel`\cr
+    #' Object of class [HouseholdModel][housepi::HouseholdModel]
+    #' with complete definitions and traces already stored.
+    #' @param progress `logical(1)`\cr
+    #' Progress of simulations. Default is inherited from the model.    
+    #' @param .store_detail `logical(1)`\cr
+    #' If `TRUE` store internally the detailed measure for all simulation. 
+    initialize = function(house_model,  
+                          FUN,
+                          progress = NA,
+                          .store_detail = FALSE) {
+      # initialize with results from observed dataset
+      private$.results <- list(observed = FUN(house_model$dataset))
+
+      # deep clone model before proceeding
+      # FIXME/UPDATE/NOTE: deep clone is not cloning traces e. g.!
+      hmc <- house_model$clone(deep = TRUE)
+      # cleanup at end
+      withr::defer(rm(hmc))
+      # extract traces without loglikelihood
+      traces <- house_model$traces_no_loglike
+      # stuck multiple chains
+      if (is.list(traces)) traces <- do.call(rbind, traces)
+
+      # if progress not provided, import from model
+      progress <- ifelse(is.na(progress), hmc$setup$progress, progress)
+      # UPDATE: can't manually set the frequency here
+      if (is.numeric(progress)) progress <- TRUE
+
+      # number of repetitions
+      n_rep <- dim(traces)[1]
+      # generator seeds
+      withr::with_seed(
+        hmc$setup$seed,
+        rng_seeds <- sample(1:max(.Machine$integer.max, n_rep),
+                            n_rep, replace = FALSE)
+      )
+
+      # extract constant parameters
+      aux <- hmc$param_defs
+      tmp <- aux[aux$constant, c("name", "value")]
+      constants <- as.list(tmp$value)
+      names(constants) <- as.list(tmp$name)
+
+      # define loop function working by row index
+      loop_func <- function(r) {
+        # associate parameters from posterior sample
+        new_param_defs <- c(as.list(traces[r, ]), constants)
+        hmc$load_param_list(from = new_param_defs, append = FALSE)
+        # run simulation and extract cases by size
+        return(FUN(hmc$simulate(seed = rng_seeds[r], progress = FALSE)))
+      }
+
+      # apply loop function
+      if (isTRUE(progress)) {
+        output <- lapply(
+          cli::cli_progress_along(seq_len(n_rep), name = "simulations",
+                                  type = "tasks", clear = FALSE),
+          loop_func
+        )
+      } else {
+        output <- lapply(seq_len(n_rep), loop_func)
+      }
+
+      if (isTRUE(.store_detail)) private$.simulation_detail <- output
+
+      # credible interval from the model
+      cri <- house_model$cri_level
+      private$.cri_level <- cri
+
+      # extract expected quantities from cases-by-size table list
+      # compute mean values
+      private$.results$expected <- frame_apply_mean(output)
+      # compute lower credible interval
+      private$.results$cri_lower <- frame_apply_cri(output, cri, upper = FALSE)
+      # compute upper credible interval
+      private$.results$cri_upper <- frame_apply_cri(output, cri, upper = TRUE)
+
+      invisible(self)
+    },
+
+    #' @description
+    #' Override the default printing behavior.
+    print = function() {
+      cli::cli_alert_info(
+        "Output of method `$expec_posterior_measure` of HouseholdModel."
+      )
+      invisible(self)
+    }
+  )
+)
+
+############################################################################
+############################################################################
+############################################################################
 
 #' @title
 #' Retrieve Household Cases by Size
@@ -186,25 +385,22 @@ combine_obs_exp <- function(obsdf, expdf) {
 ############################################################################
 
 #' @title
-#' Housepi Output Expected Cases
+#' Housepi Expected Cases
 #' @description
-#' Output object from expected cases by size.
+#' Output object of expected cases by size, method of household model.
 #'
 #' @keywords internal
 ExpectedCases <- R6::R6Class(
   classname = "ExpectedCases",
+  inherit = HousepiPosteriorExpec,
   cloneable = TRUE,
 
   ############################################################################
-  ############################################################################
   ################################## PRIVATE #################################
-  ############################################################################
   ############################################################################
 
   private = list(
-    .case_table = NULL,
     .sar = NULL,
-    .cri_level = 0.95,
     .max_house_size = NA,
 
     # @description
@@ -214,7 +410,7 @@ ExpectedCases <- R6::R6Class(
     # `list()`)
     .filtered_tables = function() {
       # load observed table
-      obsdf <- private$.case_table$observed
+      obsdf <- private$.results$observed
 
       # remove rows without counts
       mask_row <- rowSums(obsdf[colnames(obsdf) != "size"], na.rm = TRUE) != 0
@@ -234,54 +430,15 @@ ExpectedCases <- R6::R6Class(
 
       return(list(
         observed = obsdf[mask_row, mask_col],
-        expected = private$.case_table$expected[mask_row, mask_col],
-        cri_lower = private$.case_table$cri_lower[mask_row, mask_col],
-        cri_upper = private$.case_table$cri_upper[mask_row, mask_col]
+        expected = private$.results$expected[mask_row, mask_col],
+        cri_lower = private$.results$cri_lower[mask_row, mask_col],
+        cri_upper = private$.results$cri_upper[mask_row, mask_col]
       ))
-    },
-
-    # @description
-    # Extract expected quantities from cases-by-size table list
-    #
-    # @param `list` of `data.frame`\cr
-    # List of data.frame containing cases-by-size.
-    .expected_from_casesbysize_list = function(y) {
-      # extract list of secondary attack rates
-      sar_list <- lapply(y, retrieve_sar_from_casesbysize)
-
-      # compute mean values
-      f_mean <- function(x) mean(x, na.rm = TRUE)
-      private$.sar$expected <- frame_apply(f_mean, sar_list)
-      private$.case_table$expected <- frame_apply(f_mean, y)
-
-      # internal consistency check
-      # note: normally it shouldn't be possible...
-      if (any(dim(private$.case_table$observed) != dim(private$.case_table$expected))) {
-        stop_h("Internal inconsistency in observed and expected tables.")
-      }
-
-      # compute lower credible interval
-      f_cri_lower <- function(x) {
-        stats::quantile(x, probs = 0.5 * (1 - private$.cri_level), na.rm = TRUE)
-      }
-      private$.sar$cri_lower <- frame_apply(f_cri_lower, sar_list)
-      private$.case_table$cri_lower <- frame_apply(f_cri_lower, y)
-
-      # compute upper credible interval
-      f_cri_upper <- function(x) {
-        stats::quantile(x, probs = 0.5 * (1 + private$.cri_level), na.rm = TRUE)
-      }
-      private$.sar$cri_upper <- frame_apply(f_cri_upper, sar_list)
-      private$.case_table$cri_upper <- frame_apply(f_cri_upper, y)
-
-      invisible(self)
     }
   ),
 
   ############################################################################
-  ############################################################################
   ################################## ACTIVE ##################################
-  ############################################################################
   ############################################################################
 
   active = list(
@@ -299,7 +456,7 @@ ExpectedCases <- R6::R6Class(
           output <- output[output$house_size <= private$.max_house_size, ]
         }
 
-        n <- private$.case_table$observed[row.names(output), ]
+        n <- private$.results$observed[row.names(output), ]
         n$size <- NULL
         n$`0` <- NULL
         output$counts <- as.vector(rowSums(n, na.rm = TRUE))
@@ -331,9 +488,7 @@ ExpectedCases <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## PUBLIC ##################################
-  ############################################################################
   ############################################################################
 
   public = list(
@@ -348,67 +503,21 @@ ExpectedCases <- R6::R6Class(
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
     initialize = function(house_model, progress = NA) {
-      # initialize with observed case table
-      obs <- retrieve_cases_by_size(house_model$dataset)
-      private$.sar <- list(observed = retrieve_sar_from_casesbysize(obs))
-      private$.case_table <- list(observed = obs)
+      # ininitialize parent class HousepiPosteriorExpec
+      super$initialize(house_model, FUN = retrieve_cases_by_size,
+                       progress = progress, .store_detail = TRUE)
+      cri <- private$.cri_level
 
-      private$.cri_level <- house_model$cri_level
-
-      # extract traces without loglikelihood
-      traces <- house_model$traces_no_loglike
-      # stuck multiple chains
-      if (is.list(traces)) traces <- do.call(rbind, traces)
-
-      # number of repetitions
-      n_rep <- dim(traces)[1]
-
-      # extract constant parameters
-      aux <- house_model$param_defs
-      tmp <- aux[aux$constant, c("name", "value")]
-      constants <- as.list(tmp$value)
-      names(constants) <- as.list(tmp$name)
-
-      # deep clone model before proceeding
-      # FIXME/UPDATE/NOTE: deep clone is not cloning traces e. g.!
-      hmc <- house_model$clone(deep = TRUE)
-      # cleanup at end
-      withr::defer(rm(hmc))
-
-      # if progress not provided, import from model
-      progress <- isTRUE(ifelse(is.na(progress), 
-                                hmc$setup$progress, progress))
-
-      # generator seeds
-      withr::with_seed(
-        hmc$setup$seed,
-        rng_seeds <- sample(1:max(.Machine$integer.max, n_rep),
-                            n_rep, replace = FALSE)
+      # compute Secondary Attack Rates from cases by size
+      sar_list <- lapply(private$.simulation_detail,
+                         retrieve_sar_from_casesbysize)
+      private$.drop_detail()
+      private$.sar <- list(
+        observed = retrieve_sar_from_casesbysize(private$.results$observed),
+        expected = frame_apply_mean(sar_list),
+        cri_lower = frame_apply_cri(sar_list, cri, upper = FALSE),
+        cri_upper = frame_apply_cri(sar_list, cri, upper = TRUE)
       )
-
-      # define loop function working by row index
-      loop_func <- function(r) {
-        # associate parameters from posterior sample
-        new_param_defs <- c(as.list(traces[r, ]), constants)
-        hmc$load_param_list(from = new_param_defs, append = FALSE)
-        # run simulation and extract cases by size
-        return(retrieve_cases_by_size(
-          hmc$simulate(seed = rng_seeds[r], progress = FALSE)
-        ))
-      }
-
-      if (isTRUE(progress)) {
-        results <- lapply(
-          cli::cli_progress_along(
-            seq_len(n_rep), name = "simulations",
-            type = "tasks", clear = FALSE
-          ), loop_func
-        )
-      } else {
-        results <- lapply(seq_len(n_rep), loop_func)
-      }
-      # extract expected quantities from cases-by-size table list
-      private$.expected_from_casesbysize_list(results)
 
       invisible(self)
     },
