@@ -3,21 +3,20 @@ url <- "https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/m
 dataset <- read.table(url)
 
 date_fmt <- function(x) {
-  as.numeric(as.Date(x, format = "%Y-%m-%d")  - as.Date("2021-01-01"))
+  as.numeric(as.Date(x, format = "%Y-%m-%d") - as.Date("2021-01-01"))
 }
 
 study_period <- 21
 
 sarscov2_2021_israel <- dataset %>%
   mutate(
-    isolations = ifelse(isolation == "no quarantine", 0, 1),
-    status = ifelse(is.na(first_pos), 0, 1),
-    dds = ifelse(is.na(first_pos), NA, date_fmt(first_pos)),
-    severity = asymptomatic
+    isolation = as.integer(isolation != "no quarantine"),
+    status = as.integer(!is.na(first_pos)),
+    onset = date_fmt(first_pos)
   ) %>%
   ungroup() %>%
-  select(indid, hhid, dds, status, vaccination_cat, age, isolations, sex, severity)
-
+  select(indid, hhid, status, onset, vaccination_cat,
+         age, isolation, sex, asymptomatic)
 
 head(sarscov2_2021_israel)
 
