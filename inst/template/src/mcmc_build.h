@@ -325,8 +325,8 @@ public:
     //===== LOGLIKELIHOOD =====//
     //=========================//
 
-    double full_buffer = NULL_DOUBLE;
-    double full_loglike = 0.0;
+    double full_loglike = 0.; // current full loglikelihood
+    double full_buffer = 0.;  // buffer loglikelihood
 
     double get_full_loglike() const;
 

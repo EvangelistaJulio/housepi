@@ -22,20 +22,20 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
-We'll walk through the process of loading a model, associating necessary definitions to perform the inference and a simulation study.
+in this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
 
 # The Household Model R6 Class
 
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) associated to our model.
-It wraps an environment containing the Rcpp model class and allows to call its internal methods.
-We show how to generate a new instance of such a class and its methods with a template model, the chain binomial:
+The central element of the package is the class `HouseholdModel`, an [R6 class](https://r6.r-lib.org/articles/Introduction.html).
+wrapping methods and fields from an Rcpp environment.
+We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
 # generate an instance of the chain binomial model
 hhmodel <- housepi::HouseholdModel$new("chain-binomial")
 ```
 
-At any moment you can retrieve the template model description by using the method `$help()`.
+At any moment we can retrieve the template model description by using the method `$help()`.
 
 ## An Expanding Library of Template Household Models
 
@@ -47,7 +47,8 @@ housepi::template_household_model()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed.
-To know more about each model, choose a name from the previous list and run, e. g.
+To know more about each model, choose a name from the previous list and run, e.
+g.
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
@@ -56,10 +57,12 @@ housepi::template_household_model("chain-binomial")
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
 
+```{=html}
 <!--
 Starting from a template we may want to create a custom model adapted to our study project.
 We will discuss guidelines on how to do this in the vignette [Customize Models](customize_models.html).
 -->
+```
 
 ## Format of the Dataset
 
@@ -70,11 +73,11 @@ Additionally, an individual identifier `"id"` can be provided within the respect
 To perform model inference, a `"status"` must be provided for each individual $i$.
 Status $s_{i}$ should be an integer value satisfying the following convention:
 
-| Status                | Value $s_{i}$              |
-|-----------------------|----------------------------|
-| infected/seropositive | $\geq 1$                   |
-| healthy/seronegative  | $0$                        |
-| missing               | ${\leq -1}$ or ${\rm NA}$  |
+| Status                | Value $s_{i}$             |
+|-----------------------|---------------------------|
+| infected/seropositive | $\geq 1$                  |
+| healthy/seronegative  | $0$                       |
+| missing               | ${\leq -1}$ or ${\rm NA}$ |
 
 ### Import a Dataset
 
@@ -88,7 +91,7 @@ data("survey", package = "housepi")
 hhmodel$import_dataset(survey)
 ```
 
-Note that all methods for inference and simulation integrate dataset importation. 
+Note that all methods for inference and simulation integrate dataset importation.
 We can extract some summary information about the current dataset with the field `$summary`:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
@@ -106,6 +109,7 @@ flextable(combined) |>
   autofit() |>
   labelizor(labels = c(type = "", comment = "", pct = "[%]")) 
 ```
+
 To learn more about `flextable` objects and how to export or format them, see [flextable](https://cloud.r-project.org/web/packages/flextable/).
 
 At any moment we can export the dataset from our model object with the field `$dataset`.
@@ -116,7 +120,7 @@ A single parameter definition (prior and proposer rule needed for the Bayesian M
 
 ```{r, echo=TRUE}
 # alpha : community transmission rate
-hhmodel$add_param(name = "alpha", # name matching the model source 
+hhmodel$add_param(name = "alpha", # name matching the model source
                   prior = "unif", # uniform prior
                   args = c(min = 0, max = 3), # arguments of the prior
                   rule = "lnorm") # mcmc proposer rule
@@ -138,17 +142,17 @@ We discuss data augmentation and an example in the vignettes [Data Augmentation]
 
 # Inference
 
-After having provided all necessary definitions, we can perform inference with the method `$infer()`. 
+After having provided all necessary definitions, we can perform inference with the method `$infer()`.
 
 ```{r}
 # run the Monte Carlo specifying setup options
 hhmodel$infer(
-  dataset = survey, # import the dataset as a data.frame
+  dataset = survey, # import the dataset as a data.frame #FLAG
   n_steps = 20000,  # number of mcmc steps (per chain)
   n_burnin = 1000,  # steps to burn
   thin = 8,         # delay between sampling steps
   n_adapt = 1000,   # finite adaptation steps before sampling
-  n_chains = 4,     # number of independent chains 
+  n_chains = 4,     # number of independent chains
   seed = 6043,      # internal random number generator seed
   n_threads = 1     # number of threads
 ) 
@@ -206,13 +210,14 @@ simulated <- hhsimul$simulate(dataset = survey, seed = 5923)
 
 ## Expected Cases by Size
 
-We can use the simulation process to challenge the validity of the inferred model on top of the original dataset. 
+We can use the simulation process to challenge the validity of the inferred model on top of the original dataset.
 We do so by computing the expected numbers of cases per household size according to our posterior distribution (i. e. by producing simulations according to posterior values).
 
 ```{r}
 # run simulations according to posterior traces to compute expectations
 expec <- hhmodel$expec_cases_by_house_size(progress = FALSE)
 ```
+
 To show both observed and expected cases by size, we use the method `$show_cases_table()` from our output object:
 
 ```{r}
@@ -257,6 +262,7 @@ expec$set_max_house_size(5)
 # perform a Chi-Squared test
 expec$chisq_test()
 ```
+
 The $p$-value tells us that there is no significant difference between the distribution, thus we can trust our inference process.
 
 ## Secondary Attack rate

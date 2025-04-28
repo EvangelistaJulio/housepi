@@ -129,7 +129,7 @@ public:
 	const std::vector<indiv> &infected_status_list() const;
 	const std::vector<indiv> &healthy_status_list() const;
 	const std::vector<indiv> &missing_status_list() const;
-	
+
 	ulong multiplicity() const;
 	size_t multiplicity_class_index() const;
 	bool is_multiplicity_head_class() const;
@@ -263,11 +263,11 @@ private:
 
 	//===== LOGLIKELIHOOD =====//
 
-	double _obs_loglike = NULL_DOUBLE;	// current observation loglikelihood
-	double _augm_loglike = NULL_DOUBLE; // current augmented model loglikelihood
+	double _obs_loglike = 0;  // current observation loglikelihood
+	double _augm_loglike = 0; // current augmented model loglikelihood
 
-	double _obs_buffer = NULL_DOUBLE;  // buffer observation loglikelihood
-	double _augm_buffer = NULL_DOUBLE; // buffer augmented model loglikelihood
+	double _obs_buffer = 0;  // buffer observation loglikelihood
+	double _augm_buffer = 0; // buffer augmented model loglikelihood
 
 	dbl_vec _smpl_loglike = {}; // diagnostics
 

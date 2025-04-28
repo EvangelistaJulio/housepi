@@ -10,19 +10,23 @@
 # model_generator.R
 #
 
-# @title Housepi Generator R6 Class
-# @description
-# Help with generating Rcpp model object.
-#
-# @noRd
+############################################################################
+############################################################################
+############################# Housepi Generator ############################
+############################################################################
+############################################################################
+
+#' @title Housepi Generator R6 Class
+#' @description
+#' Help with generating Rcpp model object.
+#'
+#' @noRd
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
   cloneable = TRUE,
 
   ############################################################################
-  ############################################################################
   ################################## PRIVATE #################################
-  ############################################################################
   ############################################################################
 
   private = list(
@@ -325,42 +329,40 @@ HousepiGenerator <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## ACTIVE ##################################
-  ############################################################################
   ############################################################################
 
   active = list(
-    # @field name `character(1)`\cr
-    # Model name.
+    #' @field name `character(1)`\cr
+    #' Model name.
     name = function(value) {
       if (missing(value)) return(private$.name)
       stop_h("'name' is read only.")
     },
 
-    # @field cache_dir `character(1)`\cr
-    # Cache directory where the compilation is stored.
+    #' @field cache_dir `character(1)`\cr
+    #' Cache directory where the compilation is stored.
     cache_dir = function(value) {
       if (missing(value)) return(private$.cache_dir)
       stop_h("'cache_dir' is read only.")
     },
 
-    # @field is_blank `logical(1)`\cr
-    # Wheter model is blank.
+    #' @field is_blank `logical(1)`\cr
+    #' Wheter model is blank.
     is_blank = function(value) {
       if (missing(value)) return(private$.name == "blank")
       stop_h("'is_blank' is read only.")
     },
 
-    # @field quiet `logical(1)`\cr
-    # Wheter quiet option is on.
+    #' @field quiet `logical(1)`\cr
+    #' Wheter quiet option is on.
     quiet = function(value) {
       if (missing(value)) return(private$.quiet)
       stop_h("'quiet' is read only.")
     },
 
-    # @field path `character(1)`\cr
-    # Envirnoment path.
+    #' @field path `character(1)`\cr
+    #' Envirnoment path.
     path = function(value) {
       if (missing(value)) {
         # reference script
@@ -377,15 +379,15 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'path' is read only.")
     },
 
-    # @field source_dir `character(1)`\cr
-    # Directory containing the orginal source code.
+    #' @field source_dir `character(1)`\cr
+    #' Directory containing the orginal source code.
     source_dir = function(value) {
       if (missing(value)) return(private$.source_dir)
       stop_h("'source_dir' is read only.")
     },
 
-    # @field reference `character(1)`\cr
-    # Reference script.
+    #' @field reference `character(1)`\cr
+    #' Reference script.
     reference = function(value) {
       if (missing(value)) {
         if (self$is_blank) {
@@ -408,30 +410,28 @@ HousepiGenerator <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## PUBLIC ##################################
-  ############################################################################
   ############################################################################
 
   public = list(
-    # @description
-    # Initialize model generator defining name of dynamic library.
-    #
-    # @param choice `character(1)`\cr
-    # Choose a model providing one between:
-    # - "blank" template name;
-    # - template name;
-    # - path/to/folder with implementation;
-    # - path/to/folder with previously compiled model.
-    # @param as_template `logical(1)`\cr
-    # If `TRUE` store the dynamic library as a local template.
-    # If `FALSE` recompile the model at every new session.
-    # @param force `logical(1)`\cr
-    # If `TRUE` compile even if a cached model already exists.
-    # @param name `chracter(1)`\cr
-    # Custom name of the model (default is inferred from `choice`).
-    # @param quiet `logical(1)`\cr
-    # If `TRUE` hide `pkgbuild` compilation commands.
+    #' @description
+    #' Initialize model generator defining name of dynamic library.
+    #'
+    #' @param choice `character(1)`\cr
+    #' Choose a model providing one between:
+    #' - "blank" template name;
+    #' - template name;
+    #' - path/to/folder with implementation;
+    #' - path/to/folder with previously compiled model.
+    #' @param as_template `logical(1)`\cr
+    #' If `TRUE` store the dynamic library as a local template.
+    #' If `FALSE` recompile the model at every new session.
+    #' @param force `logical(1)`\cr
+    #' If `TRUE` compile even if a cached model already exists.
+    #' @param name `chracter(1)`\cr
+    #' Custom name of the model (default is inferred from `choice`).
+    #' @param quiet `logical(1)`\cr
+    #' If `TRUE` hide `pkgbuild` compilation commands.
     initialize = function(choice, as_template = FALSE, force = FALSE,
                           name = NA, quiet = TRUE) {
       # check model choice
@@ -440,7 +440,7 @@ HousepiGenerator <- R6::R6Class(
         warning_h(
           "No model specified. Falling back to \"blank\" model.",
           "To show available templates, run function 'template_household_model'."
-          )
+        )
 
       } else if (choice %in% list(".")) {
         # prohibit directories
@@ -489,8 +489,9 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Name of model dynamic library. Extract name of the dynamic library.
+    #' @description
+    #' Generate the Rcpp model object.
+    #' If necessary, it recompiles only the model script.
     generate = function() {
       if (private$.need_compile) {
         # compile model
@@ -507,8 +508,8 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Save reference script.
+    #' @description
+    #' Save the reference script.
     save_reference = function() {
       # reference script
       refer_file <- file.path(dirname(private$.dll), ".refer")

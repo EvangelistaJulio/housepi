@@ -9,11 +9,11 @@ FIXME: missing.
 }
 \examples{
 bhhc <- HouseholdSampler$new(enc_dict)
-bhhc$compute_household_marginals(dataset)
+bhhc$compute_marginals(dataset)
 
 # sample 5 household from model
 set.seed(291)
-simulated <- bhhc$generate_households(200)
+simulated <- bhhc$sample(200)
 head(simulated)
 
 }
@@ -24,18 +24,16 @@ head(simulated)
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HouseholdSampler-new}{\code{HouseholdSampler$new()}}
-\item \href{#method-HouseholdSampler-compute_household_marginals}{\code{HouseholdSampler$compute_household_marginals()}}
-\item \href{#method-HouseholdSampler-generate_households}{\code{HouseholdSampler$generate_households()}}
+\item \href{#method-HouseholdSampler-compute_marginals}{\code{HouseholdSampler$compute_marginals()}}
+\item \href{#method-HouseholdSampler-sample}{\code{HouseholdSampler$sample()}}
 \item \href{#method-HouseholdSampler-clone}{\code{HouseholdSampler$clone()}}
 }
 }
 \if{html}{\out{
 <details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="housepi" data-topic="IndividualSampler" data-id="compute_individual_marginals"><a href='../../housepi/html/IndividualSampler.html#method-IndividualSampler-compute_individual_marginals'><code>housepi::IndividualSampler$compute_individual_marginals()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="housepi" data-topic="IndividualSampler" data-id="decode"><a href='../../housepi/html/IndividualSampler.html#method-IndividualSampler-decode'><code>housepi::IndividualSampler$decode()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="housepi" data-topic="IndividualSampler" data-id="encode"><a href='../../housepi/html/IndividualSampler.html#method-IndividualSampler-encode'><code>housepi::IndividualSampler$encode()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="housepi" data-topic="IndividualSampler" data-id="generate_individuals"><a href='../../housepi/html/IndividualSampler.html#method-IndividualSampler-generate_individuals'><code>housepi::IndividualSampler$generate_individuals()</code></a></span></li>
 </ul>
 </details>
 }}
@@ -46,7 +44,7 @@ head(simulated)
 New instance of class
 \link[=HouseholdSampler]{HouseholdSampler}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$new(..., from = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$new(..., from = NULL, ascending = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -56,17 +54,21 @@ New instance of class
 
 \item{\code{from}}{\verb{list() of list()}\cr
 List containing encoding dictionary definitions for each feature.}
+
+\item{\code{ascending}}{\code{logical(1)}\cr
+If \code{TRUE} hierarchy between feature numbers is ascending.
+If \code{FALSE} (default) is descending.}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdSampler-compute_household_marginals"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdSampler-compute_household_marginals}{}}}
-\subsection{Method \code{compute_household_marginals()}}{
+\if{html}{\out{<a id="method-HouseholdSampler-compute_marginals"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdSampler-compute_marginals}{}}}
+\subsection{Method \code{compute_marginals()}}{
 Compute household marginal distributions according to hierarchical model.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$compute_household_marginals(dataset, ascending = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$compute_marginals(dataset, ascending = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -77,25 +79,25 @@ A data.frame containing the dataset with individual information by row.}
 
 \item{\code{ascending}}{\code{logical(1)}\cr
 If \code{TRUE} hierarchy between feature numbers is ascending.
-Default is \code{FALSE}.}
+If \code{FALSE} (default) is descending.}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdSampler-generate_households"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdSampler-generate_households}{}}}
-\subsection{Method \code{generate_households()}}{
-Generate random households according to feature distribution.
+\if{html}{\out{<a id="method-HouseholdSampler-sample"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdSampler-sample}{}}}
+\subsection{Method \code{sample()}}{
+Sample households according to feature distribution.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$generate_households(sample_size)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$sample(size = 1)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{sample_size}}{\code{integer(1)}\cr
-Number of households to generate.}
+\item{\code{size}}{\code{integer(1)}\cr
+Number of households to sample.}
 }
 \if{html}{\out{</div>}}
 }

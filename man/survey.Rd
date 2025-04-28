@@ -5,24 +5,21 @@
 \alias{survey}
 \title{Household Survey}
 \format{
-\subsection{\code{survey}}{
-
-A data frame with 2,249 rows and 6 columns:
-\describe{
+A data frame with 2,249 rows and 6 columns
+}
+\usage{
+data(survey)
+}
+\description{
+Household data with a simulated outbreak to be used for housepi vignettes.
+}
+\details{
+\itemize{
 \item{id}{Individual identifier}
 \item{house_id}{Household identifier}
 \item{status}{Serological test result}
 \item{age}{Age}
-\item{sex}{Sex: \code{1} women, \code{2} men}
-\item{vacc_status}{Vaccinated before survey}
+\item{sex}{Sex}
 }
-}
-}
-\usage{
-survey
-}
-\description{
-Household data from a simulated demographic structure with a simulated outbreak.
-We assume an infectious and preventable disease.
 }
 \keyword{datasets}

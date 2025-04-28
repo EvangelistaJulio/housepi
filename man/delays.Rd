@@ -5,23 +5,22 @@
 \alias{delays}
 \title{Individual Delays}
 \format{
-\subsection{\code{delays}}{
-
-A data frame with 223 rows and 4 columns:
-\describe{
-\item{exposure_min}{Day exposure starts}
-\item{exposure_max}{Day exposure ends}
-\item{onset_min}{Day symptom onset starts}
-\item{onset_max}{Day symptom onset ends}
-}
-}
+A data frame with 223 rows and 4 columns
 }
 \usage{
-delays
+data(delays)
 }
 \description{
 Reported individual periods of exposure and symptom onset.
 Simulated assuming an incubation period gamma distributed.
 Date are shifted so that exposure period starts from day 0.
+}
+\details{
+\itemize{
+\item{exposure_min}{Day exposure starts}
+\item{exposure_max}{Day exposure ends}
+\item{onset_min}{Day symptom onset starts}
+\item{onset_max}{Day symptom onset ends}
+}
 }
 \keyword{datasets}

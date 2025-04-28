@@ -479,15 +479,16 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 
     try
     {
-        if ((setup_n_chains == 0) || is_power_post() || smpl_full_loglike.empty())
+        // UPDATE: I shall allow for export even if is_power_post
+        if (is_power_post() || smpl_full_loglike.empty())
             tools::error("No traces to export were found.");
 
-        // Create a NumericMatrix with n_house columns
+        // create a NumericMatrix with n_house columns
         ulong sample_size = setup_n_chains * setup_c_sample_size;
         NumericMatrix output(sample_size, n_households);
         CharacterVector headers(n_households);
 
-        // Assign each NumericVector to a column of the matrix
+        // assign each NumericVector to a column of the matrix
         for (size_t H = 0; H < n_households; ++H)
         {
             size_t H0 = house_vector[H].multiplicity_class_index();
@@ -495,13 +496,13 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
             headers[H] = house_vector[H].house_id();
         }
 
-        //----- associate column names -----//
+        // associate column names
         colnames(output) = headers;
 
-        //----- associate row names -----//
+        // associate row names
         IntegerVector sweep(setup_c_sample_size * setup_n_chains);
         for (size_t c = 0; c < setup_n_chains; ++c)
-            for (size_t k = 0; k < setup_c_sample_size; k++)
+            for (size_t k = 0; k < setup_c_sample_size; ++k)
                 sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
         rownames(output) = CharacterVector(wrap(sweep));
 

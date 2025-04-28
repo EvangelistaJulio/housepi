@@ -185,9 +185,9 @@ trs <- hhmodel$traces_no_loglike
 # compute Rhat values associate to inferred parameters
 array_mcmc <- simplify2array(lapply(trs, as.matrix))
 rhat <- apply(array_mcmc, ifelse(is.list(trs), 2, 3), rstan::Rhat)
-      
+
 # use bayesplot to showcase Rhat statistics
-mcmc_rhat(rhat) + 
+mcmc_rhat(rhat) +
   yaxis_text(hjust = 1)
 ```
 

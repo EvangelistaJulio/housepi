@@ -12,20 +12,22 @@
 
 #' Household Survey
 #'
-#' Household data from a simulated demographic structure with a simulated outbreak.
-#' We assume an infectious and preventable disease. 
+#' Household data with a simulated outbreak to be used for housepi vignettes.
 #'
-#' @format ## `survey`
-#' A data frame with 2,249 rows and 6 columns:
-#' \describe{
+#' \itemize{
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{Serological test result}
 #'   \item{age}{Age}
-#'   \item{sex}{Sex: `1` women, `2` men}
-#'   \item{vacc_status}{Vaccinated before survey}
+#'   \item{sex}{Sex}
 #' }
-"survey"
+#'
+#' @docType data
+#' @keywords datasets
+#' @name survey
+#' @usage data(survey)
+#' @format A data frame with 2,249 rows and 6 columns
+NULL
 
 #' Individual Delays
 #'
@@ -33,12 +35,114 @@
 #' Simulated assuming an incubation period gamma distributed.
 #' Date are shifted so that exposure period starts from day 0.
 #'
-#' @format ## `delays`
-#' A data frame with 223 rows and 4 columns:
-#' \describe{
+#' \itemize{
 #'   \item{exposure_min}{Day exposure starts}
 #'   \item{exposure_max}{Day exposure ends}
 #'   \item{onset_min}{Day symptom onset starts}
 #'   \item{onset_max}{Day symptom onset ends}
 #' }
-"delays"
+#'
+#' @docType data
+#' @keywords datasets
+#' @name delays
+#' @usage data(delays)
+#' @format A data frame with 223 rows and 4 columns
+NULL
+
+#' Flu 1918 Frederick
+#'
+#' Reported cases of "Spanish" flu in Frederick (USA), in 1918.
+#'
+#' \itemize{
+#'   \item{house_id}{Household identifier}
+#'   \item{status}{Reported case}
+#' }
+#'
+#' @docType data
+#' @keywords datasets
+#' @name flu_1918_frederick
+#' @usage data(flu_1918_frederick)
+#' @format A data frame with 2,207 rows and 2 columns
+#' @source <https://academic.oup.com/aje/article/174/5/505/117666>
+#' @references
+#' Fraser, et al. (2011)
+#' Influenza Transmission in Households During the 1918 Pandemic.
+#' American Journal of Epidemiology 174, 505-514.
+NULL
+
+#' Flu 1918 Baltimora
+#'
+#' Reported cases of "Spanish" flu in Baltimora (USA), in 1918.
+#'
+#' \itemize{
+#'   \item{house_id}{Household identifier}
+#'   \item{status}{Reported case}
+#' }
+#'
+#' @docType data
+#' @keywords datasets
+#' @name flu_1918_baltimora
+#' @usage data(flu_1918_baltimora)
+#' @format A data frame with 28,977 rows and 2 columns
+#' @source <https://academic.oup.com/aje/article/174/5/505/117666>
+#' @references
+#' Fraser, et al. (2011)
+#' Influenza Transmission in Households During the 1918 Pandemic.
+#' American Journal of Epidemiology 174, 505-514.
+NULL
+
+#' SARS-CoV-2 2021 Israel
+#'
+#' Prospective cohort conducted during COVID-19 Delta variant wave in Israel, 2021.
+#' Follow-up started with first PCR positive test, symptoms onset were reported.
+#' Contacts averaged 3 tests during follow-up.
+#'
+#' \itemize{
+#'   \item{id}{Individual identifier}
+#'   \item{house_id}{Household identifier}
+#'   \item{status}{PCR test result}
+#'   \item{test_date}{Date of first positive test}
+#'   \item{vacc_status}{Vaccinated before survey}
+#'   \item{age}{Age}
+#'   \item{isolation}{Wheter isolated}
+#'   \item{sex}{Sex}
+#'   \item{asymptomatic}{Wheter asymptomatic}
+#' }
+#'
+#' @docType data
+#' @keywords datasets
+#' @name sarscov2_2021_israel
+#' @usage data(sarscov2_2021_israel)
+#' @format A data frame with 4,168 rows and 9 columns
+#' @source <https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt>
+#' @references
+#' Cortier, et al. (2025)
+#' Factors Associated With the Transmission of the Delta Severe Acute Respiratory Syndrome Coronavirus 2 Variant in Households:
+#' The Israeli COVID-19 Family Study (ICoFS)
+#' The Journal of Infectious Diseases; jiaf001, doi:10.1093/infdis/jiaf001.
+NULL
+
+#' Flu 2014-15 Matsumoto
+#'
+#' Household survey in Matsumoto city (Japan) for parents having children in primary school.
+#' Report on influenza episodes of family members during the season 2014-15.
+#' Original oservational study from Uchida, et al. (2017).
+#'
+#' \itemize{
+#'   \item{house_id}{Household identifier}
+#'   \item{member}{Family member}
+#'   \item{status}{Symptoms reported}
+#' }
+#'
+#' @docType data
+#' @keywords datasets
+#' @name flu_2014_matsumoto
+#' @usage data(flu_2014_matsumoto)
+#' @format A data frame with 42,045 rows and 3 columns
+#' @source <https://raw.githubusercontent.com/akira-endo/HHstudy_FluMatsumoto2014-15/master/HHdata_FluMatsumoto2014-15.csv>
+#' @references
+#' Endo, et al. (2019)
+#' Fine-scale family structure shapes influenza transmission risk in households:
+#' Insights from primary schools in Matsumoto city, 2014/15.
+#' PLOS Computational Biology;15: e1007589. doi:10.1371/journal.pcbi.1007589
+NULL

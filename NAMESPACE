@@ -2,5 +2,4 @@
 
 export(HouseholdModel)
 export(HouseholdSampler)
-export(IndividualSampler)
 export(template_household_model)

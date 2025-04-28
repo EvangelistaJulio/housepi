@@ -21,40 +21,6 @@ bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
-# Group Rates
-
-```{r}
-hhmodel <- housepi::HouseholdModel$new("chain-binomial-heterogeneous")
-```
-
-```{r}
-dataset <- housepi::survey
-
-dataset$agegroup <- as.integer(dataset$age <= 15)
-dataset$susgroup <- dataset$agegroup
-dataset$susgroup[(dataset$agegroup == 1) & (dataset$sex == 2)] <- 2
-
-hhmodel$add_group_rate("infectivity", by = "agegroup")
-hhmodel$add_group_rate("community_susceptibility", by = "susgroup")
-hhmodel$add_group_rate("susceptibility", by = "susgroup")
-```
-
-We append the remaining parameter definitions from the template.
-```{r}
-hhmodel$load_param_template()
-```
-
-All other commands stay the same. 
-The only difference is that the choice of group rates require model recompilation.
-```{r}
-hhmodel$infer(dataset, n_steps = 10000, n_adapt = 1000, 
-              n_burnin = 1000, thin = 10, progress = FALSE)
-```
-
-```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_trace(hhmodel$traces)
-```
-
 # Template Models
 
 This tutorial introduces to custom models with the package `housepi`.

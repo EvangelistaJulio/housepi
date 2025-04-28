@@ -271,7 +271,7 @@ void MCMC::set_rate_per_contact(Household &house)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC : update global loglikelihood  ///////////////////////////////
+///////////////////////////////  MCMC : update full loglikelihood  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update and return contribution of given household to full logliklehood. */
@@ -293,7 +293,7 @@ double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool ex
 
     // update household augmented loglikelihood
     // NOTE: house multiplicity doesn't work with data augmentation
-    if (is_augm_ll) 
+    if (is_augm_ll)
     {
         house.set_augm_loglike(compute_augm_model_loglike(house));
         output += house.get_augm_loglike();
@@ -307,7 +307,7 @@ double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool ex
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::update_global_loglike(const bool extra_depen)
+void MCMC::update_full_loglike(const bool extra_depen)
 {
     const bool is_augm_ll = is_augm_model();
     double new_ll = 0.0;
@@ -334,7 +334,7 @@ void MCMC::update_global_loglike(const bool extra_depen)
             {
                 if (!has_error.exchange(true))
                     _error_message = {"While computing loglikelihood for house " + _get_restricted_household(R).house_id() + ":",
-                                       std::string(e.what())};
+                                      std::string(e.what())};
             }
         }
     }
@@ -370,7 +370,7 @@ void MCMC::_move_all_augm()
             {
                 if (!has_error.exchange(true))
                     _error_message = {"While moving augmented variables in house " + get_household(H).house_id() + ":",
-                                       std::string(e.what())};
+                                      std::string(e.what())};
             }
         }
     }
@@ -393,9 +393,8 @@ bool MCMC::_move_single_parameter(const parID &p, bool extra_depen)
     // otherwise automatically execute refuse_move(parID)
     if (pImpl->propose_valid_param_move(p))
     {
-        // update global loglikelihood
         // if extra depending on parameter, update and buffer extra
-        update_global_loglike(extra_depen);
+        update_full_loglike(extra_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (pImpl->accept_valid_param_move(p))
@@ -490,34 +489,38 @@ The move is performed one member at a time, one augmented variable at a time.
 // UPDATE: smooth the incrementation by reference by just adding...
 double MCMC::_move_augm_single_house(size_t H)
 {
-    double delta_global_loglike = 0.0;
+    double delta_ll = 0.;
     Household &house = get_household(H);
 
     // Loop over infectious residents of the househould
     for (const indiv &i : house.infected_status_list())
-        (this->*_func_move_augm_indiv)(house, i, delta_global_loglike);
+        delta_ll += (this->*_func_move_augm_indiv)(house, i);
 
-    return delta_global_loglike;
+    return delta_ll;
 }
 
 /* Generic move augmented variables one by one. */
-void MCMC::__move_augm_indiv_generic(Household &house, indiv i, double &delta)
+double MCMC::__move_augm_indiv_generic(Household &house, indiv i)
 {
+    double delta_ll = 0.;
     // Loop over augmented variables of infectious
     for (const augmID &a : pImpl->augm_infer_list)
-        _metropolis_augm_single_move(house, i, a, delta);
+        delta_ll += _metropolis_augm_single_move(house, i, a);
+    return delta_ll;
 }
 
 /* Move augmented variables by status one variable at a time. */
-void MCMC::__move_augm_indiv_by_status(Household &house, indiv i, double &delta)
+double MCMC::__move_augm_indiv_by_status(Household &house, indiv i)
 {
+    double delta_ll = 0.;
     // Loop over augmented variables of infectious
     for (const augmID &a : pImpl->augm_status_map_infer.at(house.status(i)))
-        _metropolis_augm_single_move(house, i, a, delta);
+        delta_ll += _metropolis_augm_single_move(house, i, a);
+    return delta_ll;
 }
 
 /* Take care of a a single augmented Metropolis move. */
-void MCMC::_metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta)
+double MCMC::_metropolis_augm_single_move(Household &house, indiv i, const augmID &a)
 {
     // proceed only if the new value is consistent
     if (house.propose_valid_augm_move(i, a, pImpl->get_prng()))
@@ -534,13 +537,14 @@ void MCMC::_metropolis_augm_single_move(Household &house, indiv i, const augmID 
         const double D_ll = house.get_delta_obs_loglike() + D_augm_ll;
         if (uniform() < std::exp(pImpl->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
         {
-            delta += D_ll;
             house.increment_augm_loglike(D_augm_ll);
+            return D_ll;
         }
         else
             // restore all buffered values
             house.restore_augm_value(i, a);
     }
+    return 0.;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -566,7 +570,7 @@ double MCMC::evaluate()
         init_infec_profile();                  // initialize user infectivity profile
         init_model_for_inference();            // initialize model for inference
         init_augmented_variables();            // initialize augmented dependencies
-        update_global_loglike(true);           // initialize extra + global loglikelihood
+        update_full_loglike(true);             // initialize extra + full loglikelihood
 
         return pImpl->get_full_loglike();
     }
@@ -613,9 +617,9 @@ void MCMC::_run_monte_carlo(progress::Bar &progressbar)
         // update progressbar text
         progressbar.set_text(pImpl->fmt_progtxt());
 
-        pImpl->init_parameters();    // initialize parameter inference
-        init_augmented_variables();  // initialize augmented dependencies
-        update_global_loglike(true); // initialize extra + global loglikelihood
+        pImpl->init_parameters();   // initialize parameter inference
+        init_augmented_variables(); // initialize augmented dependencies
+        update_full_loglike(true);  // initialize extra + full loglikelihood
 
         //----- (Finite) Adaptative MCMC -----//
         // initialize the param move counts for adaptive
@@ -662,7 +666,7 @@ void MCMC::infer()
                                   pImpl->fmt_progtxt(), pImpl->setup_progress);
 
         _run_monte_carlo(progressbar); // run Monte Carlo
-        progressbar.finalize();       // close progress bar
+        progressbar.finalize();        // close progress bar
     }
     catch (std::exception &e)
     {
@@ -705,7 +709,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
     const double buffer_inv_T = pImpl->setup_inv_T;
 
     // implementation setup aliases
-    ulong &rung = pImpl->rung;    // current theromdynamic ladder rung
+    ulong &rung = pImpl->rung;      // current theromdynamic ladder rung
     double &t = pImpl->setup_inv_T; // current inverse temperature
     const ulong &n_rungs = pImpl->setup_n_rungs;
     const ulong rung_sweeps = pImpl->setup_c_n_sweeps * pImpl->setup_n_chains;

@@ -10,6 +10,12 @@
 # sampler_class.R
 #
 
+############################################################################
+############################################################################
+############################ Individual Sampler ############################
+############################################################################
+############################################################################
+
 #' @title
 #' Individual Sampler R6 Class
 #' @description
@@ -28,16 +34,13 @@
 #' bic$encode(test)
 #' bic$decode(bic$encode(test))
 #'
-#' @export IndividualSampler
-#' @docType class
+#' @keywords internal
 IndividualSampler <- R6::R6Class(
   classname = "IndividualSampler",
   cloneable = TRUE,
 
   ############################################################################
-  ############################################################################
   ################################## PRIVATE #################################
-  ############################################################################
   ############################################################################
 
   private = list(
@@ -47,22 +50,112 @@ IndividualSampler <- R6::R6Class(
     .num_feats = list(),
 
     # @description
+    # A data.frame with all distinct features considered.
+    .get_distinct_features = function() {
+      aux <- lapply(private$.enc_dict, function(v) v$x)
+      output <- expand.grid(aux)
+      colnames(output) <- names(private$.enc_dict)
+      return(output)
+    },
+
+    # @description
+    # Reorder according to hierarchy
+    #
+    # @param this_house `data.frame`\cr
+    # Input encoded hosuehold data.
+    #
+    # @return `data.frame`
+    .reorder = function(this_house) {
+      # UPDATE: can I turn this into an option?
+      # NOTE: do.call(order, ... requires a list
+      sort_by <- ".features"
+
+      # sort by the two 'principal' household members
+      if (private$.ascending) {
+        ordering <- do.call(order, this_house[sort_by])
+      } else {
+        ordering <- do.call(order, lapply(this_house[sort_by], function(x) -x))
+      }
+      # extract the features of the two 'principal' house members
+      return(this_house[ordering, ])
+    },
+
+    # @description
     # Check internally that encoding\decoding routine.
     .check_internally = function() {
-      aux <- lapply(private$.enc_dict, function(v) v$x)
-      input <- expand.grid(aux)
-      colnames(input) <- names(private$.enc_dict)
-
+      input <- private$.get_distinct_features()
       output <- self$decode(self$encode(input))
-
       return(all(output == input))
+    },
+
+    # @description
+    # Associate a marginal probability to each individual feature.
+    #
+    # @param dataset `data.frame()`\cr
+    # A data.frame containing the dataset with individual information by row.
+    .compute_individual_marginals = function(dataset) {
+      df <- dataset
+      df$feature <- self$encode(df)
+
+      # update feature pdf
+      feature_counts <- table(df$feature)
+      private$.feats_pdf <- data.frame(
+        feature = names(feature_counts),
+        freqs = feature_counts / sum(feature_counts)
+      )
+
+      # update expanded pdf
+      myvec <- c("feature", attributes(private$.enc_dict)$names)
+      tab <- as.data.frame(table(df[myvec]))
+      tab$freqs <- tab$Freq / sum(tab$Freq)
+      private$.expand_pdf <- tab[setdiff(names(tab), "Freq")]
+
+      invisible(self)
+    },
+
+    # @description
+    # Generate random individuals according to feature distribution.
+    #
+    # @param size `integer(1)`\cr
+    # Number of individuals to generate.
+    .sample_individuals = function(size) {
+      if ((size > 0) && (nrow(private$.feats_pdf) > 0)) {
+        # sample according to observed features
+        output <- self$decode(
+          sample(private$.feats_pdf$feature,
+                 size, replace = TRUE,
+                 prob = private$.feats_pdf$freqs)
+        )
+      } else {
+        # nothing to sample from
+        output <- matrix(ncol = length(private$.enc_dict), nrow = 0)
+        output <- as.data.frame(output)
+        colnames(output) <- names(private$.enc_dict)
+      }
+
+      return(output)
     }
   ),
 
   ############################################################################
+  ################################## ACTIVE ##################################
+  ############################################################################
+
+  active = list(
+    #' @field hierarchy `data.frame`\cr
+    #' Features as hierchically reordered by the sampler.
+    hierarchy = function(value) {
+      if (missing(value)) {
+        output <- private$.get_distinct_features()
+        output$.features <- self$encode(output)
+        return(private$.reorder(output))
+      }
+      stop_h("'hierarchy' is read only.")
+    }
+  ),
+
   ############################################################################
   ################################## PUBLIC ##################################
-  ############################################################################
   ############################################################################
 
   public = list(
@@ -120,6 +213,8 @@ IndividualSampler <- R6::R6Class(
       if (!private$.check_internally()) {
         stop_h("Internal inconsistency, check your encoding dictionary.")
       }
+
+      invisible(self)
     },
 
     #' @description
@@ -188,59 +283,13 @@ IndividualSampler <- R6::R6Class(
       }
 
       return(output)
-    },
-
-    #' @description
-    #' Associate a marginal probability to each individual feature.
-    #'
-    #' @param dataset `data.frame()`\cr
-    #' A data.frame containing the dataset with individual information by row.
-    compute_individual_marginals = function(dataset) {
-      df <- dataset
-      df$feature <- self$encode(df)
-
-      # update feature pdf
-      feature_counts <- table(df$feature)
-      private$.feats_pdf <- data.frame(
-        feature = names(feature_counts),
-        freqs = feature_counts / sum(feature_counts)
-      )
-
-      # update expanded pdf
-      myvec <- c("feature", attributes(private$.enc_dict)$names)
-      tab <- as.data.frame(table(df[myvec]))
-      tab$freqs <- tab$Freq / sum(tab$Freq)
-      private$.expand_pdf <- tab[setdiff(names(tab), "Freq")]
-
-      invisible(self)
-    },
-
-    #' @description
-    #' Generate random individuals according to feature distribution.
-    #'
-    #' @param sample_size `integer(1)`\cr
-    #' Number of individuals to generate.
-    generate_individuals = function(sample_size) {
-      if ((sample_size > 0) && (nrow(private$.feats_pdf) > 0)) {
-        # sample according to observed features
-        output <- self$decode(
-          sample(private$.feats_pdf$feature,
-                 sample_size, replace = TRUE,
-                 prob = private$.feats_pdf$freqs)
-        )
-      } else {
-        # nothing to sample from
-        output <- matrix(ncol = length(private$.enc_dict), nrow = 0)
-        output <- as.data.frame(output)
-        colnames(output) <- names(private$.enc_dict)
-      }
-
-      return(output)
     }
   )
 )
 
 ############################################################################
+############################################################################
+############################# Household Sampler ############################
 ############################################################################
 ############################################################################
 
@@ -251,11 +300,11 @@ IndividualSampler <- R6::R6Class(
 #'
 #' @examples
 #' bhhc <- HouseholdSampler$new(enc_dict)
-#' bhhc$compute_household_marginals(dataset)
+#' bhhc$compute_marginals(dataset)
 #'
 #' # sample 5 household from model
 #' set.seed(291)
-#' simulated <- bhhc$generate_households(200)
+#' simulated <- bhhc$sample(200)
 #' head(simulated)
 #'
 #' @export HouseholdSampler
@@ -266,12 +315,11 @@ HouseholdSampler <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
-  ############################################################################
   ################################## PRIVATE #################################
-  ############################################################################
   ############################################################################
 
   private = list(
+    .ascending = NA,
     .single_prob = NA,
     .joint_pdf = data.frame(),
     .hhsize_pdf = data.frame(),
@@ -279,9 +327,7 @@ HouseholdSampler <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## PUBLIC ##################################
-  ############################################################################
   ############################################################################
 
   public = list(
@@ -293,15 +339,22 @@ HouseholdSampler <- R6::R6Class(
     #' Named features with respective list of definition details.
     #' @param from `list() of list()`\cr
     #' List containing encoding dictionary definitions for each feature.
-    initialize = function(..., from = NULL) {
+    #' @param ascending `logical(1)`\cr
+    #' If `TRUE` hierarchy between feature numbers is ascending.
+    #' If `FALSE` (default) is descending.
+    initialize = function(..., from = NULL, ascending = FALSE) {
       # ininitialize parent class IndividualSampler
       super$initialize(..., from = from)
+
+      private$.ascending <- isTRUE(ascending)
 
       # default marginals
       private$.single_prob <- 0.
       private$.joint_pdf <- data.frame()
       private$.hhsize_pdf <- data.frame()
       private$.other_pdf <- data.frame()
+
+      invisible(self)
     },
 
     #' @description
@@ -311,37 +364,35 @@ HouseholdSampler <- R6::R6Class(
     #' A data.frame containing the dataset with individual information by row.
     #' @param ascending `logical(1)`\cr
     #' If `TRUE` hierarchy between feature numbers is ascending.
-    #' Default is `FALSE`.
-    compute_household_marginals = function(dataset,
-                                           ascending = FALSE) {
-      # UPDATE: can I turn this into an option?
-      sort_by <- "features"
+    #' If `FALSE` (default) is descending.
+    compute_marginals = function(dataset, ascending = NA) {
+      if (!is.na(ascending)) private$.ascending <- ascending
 
       # extract household size
-      hhsize <- table(dataset$house_id)
+      if (!("house_id" %in% colnames(dataset))) {
+        stop_h(
+          "No household structure provided in dataset.",
+          "Missing column 'house_id'."
+        )
+      }
+
       df <- dataset
+      hhsize <- table(df$house_id)
       df$hhsize <- hhsize[as.character(df$house_id)]
 
       # add a column with encoded features
-      df$features <- self$encode(df)
+      df$.features <- self$encode(df)
 
-      #-------------------------------------------------#
       #----- single individual (size 1) households -----#
-      #-------------------------------------------------#
 
       # count for household with single individuals
-      self$compute_individual_marginals(df[df$hhsize == 1, ])
+      private$.compute_individual_marginals(df[df$hhsize == 1, ])
       private$.single_prob <- nrow(df[df$hhsize == 1, ]) / nrow(df)
 
-      #-----------------------------#
       #----- larger households -----#
-      #-----------------------------#
 
       # list with all model features
       model_features <- seq(prod(unlist(private$.num_feats))) - 1
-
-      # frequencies list
-      freqs <- list()
 
       # all pairs of house members ordered by feature
       # note : pair (X, X) are appended manually
@@ -350,50 +401,38 @@ HouseholdSampler <- R6::R6Class(
         lapply(model_features, function(x) c(x, x))
       )
 
-      # joint compositions of the two `main` house members
-      joint_tuple <- data.frame(
+      # initialize frequencies
+      freqs <- list()
+      # joint : joint compositions of the two 'principal' house members
+      freqs$joint <- data.frame(
         hhmemA = sapply(combinations, `[`, 1),
         hhmemB = sapply(combinations, `[`, 2)
       )
-
-      # initialize joint freqs
-      freqs$joint <- joint_tuple
       freqs$joint$freqs <- 0
 
       # other : initialize conditioned compositions of other members
-      freqs$other <- joint_tuple
+      freqs$other <- freqs$joint
       for (i in model_features) {
         freqs$other[[as.character(i)]] <- 0
       }
 
       # size : initialize household conditioned sizes
-      freqs$hhsize <- joint_tuple
-      for (i in seq(2, max(df$hhsize))) {
-        freqs$hhsize[[as.character(i)]] <- 0
-      }
+      freqs$hhsize <- freqs$joint
+      for (i in seq(2, max(df$hhsize))) freqs$hhsize[[as.character(i)]] <- 0
 
       # count for household with at least 2 members
       for (h in unique(df[df$hhsize > 1, ]$house_id)) {
-        this_house <- df[df$house_id == h, ]
-
-        # sort by the two `main` household members
-        if (ascending == TRUE) {
-          this_house <- this_house[do.call(order, this_house[sort_by]), ]
-
-          # extract the features of the two `main` house members
-          x_1 <- this_house$features[1]
-          x_2 <- this_house$features[2]
-        } else {
-          this_house <- this_house[do.call(order, lapply(this_house[sort_by], function(x) -x)), ]
-
-          # extract the features of the two `main` house members
-          x_1 <- this_house$features[2]
-          x_2 <- this_house$features[1]
+        this_house <- private$.reorder(df[df$house_id == h, ])
+        x_1 <- this_house$.features[1]
+        x_2 <- this_house$.features[2]
+        # swap to match combination table convention
+        if (x_1 > x_2) {
+          x_1 <- this_house$.features[2]
+          x_2 <- this_house$.features[1]
         }
 
-        jmask <- which(joint_tuple$hhmemA == x_1 & joint_tuple$hhmemB == x_2)
-
-        # count `main` pair
+        # count 'principal' pair
+        jmask <- which(freqs$joint$hhmemA == x_1 & freqs$joint$hhmemB == x_2)
         freqs$joint[jmask, "freqs"] <- freqs$joint[jmask, "freqs"] + 1
 
         # count sizes
@@ -404,7 +443,7 @@ HouseholdSampler <- R6::R6Class(
         # count other members
         if (size > 2) {
           for (i in seq(3, size)) {
-            cfeat <- as.character(this_house$features[i])
+            cfeat <- as.character(this_house$.features[i])
             freqs$other[jmask, cfeat] <- freqs$other[jmask, cfeat] + 1
           }
         }
@@ -431,78 +470,99 @@ HouseholdSampler <- R6::R6Class(
       private$.joint_pdf <- freqs$joint
       private$.other_pdf <- freqs$other
       private$.hhsize_pdf <- freqs$hhsize
+
+      invisible(self)
     },
 
     #' @description
-    #' Generate random households according to feature distribution.
+    #' Sample households according to feature distribution.
     #'
-    #' @param sample_size `integer(1)`\cr
-    #' Number of households to generate.
-    generate_households = function(sample_size) {
+    #' @param size `integer(1)`\cr
+    #' Number of households to sample.
+    sample = function(size = 1) {
 
-      # number of single-member households
-      num_single <- stats::rbinom(1, size = sample_size, p = private$.single_prob)
-      if (num_single > 0) {
-        hh_single <- self$generate_individuals(num_single)
-        hh_single$house_id <- seq_len(nrow(hh_single))
-      } else {
-        hh_single <- NULL
+      if (size < 1) {
+        stop_h("Sample size must be greater than 0.")
       }
 
+      #----- single individual (size 1) households -----#
+
+      # number of single-member households
+      num_single <- stats::rbinom(1, size = size, p = private$.single_prob)
+      hh_single <- NULL
+      if (num_single > 0) {
+        hh_single <- private$.sample_individuals(num_single)
+        hh_single$house_id <- seq_len(nrow(hh_single))
+      }
+
+      #----- larger households -----#
+
       # number of households with size >= 2
-      num_greater <- sample_size - num_single
+      num_greater <- size - num_single
+      hh_greater <- NULL
       if (num_greater > 0) {
-        # start by sampling the two `main` members
+        # start by sampling the two 'principal' members
         idx <- sample(seq_len(nrow(private$.joint_pdf)),
                       num_greater,
                       replace = TRUE,
                       prob = private$.joint_pdf$freqs)
 
         # range and respective features of hhsize
-        scols <- 3:length(private$.hhsize_pdf)
+        scols <- 4:length(private$.hhsize_pdf)
         sizelist <- as.integer(colnames(private$.hhsize_pdf[scols]))
         # range and respective features of other members
-        ocols <- 3:length(private$.other_pdf)
+        ocols <- 4:length(private$.other_pdf)
         otherlist <- as.integer(colnames(private$.other_pdf[ocols]))
 
         # initialize encoded dataframe
         df <- data.frame()
 
         for (h in seq_len(num_greater)) {
-          # add `main` pair
-          df <- rbind(df, data.frame(features = private$.joint_pdf[idx[h], 1],
-                                     house_id = h))
-          df <- rbind(df, data.frame(features = private$.joint_pdf[idx[h], 2],
-                                     house_id = h))
+          # add 'principal' pair (ascending by convention)
+          princ_feats <- as.integer(private$.joint_pdf[idx[h], c(1, 2)])
 
           # sample house size
-          jmask <- which(private$.joint_pdf$hhmemA == private$.joint_pdf[idx[h], 1] &
-                           private$.joint_pdf$hhmemB == private$.joint_pdf[idx[h], 2])
-          size <- sample(sizelist, 1, prob = private$.hhsize_pdf[jmask, scols])
+          logic_A <- private$.joint_pdf$hhmemA == princ_feats[1]
+          logic_B <- private$.joint_pdf$hhmemB == princ_feats[2]
+          jmask <- which(logic_A & logic_B)
+          hhsize <- sample(sizelist, 1, prob = private$.hhsize_pdf[jmask, scols])
 
           # sample other members if any
-          if (size > 2) {
-            for (i in seq_len(size - 2)) {
+          other_feats <- c()
+          if (hhsize > 2) {
+            for (i in seq_len(hhsize - 2)) {
               y <- sample(otherlist, 1, prob = private$.other_pdf[jmask, ocols])
-              df <- rbind(df, data.frame(features = y,
-                                         house_id = h))
+              other_feats <- c(other_feats, y)
             }
           }
+
+          if (!private$.ascending) princ_feats <- princ_feats[2:1]
+          # append new household
+          df <- rbind(
+            df,
+            data.frame(house_id = h, .features = c(princ_feats, other_feats))
+          )
         }
 
         # create dataset of sizes > 1 by decoding generated features
-        hh_greater <- self$decode(df$features)
-        hh_greater$house_id <- sprintf("HH_%s", df$house_id + num_single)
-
-      } else {
-        hh_greater <- NULL
+        hh_greater <- self$decode(df$.features)
+        hh_greater$house_id <- df$house_id + num_single
       }
 
       # bind together
       output <- rbind(hh_single, hh_greater)
-      if (nrow(output) > 0) {
-        output$id <- seq_len(nrow(output))
+      # format house id
+      house_id_formatter <- function(x, size) {
+        sprintf(paste0("HH_%0", floor(log10(size) + 1), "d"), x)
       }
+      output$house_id <- house_id_formatter(output$house_id, size)
+      # associate individual index
+      id_formatter <- function(x) {
+        sprintf(paste0("%s_%0", floor(log10(max(sizelist)) + 1), "d"), x, seq_along(x))
+      }
+      output$id <- ave(output$house_id, output$house_id, FUN = id_formatter)
+      # re-order columns
+      output <- output[c("id", "house_id", names(private$.enc_dict))]
 
       return(output)
     }

@@ -93,6 +93,8 @@ frame_apply_cri <- function(frame_list, cri_level, upper = TRUE) {
 
 ############################################################################
 ############################################################################
+########################### Housepi Posterior Expec ########################
+############################################################################
 ############################################################################
 
 #' @title
@@ -147,10 +149,10 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' Object of class [HouseholdModel][housepi::HouseholdModel]
     #' with complete definitions and traces already stored.
     #' @param progress `logical(1)`\cr
-    #' Progress of simulations. Default is inherited from the model.    
+    #' Progress of simulations. Default is inherited from the model.
     #' @param .store_detail `logical(1)`\cr
-    #' If `TRUE` store internally the detailed measure for all simulation. 
-    initialize = function(house_model,  
+    #' If `TRUE` store internally the detailed measure for all simulation.
+    initialize = function(house_model,
                           FUN,
                           progress = NA,
                           .store_detail = FALSE) {
@@ -382,16 +384,18 @@ combine_obs_exp <- function(obsdf, expdf) {
 
 ############################################################################
 ############################################################################
+############################ Expected Cases By Size ########################
+############################################################################
 ############################################################################
 
 #' @title
-#' Housepi Expected Cases
+#' Housepi Expected Cases By SIze
 #' @description
 #' Output object of expected cases by size, method of household model.
 #'
 #' @keywords internal
-ExpectedCases <- R6::R6Class(
-  classname = "ExpectedCases",
+ExpectedCasesBySize <- R6::R6Class(
+  classname = "ExpectedCasesBySize",
   inherit = HousepiPosteriorExpec,
   cloneable = TRUE,
 
@@ -494,7 +498,7 @@ ExpectedCases <- R6::R6Class(
   public = list(
     #' @description
     #' New instance of class
-    #' [ExpectedCases][housepi::ExpectedCases].
+    #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize].
     #'
     #' @param house_model `HouseholdModel`\cr
     #' Object of class

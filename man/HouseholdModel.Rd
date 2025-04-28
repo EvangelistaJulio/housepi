@@ -10,11 +10,11 @@ Compile household model, manage your data and parameters from a single class.
 \references{
 Cauchemez, et al. (2009)
 Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
+New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
 
 Friel N, Hurn M, Wyse J.
 Improving power posterior estimation of statistical evidence.
-Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
+Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
@@ -757,9 +757,9 @@ Controls progress visualization. Default is inherited from the model.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{ExpectedCases}\cr
+\code{ExpectedCasesBySize}\cr
 An instance of class
-\link[=ExpectedCases]{ExpectedCases}
+\link[=ExpectedCasesBySize]{ExpectedCasesBySize}
 containing method to compare observed and expected cases.
 }
 }

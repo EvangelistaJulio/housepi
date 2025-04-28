@@ -54,7 +54,7 @@ dataset$agegroup <- ifelse(dataset$age <= 15, "child", "adult")
 hhmodel$add_group_rate("susceptibility", by = "agegroup")
 ```
 
-Definitions will add a new parameter for each group, except from the reference group, always equal to 1.
+Definitions will add a new parameter for each group, except from the reference group.
 By the default, definition assumes the reference group to be the one with the largest number of counts.
 To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
 In order to see the effects of the group rate definitions on the model, a dataset must be imported:
@@ -78,9 +78,9 @@ In this example we show how to provide more covariates and a custom reference:
 ```{r}
 hhmodel$drop_group_rate_defs()
 
-# independent g
+# independent group rates, adult female chosen as reference
 hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"), 
-                       reference = list(sex = 2, agegroup = "child"))
+                       reference = list(sex = "F", agegroup = "adult"))
 
 # show correspoding tables with independent associations
 hhmodel$group_rate_tables$susceptibility
@@ -90,9 +90,11 @@ By the default, parameters associated to each grouping are assumed independent, 
 To 
 
 ```{r}
+hhmodel$drop_group_rate_defs()
+
 # covariates are not assumed independent
 hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"), 
-                       reference = list(sex = 2, agegroup = "adult"),
+                       reference = list(sex = "F", agegroup = "adult"),
                        independent = FALSE)
                            
 # show table with dependent associations
@@ -109,7 +111,7 @@ hhmodel$drop_group_rate_defs()
 
 # compact definition from list
 hhmodel$load_group_rate_list(
-  infectivity = list(by = "ageroup"),
+  infectivity = list(by = "agegroup"),
   susceptibility = list(by = c("agegroup", "sex"), independent = FALSE)
 )
 ```

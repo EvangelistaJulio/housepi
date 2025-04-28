@@ -10,6 +10,12 @@
 # model_class.R
 #
 
+############################################################################
+############################################################################
+############################## Household Model #############################
+############################################################################
+############################################################################
+
 #' @title
 #' Household Model R6 Class
 #' @description
@@ -22,9 +28,7 @@ HouseholdModel <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
-  ############################################################################
   ################################## PRIVATE #################################
-  ############################################################################
   ############################################################################
 
   private = list(
@@ -357,9 +361,7 @@ HouseholdModel <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## ACTIVE ##################################
-  ############################################################################
   ############################################################################
 
   active = list(
@@ -487,9 +489,7 @@ HouseholdModel <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## PUBLIC ##################################
-  ############################################################################
   ############################################################################
 
   public = list(
@@ -585,6 +585,9 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Drop all current augmented variable definitions.
     drop_group_rate_defs = function() {
+      for (p in names(private$.group_rate$param_group_rate_defs)) {
+        private$.param$remove(p, show_warnings = FALSE)
+      }
       private$.group_rate <- HousepiGroupRate$new()
       invisible(self)
     },
@@ -870,7 +873,7 @@ HouseholdModel <- R6::R6Class(
     #' @references
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-    #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
+    #' New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
     add_group_rate = function(name, by,
                               prefix = NA, reference = NULL, independent = TRUE,
                               prior = "lnorm",
@@ -1038,12 +1041,12 @@ HouseholdModel <- R6::R6Class(
     #' Controls progress visualization. Default is inherited from the model.
     #'
     #' @return
-    #' `ExpectedCases`\cr
+    #' `ExpectedCasesBySize`\cr
     #' An instance of class
-    #' [ExpectedCases][housepi::ExpectedCases]
+    #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize]
     #' containing method to compare observed and expected cases.
     expec_cases_by_house_size = function(progress = NA) {
-      return(ExpectedCases$new(self, progress = progress))
+      return(ExpectedCasesBySize$new(self, progress = progress))
     },
 
     #' @description
@@ -1124,7 +1127,7 @@ HouseholdModel <- R6::R6Class(
     #' @references
     #' Friel N, Hurn M, Wyse J.
     #' Improving power posterior estimation of statistical evidence.
-    #' Stat Comput. 2014;24: 709–723. doi:10.1007/s11222-013-9397-1
+    #' Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
     evidence = function(dataset = NULL,
                         scheme = "power-fractions", n_rungs = 40,
                         sample_size = NA, n_steps = 10000,

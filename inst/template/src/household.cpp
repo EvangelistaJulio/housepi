@@ -412,9 +412,8 @@ void Household::init_diagnostics(ulong sample_size)
 }
 
 /* Update the values for posterior sampling. */
-void Household::update_diagnostics(ulong count)
-{
-	_smpl_loglike[count] = _obs_loglike + _augm_loglike;
+void Household::update_diagnostics(ulong c) {
+  _smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike;
 }
 
 /* Return the loglikelihood sampled vector. */
@@ -424,6 +423,7 @@ const dbl_vec &Household::get_smpl_loglike() const { return _smpl_loglike; }
 /////////////////////////////////  Household : extra attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Check if any extra quantity is associated to the household. */
 bool Household::is_any_extra()
 {
 	return !(_extra_int_vec.empty() && _extra_dbl_vec.empty() && _extra_dbl_mtx.empty());

@@ -5,7 +5,7 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Walkthrough}
+  %\VignetteIndexEntry{Sample Dataset}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -13,22 +13,83 @@ editor_options:
     wrap: sentence
 ---
 
-```{r}
-dataset <- housepi::survey
-dataset$sex <- ifelse(dataset$sex == 1, "M", "F")
+We provide a simple model to generate synthetic household dataset. 
+Let's assume that each individual can be represented with a single variable $\theta$, encoding for the provided covariates.
+We declare the covariates of interests at instatiation of the `HouseholdSampler` model class.
 
-hhsampler <- HouseholdSampler$new(
-  age = list(breaks = c(0, 12, 25, 50, 100)),
-  sex = list(levels = c("M", "F"))
+```{r}
+# define individual features from dataset covariates assumed not independent
+hhsampler <- housepi::HouseholdSampler$new(
+  # categorical data: levels to be considered
+  sex = list(levels = c("M", "F")),
+  # numerical data to be factorized: breaks for binning
+  age = list(breaks = c(0, 15, 25, 50))
 )
+
+# internal encoding and associated hierachy
+hhsampler$hierarchy
 ```
 
-$$
-p_{1}P(\theta) + (1-p_{1})P[n\vert n>1]P({\theta_{1}},{\theta_{2}})\prod_{k=2}^{n}P({\theta_{k}}\vert{\theta_{1}},{\theta_{2}}) 
-$$
+The order of the definition is important, setting a "hierarchy" across covariates (this will be used for the modelling, see next section).
+Here sex `"F"` has priority on `"M"`, and ages `[25,50)`  have priority on ages `[0,15)`.
+Also, encoding implies an implicit representation of a dataset, e.~g.
 
 ```{r}
-hhsampler$compute_household_marginals(dataset)
+# example house dataset
+eg_house <- data.frame(
+  house_id = "HH_1",
+  age = c(43, 39, 12, 7),
+  sex = c("M", "F", "F", "M")
+)
 
-hhsampler$generate_households(5)
+# underlining representation of data
+hhsampler$decode(hhsampler$encode(eg_house))
+```
+
+We now define a model able to extract distributions of such features within a household, with the final goal to sample from it.
+
+# Hierarchichal Model Definition
+In order to capture at the same time covariate marginals and a realistic generational-based structure within household,
+we propose the following assumptions on the structure of households.
+
+For a household with a single individual (size $n=1$) with encoding $\theta$, the model assigns a probability:
+
+$$
+P[\lbrace\theta\rbrace] =
+P(\theta\vert{n=1})
+$$
+
+For larger households ($n\geq{2}$),
+we assume a hierachical structure as follows:
+- two household members $\theta_{1}$, $\theta_{2}$ are considered "principal" according to the hierarchy of the features;
+- size $n$ is considered conditioned on the encodings of principal members;
+- all other members $\theta_{3}, \dots, $\theta_{n}$ are conditioned on principal members.
+Note that , but independent from other members.
+The probability factorizes to:
+
+$$
+P[\lbrace\theta_{1},\dots,{\theta}_{n}\rbrace] =
+P({\theta_{1}},{\theta_{2}})
+P(n\vert {\theta_{1}},{\theta_{2}})
+\prod_{k=2}^{n} P({\theta_{k}}\vert{\theta_{1}},{\theta_{2}}) 
+$$
+
+For a generic household in our dataset, the probability reads
+
+$$
+p_{1} P[\lbrace\theta\rbrace]
++
+(1 - p_{1}) P[\lbrace\theta_{1},\dots,{\theta}_{n}\rbrace]
+$$
+
+where $p_1$ is the probability of finding a household with a single member in our dataset.
+
+## Compute Marginals and Generate Datasets
+
+```{r}
+# compute marginal distributions
+hhsampler$compute_marginals(housepi::survey)
+
+# sample 5 households
+hhsampler$sample(5)
 ```

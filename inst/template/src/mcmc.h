@@ -118,7 +118,7 @@ public:
 
 	virtual double compute_house_obs_loglike(Household &house) const;
 	double update_house_loglike(size_t r, const bool is_augm_ll, const bool extra_depen);
-	void update_global_loglike(const bool extra_depen);
+	void update_full_loglike(const bool extra_depen);
 	double evaluate();
 
 	//=================//
@@ -221,13 +221,13 @@ private:
 
 	//----- Metropolis : augmented moves -----//
 	double _move_augm_single_house(size_t H);
-	void _metropolis_augm_single_move(Household &house, indiv i, const augmID &a, double &delta);
+	double _metropolis_augm_single_move(Household &house, indiv i, const augmID &a);
 
 	void _move_all_augm();
 
-	void (MCMC::*_func_move_augm_indiv)(Household &, indiv, double &) = &MCMC::__move_augm_indiv_generic;
-	void __move_augm_indiv_generic(Household &house, indiv i, double &delta);
-	void __move_augm_indiv_by_status(Household &house, indiv i, double &delta);
+	double (MCMC::*_func_move_augm_indiv)(Household &, indiv) = &MCMC::__move_augm_indiv_generic;
+	double __move_augm_indiv_generic(Household &house, indiv i);
+	double __move_augm_indiv_by_status(Household &house, indiv i);
 
 	//----- Simulation -----//
 	void _aux_init_simulate();
