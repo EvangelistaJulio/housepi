@@ -39,22 +39,37 @@ hhmodel$param_defs
 ## Format dataset features
 
 Suppose our analysis wants to explore age and gender-based effects within a household survey dataset.
-We can create categorical groupings to stratify individuals based on their age, sex, etc to association individual group rates.
-Current model allows for a number of group rates (use `$help()` method to learn more), among which the individual `"susceptibility"`. 
-We can associate it as follows:
+We can create categorical groupings to stratify individuals based on their age and sex, which will later be used for the association of group rates.
 
 ```{r}
 # load the dataset from the housepi package
 dataset <- housepi::survey
 
-# create an age group binary variable child/adult
-dataset$agegroup <- ifelse(dataset$age <= 15, "child", "adult")
+# create an age group binary variable:
+# 0 if age > 15
+# 1 if age <= 15
+dataset$agegroup <- as.integer(dataset$age <= 15)
 
-# associate susceptibility group rate by column agegroup
-hhmodel$add_group_rate("susceptibility", by = "agegroup")
+# create a susceptibility  group variable based on age and sex:
+# 0 if age > 15
+# 1 if age <= 15 and sex is male
+# 2 if age <= 15 and sex is female
+dataset$susgroup <- dataset$agegroup
+dataset$susgroup[(dataset$agegroup == 1) & (dataset$sex == 2)] <- 2
 ```
 
-Definitions will add a new parameter for each group, except from the reference group.
+Current model allows for a number of group rates (use `$help()` method to learn more), among which `"infectivity"` and `"susceptibility"`. 
+We associate to each individual such group rates according to the groupings defined before as follows:
+
+```{r}
+# infectivity group rate by column agegroup
+hhmodel$add_group_rate("infectivity", by = "agegroup")
+
+# susceptibility group rate by column susgroup
+hhmodel$add_group_rate("susceptibility", by = "susgroup")
+```
+
+Definitions will associate a new parameter to each group, except from the reference group, always equal to 1.
 By the default, definition assumes the reference group to be the one with the largest number of counts.
 To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
 In order to see the effects of the group rate definitions on the model, a dataset must be imported:
@@ -78,9 +93,9 @@ In this example we show how to provide more covariates and a custom reference:
 ```{r}
 hhmodel$drop_group_rate_defs()
 
-# independent group rates, adult female chosen as reference
+# independent g
 hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"), 
-                       reference = list(sex = "F", agegroup = "adult"))
+                       reference = list(sex = 2, agegroup = 0))
 
 # show correspoding tables with independent associations
 hhmodel$group_rate_tables$susceptibility
@@ -90,16 +105,14 @@ By the default, parameters associated to each grouping are assumed independent, 
 To 
 
 ```{r}
-hhmodel$drop_group_rate_defs()
-
 # covariates are not assumed independent
 hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"), 
-                       reference = list(sex = "F", agegroup = "adult"),
-                       independent = FALSE)
+                       independent = FALSE, reference = list(sex = 2, agegroup = 0))
                            
 # show table with dependent associations
 hhmodel$group_rate_tables$susceptibility           
 ```
+
 
 ## Proceed with Analysis
 
@@ -112,7 +125,7 @@ hhmodel$drop_group_rate_defs()
 # compact definition from list
 hhmodel$load_group_rate_list(
   infectivity = list(by = "agegroup"),
-  susceptibility = list(by = c("agegroup", "sex"), independent = FALSE)
+  susceptibility = list(by = "susgroup")
 )
 ```
 
@@ -121,7 +134,7 @@ The choice of non default group rates requires model recompilation, which is cal
 ```{r}
 # inference with minimal setup (for didactical purposes only)
 hhmodel$infer(dataset, n_steps = 10000, n_adapt = 1000, seed = 713,
-              n_burnin = 1000, thin = 10, progress = 10)
+              n_burnin = 1000, thin = 10, progress = FALSE)
 ```
 
 ```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
@@ -152,4 +165,3 @@ ggplot(sus_res, aes(x = name, y = mean, color = "coral")) +
   geom_errorbar(aes(ymin = cri_lower, ymax = cri_upper), 
                 width = 0.2) 
 ```
-
