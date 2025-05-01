@@ -53,7 +53,7 @@ At any moment, we can showcase the loaded profile as follows:
 
 ```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # we associate a gamma for infectivity profile
-hhsimul$add_infec_profile(name = "gamma", 
+hhsimul$add_infec_profile(name = "gamma",
                           args = c(shape = 2.2, scale = 1.3))
 
 # extract profile and other general information
@@ -128,11 +128,11 @@ head(simulated)
 # remove incubation period from simulated dataset
 simulated$incub_period <- NULL
 
-# assume onsets after 6 PM are reported to next day 
+# assume onsets after 6 PM are reported to next day
 is_infec <- simulated$status == 1
 simulated[is_infec, "onset_date"] <- sapply(
   simulated[is_infec, "onset_date"],
-  # simulation onset date > 18/24 
+  # simulation onset date > 18/24
   function(x) floor(ifelse((x %% 1) > 0.75, x + 1, x))
 )
 
@@ -166,14 +166,14 @@ hhmodel$load_augm_list(
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hhmodel$infer(simulated, n_chains = 3, 
-              n_adapt = 2000, n_steps = 10000, 
+hhmodel$infer(simulated, n_chains = 3,
+              n_adapt = 2000, n_steps = 10000,
               n_burnin = 1000, thin = 10,
               seed = 3731, progress = 30)
 ```
 
 ```{r, message = FALSE, warning = FALSE, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# use bayesplot to plot the traces 
+# use bayesplot to plot the traces
 library(bayesplot)
 mcmc_trace(hhmodel$traces)
 ```
@@ -210,7 +210,7 @@ library(dplyr)
 library(flextable)
 cbind(Simulated = simul_param_defs[imask, ]$value, results) |>
   tibble::rownames_to_column("Parameter") |>
-  mutate(Inferred = sprintf("%0.4f [%0.4f, %0.4f]", 
+  mutate(Inferred = sprintf("%0.4f [%0.4f, %0.4f]",
                             mean, cri_lower, cri_upper)) |>
   select(-mean, -sd, -cri_lower, -cri_upper) |>
   flextable() |>
@@ -228,8 +228,8 @@ We can estimate the model "evidence" (also known as "marginal loglikelihood") wi
 # return the estimate of the model evidence
 evidence <- hhmodel$evidence(n_rungs = 30, n_burnin = 500, n_steps = 5000)
 
-ggplot(evidence$detail, aes(x = inv_temper, y = mean_loglike)) + 
-  geom_line() + 
+ggplot(evidence$detail, aes(x = inv_temper, y = mean_loglike)) +
+  geom_line() +
   geom_point() +
   labs(x = "Inverse Temperature", y = "Mean Loglikelihood")
 

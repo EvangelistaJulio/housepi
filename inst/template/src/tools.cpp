@@ -424,7 +424,7 @@ namespace tools
         return entries;
     }
 
-    /* Read csv table store in pathtofile and store it parsed in csv_parsed_table. */
+    /* Read csv table in pathtofile and store it parsed in csv_parsed_table. */
     void read_csv_table(const std::string &pathtofile,
                         dict_str_vec &csv_parsed_table)
     {

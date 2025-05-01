@@ -14,59 +14,70 @@
 // /////////////////////////////////////  Extra Files ////////////////////////////////////////// //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef TEST_EPI_CURVE
 // use the EPI curve for the community contribution
-std::vector<double> Cumul_EPI_Curve;
-std::vector<double> Inst_EPI_Curve;
+std::vector<double> Date_EPI_Curve = {};
+std::vector<double> Inst_EPI_Curve = {};
+std::vector<double> Cumul_EPI_Curve = {};
 
-/* Linear interpolation for an indexed std::vector. */
-double lin_idx_interp(double x_value, const std::vector<double> &y)
+/* Read EPI curve from csv file. */
+void epi_curve_read_csv(std::string pathtofile)
 {
-	size_t x_0 = floor(x_value);
-
-	if (x_0 <= 0)
-	{ // Saturate to lower value
-		return y[0];
-	}
-	else if (x_0 >= y.size() - 1)
-	{ // Saturate to upper value
-		return y.back();
-	}
-	else
-	{ // Calculate the interpolated y value
-		return y[x_0] + (x_value - x_0) * (y[x_0 + 1] - y[x_0]);
-	}
-}
-
-/* Read Extra File */
-void Model::build_extra(std::string extra_pathtofile)
-{
-	double date, inst_val, cumul_val;
-
-	std::ifstream input(extra_pathtofile.c_str());
+	std::ifstream input(pathtofile.c_str());
 	if (input.is_open())
 	{
-		display_decorator("EXTRA");
-		display_stdout("Loading extra information from: " + extra_pathtofile);
-
-		// Create a std::stringstream of the current line
-		for (std::string line; getline(input, line);)
+		// load instantaneous value of the epi curve
+		std::string line;
+		while (getline(input, line))
 		{
-			std::istringstream iss(line);
+			std::stringstream ss(line);
+			std::string item;
 
 			// Store information in variables
-			iss >> date >> inst_val >> cumul_val;
-
-			Inst_EPI_Curve.push_back(inst_val);
-			Cumul_EPI_Curve.push_back(cumul_val);
+			if (std::getline(ss, item, ','))
+				Date_EPI_Curve.push_back(std::stod(item));
+			if (std::getline(ss, item, ','))
+				Inst_EPI_Curve.push_back(std::stod(item));
 		}
+
+		// store the cumulative epi curve
+		Cumul_EPI_Curve.push_back(Inst_EPI_Curve.front());
+		for (size_t i = 1; i < Inst_EPI_Curve.size(); ++i)
+			Cumul_EPI_Curve.push_back(Inst_EPI_Curve[i] + Cumul_EPI_Curve[i - 1]);
 	}
 	else
-	{
-		raise_error_message("Impossible to read file: " + extra_pathtofile + ".");
-	}
+		tools::error("Impossible to read file: " + pathtofile + ".");
 }
-#endif
+
+/* Linear interpolation by date. */
+double interpolate_by_date(double x0, const std::vector<double> &y)
+{
+	const std::vector<double> &x = Date_EPI_Curve; // alias
+
+	if (x0 <= x.front()) // saturate to lower value
+		return y.front();
+	else if (x0 >= x.back()) // saturate to upper value
+		return y.back();
+
+	// else calculate the interpolated y value
+	// bisection
+	size_t i = 0;			 // lower bound
+	size_t u = x.size() - 1; // upper bound
+	while (u - i > 1)
+	{
+		size_t mid = i + (u - i) / 2;
+		if (x[mid] <= x0)
+			i = mid;
+		else
+			u = mid;
+	}
+	return y[i] + (x0 - x[i]) * (y[i + 1] - y[i]) / (x[i + 1] - x[i]);
+}
+
+/* Interpolated value of the instantaneous epi curve. */
+double epi_curve_inst(double t) { return interpolate_by_date(t, Inst_EPI_Curve); }
+
+/* Interpolated value of the cumulative epi curve. */
+double epi_curve_cumul(double t) { return interpolate_by_date(t, Cumul_EPI_Curve); }
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -140,20 +151,6 @@ double Model::get_infec_time(int h, int i) const
 {
 	return house_vector[h].members[i].get_augm("onset_time") - house_vector[h].members[i].get_augm("incub_period");
 }
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
-// -----------------------------------------------------------------------------------------------------------//
 
 //------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------//
@@ -388,11 +385,8 @@ double Model::compute_single_house_loglike(int h)
 	double tf = house_vector[h].data("end_followup");
 	double comm_risk_inst, comm_risk_cumul;
 
-#ifdef TEST_EPI_CURVE
-	comm_risk_cumul = get_value("alpha") * (lin_idx_interp(tf, Cumul_EPI_Curve) - lin_idx_interp(t0, Cumul_EPI_Curve));
-#else
-	comm_risk_cumul = param("alpha") * (tf - t0);
-#endif
+	// #ifdef TEST_EPI_CURVE
+	comm_risk_cumul = get_value("alpha") * (interpolate_by_idx(tf, Cumul_EPI_Curve) - interpolate_by_idx(t0, Cumul_EPI_Curve));
 
 	// Contribution of healthy members
 	for (int i : house_vector[h].susceptibles_list)
@@ -412,11 +406,9 @@ double Model::compute_single_house_loglike(int h)
 		// Contribution of secondary cases
 		if (i != house_vector[h].first_case)
 		{
-#ifdef TEST_EPI_CURVE
-			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
-#else
-			comm_risk_inst = param("alpha");
-#endif
+			// #ifdef TEST_EPI_CURVE
+			comm_risk_inst = get_value("alpha") * interpolate_by_idx(get_infec_time(i), Inst_EPI_Curve);
+
 			loglike_house += log(house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)));
 			loglike_house -= house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_cumul + force_of_infec(h, i, cumul_profile_LUT));
 		}
@@ -470,11 +462,9 @@ void Model::simulate_single_house(int h)
 				t + uniform() * dt + house_vector[h].members[i].get_augm("incub_period"));
 			augm_var_store_dependecies(h, i);
 
-#ifdef TEST_EPI_CURVE
-			comm_risk_inst = get_value("alpha") * lin_idx_interp(get_infec_time(i), Inst_EPI_Curve);
-#else
-			comm_risk_inst = param("alpha");
-#endif
+			// #ifdef TEST_EPI_CURVE
+			comm_risk_inst = get_value("alpha") * interpolate_by_idx(get_infec_time(i), Inst_EPI_Curve);
+
 			// refuse according to Bernoulli process
 			esc_proba = exp(-house_vector[h].members[i].get_group_rate("Susceptibility") * (comm_risk_inst + force_of_infec(h, i, inst_profile_LUT)) * dt);
 

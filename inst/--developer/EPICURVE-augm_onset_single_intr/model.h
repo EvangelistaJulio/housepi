@@ -30,9 +30,6 @@ medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
 
 #include "mcmc.h"
 
-// test with the epidemic curve
-//#define TEST_EPI_CURVE
-
 // alias for a square matrix
 typedef std::vector<std::vector<double>> matrix; 
 
@@ -81,10 +78,6 @@ public:
 
 	//=====Constructor=====//
 	Model() : infec_profile_func(){};
-
-#ifdef TEST_EPI_CURVE
-	void build_extra(std::string extra_pathtofile ) override;
-#endif
 
 	//=====Infectivity Profiles=====//
 	Infectivity_Profile_Function infec_profile_func;
