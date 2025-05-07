@@ -218,11 +218,11 @@ We do so by computing the expected numbers of cases per household size according
 expec <- hhmodel$expec_cases_by_house_size(progress = FALSE)
 ```
 
-To show both observed and expected cases by size, we use the method `$show_cases_table()` from our output object:
+To show both observed and expected cases by size, we can extract the formatted cases table from our output object as follows:
 
 ```{r}
 # return a data.frame with observed and expected cases
-cases_df <- expec$cases_table
+cases_df <- expec$formatted_cases_table
 
 # format expected cases
 combined <- cases_df$expected

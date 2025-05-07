@@ -17,8 +17,8 @@ Output object of expected cases by size, method of household model.
 Observed and expected secondary attack rates by household size.
 If a maximum house size is set, larger sizes are not returned.}
 
-\item{\code{cases_table}}{\code{data.frame}\cr
-Observed and expected cases by household size.
+\item{\code{formatted_cases_table}}{\code{data.frame}\cr
+Formatted observed and expected cases by household size.
 If a maximum house size is set, larger sizes are not returned.}
 }
 \if{html}{\out{</div>}}
@@ -31,7 +31,6 @@ If a maximum house size is set, larger sizes are not returned.}
 \item \href{#method-ExpectedCasesBySize-set_max_house_size}{\code{ExpectedCasesBySize$set_max_house_size()}}
 \item \href{#method-ExpectedCasesBySize-drop_max_house_size}{\code{ExpectedCasesBySize$drop_max_house_size()}}
 \item \href{#method-ExpectedCasesBySize-chisq_test}{\code{ExpectedCasesBySize$chisq_test()}}
-\item \href{#method-ExpectedCasesBySize-clone}{\code{ExpectedCasesBySize$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -115,23 +114,6 @@ if TRUE (default), probabilities are P\link{X<=x}, otherwise P\link{X>x}.}
 }
 \subsection{Returns}{
 \code{list()})
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ExpectedCasesBySize-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-ExpectedCasesBySize-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ExpectedCasesBySize$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
 }
 }
 }

@@ -2,4 +2,6 @@
 
 export(HouseholdModel)
 export(HouseholdSampler)
+export(measure_cases_by_house_size)
+export(measure_sar_by_house_size)
 export(template_household_model)

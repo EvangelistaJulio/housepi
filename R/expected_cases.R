@@ -11,6 +11,127 @@
 #
 
 #' @title
+#' Measure SAR by household size
+#' @description
+#' Function to retrieve secondary attack rates from data.frame
+#' with cases by size.
+#'
+#' @param dataset `data.frame`\cr
+#' Dataset containing individual 'status' and 'house_id'.
+#'
+#' @return `data.frame`
+#'
+#' @export
+measure_sar_by_house_size <- function(dataset) {
+  # check that dataset is consistent
+  if (length(dataset) == 0) {
+    stop_h("No valid dataset was provided.")
+  } else {
+    dataset <- as.data.frame(dataset)
+  }
+
+  # cast to 0\1 values
+  dataset$status <- as.integer(dataset$status > 0)
+
+  # in tidyverse it would be
+  # dataset |>
+  #   group_by(house_id) |>
+  #   summarise(size = n(), cases = sum(status)) |>
+  #   filter(cases > 0) |>
+  #   mutate(sar = (cases - 1) / (size - 1)) |>
+  #   group_by(size) |>
+  #   summarise(sar = mean(sar))
+
+  agg1 <- stats::aggregate(
+    status ~ house_id, data = dataset,
+    FUN = function(x) c(size = length(x), cases = sum(x))
+  )
+  agg2 <- data.frame(
+    house_id = agg1$house_id,
+    size = agg1$status[, "size"],
+    cases = agg1$status[, "cases"]
+  )
+  agg2 <- agg2[agg2$cases > 0, ]
+  agg2$sar <- (agg2$cases - 1) / (agg2$size - 1)
+  return(stats::aggregate(sar ~ size, data = agg2, FUN = mean))
+}
+
+#' @title
+#' Measure Household Cases by Size
+#' @description
+#' Function to retrieve cases by size from a given data.frame.
+#'
+#' @param dataset `data.frame`\cr
+#' Dataset containing individual 'status' and 'house_id'.
+#'
+#' @return `data.frame`
+#'
+#' @export
+measure_cases_by_house_size <- function(dataset) {
+  # check that dataset is consistent
+  if (length(dataset) == 0) {
+    stop_h("No valid dataset was provided.")
+  } else {
+    dataset <- as.data.frame(dataset)
+  }
+
+  # cast to 0\1 values
+  dataset$status <- as.integer(dataset$status > 0)
+
+  # in tidyverse it would be
+  # dataset |>
+  #   group_by(house_id) |>
+  #   summarise(size = n(), cases = sum(status)) |>
+  #   count(size, cases) |>
+  #   complete(size = min(size):max(size), cases = 0:max(size)) |>
+  #   mutate(n = if_else(is.na(n) & cases <= size, 0L, n)) |>
+  #   pivot_wider(names_from = cases, values_from = n) |>
+  #   as.data.frame()
+
+  # aggregate data by house_id
+  house_df <- stats::aggregate(status ~ house_id, data = dataset, FUN = sum)
+  tmp_size <- table(dataset$house_id)
+  house_df$size <- tmp_size[match(house_df$house_id, names(tmp_size))]
+
+  # aggregate by size and cases
+  cases_by_size <- as.data.frame(table(house_df$size, house_df$status))
+  colnames(cases_by_size) <- c("size", "cases", "counts")
+
+  # determine max size
+  max_size <- max(as.integer(cases_by_size$size), na.rm = TRUE)
+
+  # create a complete grid of size and cases
+  grid <- expand.grid(size = 1:max_size, cases = 0:max_size)
+  grid <- grid[grid$cases <= grid$size, ]
+
+  # merge with cases_by_size and replace NAs with 0
+  merged_data <- merge(grid, cases_by_size,
+                       by = c("size", "cases"), all.x = TRUE)
+  merged_data$counts[is.na(merged_data$counts)] <- 0
+
+  # reshape to wide format
+  result <- stats::reshape(merged_data,
+                           idvar = "size",
+                           timevar = "cases",
+                           direction = "wide")
+
+  # rename columns to match tidyverse output
+  colnames(result) <- sub("counts\\.", "", colnames(result))
+
+  # ensure rows are sorted by size
+  output <- result[order(result$size), ]
+
+  # drop row names
+  rownames(output) <- NULL
+
+  return(output)
+}
+
+############################################################################
+############################################################################
+############################################################################
+
+#' @title
 #' Frame Apply
 #' @description
 #' Apply function `func` to corresponding elements
@@ -61,7 +182,7 @@ frame_apply <- function(func, frame_list) {
 #' Compute the mean across different dataframes.
 #'
 #' @param frame_list `list()` | `data.frame`\cr
-#' 
+#'
 #' @return `data.frame()`
 #' @noRd
 frame_apply_mean <- function(frame_list) {
@@ -80,12 +201,12 @@ frame_apply_mean <- function(frame_list) {
 #' List of data frames, all having the same dimensions.
 #' @param upper `logical(1)`\cr
 #' If `TRUE`, computes the upper credible interval. Else the lower.
-#' 
+#'
 #' @return `data.frame()`
 #' @noRd
 frame_apply_cri <- function(frame_list, cri_level, upper = TRUE) {
   func <- function(x) {
-    probs = 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
+    probs <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
     stats::quantile(x, probs = probs, na.rm = TRUE)
   }
   frame_apply(func, frame_list)
@@ -105,19 +226,28 @@ frame_apply_cri <- function(frame_list, cri_level, upper = TRUE) {
 #' @keywords internal
 HousepiPosteriorExpec <- R6::R6Class(
   classname = "HousepiPosteriorExpec",
-  cloneable = TRUE,
+  cloneable = FALSE,
 
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
 
   private = list(
-    .results = NULL,
-    .simulation_detail = NULL,
+    .expected = NULL,
+    .observed = NULL,
     .cri_level = 0.95,
 
-    .drop_detail = function() {
-      private$.simulation_detail <- NULL
+    # extract expected quantities from cases-by-size table list
+    .extract_posterior_results = function(x) {
+      cri <- private$.cri_level
+      return(list(
+        # compute mean values
+        value = frame_apply_mean(x),
+        # compute lower credible interval
+        cri_lower = frame_apply_cri(x, cri, upper = FALSE),
+        # compute upper credible interval
+        cri_upper = frame_apply_cri(x, cri, upper = TRUE)
+      ))
     }
   ),
 
@@ -126,11 +256,18 @@ HousepiPosteriorExpec <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field results `list()`\cr
+    #' @field observed `list()`\cr
+    #' Observed values of the measure of the posterior sample.
+    observed = function(value) {
+      if (missing(value)) return(private$.observed)
+      stop_h("'observed' is read only.")
+    },
+
+    #' @field expected `list()`\cr
     #' Expected values of the measure of the posterior sample.
-    results = function(value) {
-      if (missing(value)) return(private$.results)
-      stop_h("'results' is read only.")
+    expected = function(value) {
+      if (missing(value)) return(private$.expected)
+      stop_h("'expected' is read only.")
     }
   ),
 
@@ -143,21 +280,23 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' New instance of class
     #' [HousepiPosteriorExpec][housepi::HousepiPosteriorExpec].
     #'
-    #' @param FUN `closure()`\cr
-    #' Function to extract the desired measure from a dataset.
     #' @param house_model `HouseholdModel`\cr
     #' Object of class [HouseholdModel][housepi::HouseholdModel]
     #' with complete definitions and traces already stored.
+    #' @param FUN `closure()` | `list()` of `closure()`\cr
+    #' Function to extract the desired measure from a dataset.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
-    #' @param .store_detail `logical(1)`\cr
-    #' If `TRUE` store internally the detailed measure for all simulation.
-    initialize = function(house_model,
-                          FUN,
-                          progress = NA,
-                          .store_detail = FALSE) {
+    initialize = function(house_model, FUN, progress = NA) {
+      # function to be applied also in the case of multiple measures
+      apply_func <- ifelse(
+        is.list(FUN),
+        function(x) lapply(FUN, function(f) f(x)),
+        FUN
+      )
+
       # initialize with results from observed dataset
-      private$.results <- list(observed = FUN(house_model$dataset))
+      private$.observed <- apply_func(house_model$dataset)
 
       # deep clone model before proceeding
       # FIXME/UPDATE/NOTE: deep clone is not cloning traces e. g.!
@@ -168,6 +307,9 @@ HousepiPosteriorExpec <- R6::R6Class(
       traces <- house_model$traces_no_loglike
       # stuck multiple chains
       if (is.list(traces)) traces <- do.call(rbind, traces)
+
+      # credible interval from the model
+      private$.cri_level <- hmc$cri_level
 
       # if progress not provided, import from model
       progress <- ifelse(is.na(progress), hmc$setup$progress, progress)
@@ -195,7 +337,7 @@ HousepiPosteriorExpec <- R6::R6Class(
         new_param_defs <- c(as.list(traces[r, ]), constants)
         hmc$load_param_list(from = new_param_defs, append = FALSE)
         # run simulation and extract cases by size
-        return(FUN(hmc$simulate(seed = rng_seeds[r], progress = FALSE)))
+        apply_func(hmc$simulate(seed = rng_seeds[r], progress = FALSE))
       }
 
       # apply loop function
@@ -209,19 +351,14 @@ HousepiPosteriorExpec <- R6::R6Class(
         output <- lapply(seq_len(n_rep), loop_func)
       }
 
-      if (isTRUE(.store_detail)) private$.simulation_detail <- output
+      if (is.list(FUN)) {
+        output <- lapply(names(FUN), function(x) lapply(output, `[[`, x))
+        names(output) <- names(FUN)
+        private$.expected <- lapply(output, private$.extract_posterior_results)
 
-      # credible interval from the model
-      cri <- house_model$cri_level
-      private$.cri_level <- cri
-
-      # extract expected quantities from cases-by-size table list
-      # compute mean values
-      private$.results$expected <- frame_apply_mean(output)
-      # compute lower credible interval
-      private$.results$cri_lower <- frame_apply_cri(output, cri, upper = FALSE)
-      # compute upper credible interval
-      private$.results$cri_upper <- frame_apply_cri(output, cri, upper = TRUE)
+      } else {
+        private$.expected <- private$.extract_posterior_results(output)
+      }
 
       invisible(self)
     },
@@ -240,106 +377,6 @@ HousepiPosteriorExpec <- R6::R6Class(
 ############################################################################
 ############################################################################
 ############################################################################
-
-#' @title
-#' Retrieve Household Cases by Size
-#' @description
-#' Function to retrieve cases by size from a given data.frame.
-#'
-#' @param dataset `data.frame`\cr
-#' Dataset containing the the individual 'id'
-#' their 'status' and their 'house_id'.
-#'
-#' @return `data.frame`\cr
-#'
-#' @noRd
-retrieve_cases_by_size <- function(dataset) {
-  # check that dataset is consistent
-  if (length(dataset) == 0) {
-    stop_h("No valid dataset was provided.")
-  } else {
-    dataset <- as.data.frame(dataset)
-  }
-
-  # cast to 0\1 values
-  dataset$status <- as.integer(dataset$status > 0)
-
-  # aggregate data by house_id
-  house_df <- stats::aggregate(status ~ house_id, data = dataset, FUN = sum)
-  tmp_size <- table(dataset$house_id)
-  house_df$size <- tmp_size[match(house_df$house_id, names(tmp_size))]
-
-  # aggregate by size and cases
-  cases_by_size <- as.data.frame(table(house_df$size, house_df$status))
-  colnames(cases_by_size) <- c("size", "cases", "counts")
-
-  # determine max size
-  max_size <- max(as.integer(cases_by_size$size), na.rm = TRUE)
-
-  # create a complete grid of size and cases
-  grid <- expand.grid(size = 1:max_size, cases = 0:max_size)
-  grid <- grid[grid$cases <= grid$size, ]
-
-  # merge with cases_by_size and replace NAs with 0
-  merged_data <- merge(grid, cases_by_size,
-                       by = c("size", "cases"), all.x = TRUE)
-  merged_data$counts[is.na(merged_data$counts)] <- 0
-
-  # reshape to wide format
-  result <- stats::reshape(merged_data,
-                           idvar = "size",
-                           timevar = "cases",
-                           direction = "wide")
-
-  # rename columns to match tidyverse output
-  colnames(result) <- sub("counts\\.", "", colnames(result))
-
-  # ensure rows are sorted by size
-  output <- result[order(result$size), ]
-
-  # drop row names
-  rownames(output) <- NULL
-
-  return(output)
-}
-
-#' @title
-#' Retrieve SAR from Cases by Size
-#' @description
-#' Function to retrieve secondary attack rates from data.frame
-#' with cases by size.
-#'
-#' @param dataset `data.frame`\cr
-#' Dataset containing the the individual 'id'
-#' their 'status' and their 'house_id'.
-#'
-#' @return `data.frame`\cr
-#'
-#' @noRd
-retrieve_sar_from_casesbysize <- function(cases_df) {
-  # drop size column
-  cases_df$size <- NULL
-  # drop zero size column
-  cases_df$`0` <- NULL
-  cases_df <- cases_df[as.integer(row.names(cases_df)) > 1, ]
-
-  # total n. cases (row names stay stored)
-  n <- rowSums(cases_df, na.rm = TRUE)
-  # normalization factors
-  norm <- 1. / (as.vector(n) * (as.integer(names(n)) - 1))
-
-  # extract vector of secondary cases
-  sec_cases <- as.integer(colnames(cases_df)) - 1
-
-  # substitute NAs with 0s
-  cases_df[is.na(cases_df)] <- 0
-  output <- data.frame(
-    sar = as.vector(as.matrix(cases_df) %*% sec_cases) * norm,
-    row.names = names(n)
-  )
-
-  return(output)
-}
 
 #' @title
 #' Combined Observed and Expected cases tables.
@@ -397,24 +434,51 @@ combine_obs_exp <- function(obsdf, expdf) {
 ExpectedCasesBySize <- R6::R6Class(
   classname = "ExpectedCasesBySize",
   inherit = HousepiPosteriorExpec,
-  cloneable = TRUE,
+  cloneable = FALSE,
 
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
 
   private = list(
-    .sar = NULL,
     .max_house_size = NA,
+    .counts = NULL,
+
+    # @description
+    # Number of household with non-zero cases per size.
+    #
+    # @return `data.frame`
+    .count_non_zero_cases = function(dataset) {
+      # in tidyverse it would be
+      # dataset |>
+      #   group_by(house_id) |>
+      #   summarise(size = n(), cases = sum(status)) |>
+      #   filter(cases > 0) |>
+      #   group_by(size) |>
+      #   summarise(count = n())
+
+      dataset$status <- as.integer(dataset$status > 0)
+
+      agg1 <- stats::aggregate(
+        status ~ house_id, data = dataset,
+        FUN = function(x) c(size = length(x), cases = sum(x))
+      )
+      agg2 <- data.frame(
+        house_id = agg1$house_id,
+        size = agg1$status[, "size"],
+        cases = agg1$status[, "cases"]
+      )
+      agg2 <- agg2[agg2$cases > 0, ]
+      return(stats::aggregate(cases ~ size, data = agg2, FUN = length))
+    },
 
     # @description
     # Return a list with all filtered case tables.
     #
-    # @return
-    # `list()`)
+    # @return `list()`
     .filtered_tables = function() {
       # load observed table
-      obsdf <- private$.results$observed
+      obsdf <- private$.observed$cases_by_size
 
       # remove rows without counts
       mask_row <- rowSums(obsdf[colnames(obsdf) != "size"], na.rm = TRUE) != 0
@@ -432,11 +496,12 @@ ExpectedCasesBySize <- R6::R6Class(
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
       }
 
+      expdf <- private$.expected$cases_by_size
       return(list(
         observed = obsdf[mask_row, mask_col],
-        expected = private$.results$expected[mask_row, mask_col],
-        cri_lower = private$.results$cri_lower[mask_row, mask_col],
-        cri_upper = private$.results$cri_upper[mask_row, mask_col]
+        expected = expdf$value[mask_row, mask_col],
+        cri_lower = expdf$cri_lower[mask_row, mask_col],
+        cri_upper = expdf$cri_upper[mask_row, mask_col]
       ))
     }
   ),
@@ -452,28 +517,26 @@ ExpectedCasesBySize <- R6::R6Class(
     sar = function(value) {
       if (missing(value)) {
         # convert internal list to data.frame
-        output <- as.data.frame(private$.sar)
-        colnames(output) <- names(private$.sar)
+        output <- data.frame(
+          size = private$.observed$sar$size,
+          observed = private$.observed$sar$sar,
+          expected = private$.expected$sar$value$sar,
+          cri_lower = private$.expected$sar$cri_lower$sar,
+          cri_upper = private$.expected$sar$cri_upper$sar
+        )
 
-        output$house_size <- as.integer(row.names(output))
-        if (!is.na(private$.max_house_size)) {
-          output <- output[output$house_size <= private$.max_house_size, ]
-        }
-
-        n <- private$.results$observed[row.names(output), ]
-        n$size <- NULL
-        n$`0` <- NULL
-        output$counts <- as.vector(rowSums(n, na.rm = TRUE))
+        # associate counts
+        output$counts <- private$.counts$cases
 
         return(output)
       }
       stop_h("'sar' is read only.")
     },
 
-    #' @field cases_table `data.frame`\cr
-    #' Observed and expected cases by household size.
+    #' @field formatted_cases_table `data.frame`\cr
+    #' Formatted observed and expected cases by household size.
     #' If a maximum house size is set, larger sizes are not returned.
-    cases_table = function(value) {
+    formatted_cases_table = function(value) {
       if (missing(value)) {
         # filter according to max_house_size
         cases <- private$.filtered_tables()
@@ -487,7 +550,7 @@ ExpectedCasesBySize <- R6::R6Class(
                     cri_lower = combine_obs_exp(na_df, cases$cri_lower),
                     cri_upper = combine_obs_exp(na_df, cases$cri_upper)))
       }
-      stop_h("'cases_table' is read only.")
+      stop_h("'formatted_case_table' is read only.")
     }
   ),
 
@@ -508,20 +571,13 @@ ExpectedCasesBySize <- R6::R6Class(
     #' Progress of simulations. Default is inherited from the model.
     initialize = function(house_model, progress = NA) {
       # ininitialize parent class HousepiPosteriorExpec
-      super$initialize(house_model, FUN = retrieve_cases_by_size,
-                       progress = progress, .store_detail = TRUE)
-      cri <- private$.cri_level
-
-      # compute Secondary Attack Rates from cases by size
-      sar_list <- lapply(private$.simulation_detail,
-                         retrieve_sar_from_casesbysize)
-      private$.drop_detail()
-      private$.sar <- list(
-        observed = retrieve_sar_from_casesbysize(private$.results$observed),
-        expected = frame_apply_mean(sar_list),
-        cri_lower = frame_apply_cri(sar_list, cri, upper = FALSE),
-        cri_upper = frame_apply_cri(sar_list, cri, upper = TRUE)
+      super$initialize(
+        house_model,
+        FUN = c(cases_by_size = measure_cases_by_house_size,
+                sar = measure_sar_by_house_size),
+        progress = progress
       )
+      private$.counts <- private$.count_non_zero_cases(house_model$dataset)
 
       invisible(self)
     },

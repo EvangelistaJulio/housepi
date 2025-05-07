@@ -10,7 +10,10 @@ Class to extract expecteted measures over simulations sampled from posterior.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{results}}{\code{list()}\cr
+\item{\code{observed}}{\code{list()}\cr
+Observed values of the measure of the posterior sample.}
+
+\item{\code{expected}}{\code{list()}\cr
 Expected values of the measure of the posterior sample.}
 }
 \if{html}{\out{</div>}}
@@ -20,7 +23,6 @@ Expected values of the measure of the posterior sample.}
 \itemize{
 \item \href{#method-HousepiPosteriorExpec-new}{\code{HousepiPosteriorExpec$new()}}
 \item \href{#method-HousepiPosteriorExpec-print}{\code{HousepiPosteriorExpec$print()}}
-\item \href{#method-HousepiPosteriorExpec-clone}{\code{HousepiPosteriorExpec$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -30,12 +32,7 @@ Expected values of the measure of the posterior sample.}
 New instance of class
 \link[=HousepiPosteriorExpec]{HousepiPosteriorExpec}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$new(
-  house_model,
-  FUN,
-  progress = NA,
-  .store_detail = FALSE
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$new(house_model, FUN, progress = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -45,14 +42,11 @@ New instance of class
 Object of class \link[=HouseholdModel]{HouseholdModel}
 with complete definitions and traces already stored.}
 
-\item{\code{FUN}}{\code{closure()}\cr
+\item{\code{FUN}}{\code{closure()} | \code{list()} of \code{closure()}\cr
 Function to extract the desired measure from a dataset.}
 
 \item{\code{progress}}{\code{logical(1)}\cr
 Progress of simulations. Default is inherited from the model.}
-
-\item{\code{.store_detail}}{\code{logical(1)}\cr
-If \code{TRUE} store internally the detailed measure for all simulation.}
 }
 \if{html}{\out{</div>}}
 }
@@ -66,22 +60,5 @@ Override the default printing behavior.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$print()}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiPosteriorExpec-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiPosteriorExpec-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
 }
 }
