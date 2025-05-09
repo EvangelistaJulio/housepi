@@ -15,5 +15,5 @@ Dataset containing individual 'status' and 'house_id'.}
 }
 \description{
 Function to retrieve secondary attack rates from data.frame
-with cases by size.
+with cases by household size.
 }

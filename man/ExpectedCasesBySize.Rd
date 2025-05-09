@@ -4,7 +4,7 @@
 \alias{ExpectedCasesBySize}
 \title{Housepi Expected Cases By SIze}
 \description{
-Output object of expected cases by size, method of household model.
+Output object of expected cases by household size, method of household model.
 }
 \keyword{internal}
 \section{Super class}{
@@ -19,7 +19,7 @@ If a maximum house size is set, larger sizes are not returned.}
 
 \item{\code{formatted_cases_table}}{\code{data.frame}\cr
 Formatted observed and expected cases by household size.
-If a maximum house size is set, larger sizes are not returned.}
+If a maximum household size is set, larger sizes are not returned.}
 }
 \if{html}{\out{</div>}}
 }

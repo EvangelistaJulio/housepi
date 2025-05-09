@@ -25,8 +25,6 @@ namespace tools
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::unordered_set<std::string> _issued_warnings_;
-    constexpr ulong DECOR_LEFT = 3;   // left size of decorator
-    constexpr ulong DECOR_WIDTH = 65; // total size of decorator
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
@@ -35,7 +33,7 @@ namespace tools
     /* Internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
-        str_vec forbidden = {NULL_STRING, "NA", "nan", "NaN", "NAN"};
+        const str_vec forbidden = {HHEPI_NA_STRING, "<NA>", "NA", "nan", "NaN", "NAN"};
 
         if (txt.size() == 0)
             return true;
@@ -50,10 +48,14 @@ namespace tools
     /* Internal check for double representing NA. */
     bool is_na(double x)
     {
-        if (x == std::numeric_limits<double>::quiet_NaN())
+#ifdef _HOUSEPI_RCPP
+        if (Rcpp::traits::is_na<REALSXP>(x))
             return true;
-        else
-            return (std::fabs(x) >= NULL_DOUBLE);
+#else
+        if (std::isnan(x))
+            return true;
+#endif
+        return false;
     }
 
     /* A formatted std::string for percentage of num/denom */
@@ -101,25 +103,6 @@ namespace tools
         std::cerr << txt;
         std::cerr.flush();
 #endif
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Stdout Print Functions  ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* Display a decorator for a section (if VERBOSE) */
-    void print_decorator(const std::string &title, const std::string &txt, char decor, bool verbose)
-    {
-        using std::string;
-
-        if (verbose)
-        {
-            string sms = string(DECOR_LEFT, decor) + " " + title + " " + string(DECOR_WIDTH - title.length() - DECOR_LEFT, decor) + "\n";
-            if (!is_na(txt))
-                sms += txt + "\n";
-
-            print_stdout(sms);
-        }
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -243,31 +226,10 @@ namespace tools
         return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
-    /* Converter to double checking for NULL_STRING values. */
-    double natod(const std::string &txt, const std::string &errtxt)
-    {
-        if (is_na(txt))
-            return std::numeric_limits<double>::quiet_NaN();
-        else
-            return stod(txt, errtxt);
-    }
-
-    /* Converter to double checking for NULL_DOUBLE values. */
-    double natod(double x)
-    {
-        if (is_na(x))
-            return std::numeric_limits<double>::quiet_NaN();
-        else
-            return x;
-    }
-
-    /* Converter to string checking for NULL_DOUBLE values. */
+    /* Converter to string checking for NA values. */
     const std::string natostring(double x)
     {
-        if (is_na(x))
-            return NULL_STRING;
-        else
-            return std::to_string(x);
+        return is_na(x) ? HHEPI_NA_STRING : std::to_string(x);
     }
 
     /* Convert std::string to boolean variable. */
@@ -277,9 +239,8 @@ namespace tools
             return true;
         else if (stoupper(tkn) == "FALSE" || tkn == "0")
             return false;
-        else
-            throw std::invalid_argument(
-                "Unrecognized boolean value \"" + tkn + "\".");
+        throw std::invalid_argument(
+            "Unrecognized boolean value \"" + tkn + "\".");
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -298,7 +259,7 @@ namespace tools
 
         // check for undefined
         if (is_na(tkn))
-            tkn = NULL_STRING;
+            tkn = HHEPI_NA_STRING;
 
         return tkn;
     }
@@ -336,7 +297,7 @@ namespace tools
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], NULL_STRING);
+                this_row.emplace(headers[i], HHEPI_NA_STRING);
 
             return true;
         }
@@ -608,7 +569,7 @@ namespace tools
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown option(s): " + show_list(unused) + find_closest(NULL_STRING, options, 0));
+                "Unknown option(s): " + show_list(unused) + find_closest(HHEPI_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE

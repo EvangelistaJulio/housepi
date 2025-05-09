@@ -47,8 +47,7 @@ housepi::template_household_model()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed.
-To know more about each model, choose a name from the previous list and run, e.
-g.
+To know more about each model, choose a name from the previous list and run, e. g.
 
 ```{r, eval = FALSE}
 # show model description in RStudio help window
@@ -107,7 +106,7 @@ flextable(combined) |>
   merge_v(j = ~ type) |>
   bold(j = ~ type, bold = TRUE) |>
   autofit() |>
-  labelizor(labels = c(type = "", comment = "", pct = "[%]")) 
+  labelizor(labels = c(type = "", comment = "", pct = "[%]"))
 ```
 
 To learn more about `flextable` objects and how to export or format them, see [flextable](https://cloud.r-project.org/web/packages/flextable/).
@@ -227,7 +226,7 @@ cases_df <- expec$formatted_cases_table
 # format expected cases
 combined <- cases_df$expected
 mask_exp <- cases_df$expected$distr == "Expected"
-mask_cols <- setdiff(names(cases_df$expected), c("size", "distr"))
+mask_cols <- setdiff(names(cases_df$expected), c("house_size", "distr"))
 
 # format mean with its lower and upper credibile interval bounds
 combined[mask_exp, mask_cols] <- mapply(
@@ -240,6 +239,10 @@ combined[mask_exp, mask_cols] <- mapply(
   cases_df$cri_upper[mask_exp, mask_cols]
 )
 
+# avoid separate_header regular expression to split house_size
+names(combined)[names(combined) == "house_size"] <- "size"
+
+# generate cases by household size table
 flextable(combined) |>
   separate_header() |>
   theme_vanilla() |>

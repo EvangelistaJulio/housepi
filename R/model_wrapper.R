@@ -27,6 +27,30 @@ HousepiWrapper <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
+  ################################# PRIVATE ##################################
+  ############################################################################
+
+  private = list(
+    # @description
+    # Restore factored quanties.
+    # 
+    # @param df `data.frame`\cr
+    # Dataset as output from rcpp model object. 
+    #
+    # @return `data.frame`
+    .re_factor = function(df) {
+      for (col in names(self$factor_info)) {
+        df[[col]] <- factor(
+          df[[col]],
+          levels = seq_along(self$factor_info[[col]]),
+          labels = self$factor_info[[col]]
+        )
+      }
+      return(df)
+    }
+  ),
+
+  ############################################################################
   ################################## ACTIVE ##################################
   ############################################################################
 
@@ -39,15 +63,7 @@ HousepiWrapper <- R6::R6Class(
         if (is.null(private$.rcpp)) {
           stop_h("Impossible to export dataset before model build.")
         }
-        output <- private$.rcpp$export_dataset()
-        for (col in names(self$factor_info)) {
-          output[[col]] <- factor(
-            output[[col]],
-            levels = seq_along(self$factor_info[[col]]),
-            labels = self$factor_info[[col]]
-          )
-        }
-        return(output)
+        return(private$.re_factor(private$.rcpp$export_dataset()))
       }
       stop_h("'dataset' is read only.")
     },
@@ -215,7 +231,7 @@ HousepiWrapper <- R6::R6Class(
       if (length(dataset) > 0) {
         # convert factors to numeric and store levels
         self$factor_info <- list()
-        for (col in setdiff(colnames(dataset), c("id", "house_id"))) {
+        for (col in setdiff(colnames(dataset), c("id", "house_id", "status"))) {
           this_col <- dataset[[col]]
           if (is.character(this_col) || is.factor(this_col) || is.logical(this_col)) {
             this_col <- factor(this_col)
@@ -332,7 +348,7 @@ HousepiWrapper <- R6::R6Class(
     #'
     #' @return `data.frame`
     simulate = function() {
-      return(private$.rcpp$simulate())
+      return(private$.re_factor(private$.rcpp$simulate()))
     },
 
     #' @description

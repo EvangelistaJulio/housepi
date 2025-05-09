@@ -34,6 +34,25 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* Display a decorator for a section (if VERBOSE) */
+void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HHEPI_NA_STRING)
+{
+    const ulong decor_left = 3;   // left size of decorator
+    const ulong decor_width = 65; // total size of decorator
+    const char decor = '-';       // decorator for prints
+
+    if (verbose)
+    {
+        std::string sms = std::string(decor_left, decor);
+        sms += " " + title + " ";
+        sms += std::string(decor_width - title.length() - decor_left, decor) + "\n";
+        if (!tools::is_na(txt))
+            sms += txt + "\n";
+
+        tools::print_stdout(sms);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  * *** * MAIN FUNCTION * *** *  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,14 +69,14 @@ int main(int argc, char *argv[])
     ulong num_rungs = 0;           // n. rungs power posteriors
 
     // paths/to/files for import
-    std::string augm_file = NULL_STRING;
-    std::string dataset_file = NULL_STRING;
-    std::string infec_profile_file = NULL_STRING;
-    std::string multiplicity_file = NULL_STRING;
-    std::string output_file = NULL_STRING;
-    std::string param_file = NULL_STRING;
-    std::string setup_file = NULL_STRING;
-    
+    std::string augm_file = HHEPI_NA_STRING;
+    std::string dataset_file = HHEPI_NA_STRING;
+    std::string infec_profile_file = HHEPI_NA_STRING;
+    std::string multiplicity_file = HHEPI_NA_STRING;
+    std::string output_file = HHEPI_NA_STRING;
+    std::string param_file = HHEPI_NA_STRING;
+    std::string setup_file = HHEPI_NA_STRING;
+
     bool verbose = false; // verbose option
 
     //=====Test if some commands were supplied=====//
@@ -166,7 +185,23 @@ int main(int argc, char *argv[])
     user_model->read_multiplicity(multiplicity_file);
 
     if (verbose)
-        user_model->show_full_build();
+    {
+        //----- SETUP -----//
+        print_decorator("Setup");
+        user_model->show_setup();
+
+        //----- PARAMETERS -----//
+        print_decorator("Parameters");
+        user_model->show_all_params();
+
+        //----- DATABASE -----//
+        print_decorator("Dataset");
+        user_model->show_summary();
+
+        //----- AUGMENTED -----//
+        if (user_model->is_augm_any())
+            print_decorator("Augmented"); // ... and then?! FIXME
+    }
 
     //=====================//
     //===== EXECUTION =====//
@@ -174,37 +209,35 @@ int main(int argc, char *argv[])
 
     if (is_loglikelihood)
     { //===== Evaluate Loglikelihood =====//
-        tools::print_decorator("Loglikelihood", NULL_STRING, C_DECOR, verbose);
-        tools::print_stdout(std::to_string(user_model->evaluate()) + "\n");
+        print_decorator("Loglikelihood", verbose,
+                        std::to_string(user_model->evaluate()));
     }
 
     else if (is_infer)
     { //===== Inference =====//
-        tools::print_decorator("Inference", NULL_STRING, C_DECOR, verbose);
+        print_decorator("Inference", verbose);
         user_model->infer();
 
         if (verbose)
         {
-            tools::print_decorator("Inference::results", NULL_STRING);
+            print_decorator("Inference::results");
             user_model->show_results();
         }
 
-        if (output_file != NULL_STRING)
+        if (output_file != HHEPI_NA_STRING)
         {
-            tools::print_decorator("Inference::infer state",
-                                   "# save: " + output_file,
-                                   C_DECOR, verbose);
+            print_decorator("Inference::infer state", verbose,
+                            "# save: " + output_file);
             user_model->print_infer_state(output_file);
         }
     }
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file != NULL_STRING)
+        if (output_file != HHEPI_NA_STRING)
         {
-            tools::print_decorator("Simulation",
-                                   "# save: " + output_file,
-                                   C_DECOR, verbose);
+            print_decorator("Simulation", verbose,
+                            "# save: " + output_file);
             user_model->print_simulated_dataset(output_file);
         }
         else
@@ -213,7 +246,7 @@ int main(int argc, char *argv[])
 
     else if (is_evidence)
     { //===== Evidence =====//
-        tools::print_decorator("Evidence", NULL_STRING, C_DECOR, verbose);
+        print_decorator("Evidence", verbose);
         user_model->print_evidence("adaptive", num_rungs);
     }
 

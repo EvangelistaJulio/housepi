@@ -90,7 +90,7 @@ public:
     double setup_inv_T = 1.;      // inverse temperature
     unsigned setup_n_threads = 1; // number of OMP threads
 
-    std::string setup_id_trace = NULL_STRING; // augmented trace to save
+    std::string setup_id_trace = HHEPI_NA_STRING; // augmented trace to save
 
     ulong setup_c_sample_size = 0; // single chain sample size
     ulong setup_c_n_sweeps = 0;    // single chain n. of sweeps

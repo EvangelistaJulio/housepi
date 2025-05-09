@@ -286,7 +286,10 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
 
                 size_t col = 0;
                 for (const dataID &d : data_headers)
-                    df_dbl[col++][r] = house.data(i, d);
+                {
+                    double x = house.data(i, d);
+                    df_dbl[col++][r] = tools::is_na(x) ? NA_REAL : x;
+                }
 
                 ++r;
             }
@@ -825,43 +828,20 @@ void MCMC::Impl::show_all_params() const
     {
         const Variable &aux = param_map.at(p);
         oss << aux.show_name()
-            << C_DELIM << tools::natod(aux.get())
+            << C_DELIM << aux.show_value()
             << C_DELIM << tools::truth(aux.is_constant())
             << C_DELIM << tools::truth(aux.is_discrete())
             << C_DELIM << aux.show_distr_name()
             << C_DELIM << aux.show_distr_arg_names()
             << C_DELIM << aux.show_distr_arg_values()
             << C_DELIM << aux.show_prop_name()
-            << C_DELIM << tools::natod(aux.show_prop_scale())
-            << C_DELIM << tools::natod(aux.show_min())
-            << C_DELIM << tools::natod(aux.show_max())
+            << C_DELIM << aux.show_prop_scale()
+            << C_DELIM << aux.show_min()
+            << C_DELIM << aux.show_max()
             << "\n";
     }
 
     tools::print_stdout(oss.str());
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : show full build  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::Impl::show_full_build() const
-{
-    //----- SETUP -----//
-    tools::print_decorator("Setup");
-    show_setup();
-
-    //----- PARAMETERS -----//
-    tools::print_decorator("Parameters");
-    show_all_params();
-
-    //----- DATABASE -----//
-    tools::print_decorator("Dataset");
-    show_summary();
-
-    //----- AUGMENTED -----//
-    if (!augm_list_full.empty())
-        tools::print_decorator("Augmented"); // ... and then?! FIXME
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -892,8 +872,8 @@ void MCMC::Impl::show_results() const
             << C_DELIM << this_param.show_distr_name()
             << C_DELIM << this_param.show_distr_arg_names()
             << C_DELIM << this_param.show_distr_arg_values()
-            << C_DELIM << tools::natod(this_param.show_min())
-            << C_DELIM << tools::natod(this_param.show_max())
+            << C_DELIM << this_param.show_min()
+            << C_DELIM << this_param.show_max()
             << C_DELIM << this_param.show_prop_name()
             << C_DELIM << this_param.show_prop_scale()
             << "\n";
@@ -1027,7 +1007,13 @@ void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
 
             for (const augmID &a : augm_list_full)
                 if (house.status(i) == INFECTED_STATUS)
-                    aux_data_ofstream << C_DELIM << house.augm(i, a);
+                {
+                    double x = house.augm(i, a);
+                    aux_data_ofstream << C_DELIM
+                                      << (tools::is_na(x)
+                                              ? std::numeric_limits<double>::quiet_NaN()
+                                              : x);
+                }
                 else
                     aux_data_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
 
@@ -1071,7 +1057,8 @@ void MCMC::read_multiplicity(const std::string &f) { pImpl->read_multiplicity(f)
 /////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::show_full_build() const { pImpl->show_full_build(); }
+void MCMC::show_setup() const { pImpl->show_setup(); }
+void MCMC::show_all_params() const { pImpl->show_all_params(); }
 void MCMC::show_results() const { pImpl->show_results(); }
 void MCMC::show_summary() const { pImpl->show_summary(); }
 void MCMC::print_infer_state(const std::string &f) const { pImpl->print_infer_state(f); }

@@ -191,6 +191,6 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Distribution with default scalar arguments. */
-std::shared_ptr<Distribution> distribution_switch(const std::string &name = NULL_STRING);
+std::shared_ptr<Distribution> distribution_switch(const std::string &name = HHEPI_NA_STRING);
 
 #endif // HOUSEPI__DISTRIBUTION__H

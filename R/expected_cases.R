@@ -14,7 +14,7 @@
 #' Measure SAR by household size
 #' @description
 #' Function to retrieve secondary attack rates from data.frame
-#' with cases by size.
+#' with cases by household size.
 #'
 #' @param dataset `data.frame`\cr
 #' Dataset containing individual 'status' and 'house_id'.
@@ -30,36 +30,38 @@ measure_sar_by_house_size <- function(dataset) {
     dataset <- as.data.frame(dataset)
   }
 
-  # cast to 0\1 values
-  dataset$status <- as.integer(dataset$status > 0)
-
   # in tidyverse it would be
   # dataset |>
+  #   mutate(status = if_else(is.na(status), 0, as.integer(status > 0))) |>
   #   group_by(house_id) |>
-  #   summarise(size = n(), cases = sum(status)) |>
+  #   summarise(house_size = n(), cases = sum(status)) |>
   #   filter(cases > 0) |>
-  #   mutate(sar = (cases - 1) / (size - 1)) |>
-  #   group_by(size) |>
+  #   mutate(sar = (cases - 1) / (house_size - 1)) |>
+  #   group_by(house_size) |>
   #   summarise(sar = mean(sar))
+
+  # cast to 0\1 values
+  dataset$status <- ifelse(is.na(dataset$status),
+                           0, as.integer(dataset$status > 0))
 
   agg1 <- stats::aggregate(
     status ~ house_id, data = dataset,
-    FUN = function(x) c(size = length(x), cases = sum(x))
+    FUN = function(x) c(house_size = length(x), cases = sum(x))
   )
   agg2 <- data.frame(
     house_id = agg1$house_id,
-    size = agg1$status[, "size"],
+    house_size = agg1$status[, "house_size"],
     cases = agg1$status[, "cases"]
   )
   agg2 <- agg2[agg2$cases > 0, ]
-  agg2$sar <- (agg2$cases - 1) / (agg2$size - 1)
-  return(stats::aggregate(sar ~ size, data = agg2, FUN = mean))
+  agg2$sar <- (agg2$cases - 1) / (agg2$house_size - 1)
+  return(stats::aggregate(sar ~ house_size, data = agg2, FUN = mean))
 }
 
 #' @title
 #' Measure Household Cases by Size
 #' @description
-#' Function to retrieve cases by size from a given data.frame.
+#' Function to retrieve cases by household size from a given data.frame.
 #'
 #' @param dataset `data.frame`\cr
 #' Dataset containing individual 'status' and 'house_id'.
@@ -75,51 +77,53 @@ measure_cases_by_house_size <- function(dataset) {
     dataset <- as.data.frame(dataset)
   }
 
-  # cast to 0\1 values
-  dataset$status <- as.integer(dataset$status > 0)
-
   # in tidyverse it would be
   # dataset |>
+  #   mutate(status = if_else(is.na(status), 0, as.integer(status > 0))) |>
   #   group_by(house_id) |>
-  #   summarise(size = n(), cases = sum(status)) |>
-  #   count(size, cases) |>
-  #   complete(size = min(size):max(size), cases = 0:max(size)) |>
-  #   mutate(n = if_else(is.na(n) & cases <= size, 0L, n)) |>
+  #   summarise(house_size = n(), cases = sum(status)) |>
+  #   count(house_size, cases) |>
+  #   complete(house_size = min(house_size):max(house_size), cases = 0:max(house_size)) |>
+  #   mutate(n = if_else(is.na(n) & cases <= house_size, 0L, n)) |>
   #   pivot_wider(names_from = cases, values_from = n) |>
   #   as.data.frame()
+
+  # cast to 0\1 values
+  dataset$status <- ifelse(is.na(dataset$status),
+                           0, as.integer(dataset$status > 0))
 
   # aggregate data by house_id
   house_df <- stats::aggregate(status ~ house_id, data = dataset, FUN = sum)
   tmp_size <- table(dataset$house_id)
-  house_df$size <- tmp_size[match(house_df$house_id, names(tmp_size))]
+  house_df$house_size <- tmp_size[match(house_df$house_id, names(tmp_size))]
 
   # aggregate by size and cases
-  cases_by_size <- as.data.frame(table(house_df$size, house_df$status))
-  colnames(cases_by_size) <- c("size", "cases", "counts")
+  cases_by_size <- as.data.frame(table(house_df$house_size, house_df$status))
+  colnames(cases_by_size) <- c("house_size", "cases", "counts")
 
   # determine max size
-  max_size <- max(as.integer(cases_by_size$size), na.rm = TRUE)
+  max_size <- max(as.integer(cases_by_size$house_size), na.rm = TRUE)
 
   # create a complete grid of size and cases
-  grid <- expand.grid(size = 1:max_size, cases = 0:max_size)
-  grid <- grid[grid$cases <= grid$size, ]
+  grid <- expand.grid(house_size = 1:max_size, cases = 0:max_size)
+  grid <- grid[grid$cases <= grid$house_size, ]
 
   # merge with cases_by_size and replace NAs with 0
   merged_data <- merge(grid, cases_by_size,
-                       by = c("size", "cases"), all.x = TRUE)
+                       by = c("house_size", "cases"), all.x = TRUE)
   merged_data$counts[is.na(merged_data$counts)] <- 0
 
   # reshape to wide format
   result <- stats::reshape(merged_data,
-                           idvar = "size",
+                           idvar = "house_size",
                            timevar = "cases",
                            direction = "wide")
 
   # rename columns to match tidyverse output
   colnames(result) <- sub("counts\\.", "", colnames(result))
 
-  # ensure rows are sorted by size
-  output <- result[order(result$size), ]
+  # ensure rows are sorted by household size
+  output <- result[order(result$house_size), ]
 
   # drop row names
   rownames(output) <- NULL
@@ -137,17 +141,17 @@ measure_cases_by_house_size <- function(dataset) {
 #' Apply function `func` to corresponding elements
 #' across a list of data.frame that share the same dimensions.
 #'
-#' @param func `closure()`\cr
-#' Function applied to corresponding elements across data frames in the list.
 #' @param frame_list `list()` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
+#' @param func `closure()`\cr
+#' Function applied to corresponding elements across data frames in the list.
 #'
 #' @return `data.frame()`\cr
 #' Data frame of the same dimensions as the input frames.
 #' Columns and rownames of the first data.frame in the list.
 #'
 #' @noRd
-frame_apply <- function(func, frame_list) {
+frame_apply <- function(frame_list, func) {
   elem_n1 <- frame_list[[1]]
 
   # perform element-wise operations
@@ -186,8 +190,18 @@ frame_apply <- function(func, frame_list) {
 #' @return `data.frame()`
 #' @noRd
 frame_apply_mean <- function(frame_list) {
-  func <- function(x) mean(x, na.rm = TRUE)
-  frame_apply(func, frame_list)
+  frame_apply(frame_list, function(x) {
+    if (all(is.numeric(x))) {
+      mean(x, na.rm = TRUE)
+    } else if (length(unique(x)) == 1) {
+      unique(x)
+    } else {
+      stop_h(
+        "Undefined mean for non numeric, non unique values.",
+        "Check output of your posterioir measure function."
+      )
+    }
+  })
 }
 
 #' @title
@@ -204,12 +218,21 @@ frame_apply_mean <- function(frame_list) {
 #'
 #' @return `data.frame()`
 #' @noRd
-frame_apply_cri <- function(frame_list, cri_level, upper = TRUE) {
-  func <- function(x) {
-    probs <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
-    stats::quantile(x, probs = probs, na.rm = TRUE)
-  }
-  frame_apply(func, frame_list)
+frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
+  frame_apply(frame_list, function(x) {
+    if (all(is.numeric(x))) {
+      probs <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
+      stats::quantile(x, probs = probs, na.rm = TRUE)
+    } else if (length(unique(x)) == 1) {
+      unique(x)
+    } else {
+      stop_h(
+        "Undefined credible interval for non numeric, non unique values.",
+        "Check output of your posterioir measure function."
+      )
+    }
+  })
+
 }
 
 ############################################################################
@@ -233,19 +256,19 @@ HousepiPosteriorExpec <- R6::R6Class(
   ############################################################################
 
   private = list(
-    .expected = NULL,
+    .posterior = NULL,
     .observed = NULL,
     .cri_level = 0.95,
 
-    # extract expected quantities from cases-by-size table list
+    # extract posterior quantities from cases-by-house-size table list
     .extract_posterior_results = function(x) {
       cri <- private$.cri_level
       return(list(
-        # compute mean values
-        value = frame_apply_mean(x),
-        # compute lower credible interval
+        # expected value
+        expected = frame_apply_mean(x),
+        # lower credible interval
         cri_lower = frame_apply_cri(x, cri, upper = FALSE),
-        # compute upper credible interval
+        # upper credible interval
         cri_upper = frame_apply_cri(x, cri, upper = TRUE)
       ))
     }
@@ -263,11 +286,11 @@ HousepiPosteriorExpec <- R6::R6Class(
       stop_h("'observed' is read only.")
     },
 
-    #' @field expected `list()`\cr
+    #' @field posterior `list()`\cr
     #' Expected values of the measure of the posterior sample.
-    expected = function(value) {
-      if (missing(value)) return(private$.expected)
-      stop_h("'expected' is read only.")
+    posterior = function(value) {
+      if (missing(value)) return(private$.posterior)
+      stop_h("'posterior' is read only.")
     }
   ),
 
@@ -284,10 +307,20 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' Object of class [HouseholdModel][housepi::HouseholdModel]
     #' with complete definitions and traces already stored.
     #' @param FUN `closure()` | `list()` of `closure()`\cr
-    #' Function to extract the desired measure from a dataset.
+    #' Function(s) to extract the desired measure from a dataset.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
-    initialize = function(house_model, FUN, progress = NA) {
+    #' @param ...
+    #' Named arguments with respective functions.
+    #' If `FUN` is provided, additional arguments are ignored.
+    initialize = function(house_model, FUN = NULL, progress = NA, ...) {
+      if (is.null(FUN)) {
+        FUN = list(...)
+      }
+      if (is.null(FUN)) {
+        stop_h("No measure was provided.")
+      }
+
       # function to be applied also in the case of multiple measures
       apply_func <- ifelse(
         is.list(FUN),
@@ -299,7 +332,7 @@ HousepiPosteriorExpec <- R6::R6Class(
       private$.observed <- apply_func(house_model$dataset)
 
       # deep clone model before proceeding
-      # FIXME/UPDATE/NOTE: deep clone is not cloning traces e. g.!
+      # FIXME/UPDATE/NOTE: deep clone is not cloning traces
       hmc <- house_model$clone(deep = TRUE)
       # cleanup at end
       withr::defer(rm(hmc))
@@ -336,7 +369,7 @@ HousepiPosteriorExpec <- R6::R6Class(
         # associate parameters from posterior sample
         new_param_defs <- c(as.list(traces[r, ]), constants)
         hmc$load_param_list(from = new_param_defs, append = FALSE)
-        # run simulation and extract cases by size
+        # run simulation and extract cases by house size
         apply_func(hmc$simulate(seed = rng_seeds[r], progress = FALSE))
       }
 
@@ -354,10 +387,10 @@ HousepiPosteriorExpec <- R6::R6Class(
       if (is.list(FUN)) {
         output <- lapply(names(FUN), function(x) lapply(output, `[[`, x))
         names(output) <- names(FUN)
-        private$.expected <- lapply(output, private$.extract_posterior_results)
+        private$.posterior <- lapply(output, private$.extract_posterior_results)
 
       } else {
-        private$.expected <- private$.extract_posterior_results(output)
+        private$.posterior <- private$.extract_posterior_results(output)
       }
 
       invisible(self)
@@ -397,7 +430,7 @@ combine_obs_exp <- function(obsdf, expdf) {
   rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
 
   # 2. curate expected dataframe
-  expdf$size <- obsdf$size
+  expdf$house_size <- obsdf$house_size
   expdf$distr <- "Expected"
   rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
 
@@ -407,7 +440,7 @@ combine_obs_exp <- function(obsdf, expdf) {
   rownames(combined) <- NULL
   # reorder columns
   y <- colnames(combined)
-  aux <- c("size", "distr")
+  aux <- c("house_size", "distr")
   combined <- combined[, c(aux, y[!(y %in% aux)])]
 
   # format columns to extract labels with labelizor
@@ -428,7 +461,7 @@ combine_obs_exp <- function(obsdf, expdf) {
 #' @title
 #' Housepi Expected Cases By SIze
 #' @description
-#' Output object of expected cases by size, method of household model.
+#' Output object of expected cases by household size, method of household model.
 #'
 #' @keywords internal
 ExpectedCasesBySize <- R6::R6Class(
@@ -445,31 +478,31 @@ ExpectedCasesBySize <- R6::R6Class(
     .counts = NULL,
 
     # @description
-    # Number of household with non-zero cases per size.
+    # Number of household with non-zero cases per household size.
     #
     # @return `data.frame`
     .count_non_zero_cases = function(dataset) {
       # in tidyverse it would be
       # dataset |>
       #   group_by(house_id) |>
-      #   summarise(size = n(), cases = sum(status)) |>
+      #   summarise(house_size = n(), cases = sum(status)) |>
       #   filter(cases > 0) |>
-      #   group_by(size) |>
+      #   group_by(house_size) |>
       #   summarise(count = n())
 
       dataset$status <- as.integer(dataset$status > 0)
 
       agg1 <- stats::aggregate(
         status ~ house_id, data = dataset,
-        FUN = function(x) c(size = length(x), cases = sum(x))
+        FUN = function(x) c(house_size = length(x), cases = sum(x))
       )
       agg2 <- data.frame(
         house_id = agg1$house_id,
-        size = agg1$status[, "size"],
+        house_size = agg1$status[, "house_size"],
         cases = agg1$status[, "cases"]
       )
       agg2 <- agg2[agg2$cases > 0, ]
-      return(stats::aggregate(cases ~ size, data = agg2, FUN = length))
+      return(stats::aggregate(cases ~ house_size, data = agg2, FUN = length))
     },
 
     # @description
@@ -481,7 +514,7 @@ ExpectedCasesBySize <- R6::R6Class(
       obsdf <- private$.observed$cases_by_size
 
       # remove rows without counts
-      mask_row <- rowSums(obsdf[colnames(obsdf) != "size"], na.rm = TRUE) != 0
+      mask_row <- rowSums(obsdf[colnames(obsdf) != "house_size"], na.rm = TRUE) != 0
 
       # remove column with zero cases if none was observed
       mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
@@ -496,10 +529,10 @@ ExpectedCasesBySize <- R6::R6Class(
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
       }
 
-      expdf <- private$.expected$cases_by_size
+      expdf <- private$.posterior$cases_by_size
       return(list(
         observed = obsdf[mask_row, mask_col],
-        expected = expdf$value[mask_row, mask_col],
+        expected = expdf$expected[mask_row, mask_col],
         cri_lower = expdf$cri_lower[mask_row, mask_col],
         cri_upper = expdf$cri_upper[mask_row, mask_col]
       ))
@@ -518,11 +551,11 @@ ExpectedCasesBySize <- R6::R6Class(
       if (missing(value)) {
         # convert internal list to data.frame
         output <- data.frame(
-          size = private$.observed$sar$size,
+          house_size = private$.observed$sar$house_size,
           observed = private$.observed$sar$sar,
-          expected = private$.expected$sar$value$sar,
-          cri_lower = private$.expected$sar$cri_lower$sar,
-          cri_upper = private$.expected$sar$cri_upper$sar
+          expected = private$.posterior$sar$expected$sar,
+          cri_lower = private$.posterior$sar$cri_lower$sar,
+          cri_upper = private$.posterior$sar$cri_upper$sar
         )
 
         # associate counts
@@ -535,7 +568,7 @@ ExpectedCasesBySize <- R6::R6Class(
 
     #' @field formatted_cases_table `data.frame`\cr
     #' Formatted observed and expected cases by household size.
-    #' If a maximum house size is set, larger sizes are not returned.
+    #' If a maximum household size is set, larger sizes are not returned.
     formatted_cases_table = function(value) {
       if (missing(value)) {
         # filter according to max_house_size
@@ -544,7 +577,7 @@ ExpectedCasesBySize <- R6::R6Class(
         # empty frame as a placeholder for Credible Interval
         na_df <- cases$observed
         na_df[] <- lapply(na_df, function(col) if (is.numeric(col)) NA else col)
-        na_df$size <- cases$observed$size
+        na_df$house_size <- cases$observed$house_size
 
         return(list(expected = combine_obs_exp(cases$observed, cases$expected),
                     cri_lower = combine_obs_exp(na_df, cases$cri_lower),

@@ -177,24 +177,25 @@ public:
 	//===== READ =====//
 	//================//
 
-	void read_dataset(const std::string &pathtofile = NULL_STRING);
-	void read_setup(const std::string &pathtofile = NULL_STRING);
-	void read_param(const std::string &pathtofile = NULL_STRING);
-	void read_infec_profile(const std::string &pathtofile = NULL_STRING);
-	void read_augm(const std::string &pathtofile = NULL_STRING);
-	void read_multiplicity(const std::string &pathtofile = NULL_STRING);
+	void read_dataset(const std::string &pathtofile = HHEPI_NA_STRING);
+	void read_setup(const std::string &pathtofile = HHEPI_NA_STRING);
+	void read_param(const std::string &pathtofile = HHEPI_NA_STRING);
+	void read_infec_profile(const std::string &pathtofile = HHEPI_NA_STRING);
+	void read_augm(const std::string &pathtofile = HHEPI_NA_STRING);
+	void read_multiplicity(const std::string &pathtofile = HHEPI_NA_STRING);
 
 	//================//
 	//===== SHOW =====//
 	//================//
 
+	void show_setup() const;
+	void show_all_params() const;
 	void show_summary() const;
-	void show_full_build() const;
 	void show_results() const;
 
 	//----- C++ Print -----//
-	void print_infer_state(const std::string &output_filename = NULL_STRING) const;
-	void print_simulated_dataset(const std::string &output_filename = NULL_STRING);
+	void print_infer_state(const std::string &output_filename = HHEPI_NA_STRING) const;
+	void print_simulated_dataset(const std::string &output_filename = HHEPI_NA_STRING);
 #endif
 
 private:

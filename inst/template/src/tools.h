@@ -48,8 +48,12 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UPDATE: NaN and NA values need to be revised
-constexpr double NULL_DOUBLE = 1e10;    // undefined double
-const std::string NULL_STRING = "<NA>"; // undefined string
+#ifdef _HOUSEPI_RCPP
+const double HHEPI_NA_DOUBLE = NA_REAL;
+#else 
+const double HHEPI_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
+#endif
+const std::string HHEPI_NA_STRING = "<NA>";
 
 // constants
 constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
@@ -70,7 +74,6 @@ const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
 // file formatters
 constexpr char C_DELIM = ',';      // file delimiter
 constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
-constexpr char C_DECOR = '-';      // decorator for prints
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -120,7 +123,7 @@ using __access_ID__ = unsigned short int;
 constexpr __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
 #else
 using __access_ID__ = std::string;
-const __access_ID__ __undef_ID__ = NULL_STRING; // name for undefined choice
+const __access_ID__ __undef_ID__ = HHEPI_NA_STRING; // name for undefined choice
 #endif
 
 using parID = __access_ID__;
@@ -212,10 +215,6 @@ namespace tools
     // stodut print
     void print_stdout(const std::string &txt);
     void print_stderr(const std::string &txt);
-    void print_decorator(const std::string &title,
-                         const std::string &txt = NULL_STRING,
-                         char decor = C_DECOR,
-                         bool verbose = true);
 
     // print warnings to stderr
     void warning(const std::string &txt);
@@ -236,9 +235,6 @@ namespace tools
     double stod(const std::string &input, const std::string &errtxt = "");
 
     // formatter for the case NA
-    double natod(const std::string &input,
-                 const std::string &errtxt = "");
-    double natod(double x);
     const std::string natostring(double x);
 
     // format a list of string options

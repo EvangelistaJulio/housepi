@@ -114,7 +114,7 @@ const std::string Proposer::show_arg_values() const { return _distr_ptr->show_ar
 const std::string Proposer::show_scale() const
 {
     if (_n_args_to_adapt == 0)
-        return NULL_STRING;
+        return HHEPI_NA_STRING;
     else
         return std::to_string(std::fabs((_distr_ptr->get_arg)(_args_to_adapt_list[0])));
 }
@@ -194,8 +194,8 @@ class Uniform_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Uniform_Proposer(
-        double rule_scale = NULL_DOUBLE,
-        double rule_from = NULL_DOUBLE,
+        double rule_scale = HHEPI_NA_DOUBLE,
+        double rule_from = HHEPI_NA_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switch("unif"),
                                              rule_scale,
                                              rule_from,
@@ -228,8 +228,8 @@ class Normal_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
-        double rule_scale = NULL_DOUBLE,
-        double rule_from = NULL_DOUBLE,
+        double rule_scale = HHEPI_NA_DOUBLE,
+        double rule_from = HHEPI_NA_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switch("norm"),
                                              rule_scale,
                                              rule_from,
@@ -266,7 +266,7 @@ public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(
         double rule_scale = 1.,
-        double rule_from = NULL_DOUBLE,
+        double rule_from = HHEPI_NA_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switch("lnorm"),
                                              rule_scale,
                                              rule_from,
@@ -301,9 +301,9 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = NULL_STRING,
-                                          double rule_scale = NULL_DOUBLE,
-                                          double rule_from = NULL_DOUBLE,
+std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HHEPI_NA_STRING,
+                                          double rule_scale = HHEPI_NA_DOUBLE,
+                                          double rule_from = HHEPI_NA_DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"draw", "unif", "norm", "lnorm"};
@@ -532,6 +532,7 @@ void Variable::assign_proposer(const std::string &rule_name,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const std::string Variable::show_name() const { return _variable_name; }
+const std::string Variable::show_value() const  { return tools::natostring(get()); }
 const std::string Variable::show_distr_name() const { return _distr_ptr->show_name(); }
 const std::string Variable::show_distr_arg_names() const { return _distr_ptr->show_arg_names(); }
 const std::string Variable::show_distr_arg_values() const { return _distr_ptr->show_arg_values(); }

@@ -27,7 +27,7 @@
 inline double Argument::get() const { return *(_ptr_to_value); }
 inline const double *Argument::get_ptr() const { return _ptr_to_value; }
 bool Argument::is_internal_ptr() const { return _ptr_to_value == &_value; }
-const std::string Argument::show() const { return (tools::natostring(get())); }
+const std::string Argument::show() const { return tools::natostring(get()); }
 const std::string Argument::show_name() const { return _argument_name; }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -374,7 +374,7 @@ const std::string Function::show_arg_names() const
         return output;
     }
 
-    return NULL_STRING;
+    return HHEPI_NA_STRING;
 }
 
 /* Return formatted argument names of the distribution. */
@@ -388,7 +388,7 @@ const std::string Function::show_arg_values() const
         return output;
     }
 
-    return NULL_STRING;
+    return HHEPI_NA_STRING;
 }
 
 //-----------------------------------------------------------------------------------------------//

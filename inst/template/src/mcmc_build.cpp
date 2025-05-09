@@ -23,8 +23,8 @@
 //-----------------------------------------------------------------------------------------------//
 
 /* Default seed of random number generator.  */
-std::int32_t _default_setup_seed() 
-{        
+std::int32_t _default_setup_seed()
+{
     auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
     // ensure time_now is 64bit
     std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
@@ -228,7 +228,7 @@ void MCMC::Impl::build_param()
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
-                double value = NULL_DOUBLE;                       // init value
+                double value = HHEPI_NA_DOUBLE;                   // init value
 
                 // UPDATE : temporary parameter identifier
                 // NOTE : id parID changes this should change too
@@ -270,11 +270,11 @@ void MCMC::Impl::build_param()
                     const std::string &prior_name = deftable.at("prior")[k];
 
                     // load range
-                    double lower = NULL_DOUBLE;
+                    double lower = HHEPI_NA_DOUBLE;
                     if (!tools::is_na(deftable.at("min")[k]))
                         lower = tools::stod(deftable.at("min")[k], "parameter minimum");
 
-                    double upper = NULL_DOUBLE;
+                    double upper = HHEPI_NA_DOUBLE;
                     if (!tools::is_na(deftable.at("max")[k]))
                         upper = tools::stod(deftable.at("max")[k], "parameter maximum");
 
@@ -299,9 +299,14 @@ void MCMC::Impl::build_param()
                     str_vec arg_name = tools::parse_list_args(deftable.at("arg_name")[k]);
                     str_vec arg_value = tools::parse_list_args(deftable.at("arg_value")[k]);
                     for (ushort c = 0; c < arg_name.size(); ++c)
+                        // UPDATE: is this check really necessary?
                         if (!tools::is_na(arg_name[c]))
-                            new_param.assign_distr_scalar_arg(arg_name[c],
-                                                              tools::natod(arg_value[c]));
+                        {
+                            const std::string &x = arg_value[c];
+                            new_param.assign_distr_scalar_arg(
+                                arg_name[c],
+                                (tools::is_na(x) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(x)));
+                        }
 
                     // set the range of values to the parameter
                     if (!tools::is_na(lower))
@@ -364,7 +369,7 @@ double MCMC::Impl::type_to_double(const std::string &value,
                                   const std::string &type,
                                   const Household &house, indiv i)
 {
-    double output = NULL_DOUBLE;
+    double output = HHEPI_NA_DOUBLE;
 
     if (!(tools::is_na(value) && tools::is_na(type)))
     {
@@ -646,7 +651,7 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
             {
                 tools::warning(
                     "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
-                setup_id_trace = NULL_STRING;
+                setup_id_trace = HHEPI_NA_STRING;
             }
             else if (house_vector[smpl_H_star].status(smpl_i_star) < INFECTED_STATUS)
                 tools::warning(
@@ -657,7 +662,7 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
     {
         tools::warning(
             "Ignoring id trace: no augmented variables to be inferred was provided.");
-        setup_id_trace = NULL_STRING;
+        setup_id_trace = HHEPI_NA_STRING;
     }
 }
 
@@ -1185,7 +1190,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                     {
                         // note: NA status is a missing status
                         if (!tools::is_na(datatable.at("status")[i]))
-                            status = tools::stoul(datatable.at("status")[i], "individual status");
+                            status = tools::stoi(datatable.at("status")[i], "individual status");
                     }
                     else if (tools::is_na(datatable.at(key)[i]))
                     {

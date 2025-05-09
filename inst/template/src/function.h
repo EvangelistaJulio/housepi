@@ -60,8 +60,8 @@ public:
     void restore_internal_ptr();
 
 private:
-    std::string _argument_name = NULL_STRING;
-    double _value = NULL_DOUBLE;
+    std::string _argument_name = HHEPI_NA_STRING;
+    double _value = HHEPI_NA_DOUBLE;
     const double *_ptr_to_value = &_value;
 
     void (Argument::*_func_set_arg)(double) = &Argument::__set_arg_default;
@@ -131,7 +131,7 @@ protected:
                        bool is_max_open);
 
 private:
-    std::string _function_name = NULL_STRING;
+    std::string _function_name = HHEPI_NA_STRING;
 
     //===== Arguments =====//
     Argument *_arguments = nullptr;

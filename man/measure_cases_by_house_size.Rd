@@ -14,5 +14,5 @@ Dataset containing individual 'status' and 'house_id'.}
 \code{data.frame}
 }
 \description{
-Function to retrieve cases by size from a given data.frame.
+Function to retrieve cases by household size from a given data.frame.
 }

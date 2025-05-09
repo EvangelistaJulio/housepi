@@ -237,7 +237,7 @@ void MCMC::set_rate_per_contact(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    _pair_contact_rate = NULL_STRING;
+                    _pair_contact_rate = HHEPI_NA_STRING;
                     assign_contact_rate_to_household(house, k, i);
 
                     if (!tools::is_na(_pair_contact_rate))
@@ -913,10 +913,16 @@ Rcpp::DataFrame MCMC::simulate()
 
                     size_t col = 0;
                     for (const dataID &d : _aux_data_headers)
-                        df_dbl[col++][row] = house.data(i, d);
+                    {
+                        double x = house.data(i, d);
+                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
+                    }
 
                     for (const augmID &a : pImpl->augm_list_full)
-                        df_dbl[col++][row] = house.augm(i, a);
+                    {
+                        double x = house.augm(i, a);
+                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
+                    }
 
                     ++row;
                 }

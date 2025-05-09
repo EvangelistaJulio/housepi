@@ -13,7 +13,7 @@ Class to extract expecteted measures over simulations sampled from posterior.
 \item{\code{observed}}{\code{list()}\cr
 Observed values of the measure of the posterior sample.}
 
-\item{\code{expected}}{\code{list()}\cr
+\item{\code{posterior}}{\code{list()}\cr
 Expected values of the measure of the posterior sample.}
 }
 \if{html}{\out{</div>}}
@@ -32,7 +32,7 @@ Expected values of the measure of the posterior sample.}
 New instance of class
 \link[=HousepiPosteriorExpec]{HousepiPosteriorExpec}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$new(house_model, FUN, progress = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$new(house_model, FUN = NULL, progress = NA, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -43,10 +43,13 @@ Object of class \link[=HouseholdModel]{HouseholdModel}
 with complete definitions and traces already stored.}
 
 \item{\code{FUN}}{\code{closure()} | \code{list()} of \code{closure()}\cr
-Function to extract the desired measure from a dataset.}
+Function(s) to extract the desired measure from a dataset.}
 
 \item{\code{progress}}{\code{logical(1)}\cr
 Progress of simulations. Default is inherited from the model.}
+
+\item{\code{...}}{Named arguments with respective functions.
+If \code{FUN} is provided, additional arguments are ignored.}
 }
 \if{html}{\out{</div>}}
 }
