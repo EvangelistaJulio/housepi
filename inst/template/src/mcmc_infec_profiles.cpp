@@ -55,7 +55,7 @@ public:
 		init_defaults("ferretti20",
 					  {"shape", "loc", "scale", "incub"},
 					  {5.85, -4.0, 1.85, 5.8},
-					  0., HHEPI_NA_DOUBLE, false, false);
+					  0., HOUSEPI_NA_DOUBLE, false, false);
 	}
 	~InfecProfile_Ferretti20() = default;
 
@@ -133,7 +133,7 @@ public:
 		init_defaults("ashcroft20",
 					  {"shape", "scale", "shift"},
 					  {97.32, 0.268, 25.6},
-					  0., HHEPI_NA_DOUBLE, false, false);
+					  0., HOUSEPI_NA_DOUBLE, false, false);
 
 		// wrapper around gamma distribution
 		gamma_distr_ptr = distribution_switch("gamma");
@@ -384,7 +384,7 @@ void MCMC::Impl::InfecProfile::assign_template(std::map<std::string, std::string
 
 		for (const std::string &key : _headers)
 			if (!x.count(key))
-				x.emplace(key, HHEPI_NA_STRING);
+				x.emplace(key, HOUSEPI_NA_STRING);
 
 		if (tools::is_na(x.at("discrete")))
 			x["discrete"] = "false";

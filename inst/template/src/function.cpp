@@ -374,7 +374,7 @@ const std::string Function::show_arg_names() const
         return output;
     }
 
-    return HHEPI_NA_STRING;
+    return HOUSEPI_NA_STRING;
 }
 
 /* Return formatted argument names of the distribution. */
@@ -388,7 +388,7 @@ const std::string Function::show_arg_values() const
         return output;
     }
 
-    return HHEPI_NA_STRING;
+    return HOUSEPI_NA_STRING;
 }
 
 //-----------------------------------------------------------------------------------------------//

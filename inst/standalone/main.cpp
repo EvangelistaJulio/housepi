@@ -35,7 +35,7 @@
 //-----------------------------------------------------------------------------------------------//
 
 /* Display a decorator for a section (if VERBOSE) */
-void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HHEPI_NA_STRING)
+void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HOUSEPI_NA_STRING)
 {
     const ulong decor_left = 3;   // left size of decorator
     const ulong decor_width = 65; // total size of decorator
@@ -69,13 +69,13 @@ int main(int argc, char *argv[])
     ulong num_rungs = 0;           // n. rungs power posteriors
 
     // paths/to/files for import
-    std::string augm_file = HHEPI_NA_STRING;
-    std::string dataset_file = HHEPI_NA_STRING;
-    std::string infec_profile_file = HHEPI_NA_STRING;
-    std::string multiplicity_file = HHEPI_NA_STRING;
-    std::string output_file = HHEPI_NA_STRING;
-    std::string param_file = HHEPI_NA_STRING;
-    std::string setup_file = HHEPI_NA_STRING;
+    std::string augm_file = HOUSEPI_NA_STRING;
+    std::string dataset_file = HOUSEPI_NA_STRING;
+    std::string infec_profile_file = HOUSEPI_NA_STRING;
+    std::string multiplicity_file = HOUSEPI_NA_STRING;
+    std::string output_file = HOUSEPI_NA_STRING;
+    std::string param_file = HOUSEPI_NA_STRING;
+    std::string setup_file = HOUSEPI_NA_STRING;
 
     bool verbose = false; // verbose option
 
@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
             user_model->show_results();
         }
 
-        if (output_file != HHEPI_NA_STRING)
+        if (output_file != HOUSEPI_NA_STRING)
         {
             print_decorator("Inference::infer state", verbose,
                             "# save: " + output_file);
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file != HHEPI_NA_STRING)
+        if (output_file != HOUSEPI_NA_STRING)
         {
             print_decorator("Simulation", verbose,
                             "# save: " + output_file);

@@ -58,7 +58,9 @@ void rdataframe_to_map(const Rcpp::DataFrame &df,
 /* Format C++ string into Rcpp string. */
 Rcpp::String stoRString(const std::string &x)
 {
-    return (tools::is_na(x)) ? NA_STRING : Rcpp::String(x);
+    if (tools::is_na(x))
+        return HOUSEPI_NA_STRING;
+    return Rcpp::String(x);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -1010,12 +1012,10 @@ void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
                 {
                     double x = house.augm(i, a);
                     aux_data_ofstream << C_DELIM
-                                      << (tools::is_na(x)
-                                              ? std::numeric_limits<double>::quiet_NaN()
-                                              : x);
+                                      << (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : x);
                 }
                 else
-                    aux_data_ofstream << C_DELIM << std::numeric_limits<double>::quiet_NaN();
+                    aux_data_ofstream << C_DELIM << HOUSEPI_NA_DOUBLE;
 
             aux_data_ofstream << std::endl;
         }

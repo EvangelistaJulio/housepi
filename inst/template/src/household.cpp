@@ -282,10 +282,22 @@ double Household::data(indiv i, const dataID &d) const { return _members[i].data
 double Household::group_rate(indiv i, const rateID &r) const { return _members[i].group_rate(r); }
 double Household::augm(indiv i, const augmID &a) const { return _members[i].augm(a); }
 
-double Household::augm_model_logpdf(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).distr_logpdf(); }
-double Household::augm_model_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).distr_logratio(); }
-double Household::augm_propose_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).propose_logratio(); }
-double Household::augm_move_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_move_logratio(); }
+double Household::augm_model_logpdf(indiv i, const augmID &a) const
+{
+	return _members[i].augm_map.at(a).distr_logpdf();
+}
+double Household::augm_model_logratio(indiv i, const augmID &a) const
+{
+	return _members[i].augm_map.at(a).distr_logratio();
+}
+double Household::augm_propose_logratio(indiv i, const augmID &a) const
+{
+	return _members[i].augm_map.at(a).propose_logratio();
+}
+double Household::augm_move_logratio(indiv i, const augmID &a) const
+{
+	return _members[i].augm_map.at(a).get_move_logratio();
+}
 
 ushort Household::n_infec_status() const { return _n_infec; }
 ushort Household::n_healthy_status() const { return _n_healthy; }
@@ -412,8 +424,9 @@ void Household::init_diagnostics(ulong sample_size)
 }
 
 /* Update the values for posterior sampling. */
-void Household::update_diagnostics(ulong c) {
-  _smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike;
+void Household::update_diagnostics(ulong c)
+{
+	_smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike;
 }
 
 /* Return the loglikelihood sampled vector. */

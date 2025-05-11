@@ -49,10 +49,16 @@ MCMC::Impl::~Impl() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Get the parameter value. */
-double MCMC::Impl::get_param(const parID &p) const { return param_map.at(p).get(); }
+double MCMC::Impl::get_param(const parID &p) const
+{
+    return param_map.at(p).get();
+}
 
 /* Get pointer to the parameter. */
-const double *MCMC::Impl::get_param_pointer(const parID &p) const { return param_map.at(p).get_pointer(); }
+const double *MCMC::Impl::get_param_pointer(const parID &p) const
+{
+    return param_map.at(p).get_pointer();
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
@@ -228,7 +234,7 @@ void MCMC::Impl::build_param()
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
-                double value = HHEPI_NA_DOUBLE;                   // init value
+                double value = HOUSEPI_NA_DOUBLE;                   // init value
 
                 // UPDATE : temporary parameter identifier
                 // NOTE : id parID changes this should change too
@@ -270,11 +276,11 @@ void MCMC::Impl::build_param()
                     const std::string &prior_name = deftable.at("prior")[k];
 
                     // load range
-                    double lower = HHEPI_NA_DOUBLE;
+                    double lower = HOUSEPI_NA_DOUBLE;
                     if (!tools::is_na(deftable.at("min")[k]))
                         lower = tools::stod(deftable.at("min")[k], "parameter minimum");
 
-                    double upper = HHEPI_NA_DOUBLE;
+                    double upper = HOUSEPI_NA_DOUBLE;
                     if (!tools::is_na(deftable.at("max")[k]))
                         upper = tools::stod(deftable.at("max")[k], "parameter maximum");
 
@@ -305,7 +311,7 @@ void MCMC::Impl::build_param()
                             const std::string &x = arg_value[c];
                             new_param.assign_distr_scalar_arg(
                                 arg_name[c],
-                                (tools::is_na(x) ? std::numeric_limits<double>::quiet_NaN() : tools::stod(x)));
+                                (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
                         }
 
                     // set the range of values to the parameter
@@ -336,18 +342,19 @@ void MCMC::Impl::init_parameters()
 {
     for (const parID &p : param_standard_infer_list + param_extra_infer_list)
     {
+        Variable &this_par = param_map.at(p);
         // restore user initialization (for multiple chains)
-        param_map.at(p).user_reset();
+        this_par.user_reset();
 
         if (setup_rand_init_params)
         {
-            if (tools::is_na(param_map.at(p).show_distr_name()))
+            if (tools::is_na(this_par.show_distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-                param_map.at(p).rand(_prng);
+            this_par.rand(_prng);
         }
-        else if (tools::is_na(param_map.at(p).get()))
+        else if (tools::is_na(this_par.get()))
             throw std::invalid_argument(
                 "Value of parameter \"" + p + "\" is undefined with no random initialization.");
     }
@@ -369,7 +376,7 @@ double MCMC::Impl::type_to_double(const std::string &value,
                                   const std::string &type,
                                   const Household &house, indiv i)
 {
-    double output = HHEPI_NA_DOUBLE;
+    double output = HOUSEPI_NA_DOUBLE;
 
     if (!(tools::is_na(value) && tools::is_na(type)))
     {
@@ -651,7 +658,7 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
             {
                 tools::warning(
                     "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
-                setup_id_trace = HHEPI_NA_STRING;
+                setup_id_trace = HOUSEPI_NA_STRING;
             }
             else if (house_vector[smpl_H_star].status(smpl_i_star) < INFECTED_STATUS)
                 tools::warning(
@@ -662,7 +669,7 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
     {
         tools::warning(
             "Ignoring id trace: no augmented variables to be inferred was provided.");
-        setup_id_trace = HHEPI_NA_STRING;
+        setup_id_trace = HOUSEPI_NA_STRING;
     }
 }
 
@@ -879,13 +886,15 @@ void MCMC::Impl::init_move_counts()
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
 bool MCMC::Impl::propose_valid_param_move(const parID &p)
 {
+    Variable &this_par = param_map.at(p);
+
     // set new value of the parameter and store the old to buffer
-    param_map.at(p).propose(_prng);
+    this_par.propose(_prng);
 
     // restore buffer if not valid move
-    if (!param_map.at(p).valid_move())
+    if (!this_par.valid_move())
     {
-        param_map.at(p).restore_value();
+        this_par.restore_value();
         return false;
     }
 
@@ -930,7 +939,8 @@ void MCMC::Impl::adapt_param_rule(const parID &p, double ratio)
 bool MCMC::Impl::accept_valid_param_move(const parID &p)
 {
     const double D_ll = full_loglike - full_buffer;
-    return uniform() < std::exp(setup_inv_T * D_ll + param_map.at(p).get_move_logratio());
+    const double move_logratio = param_map.at(p).get_move_logratio();
+    return uniform() < std::exp(setup_inv_T * D_ll + move_logratio);
 }
 
 /* Getter for full loglikelihood. */
@@ -977,7 +987,7 @@ void MCMC::Impl::init_diagnostics()
     {
         // diagnostics over parameters
         for (const parID &p : param_standard_infer_list + param_extra_infer_list)
-            smpl_param_value[p] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
+            smpl_param_value[p] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
 
         // diagnostics over households
         // UPDATE: init a=only for selected households
@@ -987,7 +997,7 @@ void MCMC::Impl::init_diagnostics()
         // diagnostics over augmented variables
         if (!tools::is_na(setup_id_trace))
             for (const augmID &a : augm_infer_list)
-                smpl_augm_value[a] = dbl_vec(sample_size, std::numeric_limits<double>::quiet_NaN());
+                smpl_augm_value[a] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
     }
 }
 
@@ -1194,7 +1204,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                     }
                     else if (tools::is_na(datatable.at(key)[i]))
                     {
-                        data.emplace(key, std::numeric_limits<double>::quiet_NaN());
+                        data.emplace(key, HOUSEPI_NA_DOUBLE);
                         tools::warning("Found NA value(s) in the database.");
                     }
                     else

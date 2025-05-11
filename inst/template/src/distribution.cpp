@@ -33,7 +33,7 @@ public:
     Uniform_Distribution() : distr_gen(0., 1.)
     {
         init_defaults("unif", {"min", "max"}, {0., 1.},
-                      HHEPI_NA_DOUBLE, HHEPI_NA_DOUBLE, false, false);
+                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Uniform_Distribution() = default;
 
@@ -97,7 +97,7 @@ public:
     Normal_Distribution() : distr_gen(0., 1.)
     {
         init_defaults("norm", {"mean", "sd"}, {0., 1.},
-                      HHEPI_NA_DOUBLE, HHEPI_NA_DOUBLE, false, false);
+                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Normal_Distribution() = default;
 
@@ -165,7 +165,7 @@ public:
     Lognormal_Distribution() : distr_gen(0., 1.)
     {
         init_defaults("lnorm", {"meanlog", "sdlog"}, {0., 1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Lognormal_Distribution() = default;
 
@@ -300,7 +300,7 @@ public:
     Gamma_Distribution() : distr_gen(1., 1.)
     {
         init_defaults("gamma", {"shape", "scale"}, {1., 1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Gamma_Distribution() = default;
 
@@ -358,7 +358,7 @@ public:
     ReparamGamma_Distribution() : distr_gen(1., 1.)
     {
         init_defaults("reparam_gamma", {"mean", "var"}, {1., 1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
     }
     ~ReparamGamma_Distribution() = default;
 
@@ -426,7 +426,7 @@ public:
     Rayleigh_Distribution() : unif_gen(0., 1.)
     {
         init_defaults("rayleigh", {"scale"}, {1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Rayleigh_Distribution() = default;
 
@@ -478,7 +478,7 @@ public:
     Weibull_Distribution() : distr_gen(1., 1.)
     {
         init_defaults("weibull", {"shape", "scale"}, {1., 1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Weibull_Distribution() = default;
 
@@ -536,7 +536,7 @@ public:
     Exponential_Distribution() : distr_gen(1.)
     {
         init_defaults("exp", {"rate"}, {1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
     }
     ~Exponential_Distribution() = default;
 
@@ -601,7 +601,7 @@ public:
     Poisson_Distribution() : distr_gen(1.)
     {
         init_defaults("pois", {"lambda"}, {1.},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Poisson_Distribution() = default;
@@ -661,7 +661,7 @@ public:
     Binomial_Distribution() : distr_gen(4, .5)
     {
         init_defaults("binom", {"size", "prob"}, {4, .5},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
 
         assign_pointer_range_max(get_ptr_to_arg(0));
@@ -735,7 +735,7 @@ public:
     NegativeBinomial_Distribution() : distr_gen(4, .5)
     {
         init_defaults("nbinom", {"size", "prob"}, {4, .5},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~NegativeBinomial_Distribution() = default;
@@ -795,7 +795,7 @@ public:
     Geometric_Distribution() : distr_gen(1.)
     {
         init_defaults("geom", {"proba"}, {0.5},
-                      0., HHEPI_NA_DOUBLE, false, false);
+                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Geometric_Distribution() = default;

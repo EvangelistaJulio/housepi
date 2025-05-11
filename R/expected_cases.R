@@ -191,7 +191,9 @@ frame_apply <- function(frame_list, func) {
 #' @noRd
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
-    if (all(is.numeric(x))) {
+    if (all(is.na(x))) {
+      NA
+    } else if (all(is.numeric(x))) {
       mean(x, na.rm = TRUE)
     } else if (length(unique(x)) == 1) {
       unique(x)
@@ -220,7 +222,9 @@ frame_apply_mean <- function(frame_list) {
 #' @noRd
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
   frame_apply(frame_list, function(x) {
-    if (all(is.numeric(x))) {
+    if (all(is.na(x))) {
+      NA
+    } else if (all(is.numeric(x))) {
       probs <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
       stats::quantile(x, probs = probs, na.rm = TRUE)
     } else if (length(unique(x)) == 1) {

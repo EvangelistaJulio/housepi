@@ -114,7 +114,7 @@ const std::string Proposer::show_arg_values() const { return _distr_ptr->show_ar
 const std::string Proposer::show_scale() const
 {
     if (_n_args_to_adapt == 0)
-        return HHEPI_NA_STRING;
+        return HOUSEPI_NA_STRING;
     else
         return std::to_string(std::fabs((_distr_ptr->get_arg)(_args_to_adapt_list[0])));
 }
@@ -130,7 +130,7 @@ double Proposer::__propose_undefined(rnd_gen &prng, double start)
     UNUSED(start);
     throw std::invalid_argument(
         "Attempt to call a method of an undefined proposer.");
-    return std::numeric_limits<double>::quiet_NaN();
+    return HOUSEPI_NA_DOUBLE;
 }
 double Proposer::__propose_sum_to_previous(rnd_gen &prng, double start) { return start + rand(prng); }
 double Proposer::__propose_times_previous(rnd_gen &prng, double start) { return start * rand(prng); }
@@ -194,8 +194,8 @@ class Uniform_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Uniform_Proposer(
-        double rule_scale = HHEPI_NA_DOUBLE,
-        double rule_from = HHEPI_NA_DOUBLE,
+        double rule_scale = HOUSEPI_NA_DOUBLE,
+        double rule_from = HOUSEPI_NA_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switch("unif"),
                                              rule_scale,
                                              rule_from,
@@ -228,8 +228,8 @@ class Normal_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Normal_Proposer(
-        double rule_scale = HHEPI_NA_DOUBLE,
-        double rule_from = HHEPI_NA_DOUBLE,
+        double rule_scale = HOUSEPI_NA_DOUBLE,
+        double rule_from = HOUSEPI_NA_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switch("norm"),
                                              rule_scale,
                                              rule_from,
@@ -266,7 +266,7 @@ public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(
         double rule_scale = 1.,
-        double rule_from = HHEPI_NA_DOUBLE,
+        double rule_from = HOUSEPI_NA_DOUBLE,
         bool is_discrete = false) : Proposer(distribution_switch("lnorm"),
                                              rule_scale,
                                              rule_from,
@@ -301,9 +301,9 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HHEPI_NA_STRING,
-                                          double rule_scale = HHEPI_NA_DOUBLE,
-                                          double rule_from = HHEPI_NA_DOUBLE,
+std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HOUSEPI_NA_STRING,
+                                          double rule_scale = HOUSEPI_NA_DOUBLE,
+                                          double rule_from = HOUSEPI_NA_DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"draw", "unif", "norm", "lnorm"};

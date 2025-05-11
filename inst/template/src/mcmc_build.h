@@ -90,7 +90,7 @@ public:
     double setup_inv_T = 1.;      // inverse temperature
     unsigned setup_n_threads = 1; // number of OMP threads
 
-    std::string setup_id_trace = HHEPI_NA_STRING; // augmented trace to save
+    std::string setup_id_trace = HOUSEPI_NA_STRING; // augmented trace to save
 
     ulong setup_c_sample_size = 0; // single chain sample size
     ulong setup_c_n_sweeps = 0;    // single chain n. of sweeps
@@ -367,12 +367,12 @@ private:
     //===== RANDOM NUMBER GENERATOR =====//
     //===================================//
 
-    rnd_gen _prng;                            // Mersenne Twister 19937 generator (32 or 64 bit)
-    std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
-
+    rnd_gen _prng; // Mersenne Twister 19937 generator (32 or 64 bit)
     rnd_gen &(MCMC::Impl::*_func_get_prng)();
     rnd_gen &_prng_unique_thread() { return _prng; }
+
 #ifdef _OPENMP
+    std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
     rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
 #endif
 

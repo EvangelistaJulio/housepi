@@ -237,7 +237,7 @@ void MCMC::set_rate_per_contact(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    _pair_contact_rate = HHEPI_NA_STRING;
+                    _pair_contact_rate = HOUSEPI_NA_STRING;
                     assign_contact_rate_to_household(house, k, i);
 
                     if (!tools::is_na(_pair_contact_rate))
@@ -579,7 +579,7 @@ double MCMC::evaluate()
         tools::error(e.what());
     }
 
-    return std::numeric_limits<double>::quiet_NaN();
+    return HOUSEPI_NA_DOUBLE;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -617,23 +617,22 @@ void MCMC::_run_monte_carlo(progress::Bar &progressbar)
         // update progressbar text
         progressbar.set_text(pImpl->fmt_progtxt());
 
-        pImpl->init_parameters();   // initialize parameter inference
-        init_augmented_variables(); // initialize augmented dependencies
-        update_full_loglike(true);  // initialize extra + full loglikelihood
+        pImpl->init_parameters();   // init parameter inference
+        init_augmented_variables(); // init augmented dependencies
+        update_full_loglike(true);  // init extra + full loglikelihood
+        pImpl->init_move_counts();  // init move counts for adaptive
 
-        //----- (Finite) Adaptative MCMC -----//
-        // initialize the param move counts for adaptive
-        pImpl->init_move_counts();
+        // (Finite) Adaptative Iterations
         for (ulong i = 0; i < n_adapt; i += thin, progressbar.update())
             for (ulong t = 1; t <= thin; ++t)
                 _move_all_and_adapt_parameters(i + t);
 
-        //----- MCMC Burn-in Iterations -----//
+        // Burn-in Iterations
         for (ulong i = 0; i < n_burnin; i += thin, progressbar.update())
             for (ulong t = 1; t <= thin; ++t)
                 _move_all();
 
-        //----- MCMC Posterior Sampling -----//
+        // Posterior sampling
         for (ulong i = n_burnin; i < n_steps; i += thin, progressbar.update())
         {
             for (ulong t = 1; t <= thin; ++t)
@@ -875,9 +874,9 @@ Rcpp::DataFrame MCMC::simulate()
         Rcpp::IntegerVector df_status = IntegerVector(n_cols);
         std::vector<Rcpp::NumericVector> df_dbl = {};
 
-        // UPDATE: why augm_list_full is still a set?
         // remove data columns if they have same name than augmented
         str_vec &v = _aux_data_headers;
+        // UPDATE: why augm_list_full is still a set?
         const std::unordered_set<augmID> &y = pImpl->augm_list_full;
         auto new_end = std::remove_if(v.begin(), v.end(),
                                       [&y](const dataID &elem)

@@ -33,13 +33,15 @@ namespace tools
     /* Internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
-        const str_vec forbidden = {HHEPI_NA_STRING, "<NA>", "NA", "nan", "NaN", "NAN"};
+        const str_vec forbidden = {"<NA>", "NA", "NAN"};
 
         if (txt.size() == 0)
             return true;
+        else if (txt == HOUSEPI_NA_STRING)
+            return true;
         else
             for (const std::string &txtnan : forbidden)
-                if (txt == txtnan)
+                if (stoupper(txt) == txtnan)
                     return true;
 
         return false;
@@ -189,7 +191,7 @@ namespace tools
 
     /* Template function to wrap conversion functions with try-catch */
     template <typename Func, typename... Args>
-    auto _safe_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
+    auto _safe_converter(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
     {
         try
         {
@@ -205,13 +207,13 @@ namespace tools
     /* Converter to int using std::stoi with function pointer casting */
     int stoi(const std::string &input, const std::string &errtxt)
     {
-        return _safe_converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
+        return _safe_converter(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
     }
 
     /* Converter to unsigned long using std::stoul with function pointer casting */
     unsigned long stoul(const std::string &input, const std::string &errtxt)
     {
-        return _safe_converter_(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+        return _safe_converter(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
 
     /* Converter to unsigned 32bit integer (for R compatibility). */
@@ -223,13 +225,13 @@ namespace tools
     /* Converter to double using std::stod with function pointer casting */
     double stod(const std::string &input, const std::string &errtxt)
     {
-        return _safe_converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
+        return _safe_converter(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
     /* Converter to string checking for NA values. */
     const std::string natostring(double x)
     {
-        return is_na(x) ? HHEPI_NA_STRING : std::to_string(x);
+        return is_na(x) ? HOUSEPI_NA_STRING : std::to_string(x);
     }
 
     /* Convert std::string to boolean variable. */
@@ -259,7 +261,7 @@ namespace tools
 
         // check for undefined
         if (is_na(tkn))
-            tkn = HHEPI_NA_STRING;
+            tkn = HOUSEPI_NA_STRING;
 
         return tkn;
     }
@@ -297,7 +299,7 @@ namespace tools
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], HHEPI_NA_STRING);
+                this_row.emplace(headers[i], HOUSEPI_NA_STRING);
 
             return true;
         }
@@ -569,7 +571,7 @@ namespace tools
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown option(s): " + show_list(unused) + find_closest(HHEPI_NA_STRING, options, 0));
+                "Unknown option(s): " + show_list(unused) + find_closest(HOUSEPI_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE

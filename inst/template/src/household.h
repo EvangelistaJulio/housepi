@@ -43,13 +43,13 @@ public:
 		ushort n_rates = 0;
 		const double **pointers = {};
 
-		GroupRate(const std::string &name = HHEPI_NA_STRING,
+		GroupRate(const std::string &name = HOUSEPI_NA_STRING,
 				  const std::vector<const double *> &pointers = {});
 		~GroupRate();
 		double get() const;
 	};
 
-	std::string id = HHEPI_NA_STRING; // user id
+	std::string id = HOUSEPI_NA_STRING; // user id
 	int status = MISSING_STATUS;  // status of the individual
 
 	// NOTE: I am forced to store numerical variables
@@ -61,7 +61,7 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Individual(const std::string &id = HHEPI_NA_STRING,
+	Individual(const std::string &id = HOUSEPI_NA_STRING,
 			   int status = MISSING_STATUS,
 			   const dataIDmap<double> &data = {});
 	~Individual();
@@ -99,7 +99,7 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Household(const std::string &house_id = HHEPI_NA_STRING,
+	Household(const std::string &house_id = HOUSEPI_NA_STRING,
 			  size_t index = SIZE_MAX);
 	~Household();
 
@@ -154,11 +154,11 @@ public:
 
 	//----- Augmented : Setter -----//
 	void assign_augm(indiv i,
-					 const augmID &a = HHEPI_NA_STRING,
-					 const std::string &name = HHEPI_NA_STRING,
-					 double value = std::numeric_limits<double>::quiet_NaN(),
+					 const augmID &a = HOUSEPI_NA_STRING,
+					 const std::string &name = HOUSEPI_NA_STRING,
+					 double value = HOUSEPI_NA_DOUBLE,
 					 bool is_discrete = false,
-					 const std::string &model_name = HHEPI_NA_STRING);
+					 const std::string &model_name = HOUSEPI_NA_STRING);
 
 	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
 									  const std::string &arg_name,
@@ -179,10 +179,10 @@ public:
 	void init_augm_model_reshaping(indiv i, const augmID &a);
 
 	void assign_augm_proposer(indiv i,
-							  const augmID &a = HHEPI_NA_STRING,
-							  const std::string &rule_name = HHEPI_NA_STRING,
-							  double rule_scale = HHEPI_NA_DOUBLE,
-							  double rule_from = HHEPI_NA_DOUBLE);
+							  const augmID &a = HOUSEPI_NA_STRING,
+							  const std::string &rule_name = HOUSEPI_NA_STRING,
+							  double rule_scale = HOUSEPI_NA_DOUBLE,
+							  double rule_from = HOUSEPI_NA_DOUBLE);
 
 	void set_augm_value(indiv i, const augmID &a, double x);
 	void augm_model_rand(indiv i, const augmID &a, rnd_gen &prng);
@@ -241,7 +241,7 @@ public:
 	const dbl_vec &get_smpl_loglike() const;
 
 private:
-	std::string _house_id = HHEPI_NA_STRING; // user house id
+	std::string _house_id = HOUSEPI_NA_STRING; // user house id
 	size_t _index = -1;					 // index of house
 	ushort _house_size = 0;				 // n. of house members
 	ulong _house_multiplicity = 1;		 // n. of equivalent houses

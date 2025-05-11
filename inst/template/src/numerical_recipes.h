@@ -14,7 +14,8 @@
 #include <stdexcept>
 #include <cmath>
 #include <algorithm>
-#include <limits>
+
+#include "tools.h"
 
 #ifndef M_1_SQRT_2PI
 #define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2pi) */
@@ -132,7 +133,7 @@ namespace numr
             }
 
             throw std::overflow_error("Overflow in gamma_p function.");
-            return std::numeric_limits<double>::quiet_NaN();
+            return HOUSEPI_NA_DOUBLE;
         }
 
         /* Upper regularized incomplete gamma function using continued fraction. */
@@ -163,7 +164,7 @@ namespace numr
             }
 
             throw std::overflow_error("Overflow in gamma_p function.");
-            return std::numeric_limits<double>::quiet_NaN();
+            return HOUSEPI_NA_DOUBLE;
         }
     }
 
@@ -231,7 +232,7 @@ namespace numr
             }
 
             throw std::overflow_error("Overflow in ibeta function.");
-            return std::numeric_limits<double>::quiet_NaN();
+            return HOUSEPI_NA_DOUBLE;
         }
     }
 

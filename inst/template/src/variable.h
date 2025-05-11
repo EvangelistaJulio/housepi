@@ -42,8 +42,8 @@ public:
 
     Proposer() {};
     Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = HHEPI_NA_DOUBLE,
-             double rule_start_value = HHEPI_NA_DOUBLE,
+             double rule_scale = HOUSEPI_NA_DOUBLE,
+             double rule_start_value = HOUSEPI_NA_DOUBLE,
              const std::vector<ushort> &args_to_adapt = {},
              bool is_discrete = false);
     virtual ~Proposer() {};
@@ -85,12 +85,12 @@ public:
     const std::string show_scale() const;
 
 protected:
-    std::string _proposer_name = HHEPI_NA_STRING;
+    std::string _proposer_name = HOUSEPI_NA_STRING;
     std::shared_ptr<Distribution> _distr_ptr;
 
     double _user_rule_scale = 1.;     // scale of the Metropolis rule
     bool _is_start_from_zero = false; // wheter to move from given value
-    double _from_value = HHEPI_NA_DOUBLE; // given value where to start from
+    double _from_value = HOUSEPI_NA_DOUBLE; // given value where to start from
 
     double _accept_rate = 0.;    // acceptance rate
     ulong _n_proposed_moves = 0; // number of proposed moves
@@ -126,8 +126,8 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Variable(const std::string &name = HHEPI_NA_STRING,
-             double value = std::numeric_limits<double>::quiet_NaN(),
+    Variable(const std::string &name = HOUSEPI_NA_STRING,
+             double value = HOUSEPI_NA_DOUBLE,
              bool is_discrete = false);
     ~Variable();
 
@@ -152,7 +152,7 @@ public:
     void restore_value();
 
     //----- Pointer to distribution -----//
-    void assign_distribution(const std::string &distr_name = HHEPI_NA_STRING);
+    void assign_distribution(const std::string &distr_name = HOUSEPI_NA_STRING);
 
     void assign_distr_scalar_arg(const std::string &arg_name, double x);
     void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
@@ -166,9 +166,9 @@ public:
     void init_distr_reshaping();
 
     //----- Pointer to proposer -----//
-    void assign_proposer(const std::string &rule_name = HHEPI_NA_STRING,
-                         double rule_scale = HHEPI_NA_DOUBLE,
-                         double rule_from = HHEPI_NA_DOUBLE);
+    void assign_proposer(const std::string &rule_name = HOUSEPI_NA_STRING,
+                         double rule_scale = HOUSEPI_NA_DOUBLE,
+                         double rule_from = HOUSEPI_NA_DOUBLE);
 
     //===============================//
     //===== METROPOLIS-HASTINGS =====//
@@ -216,11 +216,11 @@ private:
     std::shared_ptr<Distribution> _distr_ptr; // prior\model distribution of the variable
     std::shared_ptr<Proposer> _prop_ptr;      // Monte Carlo proposer
 
-    std::string _variable_name = HHEPI_NA_STRING; // name of variable
-    double _value = HHEPI_NA_DOUBLE;              // value
-    double _buffer_value = HHEPI_NA_DOUBLE;       // buffered value
+    std::string _variable_name = HOUSEPI_NA_STRING; // name of variable
+    double _value = HOUSEPI_NA_DOUBLE;              // value
+    double _buffer_value = HOUSEPI_NA_DOUBLE;       // buffered value
 
-    double _user_value = HHEPI_NA_DOUBLE; // initial user defined value
+    double _user_value = HOUSEPI_NA_DOUBLE; // initial user defined value
     bool _is_discrete = false;        // wheter discrete or not
     bool _is_constant = true;         // wheter constant or not
 

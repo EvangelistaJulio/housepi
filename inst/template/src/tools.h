@@ -26,11 +26,11 @@
 #include <vector>
 #include <map>
 
-/* DEVELOPER: flag used to predispose to different wrappers
+/* DEVELOPER: flag used to predispose to different wrapper*/
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-*/
+
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -40,20 +40,19 @@
 #include <omp.h>
 #endif
 
-// UPDATE: Test for pre-compilation
-// #define DEBUG_TEMPORARY_MACRO
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// UPDATE: NaN and NA values need to be revised
+// NA value for double 
 #ifdef _HOUSEPI_RCPP
-const double HHEPI_NA_DOUBLE = NA_REAL;
+const double HOUSEPI_NA_DOUBLE = NA_REAL;
 #else 
-const double HHEPI_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
+const double HOUSEPI_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 #endif
-const std::string HHEPI_NA_STRING = "<NA>";
+
+// NA value for string 
+const std::string HOUSEPI_NA_STRING = "<NA>";
 
 // constants
 constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
@@ -118,13 +117,8 @@ using matrix = std::vector<std::vector<T>>;
 //----- Aliases for improved readibility -----//
 using indiv = unsigned short int;
 
-#ifdef DEBUG_TEMPORARY_MACRO
-using __access_ID__ = unsigned short int;
-constexpr __access_ID__ __undef_ID__ = SIZE_MAX; // value for undefined choice
-#else
 using __access_ID__ = std::string;
-const __access_ID__ __undef_ID__ = HHEPI_NA_STRING; // name for undefined choice
-#endif
+const __access_ID__ __undef_ID__ = HOUSEPI_NA_STRING; // name for undefined choice
 
 using parID = __access_ID__;
 using augmID = __access_ID__;
@@ -138,18 +132,6 @@ const dataID NULL_DATACOLUMN = __undef_ID__;
 const rateID NULL_GROUPRATE = __undef_ID__;
 const extraID NULL_EXTRAVARIA = __undef_ID__;
 
-#ifdef DEBUG_TEMPORARY_MACRO
-template <typename T>
-using parIDmap = std::vector<T>;
-template <typename T>
-using augmIDmap = std::vector<T>;
-template <typename T>
-using dataIDmap = std::vector<T>;
-template <typename T>
-using rateIDmap = std::vector<T>;
-template <typename T>
-using extraIDmap = std::vector<T>;
-#else
 #include <unordered_map>
 template <typename T>
 using parIDmap = std::unordered_map<parID, T>;
@@ -161,7 +143,6 @@ template <typename T>
 using rateIDmap = std::unordered_map<rateID, T>;
 template <typename T>
 using extraIDmap = std::unordered_map<extraID, T>;
-#endif
 
 template <typename T>
 using rateIDmapvec = rateIDmap<std::vector<T>>;
