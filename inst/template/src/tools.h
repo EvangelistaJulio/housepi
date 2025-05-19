@@ -26,11 +26,11 @@
 #include <vector>
 #include <map>
 
-/* DEVELOPER: flag used to predispose to different wrapper*/
+/* DEVELOPER: flag used to predispose to different wrapper
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-
+*/
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -44,31 +44,34 @@
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// NA value for double 
+// NA value for double
 #ifdef _HOUSEPI_RCPP
 const double HOUSEPI_NA_DOUBLE = NA_REAL;
-#else 
+#else
 const double HOUSEPI_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 #endif
 
-// NA value for string 
+// NA value for string
 const std::string HOUSEPI_NA_STRING = "<NA>";
 
-// constants
-constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
-constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
-
 // status aliases
-
 constexpr int INFECTED_STATUS = 1; // infected status (>=)
 constexpr int HEALTHY_STATUS = 0;  // healthy status (==)
 constexpr int MISSING_STATUS = -1; // missing status (<=)
 
 // group rates
+constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
 const std::string REFERENCE = "REFERENCE";       // name for reference choice
 const std::string CONTACT_RATE = "Contact";      // name for Contact rate
-constexpr double REFERENCE_VALUE = 1.0;          // auxiliary reference value for the parameters
 const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
+
+// constants
+constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
+constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
+
+// arugment aliases
+constexpr bool ARG_DEFAULT = true; // default argument
+constexpr bool ARG_RANGE = false;  // range argument
 
 // file formatters
 constexpr char C_DELIM = ',';      // file delimiter

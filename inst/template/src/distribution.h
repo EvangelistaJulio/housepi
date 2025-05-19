@@ -41,12 +41,22 @@
 class Distribution : public Function
 {
 public:
+	//=======================//
+	//===== CONSTRUCTOR =====//
+	//=======================//
+
 	using Function::Function;
 
+	//==================//
 	//===== SETTER =====//
+	//==================//
+
 	virtual void init_reshaping(bool discrete);
 
+	//==================//
 	//===== GETTER =====//
+	//==================//
+
 	bool is_discrete() const;
 	double pdf(double x, const dbl_vec &opts = {}) const;
 	double cdf(double x, const dbl_vec &opts = {}) const;
@@ -54,20 +64,36 @@ public:
 	double logratio(double xold, double xnew, const dbl_vec &opts = {}) const;
 	double rand(rnd_gen &prng);
 
+	// note: as a function, distribution is defined by its pdf
+	// FIXME : in development
+	double return_value(const dbl_vec &input) const override final { 
+		const double x = input[0];
+		const dbl_vec opts = input.size() > 1 ? dbl_vec(input.begin() + 1, input.end()) : dbl_vec();
+		
+		return pdf(x, opts); 
+	}
+
+	//================//
 	//===== SHOW =====//
+	//================//
+
 	const std::vector<dbl_vec> showcase(const dbl_vec &opts = {},
 										int n_bins = 2000,
 										double ytol = 1.e-5) const;
 
 protected:
+	//==================//
 	//===== SETTER =====//
+	//==================//
 	void init_functional_discretization(ushort discr_type);
 	void init_functional_truncation(ushort discr_type);
 
 	void init_min_zero_reshaping(bool discrete, bool is_open_zero);
 	void init_min_zero_discr_defined_reshaping();
 
+	//==================//
 	//===== GETTER =====//
+	//==================//
 	// note: distribution specific virtual methods
 	virtual double raw_pdf(double x, const dbl_vec &opts) const;
 	virtual double raw_cdf(double x, const dbl_vec &opts) const;
@@ -80,11 +106,11 @@ private:
 	double _rejection_sampling(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
 
 	//===== Functional methods for public getter methods =====//
-	double (Distribution::*_func_pdf)(double, const dbl_vec &) const = &Distribution::__default_pdf;
-	double (Distribution::*_func_cdf)(double, const dbl_vec &) const = &Distribution::__default_cdf;
-	double (Distribution::*_func_logpdf)(double, const dbl_vec &) const = &Distribution::__default_logpdf;
-	double (Distribution::*_func_logratio)(double, double, const dbl_vec &) const = &Distribution::__default_logratio;
-	double (Distribution::*_func_rand)(rnd_gen &) = &Distribution::__default_rand;
+	double (Distribution::*_do_pdf)(double, const dbl_vec &) const = &Distribution::__default_pdf;
+	double (Distribution::*_do_cdf)(double, const dbl_vec &) const = &Distribution::__default_cdf;
+	double (Distribution::*_do_logpdf)(double, const dbl_vec &) const = &Distribution::__default_logpdf;
+	double (Distribution::*_do_logratio)(double, double, const dbl_vec &) const = &Distribution::__default_logratio;
+	double (Distribution::*_do_rand)(rnd_gen &) = &Distribution::__default_rand;
 
 	//----- Default functional methods -----//
 	double __default_pdf(double x, const dbl_vec &opts) const;
@@ -115,9 +141,9 @@ private:
 	double __discr_left_rand(rnd_gen &prng);
 
 	//===== Functional methods for truncation =====//
-	double (Distribution::*_func_trunc)(double, const dbl_vec &opts) const = &Distribution::__trunc_dummy;
-	double (Distribution::*_func_logtrunc)(double, const dbl_vec &opts) const = &Distribution::__logtrunc_dummy;
-	double (Distribution::*_func_shift)(double, const dbl_vec &opts) const = &Distribution::__shift_dummy;
+	double (Distribution::*_do_trunc)(double, const dbl_vec &opts) const = &Distribution::__trunc_dummy;
+	double (Distribution::*_do_logtrunc)(double, const dbl_vec &opts) const = &Distribution::__logtrunc_dummy;
+	double (Distribution::*_do_shift)(double, const dbl_vec &opts) const = &Distribution::__shift_dummy;
 
 	//----- Functional methods for the truncation and/or discretization -----//
 

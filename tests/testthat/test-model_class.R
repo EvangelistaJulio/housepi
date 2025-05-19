@@ -127,3 +127,4 @@ test_that("Augmentation example on incubation from delays is coherent", {
 
   expect_equal(from_model, exact)
 })
+

@@ -226,7 +226,7 @@ private:
 
 	void _move_all_augm();
 
-	double (MCMC::*_func_move_augm_indiv)(Household &, indiv) = &MCMC::__move_augm_indiv_generic;
+	double (MCMC::*_do_move_augm_indiv)(Household &, indiv) = &MCMC::__move_augm_indiv_generic;
 	double __move_augm_indiv_generic(Household &house, indiv i);
 	double __move_augm_indiv_by_status(Household &house, indiv i);
 

@@ -88,8 +88,8 @@ protected:
     std::string _proposer_name = HOUSEPI_NA_STRING;
     std::shared_ptr<Distribution> _distr_ptr;
 
-    double _user_rule_scale = 1.;     // scale of the Metropolis rule
-    bool _is_start_from_zero = false; // wheter to move from given value
+    double _user_rule_scale = 1.;           // scale of the Metropolis rule
+    bool _is_start_from_zero = false;       // wheter to move from given value
     double _from_value = HOUSEPI_NA_DOUBLE; // given value where to start from
 
     double _accept_rate = 0.;    // acceptance rate
@@ -99,14 +99,14 @@ protected:
     ushort *_args_to_adapt_list = nullptr; // which arguments should be adapted
 
     //===== propose : functional methods =====//
-    double (Proposer::*_func_propose)(rnd_gen &, double) = &Proposer::__propose_undefined;
+    double (Proposer::*_do_propose)(rnd_gen &, double) = &Proposer::__propose_undefined;
     double __propose_undefined(rnd_gen &prng, double start);
     double __propose_sum_to_previous(rnd_gen &prng, double start);
     double __propose_times_previous(rnd_gen &prng, double start);
     double __propose_draw_rand(rnd_gen &prng, double start);
 
     //===== logratio : functional methods =====//
-    double (Proposer::*_func_logratio)(double, double) const = &Proposer::__logratio_undefined;
+    double (Proposer::*_do_logratio)(double, double) const = &Proposer::__logratio_undefined;
     double __logratio_undefined(double xold, double xnew) const;
     double __logratio_pdf(double xold, double xnew) const;
     double __logratio_sum_to_zero(double xold, double xnew) const;
@@ -135,9 +135,10 @@ public:
     //===== GETTER =====//
     //==================//
 
-    double get() const;
+    double get(const dbl_vec &opts = {}) const;
     const double *get_pointer() const;
     double get_from_value() const;
+    bool is_function() const;
     bool is_constant() const;
     bool is_discrete() const;
     bool is_from_zero() const;
@@ -154,14 +155,8 @@ public:
     //----- Pointer to distribution -----//
     void assign_distribution(const std::string &distr_name = HOUSEPI_NA_STRING);
 
-    void assign_distr_scalar_arg(const std::string &arg_name, double x);
-    void assign_distr_pointer_arg(const std::string &arg_name, const double *y);
-
-    void assign_distr_scalar_range_min(double x);
-    void assign_distr_pointer_range_min(const double *y);
-
-    void assign_distr_scalar_range_max(double x);
-    void assign_distr_pointer_range_max(const double *y);
+    void assign_distr_scalar(const std::string &arg_name, bool is_arg, double x);
+    void assign_distr_pointer(const std::string &arg_name, bool is_arg, const double *y);
 
     void init_distr_reshaping();
 
@@ -198,7 +193,7 @@ public:
     //================//
 
     const std::string show_name() const;
-    const std::string show_value() const;    
+    const std::string show_value() const;
 
     const std::string show_distr_name() const;
     const std::string show_distr_arg_names() const;
@@ -213,6 +208,7 @@ public:
     const std::string show_prop_scale() const;
 
 private:
+    std::shared_ptr<Function> _func_ptr;      // function
     std::shared_ptr<Distribution> _distr_ptr; // prior\model distribution of the variable
     std::shared_ptr<Proposer> _prop_ptr;      // Monte Carlo proposer
 
@@ -221,25 +217,37 @@ private:
     double _buffer_value = HOUSEPI_NA_DOUBLE;       // buffered value
 
     double _user_value = HOUSEPI_NA_DOUBLE; // initial user defined value
-    bool _is_discrete = false;        // wheter discrete or not
-    bool _is_constant = true;         // wheter constant or not
+    bool _is_discrete = false;              // wheter discrete or not
+    bool _is_constant = true;               // wheter constant or not
+
+    //==================//
+    //===== GETTER =====//
+    //==================//
+
+    double (Variable::*_do_get)(const dbl_vec &) const = &Variable::__get_default;
+    double __get_default(const dbl_vec &opts) const;
+    double __get_func_return(const dbl_vec &opts) const;
+    
+    const double * (Variable::*_do_get_pointer)() const = &Variable::__get_pointer_default;
+    const double * __get_pointer_default() const;
+    const double * __get_pointer_func_return() const;
 
     //===============================//
     //===== METROPOLIS-HASTINGS =====//
     //===============================//
 
     //----- Valid move : functional methods -----//
-    bool (Variable::*_func_valid_move)() const = &Variable::__valid_move_default;
+    bool (Variable::*_do_valid_move)() const = &Variable::__valid_move_default;
     bool __valid_move_default() const;
     bool __valid_move_draw() const;
 
     //----- Move logratio : functional methods -----//
-    double (Variable::*_func_move_logratio)() const = &Variable::__move_logratio_default_;
+    double (Variable::*_do_move_logratio)() const = &Variable::__move_logratio_default_;
     double __move_logratio_default_() const;
     double __move_logratio_draw() const;
 
     //----- Propose : functional methods -----//
-    double (Variable::*_func_propose)(rnd_gen &) = &Variable::__propose_error;
+    double (Variable::*_do_propose)(rnd_gen &) = &Variable::__propose_error;
     double __propose_error(rnd_gen &prng);
     double __propose_draw_sample(rnd_gen &prng);
     double __propose_from_previous(rnd_gen &prng);

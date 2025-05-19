@@ -467,9 +467,9 @@ void MCMC::init_augmented_variables()
         {
             // wheter augmented variable are generic or status specific
             if (is_augm_generic())
-                _func_move_augm_indiv = &MCMC::__move_augm_indiv_generic;
+                _do_move_augm_indiv = &MCMC::__move_augm_indiv_generic;
             else
-                _func_move_augm_indiv = &MCMC::__move_augm_indiv_by_status;
+                _do_move_augm_indiv = &MCMC::__move_augm_indiv_by_status;
         }
 
         // assign augmented variables
@@ -494,7 +494,7 @@ double MCMC::_move_augm_single_house(size_t H)
 
     // Loop over infectious residents of the househould
     for (const indiv &i : house.infected_status_list())
-        delta_ll += (this->*_func_move_augm_indiv)(house, i);
+        delta_ll += (this->*_do_move_augm_indiv)(house, i);
 
     return delta_ll;
 }

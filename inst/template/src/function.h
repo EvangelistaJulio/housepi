@@ -64,7 +64,7 @@ private:
     double _value = HOUSEPI_NA_DOUBLE;
     const double *_ptr_to_value = &_value;
 
-    void (Argument::*_func_set_arg)(double) = &Argument::__set_arg_default;
+    void (Argument::*_do_set_arg)(double) = &Argument::__set_arg_default;
     void __set_arg_default(double x);
     void __set_arg_pointer(double x);
 };
@@ -73,7 +73,7 @@ private:
 ///////////////////////////////////  Base Function : class //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Parent class to all function classes where the arguements are stored in arrays. */
+/* Function parent class. Arguements stored in arrays. */
 class Function
 {
 public:
@@ -88,6 +88,8 @@ public:
     //===== GETTER =====//
     //==================//
 
+    virtual double return_value(const dbl_vec &input) const;
+
     ushort find(const std::string &arg_name) const;
     ushort assert_arg(const std::string &arg_name) const;
     double get_arg(ushort i) const;
@@ -101,16 +103,12 @@ public:
     bool valid(double x) const;
     ushort which_valid_case() const;
 
-    //===== ARGUMENTS =====//
-    void assign_scalar_arg(const std::string &arg_name, double value);
-    void assign_pointer_arg(const std::string &arg_name, const double *ptr_to_value);
+    //=============================//
+    //===== ARGUMENTS & RANGE =====//
+    //=============================//
+    void assign_scalar(const std::string &arg_name, bool is_arg, double value);
+    void assign_pointer(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
     void set_arg(ushort i, double new_value);
-
-    //===== RANGE =====//
-    void assign_scalar_range_min(double lower);
-    void assign_pointer_range_min(const double *ptr_to_lower);
-    void assign_scalar_range_max(double upper);
-    void assign_pointer_range_max(const double *ptr_to_upper);
     void init_functional_range(bool is_min_open, bool is_max_open);
 
     //===== SHOW =====//
@@ -141,13 +139,21 @@ private:
     Argument _range_min = Argument();
     Argument _range_max = Argument();
 
+    //=============================//
+    //===== ARGUMENTS & RANGE =====//
+    //=============================//
+    void _assign_scalar_arg(const std::string &arg_name, double value);
+    void _assign_pointer_arg(const std::string &arg_name, const double *ptr_to_value);
+    void _assign_scalar_range(const std::string &range_name, double lower);
+    void _assign_pointer_range(const std::string &range_name, const double *ptr_to_lower);
+
     //===== VALID =====//
     // note: for the moment range extremes can't be one open and other close
 
     //---- alternative valid range methods -----//
-    bool (Function::*_func_below)(double) const = &Function::__below_never;
-    bool (Function::*_func_above)(double) const = &Function::__above_never;
-    bool (Function::*_func_valid)(double) const = &Function::__valid_always;
+    bool (Function::*_do_below)(double) const = &Function::__below_never;
+    bool (Function::*_do_above)(double) const = &Function::__above_never;
+    bool (Function::*_do_valid)(double) const = &Function::__valid_always;
 
     //----- range : none ------//
     bool __below_never(double x) const

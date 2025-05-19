@@ -137,8 +137,8 @@ public:
 
 		// wrapper around gamma distribution
 		gamma_distr_ptr = distribution_switch("gamma");
-		gamma_distr_ptr->assign_pointer_arg("shape", get_ptr_to_arg(0));
-		gamma_distr_ptr->assign_pointer_arg("scale", get_ptr_to_arg(1));
+		gamma_distr_ptr->assign_pointer("shape", ARG_DEFAULT, get_ptr_to_arg(0));
+		gamma_distr_ptr->assign_pointer("scale", ARG_DEFAULT, get_ptr_to_arg(1));
 	}
 	~InfecProfile_Ashcroft20() = default;
 
@@ -241,8 +241,8 @@ void MCMC::Impl::make_param_extra_dependent(const std::string &par_name)
 
 /* Assign arguments to infectivity profile. */
 void MCMC::Impl::InfecProfile::_assign_args(const str_vec &keys,
-										   const str_vec &vals,
-										   const str_vec &typs)
+											const str_vec &vals,
+											const str_vec &typs)
 {
 	// check size validity of keys, values and type
 	if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
@@ -271,14 +271,14 @@ void MCMC::Impl::InfecProfile::_assign_args(const str_vec &keys,
 		{
 			if (!pImpl.param_map.at(value).is_constant())
 			{
-				profile->assign_pointer_arg(key, pImpl.get_param_pointer(value));
+				profile->assign_pointer(key, ARG_DEFAULT, pImpl.get_param_pointer(value));
 				pImpl.make_param_extra_dependent(value);
 			}
 			else
-				profile->assign_scalar_arg(key, pImpl.get_param(value));
+				profile->assign_scalar(key, ARG_DEFAULT, pImpl.get_param(value));
 		}
 		else if (type == TYPE_SCALAR)
-			profile->assign_scalar_arg(key, tools::stod(value, "argument with scalar type"));
+			profile->assign_scalar(key, ARG_DEFAULT, tools::stod(value, "argument with scalar type"));
 
 		else
 			throw std::invalid_argument(
@@ -290,55 +290,10 @@ void MCMC::Impl::InfecProfile::_assign_args(const str_vec &keys,
 ////////////////////////////  MCMC : Impl : InfecProfile : assign range  ////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign minimum of infectivity profile. */
-void MCMC::Impl::InfecProfile::_assign_min(bool is_discrete,
-										  const std::string &min_value,
-										  const std::string &min_at)
-{
-	if (tools::is_na(min_value) && tools::is_na(min_at))
-		profile->assign_scalar_range_min((is_discrete) ? 1 : 0);
-
-	else if (!tools::is_na(min_value) && tools::is_na(min_at))
-		throw std::invalid_argument(
-			"Impossible to interpret type of value  \"" + min_value + "\". Please provide a type.");
-
-	else if (tools::is_na(min_value) && !tools::is_na(min_at))
-		tools::warning(
-			"Found a type without a paired value. Falling back to default.");
-
-	else if (min_value == TYPE_PARAM)
-	{
-		if (!pImpl.param_map.at(min_value).is_constant())
-		{
-			profile->assign_pointer_range_min(pImpl.get_param_pointer(min_value));
-			pImpl.make_param_extra_dependent(min_value);
-		}
-		else
-			profile->assign_scalar_range_min(pImpl.get_param(min_value));
-	}
-
-	else if (min_at == TYPE_SCALAR)
-		profile->assign_scalar_range_min(tools::stod(min_value, "scalar type argument"));
-
-	else
-		throw std::invalid_argument(
-			"Unsopported type \"" + min_at + "\" found while loading \"" + min_value + "\" for pointer value.");
-
-	// check infectivity profile minimum is correct
-	if (is_discrete)
-	{
-		if (profile->get_min() < 1.)
-			throw std::invalid_argument(
-				"Minimum of discrete infectivity profile must be >= 1.");
-	}
-	else if (profile->get_min() < 0.)
-		throw std::invalid_argument(
-			"Minimum of continuos infectivity profile must be >= 0.");
-}
-
 /* Assign maximum of infectivity profile. */
-void MCMC::Impl::InfecProfile::_assign_max(const std::string &max_value,
-										  const std::string &max_at)
+void MCMC::Impl::InfecProfile::_assign_range(const std::string &range_name,
+											 const std::string &max_value,
+											 const std::string &max_at)
 {
 	if (tools::is_na(max_value) && tools::is_na(max_at))
 		; // pass
@@ -355,15 +310,15 @@ void MCMC::Impl::InfecProfile::_assign_max(const std::string &max_value,
 	{
 		if (!pImpl.param_map.at(max_value).is_constant())
 		{
-			profile->assign_pointer_range_max(pImpl.get_param_pointer(max_value));
+			profile->assign_pointer(range_name, ARG_RANGE, pImpl.get_param_pointer(max_value));
 			pImpl.make_param_extra_dependent(max_value);
 		}
 		else
-			profile->assign_scalar_range_max(pImpl.get_param(max_value));
+			profile->assign_scalar(range_name, ARG_RANGE, pImpl.get_param(max_value));
 	}
 
 	else if (max_at == TYPE_SCALAR)
-		profile->assign_scalar_range_max(tools::stod(max_value, "argument with scalar type"));
+		profile->assign_scalar(range_name, ARG_RANGE, tools::stod(max_value, "argument with scalar type"));
 
 	else
 		throw std::invalid_argument(
@@ -416,7 +371,7 @@ void MCMC::Impl::InfecProfile::init_lookup()
 			{
 				tools::warning(
 					"Discrete infectivity profile introduced maximum " + std::to_string(MAX_SIZE_INFEC_LUT) + ".");
-				profile->assign_scalar_range_max(MAX_SIZE_INFEC_LUT);
+				profile->assign_scalar("max", ARG_RANGE, MAX_SIZE_INFEC_LUT);
 				profile->init_reshaping(profile->is_discrete());
 			}
 			_size_lut = profile->get_max() + 1;
@@ -428,8 +383,8 @@ void MCMC::Impl::InfecProfile::init_lookup()
 
 			update_lookup();
 
-			_func_inst = &InfecProfile::__lookup_inst;
-			_func_cumul = &InfecProfile::__lookup_cumul;
+			_do_inst = &InfecProfile::__lookup_inst;
+			_do_cumul = &InfecProfile::__lookup_cumul;
 		}
 	}
 }
@@ -486,22 +441,38 @@ void MCMC::Impl::InfecProfile::build()
 			}
 
 			//----- Arguments -----//
-			if ((deflist.count("arg_name")) && (deflist.count("arg_value")) && (deflist.count("arg_at")))
+			if (deflist.count("arg_name") && deflist.count("arg_value") && deflist.count("arg_at"))
 				_assign_args(tools::parse_list_args(deflist.at("arg_name")),
-							tools::parse_list_args(deflist.at("arg_value")),
-							tools::parse_list_args(deflist.at("arg_at")));
+							 tools::parse_list_args(deflist.at("arg_value")),
+							 tools::parse_list_args(deflist.at("arg_at")));
 			else
 				throw std::invalid_argument("not a valid list of arguments.");
 
 			//----- Range minimum -----//
-			if ((deflist.count("min")) && (deflist.count("min_at")))
-				_assign_min(is_discrete, deflist.at("min"), deflist.at("min_at"));
+			if (deflist.count("min") && deflist.count("min_at"))
+			{
+				if (tools::is_na(deflist.at("min")) && tools::is_na(deflist.at("min_at")))
+					_assign_range("min", (is_discrete) ? "1" : "0", TYPE_SCALAR);
+				else
+					_assign_range("min", deflist.at("min"), deflist.at("min_at"));
+
+				// check infectivity profile minimum is correct
+				if (is_discrete)
+				{
+					if (profile->get_min() < 1.)
+						throw std::invalid_argument(
+							"Minimum of discrete infectivity profile must be >= 1.");
+				}
+				else if (profile->get_min() < 0.)
+					throw std::invalid_argument(
+						"Minimum of continuos infectivity profile must be >= 0.");
+			}
 			else
 				throw std::invalid_argument("not a valid minimum.");
 
 			//----- Range maximum -----//
-			if ((deflist.count("max")) && (deflist.count("max_at")))
-				_assign_max(deflist.at("max"), deflist.at("max_at"));
+			if (deflist.count("max") && deflist.count("max_at"))
+				_assign_range("max", deflist.at("max"), deflist.at("max_at"));
 			else
 				throw std::invalid_argument("not a valid maximum.");
 
@@ -558,14 +529,14 @@ double MCMC::Impl::InfecProfile::inst(double t, const dbl_vec &opts) const
 {
 	// FLAG
 	if (profile->valid(t))
-		return (this->*_func_inst)(t, opts);
+		return (this->*_do_inst)(t, opts);
 	else
 		return 0.;
 	/*
 	if (!profile->valid(t))
 		throw std::out_of_range(
 			"Invalid generation time " + std::to_string(t) + " for instantaneous infectivity profile with range " + profile->show_range() + ".");
-	return (this->*_func_inst)(t, opts);
+	return (this->*_do_inst)(t, opts);
 	*/
 }
 /* Value of the cumulative infectivity profile. */
@@ -576,7 +547,7 @@ double MCMC::Impl::InfecProfile::cumul(double t, const dbl_vec &opts) const
 	else if (profile->above(t))
 		return 1.;
 	else
-		return (this->*_func_cumul)(t, opts);
+		return (this->*_do_cumul)(t, opts);
 }
 
 //-----------------------------------------------------------------------------------------------//

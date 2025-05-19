@@ -39,6 +39,7 @@
 const std::string TYPE_PARAM = "P";  // Parameter type declaration
 const std::string TYPE_DATA = "D";   // Data type declaration
 const std::string TYPE_SCALAR = "S"; // Scalar type declaration
+const std::string TYPE_AUGM = "A";   // Augmented type declaration
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -226,15 +227,13 @@ public:
         void _assign_args(const str_vec &keys,
                           const str_vec &vals,
                           const str_vec &typs);
-        void _assign_min(bool is_discrete,
-                         const std::string &min_value,
-                         const std::string &min_at);
-        void _assign_max(const std::string &max_value,
-                         const std::string &max_at);
+        void _assign_range(const std::string &range_name,
+                           const std::string &range_at,
+                           const std::string &range_value);
 
         //===== Functional methods for getter methods =====//
-        double (InfecProfile::*_func_inst)(double, const dbl_vec &) const = &InfecProfile::__default_inst;
-        double (InfecProfile::*_func_cumul)(double, const dbl_vec &) const = &InfecProfile::__default_cumul;
+        double (InfecProfile::*_do_inst)(double, const dbl_vec &) const = &InfecProfile::__default_inst;
+        double (InfecProfile::*_do_cumul)(double, const dbl_vec &) const = &InfecProfile::__default_cumul;
 
         double __default_inst(double t, const dbl_vec &opts) const;
         double __default_cumul(double t, const dbl_vec &opts) const;
@@ -285,7 +284,6 @@ public:
     void show_summary() const;
     void show_setup() const;
     void show_all_params() const;
-    void show_full_build() const;
     void show_results() const;
 
     //----- Cpp Prints -----//
@@ -306,20 +304,6 @@ public:
     void build_augm();
     void build_dataset(const dict_str_vec &input);
     void build_multiplicity(const dict_str_vec &input);
-
-    //----- build : type-specified variables -----//
-    double type_to_double(const std::string &tkn_val,
-                          const std::string &tkn_typ,
-                          const Household &house, indiv i);
-    void assign_augm_type_args(Household &house, indiv i, augmID a,
-                               const str_vec &keys,
-                               const str_vec &vals,
-                               const str_vec &typs);
-    void assign_augm_type_range(Household &house, indiv i, augmID a,
-                                const std::string &tkn_min_val,
-                                const std::string &tkn_min_typ,
-                                const std::string &tkn_max_val,
-                                const std::string &tkn_max_typ);
 
     //=========================//
     //===== LOGLIKELIHOOD =====//
@@ -368,7 +352,7 @@ private:
     //===================================//
 
     rnd_gen _prng; // Mersenne Twister 19937 generator (32 or 64 bit)
-    rnd_gen &(MCMC::Impl::*_func_get_prng)();
+    rnd_gen &(MCMC::Impl::*_do_get_prng)();
     rnd_gen &_prng_unique_thread() { return _prng; }
 
 #ifdef _OPENMP
@@ -387,16 +371,25 @@ private:
     dict_str_vec _param_deftable = {};
     dict_str_vec _augm_deftable = {};
 
-    //----- build : auxiliary methods -----//
+    //----- build augmented : auxiliary methods -----//
     const dict_str_vec _build_augm_name_status_check();
     void _build_augm_allocate_univocal_defs(const dict_str_vec &check);
     void _build_augm_clear_houses_and_set_id_trace();
+
+    double _type_to_double(const std::string &tkn_val,
+                           const std::string &tkn_typ,
+                           const Household &house, indiv i);
+    void _assign_augm_model(Household &house, indiv i, augmID a,
+                            const str_vec &keys,
+                            const str_vec &vals,
+                            const str_vec &typs,
+                            const std::vector<bool> &is_arg);
 
     //======================//
     //===== METROPOLIS =====//
     //======================//
 
-    void (Impl::*_func_augm_model_by_definition)(const Household &, indiv, double &) const = &Impl::__augm_model_generic;
+    void (Impl::*_do_augm_model_by_definition)(const Household &, indiv, double &) const = &Impl::__augm_model_generic;
     void __augm_model_by_status(const Household &house, indiv i, double &delta) const;
     void __augm_model_generic(const Household &house, indiv i, double &delta) const;
 };

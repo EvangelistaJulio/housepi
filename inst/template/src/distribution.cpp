@@ -664,7 +664,7 @@ public:
                       0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
 
-        assign_pointer_range_max(get_ptr_to_arg(0));
+        assign_pointer("max", ARG_RANGE, get_ptr_to_arg(0));
         init_functional_range(false, false);
     }
     ~Binomial_Distribution() = default;

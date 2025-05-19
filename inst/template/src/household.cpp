@@ -62,10 +62,6 @@ void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs
 	}
 }
 
-double Individual::data(const dataID &d) const { return data_map.at(d); }
-double Individual::group_rate(const rateID &r) const { return rate_map.at(r).get(); }
-double Individual::augm(const augmID &a) const { return augm_map.at(a).get(); }
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -278,26 +274,17 @@ bool Household::is_multiplicity_head_class() const { return (_index == _multipli
 int Household::status(indiv i) const { return _members[i].status; }
 double Household::contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
 
-double Household::data(indiv i, const dataID &d) const { return _members[i].data(d); }
-double Household::group_rate(indiv i, const rateID &r) const { return _members[i].group_rate(r); }
-double Household::augm(indiv i, const augmID &a) const { return _members[i].augm(a); }
+double Household::data(indiv i, const dataID &d) const { return _members[i].data_map.at(d); }
+double Household::group_rate(indiv i, const rateID &r) const { return _members[i].rate_map.at(r).get(); }
+double Household::augm(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get(); }
+const double *Household::augm_pointer(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_pointer(); }
+bool Household::is_augm_constant(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).is_constant(); }
+bool Household::is_augm_function(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).is_function(); }
 
-double Household::augm_model_logpdf(indiv i, const augmID &a) const
-{
-	return _members[i].augm_map.at(a).distr_logpdf();
-}
-double Household::augm_model_logratio(indiv i, const augmID &a) const
-{
-	return _members[i].augm_map.at(a).distr_logratio();
-}
-double Household::augm_propose_logratio(indiv i, const augmID &a) const
-{
-	return _members[i].augm_map.at(a).propose_logratio();
-}
-double Household::augm_move_logratio(indiv i, const augmID &a) const
-{
-	return _members[i].augm_map.at(a).get_move_logratio();
-}
+double Household::augm_model_logpdf(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).distr_logpdf(); }
+double Household::augm_model_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).distr_logratio(); }
+double Household::augm_propose_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).propose_logratio(); }
+double Household::augm_move_logratio(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_move_logratio(); }
 
 ushort Household::n_infec_status() const { return _n_infec; }
 ushort Household::n_healthy_status() const { return _n_healthy; }
@@ -330,36 +317,16 @@ void Household::assign_augm(indiv i, const augmID &a, const std::string &name, d
 }
 
 /* Assign scalar argument for augmented variable model. */
-void Household::assign_augm_model_scalar_arg(indiv i, const augmID &a, const std::string &arg_name, double x)
+void Household::assign_augm_model_scalar(indiv i, const augmID &a,
+										 const std::string &arg_name, bool is_arg, double x)
 {
-	_members[i].augm_map.at(a).assign_distr_scalar_arg(arg_name, x);
+	_members[i].augm_map.at(a).assign_distr_scalar(arg_name, is_arg, x);
 }
 /* Assign pointer to argument for augmented variable model. */
-void Household::assign_augm_model_pointer_arg(indiv i, const augmID &a, const std::string &arg_name, const double *y)
+void Household::assign_augm_model_pointer(indiv i, const augmID &a,
+										  const std::string &arg_name, bool is_arg, const double *y)
 {
-	_members[i].augm_map.at(a).assign_distr_pointer_arg(arg_name, y);
-}
-
-/* Assign scalar range minimum for augmented variable model. */
-void Household::assign_augm_model_scalar_range_min(indiv i, const augmID &a, double x)
-{
-	_members[i].augm_map.at(a).assign_distr_scalar_range_min(x);
-}
-/* Assign pointer range minimum for augmented variable model. */
-void Household::assign_augm_model_pointer_range_min(indiv i, const augmID &a, const double *y)
-{
-	_members[i].augm_map.at(a).assign_distr_pointer_range_min(y);
-}
-
-/* Assign scalar range maximum for augmented variable model. */
-void Household::assign_augm_model_scalar_range_max(indiv i, const augmID &a, double x)
-{
-	_members[i].augm_map.at(a).assign_distr_scalar_range_max(x);
-}
-/* Assign pointer range maximum for augmented variable model. */
-void Household::assign_augm_model_pointer_range_max(indiv i, const augmID &a, const double *y)
-{
-	_members[i].augm_map.at(a).assign_distr_pointer_range_max(y);
+	_members[i].augm_map.at(a).assign_distr_pointer(arg_name, is_arg, y);
 }
 
 void Household::init_augm_model_reshaping(indiv i, const augmID &a)

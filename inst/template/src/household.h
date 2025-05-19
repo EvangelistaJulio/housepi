@@ -50,7 +50,7 @@ public:
 	};
 
 	std::string id = HOUSEPI_NA_STRING; // user id
-	int status = MISSING_STATUS;  // status of the individual
+	int status = MISSING_STATUS;		// status of the individual
 
 	// NOTE: I am forced to store numerical variables
 	dataIDmap<double> data_map = {};   // database associated
@@ -71,14 +71,6 @@ public:
 	//==================//
 
 	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
-
-	//==================//
-	//===== GETTER =====//
-	//==================//
-
-	double data(const dataID &d) const;
-	double group_rate(const rateID &r) const;
-	double augm(const augmID &a) const;
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -160,22 +152,15 @@ public:
 					 bool is_discrete = false,
 					 const std::string &model_name = HOUSEPI_NA_STRING);
 
-	void assign_augm_model_scalar_arg(indiv i, const augmID &a,
-									  const std::string &arg_name,
-									  double arg_value);
-	void assign_augm_model_pointer_arg(indiv i, const augmID &a,
-									   const std::string &arg_name,
-									   const double *ptr_to_arg_value);
+	void assign_augm_model_scalar(indiv i, const augmID &a,
+								  const std::string &arg_name,
+								  bool is_arg,
+								  double arg_value);
+	void assign_augm_model_pointer(indiv i, const augmID &a,
+								   const std::string &arg_name,
+								   bool is_arg,
+								   const double *ptr_to_arg_value);
 
-	void assign_augm_model_scalar_range_min(indiv i, const augmID &a,
-											double arg_value);
-	void assign_augm_model_pointer_range_min(indiv i, const augmID &a,
-											 const double *ptr_to_arg_value);
-
-	void assign_augm_model_scalar_range_max(indiv i, const augmID &a,
-											double arg_value);
-	void assign_augm_model_pointer_range_max(indiv i, const augmID &a,
-											 const double *ptr_to_arg_value);
 	void init_augm_model_reshaping(indiv i, const augmID &a);
 
 	void assign_augm_proposer(indiv i,
@@ -192,6 +177,10 @@ public:
 
 	//----- Augmented : Getter -----//
 	double augm(indiv i, const augmID &a) const;
+	const double *augm_pointer(indiv i, const augmID &a) const;
+	bool is_augm_constant(indiv i, const augmID &a) const;
+	bool is_augm_function(indiv i, const augmID &a) const;
+
 	double augm_model_logpdf(indiv i, const augmID &a) const;
 	double augm_model_logratio(indiv i, const augmID &a) const;
 	double augm_propose_logratio(indiv i, const augmID &a) const;
@@ -242,10 +231,10 @@ public:
 
 private:
 	std::string _house_id = HOUSEPI_NA_STRING; // user house id
-	size_t _index = -1;					 // index of house
-	ushort _house_size = 0;				 // n. of house members
-	ulong _house_multiplicity = 1;		 // n. of equivalent houses
-	size_t _multiplicity_class = -1;	 // index of multiplicity class
+	size_t _index = -1;						   // index of house
+	ushort _house_size = 0;					   // n. of house members
+	ulong _house_multiplicity = 1;			   // n. of equivalent houses
+	size_t _multiplicity_class = -1;		   // index of multiplicity class
 
 	std::vector<Individual> _members = {}; // members
 
@@ -266,7 +255,7 @@ private:
 	double _obs_loglike = 0;  // current observation loglikelihood
 	double _augm_loglike = 0; // current augmented model loglikelihood
 
-	double _obs_buffer = 0;  // buffer observation loglikelihood
+	double _obs_buffer = 0;	 // buffer observation loglikelihood
 	double _augm_buffer = 0; // buffer augmented model loglikelihood
 
 	dbl_vec _smpl_loglike = {}; // diagnostics

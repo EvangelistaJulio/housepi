@@ -26,27 +26,27 @@
 
 double Distribution::pdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_pdf)(x, opts);
+    return (this->*_do_pdf)(x, opts);
 }
 double Distribution::cdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_cdf)(x, opts);
+    return (this->*_do_cdf)(x, opts);
 }
 double Distribution::logpdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_logpdf)(x, opts);
+    return (this->*_do_logpdf)(x, opts);
 }
 double Distribution::logratio(double xold, double xnew, const dbl_vec &opts) const
 {
     if (xold == xnew)
         return 0.;
     else
-        return (this->*_func_logratio)(xold, xnew, opts);
+        return (this->*_do_logratio)(xold, xnew, opts);
 }
 double Distribution::rand(rnd_gen &prng)
 {
     update_args();
-    return (this->*_func_rand)(prng);
+    return (this->*_do_rand)(prng);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,15 +121,15 @@ double Distribution::_rejection_sampling(rnd_gen &prng,
 
 double Distribution::__default_pdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_trunc)(raw_pdf(x, opts), opts);
+    return (this->*_do_trunc)(raw_pdf(x, opts), opts);
 }
 double Distribution::__default_cdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_trunc)((this->*_func_shift)(raw_cdf(x, opts), opts), opts);
+    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(x, opts), opts), opts);
 }
 double Distribution::__default_logpdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_logtrunc)(raw_logpdf(x, opts), opts);
+    return (this->*_do_logtrunc)(raw_logpdf(x, opts), opts);
 }
 double Distribution::__default_logratio(double xold, double xnew, const dbl_vec &opts) const
 {
@@ -168,13 +168,13 @@ double Distribution::__discr_defined_logratio(double xold, double xnew, const db
 double Distribution::__discr_center_pdf(double x, const dbl_vec &opts) const
 {
     const double d = round(x);
-    return (this->*_func_trunc)(raw_cdf(d + .5, opts) - raw_cdf(d - .5, opts), opts);
+    return (this->*_do_trunc)(raw_cdf(d + .5, opts) - raw_cdf(d - .5, opts), opts);
 }
 
 double Distribution::__discr_center_cdf(double x, const dbl_vec &opts) const
 {
     const double d = round(x);
-    return (this->*_func_trunc)((this->*_func_shift)(raw_cdf(d + .5, opts), opts), opts);
+    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(d + .5, opts), opts), opts);
 }
 
 double Distribution::__discr_center_logpdf(double x, const dbl_vec &opts) const
@@ -197,12 +197,12 @@ double Distribution::__discr_center_rand(rnd_gen &prng) { return static_cast<dou
 double Distribution::__discr_left_pdf(double x, const dbl_vec &opts) const
 {
     const double d = std::floor(x);
-    return (this->*_func_trunc)(raw_cdf(d + 1., opts) - raw_cdf(d, opts), opts);
+    return (this->*_do_trunc)(raw_cdf(d + 1., opts) - raw_cdf(d, opts), opts);
 }
 
 double Distribution::__discr_left_cdf(double x, const dbl_vec &opts) const
 {
-    return (this->*_func_trunc)((this->*_func_shift)(raw_cdf(std::floor(x) + 1., opts), opts), opts);
+    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(std::floor(x) + 1., opts), opts), opts);
 }
 
 double Distribution::__discr_left_logpdf(double x, const dbl_vec &opts) const
@@ -449,7 +449,7 @@ double Distribution::__shift_min_discr_left(double x, const dbl_vec &opts) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Tell if the distribution is discrete. */
-bool Distribution::is_discrete() const { return _func_pdf != &Distribution::__default_pdf; }
+bool Distribution::is_discrete() const { return _do_pdf != &Distribution::__default_pdf; }
 
 /* Select functional method in case of discretization. */
 void Distribution::init_functional_discretization(ushort discr_type)
@@ -458,35 +458,35 @@ void Distribution::init_functional_discretization(ushort discr_type)
     switch (discr_type)
     {
     case D_DISCR_TYPE_DFND: // discrete defined
-        _func_pdf = &Distribution::__discr_defined_pdf;
-        _func_cdf = &Distribution::__discr_defined_cdf;
-        _func_logpdf = &Distribution::__discr_defined_logpdf;
-        _func_logratio = &Distribution::__discr_defined_logratio;
-        _func_rand = &Distribution::__default_rand;
+        _do_pdf = &Distribution::__discr_defined_pdf;
+        _do_cdf = &Distribution::__discr_defined_cdf;
+        _do_logpdf = &Distribution::__discr_defined_logpdf;
+        _do_logratio = &Distribution::__discr_defined_logratio;
+        _do_rand = &Distribution::__default_rand;
         break;
 
     case D_DISCR_TYPE_CNTR: // centered discretization
-        _func_pdf = &Distribution::__discr_center_pdf;
-        _func_cdf = &Distribution::__discr_center_cdf;
-        _func_logpdf = &Distribution::__discr_center_logpdf;
-        _func_logratio = &Distribution::__discr_center_logratio;
-        _func_rand = &Distribution::__discr_center_rand;
+        _do_pdf = &Distribution::__discr_center_pdf;
+        _do_cdf = &Distribution::__discr_center_cdf;
+        _do_logpdf = &Distribution::__discr_center_logpdf;
+        _do_logratio = &Distribution::__discr_center_logratio;
+        _do_rand = &Distribution::__discr_center_rand;
         break;
 
     case D_DISCR_TYPE_LEFT: // left discretization
-        _func_pdf = &Distribution::__discr_left_pdf;
-        _func_cdf = &Distribution::__discr_left_cdf;
-        _func_logpdf = &Distribution::__discr_left_logpdf;
-        _func_logratio = &Distribution::__discr_left_logratio;
-        _func_rand = &Distribution::__discr_left_rand;
+        _do_pdf = &Distribution::__discr_left_pdf;
+        _do_cdf = &Distribution::__discr_left_cdf;
+        _do_logpdf = &Distribution::__discr_left_logpdf;
+        _do_logratio = &Distribution::__discr_left_logratio;
+        _do_rand = &Distribution::__discr_left_rand;
         break;
 
     default: // no discretization (default)
-        _func_pdf = &Distribution::__default_pdf;
-        _func_cdf = &Distribution::__default_cdf;
-        _func_logpdf = &Distribution::__default_logpdf;
-        _func_logratio = &Distribution::__default_logratio;
-        _func_rand = &Distribution::__default_rand;
+        _do_pdf = &Distribution::__default_pdf;
+        _do_cdf = &Distribution::__default_cdf;
+        _do_logpdf = &Distribution::__default_logpdf;
+        _do_logratio = &Distribution::__default_logratio;
+        _do_rand = &Distribution::__default_rand;
     }
 }
 
@@ -500,54 +500,54 @@ void Distribution::init_functional_truncation(ushort discr_type)
         switch (discr_type)
         {
         case D_DISCR_TYPE_DFND: // discrete defined
-            _func_trunc = &Distribution::__trunc_min_discr_defined;
-            _func_logtrunc = &Distribution::__logtrunc_min_discr_defined;
-            _func_shift = &Distribution::__shift_min_discr_defined;
-            _func_rand = &Distribution::__trunc_rand;
+            _do_trunc = &Distribution::__trunc_min_discr_defined;
+            _do_logtrunc = &Distribution::__logtrunc_min_discr_defined;
+            _do_shift = &Distribution::__shift_min_discr_defined;
+            _do_rand = &Distribution::__trunc_rand;
             break;
         case D_DISCR_TYPE_CNTR: // centered discretization
-            _func_trunc = &Distribution::__trunc_min_discr_center;
-            _func_logtrunc = &Distribution::__logtrunc_min_discr_center;
-            _func_shift = &Distribution::__shift_min_discr_center;
-            _func_rand = &Distribution::__trunc_rand_discr_center;
+            _do_trunc = &Distribution::__trunc_min_discr_center;
+            _do_logtrunc = &Distribution::__logtrunc_min_discr_center;
+            _do_shift = &Distribution::__shift_min_discr_center;
+            _do_rand = &Distribution::__trunc_rand_discr_center;
             break;
         case D_DISCR_TYPE_LEFT: // left discretization
-            _func_trunc = &Distribution::__trunc_min_discr_left;
-            _func_logtrunc = &Distribution::__logtrunc_min_discr_left;
-            _func_shift = &Distribution::__shift_min_discr_left;
-            _func_rand = &Distribution::__trunc_rand_discr_left;
+            _do_trunc = &Distribution::__trunc_min_discr_left;
+            _do_logtrunc = &Distribution::__logtrunc_min_discr_left;
+            _do_shift = &Distribution::__shift_min_discr_left;
+            _do_rand = &Distribution::__trunc_rand_discr_left;
             break;
         default: // no discretization
-            _func_trunc = &Distribution::__trunc_min;
-            _func_logtrunc = &Distribution::__logtrunc_min;
-            _func_shift = &Distribution::__shift_min;
-            _func_rand = &Distribution::__trunc_rand;
+            _do_trunc = &Distribution::__trunc_min;
+            _do_logtrunc = &Distribution::__logtrunc_min;
+            _do_shift = &Distribution::__shift_min;
+            _do_rand = &Distribution::__trunc_rand;
         }
         break;
 
     case 2: //----- upper range truncation -----//
-        _func_shift = &Distribution::__shift_dummy;
+        _do_shift = &Distribution::__shift_dummy;
         switch (discr_type)
         {
         case D_DISCR_TYPE_DFND: // discrete defined
-            _func_trunc = &Distribution::__trunc_max_discr_defined;
-            _func_logtrunc = &Distribution::__logtrunc_max_discr_defined;
-            _func_rand = &Distribution::__trunc_rand;
+            _do_trunc = &Distribution::__trunc_max_discr_defined;
+            _do_logtrunc = &Distribution::__logtrunc_max_discr_defined;
+            _do_rand = &Distribution::__trunc_rand;
             break;
         case D_DISCR_TYPE_CNTR: // centered discretization
-            _func_trunc = &Distribution::__trunc_max_discr_center;
-            _func_logtrunc = &Distribution::__logtrunc_max_discr_center;
-            _func_rand = &Distribution::__trunc_rand_discr_center;
+            _do_trunc = &Distribution::__trunc_max_discr_center;
+            _do_logtrunc = &Distribution::__logtrunc_max_discr_center;
+            _do_rand = &Distribution::__trunc_rand_discr_center;
             break;
         case D_DISCR_TYPE_LEFT: // left discretization
-            _func_trunc = &Distribution::__trunc_max_discr_left;
-            _func_logtrunc = &Distribution::__logtrunc_max_discr_left;
-            _func_rand = &Distribution::__trunc_rand_discr_left;
+            _do_trunc = &Distribution::__trunc_max_discr_left;
+            _do_logtrunc = &Distribution::__logtrunc_max_discr_left;
+            _do_rand = &Distribution::__trunc_rand_discr_left;
             break;
         default: // no discretization
-            _func_trunc = &Distribution::__trunc_max;
-            _func_logtrunc = &Distribution::__logtrunc_max;
-            _func_rand = &Distribution::__trunc_rand;
+            _do_trunc = &Distribution::__trunc_max;
+            _do_logtrunc = &Distribution::__logtrunc_max;
+            _do_rand = &Distribution::__trunc_rand;
         }
         break;
 
@@ -555,35 +555,35 @@ void Distribution::init_functional_truncation(ushort discr_type)
         switch (discr_type)
         {
         case D_DISCR_TYPE_DFND: // discrete defined
-            _func_trunc = &Distribution::__trunc_both_sides_discr_defined;
-            _func_logtrunc = &Distribution::__logtrunc_both_sides_discr_defined;
-            _func_shift = &Distribution::__shift_min_discr_defined;
-            _func_rand = &Distribution::__trunc_rand;
+            _do_trunc = &Distribution::__trunc_both_sides_discr_defined;
+            _do_logtrunc = &Distribution::__logtrunc_both_sides_discr_defined;
+            _do_shift = &Distribution::__shift_min_discr_defined;
+            _do_rand = &Distribution::__trunc_rand;
             break;
         case D_DISCR_TYPE_CNTR: // centered discretization
-            _func_trunc = &Distribution::__trunc_both_sides_discr_center;
-            _func_logtrunc = &Distribution::__logtrunc_both_sides_discr_center;
-            _func_shift = &Distribution::__shift_min_discr_center;
-            _func_rand = &Distribution::__trunc_rand_discr_center;
+            _do_trunc = &Distribution::__trunc_both_sides_discr_center;
+            _do_logtrunc = &Distribution::__logtrunc_both_sides_discr_center;
+            _do_shift = &Distribution::__shift_min_discr_center;
+            _do_rand = &Distribution::__trunc_rand_discr_center;
             break;
         case D_DISCR_TYPE_LEFT: // left discretization
-            _func_trunc = &Distribution::__trunc_both_sides_discr_left;
-            _func_logtrunc = &Distribution::__logtrunc_both_sides_discr_left;
-            _func_shift = &Distribution::__shift_min_discr_left;
-            _func_rand = &Distribution::__trunc_rand_discr_left;
+            _do_trunc = &Distribution::__trunc_both_sides_discr_left;
+            _do_logtrunc = &Distribution::__logtrunc_both_sides_discr_left;
+            _do_shift = &Distribution::__shift_min_discr_left;
+            _do_rand = &Distribution::__trunc_rand_discr_left;
             break;
         default: // no discretization
-            _func_trunc = &Distribution::__trunc_both_sides;
-            _func_logtrunc = &Distribution::__logtrunc_both_sides;
-            _func_shift = &Distribution::__shift_min;
-            _func_rand = &Distribution::__trunc_rand;
+            _do_trunc = &Distribution::__trunc_both_sides;
+            _do_logtrunc = &Distribution::__logtrunc_both_sides;
+            _do_shift = &Distribution::__shift_min;
+            _do_rand = &Distribution::__trunc_rand;
         }
         break;
 
     default: //----- no truncation (case 0) -----//
-        _func_trunc = &Distribution::__trunc_dummy;
-        _func_logtrunc = &Distribution::__logtrunc_dummy;
-        _func_shift = &Distribution::__shift_dummy;
+        _do_trunc = &Distribution::__trunc_dummy;
+        _do_logtrunc = &Distribution::__logtrunc_dummy;
+        _do_shift = &Distribution::__shift_dummy;
         break;
     }
 }
