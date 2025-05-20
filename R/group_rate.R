@@ -20,7 +20,7 @@
 #' @param data_headers
 #' Headers of the dataset.
 #'
-#' @noRd
+#' @keywords internal
 assert_dataset_features <- function(features, data_headers) {
   # assert that features are present
   missing <- c()
@@ -58,7 +58,7 @@ assert_dataset_features <- function(features, data_headers) {
 #' @return
 #' data.frame with logic table
 #'
-#' @noRd
+#' @keywords internal
 group_rate_logic_table <- function(dataset, by) {
   features <- as.character(by)
 
@@ -108,7 +108,7 @@ group_rate_logic_table <- function(dataset, by) {
 #' @return
 #' input data.frame with logic table with parameter names.
 #'
-#' @noRd
+#' @keywords internal
 associate_param_names <- function(this_table,
                                   prefix = NA,
                                   reference = NULL) {
@@ -159,7 +159,7 @@ associate_param_names <- function(this_table,
 #'
 #' @return `character(1)`\cr
 #'
-#' @noRd
+#' @keywords internal
 cpp_emplace <- function(x, tab = TRUE, quote = TRUE) {
   sprintf("%semplace_group_rate(r, %s);",
           ifelse(isTRUE(tab), "\t", ""),
@@ -174,7 +174,7 @@ cpp_emplace <- function(x, tab = TRUE, quote = TRUE) {
 #' @param is_ref
 #' if `TRUE` the if clause is "REFERENCE"
 #'
-#' @noRd
+#' @keywords internal
 cpp_ifclause_emplace <- function(r, is_ref = FALSE) {
   mask <- setdiff(names(r), c(".counts", ".param.name"))
   # if condition
@@ -204,7 +204,7 @@ cpp_ifclause_emplace <- function(r, is_ref = FALSE) {
 #' @description
 #' Help with group rate definitions of model Rcpp object.
 #'
-#' @noRd
+#' @keywords internal
 HousepiGroupRate <- R6::R6Class(
   classname = "HousepiGroupRate",
   cloneable = TRUE,

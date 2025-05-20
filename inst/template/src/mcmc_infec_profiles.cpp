@@ -269,13 +269,13 @@ void MCMC::Impl::InfecProfile::_assign_args(const str_vec &keys,
 
 		else if (type == TYPE_PARAM)
 		{
-			if (!pImpl.param_map.at(value).is_constant())
+			if (pImpl.param_map.at(value).is_constant())
+				profile->assign_scalar(key, ARG_DEFAULT, pImpl.get_param(value));
+			else
 			{
 				profile->assign_pointer(key, ARG_DEFAULT, pImpl.get_param_pointer(value));
 				pImpl.make_param_extra_dependent(value);
 			}
-			else
-				profile->assign_scalar(key, ARG_DEFAULT, pImpl.get_param(value));
 		}
 		else if (type == TYPE_SCALAR)
 			profile->assign_scalar(key, ARG_DEFAULT, tools::stod(value, "argument with scalar type"));
@@ -341,8 +341,8 @@ void MCMC::Impl::InfecProfile::assign_template(std::map<std::string, std::string
 			if (!x.count(key))
 				x.emplace(key, HOUSEPI_NA_STRING);
 
-		if (tools::is_na(x.at("discrete")))
-			x["discrete"] = "false";
+		if (tools::is_na(x.at("discr")))
+			x["discr"] = "false";
 
 		deflist = x;
 		build();
@@ -434,16 +434,16 @@ void MCMC::Impl::InfecProfile::build()
 			//----- Discrete -----//
 			if (!profile->is_discrete()) // defined continuos
 			{
-				if (deflist.count("discrete"))
-					is_discrete = tools::stobool(deflist.at("discrete"));
+				if (deflist.count("discr"))
+					is_discrete = tools::stobool(deflist.at("discr"));
 				else
 					throw std::invalid_argument("not a valid discrete.");
 			}
 
 			//----- Arguments -----//
-			if (deflist.count("arg_name") && deflist.count("arg_value") && deflist.count("arg_at"))
-				_assign_args(tools::parse_list_args(deflist.at("arg_name")),
-							 tools::parse_list_args(deflist.at("arg_value")),
+			if (deflist.count("arg_key") && deflist.count("arg_val") && deflist.count("arg_at"))
+				_assign_args(tools::parse_list_args(deflist.at("arg_key")),
+							 tools::parse_list_args(deflist.at("arg_val")),
 							 tools::parse_list_args(deflist.at("arg_at")));
 			else
 				throw std::invalid_argument("not a valid list of arguments.");
@@ -477,8 +477,8 @@ void MCMC::Impl::InfecProfile::build()
 				throw std::invalid_argument("not a valid maximum.");
 
 			//----- Reshaping -----//
-			if (deflist.count("discrete"))
-				profile->init_reshaping(tools::stobool(deflist.at("discrete")));
+			if (deflist.count("discr"))
+				profile->init_reshaping(tools::stobool(deflist.at("discr")));
 			else
 				throw std::invalid_argument("not a valid discrete.");
 

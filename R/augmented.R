@@ -14,7 +14,7 @@
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
 #'
-#' @noRd
+#' @keywords internal
 HousepiAugmented <- R6::R6Class(
   classname = "HousepiAugmented",
   cloneable = TRUE,
@@ -30,7 +30,8 @@ HousepiAugmented <- R6::R6Class(
     .find_def_required = function(key) {
 
       # tuples (value, type) amongst definitions
-      tuple_at_cols <- list(c("value", "value_at"), c("arg_value", "arg_at"),
+      tuple_at_cols <- list(c("farg_val", "farg_at"),
+                            c("value", "value_at"), c("arg_val", "arg_at"),
                             c("min", "min_at"), c("max", "max_at"),
                             c("scale", "scale_at"), c("from", "from_at"))
 
@@ -38,7 +39,7 @@ HousepiAugmented <- R6::R6Class(
       if (length(self$defs) > 0) {
         for (tuple in tuple_at_cols) {
           xdef <- self$defs[tuple]
-          for (i in seq_along(xdef)) {
+          for (i in seq_len(dim(xdef)[[1]])) {
             rw <- unlist(xdef[i, ])
             if (!any(is.na(rw))) {
               arg2par <- data.frame(
@@ -69,6 +70,15 @@ HousepiAugmented <- R6::R6Class(
         return(private$.find_def_required("P"))
       }
       stop_h("'param_required' is read only.")
+    },
+
+    #' @description
+    #' Find augmented required by augmented variable definitions.
+    augm_required = function(value) {
+      if (missing(value)) {
+        return(private$.find_def_required("A"))
+      }
+      stop_h("'augm_required' is read only.")
     },
 
     #' @description
@@ -112,7 +122,10 @@ HousepiAugmented <- R6::R6Class(
         '\\.set_augm_value\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # find required augmented variables from regular expressions
-      return(template_find_requirement(refer_file, regular_expr))
+      return(c(
+        template_find_requirement(refer_file, regular_expr),
+        self$augm_required
+      ))
     },
 
     #' @description
@@ -135,7 +148,7 @@ HousepiAugmented <- R6::R6Class(
           self$defs <- self$defs[!mask, ]
           return(TRUE)
         } else {
-          # assert if same name and status
+          # check if same name and status
           mask <- mask & (self$defs[["status"]] == status)
           mask[is.na(mask)] <- FALSE
           if (any(mask)) {
@@ -145,14 +158,10 @@ HousepiAugmented <- R6::R6Class(
           }
         }
 
-      } else {
-        if (isTRUE(show_warnings)) {
-          warning_h(
-            sprintf(
-              "Attempt to remove unknown augmented variable \"%s\".", this
-            )
-          )
-        }
+      } else if (isTRUE(show_warnings)) {
+        warning_h(
+          sprintf("Unknown augmented variable \"%s\" to remove.", this)
+        )
       }
 
       return(FALSE)
@@ -173,9 +182,9 @@ HousepiAugmented <- R6::R6Class(
     #' - Data name (followed by `@D`).
     #' @param init_rand `character(1)`\cr
     #' If `TRUE` draw initial vale from model distribution.
-    #' @param constant `logical(1)`\cr
+    #' @param const `logical(1)`\cr
     #' If `FALSE` the augmented variable is treated as a constant.
-    #' @param discrete `logical(1)`\cr
+    #' @param discr `logical(1)`\cr
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param model `character(1)`\cr
     #' Name of the model distribution.
@@ -198,162 +207,171 @@ HousepiAugmented <- R6::R6Class(
     #' @param from `double(1)` | `character(1)`\cr
     #' Advanced options for non random walk moves.
     #' `FIXME: missing`
-    #' @noRd
+    #' 
+    #' @keywords internal
     add = function(name = NA,
                    status = NA,
+                   func = NA,
                    value = NA,
                    init_rand = FALSE,
-                   constant = NA,
-                   discrete = FALSE,
+                   const = NA,
+                   discr = FALSE,
                    model = NA,
-                   args = list(),
+                   args = NULL,
                    min = NA,
                    max = NA,
                    rule = NA,
                    scale = NA,
                    from = NA) {
-      #----- name -----#
+      # auxiliary typed options for Rcpp build method
+      .opts <- list(
+        farg_key = NA, farg_val = NA, farg_at = NA,
+        value = NA, value_at = NA, 
+        arg_key = NA, arg_val = NA, arg_at = NA,
+        min = NA, min_at = NA,
+        max = NA, max_at = NA,
+        scale = NA, scale_at = NA,
+        from = NA, from_at = NA
+      )
+
+      # check for missing name
       if (is.na(name)) {
         stop_h("Incomplete definition: missing name.")
       }
 
       # remove previous definition if it exists
       if (self$remove(name, status, FALSE)) {
-        if (is.na(status)) {
-          stop_h(
-            sprintf("Overwriting existing \"%s\" definition.", name)
-          )
-        } else {
-          stop_h(
-            sprintf(
-              "Overwriting existing \"%s\" definition for status %d.",
-              name, status
-            )
-          )
-        }
+        msg <- if (is.na(status)) 
+          sprintf("Overwriting existing \"%s\" definition.", name) 
+        else 
+          sprintf("Overwriting existing \"%s\" definition for status %d.", name, status)
+        stop_h(msg)
       }
 
-      # assume it's a constant if model and rule are not provided
-      if (is.na(constant)) {
-        constant <- is.na(model) && is.na(rule)
-      }
+      # check if a function is provided
+      if (is.na(func)) {
+        # check for augmented function string definition
+        afunc_str_def <- extract_augm_func_(value)
+        
+        if (!is.null(afunc_str_def)) {
+          func <- afunc_str_def$func
+          .opts$farg_key <- afunc_str_def$key
+          .opts$farg_val <- afunc_str_def$val
+          .opts$farg_at <- afunc_str_def$at
+          init_rand <- FALSE
+          const <- FALSE
+          discr <- FALSE
 
-      #----- value/constant/init_rand -----#
-      value_ <- NA
-      value_at_ <- NA
-      if (isTRUE(constant)) {
-        if (is.na(value)) {
-          stop_h("Missing value for constant augmented variable.")
-        } else {
-          value_ <- str_split_(value)$var
-          value_at_ <- str_split_(value)$typ
+        } else if (is.na(const)) {
+          # assume constant if func or model/rule not provided
+          const <- is.na(model) && is.na(rule)
         }
-      } else if (isTRUE(init_rand)) {
-        if (is.na(model)) {
-          stop_h("Unknown model for random initialization.")
-        }
+
       } else {
-        if (is.na(value)) {
+        # FIXME // UPDATE
+        #const <- FALSE     
+        stop_h(
+          "Augmented function is not supported yet.",
+        )
+      }
+
+      if (is.na(func)) {
+        #----- value/const/init_rand -----#
+        if (isTRUE(const)) {
+          if (is.na(value)) {
+            stop_h("Missing value for constant augmented variable.")
+          } else {
+            .opts$value <- type_split_(value)$val
+            .opts$value_at <- type_split_(value)$at
+          }
+          
+        } else if (isTRUE(init_rand)) {
           if (is.na(model)) {
-            if (is.na(from)) {
-              stop_h(
-                "Incomplete definition: missing value.",
-                "Alternative: provide a model and set 'init_rand = TRUE'."
-              )
+            stop_h("Unknown model for random initialization.")
+          }
+        } else {
+    
+          if (is.na(value)) {
+            if (is.na(model)) {
+              if (is.na(from)) {
+                stop_h(
+                  "Incomplete definition: missing value.",
+                  "Alternative: provide a model and set 'init_rand = TRUE'."
+                )
+              } else {
+                .opts$value <- type_split_(from)$val
+                .opts$value_at <- type_split_(from)$at
+              }
             } else {
-              value_ <- str_split_(from)$var
-              value_at_ <- str_split_(from)$typ
+              init_rand <- TRUE
             }
           } else {
-            init_rand <- TRUE
+            .opts$value <- type_split_(value)$val
+            .opts$value_at <- type_split_(value)$at
           }
-        } else {
-          value_ <- str_split_(value)$var
-          value_at_ <- str_split_(value)$typ
         }
-      }
 
-      #----- method -----#
-      arg_name_ <- NA
-      arg_value_ <- NA
-      arg_at_ <- NA
-      # assign method only if arguments are provided
-      if ((!is.na(model)) && (length(args) > 0)) {
-        arg_name_ <- str_join_(names(args))
-        tmp <- str_split_(args)
-        arg_value_ <- str_join_(tmp$var)
-        arg_at_ <- str_join_(tmp$typ)
-      }
-
-      #----- rule -----#
-      scale_ <- NA
-      scale_at_ <- NA
-      from_ <- NA
-      from_at_ <- NA
-
-      if (isFALSE(constant)) {
-        if (is.na(rule)) {
-          if (is.na(model)) {
-            constant <- TRUE
-          } else {
-            rule <- "draw"
-          }
-        } else if (rule != "draw") {
-          if (is.na(scale)) {
-            scale_ <- 1
-            scale_at_ <- "S"
-          } else {
-            scale_ <- str_split_(scale)$var
-            scale_at_ <- str_split_(scale)$typ
-          }
-          from_ <- str_split_(from)$var
-          from_at_ <- str_split_(from)$typ
+        #----- method -----#
+        # assign method only if arguments are provided
+        if ((!is.na(model)) && (length(args) > 0)) {
+          .opts$arg_key <- type_join_(names(args))
+          .opts$arg_val <- type_join_(type_split_(args)$val)
+          .opts$arg_at <- type_join_(type_split_(args)$at)
         }
-      }
 
-      #----- minimum value -----#
-      min_ <- NA
-      min_at_ <- NA
-      if (!is.na(min)) {
-        min_ <- str_split_(min)$var
-        min_at_ <- str_split_(min)$typ
-      }
+        #----- rule -----#
 
-      #----- maximum value -----#
-      max_ <- NA
-      max_at_ <- NA
-      if (!is.na(max)) {
-        max_ <- str_split_(max)$var
-        max_at_ <- str_split_(max)$typ
+        if (isFALSE(const)) {
+          if (is.na(rule)) {
+            if (is.na(model)) {
+              const <- TRUE
+            } else {
+              rule <- "draw"
+            }
+          } else if (rule != "draw") {
+            if (is.na(scale)) {
+              .opts$scale <- 1
+              .opts$scale_at <- "S"
+            } else {
+              .opts$scale <- type_split_(scale)$val
+              .opts$scale_at <- type_split_(scale)$at
+            }
+            .opts$from <- type_split_(from)$val
+            .opts$from_at <- type_split_(from)$at
+          }
+        }
+
+        #----- minimum value -----#
+        if (!is.na(min)) {
+          .opts$min <- type_split_(min)$val
+          .opts$min_at <- type_split_(min)$at
+        }
+
+        #----- maximum value -----#
+        if (!is.na(max)) {
+          .opts$max <- type_split_(max)$val
+          .opts$max_at <- type_split_(max)$at
+        }
       }
 
       #----- append the new definitions -----#
       self$defs <- rbind(
         self$defs,
         data.frame(
-          name = name,
-          status = status,
-          value = value_,
-          value_at = value_at_,
-          init_rand = init_rand,
-          constant = isTRUE(constant),
-          discrete = isTRUE(discrete),
+          name = name, status = status,
+          func = func, 
+          farg_key = .opts$farg_key, farg_val = .opts$farg_val, farg_at = .opts$farg_at,
+          value = .opts$value, value_at = .opts$value_at, init_rand = init_rand,
+          const = isTRUE(const), discr = isTRUE(discr),
           model = model,
-          arg_name = arg_name_,
-          arg_value = arg_value_,
-          arg_at = arg_at_,
-          min = min_,
-          min_at = min_at_,
-          max = max_,
-          max_at = max_at_,
-          rule = rule,
-          scale = scale_,
-          scale_at = scale_at_,
-          from = from_,
-          from_at = from_at_,
+          arg_key = .opts$arg_key, arg_val = .opts$arg_val, arg_at = .opts$arg_at,
+          min = .opts$min, min_at = .opts$min_at, max = .opts$max, max_at = .opts$max_at,
+          rule = rule, scale = .opts$scale, scale_at = .opts$scale_at,
+          from = .opts$from, from_at = .opts$from_at,
           stringsAsFactors = FALSE
         )
       )
+
       invisible(self)
     },
 
@@ -466,6 +484,7 @@ HousepiAugmented <- R6::R6Class(
       # point out augmented variables that are not used
       unused_set <- template_find_unused(requirements, defined)
       # drop unused augmented variables
+
       if (length(unused_set) > 0) {
         warning_h(
           sprintf("Dropping unused augmented variable%s %s",

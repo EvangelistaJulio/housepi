@@ -150,7 +150,7 @@ measure_cases_by_house_size <- function(dataset) {
 #' Data frame of the same dimensions as the input frames.
 #' Columns and rownames of the first data.frame in the list.
 #'
-#' @noRd
+#' @keywords internal
 frame_apply <- function(frame_list, func) {
   elem_n1 <- frame_list[[1]]
 
@@ -188,7 +188,8 @@ frame_apply <- function(frame_list, func) {
 #' @param frame_list `list()` | `data.frame`\cr
 #'
 #' @return `data.frame()`
-#' @noRd
+#' 
+#' @keywords internal
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
     if (all(is.na(x))) {
@@ -219,7 +220,8 @@ frame_apply_mean <- function(frame_list) {
 #' If `TRUE`, computes the upper credible interval. Else the lower.
 #'
 #' @return `data.frame()`
-#' @noRd
+#' 
+#' @keywords internal
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
   frame_apply(frame_list, function(x) {
     if (all(is.na(x))) {
@@ -364,7 +366,7 @@ HousepiPosteriorExpec <- R6::R6Class(
 
       # extract constant parameters
       aux <- hmc$param_defs
-      tmp <- aux[aux$constant, c("name", "value")]
+      tmp <- aux[aux$const, c("name", "value")]
       constants <- as.list(tmp$value)
       names(constants) <- as.list(tmp$name)
 
@@ -427,7 +429,7 @@ HousepiPosteriorExpec <- R6::R6Class(
 #'
 #' @return `data.frame`\cr
 #'
-#' @noRd
+#' @keywords internal
 combine_obs_exp <- function(obsdf, expdf) {
   # 1. curate observed dataframe
   obsdf$distr <- "Observed"
@@ -649,7 +651,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' Perform Chi-squared test and return list with results.
     #'
     #' @param lower_tail `logical(1)`\cr
-    #' if TRUE (default), probabilities are P[X<=x], otherwise P[X>x].
+    #' if TRUE (default), probabilities are `P[X<=x]``, otherwise `P[X>x]`.
     #'
     #' @return
     #' `list()`)

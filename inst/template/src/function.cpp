@@ -27,7 +27,7 @@
 inline double Argument::get() const { return *(_ptr_to_value); }
 inline const double *Argument::get_ptr() const { return _ptr_to_value; }
 bool Argument::is_internal_ptr() const { return _ptr_to_value == &_value; }
-const std::string Argument::show() const { return tools::natostring(get()); }
+const std::string Argument::show() const { return tools::na_to_str(get()); }
 const std::string Argument::show_name() const { return _argument_name; }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,7 +256,7 @@ void Function::set_arg(ushort i, double x) { _arguments[i].set(x); }
 //--- Assign scalar argument or range value. ---//
 void Function::assign_scalar(const std::string &arg_name, bool is_arg, double value)
 {
-    if (is_arg)
+    if (is_arg == ARG_DEFAULT)
         _assign_scalar_arg(arg_name, value);
     else
         _assign_scalar_range(arg_name, value);
@@ -264,7 +264,7 @@ void Function::assign_scalar(const std::string &arg_name, bool is_arg, double va
 //--- Assign pointer argument or range value. ---//
 void Function::assign_pointer(const std::string &arg_name, bool is_arg, const double *ptr_to_value)
 {
-    if (is_arg)
+    if (is_arg == ARG_DEFAULT)
         _assign_pointer_arg(arg_name, ptr_to_value);
     else
         _assign_pointer_range(arg_name, ptr_to_value);

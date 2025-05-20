@@ -20,7 +20,7 @@
 #' @description
 #' Help with generating Rcpp model object.
 #'
-#' @noRd
+#' @keywords internal
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
   cloneable = TRUE,

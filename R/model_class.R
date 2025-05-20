@@ -671,9 +671,9 @@ HouseholdModel <- R6::R6Class(
     #' Name of the parameter.
     #' @param value `double(1)`\cr
     #' Initial value of the parameter.
-    #' @param constant `logical(1)`\cr
+    #' @param const `logical(1)`\cr
     #' If `FALSE` the parameter is treated as a constant.
-    #' @param discrete `logical(1)`\cr
+    #' @param discr `logical(1)`\cr
     #' If `TRUE` the parameter is discrete.
     #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
@@ -689,12 +689,12 @@ HouseholdModel <- R6::R6Class(
     #' @param max `double(1)`\cr
     #' Value of the maximum.
     add_param = function(name = NA, value = NA,
-                         constant = NA, discrete = FALSE,
+                         const = NA, discr = FALSE,
                          prior = NA, args = list(),
                          rule = NA, scale = NA,
                          min = NA, max = NA) {
-      private$.param$add(name = name, value = value, constant = constant,
-                         discrete = discrete, prior = prior, args = args,
+      private$.param$add(name = name, value = value, const = const,
+                         discr = discr, prior = prior, args = args,
                          rule = rule, scale = scale,
                          min = min, max = max)
       invisible(self)
@@ -756,9 +756,9 @@ HouseholdModel <- R6::R6Class(
     #' - Data name (followed by `@D`).
     #' @param init_rand `character(1)`\cr
     #' If `TRUE` draw initial vale from model distribution.
-    #' @param constant `logical(1)`\cr
+    #' @param const `logical(1)`\cr
     #' If `FALSE` the augmented variable is treated as a constant.
-    #' @param discrete `logical(1)`\cr
+    #' @param discr `logical(1)`\cr
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param model `character(1)`\cr
     #' Name of the model distribution.
@@ -783,13 +783,13 @@ HouseholdModel <- R6::R6Class(
     #' `FIXME: missing`
     add_augm = function(name = NA, status = NA,
                         value = NA, init_rand = FALSE,
-                        constant = NA, discrete = FALSE,
+                        const = NA, discr = FALSE,
                         model = NA, args = list(),
                         min = NA, max = NA,
                         rule = NA, scale = NA, from = NA) {
       private$.augm$add(name = name, status = status,
                         value = value, init_rand = init_rand,
-                        constant = constant, discrete = discrete,
+                        const = const, discr = discr,
                         model = model, args = args,
                         min = min, max = max,
                         rule = rule, scale = scale, from = from)
@@ -910,7 +910,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param name `character(1)`\cr
     #' Name of the infectivity profile.
-    #' @param discrete `logical(1)`\cr
+    #' @param discr `logical(1)`\cr
     #' If `TRUE` the profile is discrete.
     #' @param args named `list()`\cr
     #' Arguments (eventually with types) for the profile.
@@ -922,9 +922,9 @@ HouseholdModel <- R6::R6Class(
     #' One between:
     #' - Scalar value;
     #' - Parameter name (optionally followed by `@P`).
-    add_infec_profile = function(name, discrete = FALSE,
+    add_infec_profile = function(name, discr = FALSE,
                                  args = list(), min = NA, max = NA) {
-      private$.infec_profile$add(name = name, discrete = discrete,
+      private$.infec_profile$add(name = name, discr = discr,
                                  args = args, min = min, max = max)
       invisible(self)
     },

@@ -53,7 +53,7 @@ double Model::compute_house_obs_loglike(Household &house) const
 
 	for (indiv i = 0; i < house.size(); ++i)
 	{
-		incub = house.augm(i, "onset") - house.augm(i, "exposure");
+		incub = house.augm(i, "incub_period");
 
 		if (incub_distr_ptr->valid(incub))
 			output += incub_distr_ptr->logpdf(incub);

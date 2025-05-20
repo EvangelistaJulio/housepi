@@ -150,16 +150,19 @@ public:
 					 const std::string &name = HOUSEPI_NA_STRING,
 					 double value = HOUSEPI_NA_DOUBLE,
 					 bool is_discrete = false,
+					 const std::string &func_name = HOUSEPI_NA_STRING,
 					 const std::string &model_name = HOUSEPI_NA_STRING);
 
-	void assign_augm_model_scalar(indiv i, const augmID &a,
-								  const std::string &arg_name,
-								  bool is_arg,
-								  double arg_value);
-	void assign_augm_model_pointer(indiv i, const augmID &a,
-								   const std::string &arg_name,
-								   bool is_arg,
-								   const double *ptr_to_arg_value);
+	void assign_augm_scalar(indiv i, const augmID &a,
+							const std::string &arg_name,
+							bool is_arg,
+							double arg_value,
+							bool is_var_model);
+	void assign_augm_pointer(indiv i, const augmID &a,
+							 const std::string &arg_name,
+							 bool is_arg,
+							 const double *ptr_to_arg_value,
+							 bool is_var_model);
 
 	void init_augm_model_reshaping(indiv i, const augmID &a);
 

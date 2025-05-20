@@ -238,8 +238,8 @@ Add a new parameter definition.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_param(
   name = NA,
   value = NA,
-  constant = NA,
-  discrete = FALSE,
+  const = NA,
+  discr = FALSE,
   prior = NA,
   args = list(),
   rule = NA,
@@ -258,10 +258,10 @@ Name of the parameter.}
 \item{\code{value}}{\code{double(1)}\cr
 Initial value of the parameter.}
 
-\item{\code{constant}}{\code{logical(1)}\cr
+\item{\code{const}}{\code{logical(1)}\cr
 If \code{FALSE} the parameter is treated as a constant.}
 
-\item{\code{discrete}}{\code{logical(1)}\cr
+\item{\code{discr}}{\code{logical(1)}\cr
 If \code{TRUE} the parameter is discrete.}
 
 \item{\code{prior}}{\code{character(1)}\cr
@@ -341,8 +341,8 @@ Add a new augmented variable definition.
   status = NA,
   value = NA,
   init_rand = FALSE,
-  constant = NA,
-  discrete = FALSE,
+  const = NA,
+  discr = FALSE,
   model = NA,
   args = list(),
   min = NA,
@@ -374,10 +374,10 @@ One between:
 \item{\code{init_rand}}{\code{character(1)}\cr
 If \code{TRUE} draw initial vale from model distribution.}
 
-\item{\code{constant}}{\code{logical(1)}\cr
+\item{\code{const}}{\code{logical(1)}\cr
 If \code{FALSE} the augmented variable is treated as a constant.}
 
-\item{\code{discrete}}{\code{logical(1)}\cr
+\item{\code{discr}}{\code{logical(1)}\cr
 IF \code{TRUE} the augmenter variable is discrete.}
 
 \item{\code{model}}{\code{character(1)}\cr
@@ -558,7 +558,7 @@ Add definition of infectivity profile.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_infec_profile(
   name,
-  discrete = FALSE,
+  discr = FALSE,
   args = list(),
   min = NA,
   max = NA
@@ -571,7 +571,7 @@ Add definition of infectivity profile.
 \item{\code{name}}{\code{character(1)}\cr
 Name of the infectivity profile.}
 
-\item{\code{discrete}}{\code{logical(1)}\cr
+\item{\code{discr}}{\code{logical(1)}\cr
 If \code{TRUE} the profile is discrete.}
 
 \item{\code{args}}{named \code{list()}\cr

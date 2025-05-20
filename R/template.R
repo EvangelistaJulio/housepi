@@ -14,7 +14,7 @@
 #' Returns the directory to housepi template models.
 #'
 #' @return `character(1)`
-#' @noRd
+#' @keywords internal
 template_models_dir <- function() {
   return(file.path(system.file(package = "housepi"), "models"))
 }
@@ -22,7 +22,7 @@ template_models_dir <- function() {
 #' @description
 #' Show list of all available template nmodel names.
 #'
-#' @noRd
+#' @keywords internal
 show_model_names <- function() {
 
   cli::cli_alert_info("Available template models:")
@@ -139,7 +139,7 @@ template_household_model <- function(name = NA,
 #' @return
 #' `logical(1)`
 #'
-#' @noRd
+#' @keywords internal
 template_assert_expression <- function(refer_file, expression) {
   # check if reference file exists
   if (file.exists(refer_file)) {
@@ -164,7 +164,7 @@ template_assert_expression <- function(refer_file, expression) {
 #' @return
 #' `character()`
 #'
-#' @noRd
+#' @keywords internal
 template_find_requirement <- function(refer_file, regular_expr) {
 
   # check if reference file exists
@@ -208,7 +208,7 @@ template_find_requirement <- function(refer_file, regular_expr) {
 #' @return
 #' `character()`)
 #'
-#' @noRd
+#' @keywords internal
 template_find_missing <- function(required_set,
                                   defined_set) {
   if (length(required_set) == 0) {
@@ -244,7 +244,7 @@ template_find_missing <- function(required_set,
 #' @return
 #' `character()`
 #'
-#' @noRd
+#' @keywords internal
 template_find_unused <- function(required_set,
                                  defined_set) {
   if (length(required_set) == 0) {

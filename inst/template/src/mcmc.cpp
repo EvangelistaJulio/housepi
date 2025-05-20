@@ -504,7 +504,7 @@ double MCMC::__move_augm_indiv_generic(Household &house, indiv i)
 {
     double delta_ll = 0.;
     // Loop over augmented variables of infectious
-    for (const augmID &a : pImpl->augm_infer_list)
+    for (const augmID &a : pImpl->augm_list_infer)
         delta_ll += _metropolis_augm_single_move(house, i, a);
     return delta_ll;
 }
@@ -877,11 +877,12 @@ Rcpp::DataFrame MCMC::simulate()
         // remove data columns if they have same name than augmented
         str_vec &v = _aux_data_headers;
         // UPDATE: why augm_list_full is still a set?
-        const std::unordered_set<augmID> &y = pImpl->augm_list_full;
+        str_vec &y = pImpl->augm_list_full;
+        // remove augmented variable columns from data columns
         auto new_end = std::remove_if(v.begin(), v.end(),
                                       [&y](const dataID &elem)
                                       {
-                                          return y.find(elem) != y.end();
+                                          return !contains(y, elem);
                                       });
         v.erase(new_end, v.end());
 

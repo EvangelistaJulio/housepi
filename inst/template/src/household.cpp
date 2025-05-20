@@ -308,25 +308,34 @@ void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double 
 }
 
 /* Assign definitions for the augmented variable model. */
-void Household::assign_augm(indiv i, const augmID &a, const std::string &name, double value,
-							bool is_discrete, const std::string &model_name)
+void Household::assign_augm(indiv i, const augmID &a, const std::string &name,
+							double value, bool is_discrete, const std::string &func_name,
+							const std::string &model_name)
 {
 	Variable &this_augm = _members[i].augm_map.at(a);
-	this_augm.init(name, value, is_discrete);
-	this_augm.assign_distribution(model_name);
+	this_augm.init(name, value, is_discrete, func_name);
+	this_augm.assign_distr(model_name);
 }
 
 /* Assign scalar argument for augmented variable model. */
-void Household::assign_augm_model_scalar(indiv i, const augmID &a,
-										 const std::string &arg_name, bool is_arg, double x)
+void Household::assign_augm_scalar(indiv i, const augmID &a,
+								   const std::string &arg_name, bool is_arg, double x,
+								   bool is_var_model)
 {
-	_members[i].augm_map.at(a).assign_distr_scalar(arg_name, is_arg, x);
+	if (is_var_model == VAR_MODEL)
+		_members[i].augm_map.at(a).assign_distr_scalar(arg_name, is_arg, x);
+	else
+		_members[i].augm_map.at(a).assign_func_scalar(arg_name, is_arg, x);
 }
 /* Assign pointer to argument for augmented variable model. */
-void Household::assign_augm_model_pointer(indiv i, const augmID &a,
-										  const std::string &arg_name, bool is_arg, const double *y)
+void Household::assign_augm_pointer(indiv i, const augmID &a,
+									const std::string &arg_name, bool is_arg, const double *y,
+									bool is_var_model)
 {
-	_members[i].augm_map.at(a).assign_distr_pointer(arg_name, is_arg, y);
+	if (is_var_model == VAR_MODEL)
+		_members[i].augm_map.at(a).assign_distr_pointer(arg_name, is_arg, y);
+	else
+		_members[i].augm_map.at(a).assign_func_pointer(arg_name, is_arg, y);
 }
 
 void Household::init_augm_model_reshaping(indiv i, const augmID &a)

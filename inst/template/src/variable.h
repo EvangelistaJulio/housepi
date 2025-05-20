@@ -128,7 +128,8 @@ public:
 
     Variable(const std::string &name = HOUSEPI_NA_STRING,
              double value = HOUSEPI_NA_DOUBLE,
-             bool is_discrete = false);
+             bool is_discrete = false,
+             const std::string &func_name = HOUSEPI_NA_STRING);
     ~Variable();
 
     //==================//
@@ -147,17 +148,19 @@ public:
     //===== SETTER =====//
     //==================//
 
-    void init(const std::string &name, double value, bool is_discrete);
     void user_reset();
     void set_value(double x);
     void restore_value();
+    void init(const std::string &name, double value, bool is_discrete,
+              const std::string &func_name = HOUSEPI_NA_STRING);
+
+    void assign_func_scalar(const std::string &arg_name, bool is_arg, double x);
+    void assign_func_pointer(const std::string &arg_name, bool is_arg, const double *y);
 
     //----- Pointer to distribution -----//
-    void assign_distribution(const std::string &distr_name = HOUSEPI_NA_STRING);
-
+    void assign_distr(const std::string &distr_name = HOUSEPI_NA_STRING);
     void assign_distr_scalar(const std::string &arg_name, bool is_arg, double x);
     void assign_distr_pointer(const std::string &arg_name, bool is_arg, const double *y);
-
     void init_distr_reshaping();
 
     //----- Pointer to proposer -----//
@@ -227,10 +230,18 @@ private:
     double (Variable::*_do_get)(const dbl_vec &) const = &Variable::__get_default;
     double __get_default(const dbl_vec &opts) const;
     double __get_func_return(const dbl_vec &opts) const;
+
+    const double *(Variable::*_do_get_pointer)() const = &Variable::__get_pointer_default;
+    const double *__get_pointer_default() const;
+    const double *__get_pointer_func_return() const;
+
+    //==================//
+    //===== SETTER =====//
+    //==================//
     
-    const double * (Variable::*_do_get_pointer)() const = &Variable::__get_pointer_default;
-    const double * __get_pointer_default() const;
-    const double * __get_pointer_func_return() const;
+    void (Variable::*_do_set_value)(double) = &Variable::__set_value_default;
+    void __set_value_default(double x);
+    void __set_value_func_error(double x);
 
     //===============================//
     //===== METROPOLIS-HASTINGS =====//

@@ -26,11 +26,11 @@
 #include <vector>
 #include <map>
 
-/* DEVELOPER: flag used to predispose to different wrapper
+/* DEVELOPER: flag used to predispose to different wrapper*/
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-*/
+
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -70,8 +70,12 @@ constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initializ
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // arugment aliases
-constexpr bool ARG_DEFAULT = true; // default argument
-constexpr bool ARG_RANGE = false;  // range argument
+#define ARG_DEFAULT true // default argument
+#define ARG_RANGE false  // range argument
+
+// variable aliases
+#define VAR_FUNCTION true // pass to Variable function
+#define VAR_MODEL false   //  pass to Variable model
 
 // file formatters
 constexpr char C_DELIM = ',';      // file delimiter
@@ -181,6 +185,12 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
     return x;
 }
 
+/* Check if a given value is contained inside a container. */
+template <typename Container, typename T>
+bool contains(const Container& c, const T& value) {
+    return std::find(c.begin(), c.end(), value) != c.end();
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Basic Tools Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -219,7 +229,7 @@ namespace tools
     double stod(const std::string &input, const std::string &errtxt = "");
 
     // formatter for the case NA
-    const std::string natostring(double x);
+    const std::string na_to_str(double x);
 
     // format a list of string options
     const std::string show_list(const str_vec &options);

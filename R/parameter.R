@@ -20,7 +20,7 @@
 #' @description
 #' Help with parameter definitions of model Rcpp object.
 #'
-#' @noRd
+#' @keywords internal
 HousepiParameter <- R6::R6Class(
   classname = "HousepiParameter",
   cloneable = TRUE,
@@ -86,8 +86,8 @@ HousepiParameter <- R6::R6Class(
     #' Add a new parameter definition.
     add = function(name,
                    value = NA,
-                   constant = NA,
-                   discrete = FALSE,
+                   const = NA,
+                   discr = FALSE,
                    prior = NA,
                    args = list(),
                    rule = NA,
@@ -106,11 +106,11 @@ HousepiParameter <- R6::R6Class(
       }
 
       # assume it's a constant if a prior is not provided
-      if (is.na(constant)) {
-        constant <- is.na(prior)
+      if (is.na(const)) {
+        const <- is.na(prior)
       }
 
-      if (isTRUE(constant)) {
+      if (isTRUE(const)) {
         # check that value is provided
         if (is.na(value)) {
           stop_h(
@@ -123,11 +123,11 @@ HousepiParameter <- R6::R6Class(
           data.frame(
             name = name,
             value = value,
-            constant = TRUE,
-            discrete = is.integer(value),
+            const = TRUE,
+            discr = is.integer(value),
             prior = NA,
-            arg_name = NA,
-            arg_value = NA,
+            arg_key = NA,
+            arg_val = NA,
             rule = NA,
             scale = NA,
             min = NA,
@@ -145,11 +145,11 @@ HousepiParameter <- R6::R6Class(
         }
 
         # prior arguments
-        arg_name_ <- NA
-        arg_value_ <- NA
+        arg_key_ <- NA
+        arg_val_ <- NA
         if (length(args) > 0) {
-          arg_name_ <- str_join_(names(args))
-          arg_value_ <- str_join_(unname(unlist(args)))
+          arg_key_ <- type_join_(names(args))
+          arg_val_ <- type_join_(unname(unlist(args)))
         }
 
         # mcmc proposer rule
@@ -165,11 +165,11 @@ HousepiParameter <- R6::R6Class(
           data.frame(
             name = name,
             value = value,
-            constant = FALSE,
-            discrete = isTRUE(discrete),
+            const = FALSE,
+            discr = isTRUE(discr),
             prior = prior,
-            arg_name = arg_name_,
-            arg_value = arg_value_,
+            arg_key = arg_key_,
+            arg_val = arg_val_,
             min = min,
             max = max,
             rule = rule,
@@ -284,13 +284,13 @@ HousepiParameter <- R6::R6Class(
         this_par <- as.list(self$defs[r, ])
         this_par$name <- NULL
 
-        if (!is.na(this_par$arg_value)) {
-          args <- stringr::str_split(this_par$arg_value, "/")[[1]]
-          names(args) <- stringr::str_split(this_par$arg_name, "/")[[1]]
+        if (!is.na(this_par$arg_val)) {
+          args <- stringr::str_split(this_par$arg_val, "/")[[1]]
+          names(args) <- stringr::str_split(this_par$arg_key, "/")[[1]]
           this_par$args <- args
         }
-        this_par$arg_name <- NULL
-        this_par$arg_value <- NULL
+        this_par$arg_key <- NULL
+        this_par$arg_val <- NULL
 
         this_par[is.na(this_par)] <- NULL
 

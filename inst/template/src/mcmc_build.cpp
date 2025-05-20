@@ -247,7 +247,7 @@ void MCMC::Impl::build_param()
                     throw std::invalid_argument(
                         "Parameter \"" + p + "\" has multiple definitions.");
                 }
-                else if (tools::stobool(deftable.at("constant")[k]))
+                else if (tools::stobool(deftable.at("const")[k]))
                 {
                     // assign constant parameter to the set of variables
                     if (tools::is_na(deftable.at("value")[k]))
@@ -269,8 +269,8 @@ void MCMC::Impl::build_param()
 
                     // load boolean flag for discrete variables
                     bool is_discrete = false;
-                    if (!tools::is_na(deftable.at("discrete")[k]))
-                        is_discrete = tools::stobool(deftable.at("discrete")[k]);
+                    if (!tools::is_na(deftable.at("discr")[k]))
+                        is_discrete = tools::stobool(deftable.at("discr")[k]);
 
                     // load prior name
                     const std::string &prior_name = deftable.at("prior")[k];
@@ -299,18 +299,18 @@ void MCMC::Impl::build_param()
                     Variable &new_param = param_map.at(p);
 
                     // assign a prior distribution to the parameter
-                    new_param.assign_distribution(prior_name);
+                    new_param.assign_distr(prior_name);
 
                     // assign scalar arguments to prior distribution
-                    str_vec arg_name = tools::parse_list_args(deftable.at("arg_name")[k]);
-                    str_vec arg_value = tools::parse_list_args(deftable.at("arg_value")[k]);
-                    for (ushort c = 0; c < arg_name.size(); ++c)
+                    str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
+                    str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k]);
+                    for (ushort c = 0; c < arg_key.size(); ++c)
                         // UPDATE: is this check really necessary?
-                        if (!tools::is_na(arg_name[c]))
+                        if (!tools::is_na(arg_key[c]))
                         {
-                            const std::string &x = arg_value[c];
+                            const std::string &x = arg_val[c];
                             new_param.assign_distr_scalar(
-                                arg_name[c], ARG_DEFAULT,
+                                arg_key[c], ARG_DEFAULT,
                                 (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
                         }
 
@@ -491,7 +491,7 @@ void MCMC::Impl::init_diagnostics()
 
         // diagnostics over augmented variables
         if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_infer_list)
+            for (const augmID &a : augm_list_infer + augm_list_func)
                 smpl_augm_value[a] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
     }
 }
@@ -514,7 +514,7 @@ void MCMC::Impl::update_diagnostics()
 
         // diagnostics for individual followup
         if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_infer_list)
+            for (const augmID &a : augm_list_infer + augm_list_func)
                 smpl_augm_value.at(a)[smpl_count] = house_vector[smpl_H_star].augm(smpl_i_star, a);
     }
 
@@ -637,7 +637,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
             _hhid_to_index.clear();
 
             // assess the presence of house IDs
-            if (std::find(data_headers.begin(), data_headers.end(), "house_id") == data_headers.end())
+            if (!contains(data_headers, "house_id"))
                 tools::warning(
                     "Unknown household structure: missing data column \"house_id\".");
 

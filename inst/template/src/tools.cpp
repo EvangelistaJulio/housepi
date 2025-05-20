@@ -229,7 +229,7 @@ namespace tools
     }
 
     /* Converter to string checking for NA values. */
-    const std::string natostring(double x)
+    const std::string na_to_str(double x)
     {
         return is_na(x) ? HOUSEPI_NA_STRING : std::to_string(x);
     }
@@ -547,7 +547,7 @@ namespace tools
             str_vec missing = {};
 
             for (const std::string &x : options)
-                if (std::find(entries.begin(), entries.end(), x) == entries.end())
+                if (!contains(entries, x))
                     missing.push_back(x);
 
             if (!missing.empty())
@@ -562,7 +562,7 @@ namespace tools
         //----- check for unused entries -----//
         str_vec unused = {};
         for (const std::string &x : entries)
-            if (find(options.begin(), options.end(), x) == options.end())
+            if (!contains(options, x))
                 unused.push_back(x);
 
         if (unused.size() == 1)

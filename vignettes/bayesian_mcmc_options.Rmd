@@ -106,7 +106,7 @@ bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
 
 ## How to Discretize Continuos Priors
 
-Previous continuous priors can be chosen to be discretized simply by adding the flag `discrete = TRUE`.
+Previous continuous priors can be chosen to be discretized simply by adding the flag `discr = TRUE`.
 
 ```{r}
 # drop all current definitions
@@ -114,7 +114,7 @@ blank_model$drop_all()
 
 # add a parameter definition for each available distribution
 for (distr in available_distrs[available_distrs != "beta"]) {
-  blank_model$add_param(name = distr, prior = distr, discrete = TRUE)
+  blank_model$add_param(name = distr, prior = distr, discr = TRUE)
 }
 
 # perform the sampling 

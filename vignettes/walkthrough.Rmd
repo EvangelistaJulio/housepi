@@ -131,7 +131,7 @@ hhmodel$add_param(name = "beta",
                   rule = "lnorm")
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `constant = TRUE` (in such case a `value` must be provided).
+At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `const = TRUE` (in such case a `value` must be provided).
 To just load template definitions you can use the method `$add_template_param()`.
 
 For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).

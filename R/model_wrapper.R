@@ -20,7 +20,8 @@
 #' Housepi Wrapper R6 Class
 #' @description
 #' Help with calling methods from the Rcpp model object.
-#' @noRd
+#' 
+#' @keywords internal
 HousepiWrapper <- R6::R6Class(
   classname = "HousepiWrapper",
   inherit = HousepiGenerator,

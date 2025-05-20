@@ -236,11 +236,11 @@ Rcpp::DataFrame MCMC::Impl::export_param() const
 
         return DataFrame::create(_["name"] = std::move(wrap(V_names)),
                                  _["value"] = std::move(V_value),
-                                 _["constant"] = std::move(V_constant),
-                                 _["discrete"] = std::move(V_discrete),
+                                 _["const"] = std::move(V_constant),
+                                 _["discr"] = std::move(V_discrete),
                                  _["prior"] = std::move(V_prior),
-                                 _["arg_name"] = std::move(V_arg_name),
-                                 _["arg_value"] = std::move(V_arg_value),
+                                 _["arg_key"] = std::move(V_arg_name),
+                                 _["arg_val"] = std::move(V_arg_value),
                                  _["min"] = std::move(V_min),
                                  _["max"] = std::move(V_max),
                                  _["rule"] = std::move(V_rule),
@@ -423,7 +423,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
         // augmented variable of id trace
         if (!smpl_augm_value.empty())
-            for (const augmID &a : augm_infer_list)
+            for (const augmID &a : augm_list_infer + augm_list_func)
                 headers += {a + "_id_" + setup_id_trace};
 
         // multiple chains
@@ -444,7 +444,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
         // augmented variables
         if (!smpl_augm_value.empty())
-            for (const augmID &a : augm_infer_list)
+            for (const augmID &a : augm_list_infer + augm_list_func)
                 output(_, col++) = NumericVector(wrap(smpl_augm_value.at(a)));
 
         // retrieve chain identities
@@ -569,7 +569,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
 
         return List::create(
             _["name"] = _infec_profile.profile->show_name(),
-            _["discrete"] = _infec_profile.profile->is_discrete(),
+            _["discr"] = _infec_profile.profile->is_discrete(),
             _["mean"] = m,
             _["var"] = m2 - m * m,
             _["gentime"] = wrap(values[0]),
@@ -916,7 +916,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
             // augmented variables
             if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-                for (const augmID &a : augm_infer_list)
+                for (const augmID &a : augm_list_infer + augm_list_func)
                     inferstate_ofstream << C_DELIM << a + "_id_" + setup_id_trace;
 
             // header chain
@@ -947,7 +947,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
                     // print selected augmented variables
                     if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-                        for (const augmID &a : augm_infer_list)
+                        for (const augmID &a : augm_list_infer + augm_list_func)
                             inferstate_ofstream << C_DELIM << std::setprecision(5)
                                                 << std::fixed << smpl_augm_value.at(a)[i];
 

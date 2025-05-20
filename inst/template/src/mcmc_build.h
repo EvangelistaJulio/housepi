@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <unordered_set>
 #include <algorithm>
 
 #ifdef _HOUSEPI_RCPP
@@ -104,8 +103,8 @@ public:
 
     //----- Parameter - Attributes -----//
     const str_vec param_file_headers = {"name", "value",
-                                        "constant", "discrete",
-                                        "prior", "arg_name", "arg_value",
+                                        "const", "discr",
+                                        "prior", "arg_key", "arg_val",
                                         "min", "max",
                                         "rule", "scale"};
     std::vector<parID> param_const_list = {};
@@ -160,18 +159,20 @@ public:
 
     //----- Augmented - Attributes -----//
     const str_vec augm_file_headers = {"name", "status",
-                                       "value", "value_at",
-                                       "constant", "discrete", "init_rand",
-                                       "model", "arg_name", "arg_value", "arg_at",
+                                       "func", "farg_key", "farg_val", "farg_at",
+                                       "value", "value_at", "init_rand",
+                                       "const", "discr",
+                                       "model", "arg_key", "arg_val", "arg_at",
                                        "min", "min_at",
                                        "max", "max_at",
                                        "rule", "scale", "scale_at",
                                        "from", "from_at"};
-    std::unordered_set<augmID> augm_list_full = {};
-    std::unordered_set<augmID> augm_list_model = {};
-    std::unordered_set<augmID> augm_infer_list = {};
-    std::map<int, std::unordered_set<augmID>> augm_status_map_model = {};
-    std::map<int, std::unordered_set<augmID>> augm_status_map_infer = {};
+    std::vector<augmID> augm_list_full = {};
+    std::vector<augmID> augm_list_model = {};
+    std::vector<augmID> augm_list_infer = {};
+    std::vector<augmID> augm_list_func = {};
+    std::map<int, std::vector<augmID>> augm_status_map_model = {};
+    std::map<int, std::vector<augmID>> augm_status_map_infer = {};
 
     //----- Augmented - Setter -----//
     void clear_all_augm(Household &house, indiv i);
@@ -212,8 +213,8 @@ public:
 
     private:
         MCMC::Impl &pImpl; // pointer to external class
-        const str_vec _headers = {"name", "discrete",
-                                  "arg_name", "arg_value", "arg_at",
+        const str_vec _headers = {"name", "discr",
+                                  "arg_key", "arg_val", "arg_at",
                                   "min", "min_at",
                                   "max", "max_at"};
         // lookup table
@@ -379,11 +380,24 @@ private:
     double _type_to_double(const std::string &tkn_val,
                            const std::string &tkn_typ,
                            const Household &house, indiv i);
-    void _assign_augm_model(Household &house, indiv i, augmID a,
-                            const str_vec &keys,
-                            const str_vec &vals,
-                            const str_vec &typs,
-                            const std::vector<bool> &is_arg);
+    void _assign_augm_aux(Household &house, indiv i, augmID a,
+                          const str_vec &keys,
+                          const str_vec &vals,
+                          const str_vec &typs,
+                          const std::vector<bool> &is_arg,
+                          bool is_var_model);
+
+    void _assign_augm_func_args(Household &house, indiv i, augmID a,
+                                const str_vec &keys,
+                                const str_vec &vals,
+                                const str_vec &typs);
+    void _assign_augm_model_args(Household &house, indiv i, augmID a,
+                                 const str_vec &keys,
+                                 const str_vec &vals,
+                                 const str_vec &typs);
+    void _assign_augm_model_range(Household &house, indiv i, augmID a,
+                                  const str_vec &vals,
+                                  const str_vec &typs);
 
     //======================//
     //===== METROPOLIS =====//

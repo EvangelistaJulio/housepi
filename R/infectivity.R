@@ -21,7 +21,7 @@
 #' @description
 #' Auxiliary class to deal with infectivity profile.
 #'
-#' @noRd
+#' @keywords internal
 HousepiInfecProfile <- R6::R6Class(
   classname = "HousepiInfecProfile",
   cloneable = TRUE,
@@ -37,9 +37,9 @@ HousepiInfecProfile <- R6::R6Class(
       if (missing(value)) {
         required_param_set <- c()
         if (is.list(self$defs) && (length(self$defs) > 0)) {
-          if (!any(is.na((self$defs[c("arg_value", "arg_at")])))) {
+          if (!any(is.na((self$defs[c("arg_val", "arg_at")])))) {
             aux <- data.frame(
-              vals = strsplit(self$defs[["arg_value"]], "/")[[1]],
+              vals = strsplit(self$defs[["arg_val"]], "/")[[1]],
               keys = strsplit(self$defs[["arg_at"]], "/")[[1]]
             )
             aux <- aux[aux[["keys"]] == "P", "vals"]
@@ -72,7 +72,7 @@ HousepiInfecProfile <- R6::R6Class(
     #'
     #' @param name `character(1)`\cr
     #' Name of the infectivity profile.
-    #' @param discrete `logical(1)`\cr
+    #' @param discr `logical(1)`\cr
     #' IF `TRUE` the profile is discrete.
     #' @param args (named `list()`\cr
     #' Arguments (eventually with types) for the profile.
@@ -85,7 +85,7 @@ HousepiInfecProfile <- R6::R6Class(
     #' - Scalar value;
     #' - Parameter name (followed by `@P`).
     add = function(name,
-                   discrete = FALSE,
+                   discr = FALSE,
                    args = list(),
                    min = NA,
                    max = NA) {
@@ -95,37 +95,37 @@ HousepiInfecProfile <- R6::R6Class(
       }
 
       #----- arguments -----#
-      arg_name_ <- NA
-      arg_value_ <- NA
+      arg_key_ <- NA
+      arg_val_ <- NA
       arg_at_ <- NA
       # assign method only if arguments are provided
       if (length(args) > 0) {
-        arg_name_ <- str_join_(names(args))
-        tmp <- str_split_(args)
-        arg_value_ <- str_join_(tmp$var)
-        arg_at_ <- str_join_(tmp$typ)
+        arg_key_ <- type_join_(names(args))
+        tmp <- type_split_(args)
+        arg_val_ <- type_join_(tmp$val)
+        arg_at_ <- type_join_(tmp$at)
       }
 
       #----- minimum value -----#
       min_ <- NA
       min_at_ <- NA
       if (!is.na(min)) {
-        min_ <- str_split_(min)$var
-        min_at_ <- str_split_(min)$typ
+        min_ <- type_split_(min)$val
+        min_at_ <- type_split_(min)$at
       }
 
       #----- maximum value -----#
       max_ <- NA
       max_at_ <- NA
       if (!is.na(max)) {
-        max_ <- str_split_(max)$var
-        max_at_ <- str_split_(max)$typ
+        max_ <- type_split_(max)$val
+        max_at_ <- type_split_(max)$at
       }
 
       # finally store definition
       self$defs <- list(
-        name = name, discrete = isTRUE(discrete),
-        arg_name = arg_name_, arg_value = arg_value_, arg_at = arg_at_,
+        name = name, discr = isTRUE(discr),
+        arg_key = arg_key_, arg_val = arg_val_, arg_at = arg_at_,
         min = min_, min_at = min_at_, max = max_, max_at = max_at_
       )
 

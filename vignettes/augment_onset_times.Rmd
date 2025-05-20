@@ -96,21 +96,23 @@ We run a simulation with the method `simulate`.
 ```{r}
 # associate defininitions from a list
 hhsimul$load_augm_list(
-  # add augmented variable definition 'onset_date'
-  onset_date = list(
+  # add 'onset_time' definition
+  onset_time = list(
     init_rand = TRUE,
     model = "lnorm",
     args = c(meanlog = 4, sdlog = 0.5),
     max = 365
   ),
-  # add augmented variable definition 'incub_period'
+  # add 'incub_period' definition
   incub_period = list(
     init_rand = TRUE,
     model = "gamma",
     # assign arguments of incubation period from parameter definitions
     args = c(shape = "inc_shape",  scale = "inc_scale"),
     max = 14
-  )
+  ),
+  # add infection time definition
+  infec_time = "onset_time@A - incub_period@A"
 )
 
 # append incubation period distribution parameters as constants
@@ -130,11 +132,13 @@ simulated$incub_period <- NULL
 
 # assume onsets after 6 PM are reported to next day
 is_infec <- simulated$status == 1
+simulated$onset_date <- NA
 simulated[is_infec, "onset_date"] <- sapply(
-  simulated[is_infec, "onset_date"],
+  simulated[is_infec, "onset_time"],
   # simulation onset date > 18/24
   function(x) floor(ifelse((x %% 1) > 0.75, x + 1, x))
 )
+simulated$onset_time <- NULL
 
 head(simulated)
 ```
@@ -149,8 +153,8 @@ hhmodel <- hhsimul$clone(deep = FALSE)
 
 # load definitions from list (automatically drop previous definitions)
 hhmodel$load_augm_list(
-  # add 'onset_date' definition
-  onset_date = list(
+  # add 'onset_time' definition
+  onset_time = list(
     value = "onset_date@D",
     rule = "norm", scale = 0.25,
     from = "onset_date@D"
@@ -161,7 +165,8 @@ hhmodel$load_augm_list(
     model = "gamma",
     args = c(shape = "inc_shape", scale = "inc_scale"),
     max = 14, rule = "draw"
-  )
+  ),
+  infec_time = "onset_time@A - incub_period@A"
 )
 
 # perform the inference
@@ -201,7 +206,7 @@ results <- hhmodel$traces_results
 
 # compare results to parameter values used for simulation
 simul_param_defs <- hhsimul$param_defs
-imask <- simul_param_defs$constant == FALSE
+imask <- simul_param_defs$const == FALSE
 inames <- simul_param_defs[imask, ]$name
 ```
 

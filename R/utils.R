@@ -10,13 +10,34 @@
 # utils.R
 #
 
+#' @title
+#' Housepi stop utility
+#' @description
+#' Utility functions for error messages.
+#' 
+#' @param ...\cr
+#' Lists of messages printed in sequence on different lines.
+#' 
+#' @keywords internal
 stop_h <- function(...) {
   base::stop(paste(unlist(list(...)), collapse = "\n"),
              call. = FALSE)
+  invisible()
 }
+
+#' @title
+#' Housepi warning utility
+#' @description
+#' Utility functions for warning messages.
+#' 
+#' @param ...\cr
+#' Lists of messages printed in sequence on different lines.
+#' 
+#' @keywords internal
 warning_h <- function(...) {
   base::warning(paste(unlist(list(...)), collapse = "\n"),
                 call. = FALSE)
+  invisible()
 }
 
 internal_setup_error <- function() {
@@ -48,7 +69,7 @@ require_suggested_library <- function(libname) {
 #' @return
 #' String formatted as a list of quoted words.
 #'
-#' @noRd
+#' @keywords internal
 character_to_string_list <- function(mylist) {
   return(paste(lapply(mylist, function(x) paste0("\"", x, "\"")),
                collapse = ", "))
@@ -67,7 +88,7 @@ character_to_string_list <- function(mylist) {
 #' @return `character()`\cr
 #' String with helpful comments
 #'
-#' @noRd
+#' @keywords internal
 find_closest_match <- function(input,
                                options,
                                min_dist = 2) {
@@ -115,43 +136,6 @@ get_val_ <- function(lst, key, default = NA) {
   }
 }
 
-# Format NA types with defaults according to values
-default_types_ <- function(typs, vals) {
-  for (i in which(is.na(typs))) {
-    y <- vals[[i]]
-    if (is.na(y)) {
-      typs[i] <- NA
-    } else if (is.numeric(y)) {
-      typs[i] <- "S"
-    } else if (is.character(y)) {
-      if (is.na(suppressWarnings(as.numeric(y)))) {
-        typs[i] <- "P"
-      } else {
-        typs[i] <- "S"
-      }
-    } else {
-      typs[i] <- "P"
-    }
-  }
-  return(typs)
-}
-
-# Split a typed string or character vector
-str_split_ <- function(lst) {
-  values <- sapply(
-    strsplit(as.character(lst), "\\@"), function(x) x[1]
-  )
-  types <- sapply(
-    strsplit(as.character(lst), "\\@"), function(x) x[2]
-  )
-  return(list(var = values, typ = default_types_(types, values)))
-}
-
-# Join elements of a dictionary to pass to csv
-str_join_ <- function(x) {
-  return(paste(x, collapse = "/"))
-}
-
 #' @title
 #' Load a List of Definitions
 #' @description
@@ -165,7 +149,7 @@ str_join_ <- function(x) {
 #' @return
 #' `list() of list()`
 #'
-#' @noRd
+#' @keywords internal
 load_definition_list <- function(..., from = NULL) {
   definitions <- list(...)
 
@@ -265,9 +249,9 @@ template_dll_file <- function(path) {
 #' Traces as exported from HouseholdModel.
 #'
 #' @return
-#' `coda::mcmc` | `coda::mcmc.list`\cr
+#' `coda::mcmc` | `coda::mcmc.list`
 #'
-#' @noRd
+#' @keywords internal
 coerce_traces_to_coda <- function(trs) {
   if (require_suggested_library("coda")) {
     if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
@@ -307,9 +291,9 @@ coerce_traces_to_coda <- function(trs) {
 #' Value between 0 and 1 (default is 0.95).
 #'
 #' @return
-#' `data.frame`)
+#' `data.frame`
 #'
-#' @noRd
+#' @keywords internal
 retrieve_traces_results <- function(trs,
                                     cri_level = 0.95) {
   if ((cri_level <= 0) || (cri_level >= 1)) {
@@ -334,4 +318,175 @@ retrieve_traces_results <- function(trs,
   out$name <- rownames(out)
 
   return(out)
+}
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+#' @title 
+#' Default types
+#' @description
+#' Format NA types with defaults according to values
+#'
+#' @param types `character()`\cr
+#' Vector of characters.
+#' @param values `list()`\cr
+#' List of values.
+#' 
+#' @return `character()`\cr
+#' Vector of characters.
+#'
+#' @keywords internal
+default_types_ <- function(types, values) {
+  for (i in which(is.na(types))) {
+    y <- values[[i]]
+    if (is.na(y)) {
+      types[i] <- NA
+    } else if (is.numeric(y)) {
+      types[i] <- "S"
+    } else if (is.character(y)) {
+      if (is.na(suppressWarnings(as.numeric(y)))) {
+        types[i] <- "P"
+      } else {
+        types[i] <- "S"
+      }
+    } else {
+      types[i] <- "P"
+    }
+  }
+  return(types)
+}
+
+# @title
+#' Type split
+#' @description
+#' Split a typed string or character vector
+#'  
+#' @param lst `character()`\cr
+#' Vector of characters.
+#'
+#' @return `list()`\cr
+#' List with two elements: value and type.
+#'
+#' @keywords internal
+type_split_ <- function(lst) {
+  splitted_lst<- strsplit(as.character(lst), "\\@")
+  values <- sapply(splitted_lst, function(x) x[1])
+  types <- sapply(splitted_lst, function(x) x[2])
+  return(list(
+    val = values,
+    at = default_types_(types, values)
+  ))
+}
+
+#' @description
+#' Join elements of a dictionary to pass to csv
+#'
+#' @param `character()`\cr
+#' Vector of characters.
+#'
+#' @return `character(1)`\cr
+#' String formatted as a list of quoted words.
+#'
+#' @keywords internal
+type_join_ <- function(x) {
+  return(paste(x, collapse = "/"))
+}
+
+#' @title 
+#' Extract augmented function equality
+#' @description
+#' Extract equality augmented function declaration
+#'
+#' @param `character()`\cr
+#' Vector of characters.
+#'
+#' @return `list()`\cr
+#' function name, key, value and type
+#'
+#' @keywords internal
+extract_augm_func_eq_ <- function(s) {
+  # remove spaces
+  s <- gsub(" ", "", s)
+  # split according to the regular expression
+  y <- strsplit(s, "=")[[1]]
+  if (length(y) != 2) {
+    stop_h(
+      "Invalid number of arguments for equality.",
+      "Expected 1 argument, found ", length(y), "."
+    )
+  }
+  y <- type_split_(y[-1])
+
+  return(list(
+    func = "eq", key = "x",
+    val = type_join_(y$val), at = type_join_(y$at)
+  ))
+}
+
+#' @description
+#' Extract basic augmented function declaration
+#'
+#' @param `character(1)`\cr
+#' Vector of characters.
+#' @param `character(1)`\cr
+#' Regular expression to split the string.
+#' @param `character(1)`\cr
+#' Function name.
+#'
+#' @return `list()`\cr
+#' function name, key, value and type
+#'
+#' @keywords internal
+extract_augm_func_basic_ <- function(s, reg_expr, func_name) {
+  # remove spaces
+  s <- gsub(" ", "", s)
+  # split according to the regular expression
+  y <- strsplit(s, reg_expr)[[1]]
+  if (length(y) != 2) {
+    stop_h(
+      "Invalid number of arguments for ", func_name, ".",
+      "Expected 2 argument, found ", length(y), "."
+    )
+  }
+  y <- type_split_(y)
+
+  return(list(
+    func = func_name, key = type_join_(c("x", "y")),
+    val = type_join_(y$val), at = type_join_(y$at)
+  ))
+}
+
+#' @description
+#' Extract augmented function declaration.
+#'  
+#' @param `character()`\cr
+#' Vector of characters.
+#' 
+#' @return `list()`cr
+#' function name, key, variable and type
+#' 
+#' @keywords internal
+extract_augm_func_ <- function(s) {
+  if (grepl("\\+", s)) {
+    return(extract_augm_func_basic_(s, "\\+", "add"))
+
+  } else if (grepl("\\*", s)) {
+    return(extract_augm_func_basic_(s, "\\*", "mult"))
+
+  } else if (grepl("-", s)) {
+    return(extract_augm_func_basic_(s, "-", "sub"))
+
+  } else if (grepl("/", s)) {
+    return(extract_augm_func_basic_(s, "/", "div"))
+
+  } else if (grepl("=", s)) {
+    return(extract_augm_func_eq_(s))
+
+  } else {
+    return(NULL)
+  }
 }

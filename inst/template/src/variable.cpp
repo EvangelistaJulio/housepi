@@ -338,11 +338,12 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HOUSEPI
 
 Variable::Variable(const std::string &name,
                    double value,
-                   bool is_discrete) : _func_ptr(std::make_shared<Function>()),
-                                       _distr_ptr(std::make_shared<Distribution>()),
-                                       _prop_ptr(std::make_shared<Proposer>())
+                   bool is_discrete,
+                   const std::string &func_name) : _func_ptr(std::make_shared<Function>()),
+                                                   _distr_ptr(std::make_shared<Distribution>()),
+                                                   _prop_ptr(std::make_shared<Proposer>())
 {
-    init(name, value, is_discrete);
+    init(name, value, is_discrete, func_name);
 }
 Variable::~Variable() = default;
 
@@ -357,7 +358,8 @@ double Variable::get(const dbl_vec &opts) const { return (this->*_do_get)(opts);
 
 /* Get pointer functional methods */
 const double *Variable::__get_pointer_default() const { return &_value; }
-const double *Variable::__get_pointer_func_return() const { 
+const double *Variable::__get_pointer_func_return() const
+{
     tools::error("Impossible to return pointer to function variable \"" + _variable_name + "\".");
     return nullptr;
 }
@@ -374,16 +376,29 @@ bool Variable::is_from_zero() const { return (_prop_ptr->is_rule_start_from_zero
 double Variable::get_from_value() const { return (_prop_ptr->get_from_value)(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Variable - SETTER  /////////////////////////////////////////
+/////////////////////////////////////  Variable - Setter  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Restore user defined variable initialization. */
-void Variable::init(const std::string &name, double value, bool is_discrete)
+void Variable::init(const std::string &name, double value,
+                    bool is_discrete, const std::string &func_name)
 {
-    _variable_name = name;
-    _user_value = value;
-    _value = _user_value;
-    _is_discrete = is_discrete;
+    if (tools::is_na(func_name))
+    {
+        _do_get = &Variable::__get_default;
+        _do_get_pointer = &Variable::__get_pointer_default;
+
+        _variable_name = name;
+        _user_value = value;
+        _value = _user_value;
+        _is_discrete = is_discrete;
+    }
+    else
+    {
+        _do_get = &Variable::__get_func_return;
+        _do_get_pointer = &Variable::__get_pointer_func_return;
+        _func_ptr = function_switch(func_name);
+    }
 }
 
 /* Restore user defined variable initialization. */
@@ -393,28 +408,64 @@ void Variable::user_reset()
     _prop_ptr->user_reset();
 }
 
+/* Store the buffer and change value. */
+void Variable::__set_value_default(double x)
+{
+    _buffer_value = _value;
+    _value = x;
+}
+/* Set value to function return. */
+void Variable::__set_value_func_error(double x)
+{
+    tools::error(
+        "Impossible to set value to function  \"" + _variable_name + "\".");
+}
+
+/* Set value to variable. */
+void Variable::set_value(double x) { (this->*_do_set_value)(x); }
+
+/* Restore buffered value. */
+void Variable::restore_value() { _value = _buffer_value; }
+
+/* Assign a scalar argument to function. */
+void Variable::assign_func_scalar(const std::string &arg_name, bool is_arg, double x)
+{
+    _func_ptr->assign_scalar(arg_name, is_arg, x);
+}
+/* Assign a pointer argument to function. */
+void Variable::assign_func_pointer(const std::string &arg_name, bool is_arg, const double *y)
+{
+    _func_ptr->assign_pointer(arg_name, is_arg, y);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Variable - Setter (Distribution)  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* Assign distribution with constant arguments. */
-void Variable::assign_distribution(const std::string &distr_name)
+void Variable::assign_distr(const std::string &distr_name)
 {
     _distr_ptr = distribution_switch(distr_name);
 }
-
-/* Assign distribution scalar argument. */
+/* Assign a scalar argument to distribution. */
 void Variable::assign_distr_scalar(const std::string &arg_name, bool is_arg, double x)
 {
     _distr_ptr->assign_scalar(arg_name, is_arg, x);
 }
-/* Assign range pointer argument. */
+/* Assign a pointer argument to distribution. */
 void Variable::assign_distr_pointer(const std::string &arg_name, bool is_arg, const double *y)
 {
     _distr_ptr->assign_pointer(arg_name, is_arg, y);
 }
-
 /* Initialize distribution reshaping. */
 void Variable::init_distr_reshaping()
 {
     _distr_ptr->init_reshaping(_is_discrete);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Variable - Setter (Proposer)  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign proposer. */
 void Variable::assign_proposer(const std::string &rule_name,
@@ -500,16 +551,6 @@ double Variable::__propose_from_zero(rnd_gen &prng) { return (_prop_ptr->propose
 /////////////////////////////////  Variable - METROPOLIS-HASTINGS  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Store the buffer and change value. */
-void Variable::set_value(double x)
-{
-    _buffer_value = _value;
-    _value = x;
-}
-
-/* Restore buffered value. */
-void Variable::restore_value() { _value = _buffer_value; }
-
 double Variable::get_move_logratio() const { return (this->*_do_move_logratio)(); }
 bool Variable::valid_move() const { return (this->*_do_valid_move)(); }
 
@@ -534,7 +575,7 @@ void Variable::adapt_rule(double ratio) { (_prop_ptr->adapt)(ratio); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const std::string Variable::show_name() const { return _variable_name; }
-const std::string Variable::show_value() const { return tools::natostring(get()); }
+const std::string Variable::show_value() const { return tools::na_to_str(get()); }
 const std::string Variable::show_distr_name() const { return _distr_ptr->show_name(); }
 const std::string Variable::show_distr_arg_names() const { return _distr_ptr->show_arg_names(); }
 const std::string Variable::show_distr_arg_values() const { return _distr_ptr->show_arg_values(); }

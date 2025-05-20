@@ -47,7 +47,7 @@ double MCMC::Impl::_type_to_double(const std::string &value,
             output = house.data(i, value);
 
         else if (tools::stoupper(type) == TYPE_PARAM)
-            // UPDATE: here it won't be straightforward to drop maps
+            // NOTE: here it won't be straightforward to drop maps...
             if (param_map.at(value).is_constant())
                 output = get_param(value);
             else
@@ -63,11 +63,12 @@ double MCMC::Impl::_type_to_double(const std::string &value,
 }
 
 /* Convert a std::string with type-dictionary to std::string-to-double */
-void MCMC::Impl::_assign_augm_model(Household &house, indiv i, augmID a,
-                                    const str_vec &keys,
-                                    const str_vec &vals,
-                                    const str_vec &typs,
-                                    const std::vector<bool> &is_arg)
+void MCMC::Impl::_assign_augm_aux(Household &house, indiv i, augmID a,
+                                  const str_vec &keys,
+                                  const str_vec &vals,
+                                  const str_vec &typs,
+                                  const std::vector<bool> &is_arg,
+                                  bool is_var_model)
 {
     // check size validity of keys, values and type
     if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
@@ -94,23 +95,28 @@ void MCMC::Impl::_assign_augm_model(Household &house, indiv i, augmID a,
                 "Found a type without a paired value. Falling back to default.");
 
         else if (tools::stoupper(type) == TYPE_DATA)
-            house.assign_augm_model_scalar(i, a, key, flag, house.data(i, value));
+            house.assign_augm_scalar(i, a, key, flag, house.data(i, value), is_var_model);
 
         else if (tools::stoupper(type) == TYPE_PARAM)
         {
             if (param_map.at(value).is_constant())
-                house.assign_augm_model_scalar(i, a, key, flag, get_param(value));
+                house.assign_augm_scalar(i, a, key, flag, get_param(value), is_var_model);
             else
-                house.assign_augm_model_pointer(i, a, key, flag, get_param_pointer(value));
+            {
+                house.assign_augm_pointer(i, a, key, flag, get_param_pointer(value), is_var_model);
+                // state parameter extra dependency if variable is a function
+                if (is_var_model == VAR_FUNCTION)
+                    make_param_extra_dependent(value);
+			}
         }
 
         else if (tools::stoupper(type) == TYPE_SCALAR)
-            house.assign_augm_model_scalar(i, a, key, flag, tools::stod(value, "argument with scalar type"));
+            house.assign_augm_scalar(i, a, key, flag, tools::stod(value, "argument with scalar type"), is_var_model);
 
         else if (tools::stoupper(type) == TYPE_AUGM)
         {
 
-            if (augm_list_full.count(value))
+            if (contains(augm_list_full, value))
             {
                 if (a == value)
                     throw std::invalid_argument(
@@ -119,9 +125,9 @@ void MCMC::Impl::_assign_augm_model(Household &house, indiv i, augmID a,
                     throw std::invalid_argument(
                         "Impossible to set augmented function \"" + value + "\" as argument.");
                 else if (house.is_augm_constant(i, value))
-                    house.assign_augm_model_scalar(i, a, key, flag, house.augm(i, value));
+                    house.assign_augm_scalar(i, a, key, flag, house.augm(i, value), is_var_model);
                 else
-                    house.assign_augm_model_pointer(i, a, key, flag, house.augm_pointer(i, value));
+                    house.assign_augm_pointer(i, a, key, flag, house.augm_pointer(i, value), is_var_model);
             }
             else
                 throw std::invalid_argument(
@@ -132,6 +138,31 @@ void MCMC::Impl::_assign_augm_model(Household &house, indiv i, augmID a,
             throw std::invalid_argument(
                 "Unsopported type \"" + type + "\" found while loading \"" + value + "\" for pointer value.");
     }
+}
+
+void MCMC::Impl::_assign_augm_func_args(Household &house, indiv i, augmID a,
+                                        const str_vec &keys,
+                                        const str_vec &vals,
+                                        const str_vec &typs)
+{
+    _assign_augm_aux(house, i, a, keys, vals, typs,
+                     std::vector<bool>(keys.size(), ARG_DEFAULT), VAR_FUNCTION);
+}
+
+void MCMC::Impl::_assign_augm_model_args(Household &house, indiv i, augmID a,
+                                         const str_vec &keys,
+                                         const str_vec &vals,
+                                         const str_vec &typs)
+{
+    _assign_augm_aux(house, i, a, keys, vals, typs,
+                     std::vector<bool>(keys.size(), ARG_DEFAULT), VAR_MODEL);
+}
+void MCMC::Impl::_assign_augm_model_range(Household &house, indiv i, augmID a,
+                                          const str_vec &vals,
+                                          const str_vec &typs)
+{
+    _assign_augm_aux(house, i, a, {"min", "max"}, vals, typs,
+                     std::vector<bool>(2, ARG_RANGE), VAR_MODEL);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -168,7 +199,7 @@ const dict_str_vec MCMC::Impl::_build_augm_name_status_check()
         {
             // check no multiple augmID with same status
             const str_vec &mylist = output.at(a);
-            if (std::find(mylist.begin(), mylist.end(), status) == mylist.end())
+            if (!contains(mylist, status))
                 output.at(a).push_back(status);
             else
                 throw std::invalid_argument(
@@ -202,8 +233,8 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
                 int s = tools::stoi(status, "augmented status");
                 if (s >= INFECTED_STATUS)
                 {
-                    augm_status_map_infer.emplace(s, std::unordered_set<std::string>{});
-                    augm_status_map_model.emplace(s, std::unordered_set<std::string>{});
+                    augm_status_map_infer.emplace(s, std::vector<augmID>{});
+                    augm_status_map_model.emplace(s, std::vector<augmID>{});
                 }
                 else
                     throw std::invalid_argument(
@@ -213,7 +244,7 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
                 throw std::invalid_argument(
                     "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
 
-            augm_list_full.emplace(a);
+            augm_list_full.push_back(a);
         }
     }
 
@@ -290,7 +321,8 @@ void MCMC::Impl::build_augm()
             //===========================================//
 
             // drop previous definitions
-            augm_infer_list.clear();
+            augm_list_infer.clear();
+            augm_list_func.clear();
             augm_list_model.clear();
 
             // note : I didn't manage to collapse this with the previous because of generic status
@@ -299,14 +331,21 @@ void MCMC::Impl::build_augm()
                 const std::string &a = deftable.at("name")[k];
                 const std::string &status = deftable.at("status")[k];
 
+                // read option for function
+                bool is_function = false;
+                if (!tools::is_na(deftable.at("func")[k]))
+                    is_function = !tools::is_na(deftable.at("func")[k]);
+
                 // read option for constant variable
                 bool is_constant = false;
-                if (!tools::is_na(deftable.at("constant")[k]))
-                    is_constant = tools::stobool(deftable.at("constant")[k]);
+                if (!tools::is_na(deftable.at("const")[k]))
+                    is_constant = tools::stobool(deftable.at("const")[k]);
 
-                // UPDATE: here I should check if variable is a function
+                if (is_function)
+                    augm_list_func.push_back(a);
+
                 // Augmented Variables to be Inferred
-                if (!is_constant)
+                if (!is_constant && !is_function)
                 {
                     // check random initialization option
                     if (!tools::is_na(deftable.at("init_rand")[k]))
@@ -318,28 +357,41 @@ void MCMC::Impl::build_augm()
                     // read option for monte carlo proposer
                     if (!tools::is_na(deftable.at("rule")[k]))
                     {
-                        augm_infer_list.emplace(a);
+                        if (!contains(augm_list_infer, a))
+                            augm_list_infer.push_back(a);
 
+                        // note: impossible to associate rule to missing status
                         if (!tools::is_na(status)) // status-specific definition
-                            augm_status_map_infer.at(tools::stoi(status, "augmented status")).emplace(a);
+                        {
+                            int s = tools::stoi(status, "augmented status");
+                            if (!contains(augm_status_map_infer.at(s), a))
+                                augm_status_map_infer.at(s).push_back(a);
+                        }
 
                         else if (!is_augm_generic()) // generic definition
                             for (const auto &pair : augm_status_map_infer)
-                                augm_status_map_infer.at(pair.first).emplace(a);
+                                if (!contains(augm_status_map_infer.at(pair.first), a))
+                                    augm_status_map_infer.at(pair.first).push_back(a);
                     }
                 }
 
-                //----- Augmented Variables with a Model -----//
+                // Augmented Variables with a Model
                 if (!tools::is_na(deftable.at("model")[k]))
                 {
-                    augm_list_model.emplace(a);
+                    if (!contains(augm_list_model, a))
+                        augm_list_model.push_back(a);
 
                     if (!tools::is_na(status)) // status-specific definition
-                        augm_status_map_model.at(tools::stoi(status)).emplace(a);
+                    {
+                        int s = tools::stoi(status, "augmented status");
+                        if (!contains(augm_status_map_model.at(s), a))
+                            augm_status_map_model.at(s).push_back(a);
+                    }
 
                     else if (!is_augm_generic()) // generic definition
                         for (const auto &pair : augm_status_map_model)
-                            augm_status_map_model.at(pair.first).emplace(a);
+                            if (!contains(augm_status_map_model.at(pair.first), a))
+                                augm_status_map_model.at(pair.first).push_back(a);
                 }
             }
 
@@ -362,7 +414,7 @@ void MCMC::Impl::build_augm()
 bool MCMC::Impl::is_augm_any() const { return !augm_list_full.empty(); }
 
 /* Check if there are non-constant augmented variable definitions. */
-bool MCMC::Impl::is_augm_sample() const { return !augm_infer_list.empty(); }
+bool MCMC::Impl::is_augm_sample() const { return !augm_list_infer.empty(); }
 
 /* Check if there are augmented variable definitions with a model. */
 bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
@@ -393,29 +445,38 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
                 augmID a = deftab.at("name")[k];                // UPDATE : index to be implemented
                 const std::string &name = deftab.at("name")[k]; // augmented variable name
 
-                // initial value
+                // flags
+                bool is_function = !tools::is_na(deftab.at("func")[k]);
+                bool is_constant = tools::stobool(deftab.at("const")[k]);
+                bool is_discrete = tools::stobool(deftab.at("discr")[k]);
+
+                // definitions
                 double value = _type_to_double(deftab.at("value")[k], deftab.at("value_at")[k], house, i);
-                bool is_constant = tools::stobool(deftab.at("constant")[k]);
-                bool is_discrete = tools::stobool(deftab.at("discrete")[k]);
+                const std::string &func_name = deftab.at("func")[k];
                 const std::string &model_name = deftab.at("model")[k];
 
-                // FIXME: what if constant = T, discrete = T and value != int?
+                // FIXME: what if constant = T, discrete = T and value != intege?
 
                 // assign augmented variable
-                house.assign_augm(i, a, name, value, is_discrete, model_name);
+                house.assign_augm(i, a, name, value, is_discrete, func_name, model_name);
 
-                // load model arguments and range
-                str_vec keys = tools::parse_list_args(deftab.at("arg_name")[k]);
-                str_vec vals = tools::parse_list_args(deftab.at("arg_value")[k]);
-                str_vec typs = tools::parse_list_args(deftab.at("arg_at")[k]);
-                std::vector<bool> is_arg(keys.size(), ARG_DEFAULT);
+                if (is_function)
+                    // assign arguments to function
+                    _assign_augm_func_args(house, i, a,
+                                           tools::parse_list_args(deftab.at("farg_key")[k]),
+                                           tools::parse_list_args(deftab.at("farg_val")[k]),
+                                           tools::parse_list_args(deftab.at("farg_at")[k]));
 
-                keys += {"min", "max"};
-                vals += {deftab.at("min")[k], deftab.at("max")[k]};
-                typs += {deftab.at("min_at")[k], deftab.at("max_at")[k]};
-                is_arg += {ARG_RANGE, ARG_RANGE};
+                // assign arguments to model
+                _assign_augm_model_args(house, i, a,
+                                        tools::parse_list_args(deftab.at("arg_key")[k]),
+                                        tools::parse_list_args(deftab.at("arg_val")[k]),
+                                        tools::parse_list_args(deftab.at("arg_at")[k]));
 
-                _assign_augm_model(house, i, a, keys, vals, typs, is_arg);
+                // assign range to model
+                _assign_augm_model_range(house, i, a,
+                                         {deftab.at("min")[k], deftab.at("max")[k]},
+                                         {deftab.at("min_at")[k], deftab.at("max_at")[k]});
                 house.init_augm_model_reshaping(i, a);
 
                 // non constant definitions
