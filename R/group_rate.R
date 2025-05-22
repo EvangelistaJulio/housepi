@@ -147,6 +147,8 @@ associate_param_names <- function(this_table,
   return(this_table)
 }
 
+#' @title
+#' C++ group rate emplacement
 #' @description
 #' Construct the C++ group rate emplacement.
 #'
@@ -166,6 +168,8 @@ cpp_emplace <- function(x, tab = TRUE, quote = TRUE) {
           ifelse(isTRUE(quote), sprintf("\"%s\"", x), x))
 }
 
+#' @title
+#' C++ if clauses
 #' @description
 #' Construct the C++ if clauses plus emplacement.
 #'
@@ -352,8 +356,16 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   public = list(
+    #' @field defs `list`\cr
+    #' List containing current group rate definitions.
     defs = list(),
+
+    #' @field param_defs `list`\cr
+    #' List containing parameters definitions.
     param_defs = list(),
+
+    #' @field logic_tables `list`\cr
+    #' List containing table of parameters associated to each group rate.
     logic_tables = list(),
 
     #' @description

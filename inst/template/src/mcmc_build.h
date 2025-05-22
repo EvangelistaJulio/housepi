@@ -109,7 +109,7 @@ public:
                                         "rule", "scale"};
     std::vector<parID> param_const_list = {};
     std::vector<parID> param_standard_infer_list = {};
-    std::vector<parID> param_extra_infer_list = {};
+    std::vector<parID> param_cache_infer_list = {};
 
     parIDmap<Variable> param_map = {}; // parameters dictionary
     bool _is_undef_params_ = false;    // undefined parameters valid only if infer
@@ -120,7 +120,7 @@ public:
 
     //----- Parameter - Setter -----//
     void init_parameters();
-    void make_param_extra_dependent(const std::string &par_name);
+    void make_param_cache_dependent(const std::string &par_name);
 
     //----- Parameter - Metropolis-Hastings -----//
     bool propose_valid_param_move(const parID &p);
@@ -129,7 +129,7 @@ public:
     void update_param_accept_rate(const parID &p, bool is_accepted);
     void adapt_param_rule(const parID &p, double ratio);
 
-    void restore_parameter(const parID &p, bool extra_depen);
+    void restore_parameter(const parID &p, bool cache_depen);
 
     //==========================//
     //===== HOUSEHOLD DATA =====//

@@ -277,7 +277,8 @@ double Household::contact_rate(indiv from, indiv to) const { return *_contact_ra
 double Household::data(indiv i, const dataID &d) const { return _members[i].data_map.at(d); }
 double Household::group_rate(indiv i, const rateID &r) const { return _members[i].rate_map.at(r).get(); }
 double Household::augm(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get(); }
-const double *Household::augm_pointer(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_pointer(); }
+const double *Household::get_augm_pointer(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_pointer(); }
+const std::shared_ptr<Function> Household::get_augm_function(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).get_function(); }
 bool Household::is_augm_constant(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).is_constant(); }
 bool Household::is_augm_function(indiv i, const augmID &a) const { return _members[i].augm_map.at(a).is_function(); }
 
@@ -317,25 +318,38 @@ void Household::assign_augm(indiv i, const augmID &a, const std::string &name,
 	this_augm.assign_distr(model_name);
 }
 
-/* Assign scalar argument for augmented variable model. */
-void Household::assign_augm_scalar(indiv i, const augmID &a,
-								   const std::string &arg_name, bool is_arg, double x,
-								   bool is_var_model)
+/* Assign scalar attribute for augmented variable model or function. */
+void Household::assign_augm_attr_scalar(indiv i, const augmID &a,
+										const std::string &arg_name, bool is_arg,
+										double x,
+										bool is_var_model)
 {
 	if (is_var_model == VAR_MODEL)
-		_members[i].augm_map.at(a).assign_distr_scalar(arg_name, is_arg, x);
+		_members[i].augm_map.at(a).assign_distr_attr_scalar(arg_name, is_arg, x);
 	else
-		_members[i].augm_map.at(a).assign_func_scalar(arg_name, is_arg, x);
+		_members[i].augm_map.at(a).assign_func_attr_scalar(arg_name, is_arg, x);
 }
-/* Assign pointer to argument for augmented variable model. */
-void Household::assign_augm_pointer(indiv i, const augmID &a,
-									const std::string &arg_name, bool is_arg, const double *y,
-									bool is_var_model)
+/* Assign pointer to attribute for augmented variable model or function. */
+void Household::assign_augm_attr_pointer(indiv i, const augmID &a,
+										 const std::string &arg_name, bool is_arg,
+										 const double *y,
+										 bool is_var_model)
 {
 	if (is_var_model == VAR_MODEL)
-		_members[i].augm_map.at(a).assign_distr_pointer(arg_name, is_arg, y);
+		_members[i].augm_map.at(a).assign_distr_attr_pointer(arg_name, is_arg, y);
 	else
-		_members[i].augm_map.at(a).assign_func_pointer(arg_name, is_arg, y);
+		_members[i].augm_map.at(a).assign_func_attr_pointer(arg_name, is_arg, y);
+}
+/* Assign function to attribute for augmented variable model or function. */
+void Household::assign_augm_attr_function(indiv i, const augmID &a,
+										  const std::string &arg_name, bool is_arg,
+										  std::shared_ptr<Function> f,
+										  bool is_var_model)
+{
+	if (is_var_model == VAR_MODEL)
+		_members[i].augm_map.at(a).assign_distr_attr_function(arg_name, is_arg, f);
+	else
+		_members[i].augm_map.at(a).assign_func_attr_function(arg_name, is_arg, f);
 }
 
 void Household::init_augm_model_reshaping(indiv i, const augmID &a)
@@ -381,11 +395,11 @@ bool Household::propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng)
 	return false;
 }
 
-/* Restore buffer valies of augmented variable, extra and loglikelihood. */
+/* Restore buffer valies of augmented variable, cache and loglikelihood. */
 void Household::restore_augm_value(indiv i, const augmID &a)
 {
 	_members[i].augm_map.at(a).restore_value();
-	restore_all_extra();
+	restore_all_cache();
 	restore_loglike();
 }
 
@@ -409,39 +423,39 @@ void Household::update_diagnostics(ulong c)
 const dbl_vec &Household::get_smpl_loglike() const { return _smpl_loglike; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Household : extra attributes  //////////////////////////////////
+/////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Check if any extra quantity is associated to the household. */
-bool Household::is_any_extra()
+/* Check if any cache quantity is associated to the household. */
+bool Household::is_any_cache()
 {
-	return !(_extra_int_vec.empty() && _extra_dbl_vec.empty() && _extra_dbl_mtx.empty());
+	return !(_cache_int_vec.empty() && _cache_dbl_vec.empty() && _cache_dbl_mtx.empty());
 }
 
-/* Deep copies of extra attributes in the buffer */
-void Household::buffer_all_extra()
+/* Deep copies of cache attributes in the buffer */
+void Household::buffer_all_cache()
 {
-	_buffer_extra_int_vec = _extra_int_vec;
-	_buffer_extra_dbl_vec = _extra_dbl_vec;
-	_buffer_extra_dbl_mtx = _extra_dbl_mtx;
+	_buffer_cache_int_vec = _cache_int_vec;
+	_buffer_cache_dbl_vec = _cache_dbl_vec;
+	_buffer_cache_dbl_mtx = _cache_dbl_mtx;
 }
 
-/* Swap buffer into  extra attributes */
-void Household::restore_all_extra()
+/* Swap buffer into  cache attributes */
+void Household::restore_all_cache()
 {
-	_extra_int_vec.swap(_buffer_extra_int_vec);
-	_extra_dbl_vec.swap(_buffer_extra_dbl_vec);
-	_extra_dbl_mtx.swap(_buffer_extra_dbl_mtx);
+	_cache_int_vec.swap(_buffer_cache_int_vec);
+	_cache_dbl_vec.swap(_buffer_cache_dbl_vec);
+	_cache_dbl_mtx.swap(_buffer_cache_dbl_mtx);
 }
 
 //----- Extra integer vector -----//
-void Household::allocate_extra_integer_vector(const extraID &e) { _extra_int_vec[e] = int_vec(size(), 0); }
-int_vec &Household::extra_integer_vector(const extraID &e) { return _extra_int_vec.at(e); }
+void Household::allocate_cache_integer_vector(const cacheID &e) { _cache_int_vec[e] = int_vec(size(), 0); }
+int_vec &Household::cache_integer_vector(const cacheID &e) { return _cache_int_vec.at(e); }
 
 //----- Extra double vector -----//
-void Household::allocate_extra_double_vector(const extraID &e) { _extra_dbl_vec[e] = dbl_vec(size(), 0.); }
-dbl_vec &Household::extra_double_vector(const extraID &e) { return _extra_dbl_vec.at(e); }
+void Household::allocate_cache_double_vector(const cacheID &e) { _cache_dbl_vec[e] = dbl_vec(size(), 0.); }
+dbl_vec &Household::cache_double_vector(const cacheID &e) { return _cache_dbl_vec.at(e); }
 
 //----- Extra double matrix -----//
-void Household::allocate_extra_double_matrix(const extraID &e) { _extra_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-matrix<double> &Household::extra_double_matrix(const extraID &e) { return _extra_dbl_mtx.at(e); }
+void Household::allocate_cache_double_matrix(const cacheID &e) { _cache_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+matrix<double> &Household::cache_double_matrix(const cacheID &e) { return _cache_dbl_mtx.at(e); }

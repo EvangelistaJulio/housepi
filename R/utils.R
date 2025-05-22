@@ -60,6 +60,8 @@ require_suggested_library <- function(libname) {
   }
 }
 
+#' @title
+#' Character to string list
 #' @description
 #' Collapse a character vector into string of quoted words.
 #'
@@ -75,6 +77,8 @@ character_to_string_list <- function(mylist) {
                collapse = ", "))
 }
 
+#' @title
+#' Find closest match
 #' @description
 #' Find the closest match among a list of options.
 #'
@@ -382,6 +386,8 @@ type_split_ <- function(lst) {
   ))
 }
 
+#' @title
+#' Type join
 #' @description
 #' Join elements of a dictionary to pass to csv
 #'
@@ -427,6 +433,8 @@ extract_augm_func_eq_ <- function(s) {
   ))
 }
 
+#' @title
+#' Extract augmented function basic
 #' @description
 #' Extract basic augmented function declaration
 #'
@@ -460,6 +468,8 @@ extract_augm_func_basic_ <- function(s, reg_expr, func_name) {
   ))
 }
 
+#' @title
+#' Extract augmented function
 #' @description
 #' Extract augmented function declaration.
 #'  
@@ -471,7 +481,10 @@ extract_augm_func_basic_ <- function(s, reg_expr, func_name) {
 #' 
 #' @keywords internal
 extract_augm_func_ <- function(s) {
-  if (grepl("\\+", s)) {
+  if (grepl("=", s)) {
+    return(extract_augm_func_eq_(s))
+
+  } else if (grepl("\\+", s)) {
     return(extract_augm_func_basic_(s, "\\+", "add"))
 
   } else if (grepl("\\*", s)) {
@@ -483,8 +496,8 @@ extract_augm_func_ <- function(s) {
   } else if (grepl("/", s)) {
     return(extract_augm_func_basic_(s, "/", "div"))
 
-  } else if (grepl("=", s)) {
-    return(extract_augm_func_eq_(s))
+  } else if (grepl("\\^", s)) {
+    return(extract_augm_func_basic_(s, "\\^", "pow"))
 
   } else {
     return(NULL)

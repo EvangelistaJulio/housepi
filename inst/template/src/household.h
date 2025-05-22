@@ -153,16 +153,21 @@ public:
 					 const std::string &func_name = HOUSEPI_NA_STRING,
 					 const std::string &model_name = HOUSEPI_NA_STRING);
 
-	void assign_augm_scalar(indiv i, const augmID &a,
-							const std::string &arg_name,
-							bool is_arg,
-							double arg_value,
-							bool is_var_model);
-	void assign_augm_pointer(indiv i, const augmID &a,
-							 const std::string &arg_name,
-							 bool is_arg,
-							 const double *ptr_to_arg_value,
-							 bool is_var_model);
+	void assign_augm_attr_scalar(indiv i, const augmID &a,
+								 const std::string &arg_name,
+								 bool is_arg,
+								 double arg_value,
+								 bool is_var_model);
+	void assign_augm_attr_pointer(indiv i, const augmID &a,
+								  const std::string &arg_name,
+								  bool is_arg,
+								  const double *ptr_to_arg_value,
+								  bool is_var_model);
+	void assign_augm_attr_function(indiv i, const augmID &a,
+								  const std::string &arg_name,
+								  bool is_arg,
+								  std::shared_ptr<Function> f,
+								  bool is_var_model);
 
 	void init_augm_model_reshaping(indiv i, const augmID &a);
 
@@ -180,7 +185,8 @@ public:
 
 	//----- Augmented : Getter -----//
 	double augm(indiv i, const augmID &a) const;
-	const double *augm_pointer(indiv i, const augmID &a) const;
+	const double *get_augm_pointer(indiv i, const augmID &a) const;
+	const std::shared_ptr<Function> get_augm_function(indiv i, const augmID &a) const;
 	bool is_augm_constant(indiv i, const augmID &a) const;
 	bool is_augm_function(indiv i, const augmID &a) const;
 
@@ -193,21 +199,21 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
-	bool is_any_extra();
-	void buffer_all_extra();
-	void restore_all_extra();
+	bool is_any_cache();
+	void buffer_all_cache();
+	void restore_all_cache();
 
 	//----- Vector of integers -----//
-	void allocate_extra_integer_vector(const extraID &e);
-	int_vec &extra_integer_vector(const extraID &e);
+	void allocate_cache_integer_vector(const cacheID &e);
+	int_vec &cache_integer_vector(const cacheID &e);
 
 	//----- Vector of doubles -----//
-	void allocate_extra_double_vector(const extraID &e);
-	dbl_vec &extra_double_vector(const extraID &e);
+	void allocate_cache_double_vector(const cacheID &e);
+	dbl_vec &cache_double_vector(const cacheID &e);
 
 	//----- Matrix of doubles -----//
-	void allocate_extra_double_matrix(const extraID &e);
-	matrix<double> &extra_double_matrix(const extraID &e);
+	void allocate_cache_double_matrix(const cacheID &e);
+	matrix<double> &cache_double_matrix(const cacheID &e);
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -266,14 +272,14 @@ private:
 	//===== EXTRA ATTRIBUTES =====//
 
 	//----- Extra Attributes -----//
-	extraIDmap<int_vec> _extra_int_vec = {};
-	extraIDmap<dbl_vec> _extra_dbl_vec = {};
-	extraIDmap<matrix<double>> _extra_dbl_mtx = {};
+	cacheIDmap<int_vec> _cache_int_vec = {};
+	cacheIDmap<dbl_vec> _cache_dbl_vec = {};
+	cacheIDmap<matrix<double>> _cache_dbl_mtx = {};
 
 	//----- Buffer EXTRA Attributes -----//
-	extraIDmap<int_vec> _buffer_extra_int_vec = {};
-	extraIDmap<dbl_vec> _buffer_extra_dbl_vec = {};
-	extraIDmap<matrix<double>> _buffer_extra_dbl_mtx = {};
+	cacheIDmap<int_vec> _buffer_cache_int_vec = {};
+	cacheIDmap<dbl_vec> _buffer_cache_dbl_vec = {};
+	cacheIDmap<matrix<double>> _buffer_cache_dbl_mtx = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

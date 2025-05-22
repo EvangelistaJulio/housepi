@@ -31,8 +31,8 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @description
-    #' Find parameters required by infectivity profile variable definition.
+    #' @field param_required `character()`\cr
+    #' Parameters required by infectivity profile variable definition.
     param_required = function(value) {
       if (missing(value)) {
         required_param_set <- c()
@@ -57,6 +57,8 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   public = list(
+    #' @field defs `list`\cr
+    #' Infectivity profile definition list.
     defs = NULL,
 
     #' @description

@@ -26,11 +26,11 @@
 #include <vector>
 #include <map>
 
-/* DEVELOPER: flag used to predispose to different wrapper*/
+/* DEVELOPER: flag used to predispose to different wrapper
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-
+*/
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -66,14 +66,15 @@ const std::string CONTACT_RATE = "Contact";      // name for Contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
 
 // constants
+constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
 constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
-// arugment aliases
-#define ARG_DEFAULT true // default argument
-#define ARG_RANGE false  // range argument
+// attribute aliases
+#define ATTR_ARGUMENT true // default argument
+#define ATTR_RANGE false  // range argument
 
-// variable aliases
+// variable parts aliases
 #define VAR_FUNCTION true // pass to Variable function
 #define VAR_MODEL false   //  pass to Variable model
 
@@ -131,13 +132,13 @@ using parID = __access_ID__;
 using augmID = __access_ID__;
 using dataID = __access_ID__;
 using rateID = __access_ID__;
-using extraID = __access_ID__;
+using cacheID = __access_ID__;
 
 const parID NULL_PARAMETER = __undef_ID__;
 const augmID NULL_AUGMENTED = __undef_ID__;
 const dataID NULL_DATACOLUMN = __undef_ID__;
 const rateID NULL_GROUPRATE = __undef_ID__;
-const extraID NULL_EXTRAVARIA = __undef_ID__;
+const cacheID NULL_EXTRAVARIA = __undef_ID__;
 
 #include <unordered_map>
 template <typename T>
@@ -149,7 +150,7 @@ using dataIDmap = std::unordered_map<dataID, T>;
 template <typename T>
 using rateIDmap = std::unordered_map<rateID, T>;
 template <typename T>
-using extraIDmap = std::unordered_map<extraID, T>;
+using cacheIDmap = std::unordered_map<cacheID, T>;
 
 template <typename T>
 using rateIDmapvec = rateIDmap<std::vector<T>>;
@@ -187,7 +188,8 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
 
 /* Check if a given value is contained inside a container. */
 template <typename Container, typename T>
-bool contains(const Container& c, const T& value) {
+bool contains(const Container &c, const T &value)
+{
     return std::find(c.begin(), c.end(), value) != c.end();
 }
 

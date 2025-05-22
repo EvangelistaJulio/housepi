@@ -59,23 +59,30 @@ hhmodel$load_param_list(
 Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
 
-We can link an argument value to its origin with the character "\@", e.
-g.
-"column\@D" will link to the value at individual row and "column".
+We can link an argument value to its source with the character "\@", e.
+g. "onset_max\@D" will link to the value at individual data "onset_max".
 More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and `from` can be linked to external values in the following ways
 
-| Origin    | Link Examples       |
-|-----------|---------------------|
-| Scalar    | 17, "17", "17\@S"   |
-| Parameter | "alpha", "alpha\@P" |
-| Dataset   | "onset_date\@D"     |
+| Origin     | Link Examples       | Symbol |
+|------------|---------------------|--------|
+| Scalar     | 17, "17", "17\@S"   | S      |
+| Parameter  | "alpha", "alpha\@P" | P      |
+| Dataset    | "onset_max\@D"      | D      |
+| Augmented  | "infec_time\@A"     | A      |
 
-Here we associate to each individual an exposure and an onset time.
+The model requires an augmented variable `"incub_period"` for each individual.
+We propose to augment such variable from the data on exposure and onset as follows:
 
 ```{r}
-# add 'exposure' time definition
+# declare 'incub_period' as the difference
+# between augmented onset and infection times
 hhmodel$add_augm(
-  name = "exposure",
+  name = "incub_period", value = "onset_time@A - infec_time@A"
+)
+
+# add 'infec_time' time definition
+hhmodel$add_augm(
+  name = "infec_time",
   value = "exposure_min@D", # start from data value 'exposure_min'
   model = "unif",
   args = c(min = "exposure_min@D",  # move within the range 'exposure_min'
@@ -84,9 +91,9 @@ hhmodel$add_augm(
   scale = 0.25   # with scale 0.25 (i. e. standard deviation)
 )
 
-# add 'onset' time definition
+# add 'onset_time' time definition
 hhmodel$add_augm(
-  name = "onset",
+  name = "onset_time",
   value = "onset_max@D",
   model = "unif",
   args = c(min = "onset_min@D",

@@ -122,7 +122,7 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'setup' is read only.")
     },
 
-    #' @field `matrix()` | `list()` of `matrix()`)
+    #' @field traces `matrix()` | `list()` of `matrix()`)
     #' Export the traces of last inference call.
     traces = function(value) {
       if (missing(value)) {
@@ -152,7 +152,7 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'traces' is read only.")
     },
 
-    #' @field `matrix()` | `list()` of `matrix()`)
+    #' @field traces_no_loglike `matrix()` | `list()` of `matrix()`)
     #' Export the traces of last inference call without loglikelihood.
     traces_no_loglike = function(value) {
       if (missing(value)) {
@@ -168,7 +168,7 @@ HousepiWrapper <- R6::R6Class(
       stop_h("'traces_no_loglike' is read only.")
     },
 
-    #' @field reference `matrix()`\cr
+    #' @field house_loglike_mtx `matrix()`\cr
     #' Household loglikelihood traces.
     house_loglike_mtx = function(value) {
       if (missing(value)) {

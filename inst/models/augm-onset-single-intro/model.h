@@ -34,7 +34,7 @@ public:
 	void init_infec_profile() override final;
 	void init_model_for_inference() override final;
 	void init_model_for_simulation() override final;
-	void update_extra_dependecies(Household &house, indiv i) override final;
+	void update_cache_dependecies(Household &house, indiv i) override final;
 	double compute_house_obs_loglike(Household &house) const override final;
 	void simulate_single_house(Household &house) override final;
 

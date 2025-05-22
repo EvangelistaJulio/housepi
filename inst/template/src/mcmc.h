@@ -96,12 +96,12 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
-	void make_param_extra_dependent(const parID &p);
-	virtual void update_extra_dependecies(Household &house, indiv i);
+	void make_param_cache_dependent(const parID &p);
+	virtual void update_cache_dependecies(Household &house, indiv i);
 
-	void allocate_extra_house_integer_vector(const extraID &e);
-	void allocate_extra_house_double_vector(const extraID &e);
-	void allocate_extra_house_double_matrix(const extraID &e);
+	void allocate_cache_house_integer_vector(const cacheID &e);
+	void allocate_cache_house_double_vector(const cacheID &e);
+	void allocate_cache_house_double_matrix(const cacheID &e);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//
@@ -117,8 +117,8 @@ public:
 	//====================================//
 
 	virtual double compute_house_obs_loglike(Household &house) const;
-	double update_house_loglike(size_t r, const bool is_augm_ll, const bool extra_depen);
-	void update_full_loglike(const bool extra_depen);
+	double update_house_loglike(size_t r, const bool is_augm_ll, const bool cache_depen);
+	void update_full_loglike(const bool cache_depen);
 	double evaluate();
 
 	//=================//
@@ -218,7 +218,7 @@ private:
 	void _run_monte_carlo(progress::Bar &progbar);
 	void _move_all();
 	void _move_all_and_adapt_parameters(ulong step);
-	bool _move_single_parameter(const parID &p, bool extra_depen);
+	bool _move_single_parameter(const parID &p, bool cache_depen);
 
 	//----- Metropolis : augmented moves -----//
 	double _move_augm_single_house(size_t H);

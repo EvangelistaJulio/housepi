@@ -127,9 +127,6 @@ simulated <- hhsimul$simulate(survey, seed = 3413)
 # incubation period onset time
 head(simulated)
 
-# remove incubation period from simulated dataset
-simulated$incub_period <- NULL
-
 # assume onsets after 6 PM are reported to next day
 is_infec <- simulated$status == 1
 simulated$onset_date <- NA
@@ -138,7 +135,11 @@ simulated[is_infec, "onset_date"] <- sapply(
   # simulation onset date > 18/24
   function(x) floor(ifelse((x %% 1) > 0.75, x + 1, x))
 )
+
+# remove onobserved quantities simulated dataset
+simulated$incub_period <- NULL
 simulated$onset_time <- NULL
+simulated$infec_time <- NULL
 
 head(simulated)
 ```

@@ -10,6 +10,8 @@
 # template.R
 #
 
+#' @title 
+#' Template models directory
 #' @description
 #' Returns the directory to housepi template models.
 #'
@@ -19,6 +21,8 @@ template_models_dir <- function() {
   return(file.path(system.file(package = "housepi"), "models"))
 }
 
+#' @title
+#' Show model names
 #' @description
 #' Show list of all available template nmodel names.
 #'
@@ -128,6 +132,8 @@ template_household_model <- function(name = NA,
 ############################################################################
 ############################################################################
 
+#' @title
+#' Template assert expression
 #' @description
 #' Assert if a given string expression is present in 
 #'
@@ -153,6 +159,8 @@ template_assert_expression <- function(refer_file, expression) {
   return(FALSE)
 }
 
+#' @title
+#' Template find requirement
 #' @description
 #' Find the vector of definition names required by the model according.
 #'
@@ -197,6 +205,8 @@ template_find_requirement <- function(refer_file, regular_expr) {
   return(required_set)
 }
 
+#' @title
+#' Template find missing
 #' @description
 #' Compared required definitions to current definitions and find missing ones.
 #'
@@ -233,6 +243,8 @@ template_find_missing <- function(required_set,
   return(missing_set)
 }
 
+#' @title
+#' Template find unused
 #' @description
 #' Compared required definitions to current definitions and find unused ones.
 #'

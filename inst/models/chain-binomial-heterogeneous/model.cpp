@@ -72,9 +72,9 @@ void Model::init_model_for_inference()
 			"A missing status was found : incompatible with the model.");
 
 	//===== Allocate memory for the escape matrix =====//
-	allocate_extra_house_integer_vector("order");
-	allocate_extra_house_double_vector("commu-escprob");
-	allocate_extra_house_double_matrix("p2p-escprob");
+	allocate_cache_house_integer_vector("order");
+	allocate_cache_house_double_vector("commu-escprob");
+	allocate_cache_house_double_matrix("p2p-escprob");
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(get_report_hh_size("max cases").first);
@@ -92,7 +92,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 	const double p2p_transm_rate = person_to_person_risk();
 
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
-	auto &order = house.extra_integer_vector("order");
+	auto &order = house.cache_integer_vector("order");
 
 	indiv m = 0;
 	for (indiv i : house.infected_status_list())
@@ -101,8 +101,8 @@ void Model::fill_house_escape_matrix(Household &house) const
 		order[m++] = s;
 
 	//----- Assign values to LUT matrix -----//
-	auto &commu_escprob = house.extra_double_vector("commu-escprob");
-	auto &p2p_escprob = house.extra_double_matrix("p2p-escprob");
+	auto &commu_escprob = house.cache_double_vector("commu-escprob");
+	auto &p2p_escprob = house.cache_double_matrix("p2p-escprob");
 
 	for (indiv c = 0; c < house.size(); ++c)
 	{
@@ -143,8 +143,8 @@ double Model::compute_house_obs_loglike(Household &house) const
 	//=====compute the loglikelihood=====//
 	const double loglikelihood = bax::chain_binomial_heter_loglikelihood(
 		house.n_infec_status(),
-		house.extra_double_vector("commu-escprob"),
-		house.extra_double_matrix("p2p-escprob")
+		house.cache_double_vector("commu-escprob"),
+		house.cache_double_matrix("p2p-escprob")
 	);
 	return loglikelihood * house.multiplicity();
 }

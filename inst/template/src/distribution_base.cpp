@@ -98,7 +98,7 @@ double Distribution::raw_rand(rnd_gen &prng)
 
 /* Rejection sampling. */
 double Distribution::_rejection_sampling(rnd_gen &prng,
-                                          double (Distribution::*func)(rnd_gen &))
+                                         double (Distribution::*func)(rnd_gen &))
 {
     double xnew = (this->*func)(prng);
 
@@ -107,7 +107,7 @@ double Distribution::_rejection_sampling(rnd_gen &prng,
     {
         if (n_attempts > MAX_NUM_ATTEMPTS)
             throw std::runtime_error(
-                "Exceeded attempts (N > " + std::to_string(MAX_NUM_ATTEMPTS) + ") in random draw of " + show_name() + "(" + show_arg_values() + ")" + " with truncation " + show_range() + ".");
+                "Exceeded attempts (N > " + std::to_string(MAX_NUM_ATTEMPTS) + ") in random draw of " + show_summary() + ".");
         xnew = (this->*func)(prng);
         ++n_attempts;
     }
@@ -659,14 +659,14 @@ const std::vector<dbl_vec> Distribution::showcase(const dbl_vec &opts,
     if (tools::is_na(upper))
     {
         upper = 10. + (tools::is_na(lower) ? 0 : lower);
-        while (1. - cdf(upper, opts) > ytol)
+        while ((1. - cdf(upper, opts) > ytol) && (upper < DEFAULT_MAX_SIZE))
             ++upper;
     }
 
     if (tools::is_na(lower))
     {
         lower = -10.;
-        while (cdf(lower, opts) > ytol)
+        while ((cdf(lower, opts) > ytol) && (lower > -DEFAULT_MAX_SIZE))
             --lower;
     }
 
@@ -700,8 +700,8 @@ const std::vector<dbl_vec> Distribution::showcase(const dbl_vec &opts,
 
 /* Developer method to check for normalization. */
 double Distribution::__d_e_v__check__pdf__norm(const dbl_vec &opts,
-                                                  int n_bins,
-                                                  double ytol) const
+                                               int n_bins,
+                                               double ytol) const
 {
     // produce a showcase of the distribution profile
     const std::vector<dbl_vec> values = showcase(opts, n_bins, ytol);

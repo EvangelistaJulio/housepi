@@ -8,7 +8,7 @@ Help with calling methods from the Rcpp model object.
 }
 \keyword{internal}
 \section{Super class}{
-\code{housepi::HousepiGenerator} -> \code{HousepiWrapper}
+\code{\link[housepi:HousepiGenerator]{housepi::HousepiGenerator}} -> \code{HousepiWrapper}
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}

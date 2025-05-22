@@ -55,29 +55,29 @@ double MCMC::compute_augm_model_loglike(const Household &house) const
 
 //===== EXTRA ATTRIBUTES =====//
 
-/* Adjust lists of parameters to be inferred making parameter as dependent on extra. */
-void MCMC::make_param_extra_dependent(const parID &p)
+/* Adjust lists of parameters to be inferred making parameter as dependent on cache. */
+void MCMC::make_param_cache_dependent(const parID &p)
 {
-    pImpl->make_param_extra_dependent(p);
+    pImpl->make_param_cache_dependent(p);
 }
 
 /* Extra integer vectors for all households. */
-void MCMC::allocate_extra_house_integer_vector(const extraID &e)
+void MCMC::allocate_cache_house_integer_vector(const cacheID &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
-        pImpl->house_vector[H].allocate_extra_integer_vector(e);
+        pImpl->house_vector[H].allocate_cache_integer_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::allocate_extra_house_double_vector(const extraID &e)
+void MCMC::allocate_cache_house_double_vector(const cacheID &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
-        pImpl->house_vector[H].allocate_extra_double_vector(e);
+        pImpl->house_vector[H].allocate_cache_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::allocate_extra_house_double_matrix(const extraID &e)
+void MCMC::allocate_cache_house_double_matrix(const cacheID &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
-        pImpl->house_vector[H].allocate_extra_double_matrix(e);
+        pImpl->house_vector[H].allocate_cache_double_matrix(e);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -92,7 +92,7 @@ void MCMC::allocate_extra_house_double_matrix(const extraID &e)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::update_extra_dependecies(Household &house, indiv i)
+void MCMC::update_cache_dependecies(Household &house, indiv i)
 {
     UNUSED(house);
     UNUSED(i);
@@ -275,16 +275,16 @@ void MCMC::set_rate_per_contact(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update and return contribution of given household to full logliklehood. */
-double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool extra_depen)
+double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool cache_depen)
 {
     Household &house = get_household(pImpl->restrict_hh_indexes[r]);
 
-    // buffer all household extra dependencies
-    if (extra_depen)
+    // buffer all household cache dependencies
+    if (cache_depen)
     {
-        house.buffer_all_extra();
+        house.buffer_all_cache();
         for (const indiv &i : house.infected_status_list())
-            update_extra_dependecies(house, i);
+            update_cache_dependecies(house, i);
     }
 
     // update household observation loglikelihood
@@ -307,14 +307,14 @@ double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool ex
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::update_full_loglike(const bool extra_depen)
+void MCMC::update_full_loglike(const bool cache_depen)
 {
     const bool is_augm_ll = is_augm_model();
     double new_ll = 0.0;
     std::atomic<bool> has_error(false);
 
     // buffer infectivity profile if lookup tables are active
-    if (extra_depen)
+    if (cache_depen)
         pImpl->update_infec_profile();
 
     // FIXME : to be checked in combination with openMP
@@ -326,7 +326,7 @@ void MCMC::update_full_loglike(const bool extra_depen)
 
         try
         {
-            new_ll += update_house_loglike(R, is_augm_ll, extra_depen);
+            new_ll += update_house_loglike(R, is_augm_ll, cache_depen);
         }
         catch (const std::exception &e)
         {
@@ -386,21 +386,21 @@ void MCMC::_move_all_augm()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::_move_single_parameter(const parID &p, bool extra_depen)
+bool MCMC::_move_single_parameter(const parID &p, bool cache_depen)
 {
     bool is_accepted = false;
     // proceed only if the new value is consistent
     // otherwise automatically execute refuse_move(parID)
     if (pImpl->propose_valid_param_move(p))
     {
-        // if extra depending on parameter, update and buffer extra
-        update_full_loglike(extra_depen);
+        // if cache depending on parameter, update and buffer cache
+        update_full_loglike(cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (pImpl->accept_valid_param_move(p))
             is_accepted = true;
         else
-            pImpl->restore_parameter(p, extra_depen);
+            pImpl->restore_parameter(p, cache_depen);
     }
 
     return is_accepted;
@@ -417,8 +417,8 @@ void MCMC::_move_all()
     for (const parID &p : pImpl->param_standard_infer_list)
         _move_single_parameter(p, false);
 
-    // move parameters with extra dependecies
-    for (const parID &p : pImpl->param_extra_infer_list)
+    // move parameters with cache dependecies
+    for (const parID &p : pImpl->param_cache_infer_list)
         _move_single_parameter(p, true);
 }
 
@@ -439,8 +439,8 @@ void MCMC::_move_all_and_adapt_parameters(ulong step)
         pImpl->adapt_param_rule(p, adapt_ratio);
     }
 
-    // move parameters with extra dependecies
-    for (const parID &p : pImpl->param_extra_infer_list)
+    // move parameters with cache dependecies
+    for (const parID &p : pImpl->param_cache_infer_list)
     {
         pImpl->update_param_accept_rate(p, _move_single_parameter(p, true));
         pImpl->adapt_param_rule(p, adapt_ratio);
@@ -526,8 +526,8 @@ double MCMC::_metropolis_augm_single_move(Household &house, indiv i, const augmI
     if (house.propose_valid_augm_move(i, a, pImpl->get_prng()))
     {
         // update dependencies to perform computations
-        house.buffer_all_extra();
-        update_extra_dependecies(house, i);
+        house.buffer_all_cache();
+        update_cache_dependecies(house, i);
 
         // update house loglikelihood and store old value in buffer
         house.set_obs_loglike(compute_house_obs_loglike(house));
@@ -570,7 +570,7 @@ double MCMC::evaluate()
         init_infec_profile();                  // initialize user infectivity profile
         init_model_for_inference();            // initialize model for inference
         init_augmented_variables();            // initialize augmented dependencies
-        update_full_loglike(true);             // initialize extra + full loglikelihood
+        update_full_loglike(true);             // initialize cache + full loglikelihood
 
         return pImpl->get_full_loglike();
     }
@@ -619,7 +619,7 @@ void MCMC::_run_monte_carlo(progress::Bar &progressbar)
 
         pImpl->init_parameters();   // init parameter inference
         init_augmented_variables(); // init augmented dependencies
-        update_full_loglike(true);  // init extra + full loglikelihood
+        update_full_loglike(true);  // init cache + full loglikelihood
         pImpl->init_move_counts();  // init move counts for adaptive
 
         // (Finite) Adaptative Iterations
@@ -647,7 +647,7 @@ void MCMC::_run_monte_carlo(progress::Bar &progressbar)
 //////////////////////////////////////////  MCMC : infer  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Model specific initialization (e. g. extra variables, lookup tables, etc). */
+/* Model specific initialization (e. g. cache variables, lookup tables, etc). */
 void MCMC::init_model_for_inference() {}
 
 /* Performs the inference using Metropolis-Hastings. */
@@ -837,7 +837,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
 /////////////////////////////////////  MCMC : simulation  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Model specific initialization (e. g. extra variables, lookup tables, etc). */
+/* Model specific initialization (e. g. cache variables, lookup tables, etc). */
 void MCMC::init_model_for_simulation() {}
 
 /* Model specific simulation for a single household. */
@@ -882,7 +882,7 @@ Rcpp::DataFrame MCMC::simulate()
         auto new_end = std::remove_if(v.begin(), v.end(),
                                       [&y](const dataID &elem)
                                       {
-                                          return !contains(y, elem);
+                                          return contains(y, elem);
                                       });
         v.erase(new_end, v.end());
 

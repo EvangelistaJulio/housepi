@@ -47,11 +47,11 @@ void Model::init_infec_profile()
 void Model::init_model_for_inference()
 {
 	// integer for index of introduction case
-	allocate_extra_house_integer_vector("intro_case");
+	allocate_cache_house_integer_vector("intro_case");
 
 	// matrices for the instantaneous and cumulative infectivity profiles
-	allocate_extra_house_double_matrix("inst");
-	allocate_extra_house_double_matrix("cumul");
+	allocate_cache_house_double_matrix("inst");
+	allocate_cache_house_double_matrix("cumul");
 }
 
 /* Initialize parameters and augmented variables. */
@@ -69,12 +69,12 @@ double Model::transmission_rate(Household &house) const
 /* Cumulative Risk of Infection for susceptible individual i. */
 double Model::loglike_healthy(Household &house) const
 {
-	const indiv i0 = house.extra_integer_vector("intro_case")[0];
+	const indiv i0 = house.cache_integer_vector("intro_case")[0];
 	const double a_cumul = param("alpha") * (param("study_period") + house.augm(i0, "incub_period"));
 	const double b = transmission_rate(house);
 
 	// load pre-compute inefctivity profiles
-	const auto &cumul_mtx = house.extra_double_matrix("cumul");
+	const auto &cumul_mtx = house.cache_double_matrix("cumul");
 
 	double output = 0.;
 
@@ -95,11 +95,11 @@ double Model::loglike_healthy(Household &house) const
 double Model::loglike_infectious(Household &house) const
 {
 	double output = 0.;
-	const indiv i0 = house.extra_integer_vector("intro_case")[0];
+	const indiv i0 = house.cache_integer_vector("intro_case")[0];
 	const double t_intro = house.augm(i0, "infec_time");
 
-	const auto &inst_mtx = house.extra_double_matrix("inst");
-	const auto &cumul_mtx = house.extra_double_matrix("cumul");
+	const auto &inst_mtx = house.cache_double_matrix("inst");
+	const auto &cumul_mtx = house.cache_double_matrix("cumul");
 
 	const double a = param("alpha");
 	const double b = transmission_rate(house);
@@ -138,12 +138,12 @@ double Model::loglike_infectious(Household &house) const
 /* Store cumulative and instantaneous infectivity profiles according to an infector.
    WARNING: unpredictable behavior if i is not an infector.
    WARNING: this function should not call any mutable parameter. */
-void Model::update_extra_dependecies(Household &house, indiv i)
+void Model::update_cache_dependecies(Household &house, indiv i)
 {
 	const double t_infec_i = house.augm(i, "infec_time");
 
-	auto &inst_mtx = house.extra_double_matrix("inst");
-	auto &cumul_mtx = house.extra_double_matrix("cumul");
+	auto &inst_mtx = house.cache_double_matrix("inst");
+	auto &cumul_mtx = house.cache_double_matrix("cumul");
 
 	// init new first case to i
 	double new_t0 = t_infec_i;
@@ -186,7 +186,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 		}
 
 	// store intro case
-	house.extra_integer_vector("intro_case")[0] = i0;
+	house.cache_integer_vector("intro_case")[0] = i0;
 
 	//===============================//
 	//===== Susceptible Members =====//

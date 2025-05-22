@@ -699,7 +699,7 @@ namespace progress
                 seconds elapsed = duration_cast<seconds>(now - start);
                 seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
 
-                if (duration_cast<seconds>(now - lastprint).count() > thintime)
+                if (static_cast<ulong>(duration_cast<seconds>(now - lastprint).count()) > thintime)
                 {
                     const unsigned where = progress * barwidth;
                     std::ostringstream oss;

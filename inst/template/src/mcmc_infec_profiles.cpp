@@ -21,8 +21,6 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-constexpr int MAX_SIZE_INFEC_LUT = 60;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// InfecProfile_Ferretti20 : class ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +113,110 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////// InfecProfile_Ashcroft20 : class //////////////////////////////////
+/////////////////////////////////// ViralLoad_Cortier25 : class ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+
+ */
+class InfecProfile_Cortier25 : public Distribution
+{
+public:
+	//===== CONSTRUCTOR =====//
+	InfecProfile_Cortier25()
+	{
+		init_defaults("cortier25",
+					  {"gamma", "baseline_vl", "reference_vl"},
+					  {2.5, -2, 0.5},
+					  0., HOUSEPI_NA_DOUBLE, false, false);
+	}
+	~InfecProfile_Cortier25() = default;
+
+	//===== SETTER =====//
+	void init_reshaping(bool discrete) override final
+	{
+		init_min_zero_reshaping(discrete, false);
+	}
+
+protected:
+	double raw_pdf(double x, const dbl_vec &opts) const override final
+	{
+		const double v = opts.at(0);  // (maximum VL - baseline VL)
+		const double Tp = opts.at(1); // proliferation time
+		const double Tc = opts.at(2); // clearence time
+
+		const double g = get_arg(0);	// 'gamma' : shape
+		const double vl0 = get_arg(1);	// 'gamma' : shape
+		const double vref = get_arg(2); // 'gamma' : shape
+
+		const double dt = x / Tp; // normalized time interval
+		const double r = Tc / Tp; // ratio clear / proliferation time
+
+		const double thres = std::max(0., -vl0 / v);
+
+		if (thres >= 1)
+			return 0.;
+
+		else if (dt <= thres)
+			return 0.;
+
+		else if (dt <= 1.)
+			return pow((vl0 + v * dt) / vref, g);
+
+		else if (dt < 1. + r * (1. - thres))
+			return pow((vl0 + v * (1. + r - dt) / r) / vref, g);
+
+		else
+			return 0.;
+	}
+
+	double raw_cdf(double x, const dbl_vec &opts) const override final
+	{
+		const double v = opts.at(0);  // (maximum VL - baseline VL)
+		const double Tp = opts.at(1); // proliferation time
+		const double Tc = opts.at(2); // clearence time
+
+		const double g = get_arg(0);	// 'gamma' : shape
+		const double vl0 = get_arg(1);	// 'gamma' : shape
+		const double vref = get_arg(2); // 'gamma' : shape
+
+		const double dt = x / Tp; // normalized time interval
+		const double r = Tc / Tp; // ratio clear / proliferation time
+
+		const double thres = std::max(0., -vl0 / v);
+
+		const double den = v * (g + 1.) * pow(vref, g) / Tp;
+
+		if (thres >= 1)
+			return 0.;
+
+		else if (dt <= thres)
+			return 0.;
+
+		else if (dt <= 1.)
+			return (pow(vl0 + v * dt, g + 1.) - pow(vl0 + v * thres, g + 1.)) / den;
+
+		else if (dt < 1. + r * (1. - thres))
+		{
+			const double F1 = pow(vl0 + v, g + 1.) - pow(vl0 + v * thres, g + 1.);
+			return (F1 + r * (pow(vl0 + v, g + 1) - pow(vl0 + v * (1. + r - dt) / r, g + 1))) / den;
+		}
+		else
+		{
+			const double F1 = pow(vl0 + v, g + 1.) - pow(vl0 + v * thres, g + 1.);
+			return F1 * (1 + r) / den;
+		}
+	}
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// InfecProfile_Ashcroft20 : class ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*
  ----
@@ -137,8 +238,8 @@ public:
 
 		// wrapper around gamma distribution
 		gamma_distr_ptr = distribution_switch("gamma");
-		gamma_distr_ptr->assign_pointer("shape", ARG_DEFAULT, get_ptr_to_arg(0));
-		gamma_distr_ptr->assign_pointer("scale", ARG_DEFAULT, get_ptr_to_arg(1));
+		gamma_distr_ptr->assign_attr_pointer("shape", ATTR_ARGUMENT, get_ptr_to_arg(0));
+		gamma_distr_ptr->assign_attr_pointer("scale", ATTR_ARGUMENT, get_ptr_to_arg(1));
 	}
 	~InfecProfile_Ashcroft20() = default;
 
@@ -182,10 +283,16 @@ protected:
 /* Assign the infectivity profile. */
 void MCMC::Impl::InfecProfile::_assign_profile(const std::string &name)
 {
-	const str_vec options = {"ferretti20", "ashcroft20"};
+	const str_vec options = {"ferretti20", "ashcroft20", "cortier25"};
 
 	if (name == "ferretti20")
 		profile = std::make_shared<InfecProfile_Ferretti20>();
+
+	else if (name == "ashcroft20")
+		profile = std::make_shared<InfecProfile_Ashcroft20>();
+
+	else if (name == "cortier25")
+		profile = std::make_shared<InfecProfile_Cortier25>();
 
 	else
 	{
@@ -225,18 +332,18 @@ void MCMC::Impl::InfecProfile::_assign_profile(const std::string &name)
 ///////////////////////  MCMC : Impl : assign infectivity profile arguments  ////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Adjust lists of parameters to be inferred making parameter as dependent on extra. */
-void MCMC::Impl::make_param_extra_dependent(const std::string &par_name)
+/* Adjust lists of parameters to be inferred making parameter as dependent on cache. */
+void MCMC::Impl::make_param_cache_dependent(const std::string &par_name)
 {
 	// remove a parameter from standard if it was defined as such
 	auto it = std::find(param_standard_infer_list.begin(), param_standard_infer_list.end(), par_name);
 	if (it != param_standard_infer_list.end())
 		param_standard_infer_list.erase(it);
 
-	// add the parameter as extra
-	it = std::find(param_extra_infer_list.begin(), param_extra_infer_list.end(), par_name);
-	if (it == param_extra_infer_list.end())
-		param_extra_infer_list.push_back(par_name);
+	// add the parameter as cache
+	it = std::find(param_cache_infer_list.begin(), param_cache_infer_list.end(), par_name);
+	if (it == param_cache_infer_list.end())
+		param_cache_infer_list.push_back(par_name);
 }
 
 /* Assign arguments to infectivity profile. */
@@ -270,15 +377,15 @@ void MCMC::Impl::InfecProfile::_assign_args(const str_vec &keys,
 		else if (type == TYPE_PARAM)
 		{
 			if (pImpl.param_map.at(value).is_constant())
-				profile->assign_scalar(key, ARG_DEFAULT, pImpl.get_param(value));
+				profile->assign_attr_scalar(key, ATTR_ARGUMENT, pImpl.get_param(value));
 			else
 			{
-				profile->assign_pointer(key, ARG_DEFAULT, pImpl.get_param_pointer(value));
-				pImpl.make_param_extra_dependent(value);
+				profile->assign_attr_pointer(key, ATTR_ARGUMENT, pImpl.get_param_pointer(value));
+				pImpl.make_param_cache_dependent(value);
 			}
 		}
 		else if (type == TYPE_SCALAR)
-			profile->assign_scalar(key, ARG_DEFAULT, tools::stod(value, "argument with scalar type"));
+			profile->assign_attr_scalar(key, ATTR_ARGUMENT, tools::stod(value, "argument with scalar type"));
 
 		else
 			throw std::invalid_argument(
@@ -310,15 +417,15 @@ void MCMC::Impl::InfecProfile::_assign_range(const std::string &range_name,
 	{
 		if (!pImpl.param_map.at(max_value).is_constant())
 		{
-			profile->assign_pointer(range_name, ARG_RANGE, pImpl.get_param_pointer(max_value));
-			pImpl.make_param_extra_dependent(max_value);
+			profile->assign_attr_pointer(range_name, ATTR_RANGE, pImpl.get_param_pointer(max_value));
+			pImpl.make_param_cache_dependent(max_value);
 		}
 		else
-			profile->assign_scalar(range_name, ARG_RANGE, pImpl.get_param(max_value));
+			profile->assign_attr_scalar(range_name, ATTR_RANGE, pImpl.get_param(max_value));
 	}
 
 	else if (max_at == TYPE_SCALAR)
-		profile->assign_scalar(range_name, ARG_RANGE, tools::stod(max_value, "argument with scalar type"));
+		profile->assign_attr_scalar(range_name, ATTR_RANGE, tools::stod(max_value, "argument with scalar type"));
 
 	else
 		throw std::invalid_argument(
@@ -368,13 +475,9 @@ void MCMC::Impl::InfecProfile::init_lookup()
 		if (is_suitable)
 		{
 			if (tools::is_na(profile->get_max()))
-			{
-				tools::warning(
-					"Discrete infectivity profile introduced maximum " + std::to_string(MAX_SIZE_INFEC_LUT) + ".");
-				profile->assign_scalar("max", ARG_RANGE, MAX_SIZE_INFEC_LUT);
-				profile->init_reshaping(profile->is_discrete());
-			}
-			_size_lut = profile->get_max() + 1;
+				_size_lut = DEFAULT_MAX_SIZE;
+			else
+				_size_lut = profile->get_max() + 1;
 
 			_lookup_inst.resize(_size_lut);
 			_lookup_cumul.resize(_size_lut);
@@ -515,29 +618,30 @@ double MCMC::Impl::InfecProfile::__default_cumul(double t, const dbl_vec &opts) 
 double MCMC::Impl::InfecProfile::__lookup_inst(double t, const dbl_vec &opts) const
 {
 	UNUSED(opts);
-	return _lookup_inst.at(static_cast<unsigned>(t));
+	if ((t > 0) && (t < _size_lut))
+		return _lookup_inst.at(static_cast<size_t>(t));
+	else
+		return 0;
 }
 /* Lookup method for discrete cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::__lookup_cumul(double t, const dbl_vec &opts) const
 {
 	UNUSED(opts);
-	return _lookup_cumul.at(static_cast<unsigned>(t));
+	if (t < 0)
+		return 0.;
+	else if (t >= _size_lut)
+		return 1.;
+	else
+		return _lookup_cumul.at(static_cast<size_t>(t));
 }
 
 /* Value of the instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::inst(double t, const dbl_vec &opts) const
 {
-	// FLAG
 	if (profile->valid(t))
 		return (this->*_do_inst)(t, opts);
 	else
 		return 0.;
-	/*
-	if (!profile->valid(t))
-		throw std::out_of_range(
-			"Invalid generation time " + std::to_string(t) + " for instantaneous infectivity profile with range " + profile->show_range() + ".");
-	return (this->*_do_inst)(t, opts);
-	*/
 }
 /* Value of the cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::cumul(double t, const dbl_vec &opts) const

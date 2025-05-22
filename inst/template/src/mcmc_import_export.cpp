@@ -196,7 +196,7 @@ Rcpp::DataFrame MCMC::Impl::export_param() const
 
     try
     {
-        std::vector<parID> V_names = param_standard_infer_list + param_extra_infer_list + param_const_list;
+        std::vector<parID> V_names = param_standard_infer_list + param_cache_infer_list + param_const_list;
 
         // check if not empty
         if (V_names.empty())
@@ -414,12 +414,12 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
     try
     {
         // UPDATE: I shall allow for export even if is_power_post
-        if (is_power_post() || smpl_full_loglike.empty())
+        if (smpl_full_loglike.empty())
             throw std::length_error("No traces to export were found.");
 
         //----- Collect the column names -----//
         str_vec headers = {"loglikelihood"};
-        headers += param_standard_infer_list + param_extra_infer_list;
+        headers += param_standard_infer_list + param_cache_infer_list;
 
         // augmented variable of id trace
         if (!smpl_augm_value.empty())
@@ -439,7 +439,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         output(_, col++) = NumericVector(wrap(smpl_full_loglike));
 
         // parameters
-        for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
             output(_, col++) = NumericVector(wrap(smpl_param_value.at(p)));
 
         // augmented variables
@@ -484,8 +484,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 
     try
     {
-        // UPDATE: I shall allow for export even if is_power_post
-        if (is_power_post() || smpl_full_loglike.empty())
+        if (smpl_full_loglike.empty())
             tools::error("No traces to export were found.");
 
         // create a NumericMatrix with n_house columns
@@ -819,13 +818,15 @@ void MCMC::Impl::show_setup() const
 void MCMC::Impl::show_all_params() const
 {
     std::ostringstream oss;
-    oss << param_file_headers[0];
 
+    // show the headers
+    oss << param_file_headers[0];
     for (size_t k = 1; k < param_file_headers.size(); ++k)
         oss << C_DELIM << param_file_headers[k];
+    oss << "\n";
 
-    std::vector<parID> all_params = param_standard_infer_list + param_extra_infer_list + param_const_list;
-
+    // show parameter definitions
+    std::vector<parID> all_params = param_standard_infer_list + param_cache_infer_list + param_const_list;
     for (const parID &p : all_params)
     {
         const Variable &aux = param_map.at(p);
@@ -861,7 +862,7 @@ void MCMC::Impl::show_results() const
 
     oss << "\n";
 
-    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
     {
         const Variable &this_param = param_map.at(p);
         const std::pair<double, double> stats = tools::compute_stats(smpl_param_value.at(p));
@@ -911,7 +912,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                                 << C_DELIM << "loglikelihood";
 
             // header parameters
-            for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+            for (const parID &p : param_standard_infer_list + param_cache_infer_list)
                 inferstate_ofstream << C_DELIM << p;
 
             // augmented variables
@@ -941,7 +942,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                                         << std::fixed << smpl_full_loglike[i];
 
                     // print parameter values
-                    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+                    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
                                             << std::fixed << smpl_param_value.at(p)[i];
 

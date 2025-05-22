@@ -95,39 +95,40 @@ void MCMC::Impl::_assign_augm_aux(Household &house, indiv i, augmID a,
                 "Found a type without a paired value. Falling back to default.");
 
         else if (tools::stoupper(type) == TYPE_DATA)
-            house.assign_augm_scalar(i, a, key, flag, house.data(i, value), is_var_model);
+            house.assign_augm_attr_scalar(i, a, key, flag, house.data(i, value), is_var_model);
 
         else if (tools::stoupper(type) == TYPE_PARAM)
         {
             if (param_map.at(value).is_constant())
-                house.assign_augm_scalar(i, a, key, flag, get_param(value), is_var_model);
+                house.assign_augm_attr_scalar(i, a, key, flag, get_param(value), is_var_model);
             else
             {
-                house.assign_augm_pointer(i, a, key, flag, get_param_pointer(value), is_var_model);
-                // state parameter extra dependency if variable is a function
+                house.assign_augm_attr_pointer(i, a, key, flag, get_param_pointer(value), is_var_model);
+                // state parameter cache dependency if variable is a function
                 if (is_var_model == VAR_FUNCTION)
-                    make_param_extra_dependent(value);
-			}
+                    make_param_cache_dependent(value);
+            }
         }
 
         else if (tools::stoupper(type) == TYPE_SCALAR)
-            house.assign_augm_scalar(i, a, key, flag, tools::stod(value, "argument with scalar type"), is_var_model);
+            house.assign_augm_attr_scalar(i, a, key, flag, tools::stod(value, "argument with scalar type"), is_var_model);
 
         else if (tools::stoupper(type) == TYPE_AUGM)
         {
-
             if (contains(augm_list_full, value))
             {
                 if (a == value)
                     throw std::invalid_argument(
                         "Impossible to set argument equal to its value for \"" + a + "\".");
+
                 else if (house.is_augm_function(i, value))
-                    throw std::invalid_argument(
-                        "Impossible to set augmented function \"" + value + "\" as argument.");
+                    house.assign_augm_attr_function(i, a, key, flag, house.get_augm_function(i, value), is_var_model);
+
                 else if (house.is_augm_constant(i, value))
-                    house.assign_augm_scalar(i, a, key, flag, house.augm(i, value), is_var_model);
+                    house.assign_augm_attr_scalar(i, a, key, flag, house.augm(i, value), is_var_model);
+
                 else
-                    house.assign_augm_pointer(i, a, key, flag, house.augm_pointer(i, value), is_var_model);
+                    house.assign_augm_attr_pointer(i, a, key, flag, house.get_augm_pointer(i, value), is_var_model);
             }
             else
                 throw std::invalid_argument(
@@ -140,29 +141,31 @@ void MCMC::Impl::_assign_augm_aux(Household &house, indiv i, augmID a,
     }
 }
 
+/* Assign augmented function arguments. */
 void MCMC::Impl::_assign_augm_func_args(Household &house, indiv i, augmID a,
                                         const str_vec &keys,
                                         const str_vec &vals,
                                         const str_vec &typs)
 {
     _assign_augm_aux(house, i, a, keys, vals, typs,
-                     std::vector<bool>(keys.size(), ARG_DEFAULT), VAR_FUNCTION);
+                     std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_FUNCTION);
 }
-
+/* Assign augmented model arguments. */
 void MCMC::Impl::_assign_augm_model_args(Household &house, indiv i, augmID a,
                                          const str_vec &keys,
                                          const str_vec &vals,
                                          const str_vec &typs)
 {
     _assign_augm_aux(house, i, a, keys, vals, typs,
-                     std::vector<bool>(keys.size(), ARG_DEFAULT), VAR_MODEL);
+                     std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_MODEL);
 }
+/* Assign augmented model range. */
 void MCMC::Impl::_assign_augm_model_range(Household &house, indiv i, augmID a,
                                           const str_vec &vals,
                                           const str_vec &typs)
 {
     _assign_augm_aux(house, i, a, {"min", "max"}, vals, typs,
-                     std::vector<bool>(2, ARG_RANGE), VAR_MODEL);
+                     std::vector<bool>(2, ATTR_RANGE), VAR_MODEL);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -341,6 +344,7 @@ void MCMC::Impl::build_augm()
                 if (!tools::is_na(deftable.at("const")[k]))
                     is_constant = tools::stobool(deftable.at("const")[k]);
 
+                // add to list of augmented functions
                 if (is_function)
                     augm_list_func.push_back(a);
 

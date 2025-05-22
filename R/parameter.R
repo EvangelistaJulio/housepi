@@ -30,6 +30,8 @@ HousepiParameter <- R6::R6Class(
   ############################################################################
 
   public = list(
+    #' @field defs `data.frame`\cr
+    #' Parameter formatted definitions.
     defs = NULL,
 
     #' @description
@@ -63,6 +65,12 @@ HousepiParameter <- R6::R6Class(
 
     #' @description
     #' Remove a given parameter.
+    #' 
+    #' @param name `character(1)`\cr
+    #' Name of the parameter to remove.
+    #' @param show_warnings `logical(1)`\cr
+    #' If `TRUE` show warnings if parameter not found (default).
+    #' If `FALSE` do not show warnings.
     remove = function(name,
                       show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == name)
@@ -84,6 +92,28 @@ HousepiParameter <- R6::R6Class(
 
     #' @description
     #' Add a new parameter definition.
+    #'
+    #' @param name `character(1)`\cr
+    #' Name of the parameter.
+    #' @param value `double(1)`\cr
+    #' Initial value of the parameter.
+    #' @param const `logical(1)`\cr
+    #' If `FALSE` the parameter is treated as a constant.
+    #' @param discr `logical(1)`\cr
+    #' If `TRUE` the parameter is discrete.
+    #' @param prior `character(1)`\cr
+    #' Name of the prior distribution.
+    #' @param args named `list()`\cr
+    #' Arguments for the prior distribution.
+    #' @param rule `character(1)`\cr
+    #' Name of the inference proposal rule.
+    #' @param scale `double(1)`\cr
+    #' Scale parameter for the proposal rule.
+    #' Changed automatically during inference if `n_adpat`>0.
+    #' @param min `double(1)`\cr
+    #' Value of the minimum.
+    #' @param max `double(1)`\cr
+    #' Value of the maximum.
     add = function(name,
                    value = NA,
                    const = NA,

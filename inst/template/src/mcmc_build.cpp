@@ -228,13 +228,13 @@ void MCMC::Impl::build_param()
             param_map.clear();
             param_const_list.clear();
             param_standard_infer_list.clear();
-            param_extra_infer_list.clear();
+            param_cache_infer_list.clear();
 
             //===== Load parameters from the row with options =====//
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
-                double value = HOUSEPI_NA_DOUBLE;                   // init value
+                double value = HOUSEPI_NA_DOUBLE;                 // init value
 
                 // UPDATE : temporary parameter identifier
                 // NOTE : id parID changes this should change too
@@ -309,16 +309,16 @@ void MCMC::Impl::build_param()
                         if (!tools::is_na(arg_key[c]))
                         {
                             const std::string &x = arg_val[c];
-                            new_param.assign_distr_scalar(
-                                arg_key[c], ARG_DEFAULT,
+                            new_param.assign_distr_attr_scalar(
+                                arg_key[c], ATTR_ARGUMENT,
                                 (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
                         }
 
                     // set the range of values to the parameter
                     if (!tools::is_na(lower))
-                        new_param.assign_distr_scalar("min", ARG_RANGE, lower);
+                        new_param.assign_distr_attr_scalar("min", ATTR_RANGE, lower);
                     if (!tools::is_na(upper))
-                        new_param.assign_distr_scalar("max", ARG_RANGE, upper);
+                        new_param.assign_distr_attr_scalar("max", ATTR_RANGE, upper);
                     new_param.init_distr_reshaping();
 
                     // assign the rule for the proposer to the parameter
@@ -340,7 +340,7 @@ void MCMC::Impl::build_param()
 /* Randomly initialize values of the parameters to be inferred */
 void MCMC::Impl::init_parameters()
 {
-    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
     {
         Variable &this_par = param_map.at(p);
         // restore user initialization (for multiple chains)
@@ -352,7 +352,7 @@ void MCMC::Impl::init_parameters()
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-            this_par.rand(_prng);
+                this_par.rand(_prng);
         }
         else if (tools::is_na(this_par.get()))
             throw std::invalid_argument(
@@ -374,7 +374,7 @@ void MCMC::Impl::init_parameters()
 /* Set accept rates to zero. */
 void MCMC::Impl::init_move_counts()
 {
-    for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
         param_map.at(p).reset_accept_rate();
 }
 
@@ -397,7 +397,7 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::restore_parameter(const parID &p, bool extra_depen)
+void MCMC::Impl::restore_parameter(const parID &p, bool cache_depen)
 {
     // restore buffer value of parameter
     param_map.at(p).restore_value();
@@ -409,12 +409,12 @@ void MCMC::Impl::restore_parameter(const parID &p, bool extra_depen)
     for (Household &house : house_vector)
     {
         house.restore_loglike();
-        if (extra_depen)
-            house.restore_all_extra();
+        if (cache_depen)
+            house.restore_all_cache();
     }
 
     // FIXME: this should not be restored if constant for example...
-    if (extra_depen)
+    if (cache_depen)
         restore_infec_profile();
 }
 
@@ -474,6 +474,7 @@ void MCMC::Impl::init_diagnostics()
 
     // diagnostics over full loglikelihood
     smpl_count = 0;
+    smpl_full_loglike.clear();
     smpl_full_loglike = dbl_vec(sample_size);
 
     // initialize  other diagnostic vectors
@@ -481,7 +482,7 @@ void MCMC::Impl::init_diagnostics()
     if (!is_power_post())
     {
         // diagnostics over parameters
-        for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
             smpl_param_value[p] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
 
         // diagnostics over households
@@ -505,7 +506,7 @@ void MCMC::Impl::update_diagnostics()
     if (!is_power_post())
     {
         // diagnostics for all parameters
-        for (const parID &p : param_standard_infer_list + param_extra_infer_list)
+        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
             smpl_param_value.at(p)[smpl_count] = get_param(p);
 
         // diagnostics for selected households
@@ -587,7 +588,7 @@ void MCMC::Impl::assert_proper_mcmc_setup()
         throw std::length_error("Dataset is empty or was not provided.");
 
     // check if there is actually something to sample
-    if (((param_standard_infer_list + param_extra_infer_list).empty()) && (!is_augm_sample()))
+    if (((param_standard_infer_list + param_cache_infer_list).empty()) && (!is_augm_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 }

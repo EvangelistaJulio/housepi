@@ -38,8 +38,8 @@ void Model::init_model_for_inference()
 	incub_distr_ptr = distribution_switch("gamma");
 
 	// arguments are pointers to the respective parameters
-	incub_distr_ptr->assign_pointer("shape", ARG_DEFAULT, param_pointer("shape"));
-	incub_distr_ptr->assign_pointer("scale", ARG_DEFAULT, param_pointer("scale"));
+	incub_distr_ptr->assign_attr_pointer("shape", ATTR_ARGUMENT, param_pointer("shape"));
+	incub_distr_ptr->assign_attr_pointer("scale", ATTR_ARGUMENT, param_pointer("scale"));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

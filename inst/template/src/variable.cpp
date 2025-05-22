@@ -214,8 +214,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_scalar("min", ARG_DEFAULT, -_user_rule_scale);
-        _distr_ptr->assign_scalar("max", ARG_DEFAULT, _user_rule_scale);
+        _distr_ptr->assign_attr_scalar("min", ATTR_ARGUMENT, -_user_rule_scale);
+        _distr_ptr->assign_attr_scalar("max", ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -251,8 +251,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_scalar("mean", ARG_DEFAULT, 0.);
-        _distr_ptr->assign_scalar("sd", ARG_DEFAULT, _user_rule_scale);
+        _distr_ptr->assign_attr_scalar("mean", ATTR_ARGUMENT, 0.);
+        _distr_ptr->assign_attr_scalar("sd", ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -288,8 +288,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_scalar("meanlog", ARG_DEFAULT, 0.);
-        _distr_ptr->assign_scalar("sdlog", ARG_DEFAULT, _user_rule_scale);
+        _distr_ptr->assign_attr_scalar("meanlog", ATTR_ARGUMENT, 0.);
+        _distr_ptr->assign_attr_scalar("sdlog", ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -352,7 +352,11 @@ Variable::~Variable() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Get functional methods */
-double Variable::__get_default(const dbl_vec &opts) const { return _value; }
+double Variable::__get_default(const dbl_vec &opts) const
+{
+    UNUSED(opts); // FIXME: drop dependency on opts
+    return _value;
+}
 double Variable::__get_func_return(const dbl_vec &opts) const { return _func_ptr->return_value(opts); }
 double Variable::get(const dbl_vec &opts) const { return (this->*_do_get)(opts); }
 
@@ -364,6 +368,7 @@ const double *Variable::__get_pointer_func_return() const
     return nullptr;
 }
 const double *Variable::get_pointer() const { return (this->*_do_get_pointer)(); }
+std::shared_ptr<Function> Variable::get_function() const { return _func_ptr; }
 
 /* Flag if variable is a function. */
 bool Variable::is_function() const { return _do_get != &Variable::__get_default; }
@@ -417,6 +422,7 @@ void Variable::__set_value_default(double x)
 /* Set value to function return. */
 void Variable::__set_value_func_error(double x)
 {
+    UNUSED(x);
     tools::error(
         "Impossible to set value to function  \"" + _variable_name + "\".");
 }
@@ -428,14 +434,19 @@ void Variable::set_value(double x) { (this->*_do_set_value)(x); }
 void Variable::restore_value() { _value = _buffer_value; }
 
 /* Assign a scalar argument to function. */
-void Variable::assign_func_scalar(const std::string &arg_name, bool is_arg, double x)
+void Variable::assign_func_attr_scalar(const std::string &arg_name, bool is_arg, double x)
 {
-    _func_ptr->assign_scalar(arg_name, is_arg, x);
+    _func_ptr->assign_attr_scalar(arg_name, is_arg, x);
 }
 /* Assign a pointer argument to function. */
-void Variable::assign_func_pointer(const std::string &arg_name, bool is_arg, const double *y)
+void Variable::assign_func_attr_pointer(const std::string &arg_name, bool is_arg, const double *y)
 {
-    _func_ptr->assign_pointer(arg_name, is_arg, y);
+    _func_ptr->assign_attr_pointer(arg_name, is_arg, y);
+}
+/* Assign a function argument to function. */
+void Variable::assign_func_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+{
+    _func_ptr->assign_attr_function(arg_name, is_arg, f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -448,14 +459,19 @@ void Variable::assign_distr(const std::string &distr_name)
     _distr_ptr = distribution_switch(distr_name);
 }
 /* Assign a scalar argument to distribution. */
-void Variable::assign_distr_scalar(const std::string &arg_name, bool is_arg, double x)
+void Variable::assign_distr_attr_scalar(const std::string &arg_name, bool is_arg, double x)
 {
-    _distr_ptr->assign_scalar(arg_name, is_arg, x);
+    _distr_ptr->assign_attr_scalar(arg_name, is_arg, x);
 }
 /* Assign a pointer argument to distribution. */
-void Variable::assign_distr_pointer(const std::string &arg_name, bool is_arg, const double *y)
+void Variable::assign_distr_attr_pointer(const std::string &arg_name, bool is_arg, const double *y)
 {
-    _distr_ptr->assign_pointer(arg_name, is_arg, y);
+    _distr_ptr->assign_attr_pointer(arg_name, is_arg, y);
+}
+/* Assign a pointer argument to distribution. */
+void Variable::assign_distr_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+{
+    _distr_ptr->assign_attr_function(arg_name, is_arg, f);
 }
 /* Initialize distribution reshaping. */
 void Variable::init_distr_reshaping()

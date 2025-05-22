@@ -63,30 +63,24 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @description
+    #' @field param_required `character()`\cr
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
-      if (missing(value)) {
-        return(private$.find_def_required("P"))
-      }
+      if (missing(value)) return(private$.find_def_required("P"))
       stop_h("'param_required' is read only.")
     },
 
-    #' @description
+    #' @field augm_required `character()`\cr
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
-      if (missing(value)) {
-        return(private$.find_def_required("A"))
-      }
+      if (missing(value)) return(private$.find_def_required("A"))
       stop_h("'augm_required' is read only.")
     },
 
-    #' @description
+    #' @field data_required `character()`\cr
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
-      if (missing(value)) {
-        return(private$.find_def_required("D"))
-      }
+      if (missing(value)) return(private$.find_def_required("D"))
       stop_h("'data_required' is read only.")
     }
   ),
@@ -98,6 +92,8 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   public = list(
+    #' @field augm_defs `data.frame`\cr
+    #' Augmented variable formatted definitions.
     defs = NULL,
 
     #' @description
@@ -175,6 +171,8 @@ HousepiAugmented <- R6::R6Class(
     #' @param status `integer(1)`\cr
     #' The associated status of the definition.
     #' Default NA is for all infectious.
+    #' @param func `character()`\cr
+    #' Name of the augmented function.
     #' @param value `double(1)` | `character(1)`\cr
     #' One between:
     #' - Scalar value;

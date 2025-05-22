@@ -34,6 +34,8 @@ public:
     {
         init_defaults("unif", {"min", "max"}, {0., 1.},
                       HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false);
+
+        init_uniform_range(); // ensure range matches arguments
     }
     ~Uniform_Distribution() = default;
 
@@ -658,13 +660,13 @@ class Binomial_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Binomial_Distribution() : distr_gen(4, .5)
+    Binomial_Distribution() : distr_gen(4, 0.5)
     {
-        init_defaults("binom", {"size", "prob"}, {4, .5},
+        init_defaults("binom", {"size", "prob"}, {4, 0.5},
                       0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
 
-        assign_pointer("max", ARG_RANGE, get_ptr_to_arg(0));
+        assign_attr_pointer("max", ATTR_RANGE, get_ptr_to_arg(0));
         init_functional_range(false, false);
     }
     ~Binomial_Distribution() = default;
