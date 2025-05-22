@@ -28,15 +28,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Individual constructor. */
-Individual::Individual(const std::string &id,
+Individual::Individual(size_t index,
+					   const std::string &id,
 					   int status,
 					   const dataIDmap<double> &data)
 {
-	// associate the new id
+	this->index = index;
 	this->id = id;
-	// associate the new status
 	this->status = (status < MISSING_STATUS) ? MISSING_STATUS : status;
-	// associate the new data
 	this->data_map = data;
 }
 
@@ -136,9 +135,10 @@ void Household::set_multiplicity(ulong m, size_t class_idx)
 }
 
 /* Link an individual to the household. */
-void Household::assign_individual(const std::string &id,
-								  int status,
-								  const dataIDmap<double> &data)
+void Household::assign_member(size_t index,
+							  const std::string &id,
+							  int status,
+							  const dataIDmap<double> &data)
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
@@ -158,7 +158,7 @@ void Household::assign_individual(const std::string &id,
 	}
 
 	//----- emplace new individual -----//
-	_members.emplace_back(id, status, data);
+	_members.emplace_back(index, id, status, data);
 	++_house_size;
 }
 
@@ -263,9 +263,11 @@ void Household::restore_loglike()
 
 //===== GETTER =====//
 const std::string &Household::house_id() const { return _house_id; }
-const std::string &Household::id(indiv i) const { return _members[i].id; }
-size_t Household::index() const { return _index; }
+size_t Household::house_index() const { return _index; }
 ushort Household::size() const { return _house_size; }
+
+const std::string &Household::id(indiv i) const { return _members[i].id; }
+size_t Household::index(indiv i) const { return _members[i].index; }
 
 ulong Household::multiplicity() const { return _house_multiplicity; }
 size_t Household::multiplicity_class_index() const { return _multiplicity_class; }
@@ -310,11 +312,12 @@ void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double 
 
 /* Assign definitions for the augmented variable model. */
 void Household::assign_augm(indiv i, const augmID &a, const std::string &name,
-							double value, bool is_discrete, const std::string &func_name,
+							double value, bool is_discrete, bool is_constant,
+							const std::string &func_name,
 							const std::string &model_name)
 {
 	Variable &this_augm = _members[i].augm_map.at(a);
-	this_augm.init(name, value, is_discrete, func_name);
+	this_augm.init(name, value, is_discrete, is_constant, func_name);
 	this_augm.assign_distr(model_name);
 }
 

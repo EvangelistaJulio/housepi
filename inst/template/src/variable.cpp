@@ -339,11 +339,12 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HOUSEPI
 Variable::Variable(const std::string &name,
                    double value,
                    bool is_discrete,
+                   bool is_constant,
                    const std::string &func_name) : _func_ptr(std::make_shared<Function>()),
                                                    _distr_ptr(std::make_shared<Distribution>()),
                                                    _prop_ptr(std::make_shared<Proposer>())
 {
-    init(name, value, is_discrete, func_name);
+    init(name, value, is_discrete, is_constant, func_name);
 }
 Variable::~Variable() = default;
 
@@ -386,7 +387,7 @@ double Variable::get_from_value() const { return (_prop_ptr->get_from_value)(); 
 
 /* Restore user defined variable initialization. */
 void Variable::init(const std::string &name, double value,
-                    bool is_discrete, const std::string &func_name)
+                    bool is_discrete, bool is_constant, const std::string &func_name)
 {
     if (tools::is_na(func_name))
     {
@@ -397,12 +398,14 @@ void Variable::init(const std::string &name, double value,
         _user_value = value;
         _value = _user_value;
         _is_discrete = is_discrete;
+        _is_constant = is_constant;
     }
     else
     {
         _do_get = &Variable::__get_func_return;
         _do_get_pointer = &Variable::__get_pointer_func_return;
         _func_ptr = function_switch(func_name);
+        _is_constant = false;
     }
 }
 
@@ -556,7 +559,7 @@ double Variable::__propose_error(rnd_gen &prng)
 {
     UNUSED(prng);
     throw std::invalid_argument(
-        "Call to proposer of constant variable \"" + _variable_name + "\".");
+        "Call to unknown proposer for variable \"" + _variable_name + "\".");
     return 0.;
 }
 double Variable::__propose_draw_sample(rnd_gen &prng) { return (_prop_ptr->propose)(prng, 0); }

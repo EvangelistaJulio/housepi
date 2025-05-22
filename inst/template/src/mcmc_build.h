@@ -380,7 +380,7 @@ private:
     double _type_to_double(const std::string &tkn_val,
                            const std::string &tkn_typ,
                            const Household &house, indiv i);
-    void _assign_augm_aux(Household &house, indiv i, augmID a,
+    void _assign_augm_attributes(Household &house, indiv i, augmID a,
                           const str_vec &keys,
                           const str_vec &vals,
                           const str_vec &typs,

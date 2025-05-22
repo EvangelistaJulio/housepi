@@ -129,6 +129,7 @@ public:
     Variable(const std::string &name = HOUSEPI_NA_STRING,
              double value = HOUSEPI_NA_DOUBLE,
              bool is_discrete = false,
+             bool is_constant = true,
              const std::string &func_name = HOUSEPI_NA_STRING);
     ~Variable();
 
@@ -153,6 +154,7 @@ public:
     void set_value(double x);
     void restore_value();
     void init(const std::string &name, double value, bool is_discrete,
+              bool is_constant = true,
               const std::string &func_name = HOUSEPI_NA_STRING);
 
     void assign_func_attr_scalar(const std::string &arg_name, bool is_arg, double x);

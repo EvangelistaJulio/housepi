@@ -50,6 +50,7 @@ public:
 	};
 
 	std::string id = HOUSEPI_NA_STRING; // user id
+	size_t index = 0;					// internal index
 	int status = MISSING_STATUS;		// status of the individual
 
 	// NOTE: I am forced to store numerical variables
@@ -61,7 +62,8 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Individual(const std::string &id = HOUSEPI_NA_STRING,
+	Individual(size_t index = 0,
+			   const std::string &id = HOUSEPI_NA_STRING,
 			   int status = MISSING_STATUS,
 			   const dataIDmap<double> &data = {});
 	~Individual();
@@ -100,9 +102,10 @@ public:
 	//==================//
 
 	void set_multiplicity(ulong m, size_t class_idx);
-	void assign_individual(const std::string &id,
-						   int status,
-						   const dataIDmap<double> &data);
+	void assign_member(size_t index,
+					   const std::string &id,
+					   int status,
+					   const dataIDmap<double> &data);
 	bool change_status(indiv i, int new_status);
 	void assign_contact_rate(indiv from, indiv to, const double *x);
 
@@ -111,7 +114,7 @@ public:
 	//==================//
 
 	const std::string &house_id() const;
-	size_t index() const;
+	size_t house_index() const;
 	ushort size() const;
 
 	ushort n_infec_status() const;
@@ -135,23 +138,45 @@ public:
 
 	//----- Individual : Getter -----//
 	const std::string &id(indiv i) const;
+	size_t index(indiv i) const;
 	int status(indiv i) const;
 	double data(indiv i, const dataID &d) const;
 	double group_rate(indiv i, const rateID &r) const;
 	double contact_rate(indiv from, indiv to) const;
 
+	//============================//
+	//===== EXTRA ATTRIBUTES =====//
+	//============================//
+
+	bool is_any_cache();
+	void buffer_all_cache();
+	void restore_all_cache();
+
+	//----- Vector of integers -----//
+	void allocate_cache_integer_vector(const cacheID &e);
+	int_vec &cache_integer_vector(const cacheID &e);
+
+	//----- Vector of doubles -----//
+	void allocate_cache_double_vector(const cacheID &e);
+	dbl_vec &cache_double_vector(const cacheID &e);
+
+	//----- Matrix of doubles -----//
+	void allocate_cache_double_matrix(const cacheID &e);
+	matrix<double> &cache_double_matrix(const cacheID &e);
+	
 	//=====================//
 	//===== AUGMENTED =====//
 	//=====================//
 
 	//----- Augmented : Setter -----//
 	void assign_augm(indiv i,
-					 const augmID &a = HOUSEPI_NA_STRING,
-					 const std::string &name = HOUSEPI_NA_STRING,
-					 double value = HOUSEPI_NA_DOUBLE,
-					 bool is_discrete = false,
-					 const std::string &func_name = HOUSEPI_NA_STRING,
-					 const std::string &model_name = HOUSEPI_NA_STRING);
+					 const augmID &a,
+					 const std::string &name,
+					 double value,
+					 bool is_discrete,
+					 bool is_constant,
+					 const std::string &func_name,
+					 const std::string &model_name);
 
 	void assign_augm_attr_scalar(indiv i, const augmID &a,
 								 const std::string &arg_name,
@@ -164,10 +189,10 @@ public:
 								  const double *ptr_to_arg_value,
 								  bool is_var_model);
 	void assign_augm_attr_function(indiv i, const augmID &a,
-								  const std::string &arg_name,
-								  bool is_arg,
-								  std::shared_ptr<Function> f,
-								  bool is_var_model);
+								   const std::string &arg_name,
+								   bool is_arg,
+								   std::shared_ptr<Function> f,
+								   bool is_var_model);
 
 	void init_augm_model_reshaping(indiv i, const augmID &a);
 
@@ -194,26 +219,6 @@ public:
 	double augm_model_logratio(indiv i, const augmID &a) const;
 	double augm_propose_logratio(indiv i, const augmID &a) const;
 	double augm_move_logratio(indiv i, const augmID &a) const;
-
-	//============================//
-	//===== EXTRA ATTRIBUTES =====//
-	//============================//
-
-	bool is_any_cache();
-	void buffer_all_cache();
-	void restore_all_cache();
-
-	//----- Vector of integers -----//
-	void allocate_cache_integer_vector(const cacheID &e);
-	int_vec &cache_integer_vector(const cacheID &e);
-
-	//----- Vector of doubles -----//
-	void allocate_cache_double_vector(const cacheID &e);
-	dbl_vec &cache_double_vector(const cacheID &e);
-
-	//----- Matrix of doubles -----//
-	void allocate_cache_double_matrix(const cacheID &e);
-	matrix<double> &cache_double_matrix(const cacheID &e);
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//

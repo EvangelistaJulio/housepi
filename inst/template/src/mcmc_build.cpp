@@ -697,7 +697,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                 Household &house = house_vector.at(_hhid_to_index.at(house_id));
 
                 // assign the individual the respective household
-                house.assign_individual(id, status, data);
+                house.assign_member(i, id, status, data);
             }
 
             // update report for data
