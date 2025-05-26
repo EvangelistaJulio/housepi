@@ -7,6 +7,22 @@
 Auxiliary class to deal with infectivity profile.
 }
 \keyword{internal}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{defs}}{\code{list}\cr
+Infectivity profile definition list.}
+}
+\if{html}{\out{</div>}}
+}
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{param_required}}{\code{character()}\cr
+Parameters required by infectivity profile variable definition.}
+}
+\if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
@@ -19,9 +35,6 @@ Auxiliary class to deal with infectivity profile.
 \if{html}{\out{<a id="method-HousepiInfecProfile-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiInfecProfile-new}{}}}
 \subsection{Method \code{new()}}{
-Find parameters required by infectivity profile variable definition.
-
-
 New instance of class
 \link[=HousepiInfecProfile]{HousepiInfecProfile}.
 \subsection{Usage}{

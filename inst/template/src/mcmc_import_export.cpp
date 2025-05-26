@@ -525,7 +525,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export a showcase of the selected infectivity profile. */
-Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins) const
+Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
 {
     using namespace Rcpp;
 
@@ -535,13 +535,8 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(const Rcpp::List &opts, int n_bins
         if (_infec_profile.profile == nullptr)
             throw std::length_error("No infectivity profile to export.");
 
-        // load options
-        dbl_vec opts_ = {};
-        for (int k = 0; k < opts.size(); ++k)
-            opts_.push_back(opts.at(k));
-
         // produce a showcase of the distribution profile
-        std::vector<dbl_vec> values = _infec_profile.profile->showcase(opts_, n_bins);
+        std::vector<dbl_vec> values = _infec_profile.profile->showcase(n_bins);
 
         // compute mean and variance
         const dbl_vec &x = values[0];
@@ -602,10 +597,10 @@ Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_ho
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
 
-Rcpp::List MCMC::showcase_infec_profile(const Rcpp::List &opts, int n_bins)
+Rcpp::List MCMC::showcase_infec_profile(int n_bins)
 {
     init_infec_profile();
-    return pImpl->showcase_infec_profile(opts, n_bins);
+    return pImpl->showcase_infec_profile(n_bins);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -737,13 +732,13 @@ void MCMC::Impl::read_multiplicity(const std::string &f)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary function to call percentuage. */
-inline const std::string _aux_percent_(int num, int den)
+const std::string _aux_percent_(int num, int den)
 {
     return " (" + tools::percentage(static_cast<double>(num) / den, 1) + ")";
 }
 
 /* Auxiliary function to call percentuage. */
-inline const std::string _trail_percent_(int num, int den)
+const std::string _trail_percent_(int num, int den)
 {
     return std::to_string(num) + _aux_percent_(num, den);
 }

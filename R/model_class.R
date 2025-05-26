@@ -760,6 +760,10 @@ HouseholdModel <- R6::R6Class(
     #' If `FALSE` the augmented variable is treated as a constant.
     #' @param discr `logical(1)`\cr
     #' IF `TRUE` the augmenter variable is discrete.
+    #' @param func `character()`\cr
+    #' Name of the augmented function.
+    #' @param func_args (named `list()`\cr
+    #' Arguments of the augmented function.
     #' @param model `character(1)`\cr
     #' Name of the model distribution.
     #' @param args named `list()`\cr
@@ -782,14 +786,16 @@ HouseholdModel <- R6::R6Class(
     #' Advanced options for non random walk moves.
     #' `FIXME: missing`
     add_augm = function(name = NA, status = NA,
-                        value = NA, init_rand = FALSE,
                         const = NA, discr = FALSE,
+                        func = NA, func_args = NULL,
+                        value = NA, init_rand = FALSE,
                         model = NA, args = list(),
                         min = NA, max = NA,
                         rule = NA, scale = NA, from = NA) {
       private$.augm$add(name = name, status = status,
-                        value = value, init_rand = init_rand,
                         const = const, discr = discr,
+                        func = func, func_args = func_args,
+                        value = value, init_rand = init_rand,
                         model = model, args = args,
                         min = min, max = max,
                         rule = rule, scale = scale, from = from)
@@ -932,17 +938,15 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Showcase instantaneous and cumulative values of infectivity profile.
     #'
-    #' @param opts `double()`\cr
-    #' Additional values for the computation.
     #' @param bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
     #'
     #' @return
     #' `list()`
-    showcase_infec_profile = function(opts = list(), bins = 2000) {
+    showcase_infec_profile = function(bins = 2000) {
       # internal build function
       private$.build_minimal()
-      return(private$.model$showcase_infec_profile(opts = opts, bins = bins))
+      return(private$.model$showcase_infec_profile(bins = bins))
     },
 
     ############################################################################

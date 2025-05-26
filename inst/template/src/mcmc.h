@@ -82,21 +82,15 @@ public:
 	//===== AUGMENTED VARIABLES =====//
 	//===============================//
 
-	bool is_augm_any() const;
-	bool is_augm_sample() const;
 	bool is_augm_model() const;
-	bool is_augm_generic() const;
-
-	void init_augmented_variables();
 	void assign_all_augm(Household &house, indiv i);
 	void clear_all_augm(Household &house, indiv i);
 	double compute_augm_model_loglike(const Household &house) const;
 
 	//============================//
-	//===== EXTRA ATTRIBUTES =====//
+	//===== CACHE ATTRIBUTES =====//
 	//============================//
 
-	void make_param_cache_dependent(const parID &p);
 	virtual void update_cache_dependecies(Household &house, indiv i);
 
 	void allocate_cache_house_integer_vector(const cacheID &e);
@@ -109,8 +103,8 @@ public:
 
 	virtual void init_infec_profile();
 	void assign_template_infec_profile(std::map<std::string, std::string> x);
-	double infec_profile_inst(double gener_time, const dbl_vec &opts = {}) const;
-	double infec_profile_cumul(double gener_time, const dbl_vec &opts = {}) const;
+	double infec_profile_inst(double gener_time) const;
+	double infec_profile_cumul(double gener_time) const;
 
 	//====================================//
 	//===== EVALUATE (loglikelihood) =====//
@@ -118,7 +112,6 @@ public:
 
 	virtual double compute_house_obs_loglike(Household &house) const;
 	double update_house_loglike(size_t r, const bool is_augm_ll, const bool cache_depen);
-	void update_full_loglike(const bool cache_depen);
 	double evaluate();
 
 	//=================//
@@ -167,7 +160,7 @@ public:
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_house_loglike_mtx() const;
-	Rcpp::List showcase_infec_profile(const Rcpp::List &opts, int n_bins);
+	Rcpp::List showcase_infec_profile(int n_bins);
 
 #else
 
@@ -203,32 +196,9 @@ private:
 	class Impl;
 	std::unique_ptr<Impl> pImpl;
 
-	//----- Error ----//
-	std::vector<std::string> _error_message = {};
-
 	//----- Group & Contact Rateas -----//
 	rateIDmapvec<parID> _individual_group_rates = {};
 	parID _pair_contact_rate = {};
-
-	//----- Household -----//
-	Household &_get_restricted_household(size_t R) const;
-	size_t _n_restricted_houses() const;
-
-	//----- Monte Carlo -----//
-	void _run_monte_carlo(progress::Bar &progbar);
-	void _move_all();
-	void _move_all_and_adapt_parameters(ulong step);
-	bool _move_single_parameter(const parID &p, bool cache_depen);
-
-	//----- Metropolis : augmented moves -----//
-	double _move_augm_single_house(size_t H);
-	double _metropolis_augm_single_move(Household &house, indiv i, const augmID &a);
-
-	void _move_all_augm();
-
-	double (MCMC::*_do_move_augm_indiv)(Household &, indiv) = &MCMC::__move_augm_indiv_generic;
-	double __move_augm_indiv_generic(Household &house, indiv i);
-	double __move_augm_indiv_by_status(Household &house, indiv i);
 
 	//----- Simulation -----//
 	void _aux_init_simulate();

@@ -24,11 +24,22 @@
 ////////////////////////////////  Proposer : constructor  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Proposer constructor from Distribution name. */
+Proposer::Proposer(const std::string &name,
+                   double rule_scale,
+                   double rule_start_value,
+                   const std::vector<ushort> &args_to_adapt,
+                   bool is_discrete)
+    : Proposer(ContinuosDistrRegistry().get_distr(name),
+               rule_scale, rule_start_value, args_to_adapt, is_discrete) {}
+
+/* Proposer constructor from Distribution pointer. */
 Proposer::Proposer(std::shared_ptr<Distribution> distr,
                    double rule_scale,
                    double rule_start_value,
                    const std::vector<ushort> &args_to_adapt,
-                   bool is_discrete) : _distr_ptr(distr)
+                   bool is_discrete)
+    : _distr_ptr(distr)
 {
     // default proposer name derives from distribution
     _proposer_name = _distr_ptr->show_name();
@@ -193,14 +204,10 @@ class Uniform_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Uniform_Proposer(
-        double rule_scale = HOUSEPI_NA_DOUBLE,
-        double rule_from = HOUSEPI_NA_DOUBLE,
-        bool is_discrete = false) : Proposer(distribution_switch("unif"),
-                                             rule_scale,
-                                             rule_from,
-                                             {0, 1},
-                                             is_discrete)
+    Uniform_Proposer(double rule_scale = HOUSEPI_NA_DOUBLE,
+                     double rule_from = HOUSEPI_NA_DOUBLE,
+                     bool is_discrete = false)
+        : Proposer("unif", rule_scale, rule_from, {0, 1}, is_discrete)
     {
         // initialize
         user_reset();
@@ -214,8 +221,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr_scalar("min", ATTR_ARGUMENT, -_user_rule_scale);
-        _distr_ptr->assign_attr_scalar("max", ATTR_ARGUMENT, _user_rule_scale);
+        _distr_ptr->assign_attr("min", ATTR_ARGUMENT, -_user_rule_scale);
+        _distr_ptr->assign_attr("max", ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -227,14 +234,10 @@ class Normal_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Normal_Proposer(
-        double rule_scale = HOUSEPI_NA_DOUBLE,
-        double rule_from = HOUSEPI_NA_DOUBLE,
-        bool is_discrete = false) : Proposer(distribution_switch("norm"),
-                                             rule_scale,
-                                             rule_from,
-                                             {1},
-                                             is_discrete)
+    Normal_Proposer(double rule_scale = HOUSEPI_NA_DOUBLE,
+                    double rule_from = HOUSEPI_NA_DOUBLE,
+                    bool is_discrete = false)
+        : Proposer("norm", rule_scale, rule_from, {1}, is_discrete)
     {
         // initialize
         user_reset();
@@ -251,8 +254,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr_scalar("mean", ATTR_ARGUMENT, 0.);
-        _distr_ptr->assign_attr_scalar("sd", ATTR_ARGUMENT, _user_rule_scale);
+        _distr_ptr->assign_attr("mean", ATTR_ARGUMENT, 0.);
+        _distr_ptr->assign_attr("sd", ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -264,14 +267,10 @@ class Lognorm_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Lognorm_Proposer(
-        double rule_scale = 1.,
-        double rule_from = HOUSEPI_NA_DOUBLE,
-        bool is_discrete = false) : Proposer(distribution_switch("lnorm"),
-                                             rule_scale,
-                                             rule_from,
-                                             {1},
-                                             is_discrete)
+    Lognorm_Proposer(double rule_scale = 1.,
+                     double rule_from = HOUSEPI_NA_DOUBLE,
+                     bool is_discrete = false)
+        : Proposer("lnorm", rule_scale, rule_from, {1}, is_discrete)
     {
         // initialize
         user_reset();
@@ -288,8 +287,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr_scalar("meanlog", ATTR_ARGUMENT, 0.);
-        _distr_ptr->assign_attr_scalar("sdlog", ATTR_ARGUMENT, _user_rule_scale);
+        _distr_ptr->assign_attr("meanlog", ATTR_ARGUMENT, 0.);
+        _distr_ptr->assign_attr("sdlog", ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -340,9 +339,10 @@ Variable::Variable(const std::string &name,
                    double value,
                    bool is_discrete,
                    bool is_constant,
-                   const std::string &func_name) : _func_ptr(std::make_shared<Function>()),
-                                                   _distr_ptr(std::make_shared<Distribution>()),
-                                                   _prop_ptr(std::make_shared<Proposer>())
+                   const std::string &func_name)
+    : _func_ptr(std::make_shared<Function>()),
+      _distr_ptr(std::make_shared<Distribution>()),
+      _prop_ptr(std::make_shared<Proposer>())
 {
     init(name, value, is_discrete, is_constant, func_name);
 }
@@ -353,13 +353,9 @@ Variable::~Variable() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Get functional methods */
-double Variable::__get_default(const dbl_vec &opts) const
-{
-    UNUSED(opts); // FIXME: drop dependency on opts
-    return _value;
-}
-double Variable::__get_func_return(const dbl_vec &opts) const { return _func_ptr->return_value(opts); }
-double Variable::get(const dbl_vec &opts) const { return (this->*_do_get)(opts); }
+double Variable::__get_default() const { return _value; }
+double Variable::__get_func_return() const { return _func_ptr->return_value(); }
+double Variable::get() const { return (this->*_do_get)(); }
 
 /* Get pointer functional methods */
 const double *Variable::__get_pointer_default() const { return &_value; }
@@ -404,7 +400,14 @@ void Variable::init(const std::string &name, double value,
     {
         _do_get = &Variable::__get_func_return;
         _do_get_pointer = &Variable::__get_pointer_func_return;
-        _func_ptr = function_switch(func_name);
+        _func_ptr = CompositeFuncRegistry(
+                        "function",
+                        {std::make_shared<ArithmeticRegistry>(),
+                         std::make_shared<TranscendentalRegistry>(),
+                         std::make_shared<ContinuosDistrRegistry>(),
+                         std::make_shared<DiscreteDistrRegistry>(),
+                         std::make_shared<InfecProfileRegistry>()})
+                        .get(func_name);
         _is_constant = false;
     }
 }
@@ -434,22 +437,22 @@ void Variable::__set_value_func_error(double x)
 void Variable::set_value(double x) { (this->*_do_set_value)(x); }
 
 /* Restore buffered value. */
-void Variable::restore_value() { _value = _buffer_value; }
+void Variable::recover_value() { _value = _buffer_value; }
 
 /* Assign a scalar argument to function. */
-void Variable::assign_func_attr_scalar(const std::string &arg_name, bool is_arg, double x)
+void Variable::assign_func_attr(const std::string &arg_name, bool is_arg, double x)
 {
-    _func_ptr->assign_attr_scalar(arg_name, is_arg, x);
+    _func_ptr->assign_attr(arg_name, is_arg, x);
 }
 /* Assign a pointer argument to function. */
-void Variable::assign_func_attr_pointer(const std::string &arg_name, bool is_arg, const double *y)
+void Variable::assign_func_attr(const std::string &arg_name, bool is_arg, const double *y)
 {
-    _func_ptr->assign_attr_pointer(arg_name, is_arg, y);
+    _func_ptr->assign_attr(arg_name, is_arg, y);
 }
 /* Assign a function argument to function. */
-void Variable::assign_func_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+void Variable::assign_func_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
 {
-    _func_ptr->assign_attr_function(arg_name, is_arg, f);
+    _func_ptr->assign_attr(arg_name, is_arg, f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -459,22 +462,26 @@ void Variable::assign_func_attr_function(const std::string &arg_name, bool is_ar
 /* Assign distribution with constant arguments. */
 void Variable::assign_distr(const std::string &distr_name)
 {
-    _distr_ptr = distribution_switch(distr_name);
+    _distr_ptr = CompositeDistrRegistry(
+                     "distribution",
+                     {std::make_shared<ContinuosDistrRegistry>(),
+                      std::make_shared<DiscreteDistrRegistry>()})
+                     .get_distr(distr_name);
 }
 /* Assign a scalar argument to distribution. */
-void Variable::assign_distr_attr_scalar(const std::string &arg_name, bool is_arg, double x)
+void Variable::assign_distr_attr(const std::string &arg_name, bool is_arg, double x)
 {
-    _distr_ptr->assign_attr_scalar(arg_name, is_arg, x);
+    _distr_ptr->assign_attr(arg_name, is_arg, x);
 }
 /* Assign a pointer argument to distribution. */
-void Variable::assign_distr_attr_pointer(const std::string &arg_name, bool is_arg, const double *y)
+void Variable::assign_distr_attr(const std::string &arg_name, bool is_arg, const double *y)
 {
-    _distr_ptr->assign_attr_pointer(arg_name, is_arg, y);
+    _distr_ptr->assign_attr(arg_name, is_arg, y);
 }
 /* Assign a pointer argument to distribution. */
-void Variable::assign_distr_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+void Variable::assign_distr_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
 {
-    _distr_ptr->assign_attr_function(arg_name, is_arg, f);
+    _distr_ptr->assign_attr(arg_name, is_arg, f);
 }
 /* Initialize distribution reshaping. */
 void Variable::init_distr_reshaping()

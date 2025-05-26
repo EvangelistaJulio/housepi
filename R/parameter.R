@@ -95,12 +95,12 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param name `character(1)`\cr
     #' Name of the parameter.
-    #' @param value `double(1)`\cr
-    #' Initial value of the parameter.
     #' @param const `logical(1)`\cr
     #' If `FALSE` the parameter is treated as a constant.
     #' @param discr `logical(1)`\cr
     #' If `TRUE` the parameter is discrete.
+    #' @param value `double(1)`\cr
+    #' Initial value of the parameter.
     #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
     #' @param args named `list()`\cr
@@ -115,9 +115,9 @@ HousepiParameter <- R6::R6Class(
     #' @param max `double(1)`\cr
     #' Value of the maximum.
     add = function(name,
-                   value = NA,
                    const = NA,
                    discr = FALSE,
+                   value = NA,
                    prior = NA,
                    args = list(),
                    rule = NA,
@@ -152,9 +152,9 @@ HousepiParameter <- R6::R6Class(
           self$defs,
           data.frame(
             name = name,
-            value = value,
             const = TRUE,
             discr = is.integer(value),
+            value = value,
             prior = NA,
             arg_key = NA,
             arg_val = NA,
@@ -194,9 +194,9 @@ HousepiParameter <- R6::R6Class(
           self$defs,
           data.frame(
             name = name,
-            value = value,
             const = FALSE,
             discr = isTRUE(discr),
+            value = value,
             prior = prior,
             arg_key = arg_key_,
             arg_val = arg_val_,
@@ -307,7 +307,7 @@ HousepiParameter <- R6::R6Class(
     #' @description
     #' List containing current parameter definitions.
     #'
-    #' @return `list()`)
+    #' @return `list()`
     as_list = function() {
       output <- list()
       for (r in seq_len(dim(self$defs)[1])) {

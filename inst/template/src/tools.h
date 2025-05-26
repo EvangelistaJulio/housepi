@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <functional>
+#include <algorithm>
 
 /* DEVELOPER: flag used to predispose to different wrapper
 #ifndef _HOUSEPI_RCPP
@@ -72,11 +74,11 @@ constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
 
 // attribute aliases
 #define ATTR_ARGUMENT true // default argument
-#define ATTR_RANGE false  // range argument
+#define ATTR_RANGE false   // range argument
 
 // variable parts aliases
-#define VAR_FUNCTION true // pass to Variable function
-#define VAR_MODEL false   //  pass to Variable model
+#define VAR_FUNCTION false // pass to Variable function
+#define VAR_MODEL true     //  pass to Variable model
 
 // file formatters
 constexpr char C_DELIM = ',';      // file delimiter
@@ -186,7 +188,7 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
     return x;
 }
 
-/* Check if a given value is contained inside a container. */
+// check if a given value is inside a container
 template <typename Container, typename T>
 bool contains(const Container &c, const T &value)
 {

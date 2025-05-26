@@ -7,6 +7,28 @@
 Help with augmented variable definitions of model Rcpp object.
 }
 \keyword{internal}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{defs}}{\code{data.frame}\cr
+Augmented variable formatted definitions.}
+}
+\if{html}{\out{</div>}}
+}
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{param_required}}{\code{character()}\cr
+Find parameters required by augmented variable definitions.}
+
+\item{\code{augm_required}}{\code{character()}\cr
+Find augmented required by augmented variable definitions.}
+
+\item{\code{data_required}}{\code{character()}\cr
+Find data required by augmented variable definitions.}
+}
+\if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
@@ -24,15 +46,6 @@ Help with augmented variable definitions of model Rcpp object.
 \if{html}{\out{<a id="method-HousepiAugmented-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiAugmented-new}{}}}
 \subsection{Method \code{new()}}{
-Find parameters required by augmented variable definitions.
-
-
-Find augmented required by augmented variable definitions.
-
-
-Find data required by augmented variable definitions.
-
-
 New instance of class
 \link[=HousepiAugmented]{HousepiAugmented}.
 \subsection{Usage}{
@@ -91,11 +104,11 @@ Add a new augmented variable definition.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiAugmented$add(
   name = NA,
   status = NA,
+  const = NA,
+  discr = FALSE,
   func = NA,
   value = NA,
   init_rand = FALSE,
-  const = NA,
-  discr = FALSE,
   model = NA,
   args = NULL,
   min = NA,
@@ -116,6 +129,15 @@ Name of the augmented variable.}
 The associated status of the definition.
 Default NA is for all infectious.}
 
+\item{\code{const}}{\code{logical(1)}\cr
+If \code{FALSE} the augmented variable is treated as a constant.}
+
+\item{\code{discr}}{\code{logical(1)}\cr
+IF \code{TRUE} the augmenter variable is discrete.}
+
+\item{\code{func}}{\code{character()}\cr
+Name of the augmented function.}
+
 \item{\code{value}}{\code{double(1)} | \code{character(1)}\cr
 One between:
 \itemize{
@@ -126,12 +148,6 @@ One between:
 
 \item{\code{init_rand}}{\code{character(1)}\cr
 If \code{TRUE} draw initial vale from model distribution.}
-
-\item{\code{const}}{\code{logical(1)}\cr
-If \code{FALSE} the augmented variable is treated as a constant.}
-
-\item{\code{discr}}{\code{logical(1)}\cr
-IF \code{TRUE} the augmenter variable is discrete.}
 
 \item{\code{model}}{\code{character(1)}\cr
 Name of the model distribution.}

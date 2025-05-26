@@ -32,7 +32,8 @@ namespace bax
     class EscapePattern
     {
     public:
-        EscapePattern(ushort N_star) : _N_star(N_star) {}
+        EscapePattern(ushort N_star)
+            : _N_star(N_star) {}
         ~EscapePattern() {}
 
         void add_entry(ushort new_entry);

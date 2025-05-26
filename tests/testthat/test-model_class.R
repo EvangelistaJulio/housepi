@@ -118,7 +118,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
   hmc <- HouseholdModel$new("augm-incubation-from-delays")
   withr::defer(rm(hmc))
   hmc$load_param_list(shape = shape, scale = scale)
-  hmc$load_augm_list(exposure = "t1@D", onset = "t2@D")
+  hmc$load_augm_list(incub_period = "t2@D - t1@D")
 
   expect_warning(
     from_model <- hmc$loglikelihood(dataset),

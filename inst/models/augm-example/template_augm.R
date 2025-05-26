@@ -8,6 +8,11 @@ list(
     value = "onset_max@D",
     model = "unif", args = c(min = "onset_min@D", max = "onset_max@D"),
     rule = "norm", scale = 0.5
-  )
-  incub_period = "onset_time@A - infec_time@A"
+  ),
+  incub_period = "onset_time@A - infec_time@A",
+  proba = list(
+    func = "gamma",
+    func_args = c(x = "incub_period@A",  shape = 2, scale = 1)
+  ),
+  log_proba = "log(proba@A)"
 )

@@ -132,7 +132,7 @@ namespace tools
         {
 #ifdef _HOUSEPI_RCPP
             // Rcpp::warning(txt);
-            Rf_warningcall(R_NilValue, "%s", txt.c_str());
+            Rf_warningcall(R_NilValue, "%s\n", txt.c_str());
 #else
             std::cerr << "\nWarning: " + txt << std::endl;
 #endif
@@ -501,9 +501,13 @@ namespace tools
         else
         {
             std::ostringstream oss;
+            size_t max_opts_to_show = std::min(options.size(), static_cast<size_t>(5));
+
             oss << "\"" << options[0] << "\"";
-            for (size_t i = 1; i < options.size(); ++i)
+            for (size_t i = 1; i < max_opts_to_show; ++i)
                 oss << ", \"" << options[i] << "\"";
+            if (options.size() > max_opts_to_show)
+                oss << ", ...";
             return oss.str();
         }
     }
@@ -531,10 +535,10 @@ namespace tools
             return "";
         else if (dist_closest == 0)
             return "";
-        else if (closest.empty())
-            return "\nAvailable option(s): " + show_list(options) + ".";
+        else if (!closest.empty())
+            return " Available option(s): " + show_list(options) + ".";
         else
-            return "\nDid you mean \"" + closest + "\"?";
+            return " Did you mean \"" + closest + "\"?";
     }
 
     /* Check for missing entries given a vector of options. */
@@ -755,7 +759,8 @@ namespace progress
     ///////////////////////////////////////  Bar : Constructor  ///////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Bar::Bar(ulong total, const std::string &text, ulong thintime) : pImpl(std::make_unique<Impl>())
+    Bar::Bar(ulong total, const std::string &text, ulong thintime)
+        : pImpl(std::make_unique<Impl>())
     {
         pImpl->total = total;
         pImpl->verbose = thintime > 0;

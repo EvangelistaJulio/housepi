@@ -13,15 +13,6 @@ Help with calling methods from the Rcpp model object.
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{`matrix()`}}{| \code{list()} of \code{matrix()})
-Export the traces of last inference call.}
-
-\item{\code{`matrix()`}}{| \code{list()} of \code{matrix()})
-Export the traces of last inference call without loglikelihood.}
-
-\item{\code{reference}}{\code{matrix()}\cr
-Household loglikelihood traces.}
-
 \item{\code{last_data_cols}}{\code{character()}\cr
 Headers of the last dataset imported.}
 
@@ -49,13 +40,13 @@ A summary of house sizes in the dataset.}
 \item{\code{setup}}{\code{list()}\cr
 Last setup used by the build process.}
 
-\item{\code{`matrix()`}}{| \code{list()} of \code{matrix()})
+\item{\code{traces}}{\code{matrix()} | \code{list()} of \code{matrix()})
 Export the traces of last inference call.}
 
-\item{\code{`matrix()`}}{| \code{list()} of \code{matrix()})
+\item{\code{traces_no_loglike}}{\code{matrix()} | \code{list()} of \code{matrix()})
 Export the traces of last inference call without loglikelihood.}
 
-\item{\code{reference}}{\code{matrix()}\cr
+\item{\code{house_loglike_mtx}}{\code{matrix()}\cr
 Household loglikelihood traces.}
 }
 \if{html}{\out{</div>}}

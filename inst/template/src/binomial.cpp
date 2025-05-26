@@ -405,9 +405,9 @@ namespace bax
 
 		Arguments
 		---
-		N_star : n. of seropositves
-		commu_esc_proba : ordered community escape probabilities
-		p2p_esc_proba : ordered person-to-person escape probabilities
+		N_star = n. of seropositves
+		commu_esc_proba = ordered community escape probabilities
+		p2p_esc_proba = ordered person-to-person escape probabilities
 	*/
 	double chain_binomial_heter_loglikelihood(ushort N_star,
 											  const dbl_vec &commu_esc_proba,

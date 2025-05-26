@@ -198,9 +198,7 @@ int main(int argc, char *argv[])
         print_decorator("Dataset");
         user_model->show_summary();
 
-        //----- AUGMENTED -----//
-        if (user_model->is_augm_any())
-            print_decorator("Augmented"); // ... and then?! FIXME
+        // Missing show_augm
     }
 
     //=====================//
@@ -209,8 +207,8 @@ int main(int argc, char *argv[])
 
     if (is_loglikelihood)
     { //===== Evaluate Loglikelihood =====//
-        print_decorator("Loglikelihood", verbose,
-                        std::to_string(user_model->evaluate()));
+        print_decorator("Loglikelihood", verbose);
+        tools::print_stdout(std::to_string(user_model->evaluate()) + "\n");
     }
 
     else if (is_infer)

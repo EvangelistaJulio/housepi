@@ -7,6 +7,14 @@
 Help with parameter definitions of model Rcpp object.
 }
 \keyword{internal}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{defs}}{\code{data.frame}\cr
+Parameter formatted definitions.}
+}
+\if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
@@ -58,6 +66,18 @@ Remove a given parameter.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiParameter$remove(name, show_warnings = TRUE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{\code{character(1)}\cr
+Name of the parameter to remove.}
+
+\item{\code{show_warnings}}{\code{logical(1)}\cr
+If \code{TRUE} show warnings if parameter not found (default).
+If \code{FALSE} do not show warnings.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiParameter-add"></a>}}
@@ -67,9 +87,9 @@ Add a new parameter definition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiParameter$add(
   name,
-  value = NA,
   const = NA,
   discr = FALSE,
+  value = NA,
   prior = NA,
   args = list(),
   rule = NA,
@@ -79,6 +99,42 @@ Add a new parameter definition.
 )}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{\code{character(1)}\cr
+Name of the parameter.}
+
+\item{\code{const}}{\code{logical(1)}\cr
+If \code{FALSE} the parameter is treated as a constant.}
+
+\item{\code{discr}}{\code{logical(1)}\cr
+If \code{TRUE} the parameter is discrete.}
+
+\item{\code{value}}{\code{double(1)}\cr
+Initial value of the parameter.}
+
+\item{\code{prior}}{\code{character(1)}\cr
+Name of the prior distribution.}
+
+\item{\code{args}}{named \code{list()}\cr
+Arguments for the prior distribution.}
+
+\item{\code{rule}}{\code{character(1)}\cr
+Name of the inference proposal rule.}
+
+\item{\code{scale}}{\code{double(1)}\cr
+Scale parameter for the proposal rule.
+Changed automatically during inference if \code{n_adpat}>0.}
+
+\item{\code{min}}{\code{double(1)}\cr
+Value of the minimum.}
+
+\item{\code{max}}{\code{double(1)}\cr
+Value of the maximum.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiParameter-load_list"></a>}}

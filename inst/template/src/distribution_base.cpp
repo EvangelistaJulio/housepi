@@ -21,64 +21,88 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Base Distribution - constructor  ////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+Distribution::Distribution(const std::string &name,
+                           const str_vec &arg_name,
+                           const dbl_vec &arg_value,
+                           double domain_min,
+                           double domain_max,
+                           bool is_min_open,
+                           bool is_max_open)
+    // each distribution has extra argument "x" for return_value
+    : Function(name, arg_name + str_vec({"x"}), arg_value + dbl_vec({HOUSEPI_NA_DOUBLE}),
+               domain_min, domain_max, is_min_open, is_max_open)
+{
+}
+Distribution::~Distribution() = default;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - wrapper  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::pdf(double x, const dbl_vec &opts) const
+double Distribution::pdf(double x) const
 {
-    return (this->*_do_pdf)(x, opts);
+    return (this->*_do_pdf)(x);
 }
-double Distribution::cdf(double x, const dbl_vec &opts) const
+double Distribution::cdf(double x) const
 {
-    return (this->*_do_cdf)(x, opts);
+    return (this->*_do_cdf)(x);
 }
-double Distribution::logpdf(double x, const dbl_vec &opts) const
+double Distribution::logpdf(double x) const
 {
-    return (this->*_do_logpdf)(x, opts);
+    return (this->*_do_logpdf)(x);
 }
-double Distribution::logratio(double xold, double xnew, const dbl_vec &opts) const
+double Distribution::logratio(double xold, double xnew) const
 {
     if (xold == xnew)
         return 0.;
     else
-        return (this->*_do_logratio)(xold, xnew, opts);
+        return (this->*_do_logratio)(xold, xnew);
 }
 double Distribution::rand(rnd_gen &prng)
 {
     update_args();
     return (this->*_do_rand)(prng);
 }
+double Distribution::return_value() const
+{
+    const double x = get_arg(n_args() - 1);
+    if (valid(x))
+        return pdf(x);
+    else
+        return 0.;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - virtual  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::raw_pdf(double x, const dbl_vec &opts) const
+double Distribution::raw_pdf(double x) const
 {
     UNUSED(x);
-    UNUSED(opts);
     throw std::invalid_argument(
         "Attempt to call undefined method \"pdf\" of distribution \"" + show_name() + "\".");
 }
-double Distribution::raw_cdf(double x, const dbl_vec &opts) const
+double Distribution::raw_cdf(double x) const
 {
     UNUSED(x);
-    UNUSED(opts);
     throw std::invalid_argument(
         "Attempt to call undefined method \"cdf\" of distribution \"" + show_name() + "\".");
 }
-double Distribution::raw_logpdf(double x, const dbl_vec &opts) const
+double Distribution::raw_logpdf(double x) const
 {
     UNUSED(x);
-    UNUSED(opts);
+
     throw std::invalid_argument(
         "Attempt to call undefined method \"logpdf\" of distribution \"" + show_name() + "\".");
 }
-double Distribution::raw_logratio(double xold, double xnew, const dbl_vec &opts) const
+double Distribution::raw_logratio(double xold, double xnew) const
 {
     UNUSED(xold);
     UNUSED(xnew);
-    UNUSED(opts);
+
     return 0.;
 }
 void Distribution::update_args() {};
@@ -119,21 +143,21 @@ double Distribution::_rejection_sampling(rnd_gen &prng,
 ////////////////////////////////  Base Distribution : defaults  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__default_pdf(double x, const dbl_vec &opts) const
+double Distribution::__default_pdf(double x) const
 {
-    return (this->*_do_trunc)(raw_pdf(x, opts), opts);
+    return (this->*_do_trunc)(raw_pdf(x));
 }
-double Distribution::__default_cdf(double x, const dbl_vec &opts) const
+double Distribution::__default_cdf(double x) const
 {
-    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(x, opts), opts), opts);
+    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(x)));
 }
-double Distribution::__default_logpdf(double x, const dbl_vec &opts) const
+double Distribution::__default_logpdf(double x) const
 {
-    return (this->*_do_logtrunc)(raw_logpdf(x, opts), opts);
+    return (this->*_do_logtrunc)(raw_logpdf(x));
 }
-double Distribution::__default_logratio(double xold, double xnew, const dbl_vec &opts) const
+double Distribution::__default_logratio(double xold, double xnew) const
 {
-    return raw_logratio(xold, xnew, opts);
+    return raw_logratio(xold, xnew);
 }
 double Distribution::__default_rand(rnd_gen &prng)
 {
@@ -144,48 +168,48 @@ double Distribution::__default_rand(rnd_gen &prng)
 ///////////////////////////  Base Distribution : discretized defined ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__discr_defined_pdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_defined_pdf(double x) const
 {
-    return __default_pdf(std::floor(x), opts);
+    return __default_pdf(std::floor(x));
 }
-double Distribution::__discr_defined_cdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_defined_cdf(double x) const
 {
-    return __default_cdf(std::floor(x), opts);
+    return __default_cdf(std::floor(x));
 }
-double Distribution::__discr_defined_logpdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_defined_logpdf(double x) const
 {
-    return __default_logpdf(std::floor(x), opts);
+    return __default_logpdf(std::floor(x));
 }
-double Distribution::__discr_defined_logratio(double xold, double xnew, const dbl_vec &opts) const
+double Distribution::__discr_defined_logratio(double xold, double xnew) const
 {
-    return __default_logratio(std::floor(xold), std::floor(xnew), opts);
+    return __default_logratio(std::floor(xold), std::floor(xnew));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////  Base Distribution : discretized CENTER /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__discr_center_pdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_center_pdf(double x) const
 {
     const double d = round(x);
-    return (this->*_do_trunc)(raw_cdf(d + .5, opts) - raw_cdf(d - .5, opts), opts);
+    return (this->*_do_trunc)(raw_cdf(d + .5) - raw_cdf(d - .5));
 }
 
-double Distribution::__discr_center_cdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_center_cdf(double x) const
 {
     const double d = round(x);
-    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(d + .5, opts), opts), opts);
+    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(d + .5)));
 }
 
-double Distribution::__discr_center_logpdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_center_logpdf(double x) const
 {
-    return std::log(__discr_center_pdf(x, opts));
+    return std::log(__discr_center_pdf(x));
 }
 
-double Distribution::__discr_center_logratio(double xold, double xnew, const dbl_vec &opts) const
+double Distribution::__discr_center_logratio(double xold, double xnew) const
 {
     const double dold = std::round(xold), dnew = std::round(xnew);
-    return std::log((raw_cdf(dnew + .5, opts) - raw_cdf(dnew - .5, opts)) / (raw_cdf(dold + .5, opts) - raw_cdf(dold - .5, opts)));
+    return std::log((raw_cdf(dnew + .5) - raw_cdf(dnew - .5)) / (raw_cdf(dold + .5) - raw_cdf(dold - .5)));
 }
 
 double Distribution::__discr_center_rand(rnd_gen &prng) { return static_cast<double>(std::lround(__default_rand(prng))); }
@@ -194,26 +218,26 @@ double Distribution::__discr_center_rand(rnd_gen &prng) { return static_cast<dou
 /////////////////////////////  Base Distribution : discretized LEFT  ////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__discr_left_pdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_left_pdf(double x) const
 {
     const double d = std::floor(x);
-    return (this->*_do_trunc)(raw_cdf(d + 1., opts) - raw_cdf(d, opts), opts);
+    return (this->*_do_trunc)(raw_cdf(d + 1.) - raw_cdf(d));
 }
 
-double Distribution::__discr_left_cdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_left_cdf(double x) const
 {
-    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(std::floor(x) + 1., opts), opts), opts);
+    return (this->*_do_trunc)((this->*_do_shift)(raw_cdf(std::floor(x) + 1.)));
 }
 
-double Distribution::__discr_left_logpdf(double x, const dbl_vec &opts) const
+double Distribution::__discr_left_logpdf(double x) const
 {
-    return std::log(__discr_left_pdf(x, opts));
+    return std::log(__discr_left_pdf(x));
 }
 
-double Distribution::__discr_left_logratio(double xold, double xnew, const dbl_vec &opts) const
+double Distribution::__discr_left_logratio(double xold, double xnew) const
 {
     const double dold = std::floor(xold), dnew = std::floor(xnew);
-    return std::log((raw_cdf(dnew + 1., opts) - raw_cdf(dnew, opts)) / (raw_cdf(dold + 1., opts) - raw_cdf(dold, opts)));
+    return std::log((raw_cdf(dnew + 1.) - raw_cdf(dnew)) / (raw_cdf(dold + 1.) - raw_cdf(dold)));
 }
 
 double Distribution::__discr_left_rand(rnd_gen &prng)
@@ -232,27 +256,23 @@ double Distribution::__discr_left_rand(rnd_gen &prng)
 //////////////////////////  Base Distribution : truncation (default)  ///////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__trunc_dummy(double x, const dbl_vec &opts) const
-{
-    UNUSED(opts);
-    return x;
-}
+double Distribution::__trunc_dummy(double x) const { return x; }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////  Base Distribution : truncation (continuos)  //////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__trunc_min(double x, const dbl_vec &opts) const
+double Distribution::__trunc_min(double x) const
 {
-    return x / (1. - raw_cdf(get_min(), opts));
+    return x / (1. - raw_cdf(get_min()));
 }
-double Distribution::__trunc_max(double x, const dbl_vec &opts) const
+double Distribution::__trunc_max(double x) const
 {
-    return x / (raw_cdf(get_max(), opts));
+    return x / (raw_cdf(get_max()));
 }
-double Distribution::__trunc_both_sides(double x, const dbl_vec &opts) const
+double Distribution::__trunc_both_sides(double x) const
 {
-    return x / (raw_cdf(get_max(), opts) - raw_cdf(get_min(), opts));
+    return x / (raw_cdf(get_max()) - raw_cdf(get_min()));
 }
 double Distribution::__trunc_rand(rnd_gen &prng)
 {
@@ -263,17 +283,17 @@ double Distribution::__trunc_rand(rnd_gen &prng)
 //////////////////////  Base Distribution : truncation (discrete defined)  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__trunc_min_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__trunc_min_discr_defined(double x) const
 {
-    return x / (1. - raw_cdf(get_min() - 1, opts));
+    return x / (1. - raw_cdf(get_min() - 1));
 }
-double Distribution::__trunc_max_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__trunc_max_discr_defined(double x) const
 {
-    return x / (raw_cdf(get_max() + 1, opts));
+    return x / (raw_cdf(get_max() + 1));
 }
-double Distribution::__trunc_both_sides_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__trunc_both_sides_discr_defined(double x) const
 {
-    return x / (raw_cdf(get_max() + 1, opts) - raw_cdf(get_min() - 1, opts));
+    return x / (raw_cdf(get_max() + 1) - raw_cdf(get_min() - 1));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -281,17 +301,17 @@ double Distribution::__trunc_both_sides_discr_defined(double x, const dbl_vec &o
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 //----- Case of CENTER Discretization -----//
-double Distribution::__trunc_min_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__trunc_min_discr_center(double x) const
 {
-    return x / (1. - raw_cdf(std::ceil(get_min()) - .5, opts));
+    return x / (1. - raw_cdf(std::ceil(get_min()) - .5));
 }
-double Distribution::__trunc_max_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__trunc_max_discr_center(double x) const
 {
-    return x / (raw_cdf(std::floor(get_max()) + .5, opts));
+    return x / (raw_cdf(std::floor(get_max()) + .5));
 }
-double Distribution::__trunc_both_sides_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__trunc_both_sides_discr_center(double x) const
 {
-    return x / (raw_cdf(std::floor(get_max()) + .5, opts) - raw_cdf(std::ceil(get_min()) - .5, opts));
+    return x / (raw_cdf(std::floor(get_max()) + .5) - raw_cdf(std::ceil(get_min()) - .5));
 }
 double Distribution::__trunc_rand_discr_center(rnd_gen &prng)
 {
@@ -302,17 +322,17 @@ double Distribution::__trunc_rand_discr_center(rnd_gen &prng)
 ////////////////////  Base Distribution : truncation (LEFT discretization)  /////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__trunc_min_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__trunc_min_discr_left(double x) const
 {
-    return x / (1. - raw_cdf(std::floor(get_min()), opts));
+    return x / (1. - raw_cdf(std::floor(get_min())));
 }
-double Distribution::__trunc_max_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__trunc_max_discr_left(double x) const
 {
-    return x / (raw_cdf(std::ceil(get_max() + 1), opts));
+    return x / (raw_cdf(std::ceil(get_max() + 1)));
 }
-double Distribution::__trunc_both_sides_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__trunc_both_sides_discr_left(double x) const
 {
-    return x / (raw_cdf(std::ceil(get_max() + 1), opts) - raw_cdf(std::floor(get_min()), opts));
+    return x / (raw_cdf(std::ceil(get_max() + 1)) - raw_cdf(std::floor(get_min())));
 }
 double Distribution::__trunc_rand_discr_left(rnd_gen &prng)
 {
@@ -330,9 +350,8 @@ double Distribution::__trunc_rand_discr_left(rnd_gen &prng)
 ////////////////////////  Base Distribution : log-truncation (default)  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__logtrunc_dummy(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_dummy(double x) const
 {
-    UNUSED(opts);
     return x;
 }
 
@@ -340,68 +359,68 @@ double Distribution::__logtrunc_dummy(double x, const dbl_vec &opts) const
 ///////////////////////  Base Distribution : log-truncation (continuos)  ////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__logtrunc_min(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_min(double x) const
 {
-    return x - std::log(1. - raw_cdf(get_min(), opts));
+    return x - std::log(1. - raw_cdf(get_min()));
 }
-double Distribution::__logtrunc_max(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_max(double x) const
 {
-    return x - std::log(raw_cdf(get_max(), opts));
+    return x - std::log(raw_cdf(get_max()));
 }
-double Distribution::__logtrunc_both_sides(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_both_sides(double x) const
 {
-    return x - std::log(raw_cdf(get_max(), opts) - raw_cdf(get_min(), opts));
+    return x - std::log(raw_cdf(get_max()) - raw_cdf(get_min()));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////  Base Distribution : log-truncation (discrete defined)  ////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__logtrunc_min_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_min_discr_defined(double x) const
 {
-    return x - std::log(1. - raw_cdf(get_min() - 1, opts));
+    return x - std::log(1. - raw_cdf(get_min() - 1));
 }
-double Distribution::__logtrunc_max_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_max_discr_defined(double x) const
 {
-    return x - std::log(raw_cdf(get_max() + 1, opts));
+    return x - std::log(raw_cdf(get_max() + 1));
 }
-double Distribution::__logtrunc_both_sides_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_both_sides_discr_defined(double x) const
 {
-    return x - std::log(raw_cdf(get_max() + 1, opts) - raw_cdf(get_min() - 1, opts));
+    return x - std::log(raw_cdf(get_max() + 1) - raw_cdf(get_min() - 1));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////  Base Distribution : log-truncation (CENTER discretization)  /////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__logtrunc_min_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_min_discr_center(double x) const
 {
-    return x - std::log(1. - raw_cdf(std::ceil(get_min()) - .5, opts));
+    return x - std::log(1. - raw_cdf(std::ceil(get_min()) - .5));
 }
-double Distribution::__logtrunc_max_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_max_discr_center(double x) const
 {
-    return x - std::log(raw_cdf(std::floor(get_max()) + .5, opts));
+    return x - std::log(raw_cdf(std::floor(get_max()) + .5));
 }
-double Distribution::__logtrunc_both_sides_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_both_sides_discr_center(double x) const
 {
-    return x - std::log(raw_cdf(std::floor(get_max()) + .5, opts) - raw_cdf(std::ceil(get_min()) - .5, opts));
+    return x - std::log(raw_cdf(std::floor(get_max()) + .5) - raw_cdf(std::ceil(get_min()) - .5));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////  Base Distribution : log-truncation (LEFT discretization)  //////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__logtrunc_min_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_min_discr_left(double x) const
 {
-    return x - std::log(1. - raw_cdf(std::floor(get_min()), opts));
+    return x - std::log(1. - raw_cdf(std::floor(get_min())));
 }
-double Distribution::__logtrunc_max_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_max_discr_left(double x) const
 {
-    return x - std::log(raw_cdf(std::ceil(get_max()), opts));
+    return x - std::log(raw_cdf(std::ceil(get_max())));
 }
-double Distribution::__logtrunc_both_sides_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__logtrunc_both_sides_discr_left(double x) const
 {
-    return x - std::log(raw_cdf(std::ceil(get_max()), opts) - raw_cdf(std::floor(get_min()), opts));
+    return x - std::log(raw_cdf(std::ceil(get_max())) - raw_cdf(std::floor(get_min())));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -415,26 +434,25 @@ double Distribution::__logtrunc_both_sides_discr_left(double x, const dbl_vec &o
 //////////////////////  Base Distribution : shift cumulative (functional)  //////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::__shift_dummy(double x, const dbl_vec &opts) const
+double Distribution::__shift_dummy(double x) const
 {
-    UNUSED(opts);
     return x;
 }
-double Distribution::__shift_min(double x, const dbl_vec &opts) const
+double Distribution::__shift_min(double x) const
 {
-    return x - raw_cdf(get_min(), opts);
+    return x - raw_cdf(get_min());
 }
-double Distribution::__shift_min_discr_defined(double x, const dbl_vec &opts) const
+double Distribution::__shift_min_discr_defined(double x) const
 {
-    return x - raw_cdf(get_min() - 1, opts);
+    return x - raw_cdf(get_min() - 1);
 }
-double Distribution::__shift_min_discr_center(double x, const dbl_vec &opts) const
+double Distribution::__shift_min_discr_center(double x) const
 {
-    return x - raw_cdf(std::floor(get_min()) - .5, opts);
+    return x - raw_cdf(std::floor(get_min()) - .5);
 }
-double Distribution::__shift_min_discr_left(double x, const dbl_vec &opts) const
+double Distribution::__shift_min_discr_left(double x) const
 {
-    return x - raw_cdf(std::floor(get_min()), opts);
+    return x - raw_cdf(std::floor(get_min()));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -645,9 +663,7 @@ void Distribution::init_min_zero_discr_defined_reshaping()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return values to showcase the profile of the distribution. */
-const std::vector<dbl_vec> Distribution::showcase(const dbl_vec &opts,
-                                                  int n_bins,
-                                                  double ytol) const
+const std::vector<dbl_vec> Distribution::showcase(int n_bins, double ytol) const
 {
     if (n_bins < 1)
         throw std::invalid_argument("Number of bins should be greater than 0.");
@@ -659,14 +675,14 @@ const std::vector<dbl_vec> Distribution::showcase(const dbl_vec &opts,
     if (tools::is_na(upper))
     {
         upper = 10. + (tools::is_na(lower) ? 0 : lower);
-        while ((1. - cdf(upper, opts) > ytol) && (upper < DEFAULT_MAX_SIZE))
+        while ((1. - cdf(upper) > ytol) && (upper < DEFAULT_MAX_SIZE))
             ++upper;
     }
 
     if (tools::is_na(lower))
     {
         lower = -10.;
-        while ((cdf(lower, opts) > ytol) && (lower > -DEFAULT_MAX_SIZE))
+        while ((cdf(lower) > ytol) && (lower > -DEFAULT_MAX_SIZE))
             --lower;
     }
 
@@ -691,20 +707,19 @@ const std::vector<dbl_vec> Distribution::showcase(const dbl_vec &opts,
     {
         double x = lower + i * delta_x;
         gentime[i] = x;
-        inst[i] = pdf(x, opts);
-        cumul[i] = cdf(x, opts);
+        inst[i] = pdf(x);
+        cumul[i] = cdf(x);
     }
 
     return {gentime, inst, cumul};
 }
 
 /* Developer method to check for normalization. */
-double Distribution::__d_e_v__check__pdf__norm(const dbl_vec &opts,
-                                               int n_bins,
+double Distribution::__d_e_v__check__pdf__norm(int n_bins,
                                                double ytol) const
 {
     // produce a showcase of the distribution profile
-    const std::vector<dbl_vec> values = showcase(opts, n_bins, ytol);
+    const std::vector<dbl_vec> values = showcase(n_bins, ytol);
 
     // compute mean and variance
     const dbl_vec &x = values[0];

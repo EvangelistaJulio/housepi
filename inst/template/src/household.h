@@ -36,6 +36,39 @@
 class Individual
 {
 public:
+	//===== CONSTRUCTOR =====//
+	Individual(size_t index = 0,
+			   const std::string &id = HOUSEPI_NA_STRING,
+			   int status = MISSING_STATUS,
+			   const dataIDmap<double> &data = {});
+	~Individual();
+
+	//===== GETTER =====//
+	const std::string &id() const;
+	size_t index() const;
+	int status() const;
+
+	double data(const dataID &d) const;
+	double group_rate(const rateID &r) const;
+	double augm(const augmID &a) const;
+	Variable &get_augm_variable(const augmID &a);
+
+	double get_augm_model_loglike() const;
+
+	//===== SETTER =====//
+	void set_status(int s);
+	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
+	void clear_augm(const augmID &a);
+	void assign_augm(const augmID &a,
+					 const std::string &name,
+					 double value,
+					 bool is_discrete,
+					 bool is_constant,
+					 const std::string &func_name,
+					 const std::string &model_name);
+	void init_augm_model(const std::vector<augmID> &augm_model_list);
+
+private:
 	// individual group rate nested class
 	struct GroupRate
 	{
@@ -49,30 +82,16 @@ public:
 		double get() const;
 	};
 
-	std::string id = HOUSEPI_NA_STRING; // user id
-	size_t index = 0;					// internal index
-	int status = MISSING_STATUS;		// status of the individual
+	std::string _id = HOUSEPI_NA_STRING; // user id
+	size_t _index = 0;					 // internal index
+	int _status = MISSING_STATUS;		 // status of the individual
 
 	// NOTE: I am forced to store numerical variables
-	dataIDmap<double> data_map = {};   // database associated
-	augmIDmap<Variable> augm_map = {}; // augmented variables
-	rateIDmap<GroupRate> rate_map;	   // group rates associated
+	dataIDmap<double> _data_map = {};	 // database associated
+	augmIDmap<Variable> _augm_map = {};	 // augmented variables
+	rateIDmap<GroupRate> _rate_map = {}; // group rates associated
 
-	//=======================//
-	//===== CONSTRUCTOR =====//
-	//=======================//
-
-	Individual(size_t index = 0,
-			   const std::string &id = HOUSEPI_NA_STRING,
-			   int status = MISSING_STATUS,
-			   const dataIDmap<double> &data = {});
-	~Individual();
-
-	//==================//
-	//===== SETTER =====//
-	//==================//
-
-	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
+	std::vector<std::function<double()>> _augm_model_logpdfs = {};
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -86,6 +105,7 @@ public:
 //////////////////////////////////////  Household : class  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Household class */
 class Household
 {
 public:
@@ -133,9 +153,6 @@ public:
 	//===== INDIVIDUAL =====//
 	//======================//
 
-	//----- Individual : Setter -----//
-	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
-
 	//----- Individual : Getter -----//
 	const std::string &id(indiv i) const;
 	size_t index(indiv i) const;
@@ -143,6 +160,10 @@ public:
 	double data(indiv i, const dataID &d) const;
 	double group_rate(indiv i, const rateID &r) const;
 	double contact_rate(indiv from, indiv to) const;
+	Individual &get_member(indiv i);
+
+	//----- Individual : Setter -----//
+	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
 
 	//============================//
 	//===== EXTRA ATTRIBUTES =====//
@@ -150,7 +171,7 @@ public:
 
 	bool is_any_cache();
 	void buffer_all_cache();
-	void restore_all_cache();
+	void recover_all_cache();
 
 	//----- Vector of integers -----//
 	void allocate_cache_integer_vector(const cacheID &e);
@@ -163,63 +184,14 @@ public:
 	//----- Matrix of doubles -----//
 	void allocate_cache_double_matrix(const cacheID &e);
 	matrix<double> &cache_double_matrix(const cacheID &e);
-	
+
 	//=====================//
 	//===== AUGMENTED =====//
 	//=====================//
 
-	//----- Augmented : Setter -----//
-	void assign_augm(indiv i,
-					 const augmID &a,
-					 const std::string &name,
-					 double value,
-					 bool is_discrete,
-					 bool is_constant,
-					 const std::string &func_name,
-					 const std::string &model_name);
-
-	void assign_augm_attr_scalar(indiv i, const augmID &a,
-								 const std::string &arg_name,
-								 bool is_arg,
-								 double arg_value,
-								 bool is_var_model);
-	void assign_augm_attr_pointer(indiv i, const augmID &a,
-								  const std::string &arg_name,
-								  bool is_arg,
-								  const double *ptr_to_arg_value,
-								  bool is_var_model);
-	void assign_augm_attr_function(indiv i, const augmID &a,
-								   const std::string &arg_name,
-								   bool is_arg,
-								   std::shared_ptr<Function> f,
-								   bool is_var_model);
-
-	void init_augm_model_reshaping(indiv i, const augmID &a);
-
-	void assign_augm_proposer(indiv i,
-							  const augmID &a = HOUSEPI_NA_STRING,
-							  const std::string &rule_name = HOUSEPI_NA_STRING,
-							  double rule_scale = HOUSEPI_NA_DOUBLE,
-							  double rule_from = HOUSEPI_NA_DOUBLE);
-
-	void set_augm_value(indiv i, const augmID &a, double x);
-	void augm_model_rand(indiv i, const augmID &a, rnd_gen &prng);
-	bool propose_valid_augm_move(indiv i, const augmID &a, rnd_gen &prng);
-	void restore_augm_value(indiv i, const augmID &a);
-	void clear_augm(indiv i, const augmID &a);
-
-	//----- Augmented : Getter -----//
 	double augm(indiv i, const augmID &a) const;
-	const double *get_augm_pointer(indiv i, const augmID &a) const;
-	const std::shared_ptr<Function> get_augm_function(indiv i, const augmID &a) const;
-	bool is_augm_constant(indiv i, const augmID &a) const;
-	bool is_augm_function(indiv i, const augmID &a) const;
-
-	double augm_model_logpdf(indiv i, const augmID &a) const;
-	double augm_model_logratio(indiv i, const augmID &a) const;
-	double augm_propose_logratio(indiv i, const augmID &a) const;
-	double augm_move_logratio(indiv i, const augmID &a) const;
-
+	void set_augm_value(indiv i, const augmID &a, double x);
+	
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
 	//=========================//
@@ -227,12 +199,12 @@ public:
 	//----- Loglikelihood : Setter -----//
 	void set_augm_loglike(double x);
 	void set_obs_loglike(double x);
-	void increment_augm_loglike(double x);
-	void restore_loglike();
+	void recover_loglike_value();
 
 	//----- Loglikelihood : Getter -----//
 	double get_augm_loglike() const;
 	double get_obs_loglike() const;
+	double get_delta_augm_loglike() const;
 	double get_delta_obs_loglike() const;
 
 	//=======================//

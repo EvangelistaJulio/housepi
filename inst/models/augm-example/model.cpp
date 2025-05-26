@@ -13,34 +13,12 @@
 
 #include "model.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Global variables  //////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-//----- Pointer to incubation period distribution -----//
-std::shared_ptr<Distribution> incub_distr_ptr;
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// Model : init model for inference  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* [CHANGE-ME] Declare a common distribution. */
-void Model::init_model_for_inference()
-{
-	// choose the incubation period distribution
-	incub_distr_ptr = distribution_switch("gamma");
-
-	// arguments are pointers to the respective parameters
-	incub_distr_ptr->assign_attr_pointer("shape", ATTR_ARGUMENT, param_pointer("shape"));
-	incub_distr_ptr->assign_attr_pointer("scale", ATTR_ARGUMENT, param_pointer("scale"));
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
@@ -49,17 +27,8 @@ void Model::init_model_for_inference()
 /* Compute the log-likelihood within household. */
 double Model::compute_house_obs_loglike(Household &house) const
 {
-	double incub, output = 0.0;
-
-	for (indiv i = 0; i < house.size(); ++i)
-	{
-		incub = house.augm(i, "incub_period");
-
-		if (incub_distr_ptr->valid(incub))
-			output += incub_distr_ptr->logpdf(incub);
-		else
-			return -1e20;
-	}
-
+	double output = 0.0;
+	for (indiv i : house.infected_status_list())
+		output += house.augm(i, "log_proba");
 	return output;
 }

@@ -1,15 +1,25 @@
 library(testthat)
 
 test_that("String function extraction", {
-  s <- "=alpha@P"
-  extract_augm_func_(s)
+  x <- housepi:::extract_func_("=alpha@P")
+  expect_equal(x$func, "eq")
+  expect_equal(x$key, "x")
+  expect_equal(x$val, "alpha")
+  expect_equal(x$at, "P")
 
-  s <- "=alpha@P+"
-  expect_error(extract_augm_func_(s))
+  expect_equal(housepi:::extract_func_("alpha@P+beta@P")$val,
+               housepi:::type_join_(c("alpha", "beta")))
 
-  s <- "alpha@P+beta@P"
-  expect_equal(extract_augm_func_(s)$var, type_join_(c("alpha", "beta")))
+  x <- housepi:::extract_func_("log ( alpha @ A ) ")
+  expect_equal(x$func, "log")
+  expect_equal(x$key, "x")
+  expect_equal(x$val, "alpha")
+  expect_equal(x$at, "A")
 
-  s <- "alpha@P+beta@P+"
-  expect_error(extract_augm_func_(s))
+  expect_error(housepi:::extract_augm_func_("=alpha@P+"))
+  expect_error(housepi:::extract_func_("log ( + alpha@P  )"))
+  expect_error(housepi:::extract_func_("arc ( alpha@P  )"))
+  expect_error(housepi:::extract_func_("log ( alpha@P  "))
+  expect_error(housepi:::extract_func_("log alpha@P )"))
+  expect_error(housepi:::extract_func_("log ( alpha @ B )  "))
 })

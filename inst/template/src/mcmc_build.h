@@ -55,7 +55,8 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Impl();
+    Impl(std::function<double(Household &)> callback_house_loglike,
+         std::function<void(Household &, indiv)> callback_update_cache);
     ~Impl();
 
     //===================================//
@@ -129,7 +130,7 @@ public:
     void update_param_accept_rate(const parID &p, bool is_accepted);
     void adapt_param_rule(const parID &p, double ratio);
 
-    void restore_parameter(const parID &p, bool cache_depen);
+    void recover_parameter(const parID &p, bool cache_depen);
 
     //==========================//
     //===== HOUSEHOLD DATA =====//
@@ -175,6 +176,7 @@ public:
     std::map<int, std::vector<augmID>> augm_status_map_infer = {};
 
     //----- Augmented - Setter -----//
+    void init_augmented_variables();
     void clear_all_augm(Household &house, indiv i);
     void assign_all_augm(Household &house, indiv i);
 
@@ -195,21 +197,22 @@ public:
         std::shared_ptr<Distribution> profile = nullptr;
 
         //===== CONSTRUCTOR =====//
-        InfecProfile(MCMC::Impl &ptr) : profile(std::make_unique<Distribution>()),
-                                        pImpl(ptr) {}
+        InfecProfile(MCMC::Impl &ptr)
+            : profile(std::make_unique<Distribution>()),
+              pImpl(ptr) {}
         ~InfecProfile() = default;
 
         //===== SETTER =====//
         void build();
         void init_lookup();
-        void restore_lookup();
+        void recover_lookup();
         void update_lookup();
         void assign_template(std::map<std::string, std::string> &x);
 
         //===== GETTER =====//
         bool is_lookup() const;
-        double inst(double t, const dbl_vec &opts) const;
-        double cumul(double t, const dbl_vec &opts) const;
+        double inst(double t) const;
+        double cumul(double t) const;
 
     private:
         MCMC::Impl &pImpl; // pointer to external class
@@ -224,27 +227,27 @@ public:
         dbl_vec _lookup_buffer_inst = {};
         dbl_vec _lookup_buffer_cumul = {};
 
-        void _assign_profile(const std::string &name);
-        void _assign_args(const str_vec &keys,
-                          const str_vec &vals,
-                          const str_vec &typs);
-        void _assign_range(const std::string &range_name,
-                           const std::string &range_at,
-                           const std::string &range_value);
+        void _assign_single_attribute(const std::string &key,
+                                      const std::string &val,
+                                      const std::string &at,
+                                      bool is_arg);
+        void _assign_arguments(const str_vec &keys,
+                               const str_vec &vals,
+                               const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
-        double (InfecProfile::*_do_inst)(double, const dbl_vec &) const = &InfecProfile::__default_inst;
-        double (InfecProfile::*_do_cumul)(double, const dbl_vec &) const = &InfecProfile::__default_cumul;
+        double (InfecProfile::*_do_inst)(double) const = &InfecProfile::__default_inst;
+        double (InfecProfile::*_do_cumul)(double) const = &InfecProfile::__default_cumul;
 
-        double __default_inst(double t, const dbl_vec &opts) const;
-        double __default_cumul(double t, const dbl_vec &opts) const;
-        double __lookup_inst(double t, const dbl_vec &opts) const;
-        double __lookup_cumul(double t, const dbl_vec &opts) const;
+        double __default_inst(double t) const;
+        double __default_cumul(double t) const;
+        double __lookup_inst(double t) const;
+        double __lookup_cumul(double t) const;
     };
     InfecProfile _infec_profile;
 
     void update_infec_profile();
-    void restore_infec_profile();
+    void recover_infec_profile();
 
     //===========================//
     //===== IMPORTS/EXPORTS =====//
@@ -269,8 +272,7 @@ public:
     Rcpp::DataFrame export_param() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_house_loglike_mtx() const;
-    Rcpp::List showcase_infec_profile(const Rcpp::List &opts,
-                                      int n_bins) const;
+    Rcpp::List showcase_infec_profile(int n_bins) const;
 
 #else
     //----- READ -----//
@@ -343,9 +345,18 @@ public:
     void init_move_counts();
     void init_diagnostics();
     void update_diagnostics();
+    void update_full_loglike(const bool cache_depen);
+    double update_house_loglike(size_t R, const bool is_augm_ll, const bool cache_depen);
+    void run_monte_carlo(progress::Bar &progbar);
+    void move_all();
+    void move_all_and_adapt_parameters(ulong step);
+
+    //----- Metropolis - parameter moves -----//
+    bool move_single_parameter(const parID &p, bool cache_depen);
 
     //----- Metropolis - augmented moves -----//
-    double compute_augm_model_loglike(const Household &house) const;
+    void move_all_augm();
+    void compute_augm_model_loglike(Household &house);
 
 private:
     //===================================//
@@ -356,6 +367,9 @@ private:
     rnd_gen &(MCMC::Impl::*_do_get_prng)();
     rnd_gen &_prng_unique_thread() { return _prng; }
 
+    //----- parallelization ----//
+    std::vector<std::string> _error_message = {};
+
 #ifdef _OPENMP
     std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
     rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
@@ -363,6 +377,16 @@ private:
 
     //----- uniform sampler -----//
     std::uniform_real_distribution<double> _uniform_distr;
+
+    //=====================//
+    //===== CALLBACKS =====//
+    //=====================//
+
+    std::function<double(Household &)> _callback_house_loglike;
+    std::function<void(Household &, indiv)> _callback_update_cache;
+
+    double _compute_house_obs_loglike(Household &h) { return _callback_house_loglike(h); }
+    void _update_cache_dependecies(Household &h, indiv i) { _callback_update_cache(h, i); }
 
     //=================//
     //===== BUILD =====//
@@ -381,11 +405,11 @@ private:
                            const std::string &tkn_typ,
                            const Household &house, indiv i);
     void _assign_augm_attributes(Household &house, indiv i, augmID a,
-                          const str_vec &keys,
-                          const str_vec &vals,
-                          const str_vec &typs,
-                          const std::vector<bool> &is_arg,
-                          bool is_var_model);
+                                 const str_vec &keys,
+                                 const str_vec &vals,
+                                 const str_vec &typs,
+                                 const std::vector<bool> &is_arg,
+                                 bool is_var_model);
 
     void _assign_augm_func_args(Household &house, indiv i, augmID a,
                                 const str_vec &keys,
@@ -403,9 +427,13 @@ private:
     //===== METROPOLIS =====//
     //======================//
 
-    void (Impl::*_do_augm_model_by_definition)(const Household &, indiv, double &) const = &Impl::__augm_model_generic;
-    void __augm_model_by_status(const Household &house, indiv i, double &delta) const;
-    void __augm_model_generic(const Household &house, indiv i, double &delta) const;
+    //----- Metropolis : augmented moves -----//
+    double move_augm_single_house(size_t H);
+    double _metropolis_augm_single_move(Household &house, indiv i, const augmID &a);
+
+    double (MCMC::Impl::*_do_move_augm_indiv)(Household &, indiv) = &MCMC::Impl::__move_augm_indiv_generic;
+    double __move_augm_indiv_generic(Household &house, indiv i);
+    double __move_augm_indiv_by_status(Household &house, indiv i);
 };
 
 #endif // HOUSEPI__MCMC__BUILD__H

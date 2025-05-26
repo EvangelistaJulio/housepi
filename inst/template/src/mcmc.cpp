@@ -19,7 +19,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //===== CONSTRUCTOR =====//
-MCMC::MCMC() : pImpl(std::make_unique<Impl>()) {}
+MCMC::MCMC()
+    : pImpl(std::make_unique<Impl>(
+          [this](Household &h) -> double
+          { return this->compute_house_obs_loglike(h); },
+          [this](Household &h, indiv i)
+          { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;
 
 //===== DATA =====//
@@ -30,10 +35,6 @@ ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_r
 ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
 std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
 
-//===== DATA (RESTRICTED) =====//
-Household &MCMC::_get_restricted_household(size_t R) const { return get_household(pImpl->restrict_hh_indexes[R]); }
-size_t MCMC::_n_restricted_houses() const { return pImpl->restrict_hh_indexes.size(); }
-
 //===== RAND NUMBER GENERATOR =====//
 double MCMC::uniform() { return pImpl->uniform(); }
 
@@ -42,24 +43,10 @@ double MCMC::param(const parID &p) const { return pImpl->get_param(p); }
 const double *MCMC::param_pointer(const parID &p) const { return pImpl->get_param_pointer(p); }
 
 //===== AUGMENTED VARIABLES =====//
-bool MCMC::is_augm_any() const { return pImpl->is_augm_any(); }
-bool MCMC::is_augm_sample() const { return pImpl->is_augm_sample(); }
-bool MCMC::is_augm_model() const { return pImpl->is_augm_model(); }
-bool MCMC::is_augm_generic() const { return pImpl->is_augm_generic(); }
 void MCMC::assign_all_augm(Household &house, indiv i) { pImpl->assign_all_augm(house, i); }
 void MCMC::clear_all_augm(Household &house, indiv i) { pImpl->clear_all_augm(house, i); }
-double MCMC::compute_augm_model_loglike(const Household &house) const
-{
-    return pImpl->compute_augm_model_loglike(house);
-}
 
 //===== EXTRA ATTRIBUTES =====//
-
-/* Adjust lists of parameters to be inferred making parameter as dependent on cache. */
-void MCMC::make_param_cache_dependent(const parID &p)
-{
-    pImpl->make_param_cache_dependent(p);
-}
 
 /* Extra integer vectors for all households. */
 void MCMC::allocate_cache_house_integer_vector(const cacheID &e)
@@ -271,290 +258,6 @@ void MCMC::set_rate_per_contact(Household &house)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : update full loglikelihood  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Update and return contribution of given household to full logliklehood. */
-double MCMC::update_house_loglike(size_t r, const bool is_augm_ll, const bool cache_depen)
-{
-    Household &house = get_household(pImpl->restrict_hh_indexes[r]);
-
-    // buffer all household cache dependencies
-    if (cache_depen)
-    {
-        house.buffer_all_cache();
-        for (const indiv &i : house.infected_status_list())
-            update_cache_dependecies(house, i);
-    }
-
-    // update household observation loglikelihood
-    house.set_obs_loglike(compute_house_obs_loglike(house));
-    double output = house.get_obs_loglike();
-
-    // update household augmented loglikelihood
-    // NOTE: house multiplicity doesn't work with data augmentation
-    if (is_augm_ll)
-    {
-        house.set_augm_loglike(compute_augm_model_loglike(house));
-        output += house.get_augm_loglike();
-    }
-
-    return output;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : update house loglikelihood  ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::update_full_loglike(const bool cache_depen)
-{
-    const bool is_augm_ll = is_augm_model();
-    double new_ll = 0.0;
-    std::atomic<bool> has_error(false);
-
-    // buffer infectivity profile if lookup tables are active
-    if (cache_depen)
-        pImpl->update_infec_profile();
-
-    // FIXME : to be checked in combination with openMP
-#pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < _n_restricted_houses(); ++R)
-    {
-        if (has_error.load(std::memory_order_relaxed))
-            continue;
-
-        try
-        {
-            new_ll += update_house_loglike(R, is_augm_ll, cache_depen);
-        }
-        catch (const std::exception &e)
-        {
-#pragma omp critical
-            {
-                if (!has_error.exchange(true))
-                    _error_message = {"While computing loglikelihood for house " + _get_restricted_household(R).house_id() + ":",
-                                      std::string(e.what())};
-            }
-        }
-    }
-    if (!_error_message.empty())
-        tools::error(_error_message);
-
-    pImpl->set_full_loglike(new_ll);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : move all augmented variables  /////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Move augmented variables from all households. */
-void MCMC::_move_all_augm()
-{
-    double delta_ll = 0.;
-    std::atomic<bool> has_error(false);
-
-#pragma omp parallel for reduction(+ : delta_ll)
-    for (size_t H = 0; H < n_houses(); ++H)
-    {
-        if (has_error.load(std::memory_order_relaxed))
-            continue;
-
-        try
-        {
-            delta_ll += _move_augm_single_house(H);
-        }
-        catch (const std::exception &e)
-        {
-#pragma omp critical
-            {
-                if (!has_error.exchange(true))
-                    _error_message = {"While moving augmented variables in house " + get_household(H).house_id() + ":",
-                                      std::string(e.what())};
-            }
-        }
-    }
-
-    if (!_error_message.empty())
-        tools::error(_error_message);
-
-    pImpl->increment_full_loglike(delta_ll);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : parameter move  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::_move_single_parameter(const parID &p, bool cache_depen)
-{
-    bool is_accepted = false;
-    // proceed only if the new value is consistent
-    // otherwise automatically execute refuse_move(parID)
-    if (pImpl->propose_valid_param_move(p))
-    {
-        // if cache depending on parameter, update and buffer cache
-        update_full_loglike(cache_depen);
-
-        // perform Metropolis-Hastings to accept or not move
-        if (pImpl->accept_valid_param_move(p))
-            is_accepted = true;
-        else
-            pImpl->restore_parameter(p, cache_depen);
-    }
-
-    return is_accepted;
-}
-
-/* Move all model parameters. */
-void MCMC::_move_all()
-{
-    // move augmented variables
-    if (pImpl->is_augm_sample())
-        _move_all_augm();
-
-    // move all simple model parameters
-    for (const parID &p : pImpl->param_standard_infer_list)
-        _move_single_parameter(p, false);
-
-    // move parameters with cache dependecies
-    for (const parID &p : pImpl->param_cache_infer_list)
-        _move_single_parameter(p, true);
-}
-
-/* Move all augmented variables and model parameters and adapt their rule arguments. */
-void MCMC::_move_all_and_adapt_parameters(ulong step)
-{
-    // move augmented variables
-    if (pImpl->is_augm_sample())
-        _move_all_augm();
-
-    // move all model parameters and adapt their rule arguments
-    double adapt_ratio = static_cast<double>(step) / pImpl->setup_n_adapt;
-
-    // move all simple model parameters
-    for (const parID &p : pImpl->param_standard_infer_list)
-    {
-        pImpl->update_param_accept_rate(p, _move_single_parameter(p, false));
-        pImpl->adapt_param_rule(p, adapt_ratio);
-    }
-
-    // move parameters with cache dependecies
-    for (const parID &p : pImpl->param_cache_infer_list)
-    {
-        pImpl->update_param_accept_rate(p, _move_single_parameter(p, true));
-        pImpl->adapt_param_rule(p, adapt_ratio);
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : init augmented variables  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize augmented dependecies for all households. */
-void MCMC::init_augmented_variables()
-{
-    if (is_augm_any())
-    {
-        if (is_augm_sample())
-        {
-            // wheter augmented variable are generic or status specific
-            if (is_augm_generic())
-                _do_move_augm_indiv = &MCMC::__move_augm_indiv_generic;
-            else
-                _do_move_augm_indiv = &MCMC::__move_augm_indiv_by_status;
-        }
-
-        // assign augmented variables
-        for (Household &house : pImpl->house_vector)
-            for (indiv i = 0; i < house.size(); ++i)
-                assign_all_augm(house, i);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Move augmented variables of infectious members inside household.
-The move is performed one member at a time, one augmented variable at a time.
-*/
-// UPDATE: smooth the incrementation by reference by just adding...
-double MCMC::_move_augm_single_house(size_t H)
-{
-    double delta_ll = 0.;
-    Household &house = get_household(H);
-
-    // Loop over infectious residents of the househould
-    for (const indiv &i : house.infected_status_list())
-        delta_ll += (this->*_do_move_augm_indiv)(house, i);
-
-    return delta_ll;
-}
-
-/* Generic move augmented variables one by one. */
-double MCMC::__move_augm_indiv_generic(Household &house, indiv i)
-{
-    double delta_ll = 0.;
-    // Loop over augmented variables of infectious
-    for (const augmID &a : pImpl->augm_list_infer)
-        delta_ll += _metropolis_augm_single_move(house, i, a);
-    return delta_ll;
-}
-
-/* Move augmented variables by status one variable at a time. */
-double MCMC::__move_augm_indiv_by_status(Household &house, indiv i)
-{
-    double delta_ll = 0.;
-    // Loop over augmented variables of infectious
-    for (const augmID &a : pImpl->augm_status_map_infer.at(house.status(i)))
-        delta_ll += _metropolis_augm_single_move(house, i, a);
-    return delta_ll;
-}
-
-/* Take care of a a single augmented Metropolis move. */
-double MCMC::_metropolis_augm_single_move(Household &house, indiv i, const augmID &a)
-{
-    // proceed only if the new value is consistent
-    if (house.propose_valid_augm_move(i, a, pImpl->get_prng()))
-    {
-        // update dependencies to perform computations
-        house.buffer_all_cache();
-        update_cache_dependecies(house, i);
-
-        // update house loglikelihood and store old value in buffer
-        house.set_obs_loglike(compute_house_obs_loglike(house));
-
-        // Metropolis-Hastings algorithm
-        const double D_augm_ll = house.augm_model_logratio(i, a);
-        const double D_ll = house.get_delta_obs_loglike() + D_augm_ll;
-        if (uniform() < std::exp(pImpl->setup_inv_T * D_ll - house.augm_propose_logratio(i, a)))
-        {
-            house.increment_augm_loglike(D_augm_ll);
-            return D_ll;
-        }
-        else
-            // restore all buffered values
-            house.restore_augm_value(i, a);
-    }
-    return 0.;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : display likelihood  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -567,10 +270,10 @@ double MCMC::evaluate()
         pImpl->setup_n_chains = 0;             // use 0 chains as a state variable
         pImpl->setup_rand_init_params = false; // disable random initialization // UPDATE
         pImpl->init_parameters();              // check no undefined parameters
+        pImpl->init_augmented_variables();     // initialize augmented dependencies
         init_infec_profile();                  // initialize user infectivity profile
         init_model_for_inference();            // initialize model for inference
-        init_augmented_variables();            // initialize augmented dependencies
-        update_full_loglike(true);             // initialize cache + full loglikelihood
+        pImpl->update_full_loglike(true);      // initialize cache + full loglikelihood
 
         return pImpl->get_full_loglike();
     }
@@ -580,67 +283,6 @@ double MCMC::evaluate()
     }
 
     return HOUSEPI_NA_DOUBLE;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : run markov chain  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Markov chain core, used for inference and power posteriors.
-    note: sweep is the number of previously completed thin sweeps. */
-void MCMC::_run_monte_carlo(progress::Bar &progressbar)
-{
-    //==========================//
-    //===== Initialization =====//
-    //==========================//
-
-    pImpl->init_diagnostics(); // initialize diagnostics
-
-    // implementation setup aliases
-    ulong &c = pImpl->chain;
-    const ulong &n_chains = pImpl->setup_n_chains;
-    const ulong &n_adapt = pImpl->setup_n_adapt;
-    const ulong &thin = pImpl->setup_thin;
-    const ulong &n_burnin = pImpl->setup_n_burnin;
-    const ulong &n_steps = pImpl->setup_n_steps;
-
-    // run multiple MCMC chains&
-    for (c = 1; c <= n_chains; ++c)
-    {
-        // update progressbar text
-        progressbar.set_text(pImpl->fmt_progtxt());
-
-        pImpl->init_parameters();   // init parameter inference
-        init_augmented_variables(); // init augmented dependencies
-        update_full_loglike(true);  // init cache + full loglikelihood
-        pImpl->init_move_counts();  // init move counts for adaptive
-
-        // (Finite) Adaptative Iterations
-        for (ulong i = 0; i < n_adapt; i += thin, progressbar.update())
-            for (ulong t = 1; t <= thin; ++t)
-                _move_all_and_adapt_parameters(i + t);
-
-        // Burn-in Iterations
-        for (ulong i = 0; i < n_burnin; i += thin, progressbar.update())
-            for (ulong t = 1; t <= thin; ++t)
-                _move_all();
-
-        // Posterior sampling
-        for (ulong i = n_burnin; i < n_steps; i += thin, progressbar.update())
-        {
-            for (ulong t = 1; t <= thin; ++t)
-                _move_all();
-
-            pImpl->update_diagnostics(); // store sample
-        }
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -664,8 +306,8 @@ void MCMC::infer()
         progress::Bar progressbar(pImpl->setup_c_n_sweeps * pImpl->setup_n_chains,
                                   pImpl->fmt_progtxt(), pImpl->setup_progress);
 
-        _run_monte_carlo(progressbar); // run Monte Carlo
-        progressbar.finalize();        // close progress bar
+        pImpl->run_monte_carlo(progressbar); // run Monte Carlo
+        progressbar.finalize();              // close progress bar
     }
     catch (std::exception &e)
     {
@@ -697,13 +339,16 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
     pImpl->assert_proper_dataset();    // check if dataset is empty
     pImpl->assert_proper_mcmc_setup(); // check setup for mcmc sampling
 
+    // initialize model for inference
+    init_model_for_inference();
+
     // fix internal number of rungs (for progress bar)
     if (N >= 2)
         pImpl->setup_n_rungs = N;
     else
         throw std::invalid_argument("N. of rungs must be greater than 1.");
 
-    // buffer user setup to restore them later
+    // buffer user setup to recover them later
     const bool buffer_rand_init_params = pImpl->setup_rand_init_params;
     const double buffer_inv_T = pImpl->setup_inv_T;
 
@@ -718,9 +363,6 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
     dbl_vec itm = {};                     // inverse temperature
     dbl_vec avg = {};                     // mean loglikelihood
     dbl_vec var = {};                     // variance loglikelihood
-
-    // initialize model for inference
-    init_model_for_inference();
 
     // start progress bar and chrono
     progress::Bar progressbar(rung_sweeps * (n_rungs + 1),
@@ -737,7 +379,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
 
     rung = 0;
     t = 0.0;
-    _run_monte_carlo(progressbar);
+    pImpl->run_monte_carlo(progressbar);
     stats = pImpl->smpl_full_loglike_stats();
 
     itm.push_back(t);
@@ -755,7 +397,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
         //----- Inverse Temperature 1 -----//
         rung = 1;
         t = 1.0;
-        _run_monte_carlo(progressbar);
+        pImpl->run_monte_carlo(progressbar);
         stats = pImpl->smpl_full_loglike_stats();
 
         itm.push_back(t);
@@ -778,7 +420,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
 
             //----- power posterior sampling -----//
             t = new_t;
-            _run_monte_carlo(progressbar);
+            pImpl->run_monte_carlo(progressbar);
             stats = pImpl->smpl_full_loglike_stats();
 
             //----- find larger rectangular discretization error -----//
@@ -804,7 +446,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
         {
             // inverse tempearture = (rung / #rungs)^5
             t = std::pow(static_cast<double>(rung) / n_rungs, 5);
-            _run_monte_carlo(progressbar);
+            pImpl->run_monte_carlo(progressbar);
             stats = pImpl->smpl_full_loglike_stats();
 
             itm.push_back(t);

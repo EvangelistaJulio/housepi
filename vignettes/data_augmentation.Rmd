@@ -45,13 +45,7 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate an instance of the household model class
-hhmodel <- housepi::HouseholdModel$new("augm-incubation-from-delays")
-
-# gamma distribution parameter definitions
-hhmodel$load_param_list(
-  shape = list(prior = "unif", args = c(max = 5), rule = "norm"),
-  scale = list(prior = "unif", args = c(max = 5), rule = "norm")
-)
+hhmodel <- housepi::HouseholdModel$new("augm-example")
 ```
 
 ## Build Augmented Variables
@@ -65,19 +59,41 @@ More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and
 
 | Origin     | Link Examples       | Symbol |
 |------------|---------------------|--------|
-| Scalar     | 17, "17", "17\@S"   | S      |
-| Parameter  | "alpha", "alpha\@P" | P      |
+| Scalar     | 5, "5", "5\@S"      | S      |
+| Parameter  | "scale", "scale\@P" | P      |
 | Dataset    | "onset_max\@D"      | D      |
 | Augmented  | "infec_time\@A"     | A      |
 
-The model requires an augmented variable `"incub_period"` for each individual.
-We propose to augment such variable from the data on exposure and onset as follows:
+The augmented variables are defined in the model with the methods `$add()` or `$load_augm_list()`.
+The first one is used to define a single augmented variable, while the second one allows to define multiple variables at once.
+The model has the only requirement to associate an augmented variable `"log_proba"` for each individual with positive status.
+This variable will be used to compute the log-probability of the incubation period distribution.
+We propose the incubation period to be distributed as a gamma distribution, with parameters `shape` and `scale` to be inferred.
+Then, we define the augmented variables `infec_time` and `onset_time` as uniformly distributed in the ranges of exposure and onset times, respectively.
 
 ```{r}
-# declare 'incub_period' as the difference
-# between augmented onset and infection times
-hhmodel$add_augm(
-  name = "incub_period", value = "onset_time@A - infec_time@A"
+# example of augmented variable definitions as function calls
+hhmodel$load_augm_list(
+  # declare 'incub_period' as the difference
+  # between augmented onset and infection times
+  incub_period = "onset_time@A - infec_time@A",
+
+  # explicit declaration of incubation period distribution
+  proba = list(
+    func = "gamma",                     # gamma distribution
+    func_args = c(x = "incub_period@A", # compute from individual augmented 'incub_period'
+                  shape = "shape@P",    # use model parameter 'shape'
+                  scale = "scale@P")    # and 'scale'
+  ),
+
+  # declare the augmented variable 'log_proba'
+  log_proba = "log(proba@A)"
+)
+
+# define the gamma distribution parameter to be inferred
+hhmodel$load_param_list(
+  shape = list(prior = "unif", args = c(max = 5), rule = "norm"),
+  scale = list(prior = "unif", args = c(max = 5), rule = "norm")
 )
 
 # add 'infec_time' time definition
@@ -110,10 +126,12 @@ augm_defs <- hhmodel$augm_defs
 ```
 
 ```{r, echo=FALSE}
-knitr::kable(augm_defs[1:9],
-             caption = "Augmented variable definitions 1/2.")
-knitr::kable(augm_defs[10:(dim(augm_defs)[2])],
-             caption = "Augmented variable definitions 2/2.")
+knitr::kable(augm_defs[1:8],
+             caption = "Augmented variable definitions 1/3.")
+knitr::kable(augm_defs[9:15],
+             caption = "Augmented variable definitions 2/3.")
+knitr::kable(augm_defs[16:(dim(augm_defs)[2])],
+             caption = "Augmented variable definitions 3/3.")
   
 ```
 

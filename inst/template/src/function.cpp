@@ -35,7 +35,7 @@ const std::string Attribute::show_name() const { return _attribute_name; }
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Get attribute value */
-inline double Attribute::get() const { return (this->*_do_get)(); }
+double Attribute::get() const { return (this->*_do_get)(); }
 
 /* Get attribute value internal value. */
 double Attribute::__get_default() const { return _value; }
@@ -44,15 +44,14 @@ double Attribute::__get_default() const { return _value; }
 double Attribute::__get_from_pointer() const { return *(_ptr_to_value); }
 
 /* Set attribute value internal value. */
-// FIXME: return_value should never be dependent on anything
-double Attribute::__get_from_function() const { return _func_ptr->return_value({}); }
+double Attribute::__get_from_function() const { return _func_ptr->return_value(); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Attribute : get_pointer (functional) /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Get pointer to attribute value. */
-inline const double *Attribute::get_pointer() const { return (this->*_do_get_pointer)(); }
+const double *Attribute::get_pointer() const { return (this->*_do_get_pointer)(); }
 
 /* Get pointer to attribute value internal value. */
 const double *Attribute::__get_pointer_default() const { return &_value; }
@@ -72,13 +71,13 @@ const double *Attribute::__get_pointer_error() const
 //////////////////////////////////////  Attribute : get_function ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline const std::shared_ptr<Function> Attribute::get_function() const { return _func_ptr; }
+const std::shared_ptr<Function> Attribute::get_function() const { return _func_ptr; }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : setter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline void Attribute::set_name(const std::string &name) { _attribute_name = name; }
+void Attribute::set_name(const std::string &name) { _attribute_name = name; }
 void Attribute::assign_scalar(double x)
 {
     _do_get = &Attribute::__get_default;
@@ -112,7 +111,7 @@ void Attribute::assign_function(const std::shared_ptr<Function> f)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set attribute value. */
-inline void Attribute::set(double x) { (this->*_do_set)(x); }
+void Attribute::set(double x) { (this->*_do_set)(x); }
 
 /* Set attribute internal value. */
 void Attribute::__set_default(double x) { _value = x; }
@@ -135,18 +134,69 @@ void Attribute::__set_error(double x)
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Function : constructor  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initial defaults for function. */
+Function::Function(const std::string &name,
+                   const str_vec &arg_name,
+                   const dbl_vec &arg_value,
+                   double domain_min,
+                   double domain_max,
+                   bool is_min_open,
+                   bool is_max_open)
+{
+    // name of the function
+    _function_name = name;
+
+    // number of arguments
+    if (arg_name.size() != arg_value.size())
+    {
+        std::ostringstream oss;
+        oss << "Inconsistent arguments for \"" << _function_name << "\"."
+            << " Found " << arg_name.size() << " default names but "
+            << arg_value.size() << " values.";
+        throw std::length_error(oss.str());
+    }
+    _n_args = arg_name.size();
+
+    // assign default arguments
+    _arguments = new Attribute[arg_name.size()];
+    for (ushort c = 0; c < _n_args; ++c)
+    {
+        _arguments[c].set_name(arg_name[c]);
+        _arguments[c].set(arg_value[c]);
+    }
+
+    //----- assign domain -----//
+    // NOTE: at the moment only place where to set open ranges
+    // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
+    _assign_range_scalar("min", domain_min);
+    _assign_range_scalar("max", domain_max);
+    init_functional_range(is_min_open, is_max_open);
+}
+
+Function::~Function() = default;
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Virtual function to return a value */
-double Function::return_value(const dbl_vec &input) const
-{
-    UNUSED(input);
-    return 0.;
-}
+double Function::return_value() const { return 0.; }
+
+/* Number of arguments. */
+ushort Function::n_args() const { return _n_args; }
 
 /* Auxiliary function to retrieve the index of a given attribute by name. */
-inline ushort Function::find(const std::string &arg_name) const
+ushort Function::find(const std::string &arg_name) const
 {
     for (ushort c = 0; c < _n_args; ++c)
         if (_arguments[c].show_name() == arg_name)
@@ -337,7 +387,7 @@ const std::string Function::show_range() const
 void Function::set_arg(ushort i, double x) { _arguments[i].set(x); }
 
 //--- Assign scalar argument or range value. ---//
-void Function::assign_attr_scalar(const std::string &arg_name, bool is_arg, double x)
+void Function::assign_attr(const std::string &arg_name, bool is_arg, double x)
 {
     if (is_arg == ATTR_ARGUMENT)
         _assign_arg_scalar(arg_name, x);
@@ -345,7 +395,7 @@ void Function::assign_attr_scalar(const std::string &arg_name, bool is_arg, doub
         _assign_range_scalar(arg_name, x);
 }
 //* Assign pointer argument or range value. *//
-void Function::assign_attr_pointer(const std::string &arg_name, bool is_arg, const double *y)
+void Function::assign_attr(const std::string &arg_name, bool is_arg, const double *y)
 {
     // check the function is different from the current one
     if (y == nullptr)
@@ -358,7 +408,7 @@ void Function::assign_attr_pointer(const std::string &arg_name, bool is_arg, con
         _assign_range_pointer(arg_name, y);
 }
 //* Assign fucntion argument or range value. *//
-void Function::assign_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+void Function::assign_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
 {
     // check the function is different from the current one
     if (f == nullptr)
@@ -519,7 +569,7 @@ const std::string Function::show_summary() const
         output += ")";
     }
     if (_do_valid != &Function::__valid_always)
-        output += " : "+ show_range();
+        output += " : " + show_range();
 
     return output;
 }
@@ -531,66 +581,17 @@ const std::string Function::show_summary() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Initial defaults for function. */
-void Function::init_defaults(const std::string &name,
-                             const str_vec &arg_name,
-                             const dbl_vec &arg_value,
-                             double domain_min,
-                             double domain_max,
-                             bool is_min_open,
-                             bool is_max_open)
-{
-    // name of the function
-    _function_name = name;
-
-    // number of arguments
-    if (arg_name.size() != arg_value.size())
-        throw std::length_error(
-            "Internal inconsistency for \"" + _function_name + "\" arguments.");
-    _n_args = arg_name.size();
-
-    // assign default arguments
-    _arguments = new Attribute[arg_name.size()];
-    for (ushort c = 0; c < _n_args; ++c)
-    {
-        _arguments[c].set_name(arg_name[c]);
-        _arguments[c].set(arg_value[c]);
-    }
-
-    //----- assign domain -----//
-    // NOTE: at the moment only place where to set open ranges
-    // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
-    _assign_range_scalar("min", domain_min);
-    _assign_range_scalar("max", domain_max);
-    init_functional_range(is_min_open, is_max_open);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Identity Function. */
+/* Equality Function. */
 class Equality_Function : public Function
 {
 public:
     //===== CONSTRUCTOR =====//
     Equality_Function()
-    {
-        init_defaults("identity",
-                      {"x"}, {0.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE,
-                      false, false);
-    }
+        : Function("identity", {"x"}, {0.}) {}
     ~Equality_Function() = default;
 
-    double return_value(const dbl_vec &input) const override final
-    {
-        UNUSED(input);
-        return get_arg(0);
-    }
+    //===== GETTER =====//
+    double return_value() const override final { return get_arg(0); }
 };
 
 //--- Addition Function. ---//
@@ -599,22 +600,11 @@ class Addition_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Addition_Function()
-    {
-        init_defaults("add",
-                      {"x", "y"}, {0., 0.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE,
-                      false, false);
-    }
+        : Function("add", {"x", "y"}, {0., 0.}) {}
     ~Addition_Function() = default;
 
-    //==================//
     //===== GETTER =====//
-    //==================//
-    double return_value(const dbl_vec &input) const override final
-    {
-        UNUSED(input);
-        return get_arg(0) + get_arg(1);
-    }
+    double return_value() const override final { return get_arg(0) + get_arg(1); }
 };
 
 //--- Subtraction Function. ---//
@@ -623,22 +613,11 @@ class Subtraction_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Subtraction_Function()
-    {
-        init_defaults("sum",
-                      {"x", "y"}, {0., 0.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE,
-                      false, false);
-    }
+        : Function("sum", {"x", "y"}, {0., 0.}) {}
     ~Subtraction_Function() = default;
 
-    //==================//
     //===== GETTER =====//
-    //==================//
-    double return_value(const dbl_vec &input) const override final
-    {
-        UNUSED(input);
-        return get_arg(0) - get_arg(1);
-    }
+    double return_value() const override final { return get_arg(0) - get_arg(1); }
 };
 
 //--- Multiplication Function. ---//
@@ -647,22 +626,13 @@ class Multiplication_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Multiplication_Function()
-    {
-        init_defaults("mult",
-                      {"x", "y"}, {0., 0.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE,
-                      false, false);
-    }
+        : Function("mult", {"x", "y"}, {0., 1.}) {}
     ~Multiplication_Function() = default;
 
     //==================//
     //===== GETTER =====//
     //==================//
-    double return_value(const dbl_vec &input) const override final
-    {
-        UNUSED(input);
-        return get_arg(0) * get_arg(1);
-    }
+    double return_value() const override final { return get_arg(0) * get_arg(1); }
 };
 //--- Division Function. ---//
 class Division_Function : public Function
@@ -670,22 +640,11 @@ class Division_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Division_Function()
-    {
-        init_defaults("div",
-                      {"x", "y"}, {0., 0.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE,
-                      false, false);
-    }
+        : Function("div", {"x", "y"}, {0., 1.}) {}
     ~Division_Function() = default;
 
-    //==================//
     //===== GETTER =====//
-    //==================//
-    double return_value(const dbl_vec &input) const override final
-    {
-        UNUSED(input);
-        return get_arg(0) / get_arg(1);
-    }
+    double return_value() const override final { return get_arg(0) / get_arg(1); }
 };
 //--- Power Function. ---//
 class Power_Function : public Function
@@ -693,22 +652,36 @@ class Power_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Power_Function()
-    {
-        init_defaults("pow",
-                      {"x", "y"}, {0., 0.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE,
-                      false, false);
-    }
+        : Function("pow", {"x", "y"}, {0., 1.}) {}
     ~Power_Function() = default;
 
-    //==================//
     //===== GETTER =====//
-    //==================//
-    double return_value(const dbl_vec &input) const override final
-    {
-        UNUSED(input);
-        return std::pow(get_arg(0), get_arg(1));
-    }
+    double return_value() const override final { return std::pow(get_arg(0), get_arg(1)); }
+};
+
+/* Exponential Function. */
+class Exponential_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Exponential_Function()
+        : Function("exp", {"x"}, {0.}) {}
+    ~Exponential_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::exp(get_arg(0)); }
+};
+/* Logarithm Function. */
+class Logarithm_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Logarithm_Function()
+        : Function("exp", {"x"}, {1.}) {}
+    ~Logarithm_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::log(get_arg(0)); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -719,36 +692,47 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Function Switchboard  /////////////////////////////////////
+/////////////////////////////////  ArithmeticRegistry : methods  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary hidden template to return the chosen distribution. */
-std::shared_ptr<Function> function_switch(const std::string &name)
+std::shared_ptr<Function> ArithmeticRegistry::get(const std::string &opt) const
 {
-    const str_vec &options = {"eq", "add", "sub", "mult", "div", "pow"};
-
-    if (tools::is_na(name))
-        return std::make_shared<Function>();
-
-    else if (name == "eq")
+    if (opt == "eq")
         return std::make_shared<Equality_Function>();
 
-    else if (name == "add")
+    else if (opt == "add")
         return std::make_shared<Addition_Function>();
 
-    else if (name == "sub")
+    else if (opt == "sub")
         return std::make_shared<Subtraction_Function>();
 
-    else if (name == "mult")
+    else if (opt == "mult")
         return std::make_shared<Multiplication_Function>();
 
-    else if (name == "div")
+    else if (opt == "div")
         return std::make_shared<Division_Function>();
 
-    else if (name == "pow")
+    else
+        return nullptr;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  TranscendentalRegistry : methods  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Auxiliary hidden template to return the chosen distribution. */
+std::shared_ptr<Function> TranscendentalRegistry::get(const std::string &opt) const
+{
+    if (opt == "pow")
         return std::make_shared<Power_Function>();
 
+    else if (opt == "exp")
+        return std::make_shared<Exponential_Function>();
+
+    else if (opt == "log")
+        return std::make_shared<Logarithm_Function>();
+
     else
-        throw std::invalid_argument(
-            "Unknown function \"" + name + "\"." + tools::find_closest(name, options));
+        return nullptr;
 }

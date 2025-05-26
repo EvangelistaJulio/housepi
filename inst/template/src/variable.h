@@ -41,6 +41,11 @@ public:
     //=======================//
 
     Proposer() {};
+    Proposer(const std::string &distr_name,
+             double rule_scale = HOUSEPI_NA_DOUBLE,
+             double rule_start_value = HOUSEPI_NA_DOUBLE,
+             const std::vector<ushort> &args_to_adapt = {},
+             bool is_discrete = false);
     Proposer(std::shared_ptr<Distribution>,
              double rule_scale = HOUSEPI_NA_DOUBLE,
              double rule_start_value = HOUSEPI_NA_DOUBLE,
@@ -137,7 +142,7 @@ public:
     //===== GETTER =====//
     //==================//
 
-    double get(const dbl_vec &opts = {}) const;
+    double get() const;
     const double *get_pointer() const;
     std::shared_ptr<Function> get_function() const;
     double get_from_value() const;
@@ -152,20 +157,20 @@ public:
 
     void user_reset();
     void set_value(double x);
-    void restore_value();
+    void recover_value();
     void init(const std::string &name, double value, bool is_discrete,
               bool is_constant = true,
               const std::string &func_name = HOUSEPI_NA_STRING);
 
-    void assign_func_attr_scalar(const std::string &arg_name, bool is_arg, double x);
-    void assign_func_attr_pointer(const std::string &arg_name, bool is_arg, const double *y);
-    void assign_func_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+    void assign_func_attr(const std::string &arg_name, bool is_arg, double x);
+    void assign_func_attr(const std::string &arg_name, bool is_arg, const double *y);
+    void assign_func_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
 
     //----- Pointer to distribution -----//
     void assign_distr(const std::string &distr_name = HOUSEPI_NA_STRING);
-    void assign_distr_attr_scalar(const std::string &arg_name, bool is_arg, double x);
-    void assign_distr_attr_pointer(const std::string &arg_name, bool is_arg, const double *y);
-    void assign_distr_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+    void assign_distr_attr(const std::string &arg_name, bool is_arg, double x);
+    void assign_distr_attr(const std::string &arg_name, bool is_arg, const double *y);
+    void assign_distr_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
     void init_distr_reshaping();
 
     //----- Pointer to proposer -----//
@@ -232,9 +237,9 @@ private:
     //===== GETTER =====//
     //==================//
 
-    double (Variable::*_do_get)(const dbl_vec &) const = &Variable::__get_default;
-    double __get_default(const dbl_vec &opts) const;
-    double __get_func_return(const dbl_vec &opts) const;
+    double (Variable::*_do_get)() const = &Variable::__get_default;
+    double __get_default() const;
+    double __get_func_return() const;
 
     const double *(Variable::*_do_get_pointer)() const = &Variable::__get_pointer_default;
     const double *__get_pointer_default() const;

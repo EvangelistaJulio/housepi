@@ -69,9 +69,9 @@ public:
 
 private:
     std::string _attribute_name = HOUSEPI_NA_STRING; // name of argument
-    double _value = HOUSEPI_NA_DOUBLE;              // internal value
-    const double *_ptr_to_value = nullptr;          // pointer to value
-    std::shared_ptr<Function> _func_ptr = nullptr;  // pointer to function
+    double _value = HOUSEPI_NA_DOUBLE;               // internal value
+    const double *_ptr_to_value = nullptr;           // pointer to value
+    std::shared_ptr<Function> _func_ptr = nullptr;   // pointer to function
 
     // Functional getter //
     double (Attribute::*_do_get)() const = &Attribute::__get_default;
@@ -80,10 +80,10 @@ private:
     double __get_from_function() const;
 
     // Functional pointer getter //
-    const double * (Attribute::*_do_get_pointer)() const = &Attribute::__get_pointer_default;
-    const double * __get_pointer_default() const;
-    const double * __get_pointer_from_pointer() const;
-    const double * __get_pointer_error() const;
+    const double *(Attribute::*_do_get_pointer)() const = &Attribute::__get_pointer_default;
+    const double *__get_pointer_default() const;
+    const double *__get_pointer_from_pointer() const;
+    const double *__get_pointer_error() const;
 
     // Functional setter //
     void (Attribute::*_do_set)(double) = &Attribute::__set_default;
@@ -103,15 +103,22 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Function() {};
-    virtual ~Function() = default;
+    Function(const std::string &name = HOUSEPI_NA_STRING,
+             const str_vec &arg_name = {},
+             const dbl_vec &arg_value = {},
+             double domain_min = HOUSEPI_NA_DOUBLE,
+             double domain_max = HOUSEPI_NA_DOUBLE,
+             bool is_min_open = true,
+             bool is_max_open = true);
+    virtual ~Function();
 
     //==================//
     //===== GETTER =====//
     //==================//
 
-    virtual double return_value(const dbl_vec &input) const;
+    virtual double return_value() const;
 
+    ushort n_args() const;
     ushort find(const std::string &arg_name) const;
     ushort assert_arg(const std::string &arg_name) const;
     double get_arg(ushort i) const;
@@ -128,9 +135,11 @@ public:
     //=============================//
     //===== ARGUMENTS & RANGE =====//
     //=============================//
-    void assign_attr_scalar(const std::string &arg_name, bool is_arg, double value);
-    void assign_attr_pointer(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
-    void assign_attr_function(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+
+    void assign_attr(const std::string &arg_name, bool is_arg, double value);
+    void assign_attr(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
+    void assign_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+
     void set_arg(ushort i, double new_value);
     void init_uniform_range();
     void init_functional_range(bool is_min_open, bool is_max_open);
@@ -143,15 +152,6 @@ public:
     const std::string show_max() const;
     const std::string show_range() const;
     const std::string show_summary() const;
-
-protected:
-    void init_defaults(const std::string &name,
-                       const str_vec &arg_name,
-                       const dbl_vec &arg_value,
-                       double domain_min,
-                       double domain_max,
-                       bool is_min_open,
-                       bool is_max_open);
 
 private:
     std::string _function_name = HOUSEPI_NA_STRING;
@@ -220,10 +220,93 @@ private:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  function switch  ///////////////////////////////////////
+////////////////////////////////////////  Registry : class  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Function with default scalar arguments. */
-std::shared_ptr<Function> function_switch(const std::string &name = HOUSEPI_NA_STRING);
+class FuncRegistry
+{
+public:
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+
+    FuncRegistry(const std::string &name, const str_vec &options)
+        : _name(name), _options(options) {}
+    virtual ~FuncRegistry() = default;
+
+    //==================//
+    //===== GETTER =====//
+    //==================//
+
+    bool valid_option(const std::string &opt) const { return contains(_options, opt); }
+    const str_vec &get_options() const { return _options; }
+    virtual std::shared_ptr<Function> get(const std::string &opt) const = 0;
+
+protected:
+    std::string _name;
+    str_vec _options;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  CompositeRegistry : class  /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CompositeFuncRegistry : public FuncRegistry
+{
+private:
+    std::vector<std::shared_ptr<FuncRegistry>> _registries;
+
+public:
+    CompositeFuncRegistry(const std::string &name,
+                          std::vector<std::shared_ptr<FuncRegistry>> registries)
+        : FuncRegistry(name, {}), _registries(std::move(registries))
+    {
+        for (const auto &r : _registries)
+            _options += r->get_options();
+    }
+
+    std::shared_ptr<Function> get(const std::string &opt) const override final
+    {
+        if (tools::is_na(opt))
+            return std::make_shared<Function>();
+        else
+            for (const auto &r : _registries)
+                if (r->valid_option(opt))
+                    return r->get(opt);
+
+        throw std::invalid_argument(
+            "Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
+
+        return nullptr;
+    }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  ArithmeticRegistry : class  ////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ArithmeticRegistry : public FuncRegistry
+{
+public:
+    ArithmeticRegistry()
+        : FuncRegistry("algebraic",
+                       {"eq", "add", "sub", "mult", "div"}) {}
+
+    std::shared_ptr<Function> get(const std::string &name) const override final;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  TranscendentalRegistry : class  ////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class TranscendentalRegistry : public FuncRegistry
+{
+public:
+    TranscendentalRegistry()
+        : FuncRegistry("algebraic",
+                       {"pow", "exp", "log"}) {}
+
+    std::shared_ptr<Function> get(const std::string &name) const override final;
+};
 
 #endif // HOUSEPI__FUNCTION__H

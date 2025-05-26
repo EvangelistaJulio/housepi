@@ -38,7 +38,12 @@ std::int32_t _default_setup_seed()
 ////////////////////////////////////  MCMC::Impl : constructor  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MCMC::Impl::Impl() : _infec_profile(*this), _uniform_distr(0., 1.)
+MCMC::Impl::Impl(std::function<double(Household &)> callback_house_loglike,
+                 std::function<void(Household &, indiv)> callback_update_cache)
+    : _infec_profile(*this),
+      _uniform_distr(0., 1.),
+      _callback_house_loglike(std::move(callback_house_loglike)),
+      _callback_update_cache(std::move(callback_update_cache))
 {
     setup_seed = _default_setup_seed();
 }
@@ -209,164 +214,6 @@ void MCMC::Impl::set_prng_seed()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Assign parameter definitions to dictionary. */
-void MCMC::Impl::build_param()
-{
-    try
-    {
-        // reference to parameter definition table
-        const dict_str_vec &deftable = _param_deftable;
-
-        if (!deftable.empty())
-        {
-            // check entries
-            str_vec headers = tools::headers_from_deftable(deftable);
-            tools::check_for_missing_entries(headers, param_file_headers);
-            tools::check_for_unused_entries(headers, param_file_headers);
-
-            // drop current list of parameters
-            param_map.clear();
-            param_const_list.clear();
-            param_standard_infer_list.clear();
-            param_cache_infer_list.clear();
-
-            //===== Load parameters from the row with options =====//
-            for (size_t k = 0; k < deftable.at("name").size(); ++k)
-            {
-                const std::string &name = deftable.at("name")[k]; // parameter name
-                double value = HOUSEPI_NA_DOUBLE;                 // init value
-
-                // UPDATE : temporary parameter identifier
-                // NOTE : id parID changes this should change too
-                parID p = name;
-
-                //----- Add entry to shared parameter dictionary -----//
-                if (param_map.count(p))
-                {
-                    // parameter is already defined
-                    throw std::invalid_argument(
-                        "Parameter \"" + p + "\" has multiple definitions.");
-                }
-                else if (tools::stobool(deftable.at("const")[k]))
-                {
-                    // assign constant parameter to the set of variables
-                    if (tools::is_na(deftable.at("value")[k]))
-                        throw std::invalid_argument(
-                            "Undefined value for constant parameter \"" + name + "\".");
-                    else
-                        value = tools::stod(deftable.at("value")[k], "parameter");
-
-                    // assign constant parameter to the set of variables
-                    param_map.emplace(p, Variable(name, value));
-                    // update the lists of constant parameters
-                    param_const_list.push_back(p);
-                }
-                else
-                {
-                    // load value
-                    if (!tools::is_na(deftable.at("value")[k]))
-                        value = tools::stod(deftable.at("value")[k], "parameter");
-
-                    // load boolean flag for discrete variables
-                    bool is_discrete = false;
-                    if (!tools::is_na(deftable.at("discr")[k]))
-                        is_discrete = tools::stobool(deftable.at("discr")[k]);
-
-                    // load prior name
-                    const std::string &prior_name = deftable.at("prior")[k];
-
-                    // load range
-                    double lower = HOUSEPI_NA_DOUBLE;
-                    if (!tools::is_na(deftable.at("min")[k]))
-                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
-
-                    double upper = HOUSEPI_NA_DOUBLE;
-                    if (!tools::is_na(deftable.at("max")[k]))
-                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
-
-                    // load rule name
-                    std::string rule_name = "draw";
-                    if (!tools::is_na(deftable.at("rule")[k]))
-                        rule_name = deftable.at("rule")[k];
-
-                    // load rule scale
-                    double rule_scale = 1.;
-                    if (!tools::is_na(deftable.at("scale")[k]))
-                        rule_scale = tools::stod(deftable.at("scale")[k]);
-
-                    //----- Create a new Parameter Variable -----//
-                    param_map.emplace(p, Variable(name, value, is_discrete));
-                    Variable &new_param = param_map.at(p);
-
-                    // assign a prior distribution to the parameter
-                    new_param.assign_distr(prior_name);
-
-                    // assign scalar arguments to prior distribution
-                    str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
-                    str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k]);
-                    for (ushort c = 0; c < arg_key.size(); ++c)
-                        // UPDATE: is this check really necessary?
-                        if (!tools::is_na(arg_key[c]))
-                        {
-                            const std::string &x = arg_val[c];
-                            new_param.assign_distr_attr_scalar(
-                                arg_key[c], ATTR_ARGUMENT,
-                                (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
-                        }
-
-                    // set the range of values to the parameter
-                    if (!tools::is_na(lower))
-                        new_param.assign_distr_attr_scalar("min", ATTR_RANGE, lower);
-                    if (!tools::is_na(upper))
-                        new_param.assign_distr_attr_scalar("max", ATTR_RANGE, upper);
-                    new_param.init_distr_reshaping();
-
-                    // assign the rule for the proposer to the parameter
-                    new_param.assign_proposer(rule_name, rule_scale);
-
-                    // update the lists of parameters to be inferred
-                    param_standard_infer_list.push_back(p);
-                }
-            }
-        }
-    }
-    catch (const std::exception &e)
-    {
-        tools::error({"While building parameter definitions:",
-                      std::string(e.what())});
-    }
-}
-
-/* Randomly initialize values of the parameters to be inferred */
-void MCMC::Impl::init_parameters()
-{
-    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
-    {
-        Variable &this_par = param_map.at(p);
-        // restore user initialization (for multiple chains)
-        this_par.user_reset();
-
-        if (setup_rand_init_params)
-        {
-            if (tools::is_na(this_par.show_distr_name()))
-                throw std::invalid_argument(
-                    "Parameters with undefined values are not allowed.");
-            else
-                this_par.rand(_prng);
-        }
-        else if (tools::is_na(this_par.get()))
-            throw std::invalid_argument(
-                "Value of parameter \"" + p + "\" is undefined with no random initialization.");
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////  MCMC::Impl : methods (parameter moves)  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -386,10 +233,10 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
     // set new value of the parameter and store the old to buffer
     this_par.propose(_prng);
 
-    // restore buffer if not valid move
+    // recover buffer if not valid move
     if (!this_par.valid_move())
     {
-        this_par.restore_value();
+        this_par.recover_value();
         return false;
     }
 
@@ -397,25 +244,25 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::restore_parameter(const parID &p, bool cache_depen)
+void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
 {
-    // restore buffer value of parameter
-    param_map.at(p).restore_value();
+    // recover buffer value of parameter
+    param_map.at(p).recover_value();
 
-    // restore buffer value of full loglike
+    // recover buffer value of full loglike
     full_loglike = full_buffer;
 
-    // restore buffered loglikelihood in households
+    // recover buffered loglikelihood in households
     for (Household &house : house_vector)
     {
-        house.restore_loglike();
+        house.recover_loglike_value();
         if (cache_depen)
-            house.restore_all_cache();
+            house.recover_all_cache();
     }
 
-    // FIXME: this should not be restored if constant for example...
+    // FIXME: this should not be recoverd if constant for example...
     if (cache_depen)
-        restore_infec_profile();
+        recover_infec_profile();
 }
 
 /* Update the acceptance rate of the paramter. */

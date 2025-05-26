@@ -30,11 +30,11 @@ class Uniform_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Uniform_Distribution() : distr_gen(0., 1.)
+    Uniform_Distribution()
+        : Distribution("unif", {"min", "max"}, {0., 1.},
+                       HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1))
     {
-        init_defaults("unif", {"min", "max"}, {0., 1.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false);
-
         init_uniform_range(); // ensure range matches arguments
     }
     ~Uniform_Distribution() = default;
@@ -42,12 +42,9 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override final
     {
-        ushort discr_case = D_DISCR_TYPE_NONE;
+        ushort discr_case = (discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE;
 
         init_functional_range(false, false);
-
-        if (discrete)
-            discr_case = D_DISCR_TYPE_CNTR;
         init_functional_discretization(discr_case);
         init_functional_truncation(discr_case);
     }
@@ -56,28 +53,24 @@ protected:
     std::uniform_real_distribution<double> distr_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
         UNUSED(x);
-        UNUSED(opts);
         return 1.;
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return x;
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
         UNUSED(x);
-        UNUSED(opts);
         return 0.;
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
         UNUSED(xold);
         UNUSED(xnew);
-        UNUSED(opts);
         return 0.;
     }
     double raw_rand(rnd_gen &prng) override final
@@ -96,11 +89,10 @@ class Normal_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Normal_Distribution() : distr_gen(0., 1.)
-    {
-        init_defaults("norm", {"mean", "sd"}, {0., 1.},
-                      HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false);
-    }
+    Normal_Distribution()
+        : Distribution("norm", {"mean", "sd"}, {0., 1.},
+                       HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1)) {}
     ~Normal_Distribution() = default;
 
     //===== SETTER =====//
@@ -129,24 +121,20 @@ protected:
     std::normal_distribution<double> distr_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::normal::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::normal::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::normal::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::normal::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -164,11 +152,10 @@ class Lognormal_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Lognormal_Distribution() : distr_gen(0., 1.)
-    {
-        init_defaults("lnorm", {"meanlog", "sdlog"}, {0., 1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
-    }
+    Lognormal_Distribution()
+        : Distribution("lnorm", {"meanlog", "sdlog"}, {0., 1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1)) {}
     ~Lognormal_Distribution() = default;
 
     //===== SETTER =====//
@@ -187,24 +174,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::lognormal::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::lognormal::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::lognormal::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::lognormal::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -222,11 +205,10 @@ class Beta_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Beta_Distribution() : gamma_1(1., 1.), gamma_2(1., 1.)
-    {
-        init_defaults("beta", {"shape1", "shape2"}, {1., 1.},
-                      0., 1., true, true);
-    }
+    Beta_Distribution()
+        : Distribution("beta", {"shape1", "shape2"}, {1., 1.},
+                       0., 1., true, true),
+          gamma_1(get_arg(0), 1.), gamma_2(get_arg(1), 1.) {}
     ~Beta_Distribution() = default;
 
     //==== SETTER =====//
@@ -262,24 +244,20 @@ protected:
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::beta::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::beta::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::beta::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::beta::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -299,11 +277,10 @@ class Gamma_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Gamma_Distribution() : distr_gen(1., 1.)
-    {
-        init_defaults("gamma", {"shape", "scale"}, {1., 1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
-    }
+    Gamma_Distribution()
+        : Distribution("gamma", {"shape", "scale"}, {1., 1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1)) {}
     ~Gamma_Distribution() = default;
 
     //==== SETTER =====//
@@ -322,24 +299,20 @@ protected:
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::gamma::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::gamma::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::gamma::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::gamma::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -357,11 +330,10 @@ class ReparamGamma_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    ReparamGamma_Distribution() : distr_gen(1., 1.)
-    {
-        init_defaults("reparam_gamma", {"mean", "var"}, {1., 1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
-    }
+    ReparamGamma_Distribution()
+        : Distribution("reparam_gamma", {"mean", "var"}, {1., 1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1)) {}
     ~ReparamGamma_Distribution() = default;
 
     //==== SETTER =====//
@@ -382,30 +354,26 @@ protected:
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         const double m = get_arg(0);
         const double v = get_arg(1);
         return numr::gamma::pdf(x, (m * m) / v, v / m);
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         const double m = get_arg(0);
         const double v = get_arg(1);
         return numr::gamma::cdf(x, (m * m) / v, v / m);
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         const double m = get_arg(0);
         const double v = get_arg(1);
         return numr::gamma::logpdf(x, (m * m) / v, v / m);
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         const double m = get_arg(0);
         const double v = get_arg(1);
         return numr::gamma::logratio(xold, xnew, (m * m) / v, v / m);
@@ -425,11 +393,10 @@ class Rayleigh_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Rayleigh_Distribution() : unif_gen(0., 1.)
-    {
-        init_defaults("rayleigh", {"scale"}, {1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
-    }
+    Rayleigh_Distribution()
+        : Distribution("rayleigh", {"scale"}, {1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          unif_gen(0., 1.) {}
     ~Rayleigh_Distribution() = default;
 
     //===== SETTER =====//
@@ -442,24 +409,20 @@ protected:
     std::uniform_real_distribution<double> unif_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::rayleigh::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::rayleigh::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::rayleigh::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::rayleigh::logratio(xold, xnew, get_arg(0));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -477,11 +440,10 @@ class Weibull_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Weibull_Distribution() : distr_gen(1., 1.)
-    {
-        init_defaults("weibull", {"shape", "scale"}, {1., 1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
-    }
+    Weibull_Distribution()
+        : Distribution("weibull", {"shape", "scale"}, {1., 1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1)) {}
     ~Weibull_Distribution() = default;
 
     //===== SETTER =====//
@@ -500,24 +462,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::weibull::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::weibull::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::weibull::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::weibull::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -535,11 +493,10 @@ class Exponential_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Exponential_Distribution() : distr_gen(1.)
-    {
-        init_defaults("exp", {"rate"}, {1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
-    }
+    Exponential_Distribution()
+        : Distribution("exp", {"rate"}, {1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0)) {}
     ~Exponential_Distribution() = default;
 
     //===== SETTER =====//
@@ -558,24 +515,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::exponential::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::exponential::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::exponential::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::exponential::logratio(xold, xnew, get_arg(0));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -600,10 +553,11 @@ class Poisson_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Poisson_Distribution() : distr_gen(1.)
+    Poisson_Distribution()
+        : Distribution("pois", {"lambda"}, {1.},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(1.)
     {
-        init_defaults("pois", {"lambda"}, {1.},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Poisson_Distribution() = default;
@@ -625,24 +579,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::poisson::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::poisson::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::poisson::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::poisson::logratio(xold, xnew, get_arg(0));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -660,13 +610,13 @@ class Binomial_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Binomial_Distribution() : distr_gen(4, 0.5)
+    Binomial_Distribution()
+        : Distribution("binom", {"size", "prob"}, {4, 0.5},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1))
     {
-        init_defaults("binom", {"size", "prob"}, {4, 0.5},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
-
-        assign_attr_pointer("max", ATTR_RANGE, get_ptr_to_arg(0));
+        assign_attr("max", ATTR_RANGE, get_ptr_to_arg(0));
         init_functional_range(false, false);
     }
     ~Binomial_Distribution() = default;
@@ -699,24 +649,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::binomial::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::binomial::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::binomial::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::binomial::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -734,10 +680,11 @@ class NegativeBinomial_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    NegativeBinomial_Distribution() : distr_gen(4, .5)
+    NegativeBinomial_Distribution()
+        : Distribution("nbinom", {"size", "prob"}, {4, .5},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0), get_arg(1))
     {
-        init_defaults("nbinom", {"size", "prob"}, {4, .5},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~NegativeBinomial_Distribution() = default;
@@ -759,24 +706,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::negbinomial::pdf(x, get_arg(0), get_arg(1));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::negbinomial::cdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::negbinomial::logpdf(x, get_arg(0), get_arg(1));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::negbinomial::logratio(xold, xnew, get_arg(0), get_arg(1));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -794,10 +737,11 @@ class Geometric_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    Geometric_Distribution() : distr_gen(1.)
+    Geometric_Distribution()
+        : Distribution("geom", {"proba"}, {0.5},
+                       0., HOUSEPI_NA_DOUBLE, false, false),
+          distr_gen(get_arg(0))
     {
-        init_defaults("geom", {"proba"}, {0.5},
-                      0., HOUSEPI_NA_DOUBLE, false, false);
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Geometric_Distribution() = default;
@@ -819,24 +763,20 @@ protected:
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x, const dbl_vec &opts) const override final
+    double raw_pdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::geometric::pdf(x, get_arg(0));
     }
-    double raw_cdf(double x, const dbl_vec &opts) const override final
+    double raw_cdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::geometric::cdf(x, get_arg(0));
     }
-    double raw_logpdf(double x, const dbl_vec &opts) const override final
+    double raw_logpdf(double x) const override final
     {
-        UNUSED(opts);
         return numr::geometric::logpdf(x, get_arg(0));
     }
-    double raw_logratio(double xold, double xnew, const dbl_vec &opts) const override final
+    double raw_logratio(double xold, double xnew) const override final
     {
-        UNUSED(opts);
         return numr::geometric::logratio(xold, xnew, get_arg(0));
     }
     double raw_rand(rnd_gen &prng) override final
@@ -853,60 +793,56 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Distribution Switchboard  ///////////////////////////////////
+//////////////////////////////////  Distribution Registry  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary hidden template to return the chosen distribution. */
-std::shared_ptr<Distribution> distribution_switch(const std::string &name)
+std::shared_ptr<Distribution> ContinuosDistrRegistry::get_distr(const std::string &opt) const
 {
-    const str_vec &options = {"unif", "norm", "lnorm",
-                              "beta", "gamma", "reparam_gamma",
-                              "rayleigh", "weibull", "exp",
-                              "pois", "binom", "nbinom", "geom"};
-
-    if (tools::is_na(name))
-        return std::make_shared<Distribution>();
-
-    else if (name == "unif")
+    if (opt == "unif")
         return std::make_shared<Uniform_Distribution>();
 
-    else if (name == "norm")
+    else if (opt == "norm")
         return std::make_shared<Normal_Distribution>();
 
-    else if (name == "lnorm")
+    else if (opt == "lnorm")
         return std::make_shared<Lognormal_Distribution>();
 
-    else if (name == "beta")
+    else if (opt == "beta")
         return std::make_shared<Beta_Distribution>();
 
-    else if (name == "gamma")
+    else if (opt == "gamma")
         return std::make_shared<Gamma_Distribution>();
 
-    else if (name == "reparam_gamma")
+    else if (opt == "reparam_gamma")
         return std::make_shared<ReparamGamma_Distribution>();
 
-    else if (name == "rayleigh")
+    else if (opt == "rayleigh")
         return std::make_shared<Rayleigh_Distribution>();
 
-    else if (name == "weibull")
+    else if (opt == "weibull")
         return std::make_shared<Weibull_Distribution>();
 
-    else if (name == "exp")
+    else if (opt == "exp")
         return std::make_shared<Exponential_Distribution>();
 
-    else if (name == "pois")
+    else
+        return nullptr;
+}
+
+std::shared_ptr<Distribution> DiscreteDistrRegistry::get_distr(const std::string &opt) const
+{
+    if (opt == "pois")
         return std::make_shared<Poisson_Distribution>();
 
-    else if (name == "binom")
+    else if (opt == "binom")
         return std::make_shared<Binomial_Distribution>();
 
-    else if (name == "nbinom")
+    else if (opt == "nbinom")
         return std::make_shared<NegativeBinomial_Distribution>();
 
-    else if (name == "geom")
+    else if (opt == "geom")
         return std::make_shared<Geometric_Distribution>();
 
     else
-        throw std::invalid_argument(
-            "Unknown distribution \"" + name + "\"." + tools::find_closest(name, options));
+        return nullptr;
 }

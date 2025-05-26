@@ -12,6 +12,20 @@ Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United S
 New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
 }
 \keyword{internal}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{defs}}{\code{list}\cr
+List containing current group rate definitions.}
+
+\item{\code{param_defs}}{\code{list}\cr
+List containing parameters definitions.}
+
+\item{\code{logic_tables}}{\code{list}\cr
+List containing table of parameters associated to each group rate.}
+}
+\if{html}{\out{</div>}}
+}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
