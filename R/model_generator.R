@@ -495,13 +495,11 @@ HousepiGenerator <- R6::R6Class(
     generate = function() {
       if (private$.need_compile) {
         # compile model
-        cli::cli_alert_info("Compiling {.pkg {private$.name}}")
         private$.compile()
         private$.rcpp <- private$.new_rcpp_model()
 
       } else if (is.null(private$.rcpp)) {
         # load if not already generated
-        cli::cli_alert_info("Loading {.pkg {private$.name}}")
         private$.rcpp <- private$.new_rcpp_model()
       }
 

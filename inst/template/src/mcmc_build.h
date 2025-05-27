@@ -356,7 +356,6 @@ public:
 
     //----- Metropolis - augmented moves -----//
     void move_all_augm();
-    void compute_augm_model_loglike(Household &house);
 
 private:
     //===================================//
@@ -415,6 +414,10 @@ private:
                                 const str_vec &keys,
                                 const str_vec &vals,
                                 const str_vec &typs);
+    void _assign_augm_func_range(Household &house, indiv i, augmID a,
+                                 const str_vec &vals,
+                                 const str_vec &typs);
+
     void _assign_augm_model_args(Household &house, indiv i, augmID a,
                                  const str_vec &keys,
                                  const str_vec &vals,
@@ -426,6 +429,8 @@ private:
     //======================//
     //===== METROPOLIS =====//
     //======================//
+
+    double _compute_augm_model_loglike(Household &house);
 
     //----- Metropolis : augmented moves -----//
     double move_augm_single_house(size_t H);

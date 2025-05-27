@@ -62,6 +62,8 @@ Thumbs.db
 /vignettes/*.html
 /vignettes/*.timestamp
 
+!vignettes/generate_delays.R
+
 # housepi files #
 #################
 .refer

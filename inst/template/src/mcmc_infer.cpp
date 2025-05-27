@@ -48,12 +48,9 @@ void MCMC::Impl::build_param()
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
                 double value = HOUSEPI_NA_DOUBLE;                 // init value
-
-                // UPDATE : temporary parameter identifier
-                // NOTE : id parID changes this should change too
                 parID p = name;
 
-                //----- Add entry to shared parameter dictionary -----//
+                // Add entry to shared parameter dictionary -----//
                 if (param_map.count(p))
                 {
                     // parameter is already defined
@@ -88,15 +85,6 @@ void MCMC::Impl::build_param()
                     // load prior name
                     const std::string &prior_name = deftable.at("prior")[k];
 
-                    // load range
-                    double lower = HOUSEPI_NA_DOUBLE;
-                    if (!tools::is_na(deftable.at("min")[k]))
-                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
-
-                    double upper = HOUSEPI_NA_DOUBLE;
-                    if (!tools::is_na(deftable.at("max")[k]))
-                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
-
                     // load rule name
                     std::string rule_name = "draw";
                     if (!tools::is_na(deftable.at("rule")[k]))
@@ -126,6 +114,13 @@ void MCMC::Impl::build_param()
                                 arg_key[c], ATTR_ARGUMENT,
                                 (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
                         }
+
+                    // load parameter range
+                    double lower = HOUSEPI_NA_DOUBLE, upper = HOUSEPI_NA_DOUBLE;
+                    if (!tools::is_na(deftable.at("min")[k]))
+                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
+                    if (!tools::is_na(deftable.at("max")[k]))
+                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
 
                     // set the range of values to the parameter
                     if (!tools::is_na(lower))
@@ -211,8 +206,9 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    _error_message = {"While computing loglikelihood for house " + house_vector[restrict_hh_indexes[R]].house_id() + ":",
-                                      std::string(e.what())};
+                    _error_message = {
+                        "While computing loglikelihood for house " + house_vector[restrict_hh_indexes[R]].house_id() + ":",
+                        std::string(e.what())};
             }
         }
     }
@@ -240,14 +236,14 @@ double MCMC::Impl::update_house_loglike(size_t R, const bool is_augm_ll, const b
     }
 
     // update household observation loglikelihood
-    house.set_obs_loglike(_compute_house_obs_loglike(house));
-    double output = house.get_obs_loglike();
+    double output = _compute_house_obs_loglike(house);
+    house.set_obs_loglike(output);
 
     // update household augmented loglikelihood
     // NOTE: house multiplicity doesn't work with data augmentation
     if (is_augm_ll)
     {
-        compute_augm_model_loglike(house);
+        house.set_augm_loglike(_compute_augm_model_loglike(house));
         output += house.get_augm_loglike();
     }
 

@@ -4,16 +4,19 @@ test_that("Augmented variable definition is correct", {
   augm <- housepi:::HousepiAugmented$new()
 
   augm$add(name = "infec", value = "expo@D", model = "unif",
-           args = c(min = "expo_min@A", max = "expo_max@P"))
+           args = c(min = "expo_min@A", max = "expo_max@P"),
+           max = 3)
 
   expect_equal(augm$defs$name, "infec")
-  expect_equal(augm$defs$status, NA)
+  expect_equal(augm$defs$status, as.integer(NA))
   expect_equal(augm$defs$value, "expo")
   expect_equal(augm$defs$value_at, "D")
   expect_equal(augm$defs$model, "unif")
   expect_equal(augm$defs$arg_key, "min/max")
   expect_equal(augm$defs$arg_val, "expo_min/expo_max")
   expect_equal(augm$defs$arg_at, "A/P")
+  expect_equal(augm$defs$max, "3")
+  expect_equal(augm$defs$max_at, "S")
 
   # consequent required definitions
   private <- augm$.__enclos_env__$private

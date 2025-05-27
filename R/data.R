@@ -29,26 +29,6 @@
 #' @format A data frame with 2,249 rows and 6 columns
 NULL
 
-#' Individual Delays
-#'
-#' Reported individual periods of exposure and symptom onset.
-#' Simulated assuming an incubation period gamma distributed.
-#' Date are shifted so that exposure period starts from day 0.
-#'
-#' \itemize{
-#'   \item{exposure_min}{Day exposure starts}
-#'   \item{exposure_max}{Day exposure ends}
-#'   \item{onset_min}{Day symptom onset starts}
-#'   \item{onset_max}{Day symptom onset ends}
-#' }
-#'
-#' @docType data
-#' @keywords datasets
-#' @name delays
-#' @usage data(delays)
-#' @format A data frame with 223 rows and 4 columns
-NULL
-
 #' Flu 1918 Frederick
 #'
 #' Reported cases of "Spanish" flu in Frederick (USA), in 1918.

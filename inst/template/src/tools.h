@@ -128,19 +128,12 @@ using matrix = std::vector<std::vector<T>>;
 using indiv = unsigned short int;
 
 using __access_ID__ = std::string;
-const __access_ID__ __undef_ID__ = HOUSEPI_NA_STRING; // name for undefined choice
 
 using parID = __access_ID__;
 using augmID = __access_ID__;
 using dataID = __access_ID__;
 using rateID = __access_ID__;
 using cacheID = __access_ID__;
-
-const parID NULL_PARAMETER = __undef_ID__;
-const augmID NULL_AUGMENTED = __undef_ID__;
-const dataID NULL_DATACOLUMN = __undef_ID__;
-const rateID NULL_GROUPRATE = __undef_ID__;
-const cacheID NULL_EXTRAVARIA = __undef_ID__;
 
 #include <unordered_map>
 template <typename T>
@@ -236,7 +229,8 @@ namespace tools
     const std::string na_to_str(double x);
 
     // format a list of string options
-    const std::string show_list(const str_vec &options);
+    const std::string show_list(const str_vec &options,
+                                size_t max_print = 5);
     // calculate Levenshtein distance
     ushort levenshtein(const std::string &s1, const std::string &s2);
     // find the closest match
@@ -290,8 +284,9 @@ namespace progress
 
         //===== SETTER =====//
         void set_text(const std::string &text);
+        void start();
         void update();
-        void finalize();
+        void end();
 
     private:
         class Impl; // Pointer to Implementation

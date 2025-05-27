@@ -275,8 +275,12 @@ void Household::assign_contact_rate(indiv from, indiv to, const double *x)
 /* Store the loglikelihood of household observation. */
 void Household::set_obs_loglike(double x)
 {
+	if ((tools::is_na(_obs_loglike)) && (std::isinf(_obs_loglike)))
+		throw std::runtime_error(
+			"NaN value found in household observation loglikelihood.");
 	if (tools::is_na(x))
-		throw std::runtime_error("Set a NaN value as household observation loglikelihood.");
+		throw std::runtime_error(
+			"NaN value set as household observation loglikelihood.");
 
 	_obs_buffer = _obs_loglike;
 	_obs_loglike = x;
@@ -285,8 +289,12 @@ void Household::set_obs_loglike(double x)
 /* Store the loglikelihood of household augmented variables. */
 void Household::set_augm_loglike(double x)
 {
+	if ((tools::is_na(_augm_loglike)) && (std::isinf(_augm_loglike)))
+		throw std::runtime_error(
+			"NaN value found in household augmented variables loglikelihood.");
 	if (tools::is_na(x))
-		throw std::runtime_error("Set a NaN value as household augmented variables loglikelihood.");
+		throw std::runtime_error(
+			"NaN value set as household augmented variables loglikelihood.");
 
 	_augm_buffer = _augm_loglike;
 	_augm_loglike = x;
@@ -325,8 +333,6 @@ ushort Household::n_missing_status() const { return _n_missing; }
 
 double Household::get_augm_loglike() const { return _augm_loglike; }
 double Household::get_obs_loglike() const { return _obs_loglike; }
-double Household::get_delta_augm_loglike() const { return _augm_loglike - _augm_buffer; }
-double Household::get_delta_obs_loglike() const { return _obs_loglike - _obs_buffer; }
 
 const std::vector<indiv> &Household::infected_status_list() const { return _infec_list; }
 const std::vector<indiv> &Household::healthy_status_list() const { return _healthy_list; }

@@ -58,7 +58,7 @@ public:
 	//===== SETTER =====//
 	//==================//
 
-	virtual void init_reshaping(bool discrete);
+	virtual void init_reshaping(bool discrete) override;
 
 	//==================//
 	//===== GETTER =====//
@@ -213,88 +213,75 @@ private:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  DistributionRegistry : class  ///////////////////////////////
+////////////////////////////////////  Distribution Registries  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Distributions Registry base class. */
 class DistrRegistry : public FuncRegistry
 {
 public:
 	DistrRegistry(std::string name, str_vec options)
 		: FuncRegistry(name, options) {}
+	virtual ~DistrRegistry() = default;
 
 	virtual std::shared_ptr<Distribution> get_distr(const std::string &opt) const = 0;
-	std::shared_ptr<Function> get(const std::string &opt) const override final
-	{
-		return get_distr(opt);
-	}
+	std::shared_ptr<Function> get(const std::string &opt) const override final;
 };
 
+/* Continuos Distributions Registry class. */
 class ContinuosDistrRegistry : public DistrRegistry
 {
 public:
 	ContinuosDistrRegistry()
 		: DistrRegistry("continuos distribution",
 						{"unif", "norm", "lnorm",
-						 "beta", "gamma", "reparam_gamma",
+						 "beta", "gamma", "gamma_meanvar",
 						 "rayleigh", "weibull", "exp"}) {}
+	~ContinuosDistrRegistry() = default;
 
 	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
 };
 
+/* Discrete Distributions Registry. */
 class DiscreteDistrRegistry : public DistrRegistry
 {
 public:
 	DiscreteDistrRegistry()
 		: DistrRegistry("discrete distribution",
 						{"pois", "binom", "nbinom", "geom"}) {}
+	~DiscreteDistrRegistry() = default;
 
 	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
+};
+
+/* Composite Distribution Registry. */
+class CompositeDistrRegistry : public DistrRegistry
+{
+public:
+	CompositeDistrRegistry(std::string name,
+						   std::vector<std::shared_ptr<DistrRegistry>> registries);
+	~CompositeDistrRegistry() = default;
+
+	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
+
+private:
+	std::vector<std::shared_ptr<DistrRegistry>> _registries;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  InfecProfileRegistry : class  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Infectivity Profile Registry. */
 class InfecProfileRegistry : public DistrRegistry
 {
 public:
 	InfecProfileRegistry()
 		: DistrRegistry("infectivity profile",
 						{"ferretti20", "cortier25"}) {}
+	~InfecProfileRegistry() = default;
 
 	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
-};
-
-class CompositeDistrRegistry : public DistrRegistry
-{
-private:
-	std::vector<std::shared_ptr<DistrRegistry>> _registries;
-
-public:
-	CompositeDistrRegistry(std::string name,
-						   std::vector<std::shared_ptr<DistrRegistry>> registries)
-		: DistrRegistry(name, {}), _registries(std::move(registries))
-	{
-		for (const auto &r : _registries)
-		{
-			const str_vec &this_opts = r->get_options();
-			_options.insert(_options.end(), this_opts.begin(), this_opts.end());
-		}
-	}
-
-	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final
-	{
-		if (tools::is_na(opt))
-			return std::make_shared<Distribution>();
-		else
-			for (const auto &r : _registries)
-				if (r->valid_option(opt))
-					return r->get_distr(opt);
-
-		throw std::invalid_argument(
-			"Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
-		return nullptr;
-	}
 };
 
 #endif // HOUSEPI__DISTRIBUTION__H

@@ -29,14 +29,17 @@ We explain the process of associating augmented variable to individuals to then 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
-Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the exposure and onset times, modeled as uniformly distributed in the reported ranges.
-We associate a positive status to all individuals and we correct for right censoring modifying the maximum values as follows:
+Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the infection and onset times, modeled as uniformly distributed in the reported ranges.
 
 ```{r}
-dataset <- housepi::delays
-dataset$exposure_max <- dataset$exposure_max + 0.999
-dataset$onset_max <- dataset$onset_max + 0.999
-dataset$status <- 1
+# use an example script for generate delays
+source("generate_delays.R")
+
+# generate delays according to a gamma distribution
+dataset <- generate_delays()
+# correct right censoring to allow for the event to occur during the whole day
+dataset$exposure_max <- dataset$exposure_max + 0.99
+dataset$onset_max <- dataset$onset_max + 0.99
 
 head(dataset)
 ```
@@ -59,8 +62,8 @@ More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and
 
 | Origin     | Link Examples       | Symbol |
 |------------|---------------------|--------|
-| Scalar     | 5, "5", "5\@S"      | S      |
-| Parameter  | "scale", "scale\@P" | P      |
+| Scalar     | 14, "14", "14\@S"   | S      |
+| Parameter  | "mean", "mean\@P"   | P      |
 | Dataset    | "onset_max\@D"      | D      |
 | Augmented  | "infec_time\@A"     | A      |
 
@@ -72,7 +75,7 @@ We propose the incubation period to be distributed as a gamma distribution, with
 Then, we define the augmented variables `infec_time` and `onset_time` as uniformly distributed in the ranges of exposure and onset times, respectively.
 
 ```{r}
-# example of augmented variable definitions as function calls
+# augmented variable definitions as function calls
 hhmodel$load_augm_list(
   # declare 'incub_period' as the difference
   # between augmented onset and infection times
@@ -80,10 +83,13 @@ hhmodel$load_augm_list(
 
   # explicit declaration of incubation period distribution
   proba = list(
-    func = "gamma",                     # gamma distribution
-    func_args = c(x = "incub_period@A", # compute from individual augmented 'incub_period'
-                  shape = "shape@P",    # use model parameter 'shape'
-                  scale = "scale@P")    # and 'scale'
+    func = "gamma_meanvar", # gamma distribution (by mean and variance)
+    func_args = c(
+      x = "incub_period@A", # compute from individual augmented 'incub_period'
+      mean = "mean",        # use model parameter 'mean'
+      var = "var"           # and 'var'
+    ),   
+    max = 14                # truncation
   ),
 
   # declare the augmented variable 'log_proba'
@@ -92,47 +98,27 @@ hhmodel$load_augm_list(
 
 # define the gamma distribution parameter to be inferred
 hhmodel$load_param_list(
-  shape = list(prior = "unif", args = c(max = 5), rule = "norm"),
-  scale = list(prior = "unif", args = c(max = 5), rule = "norm")
+  mean = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm"),
+  var = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm")
 )
 
 # add 'infec_time' time definition
 hhmodel$add_augm(
   name = "infec_time",
   value = "exposure_min@D", # start from data value 'exposure_min'
+  # uniform model within the range [0, 'exposure_max']
   model = "unif",
-  args = c(min = "exposure_min@D",  # move within the range 'exposure_min'
-           max = "exposure_max@D"), # and 'exposure_max'
+  args = c(min = 0, max = "exposure_max@D"),
   rule = "norm", # normal distribution for the mcmc proposer 
   scale = 0.25   # with scale 0.25 (i. e. standard deviation)
 )
 
 # add 'onset_time' time definition
 hhmodel$add_augm(
-  name = "onset_time",
-  value = "onset_max@D",
-  model = "unif",
-  args = c(min = "onset_min@D",
-           max = "onset_max@D"),
-  rule = "norm", 
-  scale = 0.25
+  name = "onset_time", value = "onset_max@D",
+  model = "unif", args = c(min = "onset_min@D", max = "onset_max@D"),
+  rule = "norm", scale = 0.25
 )
-```
-
-We can inspect our current augmented variable definitions by calling the field `$augm_defs`:
-
-```{r}
-augm_defs <- hhmodel$augm_defs
-```
-
-```{r, echo=FALSE}
-knitr::kable(augm_defs[1:8],
-             caption = "Augmented variable definitions 1/3.")
-knitr::kable(augm_defs[9:15],
-             caption = "Augmented variable definitions 2/3.")
-knitr::kable(augm_defs[16:(dim(augm_defs)[2])],
-             caption = "Augmented variable definitions 3/3.")
-  
 ```
 
 ### Extract Augmented Variable Traces

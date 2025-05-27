@@ -358,7 +358,7 @@ namespace numr
     {
         inline double pdf(double x, double shape, double scale)
         {
-            return std::exp(-x / scale) * std::pow(x, shape - 1.) / (std::tgamma(shape) * std::pow(scale, shape));
+            return std::pow(x, shape - 1) * std::exp(-shape * std::log(scale) - std::lgamma(shape) - x / scale);
         }
         inline double cdf(double x, double shape, double scale)
         {
@@ -366,7 +366,8 @@ namespace numr
         }
         inline double logpdf(double x, double shape, double scale)
         {
-            return (shape - 1) * std::log(x) - std::lgamma(shape) - shape * std::log(scale) - x / scale;
+            const double t = x / scale;
+            return shape * std::log(t) - std::log(x) - std::lgamma(shape) - t;
         }
         inline double logratio(double xold, double xnew, double shape, double scale)
         {

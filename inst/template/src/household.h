@@ -204,8 +204,6 @@ public:
 	//----- Loglikelihood : Getter -----//
 	double get_augm_loglike() const;
 	double get_obs_loglike() const;
-	double get_delta_augm_loglike() const;
-	double get_delta_obs_loglike() const;
 
 	//=======================//
 	//===== DIAGNOSTICS =====//

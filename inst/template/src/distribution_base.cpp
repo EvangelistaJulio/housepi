@@ -69,6 +69,7 @@ double Distribution::rand(rnd_gen &prng)
 double Distribution::return_value() const
 {
     const double x = get_arg(n_args() - 1);
+
     if (valid(x))
         return pdf(x);
     else
@@ -736,4 +737,38 @@ double Distribution::__d_e_v__check__pdf__norm(int n_bins,
     m *= Dx;
 
     return m;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Composite Distribution Registry  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Overriding get method of generic function with distribution. */
+std::shared_ptr<Function> DistrRegistry::get(const std::string &opt) const { return get_distr(opt); }
+
+/* Constructor of Composite Distribution Registry. */
+CompositeDistrRegistry::CompositeDistrRegistry(std::string name,
+                                               std::vector<std::shared_ptr<DistrRegistry>> registries)
+    : DistrRegistry(name, {}), _registries(std::move(registries))
+{
+    for (const auto &r : _registries)
+    {
+        const str_vec &this_opts = r->get_options();
+        _options.insert(_options.end(), this_opts.begin(), this_opts.end());
+    }
+}
+
+/* Get distribution method of Composite Distribution Registry. */
+std::shared_ptr<Distribution> CompositeDistrRegistry::get_distr(const std::string &opt) const
+{
+    if (tools::is_na(opt))
+        return std::make_shared<Distribution>();
+    else
+        for (const auto &r : _registries)
+            if (r->valid_option(opt))
+                return r->get_distr(opt);
+
+    throw std::invalid_argument(
+        "Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
+    return nullptr;
 }

@@ -454,6 +454,11 @@ void Variable::assign_func_attr(const std::string &arg_name, bool is_arg, std::s
 {
     _func_ptr->assign_attr(arg_name, is_arg, f);
 }
+/* Initialize function reshaping. */
+void Variable::init_func_reshaping()
+{
+    _func_ptr->init_reshaping(_is_discrete);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Variable - Setter (Distribution)  /////////////////////////////////
@@ -487,6 +492,10 @@ void Variable::assign_distr_attr(const std::string &arg_name, bool is_arg, std::
 void Variable::init_distr_reshaping()
 {
     _distr_ptr->init_reshaping(_is_discrete);
+    // check that non-constant variable has non-zero dimensional range
+    if ((!_is_constant) && (_distr_ptr->get_min() == _distr_ptr->get_max()))
+        tools::error(
+            "Degenerate range " + _distr_ptr->show_range() + " defined for non constant variable \"" + show_name() + "\".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -605,6 +614,10 @@ const std::string Variable::show_value() const { return tools::na_to_str(get());
 const std::string Variable::show_distr_name() const { return _distr_ptr->show_name(); }
 const std::string Variable::show_distr_arg_names() const { return _distr_ptr->show_arg_names(); }
 const std::string Variable::show_distr_arg_values() const { return _distr_ptr->show_arg_values(); }
+const std::string Variable::show_distr_summary() const { return _distr_ptr->show_summary(); }
+
+
+const std::string Variable::show_func_summary() const { return _func_ptr->show_summary(); }
 
 const std::string Variable::show_prop_name() const { return _prop_ptr->show_name(); }
 const std::string Variable::show_prop_arg_names() const { return _prop_ptr->show_arg_names(); }

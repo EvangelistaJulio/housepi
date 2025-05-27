@@ -322,19 +322,19 @@ protected:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Reparametrized Gamma Distribution : class  /////////////////////////
+///////////////////////////  Gamma (Mean-Varance) Distribution : class  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Reparametrized Gamma Distribution derived class. */
-class ReparamGamma_Distribution : public Distribution
+/* Gamma (Mean-Varance) Distribution derived class. */
+class GammaMeanVar_Distribution : public Distribution
 {
 public:
     //===== CONSTRUCTOR =====//
-    ReparamGamma_Distribution()
-        : Distribution("reparam_gamma", {"mean", "var"}, {1., 1.},
+    GammaMeanVar_Distribution()
+        : Distribution("gamma_meanvar", {"mean", "var"}, {1., 1.},
                        0., HOUSEPI_NA_DOUBLE, false, false),
           distr_gen(get_arg(0), get_arg(1)) {}
-    ~ReparamGamma_Distribution() = default;
+    ~GammaMeanVar_Distribution() = default;
 
     //==== SETTER =====//
     void init_reshaping(bool discrete) override final
@@ -813,8 +813,8 @@ std::shared_ptr<Distribution> ContinuosDistrRegistry::get_distr(const std::strin
     else if (opt == "gamma")
         return std::make_shared<Gamma_Distribution>();
 
-    else if (opt == "reparam_gamma")
-        return std::make_shared<ReparamGamma_Distribution>();
+    else if (opt == "gamma_meanvar")
+        return std::make_shared<GammaMeanVar_Distribution>();
 
     else if (opt == "rayleigh")
         return std::make_shared<Rayleigh_Distribution>();

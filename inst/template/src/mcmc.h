@@ -85,7 +85,6 @@ public:
 	bool is_augm_model() const;
 	void assign_all_augm(Household &house, indiv i);
 	void clear_all_augm(Household &house, indiv i);
-	double compute_augm_model_loglike(const Household &house) const;
 
 	//============================//
 	//===== CACHE ATTRIBUTES =====//

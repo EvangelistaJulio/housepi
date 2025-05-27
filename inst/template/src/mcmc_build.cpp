@@ -524,7 +524,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                     else if (tools::is_na(datatable.at(key)[i]))
                     {
                         data.emplace(key, HOUSEPI_NA_DOUBLE);
-                        tools::warning("Found NA value(s) in the database.");
+                        tools::warning("Found NA values in the database.");
                     }
                     else
                         data.emplace(key, tools::stod(datatable.at(key)[i], "data \"" + key + "\""));

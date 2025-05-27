@@ -165,6 +165,7 @@ public:
     void assign_func_attr(const std::string &arg_name, bool is_arg, double x);
     void assign_func_attr(const std::string &arg_name, bool is_arg, const double *y);
     void assign_func_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+    void init_func_reshaping();
 
     //----- Pointer to distribution -----//
     void assign_distr(const std::string &distr_name = HOUSEPI_NA_STRING);
@@ -211,6 +212,9 @@ public:
     const std::string show_distr_name() const;
     const std::string show_distr_arg_names() const;
     const std::string show_distr_arg_values() const;
+    const std::string show_distr_summary() const;
+
+    const std::string show_func_summary() const;
 
     const std::string show_min() const;
     const std::string show_max() const;

@@ -305,11 +305,6 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
         break;
 
     case 3: //----- within an interval -----//
-
-        if (_range_min.get() >= _range_max.get())
-            throw std::invalid_argument(
-                "Inconsistent range " + show_range() + ".");
-
         if ((is_min_open) && (is_max_open))
         {
             _do_below = &Function::__below_open_min;
@@ -334,13 +329,24 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
             _do_above = &Function::__above_close_max;
             _do_valid = &Function::__valid_both_close;
         }
+
+        // check for consistency
+        bool wrong_open = (_do_valid != &Function::__valid_both_close) && (_range_min.get() >= _range_max.get());
+        bool wrong_close = (_do_valid == &Function::__valid_both_close) && (_range_min.get() > _range_max.get());
+        if (wrong_open || wrong_close)
+            throw std::invalid_argument(
+                "Inconsistent range " + show_range() + ".");
         break;
     }
 }
 
-const std::string Function::show_min() const { return _range_min.show(); }
-const std::string Function::show_max() const { return _range_max.show(); }
+/* Virtual function to initialize reshaping in Distribution, etc. */
+void Function::init_reshaping(bool discrete) { UNUSED(discrete); }
 
+/* Return formatted range minimum. */
+const std::string Function::show_min() const { return _range_min.show(); }
+/* Return formatted range maximum. */
+const std::string Function::show_max() const { return _range_max.show(); }
 /* Return formatted range. */
 const std::string Function::show_range() const
 {

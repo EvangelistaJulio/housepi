@@ -184,6 +184,15 @@ void MCMC::Impl::_assign_augm_func_args(Household &house, indiv i, augmID a,
     _assign_augm_attributes(house, i, a, keys, vals, typs,
                             std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_FUNCTION);
 }
+/* Assign augmented function range. */
+void MCMC::Impl::_assign_augm_func_range(Household &house, indiv i, augmID a,
+                                         const str_vec &vals,
+                                         const str_vec &typs)
+{
+    _assign_augm_attributes(house, i, a, {"min", "max"}, vals, typs,
+                            std::vector<bool>(2, ATTR_RANGE), VAR_FUNCTION);
+}
+
 /* Assign augmented model arguments. */
 void MCMC::Impl::_assign_augm_model_args(Household &house, indiv i, augmID a,
                                          const str_vec &keys,
@@ -425,7 +434,7 @@ void MCMC::Impl::build_augm()
                 }
             }
 
-            // finalize assigment in the households
+            // end assigment in the households
             _build_augm_clear_houses_and_set_id_trace();
         }
     }
@@ -512,12 +521,18 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
             xaugm.init_distr_reshaping();
 
             if (xaugm.is_function())
+            {
                 // assign arguments to function
                 _assign_augm_func_args(house, i, a,
                                        tools::parse_list_args(deftab.at("farg_key")[k]),
                                        tools::parse_list_args(deftab.at("farg_val")[k]),
                                        tools::parse_list_args(deftab.at("farg_at")[k]));
-
+                // assign range to function
+                _assign_augm_func_range(house, i, a,
+                                        {deftab.at("min")[k], deftab.at("max")[k]},
+                                        {deftab.at("min_at")[k], deftab.at("max_at")[k]});
+                xaugm.init_func_reshaping();
+            }
             else if (!xaugm.is_constant())
             {
                 // assign proposer rule
@@ -586,12 +601,12 @@ void MCMC::Impl::init_augmented_variables()
 //-----------------------------------------------------------------------------------------------//
 
 /* Compute loglikelihood term associated to augmented models. */
-void MCMC::Impl::compute_augm_model_loglike(Household &house)
+double MCMC::Impl::_compute_augm_model_loglike(Household &house)
 {
     double hh_loglike = 0.;
     for (const indiv &i : house.infected_status_list())
         hh_loglike += house.get_member(i).get_augm_model_loglike();
-    house.set_augm_loglike(hh_loglike);
+    return hh_loglike;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -628,8 +643,9 @@ void MCMC::Impl::move_all_augm()
 #pragma omp critical
                 {
                     if (!has_error.exchange(true))
-                        _error_message = {"While moving augmented variables in house " + house_vector[H].house_id() + ":",
-                                          std::string(e.what())};
+                        _error_message = {
+                            "While sampling augmented variables for household " + house_vector[H].house_id() + ":",
+                            std::string(e.what())};
                 }
             }
         }
@@ -693,24 +709,21 @@ double MCMC::Impl::_metropolis_augm_single_move(Household &house, indiv i, const
         house.buffer_all_cache();
         _update_cache_dependecies(house, i);
 
-        // update house loglikelihood and store old value in buffer
-        house.set_obs_loglike(_compute_house_obs_loglike(house));
+        double new_obs_ll = _compute_house_obs_loglike(house);
+        // UPDATE: I don't need to recompute for all individuals
+        double new_augm_value = _compute_augm_model_loglike(house);
 
         // Metropolis-Hastings algorithm
-        // UPDATE: maybe I don't need to recompute for all individuals
-        compute_augm_model_loglike(house);
-
-        const double D_ll = house.get_delta_augm_loglike() + house.get_delta_obs_loglike();
+        const double D_ll = new_obs_ll + new_augm_value - house.get_obs_loglike() - house.get_augm_loglike();
         if (uniform() < std::exp(setup_inv_T * D_ll - xaugm.propose_logratio()))
         {
+            house.set_obs_loglike(new_obs_ll);
+            house.set_augm_loglike(new_augm_value);
             return D_ll;
         }
         else
-        {
             // else recover cached values
             house.recover_all_cache();
-            house.recover_loglike_value();
-        }
     }
     // else recover buffered value
     xaugm.recover_value();

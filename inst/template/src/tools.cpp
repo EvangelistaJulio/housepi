@@ -494,19 +494,19 @@ namespace tools
     }
 
     /* Format a list of string options. */
-    const std::string show_list(const str_vec &options)
+    const std::string show_list(const str_vec &options, size_t max_print)
     {
         if (options.empty())
             return "";
         else
         {
             std::ostringstream oss;
-            size_t max_opts_to_show = std::min(options.size(), static_cast<size_t>(5));
+            max_print = std::min(options.size(), max_print);
 
             oss << "\"" << options[0] << "\"";
-            for (size_t i = 1; i < max_opts_to_show; ++i)
+            for (size_t i = 1; i < max_print; ++i)
                 oss << ", \"" << options[i] << "\"";
-            if (options.size() > max_opts_to_show)
+            if (options.size() > max_print)
                 oss << ", ...";
             return oss.str();
         }
@@ -535,8 +535,11 @@ namespace tools
             return "";
         else if (dist_closest == 0)
             return "";
-        else if (!closest.empty())
-            return " Available option(s): " + show_list(options) + ".";
+        else if (closest.empty())
+            if (options.size() == 1)
+                return " Available option is " + show_list(options) + ".";
+            else
+                return " Available options are: " + show_list(options) + ".";
         else
             return " Did you mean \"" + closest + "\"?";
     }
@@ -555,8 +558,14 @@ namespace tools
                     missing.push_back(x);
 
             if (!missing.empty())
-                throw std::invalid_argument(
-                    "Missing column(s): " + show_list(missing) + ".");
+            {
+                if (missing.size() == 1)
+                    throw std::invalid_argument(
+                        "Missing column " + show_list(missing) + ".");
+                else
+                    throw std::invalid_argument(
+                        "Missing columns: " + show_list(missing) + ".");
+            }
         }
     }
 
@@ -571,11 +580,11 @@ namespace tools
 
         if (unused.size() == 1)
             throw std::invalid_argument(
-                "Unknown option: \"" + unused[0] + "\"." + find_closest(unused[0], options));
+                "Unknown option " + show_list(unused) + "." + find_closest(unused[0], options));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown option(s): " + show_list(unused) + find_closest(HOUSEPI_NA_STRING, options, 0));
+                "Unknown options: " + show_list(unused) + "." + find_closest(HOUSEPI_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE
@@ -638,28 +647,38 @@ namespace progress
     class Bar::Impl
     {
     public:
-        const std::string symbol = u8"\u25A0"; // bar decorator
-        unsigned barwidth = 40;                // bar total size
-        bool verbose = true;                   // wheter to show bar
-
-        ulong state = 0;       // current iteration
-        ulong total = 0;       // total number of iterations
-        std::string text = ""; // current text to show
-
-        steady_clock::time_point start;
-        steady_clock::time_point lastprint;
-        ulong thintime = 0;
-
         //=======================//
         //===== CONSTRUCTOR =====//
         //=======================//
 
-        Impl()
+        Impl(ulong total, const std::string &text, ulong thintime)
         {
 #ifdef _HOUSEPI_RCPP
+            Rcpp::checkUserInterrupt();
             // change barwidth according to console width
-            barwidth = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
+            _barwidth = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
 #endif
+
+            // load options
+            _state = 0;
+            _total = total;
+            _verbose = thintime > 0;
+            _thintime = thintime - 1;
+            _text = text;
+
+            // print initial message
+            if (_verbose)
+            {
+                std::ostringstream oss;
+
+                oss << _text << " |" << std::string(_barwidth, ' ') << "| "
+                    << tools::percentage(0., 0);
+                _display(oss.str());
+            }
+
+            // keep track of time
+            _start = steady_clock::now();
+            _lastprint = _start;
         };
         ~Impl() {};
 
@@ -668,27 +687,7 @@ namespace progress
         //==================//
 
         /* Set description text of progress bar. */
-        void set_text(const std::string &text) { this->text = text; }
-
-        /* Initialize progress bar. */
-        void initialize(const std::string &text)
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::checkUserInterrupt();
-#endif
-            if (verbose)
-            {
-                set_text(text);
-
-                std::ostringstream oss;
-                oss << text << " |" << std::string(barwidth, ' ') << "| "
-                    << tools::percentage(0., 0);
-                _display(oss.str());
-
-                start = steady_clock::now();
-                lastprint = start;
-            }
-        }
+        void set_text(const std::string &text) { _text = text; }
 
         /* Update progress bar given the progress state. */
         void update()
@@ -696,47 +695,47 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
-            if (verbose)
+            if (_verbose)
             {
-                const double progress = static_cast<double>(state) / total;
+                const double progress = static_cast<double>(_state) / _total;
                 steady_clock::time_point now = steady_clock::now();
-                seconds elapsed = duration_cast<seconds>(now - start);
+                seconds elapsed = duration_cast<seconds>(now - _start);
                 seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
 
-                if (static_cast<ulong>(duration_cast<seconds>(now - lastprint).count()) > thintime)
+                if (static_cast<ulong>(duration_cast<seconds>(now - _lastprint).count()) > _thintime)
                 {
-                    const unsigned where = progress * barwidth;
+                    const unsigned where = progress * _barwidth;
                     std::ostringstream oss;
-                    oss << "\r" << text << " |";
+                    oss << "\r" << _text << " |";
                     for (unsigned u = 0; u < where; ++u)
-                        oss << symbol;
-                    oss << std::string(barwidth - where, ' ') << "| "
+                        oss << _symbol;
+                    oss << std::string(_barwidth - where, ' ') << "| "
                         << tools::percentage(progress, 0) << " "
                         << fmt_time(elapsed) << "<" << fmt_time(missing)
                         << std::string(10, ' ');
                     _display(oss.str());
 
-                    lastprint = steady_clock::now();
+                    _lastprint = steady_clock::now();
                 }
             }
 
-            ++state;
+            ++_state;
         }
 
-        /*  Finalize the progress bar. */
-        void finalize()
+        /*  End the progress bar. */
+        void end()
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
-            if (verbose)
+            if (_verbose)
             {
-                seconds elapsed = duration_cast<seconds>(steady_clock::now() - start);
+                seconds elapsed = duration_cast<seconds>(steady_clock::now() - _start);
 
                 std::ostringstream oss;
-                oss << "\r" << text << " |";
-                for (unsigned u = 0; u < barwidth; u++)
-                    oss << symbol;
+                oss << "\r" << _text << " |";
+                for (unsigned u = 0; u < _barwidth; u++)
+                    oss << _symbol;
                 oss << "| " << fmt_time(elapsed)
                     << std::string(25, ' ') << "\n";
                 _display(oss.str());
@@ -744,6 +743,18 @@ namespace progress
         }
 
     private:
+        const std::string _symbol = u8"\u25A0"; // bar decorator
+        unsigned _barwidth = 40;                // bar total size
+        bool _verbose = true;                   // wheter to show bar
+
+        ulong _state = 0;       // current iteration
+        ulong _total = 0;       // total number of iterations
+        std::string _text = ""; // current text to show
+
+        steady_clock::time_point _start;
+        steady_clock::time_point _lastprint;
+        ulong _thintime = 0;
+
         /* Function to display the progress bar. */
         void _display(const std::string &sms) { tools::print_stdout(sms); }
     };
@@ -760,13 +771,7 @@ namespace progress
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     Bar::Bar(ulong total, const std::string &text, ulong thintime)
-        : pImpl(std::make_unique<Impl>())
-    {
-        pImpl->total = total;
-        pImpl->verbose = thintime > 0;
-        pImpl->thintime = thintime - 1;
-        pImpl->initialize(text);
-    }
+        : pImpl(std::make_unique<Impl>(total, text, thintime)) {}
     Bar::~Bar() = default;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -775,6 +780,6 @@ namespace progress
 
     void Bar::set_text(const std::string &text) { pImpl->set_text(text); }
     void Bar::update() { pImpl->update(); }
-    void Bar::finalize() { pImpl->finalize(); }
+    void Bar::end() { pImpl->end(); }
 
 } // PROGRESS NAMESPACE

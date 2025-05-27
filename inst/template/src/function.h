@@ -127,6 +127,7 @@ public:
     const double *get_ptr_to_arg(ushort i) const;
     const double *get_ptr_to_min() const;
     const double *get_ptr_to_max() const;
+
     bool below(double x) const;
     bool above(double x) const;
     bool valid(double x) const;
@@ -143,6 +144,7 @@ public:
     void set_arg(ushort i, double new_value);
     void init_uniform_range();
     void init_functional_range(bool is_min_open, bool is_max_open);
+	virtual void init_reshaping(bool discrete);
 
     //===== SHOW =====//
     const std::string show_name() const;

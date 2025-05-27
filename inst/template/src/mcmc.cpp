@@ -307,7 +307,7 @@ void MCMC::infer()
                                   pImpl->fmt_progtxt(), pImpl->setup_progress);
 
         pImpl->run_monte_carlo(progressbar); // run Monte Carlo
-        progressbar.finalize();              // close progress bar
+        progressbar.end();              // close progress bar
     }
     catch (std::exception &e)
     {
@@ -459,7 +459,7 @@ const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulo
             "Unknown power posterior scheme \"" + scheme + "\"." + tools::find_closest(scheme, options, 3));
 
     //----- Close progress bar -----//
-    progressbar.finalize();
+    progressbar.end();
 
     //----- Restore user setup -----//
     t = buffer_inv_T;
@@ -576,7 +576,7 @@ Rcpp::DataFrame MCMC::simulate()
             }
 
         // close progress bar
-        progressbar.finalize();
+        progressbar.end();
 
         // assign vectors to dataframe
         DataFrame output = DataFrame::create(
@@ -666,9 +666,9 @@ void MCMC::print_simulated_dataset(const std::string &pathtofile)
             }
 
         // close progress bar
-        progressbar.finalize();
+        progressbar.end();
 
-        // finalize output
+        // end output
         pImpl->_aux_print_dataset_finalize_();
     }
     catch (std::exception &e)
